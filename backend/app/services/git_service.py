@@ -1,11 +1,21 @@
-"""Git-based version control service for OpenDraft projects."""
+"""Git-based version control service for OpenDraft projects.
+
+Uses dulwich (pure Python) instead of GitPython to avoid requiring the
+system `git` binary — critical for macOS App Sandbox compliance.
+"""
 
 import logging
+import time
 from pathlib import Path
 
-import git
+from dulwich.repo import Repo
+from dulwich.objects import Blob, Tree
+from dulwich import porcelain
+from dulwich.patch import write_tree_diff
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_AUTHOR = b"OpenDraft <opendraft@local>"
 
 
 def init_repo(project_path: Path) -> None:
@@ -16,7 +26,7 @@ def init_repo(project_path: Path) -> None:
     if (project_path / ".git").exists():
         return
 
-    repo = git.Repo.init(project_path)
+    porcelain.init(str(project_path))
 
     # Stage all files that exist (skip .git internals)
     files = [
@@ -25,8 +35,13 @@ def init_repo(project_path: Path) -> None:
         if f.is_file() and ".git" not in f.parts
     ]
     if files:
-        repo.index.add(files)
-        repo.index.commit("Initial project setup")
+        porcelain.add(str(project_path), files)
+        porcelain.commit(
+            str(project_path),
+            message=b"Initial project setup",
+            author=DEFAULT_AUTHOR,
+            committer=DEFAULT_AUTHOR,
+        )
         logger.info("Initialized git repo at %s with initial commit", project_path)
     else:
         logger.info("Initialized empty git repo at %s", project_path)
@@ -37,74 +52,192 @@ def commit(project_path: Path, message: str) -> dict:
 
     Returns commit info or a message if nothing to commit.
     """
-    repo = git.Repo(project_path)
-    repo.git.add(A=True)
+    repo_path = str(project_path)
+    repo = Repo(repo_path)
 
-    # Check if there's anything to commit — handle empty repos (no HEAD yet)
+    # Stage all files (add new/modified)
+    files = [
+        str(f.relative_to(project_path))
+        for f in project_path.rglob("*")
+        if f.is_file() and ".git" not in f.parts
+    ]
+    if files:
+        porcelain.add(repo_path, files)
+
+    # Handle deletions: remove index entries for files that no longer exist
+    index = repo.open_index()
+    to_remove = []
+    for entry_path in list(index):
+        full_path = project_path / entry_path.decode()
+        if not full_path.exists():
+            to_remove.append(entry_path)
+    for path in to_remove:
+        del index[path]
+    if to_remove:
+        index.write()
+
+    # Check if there are actual changes compared to HEAD
     try:
-        has_changes = repo.is_dirty(untracked_files=True) or bool(repo.index.diff("HEAD"))
-    except (git.exc.GitCommandError, ValueError):
-        # No HEAD exists yet — if there are staged files, commit them
-        has_changes = len(repo.untracked_files) > 0 or len(repo.index.entries) > 0
+        head = repo.head()
+        head_commit = repo[head]
+        index = repo.open_index()
+        index_tree_id = index.commit(repo.object_store)
+        if index_tree_id == head_commit.tree:
+            return {"message": "No changes to commit"}
+    except KeyError:
+        # No HEAD yet — first commit, proceed
+        pass
 
-    if not has_changes:
-        return {"message": "No changes to commit"}
-
-    c = repo.index.commit(message)
+    commit_id = porcelain.commit(
+        repo_path,
+        message=message.encode("utf-8"),
+        author=DEFAULT_AUTHOR,
+        committer=DEFAULT_AUTHOR,
+    )
+    commit_hex = commit_id.decode("ascii") if isinstance(commit_id, bytes) else str(commit_id)
     return {
-        "hash": str(c),
-        "short_hash": str(c)[:7],
+        "hash": commit_hex,
+        "short_hash": commit_hex[:7],
         "message": message,
-        "date": c.committed_datetime.isoformat(),
+        "date": _timestamp_to_iso(int(time.time())),
     }
 
 
 def get_log(project_path: Path, limit: int = 50) -> list[dict]:
     """Return the commit log (most recent first)."""
-    repo = git.Repo(project_path)
+    repo = Repo(str(project_path))
 
-    # Handle repos with no commits yet (no HEAD reference)
     try:
-        commits = list(repo.iter_commits(max_count=limit))
-    except (git.exc.GitCommandError, ValueError):
+        head = repo.head()
+    except KeyError:
         return []
 
-    return [
-        {
-            "hash": str(c),
-            "short_hash": str(c)[:7],
-            "message": c.message.strip(),
-            "date": c.committed_datetime.isoformat(),
-            "author": str(c.author),
-        }
-        for c in commits
-    ]
+    result = []
+    walker = repo.get_walker(include=[head], max_entries=limit)
+    for entry in walker:
+        c = entry.commit
+        commit_hex = c.id.decode("ascii") if isinstance(c.id, bytes) else str(c.id)
+        result.append({
+            "hash": commit_hex,
+            "short_hash": commit_hex[:7],
+            "message": c.message.decode("utf-8", errors="replace").strip(),
+            "date": _timestamp_to_iso(c.commit_time),
+            "author": c.author.decode("utf-8", errors="replace"),
+        })
+    return result
 
 
 def get_diff(project_path: Path, from_hash: str, to_hash: str) -> str:
     """Return the unified diff between two commits."""
-    repo = git.Repo(project_path)
-    return repo.git.diff(from_hash, to_hash)
+    import io
+
+    repo = Repo(str(project_path))
+    from_commit = repo[from_hash.encode()]
+    to_commit = repo[to_hash.encode()]
+
+    buf = io.BytesIO()
+    write_tree_diff(buf, repo.object_store, from_commit.tree, to_commit.tree)
+    return buf.getvalue().decode("utf-8", errors="replace")
 
 
 def get_file_at_version(project_path: Path, commit_hash: str, file_path: str) -> str:
     """Return the content of a file at a specific commit."""
-    repo = git.Repo(project_path)
-    c = repo.commit(commit_hash)
-    blob = c.tree / file_path
-    return blob.data_stream.read().decode("utf-8")
+    repo = Repo(str(project_path))
+    c = repo[commit_hash.encode()]
+    tree = repo[c.tree]
+
+    # Walk the tree to find the file
+    parts = file_path.split("/")
+    current = tree
+    for part in parts[:-1]:
+        for item in current.items():
+            if item.path.decode() == part:
+                current = repo[item.sha]
+                break
+        else:
+            raise FileNotFoundError(f"Path component '{part}' not found")
+
+    for item in current.items():
+        if item.path.decode() == parts[-1]:
+            blob = repo[item.sha]
+            return blob.data.decode("utf-8")
+
+    raise FileNotFoundError(f"File '{file_path}' not found at commit {commit_hash[:7]}")
 
 
 def restore_version(project_path: Path, commit_hash: str) -> dict:
     """Restore the working tree to a specific version (creates a new commit)."""
-    repo = git.Repo(project_path)
+    import shutil
+
+    repo = Repo(str(project_path))
     short = commit_hash[:7]
-    repo.git.checkout(commit_hash, "--", ".")
-    repo.git.add(A=True)
-    new_commit = repo.index.commit(f"Restored to version {short}")
+    target_commit = repo[commit_hash.encode()]
+    target_tree = repo[target_commit.tree]
+
+    # Clear working tree (except .git) and restore from target tree
+    for item in project_path.iterdir():
+        if item.name == ".git":
+            continue
+        if item.is_dir():
+            shutil.rmtree(item)
+        else:
+            item.unlink()
+
+    # Recursively restore files from the target tree
+    _restore_tree(repo, target_tree, project_path)
+
+    # Stage all restored files
+    files = [
+        str(f.relative_to(project_path))
+        for f in project_path.rglob("*")
+        if f.is_file() and ".git" not in f.parts
+    ]
+    if files:
+        porcelain.add(str(project_path), files)
+
+    # Handle deletions in index
+    index = repo.open_index()
+    to_remove = []
+    for entry_path in list(index):
+        full_path = project_path / entry_path.decode()
+        if not full_path.exists():
+            to_remove.append(entry_path)
+    for path in to_remove:
+        del index[path]
+    if to_remove:
+        index.write()
+
+    message = f"Restored to version {short}"
+    commit_id = porcelain.commit(
+        str(project_path),
+        message=message.encode("utf-8"),
+        author=DEFAULT_AUTHOR,
+        committer=DEFAULT_AUTHOR,
+    )
+    commit_hex = commit_id.decode("ascii") if isinstance(commit_id, bytes) else str(commit_id)
     return {
-        "hash": str(new_commit),
-        "short_hash": str(new_commit)[:7],
-        "message": new_commit.message.strip(),
-        "date": new_commit.committed_datetime.isoformat(),
+        "hash": commit_hex,
+        "short_hash": commit_hex[:7],
+        "message": message,
+        "date": _timestamp_to_iso(int(time.time())),
     }
+
+
+def _restore_tree(repo, tree, base_path: Path) -> None:
+    """Recursively restore files from a dulwich tree object."""
+    for item in tree.items():
+        name = item.path.decode()
+        obj = repo[item.sha]
+        target = base_path / name
+        if isinstance(obj, Blob):
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(obj.data)
+        elif isinstance(obj, Tree):
+            target.mkdir(parents=True, exist_ok=True)
+            _restore_tree(repo, obj, target)
+
+
+def _timestamp_to_iso(timestamp: int) -> str:
+    """Convert a Unix timestamp to ISO 8601 string."""
+    from datetime import datetime, timezone
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat()
