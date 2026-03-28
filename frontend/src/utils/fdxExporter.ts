@@ -30,67 +30,67 @@ function esc(str: string): string {
 // Default ElementSettings matching Final Draft US Screenplay template
 const ELEMENT_SETTINGS = `
   <ElementSettings Type="Scene Heading">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style="AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Scene Heading" ReturnKey="Action" Shortcut="1"/>
   </ElementSettings>
   <ElementSettings Type="Action">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style=""/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="2"/>
   </ElementSettings>
   <ElementSettings Type="Character">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style="AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="3.75" RightIndent="7.25" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Character" ReturnKey="Dialogue" Shortcut="3"/>
   </ElementSettings>
   <ElementSettings Type="Parenthetical">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style=""/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
     <ParagraphSpec Alignment="Left" FirstIndent="-0.10" Leading="Regular" LeftIndent="3.25" RightIndent="5.25" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Parenthetical" ReturnKey="Dialogue" Shortcut="4"/>
   </ElementSettings>
   <ElementSettings Type="Dialogue">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style=""/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="2.56" RightIndent="6.25" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Dialogue" ReturnKey="Action" Shortcut="5"/>
   </ElementSettings>
   <ElementSettings Type="Transition">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style="AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
     <ParagraphSpec Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="5.25" RightIndent="6.75" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Transition" ReturnKey="Scene Heading" Shortcut="6"/>
   </ElementSettings>
   <ElementSettings Type="Shot">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style="AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Scene Heading" ReturnKey="Action" Shortcut="7"/>
   </ElementSettings>
   <ElementSettings Type="General">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style=""/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="General" ReturnKey="General" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Cast List">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style="AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.50" RightIndent="7.50" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="8"/>
   </ElementSettings>
   <ElementSettings Type="Lyrics">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style="Italic"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Italic"/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="2.56" RightIndent="6.25" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Dialogue" ReturnKey="Action" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="New Act">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style="Bold+Underline+AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold+Underline+AllCaps"/>
     <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="24" Spacing="1" StartsNewPage="Yes"/>
     <Behavior PaginateAs="Action" ReturnKey="Scene Heading" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="End of Act">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style="Bold+AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold+AllCaps"/>
     <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="New Act" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Show/Episode">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style="Bold+AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold+AllCaps"/>
     <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="0"/>
   </ElementSettings>`;
@@ -143,7 +143,7 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   lines.push('    <Header>');
   lines.push('      <Paragraph Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="-1.00" SpaceBefore="0" Spacing="1" StartsNewPage="No">');
   lines.push('        <DynamicLabel Type="Page #"/>');
-  lines.push('        <Text AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Final Draft" RevisionID="0" Size="12" Style="">.</Text>');
+  lines.push('        <Text AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="">.</Text>');
   lines.push('      </Paragraph>');
   lines.push('    </Header>');
   lines.push('  </HeaderAndFooter>');

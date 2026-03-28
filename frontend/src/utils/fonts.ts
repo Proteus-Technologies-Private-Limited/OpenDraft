@@ -18,7 +18,7 @@ export const FONT_CATEGORIES = [
 
 export const FONT_REGISTRY: FontEntry[] = [
   // Screenplay Standard
-  { name: 'Courier Final Draft', category: 'Screenplay Standard', scripts: ['latin'], source: 'local', direction: 'ltr' },
+  { name: 'Courier Prime', category: 'Screenplay Standard', scripts: ['latin'], source: 'local', direction: 'ltr' },
   { name: 'Courier New', category: 'Screenplay Standard', scripts: ['latin'], source: 'system', direction: 'ltr' },
   { name: 'Courier Prime', category: 'Screenplay Standard', scripts: ['latin'], source: 'google', direction: 'ltr' },
 

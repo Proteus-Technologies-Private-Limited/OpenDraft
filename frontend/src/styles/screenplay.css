@@ -1,15 +1,27 @@
-/* Courier Final Draft — extracted from Final Draft documents */
+/* Courier Prime — open-source screenplay font (SIL Open Font License) */
 @font-face {
-  font-family: 'Courier Final Draft';
-  src: url('/fonts/CourierFinalDraft.ttf') format('truetype');
+  font-family: 'Courier Prime';
+  src: url('/fonts/CourierPrime-Regular.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
 }
 @font-face {
-  font-family: 'Courier Final Draft';
-  src: url('/fonts/CourierFinalDraft-Bold.ttf') format('truetype');
+  font-family: 'Courier Prime';
+  src: url('/fonts/CourierPrime-Bold.ttf') format('truetype');
   font-weight: bold;
   font-style: normal;
+}
+@font-face {
+  font-family: 'Courier Prime';
+  src: url('/fonts/CourierPrime-Italic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Courier Prime';
+  src: url('/fonts/CourierPrime-BoldItalic.ttf') format('truetype');
+  font-weight: bold;
+  font-style: italic;
 }
 
 /* ============================================
@@ -46,7 +58,7 @@
   --page-margin-left: 1.25in;      /* LeftIndent of body elements */
   --page-margin-right: 1.25in;     /* 8.5" - 7.25" RightIndent */
 
-  --screenplay-font: 'Courier Final Draft', 'Courier New', 'Courier', monospace;
+  --screenplay-font: 'Courier Final Draft', 'Courier Prime', 'Courier New', 'Courier', monospace;
   --screenplay-font-size: 12pt;
   --screenplay-line-height: 1;
 }
