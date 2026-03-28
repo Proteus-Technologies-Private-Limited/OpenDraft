@@ -54,3 +54,8 @@ backend/static/
 
 # Runtime project data
 backend/data/
+
+# Build artifacts
+OpenDraft.pkg
+build/
+dist/
