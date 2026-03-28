@@ -455,7 +455,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   zoomLevel: 100,
   setZoomLevel: (level) => set({ zoomLevel: Math.min(200, Math.max(50, level)) }),
 
-  fontFamily: 'Courier Final Draft',
+  fontFamily: 'Courier Prime',
   setFontFamily: (font) => set({ fontFamily: font }),
   fontSize: 12,
   setFontSize: (size) => set({ fontSize: Math.min(24, Math.max(8, size)) }),

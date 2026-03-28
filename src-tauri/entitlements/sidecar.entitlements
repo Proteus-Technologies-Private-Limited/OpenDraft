@@ -2,6 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- App identifier must match provisioning profile -->
+    <key>com.apple.application-identifier</key>
+    <string>335RGMFDB6.com.proteus.opendraft.desktop</string>
+
+    <key>com.apple.developer.team-identifier</key>
+    <string>335RGMFDB6</string>
+
     <!-- Sidecar inherits parent app's sandbox -->
     <key>com.apple.security.app-sandbox</key>
     <true/>

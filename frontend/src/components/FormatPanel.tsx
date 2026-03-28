@@ -59,7 +59,7 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
       const chain = editor.chain().focus().setTextSelection({ from, to });
 
       // Font
-      const DEFAULT_FONTS = ['Courier Final Draft', 'Courier New', 'Courier', 'Courier Prime'];
+      const DEFAULT_FONTS = ['Courier Final Draft', 'Courier Prime', 'Courier New', 'Courier'];
       if (DEFAULT_FONTS.includes(f)) {
         chain.setMark('textStyle', { fontFamily: null });
       } else {

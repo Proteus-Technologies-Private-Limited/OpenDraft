@@ -187,7 +187,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             if (entry) loadFont(entry);
             // If selecting a default screenplay font, remove the inline fontFamily
             // so text inherits from the page wrapper CSS (avoids letter-spacing mismatch)
-            const DEFAULT_FONTS = ['Courier Final Draft', 'Courier New', 'Courier', 'Courier Prime'];
+            const DEFAULT_FONTS = ['Courier Final Draft', 'Courier Prime', 'Courier New', 'Courier'];
             if (DEFAULT_FONTS.includes(val)) {
               editor?.chain().focus().setMark('textStyle', { fontFamily: null }).removeEmptyTextStyle().run();
             } else {

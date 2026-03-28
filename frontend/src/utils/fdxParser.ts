@@ -192,7 +192,7 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
       const fontSizeVal = textEl.getAttribute('Size');
       const fontColor = textEl.getAttribute('Color');
 
-      const DEFAULT_FONTS = ['Courier Final Draft', 'Courier New', 'Courier', 'Courier Prime'];
+      const DEFAULT_FONTS = ['Courier Final Draft', 'Courier Prime', 'Courier New', 'Courier'];
       const isDefaultFont = !fontName || DEFAULT_FONTS.includes(fontName);
       const isDefaultSize = !fontSizeVal || fontSizeVal === '12';
       const hasColor = fontColor && normalizeColor(fontColor) !== '#000000';
