@@ -4,7 +4,7 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-from git import Repo
+from dulwich.repo import Repo as DulwichRepo
 
 from app.config import PROJECTS_DIR
 
@@ -55,7 +55,7 @@ def create_project(name: str) -> dict:
     )
 
     # Initialize git repository
-    Repo.init(project_dir)
+    DulwichRepo.init(str(project_dir))
 
     return project_data
 

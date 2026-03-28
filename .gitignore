@@ -43,6 +43,9 @@ backend/dist/
 # Claude Code
 .claude/
 
+# Certificates and signing
+certificates/
+
 # Test documents
 test-doc.*
 
