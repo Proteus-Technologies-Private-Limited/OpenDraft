@@ -1,0 +1,137 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            label: macOS-ARM64
+          - platform: macos-13
+            target: x86_64-apple-darwin
+            label: macOS-x64
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            label: Linux-x64
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            label: Windows-x64
+
+    runs-on: ${{ matrix.platform }}
+    name: Build (${{ matrix.label }})
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          VITE_API_BASE=http://localhost:18321/api npm run build
+        env:
+          VITE_API_BASE: http://localhost:18321/api
+
+      - name: Deploy frontend to backend static
+        run: |
+          rm -rf backend/static
+          cp -r frontend/dist backend/static
+        shell: bash
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pyinstaller
+
+      - name: Build backend sidecar
+        run: |
+          cd backend
+          pyinstaller --noconfirm --clean opendraft-api.spec
+        shell: bash
+
+      - name: Install sidecar binary (Unix)
+        if: matrix.platform != 'windows-latest'
+        run: |
+          mkdir -p src-tauri/binaries
+          cp backend/dist/opendraft-api "src-tauri/binaries/opendraft-api-${{ matrix.target }}"
+          chmod +x "src-tauri/binaries/opendraft-api-${{ matrix.target }}"
+
+      - name: Install sidecar binary (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        run: |
+          mkdir -p src-tauri/binaries
+          cp backend/dist/opendraft-api.exe "src-tauri/binaries/opendraft-api-${{ matrix.target }}.exe"
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: frontend
+          tauriScript: npx tauri
+          tagName: ${{ github.ref_name }}
+          releaseName: 'OpenDraft ${{ github.ref_name }}'
+          releaseBody: |
+            ## OpenDraft ${{ github.ref_name }}
+
+            ### Download for your platform
+
+            | Platform | File |
+            |----------|------|
+            | macOS (Apple Silicon) | `OpenDraft_*_aarch64.dmg` |
+            | macOS (Intel) | `OpenDraft_*_x64.dmg` |
+            | Windows | `OpenDraft_*_x64-setup.exe` or `.msi` |
+            | Linux (Debian/Ubuntu) | `OpenDraft_*_amd64.deb` |
+            | Linux (AppImage) | `OpenDraft_*_amd64.AppImage` |
+
+            ### What's new
+            See the [CHANGELOG](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/CHANGELOG.md) for details.
+
+            ---
+            *The desktop app is fully standalone — no Python, Node.js, or internet required.*
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: false

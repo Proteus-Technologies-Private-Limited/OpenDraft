@@ -1,0 +1,687 @@
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import type { Editor } from '@tiptap/react';
+import {
+  useEditorStore,
+  ELEMENT_LABELS,
+  NOTE_COLORS,
+  type NoteColor,
+  type ElementType,
+  type NoteFilter,
+} from '../stores/editorStore';
+import { useAssetStore, type Asset } from '../stores/assetStore';
+import { useProjectStore } from '../stores/projectStore';
+import { SERVER_BASE } from '../config';
+
+interface ScriptNotesProps {
+  editor: Editor | null;
+}
+
+/** Check if a string looks like an image URL */
+const isImageUrl = (url: string) =>
+  /\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?.*)?$/i.test(url);
+
+/** Check if a string looks like a video URL */
+const isVideoUrl = (url: string) =>
+  /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url) ||
+  /youtube\.com\/watch|youtu\.be\/|vimeo\.com\//i.test(url);
+
+/** Convert YouTube/Vimeo URL to embeddable URL */
+const toEmbedUrl = (url: string): string | null => {
+  // YouTube
+  let m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  if (m) return `https://www.youtube-nocookie.com/embed/${m[1]}`;
+  // Vimeo
+  m = url.match(/vimeo\.com\/(\d+)/);
+  if (m) return `https://player.vimeo.com/video/${m[1]}`;
+  return null;
+};
+
+/**
+ * Render note content with media embeds and @asset references.
+ * - URLs on their own line that look like images render as <img>
+ * - URLs that look like videos render as <video> or iframe embed
+ * - @AssetName references render as clickable asset links
+ */
+const NoteContentDisplay: React.FC<{
+  content: string;
+  assets: Asset[];
+  projectId: string | null;
+}> = ({ content, assets, projectId }) => {
+  if (!content) return null;
+
+  const lines = content.split('\n');
+  const elements: React.ReactNode[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Image URL on its own line
+    if (isImageUrl(line) && /^https?:\/\//.test(line)) {
+      elements.push(
+        <div key={i} className="note-media-embed">
+          <img src={line} alt="" loading="lazy" />
+        </div>,
+      );
+      continue;
+    }
+
+    // Video URL on its own line
+    if (isVideoUrl(line) && /^https?:\/\//.test(line)) {
+      const embedUrl = toEmbedUrl(line);
+      if (embedUrl) {
+        elements.push(
+          <div key={i} className="note-media-embed note-media-video">
+            <iframe src={embedUrl} allowFullScreen title="video" />
+          </div>,
+        );
+      } else {
+        elements.push(
+          <div key={i} className="note-media-embed">
+            <video src={line} controls preload="metadata" />
+          </div>,
+        );
+      }
+      continue;
+    }
+
+    // Parse @asset references inline
+    const parts = line.split(/(@\S+)/g);
+    const lineElements: React.ReactNode[] = [];
+    for (let j = 0; j < parts.length; j++) {
+      const part = parts[j];
+      if (part.startsWith('@')) {
+        const assetName = part.slice(1);
+        const asset = assets.find(
+          (a) => a.original_name.toLowerCase() === assetName.toLowerCase() ||
+                 a.original_name.replace(/\s+/g, '_').toLowerCase() === assetName.toLowerCase(),
+        );
+        if (asset) {
+          const isImg = asset.mime_type.startsWith('image/');
+          const url = projectId
+            ? `${SERVER_BASE}/api/projects/${projectId}/assets/${asset.id}`
+            : '#';
+          if (isImg) {
+            lineElements.push(
+              <span key={j} className="note-asset-ref">
+                <img src={url} alt={asset.original_name} className="note-asset-thumb" loading="lazy" />
+                <span className="note-asset-name">{part}</span>
+              </span>,
+            );
+          } else {
+            lineElements.push(
+              <a key={j} className="note-asset-ref note-asset-link" href={url} target="_blank" rel="noreferrer">
+                {part}
+              </a>,
+            );
+          }
+        } else {
+          lineElements.push(
+            <span key={j} className="note-asset-ref note-asset-unresolved">{part}</span>,
+          );
+        }
+      } else {
+        lineElements.push(<span key={j}>{part}</span>);
+      }
+    }
+
+    elements.push(
+      <div key={i} className="note-content-line">
+        {lineElements}
+      </div>,
+    );
+  }
+
+  return <div className="note-content-rendered">{elements}</div>;
+};
+
+const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor }) => {
+  const {
+    notes,
+    scriptNotesOpen,
+    scenes,
+    updateNote,
+    deleteNote,
+    toggleScriptNotes,
+    noteFilter,
+    setNoteFilter,
+  } = useEditorStore();
+
+  const { assets } = useAssetStore();
+  const { currentProject } = useProjectStore();
+  const projectId = currentProject?.id ?? null;
+
+  // Track which note is being edited (shows textarea), null = preview mode for all
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+
+  // @asset autocomplete state
+  const [assetQuery, setAssetQuery] = useState<string | null>(null);
+  const [assetSuggestions, setAssetSuggestions] = useState<Asset[]>([]);
+  const [assetSugIdx, setAssetSugIdx] = useState(0);
+  const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
+
+  // Sync external filter changes (from context menu) to panel
+  const [localFilter, setLocalFilter] = useState<NoteFilter>(noteFilter);
+  useEffect(() => {
+    setLocalFilter(noteFilter);
+  }, [noteFilter]);
+
+  // Unique context labels and element types from notes for filter chips
+  const filterOptions = useMemo(() => {
+    const types = new Set<string>();
+    const contexts = new Set<string>();
+    for (const n of notes) {
+      types.add(n.elementType);
+      if (n.contextLabel) contexts.add(n.contextLabel);
+    }
+    return {
+      types: Array.from(types).sort(),
+      contexts: Array.from(contexts).sort(),
+    };
+  }, [notes]);
+
+  const filteredNotes = useMemo(() => {
+    return notes.filter((n) => {
+      // If filtering to a specific note by ID, only show that one
+      if (localFilter.noteId) return n.id === localFilter.noteId;
+      if (localFilter.elementType && n.elementType !== localFilter.elementType) return false;
+      if (localFilter.contextLabel && n.contextLabel !== localFilter.contextLabel) return false;
+      if (localFilter.color && n.color !== localFilter.color) return false;
+      return true;
+    });
+  }, [notes, localFilter]);
+
+  const isFiltered = localFilter.elementType || localFilter.contextLabel || localFilter.color || localFilter.noteId;
+
+  const getSceneName = useCallback(
+    (sceneId: string | null) => {
+      if (!sceneId) return null;
+      const scene = scenes.find((s) => s.id === sceneId);
+      return scene ? scene.heading : null;
+    },
+    [scenes],
+  );
+
+  const getNoteColorHex = (colorName: NoteColor): string => {
+    const c = NOTE_COLORS.find((nc) => nc.name === colorName);
+    return c ? c.hex : NOTE_COLORS[0].hex;
+  };
+
+  const handleClearFilter = useCallback(() => {
+    const cleared: NoteFilter = { elementType: null, contextLabel: null, color: null, noteId: null };
+    setLocalFilter(cleared);
+    setNoteFilter(cleared);
+  }, [setNoteFilter]);
+
+  const toggleTypeFilter = useCallback(
+    (type: string) => {
+      const next: NoteFilter = {
+        ...localFilter,
+        elementType: localFilter.elementType === type ? null : type,
+      };
+      setLocalFilter(next);
+      setNoteFilter(next);
+    },
+    [localFilter, setNoteFilter],
+  );
+
+  const toggleContextFilter = useCallback(
+    (ctx: string) => {
+      const next: NoteFilter = {
+        ...localFilter,
+        contextLabel: localFilter.contextLabel === ctx ? null : ctx,
+      };
+      setLocalFilter(next);
+      setNoteFilter(next);
+    },
+    [localFilter, setNoteFilter],
+  );
+
+  const toggleColorFilter = useCallback(
+    (color: NoteColor) => {
+      const next: NoteFilter = {
+        ...localFilter,
+        color: localFilter.color === color ? null : color,
+      };
+      setLocalFilter(next);
+      setNoteFilter(next);
+    },
+    [localFilter, setNoteFilter],
+  );
+
+  const handleDelete = useCallback(
+    (id: string) => {
+      if (!window.confirm('Delete this note?')) return;
+      if (editor) {
+        const { doc, schema } = editor.state;
+        const markType = schema.marks.scriptNote;
+        if (markType) {
+          editor.chain().focus().command(({ tr }) => {
+            doc.descendants((node, pos) => {
+              if (!node.isText) return;
+              const mark = node.marks.find(
+                (m) => m.type === markType && m.attrs.noteId === id,
+              );
+              if (mark) {
+                tr.removeMark(pos, pos + node.nodeSize, mark);
+              }
+            });
+            return true;
+          }).run();
+        }
+      }
+      deleteNote(id);
+    },
+    [editor, deleteNote],
+  );
+
+  const handleColorChange = useCallback(
+    (id: string, color: NoteColor) => {
+      updateNote(id, { color });
+      if (editor) {
+        const hex = getNoteColorHex(color);
+        const { doc, schema } = editor.state;
+        const markType = schema.marks.scriptNote;
+        if (markType) {
+          editor.chain().command(({ tr }) => {
+            doc.descendants((node, pos) => {
+              if (!node.isText) return;
+              const mark = node.marks.find(
+                (m) => m.type === markType && m.attrs.noteId === id,
+              );
+              if (mark) {
+                tr.removeMark(pos, pos + node.nodeSize, mark);
+                tr.addMark(pos, pos + node.nodeSize, markType.create({ noteId: id, color: hex }));
+              }
+            });
+            return true;
+          }).run();
+        }
+      }
+    },
+    [editor, updateNote],
+  );
+
+  const handleNavigateToNote = useCallback(
+    (noteId: string) => {
+      if (!editor) return;
+      const { doc, schema } = editor.state;
+      const markType = schema.marks.scriptNote;
+      if (!markType) return;
+
+      let targetPos: number | null = null;
+      doc.descendants((node, pos) => {
+        if (targetPos !== null) return false;
+        if (!node.isText) return;
+        const mark = node.marks.find(
+          (m) => m.type === markType && m.attrs.noteId === noteId,
+        );
+        if (mark) {
+          targetPos = pos;
+          return false;
+        }
+      });
+
+      if (targetPos !== null) {
+        editor.chain().focus().setTextSelection(targetPos).run();
+        const coords = editor.view.coordsAtPos(targetPos);
+        const editorMain = document.querySelector('.editor-main');
+        if (editorMain && coords) {
+          const rect = editorMain.getBoundingClientRect();
+          const scrollTo = editorMain.scrollTop + (coords.top - rect.top) - rect.height / 3;
+          editorMain.scrollTo({ top: scrollTo, behavior: 'smooth' });
+        }
+      }
+    },
+    [editor],
+  );
+
+  /** Handle @asset autocomplete inside textarea */
+  const handleTextareaChange = useCallback(
+    (noteId: string, value: string) => {
+      updateNote(noteId, { content: value });
+
+      // Check for @mention trigger
+      const textarea = textareaRefs.current.get(noteId);
+      if (!textarea) return;
+      const cursor = textarea.selectionStart;
+      const before = value.slice(0, cursor);
+      const atMatch = before.match(/@(\S*)$/);
+      if (atMatch) {
+        const query = atMatch[1].toLowerCase();
+        setAssetQuery(query);
+        const matches = assets.filter(
+          (a) =>
+            a.original_name.toLowerCase().includes(query) ||
+            a.original_name.replace(/\s+/g, '_').toLowerCase().includes(query),
+        ).slice(0, 8);
+        setAssetSuggestions(matches);
+        setAssetSugIdx(0);
+      } else {
+        setAssetQuery(null);
+        setAssetSuggestions([]);
+      }
+    },
+    [updateNote, assets],
+  );
+
+  const insertAssetRef = useCallback(
+    (noteId: string, asset: Asset) => {
+      const note = notes.find((n) => n.id === noteId);
+      if (!note) return;
+      const textarea = textareaRefs.current.get(noteId);
+      if (!textarea) return;
+
+      const cursor = textarea.selectionStart;
+      const before = note.content.slice(0, cursor);
+      const after = note.content.slice(cursor);
+      const atMatch = before.match(/@(\S*)$/);
+      if (!atMatch) return;
+
+      const prefix = before.slice(0, before.length - atMatch[0].length);
+      const ref = `@${asset.original_name.replace(/\s+/g, '_')}`;
+      const newContent = prefix + ref + ' ' + after;
+      updateNote(noteId, { content: newContent });
+
+      setAssetQuery(null);
+      setAssetSuggestions([]);
+
+      // Restore cursor position after insert
+      requestAnimationFrame(() => {
+        const pos = prefix.length + ref.length + 1;
+        textarea.setSelectionRange(pos, pos);
+        textarea.focus();
+      });
+    },
+    [notes, updateNote],
+  );
+
+  const handleTextareaKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>, noteId: string) => {
+      if (assetSuggestions.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setAssetSugIdx((i) => Math.min(i + 1, assetSuggestions.length - 1));
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setAssetSugIdx((i) => Math.max(i - 1, 0));
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          insertAssetRef(noteId, assetSuggestions[assetSugIdx]);
+        } else if (e.key === 'Escape') {
+          setAssetQuery(null);
+          setAssetSuggestions([]);
+        }
+      }
+    },
+    [assetSuggestions, assetSugIdx, insertAssetRef],
+  );
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  if (!scriptNotesOpen) return null;
+
+  return (
+    <div className="script-notes-panel">
+      <div className="script-notes-header">
+        <span className="script-notes-title">Script Notes</span>
+        <span className="script-notes-count">
+          {isFiltered ? `${filteredNotes.length}/` : ''}{notes.length}
+        </span>
+        <button className="script-notes-close" onClick={toggleScriptNotes} title="Close">
+          &times;
+        </button>
+      </div>
+
+      {/* ── Multi-dimensional filter bar ── */}
+      <div className="script-notes-filters">
+        {/* Active filter summary + clear */}
+        {isFiltered && (
+          <div className="sn-filter-active">
+            {localFilter.noteId && (
+              <span className="sn-filter-chip" onClick={handleClearFilter}>
+                Selected note
+                <span className="sn-chip-x">&times;</span>
+              </span>
+            )}
+            {localFilter.elementType && (
+              <span
+                className="sn-filter-chip"
+                onClick={() => toggleTypeFilter(localFilter.elementType!)}
+              >
+                {ELEMENT_LABELS[localFilter.elementType as ElementType] || localFilter.elementType}
+                <span className="sn-chip-x">&times;</span>
+              </span>
+            )}
+            {localFilter.contextLabel && (
+              <span
+                className="sn-filter-chip sn-chip-context"
+                onClick={() => toggleContextFilter(localFilter.contextLabel!)}
+              >
+                {localFilter.contextLabel}
+                <span className="sn-chip-x">&times;</span>
+              </span>
+            )}
+            {localFilter.color && (
+              <span
+                className="sn-filter-chip"
+                onClick={() => toggleColorFilter(localFilter.color!)}
+                style={{ borderColor: getNoteColorHex(localFilter.color) }}
+              >
+                {localFilter.color}
+                <span className="sn-chip-x">&times;</span>
+              </span>
+            )}
+            <button className="sn-filter-clear" onClick={handleClearFilter}>
+              Show All
+            </button>
+          </div>
+        )}
+
+        {/* Type filter row */}
+        {filterOptions.types.length > 1 && (
+          <div className="sn-filter-row">
+            <span className="sn-filter-label">Type</span>
+            <div className="sn-filter-chips">
+              {filterOptions.types.map((t) => (
+                <button
+                  key={t}
+                  className={`sn-chip${localFilter.elementType === t ? ' active' : ''}`}
+                  onClick={() => toggleTypeFilter(t)}
+                >
+                  {ELEMENT_LABELS[t as ElementType] || t}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Context filter row */}
+        {filterOptions.contexts.length > 0 && (
+          <div className="sn-filter-row">
+            <span className="sn-filter-label">Context</span>
+            <div className="sn-filter-chips">
+              {filterOptions.contexts.map((c) => (
+                <button
+                  key={c}
+                  className={`sn-chip sn-chip-ctx${localFilter.contextLabel === c ? ' active' : ''}`}
+                  onClick={() => toggleContextFilter(c)}
+                >
+                  {c.length > 25 ? c.slice(0, 25) + '...' : c}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Color filter */}
+        <div className="sn-filter-row sn-filter-colors">
+          {NOTE_COLORS.map((c) => {
+            const count = notes.filter((n) => n.color === c.name).length;
+            if (count === 0) return null;
+            return (
+              <button
+                key={c.name}
+                className={`sn-color-btn${localFilter.color === c.name ? ' active' : ''}`}
+                onClick={() => toggleColorFilter(c.name)}
+                title={`${c.name} (${count})`}
+                style={{ '--swatch-color': c.hex } as React.CSSProperties}
+              >
+                <span className="swatch" />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Notes list ── */}
+      <div className="script-notes-list">
+        {filteredNotes.length === 0 ? (
+          <div className="script-notes-empty">
+            {notes.length === 0
+              ? 'No notes yet. Select text in the editor, right-click, and choose "Add Script Note".'
+              : 'No notes match this filter.'}
+          </div>
+        ) : (
+          filteredNotes.map((note) => {
+            const hex = getNoteColorHex(note.color);
+            const sceneName = getSceneName(note.sceneId);
+            const elemLabel = ELEMENT_LABELS[note.elementType as ElementType] || note.elementType;
+            const isEditing = editingNoteId === note.id;
+
+            return (
+              <div
+                key={note.id}
+                className="note-item"
+                style={{ borderLeftColor: hex }}
+              >
+                <div className="note-item-header">
+                  <div className="note-item-context">
+                    <span className="note-item-element">{elemLabel}</span>
+                    {note.contextLabel && (
+                      <span
+                        className="note-item-ctx-label"
+                        onClick={() => toggleContextFilter(note.contextLabel)}
+                        title={`Filter by "${note.contextLabel}"`}
+                      >
+                        {note.contextLabel}
+                      </span>
+                    )}
+                    {sceneName && (
+                      <span className="note-item-scene">{sceneName}</span>
+                    )}
+                  </div>
+                  <span className="note-item-date">{formatDate(note.createdAt)}</span>
+                </div>
+
+                {note.anchorText && (
+                  <div
+                    className="note-item-anchor"
+                    onClick={() => handleNavigateToNote(note.id)}
+                    title="Click to navigate to this text"
+                  >
+                    &ldquo;{note.anchorText}&rdquo;
+                  </div>
+                )}
+
+                {/* Note content: edit mode or rendered preview */}
+                {isEditing ? (
+                  <div className="note-edit-area">
+                    <textarea
+                      ref={(el) => {
+                        if (el) textareaRefs.current.set(note.id, el);
+                      }}
+                      className="note-item-content"
+                      value={note.content}
+                      onChange={(e) => handleTextareaChange(note.id, e.target.value)}
+                      onKeyDown={(e) => handleTextareaKeyDown(e, note.id)}
+                      onBlur={() => {
+                        // Delay to allow suggestion click
+                        setTimeout(() => {
+                          setEditingNoteId(null);
+                          setAssetQuery(null);
+                          setAssetSuggestions([]);
+                        }, 200);
+                      }}
+                      placeholder="Write your note... (use @filename to reference assets, paste media URLs on their own line)"
+                      rows={3}
+                      autoFocus
+                    />
+                    {assetSuggestions.length > 0 && assetQuery !== null && (
+                      <div className="note-asset-dropdown">
+                        {assetSuggestions.map((a, idx) => (
+                          <div
+                            key={a.id}
+                            className={`note-asset-option${idx === assetSugIdx ? ' selected' : ''}`}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              insertAssetRef(note.id, a);
+                            }}
+                          >
+                            <span className="note-asset-option-icon">
+                              {a.mime_type.startsWith('image/') ? '🖼' : a.mime_type.startsWith('video/') ? '🎬' : '📎'}
+                            </span>
+                            <span className="note-asset-option-name">{a.original_name}</span>
+                            <span className="note-asset-option-tags">
+                              {a.tags.slice(0, 2).join(', ')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    className="note-item-preview"
+                    onClick={() => setEditingNoteId(note.id)}
+                    title="Click to edit"
+                  >
+                    {note.content ? (
+                      <NoteContentDisplay
+                        content={note.content}
+                        assets={assets}
+                        projectId={projectId}
+                      />
+                    ) : (
+                      <span className="note-item-placeholder">Click to add note...</span>
+                    )}
+                  </div>
+                )}
+
+                <div className="note-item-actions">
+                  <div className="note-item-colors">
+                    {NOTE_COLORS.map((c) => (
+                      <button
+                        key={c.name}
+                        className={`note-color-dot${note.color === c.name ? ' active' : ''}`}
+                        style={{ background: c.hex }}
+                        onClick={() => handleColorChange(note.id, c.name)}
+                        title={c.name}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    className="note-item-delete"
+                    onClick={() => handleDelete(note.id)}
+                    title="Delete note"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ScriptNotes;
