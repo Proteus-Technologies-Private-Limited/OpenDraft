@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+venv/
+
+# Build output
+frontend/dist/
+collab-server/dist/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test output
+test-script/output/
+
+# Database
+*.db
+*.sqlite3
+
+# Tauri desktop build
+src-tauri/target/
+src-tauri/binaries/
+src-tauri/gen/
+src-tauri/icons/icon1024.png
+
+# PyInstaller
+backend/build/
+backend/dist/
+*.spec.bak
+
+# Claude Code
+.claude/
+
+# Test documents
+test-doc.*
+
+# Backend static (built artifact)
+backend/static/
+
+# Runtime project data
+backend/data/

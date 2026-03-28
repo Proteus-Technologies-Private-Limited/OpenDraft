@@ -1,0 +1,477 @@
+import { create } from 'zustand';
+
+export type ElementType =
+  | 'sceneHeading'
+  | 'action'
+  | 'character'
+  | 'dialogue'
+  | 'parenthetical'
+  | 'transition'
+  | 'general'
+  | 'shot'
+  | 'newAct'
+  | 'endOfAct'
+  | 'lyrics'
+  | 'showEpisode'
+  | 'castList'
+  | 'titlePage';
+
+export const ELEMENT_LABELS: Record<ElementType, string> = {
+  sceneHeading: 'Scene Heading',
+  action: 'Action',
+  character: 'Character',
+  dialogue: 'Dialogue',
+  parenthetical: 'Parenthetical',
+  transition: 'Transition',
+  general: 'General',
+  shot: 'Shot',
+  newAct: 'New Act',
+  endOfAct: 'End of Act',
+  lyrics: 'Lyrics',
+  showEpisode: 'Show/Episode',
+  castList: 'Cast List',
+  titlePage: 'Title Page',
+};
+
+export interface PageLayout {
+  pageWidth: number;     // inches
+  pageHeight: number;    // inches
+  topMargin: number;     // points
+  bottomMargin: number;  // points
+  headerMargin: number;  // points
+  footerMargin: number;  // points
+  leftMargin: number;    // inches (from page edge to content start)
+  rightMargin: number;   // inches (from content end to page edge)
+}
+
+export const DEFAULT_PAGE_LAYOUT: PageLayout = {
+  pageWidth: 8.26,
+  pageHeight: 11.69,
+  topMargin: 72,
+  bottomMargin: 72,
+  headerMargin: 36,
+  footerMargin: 36,
+  leftMargin: 1.50,       // Final Draft default LeftIndent for Action
+  rightMargin: 0.76,      // 8.26 - 7.50 (default RightIndent)
+};
+
+export interface SceneInfo {
+  id: string;
+  heading: string;
+  sceneNumber: number | null;
+  color: string;
+  synopsis: string;
+}
+
+export const NOTE_COLORS = [
+  { name: 'Yellow', hex: '#f4d35e' },
+  { name: 'Red', hex: '#e06060' },
+  { name: 'Blue', hex: '#6fa8dc' },
+  { name: 'Green', hex: '#6abf69' },
+  { name: 'Orange', hex: '#e89b4f' },
+  { name: 'Purple', hex: '#b58ee0' },
+] as const;
+
+export type NoteColor = typeof NOTE_COLORS[number]['name'];
+
+export interface NoteInfo {
+  id: string;
+  content: string;
+  /** Anchored text snippet the note is attached to */
+  anchorText: string;
+  /** Element type where the note is anchored */
+  elementType: string;
+  /** Contextual label — e.g. character name, scene heading text */
+  contextLabel: string;
+  /** Note color for categorization */
+  color: NoteColor;
+  createdAt: string;
+  /** Optional scene context */
+  sceneId: string | null;
+}
+
+/** Filter state that can be set externally (e.g. from context menu) */
+export interface NoteFilter {
+  elementType: string | null;
+  contextLabel: string | null;
+  color: NoteColor | null;
+  /** If set, show only this specific note */
+  noteId: string | null;
+}
+
+// ── Production Tagging (Final Draft TagData) ──
+
+export interface TagCategory {
+  id: string;
+  name: string;
+  color: string;
+  isBuiltIn: boolean;
+}
+
+export interface TagItem {
+  id: string;
+  categoryId: string;
+  text: string;
+  /** Detailed notes/information about this tagged item */
+  notes: string;
+  sceneId: string | null;
+  elementType: string;
+  createdAt: string;
+}
+
+export const DEFAULT_TAG_CATEGORIES: TagCategory[] = [
+  { id: 'cast', name: 'Cast', color: '#e06060', isBuiltIn: true },
+  { id: 'extras', name: 'Extras', color: '#c0392b', isBuiltIn: true },
+  { id: 'stunts', name: 'Stunts', color: '#e74c3c', isBuiltIn: true },
+  { id: 'vehicles', name: 'Vehicles', color: '#e06c9f', isBuiltIn: true },
+  { id: 'props', name: 'Props', color: '#9370DB', isBuiltIn: true },
+  { id: 'special-effects', name: 'Special Effects', color: '#5dade2', isBuiltIn: true },
+  { id: 'costumes', name: 'Costumes', color: '#1abc9c', isBuiltIn: true },
+  { id: 'makeup', name: 'Makeup/Hair', color: '#45b39d', isBuiltIn: true },
+  { id: 'animals', name: 'Animals', color: '#6abf69', isBuiltIn: true },
+  { id: 'animal-handler', name: 'Animal Handler', color: '#27ae60', isBuiltIn: true },
+  { id: 'music', name: 'Music', color: '#f4d35e', isBuiltIn: true },
+  { id: 'sound', name: 'Sound', color: '#f0b429', isBuiltIn: true },
+  { id: 'set-dressing', name: 'Set Dressing', color: '#d4a373', isBuiltIn: true },
+  { id: 'greenery', name: 'Greenery', color: '#2ecc71', isBuiltIn: true },
+  { id: 'special-equipment', name: 'Special Equipment', color: '#8e44ad', isBuiltIn: true },
+  { id: 'security', name: 'Security', color: '#7f8c8d', isBuiltIn: true },
+  { id: 'additional-labor', name: 'Additional Labor', color: '#95a5a6', isBuiltIn: true },
+  { id: 'vfx', name: 'Visual Effects', color: '#3498db', isBuiltIn: true },
+  { id: 'optical-fx', name: 'Optical FX', color: '#ADD8E6', isBuiltIn: true },
+  { id: 'mechanical-fx', name: 'Mechanical FX', color: '#4169E1', isBuiltIn: true },
+];
+
+export interface CharacterProfile {
+  /** Uppercase canonical character name */
+  name: string;
+  /** Free-text description (Final Draft CastMember Description) */
+  description: string;
+  /** Highlight color hex (Final Draft CharacterHighlighting) */
+  color: string;
+  /** Whether highlighting is enabled for this character */
+  highlighted: boolean;
+  /** Optional structured metadata */
+  gender: string;
+  age: string;
+}
+
+export interface BeatInfo {
+  id: string;
+  title: string;
+  description: string;
+  actIndex: number;
+  position: number;
+}
+
+interface EditorState {
+  // Current element type
+  activeElement: ElementType;
+  setActiveElement: (el: ElementType) => void;
+
+  // Document info
+  documentTitle: string;
+  setDocumentTitle: (title: string) => void;
+  pageCount: number;
+  setPageCount: (count: number) => void;
+  currentPage: number;
+  setCurrentPage: (page: number) => void;
+
+  // Scene navigator
+  scenes: SceneInfo[];
+  setScenes: (scenes: SceneInfo[]) => void;
+  navigatorOpen: boolean;
+  toggleNavigator: () => void;
+
+  // Panels
+  indexCardsOpen: boolean;
+  toggleIndexCards: () => void;
+  beatBoardOpen: boolean;
+  toggleBeatBoard: () => void;
+  scriptNotesOpen: boolean;
+  toggleScriptNotes: () => void;
+  notesVisible: boolean;
+  setNotesVisible: (v: boolean) => void;
+
+  // Scene synopsis
+  updateSceneSynopsis: (id: string, synopsis: string) => void;
+
+  // Notes
+  notes: NoteInfo[];
+  setNotes: (notes: NoteInfo[]) => void;
+  addNote: (note: Omit<NoteInfo, 'id' | 'createdAt'>) => string;
+  updateNote: (id: string, updates: Partial<Pick<NoteInfo, 'content' | 'color'>>) => void;
+  deleteNote: (id: string) => void;
+  noteFilter: NoteFilter;
+  setNoteFilter: (filter: NoteFilter) => void;
+
+  // Beats
+  beats: BeatInfo[];
+  addBeat: (title: string, actIndex: number) => void;
+  updateBeat: (id: string, updates: Partial<{ title: string; description: string; actIndex: number; position: number }>) => void;
+  deleteBeat: (id: string) => void;
+
+  // Revision
+  revisionMode: boolean;
+  revisionColor: string;
+  setRevisionMode: (on: boolean) => void;
+  setRevisionColor: (color: string) => void;
+
+  // Character profiles (Final Draft CastList + CharacterHighlighting)
+  characters: string[];
+  setCharacters: (names: string[]) => void;
+  addCharacter: (name: string) => void;
+  characterProfiles: CharacterProfile[];
+  setCharacterProfiles: (profiles: CharacterProfile[]) => void;
+  upsertCharacterProfile: (name: string, updates: Partial<Omit<CharacterProfile, 'name'>>) => void;
+  deleteCharacterProfile: (name: string) => void;
+  characterProfilesOpen: boolean;
+  toggleCharacterProfiles: () => void;
+
+  // Production tags
+  tagCategories: TagCategory[];
+  setTagCategories: (cats: TagCategory[]) => void;
+  addTagCategory: (name: string, color: string) => string;
+  deleteTagCategory: (id: string) => void;
+  tags: TagItem[];
+  setTags: (tags: TagItem[]) => void;
+  addTag: (tag: Omit<TagItem, 'id' | 'createdAt'>) => string;
+  updateTag: (id: string, updates: Partial<Pick<TagItem, 'notes' | 'categoryId'>>) => void;
+  deleteTag: (id: string) => void;
+  tagsVisible: boolean;
+  setTagsVisible: (v: boolean) => void;
+  tagsPanelOpen: boolean;
+  toggleTagsPanel: () => void;
+  /** When set, the Tags panel shows a "select category" prompt for this selection */
+  pendingTagSelection: { from: number; to: number; text: string; elementType: string; sceneId: string | null } | null;
+  setPendingTagSelection: (sel: { from: number; to: number; text: string; elementType: string; sceneId: string | null } | null) => void;
+  /** When set, the Tags panel auto-expands this tag for editing */
+  editingTagId: string | null;
+  setEditingTagId: (id: string | null) => void;
+
+  // Zoom
+  zoomLevel: number;
+  setZoomLevel: (level: number) => void;
+
+  // Font
+  fontFamily: string;
+  setFontFamily: (font: string) => void;
+  fontSize: number;
+  setFontSize: (size: number) => void;
+
+  // Page layout
+  pageLayout: PageLayout;
+  setPageLayout: (layout: PageLayout) => void;
+
+  // Spell check
+  spellCheckEnabled: boolean;
+  toggleSpellCheck: () => void;
+
+  // Dialogs
+  searchOpen: boolean;
+  setSearchOpen: (open: boolean) => void;
+  goToPageOpen: boolean;
+  setGoToPageOpen: (open: boolean) => void;
+  openFromProjectOpen: boolean;
+  setOpenFromProjectOpen: (open: boolean) => void;
+  saveAsOpen: boolean;
+  setSaveAsOpen: (open: boolean) => void;
+}
+
+export const useEditorStore = create<EditorState>((set) => ({
+  activeElement: 'action',
+  setActiveElement: (el) => set({ activeElement: el }),
+
+  documentTitle: 'Untitled Screenplay',
+  setDocumentTitle: (title) => set({ documentTitle: title }),
+  pageCount: 1,
+  setPageCount: (count) => set({ pageCount: count }),
+  currentPage: 1,
+  setCurrentPage: (page) => set({ currentPage: page }),
+
+  scenes: [],
+  setScenes: (scenes) => set({ scenes }),
+  navigatorOpen: true,
+  toggleNavigator: () => set((s) => ({ navigatorOpen: !s.navigatorOpen })),
+
+  indexCardsOpen: false,
+  toggleIndexCards: () => set((s) => ({ indexCardsOpen: !s.indexCardsOpen })),
+  beatBoardOpen: false,
+  toggleBeatBoard: () => set((s) => ({ beatBoardOpen: !s.beatBoardOpen })),
+  scriptNotesOpen: false,
+  toggleScriptNotes: () => set((s) => {
+    const opening = !s.scriptNotesOpen;
+    return { scriptNotesOpen: opening, notesVisible: opening };
+  }),
+  notesVisible: false,
+  setNotesVisible: (v) => set({ notesVisible: v }),
+
+  updateSceneSynopsis: (id, synopsis) =>
+    set((s) => ({
+      scenes: s.scenes.map((sc) => (sc.id === id ? { ...sc, synopsis } : sc)),
+    })),
+
+  // Notes
+  notes: [],
+  setNotes: (notes) => set({ notes }),
+  addNote: (note) => {
+    const id = crypto.randomUUID();
+    set((s) => ({
+      notes: [
+        ...s.notes,
+        {
+          ...note,
+          id,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    }));
+    return id;
+  },
+  updateNote: (id, updates) =>
+    set((s) => ({
+      notes: s.notes.map((n) => (n.id === id ? { ...n, ...updates } : n)),
+    })),
+  deleteNote: (id) =>
+    set((s) => ({ notes: s.notes.filter((n) => n.id !== id) })),
+  noteFilter: { elementType: null, contextLabel: null, color: null, noteId: null },
+  setNoteFilter: (filter) => set({ noteFilter: filter }),
+
+  // Beats
+  beats: [],
+  addBeat: (title, actIndex) =>
+    set((s) => {
+      const actsBeats = s.beats.filter((b) => b.actIndex === actIndex);
+      const maxPos = actsBeats.length > 0 ? Math.max(...actsBeats.map((b) => b.position)) : -1;
+      return {
+        beats: [
+          ...s.beats,
+          {
+            id: crypto.randomUUID(),
+            title,
+            description: '',
+            actIndex,
+            position: maxPos + 1,
+          },
+        ],
+      };
+    }),
+  updateBeat: (id, updates) =>
+    set((s) => ({
+      beats: s.beats.map((b) => (b.id === id ? { ...b, ...updates } : b)),
+    })),
+  deleteBeat: (id) =>
+    set((s) => ({ beats: s.beats.filter((b) => b.id !== id) })),
+
+  revisionMode: false,
+  revisionColor: 'White',
+  setRevisionMode: (on) => set({ revisionMode: on }),
+  setRevisionColor: (color) => set({ revisionColor: color }),
+
+  characters: [],
+  setCharacters: (names) => set({ characters: names }),
+  addCharacter: (name) =>
+    set((s) => ({
+      characters: s.characters.includes(name.toUpperCase())
+        ? s.characters
+        : [...s.characters, name.toUpperCase()],
+    })),
+  characterProfiles: [],
+  setCharacterProfiles: (profiles) => set({ characterProfiles: profiles }),
+  upsertCharacterProfile: (name, updates) =>
+    set((s) => {
+      const upper = name.toUpperCase();
+      const idx = s.characterProfiles.findIndex((p) => p.name === upper);
+      if (idx >= 0) {
+        const copy = [...s.characterProfiles];
+        copy[idx] = { ...copy[idx], ...updates };
+        return { characterProfiles: copy };
+      }
+      return {
+        characterProfiles: [
+          ...s.characterProfiles,
+          {
+            name: upper,
+            description: '',
+            color: '',
+            highlighted: false,
+            gender: '',
+            age: '',
+            ...updates,
+          },
+        ],
+      };
+    }),
+  deleteCharacterProfile: (name) =>
+    set((s) => ({
+      characterProfiles: s.characterProfiles.filter((p) => p.name !== name.toUpperCase()),
+    })),
+  characterProfilesOpen: false,
+  toggleCharacterProfiles: () =>
+    set((s) => ({ characterProfilesOpen: !s.characterProfilesOpen })),
+
+  // Production tags
+  tagCategories: [...DEFAULT_TAG_CATEGORIES],
+  setTagCategories: (cats) => set({ tagCategories: cats }),
+  addTagCategory: (name, color) => {
+    const id = crypto.randomUUID();
+    set((s) => ({
+      tagCategories: [...s.tagCategories, { id, name, color, isBuiltIn: false }],
+    }));
+    return id;
+  },
+  deleteTagCategory: (id) =>
+    set((s) => ({
+      tagCategories: s.tagCategories.filter((c) => c.id !== id),
+      tags: s.tags.filter((t) => t.categoryId !== id),
+    })),
+  tags: [],
+  setTags: (tags) => set({ tags }),
+  addTag: (tag) => {
+    const id = crypto.randomUUID();
+    set((s) => ({
+      tags: [...s.tags, { ...tag, id, createdAt: new Date().toISOString() }],
+    }));
+    return id;
+  },
+  updateTag: (id, updates) =>
+    set((s) => ({
+      tags: s.tags.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+    })),
+  deleteTag: (id) =>
+    set((s) => ({ tags: s.tags.filter((t) => t.id !== id) })),
+  tagsVisible: false,
+  setTagsVisible: (v) => set({ tagsVisible: v }),
+  tagsPanelOpen: false,
+  toggleTagsPanel: () => set((s) => {
+    const opening = !s.tagsPanelOpen;
+    return { tagsPanelOpen: opening, tagsVisible: opening };
+  }),
+  pendingTagSelection: null,
+  setPendingTagSelection: (sel) => set({ pendingTagSelection: sel }),
+  editingTagId: null,
+  setEditingTagId: (id) => set({ editingTagId: id }),
+
+  zoomLevel: 100,
+  setZoomLevel: (level) => set({ zoomLevel: Math.min(200, Math.max(50, level)) }),
+
+  fontFamily: 'Courier Final Draft',
+  setFontFamily: (font) => set({ fontFamily: font }),
+  fontSize: 12,
+  setFontSize: (size) => set({ fontSize: Math.min(24, Math.max(8, size)) }),
+
+  pageLayout: DEFAULT_PAGE_LAYOUT,
+  setPageLayout: (layout) => set({ pageLayout: layout }),
+
+  spellCheckEnabled: false,
+  toggleSpellCheck: () => set((s) => ({ spellCheckEnabled: !s.spellCheckEnabled })),
+
+  searchOpen: false,
+  setSearchOpen: (open) => set({ searchOpen: open }),
+  goToPageOpen: false,
+  setGoToPageOpen: (open) => set({ goToPageOpen: open }),
+  openFromProjectOpen: false,
+  setOpenFromProjectOpen: (open) => set({ openFromProjectOpen: open }),
+  saveAsOpen: false,
+  setSaveAsOpen: (open) => set({ saveAsOpen: open }),
+}));
