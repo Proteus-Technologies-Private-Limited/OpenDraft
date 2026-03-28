@@ -14,12 +14,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-latest
-            target: aarch64-apple-darwin
-            label: macOS-ARM64
-          - platform: macos-13
-            target: x86_64-apple-darwin
-            label: macOS-x64
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             label: Linux-x64
@@ -69,7 +63,7 @@ jobs:
       - name: Build frontend
         run: |
           cd frontend
-          VITE_API_BASE=http://localhost:18321/api npm run build
+          npm run build
         env:
           VITE_API_BASE: http://localhost:18321/api
 
@@ -117,21 +111,36 @@ jobs:
           releaseBody: |
             ## OpenDraft ${{ github.ref_name }}
 
+            A free, open-source screenwriting application. Professional screenplay editing with real-time collaboration — no subscription required.
+
             ### Download for your platform
 
             | Platform | File |
             |----------|------|
-            | macOS (Apple Silicon) | `OpenDraft_*_aarch64.dmg` |
-            | macOS (Intel) | `OpenDraft_*_x64.dmg` |
-            | Windows | `OpenDraft_*_x64-setup.exe` or `.msi` |
-            | Linux (Debian/Ubuntu) | `OpenDraft_*_amd64.deb` |
-            | Linux (AppImage) | `OpenDraft_*_amd64.AppImage` |
+            | **macOS** (Apple Silicon) | `OpenDraft_0.1.0_aarch64.dmg` |
+            | **Windows** (64-bit) | `OpenDraft_0.1.0_x64-setup.exe` or `.msi` |
+            | **Linux** (Debian/Ubuntu) | `OpenDraft_0.1.0_amd64.deb` |
+            | **Linux** (AppImage) | `OpenDraft_0.1.0_amd64.AppImage` |
 
-            ### What's new
-            See the [CHANGELOG](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/CHANGELOG.md) for details.
+            ### Installation
+
+            **macOS:** Open the `.dmg`, drag OpenDraft to Applications, double-click to launch.
+            **Windows:** Run the `.msi` or `.exe` installer, follow the prompts.
+            **Linux:** Install the `.deb` with `sudo dpkg -i OpenDraft_*.deb` or run the `.AppImage` directly.
+
+            > The desktop app is fully standalone — no Python, Node.js, or internet connection required after installation.
 
             ---
-            *The desktop app is fully standalone — no Python, Node.js, or internet required.*
+
+            ### Run in browser (self-hosted)
+
+            ```bash
+            git clone https://github.com/Proteus-Technologies-Private-Limited/OpenDraft.git
+            cd OpenDraft
+            ./setup.sh
+            ```
+
+            See [INSTALLATION.md](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/docs/INSTALLATION.md) for details.
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: false
