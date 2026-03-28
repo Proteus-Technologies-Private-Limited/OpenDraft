@@ -98,4 +98,5 @@ exe = EXE(
     upx=True,
     console=True,   # sidecar runs headless, console output is useful for debugging
     target_arch=None,
+    codesign_identity=os.environ.get('CODESIGN_IDENTITY', None),
 )
