@@ -99,13 +99,26 @@ jobs:
           mkdir -p src-tauri/binaries
           cp backend/dist/opendraft-api.exe "src-tauri/binaries/opendraft-api-${{ matrix.target }}.exe"
 
+      - name: Patch tauri.conf.json for CI
+        shell: bash
+        run: |
+          cd src-tauri
+          python -c "
+          import json
+          with open('tauri.conf.json') as f:
+              cfg = json.load(f)
+          cfg['build']['beforeBuildCommand'] = ''
+          cfg['build']['beforeDevCommand'] = ''
+          with open('tauri.conf.json', 'w') as f:
+              json.dump(cfg, f, indent=2)
+          "
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: frontend
-          tauriScript: npx tauri
+          tauriScript: npx --prefix frontend tauri
           tagName: ${{ github.ref_name }}
           releaseName: 'OpenDraft ${{ github.ref_name }}'
           releaseBody: |
@@ -125,6 +138,9 @@ jobs:
             ### Installation
 
             **macOS:** Open the `.dmg`, drag OpenDraft to Applications, double-click to launch.
+
+            > First launch: Right-click the app, select Open, click Open in the dialog. You only need to do this once.
+
             **Windows:** Run the `.msi` or `.exe` installer, follow the prompts.
             **Linux:** Install the `.deb` with `sudo dpkg -i OpenDraft_*.deb` or run the `.AppImage` directly.
 
@@ -134,7 +150,7 @@ jobs:
 
             ### Run in browser (self-hosted)
 
-            ```bash
+            ```
             git clone https://github.com/Proteus-Technologies-Private-Limited/OpenDraft.git
             cd OpenDraft
             ./setup.sh
