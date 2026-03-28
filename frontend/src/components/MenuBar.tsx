@@ -96,11 +96,24 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
   }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen]);
 
   // ── Check in (git commit) ──
-  const handleCheckin = useCallback(async () => {
+  const [checkinOpen, setCheckinOpen] = useState(false);
+  const [checkinMessage, setCheckinMessage] = useState('');
+  const [checkinSaving, setCheckinSaving] = useState(false);
+  const checkinInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCheckinOpen = useCallback(() => {
     if (!currentProject) {
-      alert('No project active. Import a file first.');
+      showToast('No project active. Save your file first.', 'error');
       return;
     }
+    setCheckinMessage('');
+    setCheckinOpen(true);
+    setTimeout(() => checkinInputRef.current?.focus(), 100);
+  }, [currentProject]);
+
+  const handleCheckinSubmit = useCallback(async () => {
+    if (!currentProject || !checkinMessage.trim()) return;
+    setCheckinSaving(true);
     // Save first so the latest content is on disk
     if (editor && currentScriptId) {
       try {
@@ -110,15 +123,20 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
         console.error('Auto-save before checkin failed:', err);
       }
     }
-    const message = prompt('Enter a version description:', '');
-    if (!message) return;
     try {
-      const result = await api.checkin(currentProject.id, message);
-      alert(result.hash ? `Version saved: ${result.short_hash}` : result.message);
+      const result = await api.checkin(currentProject.id, checkinMessage.trim());
+      if (result.hash) {
+        showToast(`Version saved: ${result.short_hash}`, 'success');
+      } else {
+        showToast(result.message || 'No changes to commit', 'success');
+      }
     } catch (err) {
-      alert(`Check in failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+      showToast(`Check in failed: ${err instanceof Error ? err.message : 'unknown error'}`, 'error');
+    } finally {
+      setCheckinSaving(false);
+      setCheckinOpen(false);
     }
-  }, [editor, currentProject, currentScriptId, buildSaveContent]);
+  }, [editor, currentProject, currentScriptId, checkinMessage, buildSaveContent]);
 
   // ── Keyboard shortcut: Cmd+S ──
   useEffect(() => {
@@ -201,49 +219,15 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
         }
         editor.commands.setContent(doc);
 
-        // Create project + script in backend
+        // Create project + script in backend via Save As dialog
         const scriptTitle = file.name.replace(/\.\w+$/, '') || 'Untitled';
-        const projectName = prompt('Project name:', 'Default Project');
-        if (!projectName) return;
-
-        try {
-          // Create or get existing project
-          let project;
-          try {
-            project = await api.createProject(projectName);
-          } catch {
-            // Project may already exist — try to find it
-            const projects = await api.listProjects();
-            project = projects.find(
-              (p) => p.name.toLowerCase() === projectName.toLowerCase()
-            );
-            if (!project) {
-              console.error('Could not create or find project');
-              return;
-            }
-          }
-          setCurrentProject(project);
-
-          // Create a script inside the project with editor content + store metadata
-          const scriptResp = await api.createScript(project.id, {
-            title: scriptTitle,
-            content: buildSaveContent() || editor.getJSON(),
-          });
-          setCurrentScriptId(scriptResp.meta.id);
-
-          // Refresh script list
-          const scripts = await api.listScripts(project.id);
-          setScripts(scripts);
-
-          useEditorStore.getState().setDocumentTitle(scriptTitle);
-        } catch (err) {
-          console.error('Failed to save imported file to project:', err);
-        }
+        useEditorStore.getState().setDocumentTitle(scriptTitle);
+        setSaveAsOpen(true);
       };
       reader.readAsText(file);
     };
     input.click();
-  }, [editor, setCurrentProject, setCurrentScriptId, setScripts]);
+  }, [editor, setCurrentProject, setCurrentScriptId, setScripts, setSaveAsOpen]);
 
   const handleExportFDX = useCallback(() => {
     if (!editor) return;
@@ -302,7 +286,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
         { label: 'Save as Fountain (.fountain)', action: handleExportFountain },
         { label: 'Save as PDF', shortcut: '\u2318P', action: handleExportPDF },
         { separator: true, label: '' },
-        { label: 'Check In...', action: handleCheckin },
+        { label: 'Check In...', action: handleCheckinOpen },
         { label: 'Version History', action: () => setVersionHistoryOpen(true) },
         { separator: true, label: '' },
         { label: 'Print...', shortcut: '\u2318P', action: () => window.print() },
@@ -388,20 +372,19 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
         {
           label: 'About OpenDraft',
           action: () =>
-            alert('OpenDraft v0.1.0\nOpen-source screenwriting software'),
+            showToast('OpenDraft v0.1.0 — Open-source screenwriting software', 'success'),
         },
         {
           label: 'Keyboard Shortcuts',
           action: () =>
-            alert(
-              '⌘1-8: Element types\nTab: Next element\nEnter: Continue/next element\n⌘B/I/U: Bold/Italic/Underline\n⌘Z: Undo | ⇧⌘Z: Redo\n⌘F: Find & Replace\n⌘G: Go to Page'
-            ),
+            showToast('⌘1-8: Elements | Tab: Next | ⌘B/I/U: Format | ⌘Z: Undo | ⌘F: Find | ⌘G: Go to Page', 'success'),
         },
       ],
     },
   ];
 
   return (
+    <>
     <div className="menu-bar" ref={menuRef}>
       {menus.map((menu) => (
         <div
@@ -436,6 +419,40 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
         </div>
       ))}
     </div>
+    {checkinOpen && (
+      <div className="dialog-overlay" onClick={() => setCheckinOpen(false)}>
+        <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
+          <div className="dialog-header">Check In Version</div>
+          <div className="dialog-body">
+            <div className="dialog-row">
+              <label>Version Description</label>
+              <input
+                ref={checkinInputRef}
+                value={checkinMessage}
+                onChange={(e) => setCheckinMessage(e.target.value)}
+                placeholder="Describe what changed..."
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && checkinMessage.trim()) handleCheckinSubmit();
+                  if (e.key === 'Escape') setCheckinOpen(false);
+                }}
+              />
+            </div>
+          </div>
+          <div className="dialog-actions">
+            <button onClick={() => setCheckinOpen(false)}>Cancel</button>
+            <button
+              className="dialog-primary"
+              onClick={handleCheckinSubmit}
+              disabled={checkinSaving || !checkinMessage.trim()}
+            >
+              {checkinSaving ? 'Saving...' : 'Check In'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

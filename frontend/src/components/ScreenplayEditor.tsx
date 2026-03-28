@@ -48,7 +48,7 @@ import { API_BASE } from '../config';
 import { showToast } from './Toast';
 import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import OpenFromProject from './OpenFromProject';
 import WelcomeDialog from './WelcomeDialog';
 import SaveAsDialog from './SaveAsDialog';
@@ -153,6 +153,7 @@ interface OverlayInfo {
 
 const ScreenplayEditor: React.FC = () => {
   const { projectId: urlProjectId, scriptId: urlScriptId } = useParams<{ projectId?: string; scriptId?: string }>();
+  const navigate = useNavigate();
 
   const {
     setActiveElement, setScenes, setPageCount, setCurrentPage,
@@ -912,11 +913,14 @@ const ScreenplayEditor: React.FC = () => {
         setDocumentTitle(scriptTitle);
         const scripts = await api.listScripts(projectId);
         useProjectStore.getState().setScripts(scripts);
+        // Navigate to the project edit route so URL reflects project context
+        navigate(`/project/${projectId}/edit/${scriptId}`, { replace: true });
+        showToast('Saved', 'success');
       } catch (err) {
         console.error('Failed to finalize save:', err);
       }
     },
-    [setSaveAsOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle],
+    [setSaveAsOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, navigate],
   );
 
 

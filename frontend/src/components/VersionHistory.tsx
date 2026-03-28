@@ -3,6 +3,7 @@ import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
 import type { VersionInfo } from '../services/api';
 import DiffViewer from './DiffViewer';
+import { showToast } from './Toast';
 
 function relativeTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -72,22 +73,31 @@ const VersionHistory: React.FC = () => {
     [currentProject, versions]
   );
 
+  const [restoreConfirm, setRestoreConfirm] = useState<VersionInfo | null>(null);
+
   const handleRestore = useCallback(
-    async (version: VersionInfo) => {
-      if (!currentProject) return;
-      if (!confirm(`Restore to version ${version.short_hash}? This will create a new version with the restored content.`)) {
-        return;
-      }
+    (version: VersionInfo) => {
+      setRestoreConfirm(version);
+    },
+    []
+  );
+
+  const handleRestoreConfirm = useCallback(
+    async () => {
+      if (!currentProject || !restoreConfirm) return;
+      const version = restoreConfirm;
+      setRestoreConfirm(null);
       try {
         await api.restoreVersion(currentProject.id, version.hash);
         await loadVersions();
         setSelectedVersion(null);
         setDiffText(null);
+        showToast(`Restored to version ${version.short_hash}`, 'success');
       } catch (err) {
-        alert(`Restore failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+        showToast(`Restore failed: ${err instanceof Error ? err.message : 'unknown error'}`, 'error');
       }
     },
-    [currentProject, loadVersions]
+    [currentProject, restoreConfirm, loadVersions]
   );
 
   if (!versionHistoryOpen) return null;
@@ -170,6 +180,25 @@ const VersionHistory: React.FC = () => {
           </div>
         )}
       </div>
+      {restoreConfirm && (
+        <div className="dialog-overlay" onClick={() => setRestoreConfirm(null)}>
+          <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-header">Restore Version</div>
+            <div className="dialog-body">
+              <p style={{ margin: 0 }}>
+                Restore to version <strong>{restoreConfirm.short_hash}</strong>?
+                This will create a new version with the restored content.
+              </p>
+            </div>
+            <div className="dialog-actions">
+              <button onClick={() => setRestoreConfirm(null)}>Cancel</button>
+              <button className="dialog-primary" onClick={handleRestoreConfirm}>
+                Restore
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
