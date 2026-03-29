@@ -10,6 +10,8 @@ import { parseFDXFull } from '../utils/fdxParser';
 import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
 import { exportPDF } from '../utils/pdfExporter';
+import { trackChangesPluginKey } from '../editor/trackChanges';
+import PageSetupDialog from './PageSetupDialog';
 
 interface MenuBarProps {
   editor: Editor | null;
@@ -52,6 +54,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
     toggleSpellCheck,
     setOpenFromProjectOpen,
     setSaveAsOpen,
+    theme,
+    setTheme,
+    trackChangesEnabled,
+    setTrackChangesEnabled,
+    setTrackChangesLabel,
+    setCompareVersionOpen,
   } = useEditorStore();
 
   const {
@@ -95,6 +103,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
     }
   }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen]);
 
+  // ── Page Setup ──
+  const [pageSetupOpen, setPageSetupOpen] = useState(false);
+
+  // ── About / What's New ──
+  const [aboutOpen, setAboutOpen] = useState(false);
+
   // ── Check in (git commit) ──
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [checkinMessage, setCheckinMessage] = useState('');
@@ -137,6 +151,78 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
       setCheckinOpen(false);
     }
   }, [editor, currentProject, currentScriptId, checkinMessage, buildSaveContent]);
+
+  // ── Track Changes ──
+  const clearTrackChanges = useCallback(() => {
+    if (!trackChangesEnabled) return;
+    setTrackChangesEnabled(false);
+    setTrackChangesLabel('');
+    if (editor) {
+      const { tr } = editor.state;
+      tr.setMeta(trackChangesPluginKey, { enabled: false, baseline: null });
+      editor.view.dispatch(tr);
+    }
+  }, [editor, trackChangesEnabled, setTrackChangesEnabled, setTrackChangesLabel]);
+
+  const handleTrackChangesToggle = useCallback(async () => {
+    if (trackChangesEnabled) {
+      clearTrackChanges();
+      return;
+    }
+
+    if (!currentProject || !currentScriptId) {
+      showToast('Save your script to a project first', 'error');
+      return;
+    }
+
+    try {
+      const versions = await api.getVersions(currentProject.id);
+      if (versions.length === 0) {
+        showToast('No versions yet — use File > Check In first', 'info');
+        return;
+      }
+
+      const latest = versions[0];
+      let scriptResp;
+      try {
+        scriptResp = await api.getScriptAtVersion(
+          currentProject.id,
+          latest.hash,
+          currentScriptId,
+        );
+      } catch (innerErr) {
+        // Script didn't exist at the last check-in (created after the last commit)
+        const msg = innerErr instanceof Error ? innerErr.message : '';
+        if (msg.includes('404')) {
+          showToast('This script has no checked-in version yet — use File > Check In first', 'info');
+        } else {
+          showToast('Could not load the checked-in version. Try checking in first.', 'error');
+        }
+        return;
+      }
+
+      setTrackChangesEnabled(true);
+      setTrackChangesLabel(latest.short_hash);
+
+      if (editor) {
+        const { tr } = editor.state;
+        tr.setMeta(trackChangesPluginKey, {
+          enabled: true,
+          baseline: scriptResp.content,
+        });
+        editor.view.dispatch(tr);
+      }
+    } catch (err) {
+      showToast('Could not load version history. Make sure the backend is running.', 'error');
+    }
+  }, [
+    editor,
+    currentProject,
+    currentScriptId,
+    trackChangesEnabled,
+    setTrackChangesEnabled,
+    setTrackChangesLabel,
+  ]);
 
   // ── Keyboard shortcut: Cmd+S ──
   useEffect(() => {
@@ -266,6 +352,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
           shortcut: '⌘N',
           action: () => {
             if (!editor) return;
+            clearTrackChanges();
             editor.commands.setContent({
               type: 'doc',
               content: [{ type: 'sceneHeading', content: [] }],
@@ -289,6 +376,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
         { label: 'Check In...', action: handleCheckinOpen },
         { label: 'Version History', action: () => setVersionHistoryOpen(true) },
         { separator: true, label: '' },
+        { label: 'Page Setup...', action: () => setPageSetupOpen(true) },
         { label: 'Print...', shortcut: '\u2318P', action: () => window.print() },
         { separator: true, label: '' },
         { label: 'Manage Projects...', action: () => { window.location.href = '/projects'; } },
@@ -341,6 +429,19 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
         { separator: true, label: '' },
         { label: notesVisible ? '\u2713 Note Highlights' : 'Note Highlights', action: () => setNotesVisible(!notesVisible) },
         { label: tagsVisible ? '\u2713 Tag Highlights' : 'Tag Highlights', action: () => setTagsVisible(!tagsVisible) },
+        { separator: true, label: '' },
+        {
+          label: trackChangesEnabled
+            ? '\u2713 Track Changes'
+            : 'Track Changes Since Last Check-In',
+          action: handleTrackChangesToggle,
+        },
+        { label: 'Compare with Version\u2026', action: () => setCompareVersionOpen(true) },
+        { separator: true, label: '' },
+        {
+          label: theme === 'light' ? '\u2713 Light Theme' : 'Light Theme',
+          action: () => setTheme(theme === 'light' ? 'dark' : 'light'),
+        },
       ],
     },
     {
@@ -371,8 +472,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
       items: [
         {
           label: 'About OpenDraft',
-          action: () =>
-            showToast('OpenDraft v0.1.0 — Open-source screenwriting software', 'success'),
+          action: () => setAboutOpen(true),
         },
         {
           label: 'Keyboard Shortcuts',
@@ -448,6 +548,40 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
             >
               {checkinSaving ? 'Saving...' : 'Check In'}
             </button>
+          </div>
+        </div>
+      </div>
+    )}
+    {pageSetupOpen && (
+      <PageSetupDialog onClose={() => setPageSetupOpen(false)} />
+    )}
+    {aboutOpen && (
+      <div className="dialog-overlay" onClick={() => setAboutOpen(false)}>
+        <div className="dialog-box about-dialog" onClick={(e) => e.stopPropagation()}>
+          <div className="dialog-header">About OpenDraft</div>
+          <div className="dialog-body about-body">
+            <div className="about-title">OpenDraft</div>
+            <div className="about-version">Version 0.3.0</div>
+            <div className="about-tagline">Free, open-source screenwriting software</div>
+
+            <div className="about-whats-new">
+              <div className="about-section-title">What's New in 0.3.0</div>
+              <ul className="about-list">
+                <li><strong>Track Changes</strong> — Compare your script against any checked-in version with inline insertions (green) and deletions (red strikethrough). Editable while viewing changes.</li>
+                <li><strong>Git History Viewer</strong> — View any version of your script in full read-only editor mode with clear visual feedback.</li>
+                <li><strong>Entity-Based Tagging</strong> — Tag reusable entities (props, sets, costumes) across multiple scenes. Same entity, multiple occurrences, shared notes.</li>
+                <li><strong>Location Navigator</strong> — Locations auto-extracted from scene headings with batch rename across the entire script.</li>
+                <li><strong>Scene Reordering</strong> — Drag and drop scenes in Index Cards view to rearrange your script structure.</li>
+                <li><strong>Dark / Light Theme</strong> — Switch via View menu. Editor page stays white in both themes.</li>
+                <li><strong>Page Setup</strong> — Configure page size, margins, and header/footer from File menu.</li>
+                <li><strong>Project Organization</strong> — Drag-drop, pin, color-code, and sort projects and scripts.</li>
+                <li><strong>Print Fix</strong> — Multi-page printing now works correctly.</li>
+                <li><strong>Draggable Find &amp; Replace</strong> — Move the search panel anywhere on screen.</li>
+              </ul>
+            </div>
+          </div>
+          <div className="dialog-actions">
+            <button className="dialog-primary" onClick={() => setAboutOpen(false)}>Close</button>
           </div>
         </div>
       </div>

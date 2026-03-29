@@ -13,6 +13,7 @@ function App() {
         <Route path="/projects" element={<ProjectList />} />
         <Route path="/project/:projectId" element={<ProjectView />} />
         <Route path="/project/:projectId/edit/:scriptId" element={<ScreenplayEditor />} />
+        <Route path="/project/:projectId/history/:scriptId/:commitHash" element={<ScreenplayEditor />} />
       </Routes>
       <Toast />
     </>

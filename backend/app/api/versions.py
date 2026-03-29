@@ -62,6 +62,31 @@ async def get_diff(
     return {"diff": diff_text, "from_hash": from_hash, "to_hash": to_hash}
 
 
+@router.get("/{project_id}/versions/{commit_hash}/scripts/{script_id}")
+async def get_script_at_version(project_id: str, commit_hash: str, script_id: str):
+    """Return script content as it existed at a specific commit."""
+    path = _project_path(project_id)
+
+    try:
+        content_str = git_service.get_file_at_version(
+            path, commit_hash, f"scripts/{script_id}.json"
+        )
+        meta_str = git_service.get_file_at_version(
+            path, commit_hash, f"scripts/{script_id}.meta.json"
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    import json
+
+    return {
+        "meta": json.loads(meta_str),
+        "content": json.loads(content_str),
+    }
+
+
 @router.post("/{project_id}/versions/restore/{commit_hash}", response_model=VersionCommitResponse)
 async def restore_version(project_id: str, commit_hash: str):
     """Restore the project to a specific version (creates a new commit)."""

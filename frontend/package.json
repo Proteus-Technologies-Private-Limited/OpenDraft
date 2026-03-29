@@ -17,6 +17,8 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/plugin-fs": "^2.4.5",
+    "@tauri-apps/plugin-sql": "^2.3.2",
     "@tiptap/core": "^2.27.2",
     "@tiptap/extension-collaboration": "^2.27.2",
     "@tiptap/extension-collaboration-cursor": "^2.26.2",

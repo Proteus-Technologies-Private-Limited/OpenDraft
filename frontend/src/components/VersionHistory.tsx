@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
 import type { VersionInfo } from '../services/api';
@@ -22,7 +23,8 @@ function relativeTime(dateStr: string): string {
 }
 
 const VersionHistory: React.FC = () => {
-  const { currentProject, versions, setVersions, versionHistoryOpen, setVersionHistoryOpen } =
+  const navigate = useNavigate();
+  const { currentProject, currentScriptId, versions, setVersions, versionHistoryOpen, setVersionHistoryOpen } =
     useProjectStore();
 
   const [selectedVersion, setSelectedVersion] = useState<VersionInfo | null>(null);
@@ -146,16 +148,35 @@ const VersionHistory: React.FC = () => {
                 <span className="version-date">{relativeTime(v.date)}</span>
               </div>
               <div className="version-message">{v.message}</div>
-              <button
-                className="version-restore-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRestore(v);
-                }}
-                title="Restore this version"
-              >
-                Restore
-              </button>
+              <div className="version-item-actions">
+                {currentScriptId && (
+                  <button
+                    className="version-view-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (currentProject && currentScriptId) {
+                        setVersionHistoryOpen(false);
+                        setSelectedVersion(null);
+                        setDiffText(null);
+                        navigate(`/project/${currentProject.id}/history/${currentScriptId}/${v.hash}`);
+                      }
+                    }}
+                    title="View this version in the editor (read-only)"
+                  >
+                    View
+                  </button>
+                )}
+                <button
+                  className="version-restore-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRestore(v);
+                  }}
+                  title="Restore this version"
+                >
+                  Restore
+                </button>
+              </div>
             </div>
           ))}
         </div>

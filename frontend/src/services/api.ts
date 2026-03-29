@@ -38,6 +38,9 @@ export interface ProjectInfo {
   created_at: string;
   updated_at: string;
   properties: ProjectProperties;
+  color: string;
+  pinned: boolean;
+  sort_order: number;
 }
 
 export interface ScriptMeta {
@@ -49,6 +52,9 @@ export interface ScriptMeta {
   updated_at: string;
   page_count: number;
   size_bytes: number;
+  color: string;
+  pinned: boolean;
+  sort_order: number;
 }
 
 export interface ScriptResponse {
@@ -85,8 +91,17 @@ export const api = {
 
   getProject: (id: string) => request<ProjectInfo>(`/projects/${id}`),
 
-  updateProject: (id: string, data: { name?: string; properties?: Partial<ProjectProperties> }) =>
+  updateProject: (id: string, data: { name?: string; properties?: Partial<ProjectProperties>; color?: string; pinned?: boolean; sort_order?: number }) =>
     request<ProjectInfo>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  deleteProject: (id: string) =>
+    request<{ message: string }>(`/projects/${id}`, { method: 'DELETE' }),
+
+  reorderProjects: (items: Array<{ id: string; sort_order: number }>) =>
+    request<{ message: string }>('/projects/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ items }),
+    }),
 
   // Scripts
   listScripts: (projectId: string) =>
@@ -101,10 +116,16 @@ export const api = {
   getScript: (projectId: string, scriptId: string) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/${scriptId}`),
 
-  saveScript: (projectId: string, scriptId: string, data: { title?: string; content?: Record<string, unknown> }) =>
+  saveScript: (projectId: string, scriptId: string, data: { title?: string; content?: Record<string, unknown>; color?: string; pinned?: boolean; sort_order?: number }) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/${scriptId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    }),
+
+  reorderScripts: (projectId: string, items: Array<{ id: string; sort_order: number }>) =>
+    request<{ message: string }>(`/projects/${projectId}/scripts/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify({ items }),
     }),
 
   deleteScript: (projectId: string, scriptId: string) =>
@@ -127,8 +148,33 @@ export const api = {
       `/projects/${projectId}/versions/diff?from_hash=${encodeURIComponent(fromHash)}&to_hash=${encodeURIComponent(toHash)}`
     ),
 
+  getScriptAtVersion: (projectId: string, hash: string, scriptId: string) =>
+    request<ScriptResponse>(
+      `/projects/${projectId}/versions/${encodeURIComponent(hash)}/scripts/${encodeURIComponent(scriptId)}`
+    ),
+
   restoreVersion: (projectId: string, hash: string) =>
     request<VersionInfo>(`/projects/${projectId}/versions/restore/${hash}`, {
       method: 'POST',
     }),
 };
+
+// ── Mobile storage initialisation ───────────────────────────────────────────
+// On mobile Tauri (iOS / Android) the Python sidecar is not available, so we
+// replace the HTTP methods above with a local SQLite implementation.
+// On web and desktop Tauri this function is a no-op — every existing call-site
+// continues to use the HTTP backend exactly as before.
+//
+// Must be called once before the React tree renders (see main.tsx).
+
+export async function initStorage(): Promise<void> {
+  // Dynamic imports keep the mobile code out of web/desktop bundles.
+  const { isMobileTauri } = await import('./platform');
+  if (!isMobileTauri()) return;                       // ← web & desktop: nothing changes
+
+  const { createMobileStorage } = await import('./mobile-storage');
+  const mobileApi = await createMobileStorage();
+  // Swap every method on the existing `api` object so all call-sites pick
+  // up the local implementation automatically.
+  Object.assign(api, mobileApi);
+}

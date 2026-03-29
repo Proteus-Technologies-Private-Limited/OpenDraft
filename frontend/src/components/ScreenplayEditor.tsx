@@ -52,6 +52,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import OpenFromProject from './OpenFromProject';
 import WelcomeDialog from './WelcomeDialog';
 import SaveAsDialog from './SaveAsDialog';
+import CompareVersionPicker from './CompareVersionPicker';
+import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
+import type { VersionInfo } from '../services/api';
 
 // Default next element type when pressing Enter
 const DEFAULT_NEXT_TYPE: Record<string, string> = {
@@ -152,12 +155,13 @@ interface OverlayInfo {
 }
 
 const ScreenplayEditor: React.FC = () => {
-  const { projectId: urlProjectId, scriptId: urlScriptId } = useParams<{ projectId?: string; scriptId?: string }>();
+  const { projectId: urlProjectId, scriptId: urlScriptId, commitHash: urlCommitHash } = useParams<{ projectId?: string; scriptId?: string; commitHash?: string }>();
   const navigate = useNavigate();
+  const isHistoryMode = Boolean(urlCommitHash);
 
   const {
     setActiveElement, setScenes, setPageCount, setCurrentPage,
-    zoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
+    zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     beatBoardOpen,
     spellCheckEnabled, setDocumentTitle,
   } = useEditorStore();
@@ -173,7 +177,37 @@ const ScreenplayEditor: React.FC = () => {
 
   const [overlays, setOverlays] = useState<OverlayInfo[]>([]);
 
-  const { openFromProjectOpen, setOpenFromProjectOpen, saveAsOpen, setSaveAsOpen } = useEditorStore();
+  const {
+    openFromProjectOpen, setOpenFromProjectOpen, saveAsOpen, setSaveAsOpen,
+    compareVersionOpen, setCompareVersionOpen,
+    setTrackChangesEnabled, setTrackChangesLabel,
+  } = useEditorStore();
+
+  // Auto-fit page to viewport on mobile/tablet
+  const autoZoomApplied = useRef(false);
+  useEffect(() => {
+    const handleAutoZoom = () => {
+      if (window.innerWidth <= 768 && editorMainRef.current) {
+        const containerWidth = editorMainRef.current.clientWidth - 16; // small padding
+        const pageWidthPx = pageLayout.pageWidth * 96; // 1in = 96px
+        const fitZoom = Math.floor((containerWidth / pageWidthPx) * 100);
+        setZoomLevel(Math.max(50, Math.min(100, fitZoom)));
+        autoZoomApplied.current = true;
+      } else if (autoZoomApplied.current && window.innerWidth > 768) {
+        setZoomLevel(100);
+        autoZoomApplied.current = false;
+      }
+    };
+    // Delay initial call to ensure editorMainRef is measured
+    const timer = setTimeout(handleAutoZoom, 100);
+    window.addEventListener('resize', handleAutoZoom);
+    window.addEventListener('orientationchange', handleAutoZoom);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleAutoZoom);
+      window.removeEventListener('orientationchange', handleAutoZoom);
+    };
+  }, [pageLayout.pageWidth, setZoomLevel]);
 
   // Welcome dialog — show on first visit
   const [showWelcome, setShowWelcome] = useState(() => {
@@ -273,6 +307,16 @@ const ScreenplayEditor: React.FC = () => {
     })
   );
 
+  // Track changes plugin
+  const [TrackChangesExtension] = React.useState(() =>
+    Extension.create({
+      name: 'trackChanges',
+      addProseMirrorPlugins() {
+        return [createTrackChangesPlugin()];
+      },
+    })
+  );
+
   // Centralized Enter handler — overrides per-extension Enter handlers via high priority
   const [EnterHandlerExtension] = React.useState(() =>
     Extension.create({
@@ -348,12 +392,14 @@ const ScreenplayEditor: React.FC = () => {
       ShowEpisode, CastList, ScriptNoteMark, TagMark,
       PaginationExtension,
       SearchExtension,
-      EnterHandlerExtension,
+      TrackChangesExtension,
+      ...(isHistoryMode ? [] : [EnterHandlerExtension]),
       SpellCheck,
     ],
-    content: urlScriptId ? undefined : SAMPLE_CONTENT,
+    content: (urlScriptId || urlCommitHash) ? undefined : SAMPLE_CONTENT,
+    editable: !isHistoryMode,
     editorProps: {
-      attributes: { class: 'screenplay-content', spellcheck: 'true' },
+      attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: isHistoryMode ? 'false' : 'true' },
     },
     onSelectionUpdate: ({ editor: ed }) => {
       for (const type of ALL_ELEMENT_TYPES) {
@@ -361,6 +407,19 @@ const ScreenplayEditor: React.FC = () => {
       }
     },
   });
+
+  // Helper: clear track changes when switching documents
+  const clearTrackChanges = useCallback(() => {
+    const store = useEditorStore.getState();
+    if (!store.trackChangesEnabled) return;
+    store.setTrackChangesEnabled(false);
+    store.setTrackChangesLabel('');
+    if (editor) {
+      const { tr } = editor.state;
+      tr.setMeta(trackChangesPluginKey, { enabled: false, baseline: null });
+      editor.view.dispatch(tr);
+    }
+  }, [editor]);
 
   // --- Scene navigator ---
   const updateScenes = useCallback(() => {
@@ -631,6 +690,7 @@ const ScreenplayEditor: React.FC = () => {
   // Reset the guard when the editor instance changes so we reload
   // content if TipTap recreates the editor.
   const loadedScriptRef = useRef<string | null>(null);
+  const [historyVersionLabel, setHistoryVersionLabel] = useState('');
   useEffect(() => {
     if (editor) {
       loadedScriptRef.current = null; // allow re-load for new editor instance
@@ -638,15 +698,24 @@ const ScreenplayEditor: React.FC = () => {
   }, [editor]);
   useEffect(() => {
     if (!editor || !urlProjectId || !urlScriptId) return;
+    const loadKey = `${urlProjectId}/${urlScriptId}${urlCommitHash ? `@${urlCommitHash}` : ''}`;
     // Avoid reloading the same script
-    if (loadedScriptRef.current === `${urlProjectId}/${urlScriptId}`) return;
-    loadedScriptRef.current = `${urlProjectId}/${urlScriptId}`;
+    if (loadedScriptRef.current === loadKey) return;
+    loadedScriptRef.current = loadKey;
+    clearTrackChanges();
     (async () => {
       try {
         const project = await api.getProject(urlProjectId);
         setCurrentProject(project);
-        setCurrentScriptId(urlScriptId);
-        const scriptResp = await api.getScript(urlProjectId, urlScriptId);
+        setCurrentScriptId(isHistoryMode ? null : urlScriptId);
+
+        let scriptResp;
+        if (isHistoryMode && urlCommitHash) {
+          scriptResp = await api.getScriptAtVersion(urlProjectId, urlCommitHash, urlScriptId);
+          setHistoryVersionLabel(urlCommitHash.slice(0, 7));
+        } else {
+          scriptResp = await api.getScript(urlProjectId, urlScriptId);
+        }
         const content = scriptResp.content as Record<string, unknown> | null;
 
         // Strip app metadata keys before feeding to ProseMirror
@@ -670,32 +739,34 @@ const ScreenplayEditor: React.FC = () => {
           editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
         }
 
-        // Restore metadata from top-level content keys
-        const store = useEditorStore.getState();
-        const parseAttr = (val: unknown): unknown[] => {
-          if (typeof val === 'string') { try { const p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch { return []; } }
-          if (Array.isArray(val)) return val;
-          return [];
-        };
-        if (content) {
-          const c = content as Record<string, unknown>;
-          const notes = parseAttr(c._notes);
-          if (notes.length > 0) store.setNotes(notes as import('../stores/editorStore').NoteInfo[]);
-          const tagsArr = parseAttr(c._tags);
-          if (tagsArr.length > 0) store.setTags(tagsArr as import('../stores/editorStore').TagItem[]);
-          const tagCats = parseAttr(c._tagCategories);
-          if (tagCats.length > 0) store.setTagCategories(tagCats as import('../stores/editorStore').TagCategory[]);
-          const profiles = parseAttr(c._characterProfiles);
-          if (profiles.length > 0) {
-            for (const prof of profiles as Record<string, unknown>[]) {
-              if (prof.name && typeof prof.name === 'string') {
-                store.upsertCharacterProfile(prof.name, {
-                  description: (prof.description as string) || '',
-                  color: (prof.color as string) || '',
-                  highlighted: (prof.highlighted as boolean) || false,
-                  gender: (prof.gender as string) || '',
-                  age: (prof.age as string) || '',
-                });
+        // Restore metadata from top-level content keys (skip in history mode)
+        if (!isHistoryMode) {
+          const store = useEditorStore.getState();
+          const parseAttr = (val: unknown): unknown[] => {
+            if (typeof val === 'string') { try { const p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch { return []; } }
+            if (Array.isArray(val)) return val;
+            return [];
+          };
+          if (content) {
+            const c = content as Record<string, unknown>;
+            const notes = parseAttr(c._notes);
+            if (notes.length > 0) store.setNotes(notes as import('../stores/editorStore').NoteInfo[]);
+            const tagsArr = parseAttr(c._tags);
+            if (tagsArr.length > 0) store.setTags(tagsArr as import('../stores/editorStore').TagItem[]);
+            const tagCats = parseAttr(c._tagCategories);
+            if (tagCats.length > 0) store.setTagCategories(tagCats as import('../stores/editorStore').TagCategory[]);
+            const profiles = parseAttr(c._characterProfiles);
+            if (profiles.length > 0) {
+              for (const prof of profiles as Record<string, unknown>[]) {
+                if (prof.name && typeof prof.name === 'string') {
+                  store.upsertCharacterProfile(prof.name, {
+                    description: (prof.description as string) || '',
+                    color: (prof.color as string) || '',
+                    highlighted: (prof.highlighted as boolean) || false,
+                    gender: (prof.gender as string) || '',
+                    age: (prof.age as string) || '',
+                  });
+                }
               }
             }
           }
@@ -708,7 +779,7 @@ const ScreenplayEditor: React.FC = () => {
         showToast(`Failed to load script: ${err instanceof Error ? err.message : String(err)}`, 'error');
       }
     })();
-  }, [editor, urlProjectId, urlScriptId, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes]);
+  }, [editor, urlProjectId, urlScriptId, urlCommitHash, isHistoryMode, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes]);
 
   // --- Sync orphaned marks: runs ONCE after editor is ready, not on every doc change ---
   const orphanSyncDone = useRef(false);
@@ -758,7 +829,7 @@ const ScreenplayEditor: React.FC = () => {
       }
       if (orphanedTags.length > 0) {
         store.setTags([...store.tags, ...orphanedTags.map((o) => ({
-          id: o.tagId, categoryId: o.categoryId, text: o.text, notes: '',
+          id: o.tagId, categoryId: o.categoryId, name: o.text, text: o.text, notes: '',
           sceneId: null, elementType: o.elementType, createdAt: new Date().toISOString(),
         }))]);
       }
@@ -836,6 +907,7 @@ const ScreenplayEditor: React.FC = () => {
         return;
       }
       setOpenFromProjectOpen(false);
+      clearTrackChanges();
       try {
         const scriptResp = await api.getScript(projectId, scriptId);
         const content = scriptResp.content as Record<string, unknown> | null;
@@ -892,7 +964,7 @@ const ScreenplayEditor: React.FC = () => {
         requestAnimationFrame(() => updateScenes());
       } catch (err) {
         console.error('Failed to open script:', err);
-        alert('Failed to open script. Make sure the backend server is running on port 8000.');
+        showToast('Failed to open script. Make sure the backend server is running on port 8000.', 'error');
       }
     },
     [editor, setOpenFromProjectOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes],
@@ -923,6 +995,37 @@ const ScreenplayEditor: React.FC = () => {
     [setSaveAsOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, navigate],
   );
 
+
+  // ── Compare with Version picker callback ──
+  const handleCompareVersionSelect = useCallback(
+    async (version: VersionInfo) => {
+      if (!editor || !currentProject || !currentScriptId) return;
+      setCompareVersionOpen(false);
+      try {
+        const scriptResp = await api.getScriptAtVersion(
+          currentProject.id,
+          version.hash,
+          currentScriptId,
+        );
+        setTrackChangesEnabled(true);
+        setTrackChangesLabel(version.short_hash);
+        const { tr } = editor.state;
+        tr.setMeta(trackChangesPluginKey, {
+          enabled: true,
+          baseline: scriptResp.content,
+        });
+        editor.view.dispatch(tr);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.includes('404')) {
+          showToast('This script did not exist in that version', 'info');
+        } else {
+          showToast('Failed to load version for comparison', 'error');
+        }
+      }
+    },
+    [editor, currentProject, currentScriptId, setCompareVersionOpen, setTrackChangesEnabled, setTrackChangesLabel],
+  );
 
   const handleCharAutoSelect = useCallback((name: string) => {
     if (!editor) return;
@@ -1045,14 +1148,34 @@ const ScreenplayEditor: React.FC = () => {
   const zoomScale = zoomLevel / 100;
 
   return (
-    <div className="app-container">
-      <MenuBar editor={editor} />
-      <Toolbar editor={editor} />
+    <div className={`app-container${isHistoryMode ? ' history-mode' : ''}`}>
+      {isHistoryMode && (
+        <div className="history-banner">
+          <span className="history-banner-icon">&#128337;</span>
+          <span className="history-banner-text">
+            Viewing version <strong>{historyVersionLabel}</strong> — Read Only
+          </span>
+          <button
+            className="history-banner-back"
+            onClick={() => {
+              if (urlProjectId && urlScriptId) {
+                navigate(`/project/${urlProjectId}/edit/${urlScriptId}`);
+              } else {
+                navigate(-1);
+              }
+            }}
+          >
+            Back to Current Version
+          </button>
+        </div>
+      )}
+      {!isHistoryMode && <MenuBar editor={editor} />}
+      {!isHistoryMode && <Toolbar editor={editor} />}
       <div className="editor-layout">
-        <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} />
+        {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} />}
         <div className="editor-center">
-          <IndexCards editor={editor} scrollContainer={editorMainRef.current} />
-          {beatBoardOpen ? (
+          {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainRef.current} />}
+          {!isHistoryMode && beatBoardOpen ? (
             <BeatBoard editor={editor} />
           ) : (
             <div className="editor-main" ref={editorMainRef}>
@@ -1067,7 +1190,7 @@ const ScreenplayEditor: React.FC = () => {
                 }}
               >
                 <div
-                  className={`page${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}`}
+                  className={`page${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}`}
                   ref={pageRef}
                   style={{
                     fontFamily: `'${fontFamily}', 'Courier New', Courier, monospace`,
@@ -1115,13 +1238,13 @@ const ScreenplayEditor: React.FC = () => {
             </div>
           )}
         </div>
-        <ScriptNotes editor={editor} />
-        <CharacterProfiles editor={editor} />
-        <TagsPanel editor={editor} />
+        {!isHistoryMode && <ScriptNotes editor={editor} />}
+        {!isHistoryMode && <CharacterProfiles editor={editor} />}
+        {!isHistoryMode && <TagsPanel editor={editor} />}
       </div>
-      <SearchReplace editor={editor} />
-      <GoToPage onGoToPage={handleGoToPage} />
-      {pickerState.visible && (
+      {!isHistoryMode && <SearchReplace editor={editor} />}
+      {!isHistoryMode && <GoToPage onGoToPage={handleGoToPage} />}
+      {!isHistoryMode && pickerState.visible && (
         <ElementPicker
           position={pickerState.position}
           defaultType={pickerState.defaultType}
@@ -1129,7 +1252,7 @@ const ScreenplayEditor: React.FC = () => {
           onDismiss={handlePickerDismiss}
         />
       )}
-      {charAutoState.visible && !pickerState.visible && (
+      {!isHistoryMode && charAutoState.visible && !pickerState.visible && (
         <CharacterAutocomplete
           position={charAutoState.position}
           suggestions={charAutoState.suggestions}
@@ -1137,7 +1260,7 @@ const ScreenplayEditor: React.FC = () => {
           onDismiss={handleCharAutoDismiss}
         />
       )}
-      {ctxMenuState.visible && editor && (
+      {!isHistoryMode && ctxMenuState.visible && editor && (
         <ScriptContextMenu
           editor={editor}
           position={ctxMenuState.position}
@@ -1146,25 +1269,25 @@ const ScreenplayEditor: React.FC = () => {
           onOpenFormatPanel={() => setFormatPanelOpen(true)}
         />
       )}
-      {formatPanelOpen && editor && (
+      {!isHistoryMode && formatPanelOpen && editor && (
         <FormatPanel editor={editor} onClose={() => setFormatPanelOpen(false)} />
       )}
-      {spellModalOpen && editor && (
+      {!isHistoryMode && spellModalOpen && editor && (
         <SpellCheckModal
           editor={editor}
           onClose={() => setSpellModalOpen(false)}
         />
       )}
-      <VersionHistory />
-      {currentProject && <AssetManager projectId={currentProject.id} />}
-      {openFromProjectOpen && (
+      {!isHistoryMode && <VersionHistory />}
+      {!isHistoryMode && currentProject && <AssetManager projectId={currentProject.id} />}
+      {!isHistoryMode && openFromProjectOpen && (
         <OpenFromProject
           onOpen={handleOpenFromProject}
           onClose={() => setOpenFromProjectOpen(false)}
         />
       )}
-      {showWelcome && <WelcomeDialog onClose={handleWelcomeClose} />}
-      {saveAsOpen && (
+      {!isHistoryMode && showWelcome && <WelcomeDialog onClose={handleWelcomeClose} />}
+      {!isHistoryMode && saveAsOpen && (
         <SaveAsDialog
           defaultProjectName="My Project"
           defaultFileName="First Draft"
@@ -1173,7 +1296,13 @@ const ScreenplayEditor: React.FC = () => {
           buildContent={buildSaveContent}
         />
       )}
-      <StatusBar />
+      {!isHistoryMode && compareVersionOpen && (
+        <CompareVersionPicker
+          onSelect={handleCompareVersionSelect}
+          onClose={() => setCompareVersionOpen(false)}
+        />
+      )}
+      {!isHistoryMode && <StatusBar />}
     </div>
   );
 };

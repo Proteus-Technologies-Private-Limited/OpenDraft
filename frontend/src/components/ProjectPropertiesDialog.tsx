@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { ProjectInfo, ProjectProperties } from '../services/api';
 import { api } from '../services/api';
+import { showToast } from './Toast';
 
 const EMPTY_PROPS: ProjectProperties = {
   genre: '', logline: '', synopsis: '', author: '', contact: '',
@@ -49,7 +50,7 @@ const ProjectPropertiesDialog: React.FC<Props> = ({ project, onClose, onSaved })
       onSaved(updated);
       onClose();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to save');
+      showToast(err instanceof Error ? err.message : 'Failed to save', 'error');
     }
     setSaving(false);
   };

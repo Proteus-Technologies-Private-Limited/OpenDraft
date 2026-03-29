@@ -27,6 +27,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showReferred, setShowReferred] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance'>('name');
+  const [pendingRemoveChar, setPendingRemoveChar] = useState<string | null>(null);
   const descriptionRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
 
   // Auto-sync: ensure every detected character has a profile entry
@@ -381,11 +382,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor }) => {
                     <span>Not in script</span>
                     <button
                       className="char-orphaned-remove"
-                      onClick={() => {
-                        if (window.confirm(`Remove "${name}" from character list?`)) {
-                          deleteCharacterProfile(name);
-                        }
-                      }}
+                      onClick={() => setPendingRemoveChar(name)}
                     >
                       Remove
                     </button>
@@ -534,6 +531,29 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor }) => {
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {pendingRemoveChar && (
+        <div className="dialog-overlay" onClick={() => setPendingRemoveChar(null)}>
+          <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-header">Remove Character</div>
+            <div className="dialog-body">
+              <p style={{ margin: 0 }}>Remove &ldquo;{pendingRemoveChar}&rdquo; from the character list?</p>
+            </div>
+            <div className="dialog-actions">
+              <button onClick={() => setPendingRemoveChar(null)}>Cancel</button>
+              <button
+                className="dialog-primary"
+                style={{ background: '#c0392b' }}
+                onClick={() => {
+                  deleteCharacterProfile(pendingRemoveChar);
+                  setPendingRemoveChar(null);
+                }}
+              >
+                Remove
+              </button>
             </div>
           </div>
         </div>

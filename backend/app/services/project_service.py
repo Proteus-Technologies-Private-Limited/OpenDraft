@@ -70,6 +70,10 @@ def list_projects() -> list[dict]:
             project_file = entry / "project.json"
             if project_file.exists():
                 data = json.loads(project_file.read_text(encoding="utf-8"))
+                data.setdefault("properties", {})
+                data.setdefault("color", "")
+                data.setdefault("pinned", False)
+                data.setdefault("sort_order", 0)
                 projects.append(data)
     return projects
 
@@ -81,10 +85,20 @@ def get_project(project_id: str) -> dict:
         raise FileNotFoundError(f"Project '{project_id}' not found")
     data = json.loads(project_file.read_text(encoding="utf-8"))
     data.setdefault("properties", {})
+    data.setdefault("color", "")
+    data.setdefault("pinned", False)
+    data.setdefault("sort_order", 0)
     return data
 
 
-def update_project(project_id: str, name: str | None = None, properties: dict | None = None) -> dict:
+def update_project(
+    project_id: str,
+    name: str | None = None,
+    properties: dict | None = None,
+    color: str | None = None,
+    pinned: bool | None = None,
+    sort_order: int | None = None,
+) -> dict:
     """Update a project's name, properties, and updated_at timestamp."""
     project_file = PROJECTS_DIR / project_id / "project.json"
     if not project_file.exists():
@@ -95,9 +109,18 @@ def update_project(project_id: str, name: str | None = None, properties: dict | 
         data["name"] = name
     if properties is not None:
         data["properties"] = properties
+    if color is not None:
+        data["color"] = color
+    if pinned is not None:
+        data["pinned"] = pinned
+    if sort_order is not None:
+        data["sort_order"] = sort_order
     data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     project_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    data.setdefault("color", "")
+    data.setdefault("pinned", False)
+    data.setdefault("sort_order", 0)
     return data
 
 
