@@ -1,0 +1,51 @@
+name: Deploy User Manual to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'user-manual/**'
+      - 'images/**'
+      - '.github/workflows/deploy-manual.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build site
+        run: |
+          mkdir -p _site
+          cp -r user-manual _site/user-manual
+          cp -r images _site/images
+          cat > _site/index.html << 'REDIRECT'
+          <!DOCTYPE html>
+          <html>
+          <head><meta http-equiv="refresh" content="0; url=user-manual/"></head>
+          <body><a href="user-manual/">OpenDraft User Manual</a></body>
+          </html>
+          REDIRECT
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
