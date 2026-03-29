@@ -1,7 +1,23 @@
 {
-  "name": "frontend",
+  "name": "opendraft",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.3.0",
+  "description": "OpenDraft — Free open-source screenwriting software. A professional screenplay editor with real-time collaboration, version control, and cross-platform support.",
+  "keywords": [
+    "screenwriting",
+    "screenplay",
+    "screenwriting-software",
+    "screenplay-editor",
+    "scriptwriting",
+    "film-writing",
+    "final-draft-alternative",
+    "fountain",
+    "open-source",
+    "collaborative-writing",
+    "react",
+    "tauri",
+    "tiptap"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",

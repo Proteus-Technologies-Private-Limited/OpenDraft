@@ -1,22 +1,40 @@
 <p align="center">
-  <img src="images/OpenDraft-1024x1024.png" alt="OpenDraft Logo" width="200">
+  <img src="images/OpenDraft-1024x1024.png" alt="OpenDraft — Free Open Source Screenwriting Software" width="200">
 </p>
 
-<h1 align="center">OpenDraft</h1>
+<h1 align="center">OpenDraft — Free Open-Source Screenwriting Software</h1>
 
 <p align="center">
-  <strong>A free, open-source screenwriting application</strong><br>
-  Professional screenplay editing with real-time collaboration — no subscription required.
+  <strong>The free, open-source screenplay editor and screenwriting app for macOS, Windows, and Linux.</strong><br>
+  A modern alternative to Final Draft and WriterSolo — professional screenplay formatting, real-time collaboration, and built-in version control. No subscription, no account required.
 </p>
 
 <p align="center">
   <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Proteus-Technologies-Private-Limited/OpenDraft?label=Download&style=for-the-badge" alt="Download Latest Release">
+    <img src="https://img.shields.io/github/v/release/Proteus-Technologies-Private-Limited/OpenDraft?label=Download&style=for-the-badge" alt="Download OpenDraft Screenwriting Software">
   </a>
   <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/Proteus-Technologies-Private-Limited/OpenDraft?style=for-the-badge" alt="License">
+    <img src="https://img.shields.io/github/license/Proteus-Technologies-Private-Limited/OpenDraft?style=for-the-badge" alt="MIT License">
+  </a>
+  <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/stargazers">
+    <img src="https://img.shields.io/github/stars/Proteus-Technologies-Private-Limited/OpenDraft?style=for-the-badge" alt="GitHub Stars">
+  </a>
+  <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest">
+    <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue?style=for-the-badge" alt="Platform Support — macOS Windows Linux">
   </a>
 </p>
+
+---
+
+## Why OpenDraft?
+
+OpenDraft is built for screenwriters who want a **professional, free screenplay editor** without the cost of Final Draft or the limitations of free alternatives. Whether you're writing your first short film or collaborating on a feature-length screenplay, OpenDraft provides everything you need:
+
+- **100% free and open source** — no trials, no subscriptions, no feature locks
+- **Works offline** — desktop app runs entirely on your machine, your scripts stay private
+- **Real-time collaboration** — co-write with your writing partner simultaneously
+- **Built-in version control** — track every draft, compare changes, restore any version
+- **Cross-platform** — native apps for macOS, Windows, and Linux, plus a self-hosted browser option
 
 ---
 
@@ -41,18 +59,28 @@ For all versions and platforms, visit the [Releases](https://github.com/Proteus-
 
 ## Features
 
-- **Industry-standard screenplay editor** — Scene headings, action, character, dialogue, parenthetical, transition, and shot elements with proper formatting
+### Screenplay Editor
+- **Industry-standard screenplay formatting** — Scene headings, action, character, dialogue, parenthetical, transition, and shot elements with proper formatting following Hollywood screenplay standards
+- **Character Autocomplete** — Smart suggestions as you type character names
+- **Search & Replace** — Find and replace across your entire screenplay
+- **Spell Check** — Built-in spell checker with custom dictionary support
+- **Import/Export** — Work with standard screenplay formats (Fountain, PDF)
+
+### Story Planning & Organization
 - **Beat Board & Index Cards** — Visual story planning with drag-and-drop scene organization
 - **Scene Navigator** — Jump between scenes instantly
-- **Character Autocomplete** — Smart suggestions as you type character names
-- **Version History** — Built-in version control with check-in, diff, and restore
-- **Project Management** — Organize multiple screenplays with metadata (genre, logline, synopsis, etc.)
+- **Project Management** — Organize multiple screenplays with metadata (genre, logline, synopsis)
 - **Asset Management** — Attach reference images, research docs, and notes to your projects
-- **Search & Replace** — Find and replace across your screenplay
-- **Spell Check** — Built-in spell checker with custom dictionary support
-- **Import/Export** — Work with standard screenplay formats
-- **Real-time Collaboration** — Multiple writers editing simultaneously (requires collaboration server)
-- **Cross-platform** — Desktop app (macOS, Windows, Linux) and browser-based
+
+### Collaboration & Version Control
+- **Real-time Collaboration** — Multiple writers editing simultaneously with conflict-free merging (CRDT-based)
+- **Version History** — Built-in Git-based version control with check-in, diff, and restore
+- **No cloud lock-in** — All data stored locally, you own your work
+
+### Cross-Platform
+- **Desktop app** — Native apps for macOS, Windows, and Linux
+- **Browser-based** — Self-host and access from any browser
+- **Fully offline capable** — No internet connection required for the desktop app
 
 ---
 
@@ -77,6 +105,22 @@ That's it. The script installs dependencies, builds the app, and opens it in you
 - **Git** — [Download Git](https://git-scm.com/downloads)
 
 > See [docs/INSTALLATION.md](docs/INSTALLATION.md) for detailed step-by-step instructions, troubleshooting, and manual setup.
+
+---
+
+## Comparison with Other Screenwriting Software
+
+| Feature | OpenDraft | Final Draft | WriterSolo | Highland |
+|---------|-----------|-------------|------------|----------|
+| **Price** | Free | $249.99 | Free (limited) | $49.99 |
+| **Open Source** | Yes (MIT) | No | No | No |
+| **Real-time Collaboration** | Yes | No | No | No |
+| **Version History** | Built-in (Git) | Manual saves | No | No |
+| **Cross-platform** | macOS, Windows, Linux | macOS, Windows | Browser | macOS |
+| **Offline Support** | Yes | Yes | No | Yes |
+| **Self-hosted** | Yes | No | No | No |
+| **Beat Board / Index Cards** | Yes | Yes | No | No |
+| **No Account Required** | Yes | No | No | No |
 
 ---
 
@@ -164,7 +208,13 @@ See [docs/desktop-build.md](docs/desktop-build.md) for detailed desktop build in
 
 ## License
 
-OpenDraft is open-source software. See [LICENSE](LICENSE) for details.
+OpenDraft is released under the [MIT License](LICENSE) — free for personal and commercial use.
+
+---
+
+## Keywords
+
+screenwriting software, screenplay editor, screenwriting app, open source screenwriting, free screenplay software, Final Draft alternative, scriptwriting software, screenwriting tool, collaborative screenwriting, screenplay formatter, fountain editor, film writing software, TV writing software, script editor, writing app for screenwriters
 
 ---
 
