@@ -31,7 +31,7 @@ const FontPicker: React.FC<FontPickerProps> = ({ value, onChange, extraFonts = [
       {extraFonts.length > 0 && (
         <optgroup label="Document Fonts">
           {extraFonts.map((name) => (
-            <option key={name} value={name}>{name}</option>
+            <option key={`extra-${name}`} value={name}>{name}</option>
           ))}
         </optgroup>
       )}

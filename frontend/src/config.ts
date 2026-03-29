@@ -14,6 +14,11 @@ export const API_BASE: string =
 /** Server root without the /api suffix (used for asset URLs, etc.) */
 export const SERVER_BASE: string = API_BASE.replace(/\/api$/, '');
 
+/** WebSocket URL for the Hocuspocus collaboration server */
+const DEFAULT_COLLAB_WS = 'ws://localhost:4000';
+export const COLLAB_WS_URL: string =
+  import.meta.env.VITE_COLLAB_WS_URL || DEFAULT_COLLAB_WS;
+
 /**
  * Get the URL for an asset.
  *

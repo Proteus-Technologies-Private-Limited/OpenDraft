@@ -76,6 +76,15 @@ export interface DiffResponse {
   to_hash: string;
 }
 
+export interface CollabSession {
+  token: string;
+  project_id: string;
+  script_id: string;
+  collaborator_name: string;
+  created_at: string;
+  active: boolean;
+}
+
 // ── API methods ──────────────────────────────────────────────────────────────
 
 export const api = {
@@ -157,6 +166,25 @@ export const api = {
     request<VersionInfo>(`/projects/${projectId}/versions/restore/${hash}`, {
       method: 'POST',
     }),
+
+  // Collaboration
+  createCollabInvite: (projectId: string, scriptId: string, collaboratorName: string) =>
+    request<CollabSession>('/collab/invite', {
+      method: 'POST',
+      body: JSON.stringify({ project_id: projectId, script_id: scriptId, collaborator_name: collaboratorName }),
+    }),
+
+  validateCollabSession: (token: string) =>
+    request<CollabSession>(`/collab/session/${token}`),
+
+  listCollabSessions: (projectId: string, scriptId: string) =>
+    request<CollabSession[]>(`/collab/sessions/${projectId}/${scriptId}`),
+
+  revokeCollabSession: (token: string) =>
+    request<{ message: string }>(`/collab/session/${token}`, { method: 'DELETE' }),
+
+  revokeAllCollabSessions: (projectId: string, scriptId: string) =>
+    request<{ message: string }>(`/collab/sessions/${projectId}/${scriptId}`, { method: 'DELETE' }),
 };
 
 // ── Mobile storage initialisation ───────────────────────────────────────────

@@ -54,6 +54,7 @@ backend/static/
 
 # Runtime project data
 backend/data/
+collab-server/data/
 
 # Build artifacts
 OpenDraft.pkg

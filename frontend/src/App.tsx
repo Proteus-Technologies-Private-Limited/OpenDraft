@@ -14,6 +14,7 @@ function App() {
         <Route path="/project/:projectId" element={<ProjectView />} />
         <Route path="/project/:projectId/edit/:scriptId" element={<ScreenplayEditor />} />
         <Route path="/project/:projectId/history/:scriptId/:commitHash" element={<ScreenplayEditor />} />
+        <Route path="/collab/:collabToken" element={<ScreenplayEditor />} />
       </Routes>
       <Toast />
     </>

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import Document from '@tiptap/extension-document';
 import Text from '@tiptap/extension-text';
@@ -6,6 +6,8 @@ import Bold from '@tiptap/extension-bold';
 import Italic from '@tiptap/extension-italic';
 import Underline from '@tiptap/extension-underline';
 import History from '@tiptap/extension-history';
+import Collaboration from '@tiptap/extension-collaboration';
+import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import Dropcursor from '@tiptap/extension-dropcursor';
 import Gapcursor from '@tiptap/extension-gapcursor';
 import TextAlign from '@tiptap/extension-text-align';
@@ -14,6 +16,8 @@ import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import FontFamily from '@tiptap/extension-font-family';
 import { Extension } from '@tiptap/core';
+import * as Y from 'yjs';
+import { HocuspocusProvider } from '@hocuspocus/provider';
 
 import {
   SceneHeading, Action, Character, Dialogue, Parenthetical,
@@ -44,7 +48,7 @@ import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck
 import { spellChecker } from '../editor/spellchecker';
 import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
-import { API_BASE } from '../config';
+import { API_BASE, COLLAB_WS_URL } from '../config';
 import { showToast } from './Toast';
 import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';
@@ -52,9 +56,19 @@ import { useParams, useNavigate } from 'react-router-dom';
 import OpenFromProject from './OpenFromProject';
 import WelcomeDialog from './WelcomeDialog';
 import SaveAsDialog from './SaveAsDialog';
+import ShareDialog from './ShareDialog';
 import CompareVersionPicker from './CompareVersionPicker';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
+
+// Random color for collaboration cursor
+const COLLAB_COLORS = [
+  '#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8',
+  '#94FADB', '#B9F18D', '#E8A0BF', '#C4B5FD', '#67E8F9',
+];
+function randomCollabColor() {
+  return COLLAB_COLORS[Math.floor(Math.random() * COLLAB_COLORS.length)];
+}
 
 // Default next element type when pressing Enter
 const DEFAULT_NEXT_TYPE: Record<string, string> = {
@@ -155,7 +169,7 @@ interface OverlayInfo {
 }
 
 const ScreenplayEditor: React.FC = () => {
-  const { projectId: urlProjectId, scriptId: urlScriptId, commitHash: urlCommitHash } = useParams<{ projectId?: string; scriptId?: string; commitHash?: string }>();
+  const { projectId: urlProjectId, scriptId: urlScriptId, commitHash: urlCommitHash, collabToken: urlCollabToken } = useParams<{ projectId?: string; scriptId?: string; commitHash?: string; collabToken?: string }>();
   const navigate = useNavigate();
   const isHistoryMode = Boolean(urlCommitHash);
 
@@ -167,6 +181,55 @@ const ScreenplayEditor: React.FC = () => {
   } = useEditorStore();
 
   const { currentProject, currentScriptId, setCurrentProject, setCurrentScriptId } = useProjectStore();
+
+  // ── Collaboration state ──
+  const [collabMode, setCollabMode] = useState(false);
+  const [collabUserName, setCollabUserName] = useState('Owner');
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [collabUsers, setCollabUsers] = useState<{ name: string; color: string }[]>([]);
+  const collabColor = useMemo(() => randomCollabColor(), []);
+
+  // Yjs document & provider — stable across renders while collab is active
+  const ydocRef = useRef<Y.Doc | null>(null);
+  const providerRef = useRef<HocuspocusProvider | null>(null);
+
+  // Cleanup collab provider
+  const destroyCollab = useCallback(() => {
+    if (providerRef.current) {
+      providerRef.current.destroy();
+      providerRef.current = null;
+    }
+    if (ydocRef.current) {
+      ydocRef.current.destroy();
+      ydocRef.current = null;
+    }
+    setCollabUsers([]);
+  }, []);
+
+  // Create Yjs doc + provider synchronously (so refs are ready when editor memo runs)
+  const setupCollab = useCallback((docName: string, token: string, _userName: string) => {
+    destroyCollab();
+    const ydoc = new Y.Doc();
+    const provider = new HocuspocusProvider({
+      url: COLLAB_WS_URL,
+      name: docName,
+      document: ydoc,
+      token,
+      onAwarenessUpdate: ({ states }) => {
+        const users: { name: string; color: string }[] = [];
+        states.forEach((state: Record<string, unknown>) => {
+          const user = state.user as { name: string; color: string } | undefined;
+          if (user?.name) users.push(user);
+        });
+        setCollabUsers(users);
+      },
+    });
+    ydocRef.current = ydoc;
+    providerRef.current = provider;
+  }, [destroyCollab]);
+
+  // Force editor recreation when collab mode toggles
+  const [editorKey, setEditorKey] = useState(0);
 
   const editorMainRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -209,9 +272,66 @@ const ScreenplayEditor: React.FC = () => {
     };
   }, [pageLayout.pageWidth, setZoomLevel]);
 
+  // ── Handle /collab/:token route — resolve token to project/script, then enter collab mode ──
+  const collabInitDone = useRef(false);
+  const collabInitialContent = useRef<Record<string, unknown> | null>(null);
+  const [collabLoading, setCollabLoading] = useState(Boolean(urlCollabToken));
+  useEffect(() => {
+    if (!urlCollabToken || collabInitDone.current) return;
+    collabInitDone.current = true;
+    (async () => {
+      try {
+        const session = await api.validateCollabSession(urlCollabToken);
+
+        // Load script content FIRST so the editor can seed the Yjs doc
+        const project = await api.getProject(session.project_id);
+        const scriptResp = await api.getScript(session.project_id, session.script_id);
+
+        // Strip app metadata keys, keep only ProseMirror doc
+        const content = scriptResp.content as Record<string, unknown> | null;
+        if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
+          const { _notes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
+          collabInitialContent.current = pmDoc;
+        } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
+          collabInitialContent.current = content;
+        }
+
+        // Setup provider synchronously before triggering editor rebuild
+        const docName = `${session.project_id}/${session.script_id}`;
+        setupCollab(docName, urlCollabToken, session.collaborator_name);
+
+        setCollabUserName(session.collaborator_name);
+        setCollabMode(true);
+        setEditorKey((k) => k + 1);
+
+        setCurrentProject(project);
+        setCurrentScriptId(session.script_id);
+        setDocumentTitle(scriptResp.meta.title);
+        setCollabLoading(false);
+      } catch (err) {
+        showToast('Invalid or expired collaboration link', 'error');
+        setCollabLoading(false);
+        navigate('/');
+      }
+    })();
+  }, [urlCollabToken, navigate, setCurrentProject, setCurrentScriptId, setDocumentTitle, setupCollab]);
+
+  // handleStartCollab is defined after the editor — see below useEditor
+
+  const handleStopCollab = useCallback(() => {
+    destroyCollab();
+    setCollabMode(false);
+    setEditorKey((k) => k + 1);
+  }, [destroyCollab]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { destroyCollab(); };
+  }, [destroyCollab]);
+
   // Welcome dialog — show on first visit
   const [showWelcome, setShowWelcome] = useState(() => {
-    return !localStorage.getItem('opendraft:welcomed') && !urlScriptId;
+    return !localStorage.getItem('opendraft:welcomed') && !urlScriptId && !urlCollabToken;
   });
 
   // Element picker state
@@ -366,13 +486,29 @@ const ScreenplayEditor: React.FC = () => {
     })
   );
 
+  // Build collaboration extensions when in collab mode
+  const collabExtensions = useMemo(() => {
+    if (!collabMode || !ydocRef.current || !providerRef.current) return [];
+    return [
+      Collaboration.configure({
+        document: ydocRef.current,
+      }),
+      CollaborationCursor.configure({
+        provider: providerRef.current,
+        user: { name: collabUserName, color: collabColor },
+      }),
+    ];
+  }, [collabMode, collabUserName, collabColor, editorKey]);
+
   const editor = useEditor({
     extensions: [
       Document.extend({
         content: 'block+',
       }),
-      Text, Bold, Italic, Underline, History, Dropcursor, Gapcursor,
+      Text, Bold, Italic, Underline, Dropcursor, Gapcursor,
       TextStyle, Color, FontFamily, FontSize,
+      // Use History in normal mode, Collaboration in collab mode
+      ...(collabMode ? collabExtensions : [History]),
       TextAlign.configure({ types: ALL_ELEMENT_TYPES }),
       Placeholder.configure({
         placeholder: ({ node }) => {
@@ -396,7 +532,11 @@ const ScreenplayEditor: React.FC = () => {
       ...(isHistoryMode ? [] : [EnterHandlerExtension]),
       SpellCheck,
     ],
-    content: (urlScriptId || urlCommitHash) ? undefined : SAMPLE_CONTENT,
+    // In collab mode, pass fetched content so TipTap seeds the Yjs doc on first connect.
+    // For normal editing from URL, content is loaded later via useEffect.
+    content: collabMode
+      ? (collabInitialContent.current || { type: 'doc', content: [{ type: 'action', content: [] }] })
+      : (urlScriptId || urlCommitHash) ? undefined : SAMPLE_CONTENT,
     editable: !isHistoryMode,
     editorProps: {
       attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: isHistoryMode ? 'false' : 'true' },
@@ -406,7 +546,34 @@ const ScreenplayEditor: React.FC = () => {
         if (ed.isActive(type)) { setActiveElement(type); break; }
       }
     },
-  });
+  }, [editorKey]);
+
+  // ── Owner starts collaboration — save current content, create own token, switch to collab mode ──
+  const handleStartCollab = useCallback(async (guestSession: import('../services/api').CollabSession) => {
+    if (!editor || !currentProject || !currentScriptId) return;
+
+    // Save current editor content so it can seed the Yjs doc
+    const doc = editor.getJSON();
+    const { _notes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = doc as Record<string, unknown>;
+    collabInitialContent.current = pmDoc;
+
+    // Create a separate session token for the owner (the collab server needs a valid token)
+    let ownerToken: string;
+    try {
+      const ownerSession = await api.createCollabInvite(currentProject.id, currentScriptId, 'Host');
+      ownerToken = ownerSession.token;
+    } catch {
+      ownerToken = guestSession.token;
+    }
+
+    const docName = `${currentProject.id}/${currentScriptId}`;
+    setupCollab(docName, ownerToken, 'Host');
+
+    setCollabUserName('Host');
+    setCollabMode(true);
+    setShareDialogOpen(false);
+    setEditorKey((k) => k + 1);
+  }, [editor, currentProject, currentScriptId, setupCollab]);
 
   // Helper: clear track changes when switching documents
   const clearTrackChanges = useCallback(() => {
@@ -1202,6 +1369,18 @@ const ScreenplayEditor: React.FC = () => {
 
   const zoomScale = zoomLevel / 100;
 
+  // Show loading screen while collab session is being set up
+  if (collabLoading) {
+    return (
+      <div className="app-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <div style={{ textAlign: 'center', color: 'var(--fd-text-secondary, #888)' }}>
+          <div style={{ fontSize: 18, marginBottom: 8 }}>Joining collaboration session...</div>
+          <div style={{ fontSize: 13 }}>Loading document</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`app-container${isHistoryMode ? ' history-mode' : ''}`}>
       {isHistoryMode && (
@@ -1224,7 +1403,39 @@ const ScreenplayEditor: React.FC = () => {
           </button>
         </div>
       )}
-      {!isHistoryMode && <MenuBar editor={editor} />}
+      {collabMode && (
+        <div className="collab-banner">
+          <span className="collab-dot" />
+          <span className="collab-banner-text">
+            Live Collaboration — Editing as <strong>{collabUserName}</strong>
+            {collabUsers.length > 0 && ` — ${collabUsers.length} user${collabUsers.length !== 1 ? 's' : ''} connected`}
+          </span>
+          <div className="collab-avatars">
+            {collabUsers.map((u, i) => (
+              <span key={i} className="collab-avatar" style={{ backgroundColor: u.color }} title={u.name}>
+                {u.name.charAt(0).toUpperCase()}
+              </span>
+            ))}
+          </div>
+          {collabUserName === 'Host' && (
+            <button className="collab-banner-btn" onClick={() => setShareDialogOpen(true)}>
+              Invite
+            </button>
+          )}
+          <button className="collab-banner-btn collab-banner-btn-stop" onClick={handleStopCollab}>
+            {collabUserName === 'Host' ? 'End Session' : 'Disconnect'}
+          </button>
+        </div>
+      )}
+      {!isHistoryMode && <MenuBar editor={editor} onCollaborate={() => {
+        if (!currentProject || !currentScriptId) {
+          showToast('Save your screenplay to a project first — opening Save As...', 'info');
+          // Open the Save As dialog; after saving, user can click Collaborate again
+          useEditorStore.getState().setSaveAsOpen(true);
+          return;
+        }
+        setShareDialogOpen(true);
+      }} isCollabActive={collabMode} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
       <div className="editor-layout">
         {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} />}
@@ -1355,6 +1566,16 @@ const ScreenplayEditor: React.FC = () => {
         <CompareVersionPicker
           onSelect={handleCompareVersionSelect}
           onClose={() => setCompareVersionOpen(false)}
+        />
+      )}
+      {!isHistoryMode && shareDialogOpen && currentProject && currentScriptId && (
+        <ShareDialog
+          projectId={currentProject.id}
+          scriptId={currentScriptId}
+          scriptTitle={useEditorStore.getState().documentTitle}
+          isCollabActive={collabMode}
+          onStartCollab={handleStartCollab}
+          onClose={() => setShareDialogOpen(false)}
         />
       )}
       {!isHistoryMode && <StatusBar />}

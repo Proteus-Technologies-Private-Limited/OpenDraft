@@ -15,6 +15,8 @@ import PageSetupDialog from './PageSetupDialog';
 
 interface MenuBarProps {
   editor: Editor | null;
+  onCollaborate?: () => void;
+  isCollabActive?: boolean;
 }
 
 interface MenuItem {
@@ -30,7 +32,7 @@ interface MenuSection {
   items: MenuItem[];
 }
 
-const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
+const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, isCollabActive }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const {
@@ -380,13 +382,15 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor }) => {
         { label: 'Print...', shortcut: '\u2318P', action: () => window.print() },
         { separator: true, label: '' },
         { label: 'Manage Projects...', action: () => { window.location.href = '/projects'; } },
+        { separator: true, label: '' },
+        { label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate },
       ],
     },
     {
       label: 'Edit',
       items: [
-        { label: 'Undo', shortcut: '⌘Z', action: () => editor?.chain().focus().undo().run() },
-        { label: 'Redo', shortcut: '⇧⌘Z', action: () => editor?.chain().focus().redo().run() },
+        { label: 'Undo', shortcut: '⌘Z', action: () => { try { editor?.chain().focus().undo().run(); } catch {} } },
+        { label: 'Redo', shortcut: '⇧⌘Z', action: () => { try { editor?.chain().focus().redo().run(); } catch {} } },
         { separator: true, label: '' },
         { label: 'Select All', shortcut: '⌘A', action: () => editor?.chain().focus().selectAll().run() },
         { separator: true, label: '' },

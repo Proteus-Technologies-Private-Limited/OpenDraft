@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from app.api import scripts, auth, export, projects, versions, assets
+from app.api import scripts, auth, export, projects, versions, assets, collab
 from app.config import PROJECTS_DIR, BASE_DIR
 
 STATIC_DIR = BASE_DIR / "static"
@@ -47,6 +47,7 @@ app.include_router(export.router, prefix="/api/export", tags=["export"])
 app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 app.include_router(versions.router, prefix="/api/projects", tags=["versions"])
 app.include_router(assets.router, prefix="/api/projects", tags=["assets"])
+app.include_router(collab.router, prefix="/api/collab", tags=["collab"])
 
 
 @app.get("/health")

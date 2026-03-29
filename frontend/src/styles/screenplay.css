@@ -5299,3 +5299,217 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   /* Let the browser handle page breaks */
   .tiptap .ProseMirror > * { page-break-inside: avoid; }
 }
+
+/* ── Collaboration ────────────────────────────────────────────────── */
+
+.collab-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  background: linear-gradient(90deg, #1a3a2a 0%, #1a2a3a 100%);
+  border-bottom: 1px solid #2a5a3a;
+  font-size: 13px;
+  color: #a0d0b0;
+  min-height: 32px;
+  flex-shrink: 0;
+}
+
+.collab-banner-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.collab-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+  animation: collab-pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes collab-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.collab-avatars {
+  display: flex;
+  gap: 4px;
+}
+
+.collab-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.collab-banner-btn {
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid #3a7a5a;
+  background: transparent;
+  color: #a0d0b0;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.collab-banner-btn:hover {
+  background: #2a4a3a;
+}
+
+.collab-banner-btn-stop {
+  border-color: #7a3a3a;
+  color: #e0a0a0;
+}
+
+.collab-banner-btn-stop:hover {
+  background: #3a2a2a;
+}
+
+/* Share dialog */
+.collab-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: #1a3a2a;
+  color: #4ade80;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.collab-sessions-list {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.collab-session-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  margin-top: 6px;
+  border-radius: 6px;
+  background: var(--fd-input-bg, #2a2a2e);
+  gap: 8px;
+}
+
+.collab-session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.collab-session-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--fd-text, #e0e0e0);
+}
+
+.collab-session-date {
+  font-size: 11px;
+  color: var(--fd-text-secondary, #888);
+}
+
+.collab-session-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.collab-copy-btn,
+.collab-revoke-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--fd-border, #444);
+  background: transparent;
+  color: var(--fd-text, #e0e0e0);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.collab-copy-btn:hover {
+  background: var(--fd-hover, #333);
+}
+
+.collab-revoke-btn {
+  color: #e06060;
+  border-color: #5a3030;
+}
+
+.collab-revoke-btn:hover {
+  background: #3a2020;
+}
+
+/* Collaboration cursor styles */
+.collaboration-cursor__caret {
+  border-left: 1px solid #0d0d0d;
+  border-right: 1px solid #0d0d0d;
+  margin-left: -1px;
+  margin-right: -1px;
+  pointer-events: none;
+  position: relative;
+  word-break: normal;
+}
+
+.collaboration-cursor__label {
+  border-radius: 3px 3px 3px 0;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  left: -1px;
+  line-height: normal;
+  padding: 1px 6px;
+  position: absolute;
+  top: -1.4em;
+  user-select: none;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Light theme overrides for collab */
+[data-theme="light"] .collab-banner {
+  background: linear-gradient(90deg, #e8f5e9 0%, #e3f2fd 100%);
+  border-bottom-color: #a5d6a7;
+  color: #2e7d32;
+}
+
+[data-theme="light"] .collab-banner-btn {
+  border-color: #a5d6a7;
+  color: #2e7d32;
+}
+
+[data-theme="light"] .collab-banner-btn:hover {
+  background: #c8e6c9;
+}
+
+[data-theme="light"] .collab-banner-btn-stop {
+  border-color: #ef9a9a;
+  color: #c62828;
+}
+
+[data-theme="light"] .collab-banner-btn-stop:hover {
+  background: #ffcdd2;
+}
+
+[data-theme="light"] .collab-status-badge {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
