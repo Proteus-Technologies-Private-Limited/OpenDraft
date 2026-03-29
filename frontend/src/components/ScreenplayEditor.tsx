@@ -471,8 +471,32 @@ const ScreenplayEditor: React.FC = () => {
   useEffect(() => {
     if (!editor) return;
     updateCharacters();
-    editor.on('update', updateCharacters);
-    return () => { editor.off('update', updateCharacters); };
+    // Only update character list when the cursor leaves a character node
+    // (i.e., user finished typing the name and pressed Enter / moved away)
+    let prevInCharNode = false;
+    const handleSelectionUpdate = () => {
+      const { $from } = editor.state.selection;
+      const inCharNode = $from.parent.type.name === 'character';
+      // Update when leaving a character node, or when entering a non-character node after being in one
+      if (prevInCharNode && !inCharNode) {
+        updateCharacters();
+      }
+      prevInCharNode = inCharNode;
+    };
+    // Also update on transaction that changes node type (e.g., setNode from character to dialogue)
+    const handleUpdate = ({ transaction }: { transaction: { docChanged: boolean } }) => {
+      if (!transaction.docChanged) return;
+      const { $from } = editor.state.selection;
+      if ($from.parent.type.name !== 'character') {
+        updateCharacters();
+      }
+    };
+    editor.on('selectionUpdate', handleSelectionUpdate);
+    editor.on('update', handleUpdate);
+    return () => {
+      editor.off('selectionUpdate', handleSelectionUpdate);
+      editor.off('update', handleUpdate);
+    };
   }, [editor, updateCharacters]);
 
   // --- Auto CONT'D: add/remove (CONT'D) based on previous dialogue ---
@@ -742,6 +766,8 @@ const ScreenplayEditor: React.FC = () => {
         // Restore metadata from top-level content keys (skip in history mode)
         if (!isHistoryMode) {
           const store = useEditorStore.getState();
+          // Clear per-screenplay metadata so we don't carry over from a previously opened screenplay
+          store.setCharacterProfiles([]);
           const parseAttr = (val: unknown): unknown[] => {
             if (typeof val === 'string') { try { const p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch { return []; } }
             if (Array.isArray(val)) return val;
@@ -1080,6 +1106,32 @@ const ScreenplayEditor: React.FC = () => {
     const editorEl = editor.view.dom;
     editorEl.addEventListener('click', handleClick);
     return () => editorEl.removeEventListener('click', handleClick);
+  }, [editor]);
+
+  // --- Click on character element → expand in character panel ---
+  useEffect(() => {
+    if (!editor) return;
+    const handleCharClick = (e: MouseEvent) => {
+      const store = useEditorStore.getState();
+      if (!store.characterProfilesOpen) return;
+
+      const pos = editor.view.posAtCoords({ left: e.clientX, top: e.clientY });
+      if (!pos) return;
+
+      const resolved = editor.state.doc.resolve(pos.pos);
+      const node = resolved.parent;
+
+      if (node.type.name === 'character') {
+        const base = node.textContent.trim().replace(/\s*\([^)]*\)\s*/g, '').toUpperCase();
+        if (base) {
+          store.setSelectedCharacter(base);
+        }
+      }
+    };
+
+    const editorEl = editor.view.dom;
+    editorEl.addEventListener('click', handleCharClick);
+    return () => editorEl.removeEventListener('click', handleCharClick);
   }, [editor]);
 
   // --- Script context menu (right-click) ---

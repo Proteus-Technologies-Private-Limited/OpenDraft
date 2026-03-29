@@ -236,6 +236,8 @@ interface EditorState {
   deleteCharacterProfile: (name: string) => void;
   characterProfilesOpen: boolean;
   toggleCharacterProfiles: () => void;
+  selectedCharacter: string | null;
+  setSelectedCharacter: (name: string | null) => void;
 
   // Production tags
   tagCategories: TagCategory[];
@@ -433,6 +435,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   characterProfilesOpen: false,
   toggleCharacterProfiles: () =>
     set((s) => ({ characterProfilesOpen: !s.characterProfilesOpen })),
+  selectedCharacter: null,
+  setSelectedCharacter: (name) => set({ selectedCharacter: name }),
 
   // Production tags
   tagCategories: [...DEFAULT_TAG_CATEGORIES],
