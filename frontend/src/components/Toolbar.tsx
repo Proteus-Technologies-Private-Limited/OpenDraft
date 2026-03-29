@@ -142,16 +142,16 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <button
           className="toolbar-btn"
           title="Undo (⌘Z)"
-          onClick={() => editor?.chain().focus().undo().run()}
-          disabled={!editor?.can().undo()}
+          onClick={() => { try { editor?.chain().focus().undo().run(); } catch {} }}
+          disabled={!editor || typeof (editor.can() as any).undo !== 'function' || !(editor.can() as any).undo()}
         >
           <FaUndo />
         </button>
         <button
           className="toolbar-btn"
           title="Redo (⇧⌘Z)"
-          onClick={() => editor?.chain().focus().redo().run()}
-          disabled={!editor?.can().redo()}
+          onClick={() => { try { editor?.chain().focus().redo().run(); } catch {} }}
+          disabled={!editor || typeof (editor.can() as any).redo !== 'function' || !(editor.can() as any).redo()}
         >
           <FaRedo />
         </button>

@@ -20,7 +20,6 @@ export const FONT_REGISTRY: FontEntry[] = [
   // Screenplay Standard
   { name: 'Courier Prime', category: 'Screenplay Standard', scripts: ['latin'], source: 'local', direction: 'ltr' },
   { name: 'Courier New', category: 'Screenplay Standard', scripts: ['latin'], source: 'system', direction: 'ltr' },
-  { name: 'Courier Prime', category: 'Screenplay Standard', scripts: ['latin'], source: 'google', direction: 'ltr' },
 
   // Latin Extended
   { name: 'Noto Sans', category: 'Latin Extended', scripts: ['latin', 'cyrillic', 'greek'], source: 'google', direction: 'ltr' },
