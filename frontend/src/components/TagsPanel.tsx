@@ -6,6 +6,17 @@ interface TagsPanelProps {
   editor: Editor | null;
 }
 
+/** An occurrence of a tag entity found by scanning the document. */
+interface TagOccurrence {
+  tagId: string;
+  text: string;
+  from: number;
+  to: number;
+  sceneId: string | null;
+  sceneName: string | null;
+  elementType: string;
+}
+
 const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
   const {
     tagCategories,
@@ -19,7 +30,6 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
     setTagsVisible,
     tagsPanelOpen,
     toggleTagsPanel,
-    scenes,
     pendingTagSelection,
     setPendingTagSelection,
     editingTagId,
@@ -30,7 +40,84 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
   const [expandedTagId, setExpandedTagId] = useState<string | null>(null);
   const tagItemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  // When editingTagId is set from context menu, auto-expand the category and tag, then scroll
+  // Pending-selection step: null → pick category → pick entity or create new
+  const [pendingCategoryId, setPendingCategoryId] = useState<string | null>(null);
+  const [newEntityName, setNewEntityName] = useState('');
+
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatColor, setNewCatColor] = useState('#6fa8dc');
+
+  // ── Scan document for tag occurrences ─────────────────────────────────
+
+  const occurrences = useMemo((): TagOccurrence[] => {
+    if (!editor) return [];
+    const { doc, schema } = editor.state;
+    const markType = schema.marks.productionTag;
+    if (!markType) return [];
+
+    const result: TagOccurrence[] = [];
+
+    // Pre-build scene index: for each node offset → which scene it falls in
+    const sceneRanges: Array<{ id: string; name: string; from: number }> = [];
+    let sceneIdx = 0;
+    doc.descendants((node, pos) => {
+      if (node.type.name === 'sceneHeading') {
+        sceneRanges.push({
+          id: `scene-${sceneIdx}`,
+          name: node.textContent || 'Untitled Scene',
+          from: pos,
+        });
+        sceneIdx++;
+      }
+    });
+
+    const getScene = (pos: number) => {
+      let scene: { id: string; name: string } | null = null;
+      for (const s of sceneRanges) {
+        if (s.from <= pos) scene = { id: s.id, name: s.name };
+        else break;
+      }
+      return scene;
+    };
+
+    doc.descendants((node, pos) => {
+      if (!node.isText) return;
+      for (const mark of node.marks) {
+        if (mark.type === markType && mark.attrs.tagId) {
+          const scene = getScene(pos);
+          // Determine element type from parent node
+          const resolved = doc.resolve(pos);
+          const parentType = resolved.parent.type.name;
+          result.push({
+            tagId: mark.attrs.tagId as string,
+            text: node.textContent,
+            from: pos,
+            to: pos + node.nodeSize,
+            sceneId: scene?.id ?? null,
+            sceneName: scene?.name ?? null,
+            elementType: parentType,
+          });
+        }
+      }
+    });
+
+    return result;
+  }, [editor, editor?.state.doc]);
+
+  // Group occurrences by tagId
+  const occurrencesByTag = useMemo(() => {
+    const map = new Map<string, TagOccurrence[]>();
+    for (const occ of occurrences) {
+      const list = map.get(occ.tagId);
+      if (list) list.push(occ);
+      else map.set(occ.tagId, [occ]);
+    }
+    return map;
+  }, [occurrences]);
+
+  // ── Auto-expand when editingTagId is set from context menu ────────────
+
   const lastEditingTagRef = useRef<string | null>(null);
   useEffect(() => {
     if (!editingTagId || editingTagId === lastEditingTagRef.current) return;
@@ -46,7 +133,6 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
     setExpandedTagId(editingTagId);
     setEditingTagId(null);
 
-    // Scroll after React re-renders with the expanded state
     setTimeout(() => {
       const el = tagItemRefs.current.get(editingTagId);
       if (el) {
@@ -56,11 +142,15 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
       }
     }, 100);
   }, [editingTagId, tags, setEditingTagId]);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newCatName, setNewCatName] = useState('');
-  const [newCatColor, setNewCatColor] = useState('#6fa8dc');
 
-  // Group tags by category
+  // Reset pending category when pending selection changes
+  useEffect(() => {
+    setPendingCategoryId(null);
+    setNewEntityName('');
+  }, [pendingTagSelection]);
+
+  // ── Group tags by category ────────────────────────────────────────────
+
   const tagsByCategory = useMemo(() => {
     const map = new Map<string, typeof tags>();
     for (const cat of tagCategories) {
@@ -71,60 +161,79 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
   }, [tags, tagCategories]);
 
 
-  const getSceneName = useCallback(
-    (sceneId: string | null) => {
-      if (!sceneId) return null;
-      const scene = scenes.find((s) => s.id === sceneId);
-      return scene ? scene.heading : null;
-    },
-    [scenes],
-  );
-
   const toggleCategory = useCallback((catId: string) => {
     setExpandedCats((prev) => {
       const next = new Set(prev);
-      if (next.has(catId)) next.delete(catId); else next.add(catId);
+      if (next.has(catId)) next.delete(catId);
+      else next.add(catId);
       return next;
     });
   }, []);
 
-  const handleNavigateToTag = useCallback(
-    (tagId: string) => {
+  // ── Navigate to a specific occurrence ─────────────────────────────────
+
+  const handleNavigateToOccurrence = useCallback(
+    (pos: number) => {
       if (!editor) return;
-      const { doc, schema } = editor.state;
-      const markType = schema.marks.productionTag;
-      if (!markType) return;
-
-      let targetPos: number | null = null;
-      doc.descendants((node, pos) => {
-        if (targetPos !== null) return false;
-        if (!node.isText) return;
-        const mark = node.marks.find(
-          (m) => m.type === markType && m.attrs.tagId === tagId,
-        );
-        if (mark) {
-          targetPos = pos;
-          return false;
-        }
-      });
-
-      if (targetPos !== null) {
-        editor.chain().focus().setTextSelection(targetPos).run();
-        const coords = editor.view.coordsAtPos(targetPos);
-        const editorMain = document.querySelector('.editor-main');
-        if (editorMain && coords) {
-          const rect = editorMain.getBoundingClientRect();
-          const scrollTo = editorMain.scrollTop + (coords.top - rect.top) - rect.height / 3;
-          editorMain.scrollTo({ top: scrollTo, behavior: 'smooth' });
-        }
+      editor.chain().focus().setTextSelection(pos).run();
+      const coords = editor.view.coordsAtPos(pos);
+      const editorMain = document.querySelector('.editor-main');
+      if (editorMain && coords) {
+        const rect = editorMain.getBoundingClientRect();
+        const scrollTo = editorMain.scrollTop + (coords.top - rect.top) - rect.height / 3;
+        editorMain.scrollTo({ top: scrollTo, behavior: 'smooth' });
       }
     },
     [editor],
   );
 
-  const handleDeleteTag = useCallback(
+  // Navigate to first occurrence of an entity
+  const handleNavigateToTag = useCallback(
     (tagId: string) => {
-      // Remove mark from editor
+      const occs = occurrencesByTag.get(tagId);
+      if (occs && occs.length > 0) {
+        handleNavigateToOccurrence(occs[0].from);
+      }
+    },
+    [occurrencesByTag, handleNavigateToOccurrence],
+  );
+
+  // ── Remove a single occurrence (mark) ─────────────────────────────────
+
+  const handleRemoveOccurrence = useCallback(
+    (tagId: string, from: number, to: number) => {
+      if (!editor) return;
+      const { schema } = editor.state;
+      const markType = schema.marks.productionTag;
+      if (!markType) return;
+
+      editor.chain().command(({ tr }) => {
+        // Remove mark in the given range
+        tr.doc.nodesBetween(from, to, (node, pos) => {
+          if (!node.isText) return;
+          const mark = node.marks.find(
+            (m) => m.type === markType && m.attrs.tagId === tagId,
+          );
+          if (mark) {
+            tr.removeMark(pos, pos + node.nodeSize, mark);
+          }
+        });
+        return true;
+      }).run();
+
+      // If this was the last occurrence, also remove the entity
+      const remaining = occurrencesByTag.get(tagId);
+      if (!remaining || remaining.length <= 1) {
+        deleteTag(tagId);
+      }
+    },
+    [editor, occurrencesByTag, deleteTag],
+  );
+
+  // ── Delete an entire entity (all occurrences) ─────────────────────────
+
+  const handleDeleteEntity = useCallback(
+    (tagId: string) => {
       if (editor) {
         const { doc, schema } = editor.state;
         const markType = schema.marks.productionTag;
@@ -148,20 +257,55 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
     [editor, deleteTag],
   );
 
-  /** Apply a pending tag selection to a category */
-  const handleApplyPendingTag = useCallback(
-    (categoryId: string, categoryColor: string) => {
-      if (!editor || !pendingTagSelection) return;
-      const { from, to, text, elementType, sceneId } = pendingTagSelection;
+  // ── Pending tag flow: step 1 = pick category, step 2 = pick or create entity ─
 
-      const tagId = addTag({ categoryId, text, notes: '', sceneId, elementType });
+  const handlePickCategory = useCallback((catId: string) => {
+    setPendingCategoryId(catId);
+    setNewEntityName(pendingTagSelection?.text || '');
+  }, [pendingTagSelection]);
+
+  /** Apply pending selection to an EXISTING entity */
+  const handleAddToExistingEntity = useCallback(
+    (entity: typeof tags[0]) => {
+      if (!editor || !pendingTagSelection) return;
+      const { from, to } = pendingTagSelection;
+      const cat = tagCategories.find((c) => c.id === entity.categoryId);
+      const color = cat?.color || '#9370DB';
 
       editor.chain().focus()
         .setTextSelection({ from, to })
-        .setMark('productionTag', { tagId, categoryId, color: categoryColor })
+        .setMark('productionTag', { tagId: entity.id, categoryId: entity.categoryId, color })
         .run();
 
-      // Auto-expand the category and the new tag's detail
+      // Expand entity in panel
+      setExpandedCats((prev) => {
+        const next = new Set(prev);
+        next.add(entity.categoryId);
+        return next;
+      });
+      setExpandedTagId(entity.id);
+      setPendingTagSelection(null);
+      setPendingCategoryId(null);
+    },
+    [editor, pendingTagSelection, tagCategories, setPendingTagSelection],
+  );
+
+  /** Create a NEW entity from pending selection */
+  const handleCreateNewEntity = useCallback(
+    (categoryId: string) => {
+      if (!editor || !pendingTagSelection) return;
+      const { from, to, text, elementType, sceneId } = pendingTagSelection;
+      const cat = tagCategories.find((c) => c.id === categoryId);
+      const color = cat?.color || '#9370DB';
+      const entityName = newEntityName.trim() || text;
+
+      const tagId = addTag({ categoryId, text, name: entityName, notes: '', sceneId, elementType });
+
+      editor.chain().focus()
+        .setTextSelection({ from, to })
+        .setMark('productionTag', { tagId, categoryId, color })
+        .run();
+
       setExpandedCats((prev) => {
         const next = new Set(prev);
         next.add(categoryId);
@@ -169,12 +313,14 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
       });
       setExpandedTagId(tagId);
       setPendingTagSelection(null);
+      setPendingCategoryId(null);
     },
-    [editor, pendingTagSelection, addTag, setPendingTagSelection],
+    [editor, pendingTagSelection, tagCategories, newEntityName, addTag, setPendingTagSelection],
   );
 
   const handleCancelPending = useCallback(() => {
     setPendingTagSelection(null);
+    setPendingCategoryId(null);
   }, [setPendingTagSelection]);
 
   const handleAddCategory = useCallback(() => {
@@ -186,6 +332,11 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
   }, [newCatName, newCatColor, addTagCategory]);
 
   if (!tagsPanelOpen) return null;
+
+  // Entities in the currently-selected pending category
+  const pendingCatEntities = pendingCategoryId
+    ? tags.filter((t) => t.categoryId === pendingCategoryId)
+    : [];
 
   return (
     <div className="tags-panel">
@@ -208,8 +359,8 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
         </button>
       </div>
 
-      {/* Pending tag selection — pick a category */}
-      {pendingTagSelection && (
+      {/* ── Pending tag selection ──────────────────────────────────────── */}
+      {pendingTagSelection && !pendingCategoryId && (
         <div className="tags-pending">
           <div className="tags-pending-header">
             <span>Tag: &ldquo;{pendingTagSelection.text.slice(0, 40)}{pendingTagSelection.text.length > 40 ? '...' : ''}&rdquo;</span>
@@ -221,7 +372,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
               <div
                 key={cat.id}
                 className="tags-pending-item"
-                onClick={() => handleApplyPendingTag(cat.id, cat.color)}
+                onClick={() => handlePickCategory(cat.id)}
               >
                 <span className="tags-category-swatch" style={{ background: cat.color }} />
                 <span>{cat.name}</span>
@@ -231,102 +382,212 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
         </div>
       )}
 
+      {/* ── Step 2: pick existing entity or create new ────────────────── */}
+      {pendingTagSelection && pendingCategoryId && (
+        <div className="tags-pending">
+          <div className="tags-pending-header">
+            <span>
+              {tagCategories.find((c) => c.id === pendingCategoryId)?.name}
+              {' '}&rarr; &ldquo;{pendingTagSelection.text.slice(0, 30)}{pendingTagSelection.text.length > 30 ? '...' : ''}&rdquo;
+            </span>
+            <button className="tags-pending-cancel" onClick={handleCancelPending}>&times;</button>
+          </div>
+
+          {/* Create new entity */}
+          <div className="tags-entity-create">
+            <div className="tags-pending-label">Create new:</div>
+            <div className="tags-entity-create-row">
+              <input
+                className="tags-entity-name-input"
+                type="text"
+                value={newEntityName}
+                onChange={(e) => setNewEntityName(e.target.value)}
+                placeholder="Entity name..."
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newEntityName.trim()) {
+                    handleCreateNewEntity(pendingCategoryId);
+                  }
+                }}
+              />
+              <button
+                className="tags-entity-create-btn"
+                onClick={() => handleCreateNewEntity(pendingCategoryId)}
+                disabled={!newEntityName.trim()}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+
+          {/* Existing entities in this category */}
+          {pendingCatEntities.length > 0 && (
+            <>
+              <div className="tags-pending-label tags-pending-separator">Or add to existing:</div>
+              <div className="tags-pending-list">
+                {pendingCatEntities.map((entity) => {
+                  const occCount = occurrencesByTag.get(entity.id)?.length || 0;
+                  return (
+                    <div
+                      key={entity.id}
+                      className="tags-pending-item tags-entity-pick"
+                      onClick={() => handleAddToExistingEntity(entity)}
+                    >
+                      <span className="tags-entity-pick-name">{entity.name}</span>
+                      <span className="tags-entity-pick-count">{occCount}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          <button
+            className="tags-pending-back"
+            onClick={() => setPendingCategoryId(null)}
+          >
+            &larr; Back to categories
+          </button>
+        </div>
+      )}
+
+      {/* ── Main tag list: entities grouped by category ───────────────── */}
       <div className="tags-panel-list">
         {tagCategories.length === 0 ? (
-          <div className="tags-panel-empty">
-            No categories available.
-          </div>
+          <div className="tags-panel-empty">No categories available.</div>
         ) : (
-          <>
-            {/* All categories — show every category, even those with 0 tags */}
-            {tagCategories.map((cat) => {
-              const items = tagsByCategory.get(cat.id) || [];
-              const isExpanded = expandedCats.has(cat.id);
-              return (
-                <div key={cat.id} className={`tags-category-section${items.length === 0 ? ' tags-cat-empty' : ''}`}>
-                  <div
-                    className="tags-category-header"
-                    onClick={() => items.length > 0 && toggleCategory(cat.id)}
-                  >
-                    <span className="tags-category-swatch" style={{ background: cat.color }} />
-                    <span className="tags-category-name">{cat.name}</span>
-                    {items.length > 0 && (
-                      <span className="tags-category-count">{items.length}</span>
-                    )}
-                    {!cat.isBuiltIn && (
-                      <button
-                        className="tags-item-delete"
-                        onClick={(e) => { e.stopPropagation(); deleteTagCategory(cat.id); }}
-                        title="Delete custom category"
-                      >
-                        &times;
-                      </button>
-                    )}
-                    {items.length > 0 && (
-                      <span className={`tags-category-chevron${isExpanded ? ' expanded' : ''}`}>&#9662;</span>
-                    )}
-                  </div>
-                  {isExpanded && items.length > 0 && (
-                    <div className="tags-category-items">
-                      {items.map((tag) => {
-                        const sceneName = getSceneName(tag.sceneId);
-                        const isTagExpanded = expandedTagId === tag.id;
-                        return (
-                          <div
-                            key={tag.id}
-                            className={`tags-item-wrap${expandedTagId === tag.id ? ' tags-item-editing' : ''}`}
-                            ref={(el) => { if (el) tagItemRefs.current.set(tag.id, el); }}
-                          >
-                            <div className="tags-item">
-                              <span
-                                className="tags-item-text"
-                                onClick={() => handleNavigateToTag(tag.id)}
-                                title="Click to navigate"
-                              >
-                                {tag.text}
-                              </span>
-                              {tag.notes && !isTagExpanded && (
-                                <span className="tags-item-has-notes" title="Has notes">*</span>
-                              )}
-                              {sceneName && (
-                                <span className="tags-item-scene">{sceneName}</span>
-                              )}
-                              <button
-                                className="tags-item-expand"
-                                onClick={() => setExpandedTagId(isTagExpanded ? null : tag.id)}
-                                title={isTagExpanded ? 'Collapse' : 'Details'}
-                              >
-                                {isTagExpanded ? '▴' : '▾'}
-                              </button>
-                              <button
-                                className="tags-item-delete"
-                                onClick={() => handleDeleteTag(tag.id)}
-                                title="Remove tag"
-                              >
-                                &times;
-                              </button>
-                            </div>
-                            {isTagExpanded && (
-                              <div className="tags-item-detail">
-                                <textarea
-                                  className="tags-item-notes"
-                                  value={tag.notes}
-                                  onChange={(e) => updateTag(tag.id, { notes: e.target.value })}
-                                  placeholder="Add details: description, requirements, budget notes..."
-                                  rows={3}
-                                />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+          tagCategories.map((cat) => {
+            const entities = tagsByCategory.get(cat.id) || [];
+            const isExpanded = expandedCats.has(cat.id);
+            // Count total occurrences across all entities in this category
+            const totalOccs = entities.reduce(
+              (sum, e) => sum + (occurrencesByTag.get(e.id)?.length || 0),
+              0,
+            );
+            return (
+              <div key={cat.id} className={`tags-category-section${entities.length === 0 ? ' tags-cat-empty' : ''}`}>
+                <div
+                  className="tags-category-header"
+                  onClick={() => entities.length > 0 && toggleCategory(cat.id)}
+                >
+                  <span className="tags-category-swatch" style={{ background: cat.color }} />
+                  <span className="tags-category-name">{cat.name}</span>
+                  {entities.length > 0 && (
+                    <span className="tags-category-count" title={`${entities.length} entities, ${totalOccs} occurrences`}>
+                      {entities.length}
+                    </span>
+                  )}
+                  {!cat.isBuiltIn && (
+                    <button
+                      className="tags-item-delete"
+                      onClick={(e) => { e.stopPropagation(); deleteTagCategory(cat.id); }}
+                      title="Delete custom category"
+                    >
+                      &times;
+                    </button>
+                  )}
+                  {entities.length > 0 && (
+                    <span className={`tags-category-chevron${isExpanded ? ' expanded' : ''}`}>&#9662;</span>
                   )}
                 </div>
-              );
-            })}
 
-          </>
+                {isExpanded && entities.length > 0 && (
+                  <div className="tags-category-items">
+                    {entities.map((entity) => {
+                      const entityOccs = occurrencesByTag.get(entity.id) || [];
+                      const isEntityExpanded = expandedTagId === entity.id;
+                      return (
+                        <div
+                          key={entity.id}
+                          className={`tags-item-wrap${isEntityExpanded ? ' tags-item-editing' : ''}`}
+                          ref={(el) => { if (el) tagItemRefs.current.set(entity.id, el); }}
+                        >
+                          {/* Entity header */}
+                          <div className="tags-item">
+                            <span
+                              className="tags-item-text tags-entity-name"
+                              onClick={() => handleNavigateToTag(entity.id)}
+                              title="Click to navigate to first occurrence"
+                            >
+                              {entity.name}
+                            </span>
+                            <span className="tags-entity-occ-count" title={`${entityOccs.length} occurrence${entityOccs.length !== 1 ? 's' : ''}`}>
+                              {entityOccs.length}
+                            </span>
+                            {entity.notes && !isEntityExpanded && (
+                              <span className="tags-item-has-notes" title="Has notes">*</span>
+                            )}
+                            <button
+                              className="tags-item-expand"
+                              onClick={() => setExpandedTagId(isEntityExpanded ? null : entity.id)}
+                              title={isEntityExpanded ? 'Collapse' : 'Details'}
+                            >
+                              {isEntityExpanded ? '\u25B4' : '\u25BE'}
+                            </button>
+                            <button
+                              className="tags-item-delete"
+                              onClick={() => handleDeleteEntity(entity.id)}
+                              title="Delete entity and all occurrences"
+                            >
+                              &times;
+                            </button>
+                          </div>
+
+                          {/* Expanded detail: name edit, notes, occurrences */}
+                          {isEntityExpanded && (
+                            <div className="tags-item-detail">
+                              <div className="tags-entity-name-row">
+                                <label className="tags-detail-label">Name</label>
+                                <input
+                                  className="tags-entity-name-edit"
+                                  type="text"
+                                  value={entity.name}
+                                  onChange={(e) => updateTag(entity.id, { name: e.target.value })}
+                                />
+                              </div>
+                              <textarea
+                                className="tags-item-notes"
+                                value={entity.notes}
+                                onChange={(e) => updateTag(entity.id, { notes: e.target.value })}
+                                placeholder="Add details: description, requirements, budget notes..."
+                                rows={3}
+                              />
+                              {entityOccs.length > 0 && (
+                                <div className="tags-occ-list">
+                                  <div className="tags-detail-label">Occurrences ({entityOccs.length})</div>
+                                  {entityOccs.map((occ, i) => (
+                                    <div key={`${occ.from}-${i}`} className="tags-occ-item">
+                                      <span
+                                        className="tags-occ-text"
+                                        onClick={() => handleNavigateToOccurrence(occ.from)}
+                                        title="Navigate to this occurrence"
+                                      >
+                                        &ldquo;{occ.text.slice(0, 40)}{occ.text.length > 40 ? '...' : ''}&rdquo;
+                                      </span>
+                                      {occ.sceneName && (
+                                        <span className="tags-occ-scene">{occ.sceneName.slice(0, 30)}</span>
+                                      )}
+                                      <button
+                                        className="tags-occ-remove"
+                                        onClick={() => handleRemoveOccurrence(occ.tagId, occ.from, occ.to)}
+                                        title="Remove this occurrence"
+                                      >
+                                        &times;
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 

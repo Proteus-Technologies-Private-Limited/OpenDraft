@@ -59,6 +59,9 @@ def list_scripts(project_id: str) -> list[dict]:
         content_file = scripts_path / f"{script_id}.json"
         data["size_bytes"] = content_file.stat().st_size if content_file.exists() else 0
         data.setdefault("page_count", 0)
+        data.setdefault("color", "")
+        data.setdefault("pinned", False)
+        data.setdefault("sort_order", 0)
         metas.append(data)
     return metas
 
@@ -84,6 +87,9 @@ def update_script(
     script_id: str,
     title: str | None = None,
     content: dict | None = None,
+    color: str | None = None,
+    pinned: bool | None = None,
+    sort_order: int | None = None,
 ) -> dict:
     """Update a script's title and/or content."""
     scripts_path = _scripts_dir(project_id)
@@ -98,6 +104,12 @@ def update_script(
 
     if title is not None:
         meta["title"] = title
+    if color is not None:
+        meta["color"] = color
+    if pinned is not None:
+        meta["pinned"] = pinned
+    if sort_order is not None:
+        meta["sort_order"] = sort_order
 
     meta["updated_at"] = datetime.now(timezone.utc).isoformat()
 
@@ -107,6 +119,10 @@ def update_script(
         content_file.write_text(json.dumps(content, indent=2), encoding="utf-8")
 
     current_content = json.loads(content_file.read_text(encoding="utf-8")) if content_file.exists() else {}
+
+    meta.setdefault("color", "")
+    meta.setdefault("pinned", False)
+    meta.setdefault("sort_order", 0)
 
     return {"meta": meta, "content": current_content}
 

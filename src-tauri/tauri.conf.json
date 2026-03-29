@@ -1,11 +1,11 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
   "productName": "OpenDraft",
-  "version": "0.2.0",
-  "identifier": "com.proteus.opendraft.desktop",
+  "version": "0.3.0",
+  "identifier": "com.proteus.opendraft",
   "build": {
     "frontendDist": "../frontend/dist",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://127.0.0.1:5173",
     "beforeDevCommand": "cd ../frontend && npm run dev",
     "beforeBuildCommand": "cd ../frontend && VITE_API_BASE=http://localhost:18321/api npm run build"
   },
@@ -52,11 +52,13 @@
     "externalBin": [
       "binaries/opendraft-api"
     ],
+    "iOS": {
+      "minimumSystemVersion": "15.0"
+    },
     "macOS": {
       "minimumSystemVersion": "12.0"
     },
     "category": "public.app-category.productivity"
   },
   "plugins": {}
-
 }

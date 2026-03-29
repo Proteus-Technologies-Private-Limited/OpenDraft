@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectList
+from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectList, ReorderRequest
 from app.schemas.script import ScriptCreate, ScriptUpdate, ScriptMeta, ScriptResponse
 from app.services import project_service, script_service
 
@@ -34,11 +34,25 @@ async def get_project(project_id: str):
         raise HTTPException(status_code=404, detail=str(exc))
 
 
+@router.put("/reorder")
+async def reorder_projects(body: ReorderRequest):
+    """Batch-update sort_order for multiple projects."""
+    for item in body.items:
+        try:
+            project_service.update_project(item.id, sort_order=item.sort_order)
+        except FileNotFoundError:
+            pass  # skip missing projects
+    return {"message": "ok"}
+
+
 @router.put("/{project_id}", response_model=ProjectResponse)
 async def update_project(project_id: str, body: ProjectUpdate):
     try:
         props = body.properties.model_dump() if body.properties else None
-        return project_service.update_project(project_id, body.name, props)
+        return project_service.update_project(
+            project_id, body.name, props,
+            color=body.color, pinned=body.pinned, sort_order=body.sort_order,
+        )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -80,11 +94,23 @@ async def get_script(project_id: str, script_id: str):
         raise HTTPException(status_code=404, detail=str(exc))
 
 
+@router.put("/{project_id}/scripts/reorder")
+async def reorder_scripts(project_id: str, body: ReorderRequest):
+    """Batch-update sort_order for scripts in a project."""
+    for item in body.items:
+        try:
+            script_service.update_script(project_id, item.id, sort_order=item.sort_order)
+        except FileNotFoundError:
+            pass
+    return {"message": "ok"}
+
+
 @router.put("/{project_id}/scripts/{script_id}", response_model=ScriptResponse)
 async def update_script(project_id: str, script_id: str, body: ScriptUpdate):
     try:
         return script_service.update_script(
-            project_id, script_id, body.title, body.content
+            project_id, script_id, body.title, body.content,
+            color=body.color, pinned=body.pinned, sort_order=body.sort_order,
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

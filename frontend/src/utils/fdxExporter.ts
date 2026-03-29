@@ -230,7 +230,7 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
     lines.push('    </TagCategories>');
     lines.push('    <TagItems>');
     for (const tag of tags) {
-      lines.push(`      <TagItem TagId="${esc(tag.id)}" CatId="${esc(tag.categoryId)}" Label="${esc(tag.text)}"/>`);
+      lines.push(`      <TagItem TagId="${esc(tag.id)}" CatId="${esc(tag.categoryId)}" Label="${esc(tag.name || tag.text)}"/>`);
     }
     lines.push('    </TagItems>');
     lines.push('  </TagData>');

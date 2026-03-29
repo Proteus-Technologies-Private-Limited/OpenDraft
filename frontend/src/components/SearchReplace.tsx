@@ -107,6 +107,46 @@ const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
   const [currentIndex, setCurrentIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // ── Drag-to-move ──
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelPos, setPanelPos] = useState<{ x: number; y: number } | null>(null);
+  const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    if (!panelRef.current) return;
+    const rect = panelRef.current.getBoundingClientRect();
+    dragState.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: rect.left,
+      origY: rect.top,
+    };
+
+    const handleMove = (ev: MouseEvent) => {
+      if (!dragState.current) return;
+      const dx = ev.clientX - dragState.current.startX;
+      const dy = ev.clientY - dragState.current.startY;
+      setPanelPos({
+        x: dragState.current.origX + dx,
+        y: dragState.current.origY + dy,
+      });
+    };
+
+    const handleUp = () => {
+      dragState.current = null;
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+    };
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
+  }, []);
+
+  // Reset position when panel opens
+  useEffect(() => {
+    if (searchOpen) setPanelPos(null);
+  }, [searchOpen]);
+
   // Focus input when panel opens
   useEffect(() => {
     if (searchOpen && inputRef.current) {
@@ -299,9 +339,22 @@ const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
 
   if (!searchOpen) return null;
 
+  const panelStyle: React.CSSProperties = panelPos
+    ? { position: 'fixed', left: panelPos.x, top: panelPos.y, right: 'auto' }
+    : {};
+
   return (
-    <div className="search-replace-panel" onMouseDown={(e) => e.stopPropagation()}>
-      <div className="search-replace-header">
+    <div
+      ref={panelRef}
+      className="search-replace-panel"
+      style={panelStyle}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div
+        className="search-replace-header"
+        onMouseDown={handleDragStart}
+        style={{ cursor: 'grab' }}
+      >
         <span>Find & Replace</span>
         <button
           className="search-close-btn"

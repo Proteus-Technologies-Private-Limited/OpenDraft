@@ -248,31 +248,36 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor }) => {
     [localFilter, setNoteFilter],
   );
 
-  const handleDelete = useCallback(
-    (id: string) => {
-      if (!window.confirm('Delete this note?')) return;
-      if (editor) {
-        const { doc, schema } = editor.state;
-        const markType = schema.marks.scriptNote;
-        if (markType) {
-          editor.chain().focus().command(({ tr }) => {
-            doc.descendants((node, pos) => {
-              if (!node.isText) return;
-              const mark = node.marks.find(
-                (m) => m.type === markType && m.attrs.noteId === id,
-              );
-              if (mark) {
-                tr.removeMark(pos, pos + node.nodeSize, mark);
-              }
-            });
-            return true;
-          }).run();
-        }
+  const [pendingDeleteNoteId, setPendingDeleteNoteId] = useState<string | null>(null);
+
+  const handleDeleteRequest = useCallback((id: string) => {
+    setPendingDeleteNoteId(id);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(() => {
+    const id = pendingDeleteNoteId;
+    if (!id) return;
+    setPendingDeleteNoteId(null);
+    if (editor) {
+      const { doc, schema } = editor.state;
+      const markType = schema.marks.scriptNote;
+      if (markType) {
+        editor.chain().focus().command(({ tr }) => {
+          doc.descendants((node, pos) => {
+            if (!node.isText) return;
+            const mark = node.marks.find(
+              (m) => m.type === markType && m.attrs.noteId === id,
+            );
+            if (mark) {
+              tr.removeMark(pos, pos + node.nodeSize, mark);
+            }
+          });
+          return true;
+        }).run();
       }
-      deleteNote(id);
-    },
-    [editor, deleteNote],
-  );
+    }
+    deleteNote(id);
+  }, [editor, deleteNote, pendingDeleteNoteId]);
 
   const handleColorChange = useCallback(
     (id: string, color: NoteColor) => {
@@ -669,7 +674,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor }) => {
                   </div>
                   <button
                     className="note-item-delete"
-                    onClick={() => handleDelete(note.id)}
+                    onClick={() => handleDeleteRequest(note.id)}
                     title="Delete note"
                   >
                     Delete
@@ -680,6 +685,22 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor }) => {
           })
         )}
       </div>
+      {pendingDeleteNoteId && (
+        <div className="dialog-overlay" onClick={() => setPendingDeleteNoteId(null)}>
+          <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-header">Delete Note</div>
+            <div className="dialog-body">
+              <p style={{ margin: 0 }}>Delete this note? The highlight will also be removed from the script.</p>
+            </div>
+            <div className="dialog-actions">
+              <button onClick={() => setPendingDeleteNoteId(null)}>Cancel</button>
+              <button className="dialog-primary" style={{ background: '#c0392b' }} onClick={handleDeleteConfirm}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

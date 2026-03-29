@@ -405,17 +405,34 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
     if (!existingTagInfo) return;
     const { doc, schema } = editor.state;
     const markType = schema.marks.productionTag;
-    if (markType) {
-      editor.chain().focus().command(({ tr }) => {
-        doc.descendants((node, pos) => {
-          if (!node.isText) return;
-          const mark = node.marks.find((m) => m.type === markType && m.attrs.tagId === existingTagInfo.tagId);
-          if (mark) tr.removeMark(pos, pos + node.nodeSize, mark);
-        });
-        return true;
-      }).run();
+    if (!markType) { onClose(); return; }
+
+    // Find and remove only the mark at the cursor position
+    const cursorPos = editor.state.selection.$from.pos;
+    editor.chain().focus().command(({ tr }) => {
+      doc.descendants((node, pos) => {
+        if (!node.isText) return;
+        const mark = node.marks.find(
+          (m) => m.type === markType && m.attrs.tagId === existingTagInfo.tagId,
+        );
+        if (mark && pos <= cursorPos && pos + node.nodeSize >= cursorPos) {
+          tr.removeMark(pos, pos + node.nodeSize, mark);
+        }
+      });
+      return true;
+    }).run();
+
+    // Count remaining occurrences; if none left, delete the entity
+    let remaining = 0;
+    editor.state.doc.descendants((node) => {
+      if (!node.isText) return;
+      if (node.marks.some((m) => m.type === markType && m.attrs.tagId === existingTagInfo.tagId)) {
+        remaining++;
+      }
+    });
+    if (remaining === 0) {
+      deleteTag(existingTagInfo.tagId);
     }
-    deleteTag(existingTagInfo.tagId);
     onClose();
   };
 

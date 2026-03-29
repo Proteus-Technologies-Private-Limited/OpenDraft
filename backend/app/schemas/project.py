@@ -28,6 +28,18 @@ class ProjectCreate(BaseModel):
 class ProjectUpdate(BaseModel):
     name: str | None = None
     properties: ProjectProperties | None = None
+    color: str | None = None
+    pinned: bool | None = None
+    sort_order: int | None = None
+
+
+class ReorderItem(BaseModel):
+    id: str
+    sort_order: int
+
+
+class ReorderRequest(BaseModel):
+    items: list[ReorderItem]
 
 
 class ProjectResponse(BaseModel):
@@ -36,6 +48,9 @@ class ProjectResponse(BaseModel):
     created_at: str
     updated_at: str
     properties: ProjectProperties = ProjectProperties()
+    color: str = ""
+    pinned: bool = False
+    sort_order: int = 0
 
 
 class ProjectList(BaseModel):

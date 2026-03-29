@@ -111,8 +111,11 @@ export interface TagCategory {
 export interface TagItem {
   id: string;
   categoryId: string;
+  /** Entity name — the reusable label for this tag (e.g. "Protagonist Residence"). */
+  name: string;
+  /** Original highlighted text (kept for backward compat). */
   text: string;
-  /** Detailed notes/information about this tagged item */
+  /** Detailed notes/information about this tagged entity. */
   notes: string;
   sceneId: string | null;
   elementType: string;
@@ -235,8 +238,8 @@ interface EditorState {
   deleteTagCategory: (id: string) => void;
   tags: TagItem[];
   setTags: (tags: TagItem[]) => void;
-  addTag: (tag: Omit<TagItem, 'id' | 'createdAt'>) => string;
-  updateTag: (id: string, updates: Partial<Pick<TagItem, 'notes' | 'categoryId'>>) => void;
+  addTag: (tag: Omit<TagItem, 'id' | 'createdAt' | 'name'> & { name?: string }) => string;
+  updateTag: (id: string, updates: Partial<Pick<TagItem, 'notes' | 'categoryId' | 'name'>>) => void;
   deleteTag: (id: string) => void;
   tagsVisible: boolean;
   setTagsVisible: (v: boolean) => void;
@@ -263,9 +266,21 @@ interface EditorState {
   pageLayout: PageLayout;
   setPageLayout: (layout: PageLayout) => void;
 
+  // Theme
+  theme: 'dark' | 'light';
+  setTheme: (t: 'dark' | 'light') => void;
+
   // Spell check
   spellCheckEnabled: boolean;
   toggleSpellCheck: () => void;
+
+  // Track changes
+  trackChangesEnabled: boolean;
+  trackChangesLabel: string;
+  setTrackChangesEnabled: (v: boolean) => void;
+  setTrackChangesLabel: (v: string) => void;
+  compareVersionOpen: boolean;
+  setCompareVersionOpen: (v: boolean) => void;
 
   // Dialogs
   searchOpen: boolean;
@@ -430,7 +445,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   addTag: (tag) => {
     const id = crypto.randomUUID();
     set((s) => ({
-      tags: [...s.tags, { ...tag, id, createdAt: new Date().toISOString() }],
+      tags: [...s.tags, { ...tag, name: tag.name || tag.text, id, createdAt: new Date().toISOString() }],
     }));
     return id;
   },
@@ -463,8 +478,22 @@ export const useEditorStore = create<EditorState>((set) => ({
   pageLayout: DEFAULT_PAGE_LAYOUT,
   setPageLayout: (layout) => set({ pageLayout: layout }),
 
+  theme: (localStorage.getItem('opendraft:theme') as 'dark' | 'light') || 'dark',
+  setTheme: (t) => {
+    localStorage.setItem('opendraft:theme', t);
+    document.documentElement.setAttribute('data-theme', t);
+    set({ theme: t });
+  },
+
   spellCheckEnabled: false,
   toggleSpellCheck: () => set((s) => ({ spellCheckEnabled: !s.spellCheckEnabled })),
+
+  trackChangesEnabled: false,
+  trackChangesLabel: '',
+  setTrackChangesEnabled: (v) => set({ trackChangesEnabled: v }),
+  setTrackChangesLabel: (v) => set({ trackChangesLabel: v }),
+  compareVersionOpen: false,
+  setCompareVersionOpen: (v) => set({ compareVersionOpen: v }),
 
   searchOpen: false,
   setSearchOpen: (open) => set({ searchOpen: open }),
