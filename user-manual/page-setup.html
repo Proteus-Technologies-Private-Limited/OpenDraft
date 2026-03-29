@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page Setup - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link active">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Page Setup
+    </div>
+
+    <h1>Page Setup</h1>
+    <p class="page-subtitle">Configure page dimensions, margins, and layout.</p>
+
+    <h2 id="open-dialog">Opening Page Setup</h2>
+
+    <p>Go to <strong>File &gt; Page Setup</strong> to open the Page Setup dialog.</p>
+
+    <h2 id="settings">Settings</h2>
+
+    <table>
+      <thead>
+        <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Page Width</strong></td>
+          <td>8.5 inches</td>
+          <td>Width of the page (US Letter)</td>
+        </tr>
+        <tr>
+          <td><strong>Page Height</strong></td>
+          <td>11 inches</td>
+          <td>Height of the page (US Letter)</td>
+        </tr>
+        <tr>
+          <td><strong>Top Margin</strong></td>
+          <td>Standard</td>
+          <td>Space above the first line of text</td>
+        </tr>
+        <tr>
+          <td><strong>Bottom Margin</strong></td>
+          <td>Standard</td>
+          <td>Space below the last line of text</td>
+        </tr>
+        <tr>
+          <td><strong>Left Margin</strong></td>
+          <td>1.5 inches</td>
+          <td>Standard left margin for screenplays (allows for hole punches)</td>
+        </tr>
+        <tr>
+          <td><strong>Right Margin</strong></td>
+          <td>1 inch</td>
+          <td>Standard right margin</td>
+        </tr>
+        <tr>
+          <td><strong>Header Margin</strong></td>
+          <td>Standard</td>
+          <td>Space for page headers</td>
+        </tr>
+        <tr>
+          <td><strong>Footer Margin</strong></td>
+          <td>Standard</td>
+          <td>Space for page footers</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Changing page dimensions</strong> affects your page count and timing estimate (1 page &asymp; 1 minute). The standard US Letter (8.5&times;11") with default margins is the industry standard for screenplays.</p>
+      </div>
+    </div>
+
+    <h2 id="reset">Resetting to Defaults</h2>
+
+    <p>Click <strong>Reset to Default</strong> in the Page Setup dialog to restore standard screenplay page dimensions and margins.</p>
+
+    <div class="page-nav">
+      <a href="themes.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Themes</span>
+      </a>
+      <a href="keyboard-shortcuts.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Keyboard Shortcuts</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.3.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

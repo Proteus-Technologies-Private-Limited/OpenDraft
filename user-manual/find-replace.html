@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Find &amp; Replace - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link active">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span><a href="writing-screenplay.html">Writing</a><span class="sep">/</span>Find &amp; Replace
+    </div>
+
+    <h1>Find &amp; Replace</h1>
+    <p class="page-subtitle">Search your screenplay and replace text quickly.</p>
+
+    <h2 id="open-find">Opening Find &amp; Replace</h2>
+
+    <p>Press <kbd>&#8984;</kbd><kbd>F</kbd> or go to <strong>Edit &gt; Find &amp; Replace</strong> to open the search panel.</p>
+
+    <div class="screenshot">
+      <p>&#128247; Screenshot: Find &amp; Replace panel</p>
+      <p class="screenshot-label">Add screenshot: screenshots/find-replace.png</p>
+    </div>
+
+    <p>The Find &amp; Replace panel is <strong>draggable</strong> &mdash; click and drag the panel to move it anywhere on screen so it doesn't cover the text you're working with.</p>
+
+    <h2 id="finding-text">Finding Text</h2>
+
+    <ol class="steps">
+      <li>Open Find &amp; Replace with <kbd>&#8984;</kbd><kbd>F</kbd>.</li>
+      <li>Type your search term in the <strong>Find</strong> field.</li>
+      <li>Matches are <strong>highlighted</strong> throughout the script in real-time as you type.</li>
+      <li>Use the arrow buttons (or press <kbd>Enter</kbd>) to jump between matches.</li>
+    </ol>
+
+    <h3 id="search-options">Search Options</h3>
+
+    <table>
+      <thead>
+        <tr><th>Option</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Match Case</strong></td>
+          <td>When enabled, "Sarah" won't match "SARAH" or "sarah". Useful for finding specific character names.</td>
+        </tr>
+        <tr>
+          <td><strong>Whole Word</strong></td>
+          <td>When enabled, searching "he" won't match "the" or "she". Only matches complete words.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 id="replacing-text">Replacing Text</h2>
+
+    <ol class="steps">
+      <li>Enter your search term in the <strong>Find</strong> field.</li>
+      <li>Enter the replacement text in the <strong>Replace</strong> field.</li>
+      <li>Click <strong>Replace</strong> to replace the current match and move to the next one.</li>
+      <li>Click <strong>Replace All</strong> to replace every match in the script at once.</li>
+    </ol>
+
+    <div class="callout callout-warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Be careful with Replace All!</strong> It will replace every occurrence in your entire script. If you make a mistake, press <kbd>&#8984;</kbd><kbd>Z</kbd> to undo.</p>
+      </div>
+    </div>
+
+    <h2 id="common-uses">Common Uses</h2>
+
+    <ul>
+      <li><strong>Rename a character:</strong> Search for the old name and replace with the new one. Use "Match Case" to be precise.</li>
+      <li><strong>Fix a typo everywhere:</strong> Replace All is perfect for fixing a word you've been misspelling throughout the script.</li>
+      <li><strong>Change a location name:</strong> Search the scene heading text and replace it. (You can also use the <a href="locations.html">Locations panel</a> for batch renaming locations.)</li>
+    </ul>
+
+    <h2 id="close-find">Closing the Panel</h2>
+
+    <p>Press <kbd>Escape</kbd> or click the close button on the Find &amp; Replace panel to dismiss it.</p>
+
+    <div class="page-nav">
+      <a href="formatting.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Formatting</span>
+      </a>
+      <a href="spell-check.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Spell Check</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.3.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

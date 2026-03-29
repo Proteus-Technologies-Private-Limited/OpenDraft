@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tags &amp; Entities - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link active">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Tags &amp; Entities
+    </div>
+
+    <h1>Tags &amp; Entities</h1>
+    <p class="page-subtitle">Tag props, costumes, VFX, and more for production breakdowns.</p>
+
+    <h2 id="what-are-tags">What Are Production Tags?</h2>
+
+    <p>Production tags mark elements in your screenplay that production departments need to track &mdash; props, costumes, vehicles, stunts, visual effects, and more. This is the first step in creating a <strong>production breakdown</strong>, which is how film crews plan what they need for each scene.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>For writers:</strong> Tagging is primarily a production tool, but writers can also use it to track important story elements across their script.</p>
+      </div>
+    </div>
+
+    <h2 id="open-panel">Opening the Tags Panel</h2>
+
+    <p>Open the Tags panel from <strong>View &gt; Tags</strong> or <strong>Production &gt; Tagging</strong>.</p>
+
+    <h2 id="categories">Tag Categories</h2>
+
+    <p>OpenDraft includes 18 built-in tag categories used in the film industry:</p>
+
+    <table>
+      <thead>
+        <tr><th>Category</th><th>What to tag</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Cast</strong></td><td>Speaking roles</td></tr>
+        <tr><td><strong>Extras</strong></td><td>Background actors, crowds</td></tr>
+        <tr><td><strong>Stunts</strong></td><td>Fight scenes, falls, car chases</td></tr>
+        <tr><td><strong>Vehicles</strong></td><td>Cars, boats, planes mentioned in action</td></tr>
+        <tr><td><strong>Props</strong></td><td>Objects characters interact with</td></tr>
+        <tr><td><strong>Special Effects</strong></td><td>Practical effects (explosions, rain)</td></tr>
+        <tr><td><strong>Costumes</strong></td><td>Notable wardrobe items</td></tr>
+        <tr><td><strong>Makeup/Hair</strong></td><td>Special makeup, wigs, prosthetics</td></tr>
+        <tr><td><strong>Animals</strong></td><td>Live animals in scenes</td></tr>
+        <tr><td><strong>Animal Handler</strong></td><td>Scenes requiring animal wranglers</td></tr>
+        <tr><td><strong>Music</strong></td><td>Songs, score cues</td></tr>
+        <tr><td><strong>Sound</strong></td><td>Special sound effects or ambient requirements</td></tr>
+        <tr><td><strong>Set Dressing</strong></td><td>Furniture, decorations, set pieces</td></tr>
+        <tr><td><strong>Greenery</strong></td><td>Plants, trees, landscaping</td></tr>
+        <tr><td><strong>Special Equipment</strong></td><td>Cranes, dollies, special camera rigs</td></tr>
+        <tr><td><strong>Security</strong></td><td>Scenes requiring security personnel</td></tr>
+        <tr><td><strong>Additional Labor</strong></td><td>Extra crew needed</td></tr>
+        <tr><td><strong>VFX</strong></td><td>Visual effects to be added in post</td></tr>
+      </tbody>
+    </table>
+
+    <p>You can also <strong>create custom categories</strong> with your own name and color.</p>
+
+    <h2 id="entities">Understanding Entities</h2>
+
+    <p>Tags in OpenDraft use an <strong>entity-based</strong> system. An entity is a reusable item &mdash; for example, "Sarah's Red Jacket" is a costume entity. You create the entity once, then tag every mention of it throughout your script.</p>
+
+    <p>Benefits of entities:</p>
+    <ul>
+      <li><strong>Reusable</strong> &mdash; Create once, use in many scenes.</li>
+      <li><strong>Trackable</strong> &mdash; See every scene where an entity appears.</li>
+      <li><strong>Annotatable</strong> &mdash; Add notes to each entity (e.g., "Jacket must match scene 12 continuity").</li>
+    </ul>
+
+    <h2 id="tagging-workflow">Tagging Workflow</h2>
+
+    <ol class="steps">
+      <li><strong>Select text</strong> in your screenplay that represents a production element (e.g., "revolver" in an action line).</li>
+      <li><strong>Choose a category</strong> from the Tags panel (e.g., Props).</li>
+      <li><strong>Create or select an entity</strong>. If "Revolver" doesn't exist yet, create a new entity. If it does, select the existing one.</li>
+      <li>The selected text is now tagged. It will be highlighted with the category's color when <strong>Tag Highlights</strong> are enabled.</li>
+    </ol>
+
+    <h2 id="managing-tags">Managing Tags</h2>
+
+    <ul>
+      <li><strong>View all occurrences:</strong> Click an entity in the Tags panel to see every place it appears in the script.</li>
+      <li><strong>Edit entity notes:</strong> Click the edit button on an entity to add detailed production notes.</li>
+      <li><strong>Tag highlights:</strong> Toggle via <strong>View &gt; Tag Highlights</strong> to show or hide colored tag marks in the editor.</li>
+    </ul>
+
+    <h2 id="fdx-compatibility">Final Draft Compatibility</h2>
+
+    <p>Tags are compatible with Final Draft's TagData format. When you export to <code>.fdx</code>, tag categories and entities are preserved.</p>
+
+    <div class="page-nav">
+      <a href="script-notes.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Script Notes</span>
+      </a>
+      <a href="locations.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Locations</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.3.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Script Notes - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link active">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Script Notes
+    </div>
+
+    <h1>Script Notes</h1>
+    <p class="page-subtitle">Attach annotations, reminders, and reference material to your screenplay.</p>
+
+    <h2 id="open-panel">Opening Script Notes</h2>
+
+    <p>Open the Script Notes panel from <strong>View &gt; Script Notes</strong>. Notes appear in a panel alongside the editor.</p>
+
+    <h2 id="create-note">Creating a Note</h2>
+
+    <ol class="steps">
+      <li>Select the text in your screenplay that you want to annotate.</li>
+      <li>In the Script Notes panel, click <strong>+ New Note</strong>.</li>
+      <li>Type your note text.</li>
+      <li>The note is anchored to the selected text &mdash; it stays connected even as you edit the script around it.</li>
+    </ol>
+
+    <h2 id="note-colors">Note Colors</h2>
+
+    <p>Notes are color-coded to help you organize different types of annotations:</p>
+
+    <table>
+      <thead>
+        <tr><th>Color</th><th>Suggested Use</th></tr>
+      </thead>
+      <tbody>
+        <tr><td style="color: #ca8a04;">&#9679; Yellow</td><td>General reminders and to-dos</td></tr>
+        <tr><td style="color: #dc2626;">&#9679; Red</td><td>Issues or problems to fix</td></tr>
+        <tr><td style="color: #2563eb;">&#9679; Blue</td><td>Research notes or references</td></tr>
+        <tr><td style="color: #16a34a;">&#9679; Green</td><td>Approved or completed notes</td></tr>
+        <tr><td style="color: #ea580c;">&#9679; Orange</td><td>Feedback from collaborators</td></tr>
+        <tr><td style="color: #9333ea;">&#9679; Purple</td><td>Creative ideas or alternatives</td></tr>
+      </tbody>
+    </table>
+
+    <p>Click the color indicator on a note to change its color.</p>
+
+    <h2 id="media">Embedding Media</h2>
+
+    <p>Script notes can include more than just text. You can embed:</p>
+
+    <ul>
+      <li><strong>Images</strong> &mdash; Reference photos, mood boards, location scouting images.</li>
+      <li><strong>Videos</strong> &mdash; Paste YouTube or Vimeo URLs for reference clips.</li>
+      <li><strong>Asset references</strong> &mdash; Use the <code>@AssetName</code> syntax to link to assets in your project's Asset Manager.</li>
+    </ul>
+
+    <h2 id="filtering">Filtering Notes</h2>
+
+    <p>When you have many notes, use the filter options to narrow down what you see:</p>
+
+    <ul>
+      <li><strong>By color</strong> &mdash; Show only notes of a specific color (e.g., just the "red" issues).</li>
+      <li><strong>By element type</strong> &mdash; Show only notes attached to specific element types (e.g., just notes on dialogue).</li>
+      <li><strong>By scene context</strong> &mdash; Show notes for the current scene or a specific scene.</li>
+    </ul>
+
+    <h2 id="visibility">Note Visibility</h2>
+
+    <p>Toggle note highlighting in the editor via <strong>View &gt; Note Highlights</strong>. When enabled, annotated text is highlighted with the note's color. When disabled, the text looks normal but notes are still accessible from the panel.</p>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>Tip:</strong> Turn off note highlights when you want to read the script cleanly, or before printing/exporting to PDF. Notes are never included in exports.</p>
+      </div>
+    </div>
+
+    <div class="page-nav">
+      <a href="characters.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Characters</span>
+      </a>
+      <a href="tags.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Tags &amp; Entities</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.3.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

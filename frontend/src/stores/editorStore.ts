@@ -148,15 +148,21 @@ export const DEFAULT_TAG_CATEGORIES: TagCategory[] = [
 export interface CharacterProfile {
   /** Uppercase canonical character name */
   name: string;
-  /** Free-text description (Final Draft CastMember Description) */
+  /** Rich text description / bio (HTML string; maps to FDX CastMember Description as plain text) */
   description: string;
   /** Highlight color hex (Final Draft CharacterHighlighting) */
   color: string;
   /** Whether highlighting is enabled for this character */
   highlighted: boolean;
-  /** Optional structured metadata */
+  /** Structured metadata (Final Draft Character Navigator fields) */
   gender: string;
   age: string;
+  /** Role in the story: Lead, Supporting, Featured, Background, Day Player */
+  role: string;
+  /** Rich text backstory / character history (HTML string; OpenDraft-only, not in FDX) */
+  backstory: string;
+  /** Asset IDs of images associated with this character */
+  images: string[];
 }
 
 export interface BeatInfo {
@@ -412,6 +418,9 @@ export const useEditorStore = create<EditorState>((set) => ({
             highlighted: false,
             gender: '',
             age: '',
+            role: '',
+            backstory: '',
+            images: [],
             ...updates,
           },
         ],

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<!-- Search Results -->
+<div class="search-results" id="searchResults"></div>
+
+<!-- Sidebar Overlay (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link active">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="main">
+  <div class="content">
+
+    <h1>Welcome to OpenDraft</h1>
+    <p class="page-subtitle">The free, open-source screenwriting application. This manual will help you get started and master every feature.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>New to screenwriting software?</strong> Start with the <a href="getting-started.html">Getting Started</a> guide for a quick walkthrough of writing your first screenplay.</p>
+      </div>
+    </div>
+
+    <h2 id="quick-start">Quick Start</h2>
+    <ol class="steps">
+      <li><strong>Install OpenDraft</strong> &mdash; <a href="installation.html">Download the desktop app</a> for macOS, Windows, or Linux, or run it in your browser.</li>
+      <li><strong>Create a project</strong> &mdash; Click <strong>New Project</strong> on the Projects screen, give it a name, and open it.</li>
+      <li><strong>Start writing</strong> &mdash; Click <strong>New Script</strong> inside your project, and begin writing your screenplay. OpenDraft handles formatting automatically.</li>
+      <li><strong>Save your work</strong> &mdash; Press <kbd>&#8984;</kbd><kbd>S</kbd> to save, or use <strong>File &gt; Check In</strong> to create a version checkpoint you can return to later.</li>
+    </ol>
+
+    <h2 id="explore-features">Explore Features</h2>
+
+    <div class="feature-grid">
+      <a href="writing-screenplay.html" class="feature-card">
+        <div class="feature-card-icon">&#9997;&#65039;</div>
+        <h3>Writing Your Screenplay</h3>
+        <p>Learn to use the editor, screenplay elements, and auto-formatting to write like a pro.</p>
+      </a>
+      <a href="scene-navigator.html" class="feature-card">
+        <div class="feature-card-icon">&#128466;&#65039;</div>
+        <h3>Scene Navigator</h3>
+        <p>Jump between scenes instantly and see your script's structure at a glance.</p>
+      </a>
+      <a href="index-cards.html" class="feature-card">
+        <div class="feature-card-icon">&#127922;</div>
+        <h3>Index Cards</h3>
+        <p>Visual card-based scene browser with drag-and-drop reordering.</p>
+      </a>
+      <a href="beat-board.html" class="feature-card">
+        <div class="feature-card-icon">&#128203;</div>
+        <h3>Beat Board</h3>
+        <p>Organize your story beats into acts for big-picture planning.</p>
+      </a>
+      <a href="characters.html" class="feature-card">
+        <div class="feature-card-icon">&#128100;</div>
+        <h3>Characters</h3>
+        <p>Rich profiles with images, backstories, roles, and dialogue stats.</p>
+      </a>
+      <a href="tags.html" class="feature-card">
+        <div class="feature-card-icon">&#127991;&#65039;</div>
+        <h3>Tags &amp; Production</h3>
+        <p>Tag props, costumes, VFX, and more for production breakdowns.</p>
+      </a>
+      <a href="version-history.html" class="feature-card">
+        <div class="feature-card-icon">&#128340;</div>
+        <h3>Version History</h3>
+        <p>Check in drafts, compare versions, and restore previous work with built-in version control.</p>
+      </a>
+      <a href="import-export.html" class="feature-card">
+        <div class="feature-card-icon">&#128196;</div>
+        <h3>Import &amp; Export</h3>
+        <p>Work with Final Draft, Fountain, PDF, and plain text formats.</p>
+      </a>
+      <a href="keyboard-shortcuts.html" class="feature-card">
+        <div class="feature-card-icon">&#9000;&#65039;</div>
+        <h3>Keyboard Shortcuts</h3>
+        <p>Speed up your workflow with quick keyboard commands.</p>
+      </a>
+    </div>
+
+    <h2 id="whats-new">What's New in v0.3.0</h2>
+    <ul>
+      <li><strong>Track Changes</strong> &mdash; Compare your script against any saved version with inline green/red highlighting</li>
+      <li><strong>Entity-Based Tagging</strong> &mdash; Create reusable production entities and track them across scenes</li>
+      <li><strong>Location Navigator</strong> &mdash; Auto-extracted locations from scene headings with batch rename</li>
+      <li><strong>Scene Reordering</strong> &mdash; Drag and drop scenes in Index Cards to restructure your story</li>
+      <li><strong>Dark Theme</strong> &mdash; Toggle between light and dark interface themes</li>
+      <li><strong>Page Setup</strong> &mdash; Configure page dimensions, margins, and layout</li>
+      <li><strong>Draggable Find &amp; Replace</strong> &mdash; Move the search panel anywhere on screen</li>
+      <li><strong>Project Organization</strong> &mdash; Pin, color-code, and drag-drop sort projects and scripts</li>
+    </ul>
+
+    <!-- Page Nav -->
+    <div class="page-nav">
+      <div></div>
+      <a href="getting-started.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Getting Started</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.3.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

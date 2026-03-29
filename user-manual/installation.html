@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Installation - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link active">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Installation
+    </div>
+
+    <h1>Installation</h1>
+    <p class="page-subtitle">Get OpenDraft running on your computer in minutes.</p>
+
+    <h2 id="desktop-app">Desktop App (Recommended)</h2>
+
+    <p>The desktop app is the easiest way to use OpenDraft. Everything is bundled &mdash; no setup, no accounts, just install and write.</p>
+
+    <h3 id="macos">macOS (Apple Silicon)</h3>
+    <ol class="steps">
+      <li>Download the <code>.dmg</code> file from the <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest" target="_blank">latest release page</a>.</li>
+      <li>Open the <code>.dmg</code> file and drag <strong>OpenDraft</strong> into your <strong>Applications</strong> folder.</li>
+      <li>Open OpenDraft from your Applications folder. On first launch, macOS may ask you to confirm you want to open an app from an identified developer &mdash; click <strong>Open</strong>.</li>
+    </ol>
+
+    <div class="callout callout-warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>macOS Gatekeeper:</strong> If you see "OpenDraft can't be opened because it is from an unidentified developer", go to <strong>System Settings &gt; Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>.</p>
+      </div>
+    </div>
+
+    <h3 id="windows">Windows</h3>
+    <ol class="steps">
+      <li>Download the <code>.exe</code> installer (or <code>.msi</code> for enterprise deployment) from the <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest" target="_blank">latest release page</a>.</li>
+      <li>Run the installer and follow the prompts.</li>
+      <li>OpenDraft will appear in your Start Menu.</li>
+    </ol>
+
+    <h3 id="linux">Linux</h3>
+    <p>Choose the package format for your distribution:</p>
+    <table>
+      <thead>
+        <tr><th>Distribution</th><th>Format</th><th>Install command</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Ubuntu / Debian</td>
+          <td><code>.deb</code></td>
+          <td><code>sudo dpkg -i OpenDraft_*.deb</code></td>
+        </tr>
+        <tr>
+          <td>Fedora / RHEL</td>
+          <td><code>.rpm</code></td>
+          <td><code>sudo rpm -i OpenDraft-*.rpm</code></td>
+        </tr>
+        <tr>
+          <td>Any (portable)</td>
+          <td><code>.AppImage</code></td>
+          <td><code>chmod +x OpenDraft_*.AppImage && ./OpenDraft_*.AppImage</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 id="browser">Run in Browser (Self-Hosted)</h2>
+
+    <p>If you prefer running OpenDraft in your browser, you can self-host it. This requires some technical setup.</p>
+
+    <h3 id="requirements">Requirements</h3>
+    <ul>
+      <li><strong>Python 3.12+</strong> &mdash; <a href="https://www.python.org/downloads/" target="_blank">Download Python</a></li>
+      <li><strong>Node.js 18+</strong> &mdash; <a href="https://nodejs.org/" target="_blank">Download Node.js</a></li>
+      <li><strong>Git</strong> &mdash; <a href="https://git-scm.com/downloads" target="_blank">Download Git</a></li>
+    </ul>
+
+    <h3 id="one-line-setup">One-Line Setup</h3>
+    <pre><code>git clone https://github.com/Proteus-Technologies-Private-Limited/OpenDraft.git
+cd OpenDraft
+./setup.sh</code></pre>
+
+    <p>The script installs all dependencies, builds the app, and opens it in your browser at <code>http://localhost:8000</code>.</p>
+
+    <h3 id="manual-setup">Manual Setup</h3>
+    <p>If the setup script doesn't work, or you want more control:</p>
+
+    <ol class="steps">
+      <li>
+        <strong>Clone the repository:</strong>
+        <pre><code>git clone https://github.com/Proteus-Technologies-Private-Limited/OpenDraft.git
+cd OpenDraft</code></pre>
+      </li>
+      <li>
+        <strong>Set up the Python backend:</strong>
+        <pre><code>python3.12 -m venv venv
+source venv/bin/activate
+pip install -r backend/requirements.txt</code></pre>
+      </li>
+      <li>
+        <strong>Install frontend dependencies:</strong>
+        <pre><code>cd frontend && npm install && cd ..</code></pre>
+      </li>
+      <li>
+        <strong>Start the backend server</strong> (in one terminal):
+        <pre><code>./start_backend.sh</code></pre>
+      </li>
+      <li>
+        <strong>Start the frontend dev server</strong> (in another terminal):
+        <pre><code>./start_frontend.sh</code></pre>
+      </li>
+      <li>Open <code>http://localhost:5173</code> in your browser.</li>
+    </ol>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p>The development setup uses <code>localhost:5173</code> (Vite dev server). The production build uses <code>localhost:8000</code> (served by the Python backend).</p>
+      </div>
+    </div>
+
+    <div class="page-nav">
+      <a href="getting-started.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Getting Started</span>
+      </a>
+      <a href="writing-screenplay.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Writing Your Screenplay</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.3.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

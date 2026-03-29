@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
 import { useEditorStore, type CharacterProfile } from '../stores/editorStore';
+import { useAssetStore } from '../stores/assetStore';
+import { SERVER_BASE } from '../config';
+import MiniRichText from './MiniRichText';
 
 // Default colors for auto-assignment (Final Draft typical palette)
 const DEFAULT_HIGHLIGHT_COLORS = [
@@ -9,11 +12,23 @@ const DEFAULT_HIGHLIGHT_COLORS = [
   '#d47a7a', '#79c279',
 ];
 
-interface CharacterProfilesProps {
-  editor: Editor | null;
+// Character roles matching industry standard (Final Draft Character Navigator)
+const CHARACTER_ROLES = ['', 'Lead', 'Supporting', 'Featured', 'Background', 'Day Player'];
+
+/** Strip HTML tags to get plain text (for collapsed preview and FDX export) */
+function stripHtml(html: string): string {
+  if (!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
 }
 
-const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor }) => {
+interface CharacterProfilesProps {
+  editor: Editor | null;
+  projectId: string;
+}
+
+const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId }) => {
   const {
     characters,
     characterProfiles,
@@ -23,12 +38,36 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor }) => {
     toggleCharacterProfiles,
   } = useEditorStore();
 
+  const { assets, setAssets } = useAssetStore();
+
   const [expandedChar, setExpandedChar] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showReferred, setShowReferred] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance'>('name');
   const [pendingRemoveChar, setPendingRemoveChar] = useState<string | null>(null);
-  const descriptionRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
+
+  // Image picker state
+  const [imagePickerFor, setImagePickerFor] = useState<string | null>(null);
+  const [imagePickerFilter, setImagePickerFilter] = useState('');
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetRef = useRef<string | null>(null);
+
+  // Fetch project assets when image picker opens
+  const fetchAssets = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const res = await fetch(`${SERVER_BASE}/api/projects/${projectId}/assets/`);
+      if (res.ok) {
+        const data = await res.json();
+        setAssets(data.assets || []);
+      }
+    } catch { /* ignore */ }
+  }, [projectId, setAssets]);
+
+  useEffect(() => {
+    if (imagePickerFor && projectId) fetchAssets();
+  }, [imagePickerFor, projectId, fetchAssets]);
 
   // Auto-sync: ensure every detected character has a profile entry
   useEffect(() => {
@@ -308,16 +347,94 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor }) => {
   const getProfile = useCallback(
     (name: string): CharacterProfile => {
       const existing = characterProfiles.find((p) => p.name === name);
-      if (existing) return existing;
-      return { name, description: '', color: '', highlighted: false, gender: '', age: '' };
+      if (existing) return { images: [], role: '', backstory: '', ...existing };
+      return { name, description: '', color: '', highlighted: false, gender: '', age: '', role: '', backstory: '', images: [] };
     },
     [characterProfiles],
   );
+
+  // Image helpers
+  const getAssetUrl = useCallback((assetId: string) => {
+    return `${SERVER_BASE}/api/projects/${projectId}/assets/${assetId}`;
+  }, [projectId]);
+
+  const imageAssets = useMemo(() => {
+    return assets.filter((a) => a.mime_type.startsWith('image/'));
+  }, [assets]);
+
+  const handleUploadImage = useCallback(async (charName: string, file: File) => {
+    if (!projectId) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('tags', `character:${charName}`);
+    try {
+      const res = await fetch(`${SERVER_BASE}/api/projects/${projectId}/assets/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const assetId = data.id || data.asset?.id;
+        if (assetId) {
+          const profile = characterProfiles.find((p) => p.name === charName);
+          const currentImages = profile?.images || [];
+          upsertCharacterProfile(charName, { images: [...currentImages, assetId] });
+        }
+        await fetchAssets();
+      }
+    } catch { /* ignore */ }
+  }, [projectId, characterProfiles, upsertCharacterProfile, fetchAssets]);
+
+  const handleAssociateAsset = useCallback((charName: string, assetId: string) => {
+    const profile = characterProfiles.find((p) => p.name === charName);
+    const currentImages = profile?.images || [];
+    if (!currentImages.includes(assetId)) {
+      upsertCharacterProfile(charName, { images: [...currentImages, assetId] });
+    }
+    setImagePickerFor(null);
+    setImagePickerFilter('');
+  }, [characterProfiles, upsertCharacterProfile]);
+
+  const handleRemoveImage = useCallback((charName: string, assetId: string) => {
+    const profile = characterProfiles.find((p) => p.name === charName);
+    const currentImages = profile?.images || [];
+    upsertCharacterProfile(charName, { images: currentImages.filter((id) => id !== assetId) });
+  }, [characterProfiles, upsertCharacterProfile]);
+
+  const handleSetPrimaryImage = useCallback((charName: string, assetId: string) => {
+    const profile = characterProfiles.find((p) => p.name === charName);
+    const currentImages = profile?.images || [];
+    const filtered = currentImages.filter((id) => id !== assetId);
+    upsertCharacterProfile(charName, { images: [assetId, ...filtered] });
+  }, [characterProfiles, upsertCharacterProfile]);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const charName = uploadTargetRef.current;
+    if (file && charName) {
+      handleUploadImage(charName, file);
+    }
+    e.target.value = '';
+  }, [handleUploadImage]);
+
+  const triggerUpload = useCallback((charName: string) => {
+    uploadTargetRef.current = charName;
+    fileInputRef.current?.click();
+  }, []);
 
   if (!characterProfilesOpen) return null;
 
   return (
     <div className="char-profiles-panel">
+      {/* Hidden file input for image uploads */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleFileSelect}
+      />
+
       <div className="char-profiles-header">
         <span className="char-profiles-title">Characters</span>
         <span className="char-profiles-count">{allCharacters.length}</span>
@@ -373,6 +490,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor }) => {
             const stats = charStats.get(name);
             const isExpanded = expandedChar === name;
             const isOrphaned = orphanedNames.has(name);
+            const primaryImageId = profile.images?.[0];
 
             return (
               <div key={name} className={`char-profile-card${isOrphaned ? ' char-orphaned' : ''}`}>
@@ -393,15 +511,24 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor }) => {
                   className="char-profile-row"
                   onClick={() => setExpandedChar(isExpanded ? null : name)}
                 >
-                  {/* Color swatch */}
-                  <input
-                    type="color"
-                    className="char-profile-color"
-                    value={profile.color || '#999999'}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => upsertCharacterProfile(name, { color: e.target.value })}
-                    title="Highlight color"
-                  />
+                  {/* Avatar: show primary image or color swatch */}
+                  {primaryImageId && projectId ? (
+                    <img
+                      src={getAssetUrl(primaryImageId)}
+                      alt={name}
+                      className="char-profile-avatar"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <input
+                      type="color"
+                      className="char-profile-color"
+                      value={profile.color || '#999999'}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => upsertCharacterProfile(name, { color: e.target.value })}
+                      title="Highlight color"
+                    />
+                  )}
                   <div className="char-profile-name-col">
                     <span
                       className="char-profile-name"
@@ -410,11 +537,14 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor }) => {
                     >
                       {name}
                     </span>
-                    {profile.description && !isExpanded && (
-                      <span className="char-profile-desc-preview">
-                        {profile.description.slice(0, 50)}{profile.description.length > 50 ? '...' : ''}
-                      </span>
-                    )}
+                    {profile.description && !isExpanded && (() => {
+                      const plain = stripHtml(profile.description);
+                      return plain ? (
+                        <span className="char-profile-desc-preview">
+                          {plain.slice(0, 50)}{plain.length > 50 ? '...' : ''}
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="char-profile-stats">
                     {stats && (
@@ -430,19 +560,93 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor }) => {
                 {/* Expanded detail */}
                 {isExpanded && (
                   <div className="char-profile-detail">
-                    {/* Description */}
+                    {/* Character Images Section */}
+                    {profile.images && profile.images.length > 0 && projectId && (
+                      <div className="char-profile-images">
+                        <div className="char-profile-images-primary">
+                          <img
+                            src={getAssetUrl(profile.images[0])}
+                            alt={name}
+                            className="char-profile-image-main"
+                            onClick={() => setLightboxImage({ url: getAssetUrl(profile.images[0]), name })}
+                          />
+                        </div>
+                        {profile.images.length > 1 && (
+                          <div className="char-profile-images-strip">
+                            {profile.images.map((imgId, idx) => (
+                              <div key={imgId} className={`char-profile-thumb-wrap${idx === 0 ? ' active' : ''}`}>
+                                <img
+                                  src={getAssetUrl(imgId)}
+                                  alt={`${name} ${idx + 1}`}
+                                  className="char-profile-thumb"
+                                  onClick={() => setLightboxImage({ url: getAssetUrl(imgId), name })}
+                                />
+                                {idx > 0 && (
+                                  <button
+                                    className="char-profile-thumb-primary"
+                                    onClick={() => handleSetPrimaryImage(name, imgId)}
+                                    title="Set as primary image"
+                                  >
+                                    &#9733;
+                                  </button>
+                                )}
+                                <button
+                                  className="char-profile-thumb-remove"
+                                  onClick={() => handleRemoveImage(name, imgId)}
+                                  title="Remove image"
+                                >
+                                  &times;
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Image action buttons */}
+                    {projectId && (
+                      <div className="char-profile-image-actions">
+                        <button
+                          className="char-profile-img-btn"
+                          onClick={() => triggerUpload(name)}
+                          title="Upload a new image for this character"
+                        >
+                          Upload Image
+                        </button>
+                        <button
+                          className="char-profile-img-btn"
+                          onClick={() => { setImagePickerFor(name); setImagePickerFilter(''); }}
+                          title="Associate an existing project asset"
+                        >
+                          From Assets
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Description (rich text — maps to FDX CastMember Description) */}
                     <label className="char-profile-label">Description</label>
-                    <textarea
-                      ref={(el) => { if (el) descriptionRefs.current.set(name, el); }}
-                      className="char-profile-textarea"
+                    <MiniRichText
                       value={profile.description}
-                      onChange={(e) => upsertCharacterProfile(name, { description: e.target.value })}
+                      onChange={(html) => upsertCharacterProfile(name, { description: html })}
                       placeholder="A weary detective in his 50s, haunted by a cold case..."
-                      rows={3}
+                      minHeight={50}
                     />
 
-                    {/* Gender / Age */}
-                    <div className="char-profile-meta-row">
+                    {/* Role / Gender / Age */}
+                    <div className="char-profile-meta-row char-profile-meta-row-3">
+                      <div className="char-profile-meta-field">
+                        <label className="char-profile-label">Role</label>
+                        <select
+                          className="char-profile-select"
+                          value={profile.role}
+                          onChange={(e) => upsertCharacterProfile(name, { role: e.target.value })}
+                        >
+                          {CHARACTER_ROLES.map((r) => (
+                            <option key={r} value={r}>{r || '—'}</option>
+                          ))}
+                        </select>
+                      </div>
                       <div className="char-profile-meta-field">
                         <label className="char-profile-label">Gender</label>
                         <input
@@ -450,7 +654,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor }) => {
                           className="char-profile-input"
                           value={profile.gender}
                           onChange={(e) => upsertCharacterProfile(name, { gender: e.target.value })}
-                          placeholder="e.g. Male, Female, Non-binary"
+                          placeholder="e.g. Male"
                         />
                       </div>
                       <div className="char-profile-meta-field">
@@ -460,21 +664,42 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor }) => {
                           className="char-profile-input"
                           value={profile.age}
                           onChange={(e) => upsertCharacterProfile(name, { age: e.target.value })}
-                          placeholder="e.g. 30s, 45"
+                          placeholder="e.g. 30s"
                         />
                       </div>
                     </div>
 
-                    {/* Highlight toggle */}
+                    {/* Backstory (rich text — OpenDraft-only, not in FDX) */}
+                    <label className="char-profile-label">Backstory</label>
+                    <MiniRichText
+                      value={profile.backstory}
+                      onChange={(html) => upsertCharacterProfile(name, { backstory: html })}
+                      placeholder="Character history, motivations, secrets..."
+                      minHeight={60}
+                    />
+
+                    {/* Color + Highlight row */}
                     <div className="char-profile-highlight-row">
-                      <label className="char-profile-label">Highlight in script</label>
-                      <button
-                        className={`char-profile-highlight-btn${profile.highlighted ? ' active' : ''}`}
-                        onClick={() => upsertCharacterProfile(name, { highlighted: !profile.highlighted })}
-                        style={profile.highlighted ? { background: profile.color || '#999', borderColor: profile.color || '#999' } : undefined}
-                      >
-                        {profile.highlighted ? 'On' : 'Off'}
-                      </button>
+                      <div className="char-profile-color-row">
+                        <label className="char-profile-label">Color</label>
+                        <input
+                          type="color"
+                          className="char-profile-color"
+                          value={profile.color || '#999999'}
+                          onChange={(e) => upsertCharacterProfile(name, { color: e.target.value })}
+                          title="Highlight color"
+                        />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <label className="char-profile-label" style={{ marginBottom: 0 }}>Highlight</label>
+                        <button
+                          className={`char-profile-highlight-btn${profile.highlighted ? ' active' : ''}`}
+                          onClick={() => upsertCharacterProfile(name, { highlighted: !profile.highlighted })}
+                          style={profile.highlighted ? { background: profile.color || '#999', borderColor: profile.color || '#999' } : undefined}
+                        >
+                          {profile.highlighted ? 'On' : 'Off'}
+                        </button>
+                      </div>
                     </div>
 
                     {/* Scene appearances */}
@@ -535,6 +760,62 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor }) => {
           </div>
         </div>
       )}
+
+      {/* Image Picker Overlay */}
+      {imagePickerFor && (
+        <div className="dialog-overlay" onClick={() => { setImagePickerFor(null); setImagePickerFilter(''); }}>
+          <div className="dialog-box char-image-picker-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-header">
+              Select Image for {imagePickerFor}
+              <button className="char-profiles-close" onClick={() => { setImagePickerFor(null); setImagePickerFilter(''); }}>&times;</button>
+            </div>
+            <div className="char-image-picker-search">
+              <input
+                type="text"
+                placeholder="Filter by name..."
+                value={imagePickerFilter}
+                onChange={(e) => setImagePickerFilter(e.target.value)}
+                className="char-profiles-search-input"
+                autoFocus
+              />
+            </div>
+            <div className="char-image-picker-grid">
+              {imageAssets.length === 0 ? (
+                <div className="char-profiles-empty">No image assets in this project. Upload images via the Asset Manager or the Upload button on a character.</div>
+              ) : (
+                imageAssets
+                  .filter((a) => !imagePickerFilter || a.original_name.toLowerCase().includes(imagePickerFilter.toLowerCase()))
+                  .map((asset) => {
+                    const alreadyLinked = (characterProfiles.find((p) => p.name === imagePickerFor)?.images || []).includes(asset.id);
+                    return (
+                      <div
+                        key={asset.id}
+                        className={`char-image-picker-item${alreadyLinked ? ' linked' : ''}`}
+                        onClick={() => !alreadyLinked && handleAssociateAsset(imagePickerFor, asset.id)}
+                        title={alreadyLinked ? 'Already associated' : `Associate ${asset.original_name}`}
+                      >
+                        <img src={getAssetUrl(asset.id)} alt={asset.original_name} />
+                        <span className="char-image-picker-name">{asset.original_name}</span>
+                        {alreadyLinked && <span className="char-image-picker-linked">Linked</span>}
+                      </div>
+                    );
+                  })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Lightbox */}
+      {lightboxImage && (
+        <div className="dialog-overlay char-lightbox-overlay" onClick={() => setLightboxImage(null)}>
+          <div className="char-lightbox" onClick={(e) => e.stopPropagation()}>
+            <img src={lightboxImage.url} alt={lightboxImage.name} />
+            <button className="char-lightbox-close" onClick={() => setLightboxImage(null)}>&times;</button>
+          </div>
+        </div>
+      )}
+
       {pendingRemoveChar && (
         <div className="dialog-overlay" onClick={() => setPendingRemoveChar(null)}>
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>

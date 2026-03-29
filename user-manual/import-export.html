@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Import &amp; Export - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link active">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Import &amp; Export
+    </div>
+
+    <h1>Import &amp; Export</h1>
+    <p class="page-subtitle">Work with Final Draft, Fountain, PDF, and plain text formats.</p>
+
+    <h2 id="import">Importing Scripts</h2>
+
+    <p>OpenDraft can import screenplays from other software. Go to <strong>File &gt; Import</strong> and select a file.</p>
+
+    <h3 id="import-fdx">Final Draft (.fdx)</h3>
+    <p>Import scripts from Final Draft, the industry-standard screenwriting software. OpenDraft preserves:</p>
+    <ul>
+      <li>All screenplay elements and formatting</li>
+      <li>Character profiles</li>
+      <li>Character highlighting colors</li>
+      <li>Page layout settings</li>
+    </ul>
+
+    <h3 id="import-fountain">Fountain (.fountain)</h3>
+    <p>Import scripts written in Fountain format. Fountain is an open, plain-text markup language for screenwriting. Many free tools can create Fountain files.</p>
+
+    <h3 id="import-txt">Plain Text (.txt)</h3>
+    <p>Import plain text files. OpenDraft will attempt to detect screenplay element types based on formatting conventions (indentation, capitalization, etc.).</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Tip:</strong> For best results when importing plain text, make sure your text follows standard screenplay formatting conventions (scene headings in all caps starting with INT./EXT., character names in all caps and centered, etc.).</p>
+      </div>
+    </div>
+
+    <h2 id="export">Exporting Scripts</h2>
+
+    <h3 id="export-fdx">Save as Final Draft (.fdx)</h3>
+    <p>Go to <strong>File &gt; Save as Final Draft</strong>. This creates a <code>.fdx</code> file that can be opened in Final Draft or any software that supports the format. Preserved data includes:</p>
+    <ul>
+      <li>All screenplay elements and formatting</li>
+      <li>Character names and descriptions (rich text descriptions are converted to plain text, since FDX only supports plain text in character bios)</li>
+      <li>Character highlighting colors</li>
+      <li>Tag categories and entities</li>
+    </ul>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Note on character profiles:</strong> OpenDraft's extended character fields &mdash; Role, Backstory, and character images &mdash; are preserved in OpenDraft's native save format but are not included in FDX exports. The FDX format (used by Final Draft) only supports character name, plain text description, and highlight color.</p>
+      </div>
+    </div>
+
+    <h3 id="export-fountain">Save as Fountain (.fountain)</h3>
+    <p>Go to <strong>File &gt; Save as Fountain</strong>. This creates a plain-text Fountain file that can be opened in any Fountain-compatible editor or version control system.</p>
+
+    <h3 id="export-pdf">Export as PDF</h3>
+    <p>Go to <strong>File &gt; Save as PDF</strong> or press <kbd>&#8984;</kbd><kbd>P</kbd>. The PDF is formatted to industry-standard screenplay specifications.</p>
+
+    <p>Before exporting to PDF, you may want to:</p>
+    <ul>
+      <li>Turn off note highlights (<strong>View &gt; Note Highlights</strong>)</li>
+      <li>Turn off tag highlights (<strong>View &gt; Tag Highlights</strong>)</li>
+      <li>Check your <a href="page-setup.html">Page Setup</a> settings</li>
+    </ul>
+
+    <h3 id="print">Printing</h3>
+    <p>Go to <strong>File &gt; Print</strong> or press <kbd>&#8984;</kbd><kbd>P</kbd> to print your screenplay directly.</p>
+
+    <h2 id="format-comparison">Format Comparison</h2>
+
+    <table>
+      <thead>
+        <tr><th>Feature</th><th>.fdx</th><th>.fountain</th><th>.pdf</th><th>.txt</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Screenplay elements</td><td>Yes</td><td>Yes</td><td>Visual only</td><td>Basic</td></tr>
+        <tr><td>Text formatting (bold/italic)</td><td>Yes</td><td>Yes</td><td>Visual only</td><td>No</td></tr>
+        <tr><td>Character profiles (name, description)</td><td>Yes (plain text)</td><td>No</td><td>No</td><td>No</td></tr>
+        <tr><td>Extended profiles (role, backstory, images)</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+        <tr><td>Production tags</td><td>Yes</td><td>No</td><td>No</td><td>No</td></tr>
+        <tr><td>Editable in other software</td><td>Final Draft</td><td>Many editors</td><td>No</td><td>Any editor</td></tr>
+        <tr><td>Best for</td><td>Collaboration with FD users</td><td>Open format, version control</td><td>Reading, printing, submission</td><td>Simple import</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="version-history.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Version History</span>
+      </a>
+      <a href="themes.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Themes</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.3.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

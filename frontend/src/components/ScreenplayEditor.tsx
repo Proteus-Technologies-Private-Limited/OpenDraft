@@ -765,6 +765,9 @@ const ScreenplayEditor: React.FC = () => {
                     highlighted: (prof.highlighted as boolean) || false,
                     gender: (prof.gender as string) || '',
                     age: (prof.age as string) || '',
+                    role: (prof.role as string) || '',
+                    backstory: (prof.backstory as string) || '',
+                    images: Array.isArray(prof.images) ? (prof.images as string[]) : [],
                   });
                 }
               }
@@ -1239,7 +1242,7 @@ const ScreenplayEditor: React.FC = () => {
           )}
         </div>
         {!isHistoryMode && <ScriptNotes editor={editor} />}
-        {!isHistoryMode && <CharacterProfiles editor={editor} />}
+        {!isHistoryMode && <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} />}
         {!isHistoryMode && <TagsPanel editor={editor} />}
       </div>
       {!isHistoryMode && <SearchReplace editor={editor} />}
