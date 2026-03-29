@@ -403,14 +403,9 @@ tr:hover td {
 
 /* Screenshot placeholder */
 .screenshot {
-  background: var(--bg-alt);
-  border: 2px dashed var(--border);
   border-radius: var(--radius);
-  padding: 40px 20px;
   text-align: center;
   margin: 20px 0;
-  color: var(--text-lighter);
-  font-size: 14px;
 }
 
 .screenshot img {
