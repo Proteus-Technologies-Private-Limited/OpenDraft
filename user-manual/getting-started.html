@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Getting Started - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link active">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Getting Started
+    </div>
+
+    <h1>Getting Started</h1>
+    <p class="page-subtitle">Write your first screenplay in 5 minutes. This guide walks you through the basics.</p>
+
+    <h2 id="the-interface">The Interface at a Glance</h2>
+
+    <p>When you open a screenplay in OpenDraft, you'll see these main areas:</p>
+
+    <div class="screenshot">
+      <p>&#128247; Screenshot: Main editor interface overview</p>
+      <p class="screenshot-label">Add screenshot: screenshots/interface-overview.png</p>
+    </div>
+
+    <ul>
+      <li><strong>Menu Bar</strong> (top) &mdash; Access all features via File, Edit, Format, View, Production, Tools, and Help menus.</li>
+      <li><strong>Toolbar</strong> (below menu) &mdash; Quick buttons for formatting, element type, font, zoom, and search.</li>
+      <li><strong>Editor</strong> (center) &mdash; The main writing area where your screenplay lives. It looks and behaves like a page of paper.</li>
+      <li><strong>Side Panels</strong> (left/right) &mdash; Optional panels for Scene Navigator, Index Cards, Characters, Tags, and more. Toggle them from the <strong>View</strong> menu.</li>
+      <li><strong>Status Bar</strong> (bottom) &mdash; Shows your current page count and zoom level.</li>
+    </ul>
+
+    <h2 id="create-project">Step 1: Create a Project</h2>
+
+    <p>Everything in OpenDraft lives inside a <strong>project</strong>. A project holds one or more screenplays, assets, and version history.</p>
+
+    <ol class="steps">
+      <li>When you first open OpenDraft, you'll see the <strong>Projects</strong> screen. Click the <strong>+ New Project</strong> button.</li>
+      <li>Give your project a name (e.g., "My First Screenplay") and press <strong>Create</strong>.</li>
+      <li>Your new project opens. You'll see tabs for <strong>Scripts</strong>, <strong>Assets</strong>, and <strong>Versions</strong>.</li>
+    </ol>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p>You can add metadata to your project later &mdash; genre, logline, synopsis, author, and more &mdash; via the project properties dialog.</p>
+      </div>
+    </div>
+
+    <h2 id="create-script">Step 2: Create a Script</h2>
+
+    <ol class="steps">
+      <li>Inside your project, click <strong>+ New Script</strong> in the Scripts tab.</li>
+      <li>Give your script a name and press <strong>Create</strong>.</li>
+      <li>Click on the script to open it in the editor.</li>
+    </ol>
+
+    <h2 id="write-first-scene">Step 3: Write Your First Scene</h2>
+
+    <p>Screenplays are built from <strong>elements</strong> &mdash; scene headings, action, character names, dialogue, and more. OpenDraft formats them automatically.</p>
+
+    <ol class="steps">
+      <li>
+        <strong>Start with a Scene Heading.</strong> The editor begins in <em>Scene Heading</em> mode. Type your location:
+        <pre>INT. COFFEE SHOP - DAY</pre>
+        Press <kbd>Enter</kbd> to move to the next line. The element type automatically switches to <strong>Action</strong>.
+      </li>
+      <li>
+        <strong>Write some action.</strong> Describe what we see:
+        <pre>A busy coffee shop. SARAH (30s, sharp eyes, messy bun) waits in line, fidgeting with her phone.</pre>
+        Press <kbd>Enter</kbd> twice to move on.
+      </li>
+      <li>
+        <strong>Add a character and dialogue.</strong> Press <kbd>&#8984;</kbd><kbd>3</kbd> to switch to <em>Character</em> mode, then type the name:
+        <pre>SARAH</pre>
+        Press <kbd>Enter</kbd> &mdash; it automatically switches to <em>Dialogue</em> mode. Type what they say:
+        <pre>Come on, come on... I'm going to be late.</pre>
+      </li>
+      <li>
+        <strong>Add a parenthetical.</strong> Press <kbd>&#8984;</kbd><kbd>5</kbd> for a <em>Parenthetical</em>:
+        <pre>(checking her watch)</pre>
+        Press <kbd>Enter</kbd> to return to dialogue.
+      </li>
+    </ol>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Shortcut tip:</strong> Use <kbd>&#8984;</kbd><kbd>1</kbd> through <kbd>&#8984;</kbd><kbd>8</kbd> to quickly switch between element types. Or use the element dropdown in the toolbar. See the full list in <a href="writing-screenplay.html">Writing Your Screenplay</a>.</p>
+      </div>
+    </div>
+
+    <h2 id="save-work">Step 4: Save Your Work</h2>
+
+    <p>OpenDraft offers two ways to save:</p>
+
+    <ul>
+      <li><strong>Quick Save</strong> (<kbd>&#8984;</kbd><kbd>S</kbd>) &mdash; Saves your current work instantly.</li>
+      <li><strong>Check In</strong> (<strong>File &gt; Check In</strong>) &mdash; Creates a named version checkpoint. You can view, compare, and restore any checked-in version later. Think of it like a "save point" in a video game.</li>
+    </ul>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>Check in early and often!</strong> Every time you finish a scene or make significant progress, use Check In to save a version you can always return to.</p>
+      </div>
+    </div>
+
+    <h2 id="explore-panels">Step 5: Explore the Panels</h2>
+
+    <p>Open side panels from the <strong>View</strong> menu to access powerful tools:</p>
+
+    <table>
+      <thead>
+        <tr><th>Panel</th><th>What it does</th><th>Best for</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Navigator</strong></td>
+          <td>Lists all scenes; click to jump</td>
+          <td>Quick navigation in long scripts</td>
+        </tr>
+        <tr>
+          <td><strong>Index Cards</strong></td>
+          <td>Visual cards for each scene</td>
+          <td>Rearranging scenes, adding synopses</td>
+        </tr>
+        <tr>
+          <td><strong>Beat Board</strong></td>
+          <td>Story beats organized by act</td>
+          <td>High-level story planning</td>
+        </tr>
+        <tr>
+          <td><strong>Characters</strong></td>
+          <td>Rich profiles with images, backstories, roles, and stats</td>
+          <td>Building your cast, tracking who appears where</td>
+        </tr>
+        <tr>
+          <td><strong>Script Notes</strong></td>
+          <td>Color-coded annotations</td>
+          <td>Reminders, feedback, research</td>
+        </tr>
+        <tr>
+          <td><strong>Tags</strong></td>
+          <td>Production tagging (props, costumes...)</td>
+          <td>Pre-production breakdowns</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 id="next-steps">Next Steps</h2>
+
+    <p>You now know the basics! Here's where to go next:</p>
+
+    <ul>
+      <li><a href="writing-screenplay.html">Writing Your Screenplay</a> &mdash; Deep dive into all screenplay elements and the editor</li>
+      <li><a href="formatting.html">Formatting</a> &mdash; Bold, italic, fonts, and page formatting</li>
+      <li><a href="characters.html">Characters</a> &mdash; Build character profiles and track dialogue</li>
+      <li><a href="keyboard-shortcuts.html">Keyboard Shortcuts</a> &mdash; Speed up your workflow</li>
+    </ul>
+
+    <div class="page-nav">
+      <a href="index.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Home</span>
+      </a>
+      <a href="installation.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Installation</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.3.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

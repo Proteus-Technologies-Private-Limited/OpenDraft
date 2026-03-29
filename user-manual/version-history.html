@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Version History - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link active">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Version History
+    </div>
+
+    <h1>Version History</h1>
+    <p class="page-subtitle">Check in drafts, compare versions, and restore previous work.</p>
+
+    <h2 id="what-is-version-history">What Is Version History?</h2>
+
+    <p>OpenDraft has built-in version control (powered by Git under the hood). Every time you <strong>check in</strong> your script, a snapshot is saved. You can view, compare, and restore any of these snapshots at any time.</p>
+
+    <p>Think of it as a time machine for your screenplay &mdash; you can always go back to any point.</p>
+
+    <h2 id="check-in">Checking In</h2>
+
+    <ol class="steps">
+      <li>Go to <strong>File &gt; Check In</strong> (or use the keyboard shortcut).</li>
+      <li>Enter a brief message describing what you changed (e.g., "Finished scene 5 rewrite" or "Added new character Maria").</li>
+      <li>Click <strong>Check In</strong>.</li>
+    </ol>
+
+    <p>Your script's current state is now saved as a version.</p>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>When to check in:</strong></p>
+        <ul>
+          <li>After finishing a scene or sequence</li>
+          <li>Before making major changes you might want to undo</li>
+          <li>Before sending a draft to someone for review</li>
+          <li>At the end of each writing session</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 id="view-history">Viewing History</h2>
+
+    <p>Access version history from <strong>File &gt; Version History</strong> or from the <strong>Versions</strong> tab in the project view.</p>
+
+    <p>The version list shows:</p>
+    <ul>
+      <li><strong>Message</strong> &mdash; The description you wrote when checking in</li>
+      <li><strong>Date</strong> &mdash; When the version was created (with relative time, e.g., "2 hours ago")</li>
+      <li><strong>Author</strong> &mdash; Who made the check-in</li>
+    </ul>
+
+    <h2 id="view-version">Viewing a Past Version</h2>
+
+    <p>Click <strong>View</strong> on any version to open it in a read-only editor. This shows exactly what your script looked like at that point in time.</p>
+
+    <div class="screenshot">
+      <p>&#128247; Screenshot: Version history list with View and Restore buttons</p>
+      <p class="screenshot-label">Add screenshot: screenshots/version-history.png</p>
+    </div>
+
+    <h2 id="compare">Comparing Versions</h2>
+
+    <p>Compare your current script against any previous version using Track Changes:</p>
+    <ol>
+      <li>Go to <strong>View &gt; Compare with Version</strong></li>
+      <li>Select the version to compare against</li>
+      <li>The editor shows inline diffs &mdash; green for additions, red strikethrough for deletions</li>
+    </ol>
+
+    <p>See <a href="revision-mode.html">Revision Mode &amp; Track Changes</a> for more details on the diff view.</p>
+
+    <h2 id="restore">Restoring a Version</h2>
+
+    <p>If you want to go back to a previous version:</p>
+
+    <ol class="steps">
+      <li>Open Version History.</li>
+      <li>Find the version you want to restore.</li>
+      <li>Click <strong>Restore</strong>.</li>
+      <li>Your script is updated to match that version. A new version is automatically created (so you can always undo the restore).</li>
+    </ol>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Safe to restore:</strong> Restoring a version doesn't delete any history. It creates a new version that matches the old one. You can always restore back to where you were.</p>
+      </div>
+    </div>
+
+    <h2 id="save-vs-checkin">Save vs. Check In</h2>
+
+    <table>
+      <thead>
+        <tr><th>Action</th><th>What it does</th><th>When to use</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Save</strong> (<kbd>&#8984;</kbd><kbd>S</kbd>)</td>
+          <td>Saves your current work to disk</td>
+          <td>Frequently, as you write</td>
+        </tr>
+        <tr>
+          <td><strong>Check In</strong></td>
+          <td>Creates a named version snapshot you can view, compare, and restore</td>
+          <td>At milestones (finished scene, end of session, before major changes)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="projects.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Managing Projects</span>
+      </a>
+      <a href="import-export.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Import &amp; Export</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.3.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Characters - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link active">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Characters
+    </div>
+
+    <h1>Characters</h1>
+    <p class="page-subtitle">Build rich character profiles with images, backstories, and dialogue stats.</p>
+
+    <h2 id="open-panel">Opening the Characters Panel</h2>
+
+    <p>Open the Characters panel from <strong>View &gt; Characters</strong>. It appears as a side panel alongside the editor.</p>
+
+    <div class="screenshot">
+      <p>&#128247; Screenshot: Characters panel showing character list with avatars and stats</p>
+      <p class="screenshot-label">Add screenshot: screenshots/characters-panel.png</p>
+    </div>
+
+    <p>The panel automatically detects every character in your screenplay &mdash; anyone who has a <strong>Character</strong> element (i.e., anyone who speaks) appears in the list. Characters with images show a circular avatar in the collapsed view.</p>
+
+    <h2 id="character-stats">Character Statistics</h2>
+
+    <p>Each character entry shows helpful statistics:</p>
+
+    <ul>
+      <li><strong>Dialogue count</strong> &mdash; How many lines of dialogue this character has.</li>
+      <li><strong>Scene appearances</strong> &mdash; How many scenes the character appears in (as a speaker).</li>
+      <li><strong>First appearance</strong> &mdash; Which scene the character first speaks in.</li>
+      <li><strong>Scene list</strong> &mdash; A list of all scenes where the character appears.</li>
+    </ul>
+
+    <h2 id="profiles">Character Profiles</h2>
+
+    <p>Click on a character name to expand their profile. Each profile includes a comprehensive set of fields inspired by Final Draft's Character Navigator:</p>
+
+    <table>
+      <thead>
+        <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Description</strong></td>
+          <td>Rich text</td>
+          <td>Character bio &mdash; supports <strong>bold</strong>, <em>italic</em>, <u>underline</u>, and bullet lists. Exported as plain text to Final Draft (.fdx).</td>
+        </tr>
+        <tr>
+          <td><strong>Role</strong></td>
+          <td>Dropdown</td>
+          <td>The character's role: Lead, Supporting, Featured, Background, or Day Player.</td>
+        </tr>
+        <tr>
+          <td><strong>Gender</strong></td>
+          <td>Text</td>
+          <td>The character's gender (e.g., Male, Female, Non-binary).</td>
+        </tr>
+        <tr>
+          <td><strong>Age</strong></td>
+          <td>Text</td>
+          <td>The character's age or age range (e.g., 30s, 45).</td>
+        </tr>
+        <tr>
+          <td><strong>Backstory</strong></td>
+          <td>Rich text</td>
+          <td>Character history, motivations, secrets &mdash; rich text with the same formatting options as Description.</td>
+        </tr>
+        <tr>
+          <td><strong>Highlight color</strong></td>
+          <td>Color picker</td>
+          <td>A color used to visually highlight this character's dialogue in the editor.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 id="rich-text">Rich Text Editing</h3>
+
+    <p>The <strong>Description</strong> and <strong>Backstory</strong> fields use a mini rich text editor with a formatting toolbar:</p>
+
+    <ul>
+      <li><strong>B</strong> &mdash; Bold</li>
+      <li><strong>I</strong> &mdash; Italic</li>
+      <li><strong>U</strong> &mdash; Underline</li>
+      <li><strong>&#8226;</strong> &mdash; Bullet list</li>
+    </ul>
+
+    <p>This lets you structure character information clearly &mdash; for example, using bold for key traits, bullet lists for goals or relationships, and italic for quotes.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>FDX compatibility:</strong> When you export to Final Draft (.fdx), the Description field is automatically converted to plain text (HTML formatting is stripped). The Backstory, Role, and other extended fields are preserved in OpenDraft's native format but are not included in FDX exports, since Final Draft's format does not support them.</p>
+      </div>
+    </div>
+
+    <h2 id="images">Character Images</h2>
+
+    <p>You can associate one or more images with each character &mdash; headshots, costume references, mood boards, or any visual reference.</p>
+
+    <h3 id="add-image">Adding Images</h3>
+
+    <p>In the expanded character profile, you'll see two buttons:</p>
+
+    <ul>
+      <li><strong>Upload Image</strong> &mdash; Upload a new image file from your computer. It's automatically added to the project's assets and tagged with the character's name.</li>
+      <li><strong>From Assets</strong> &mdash; Opens a picker showing all image assets already in your project. Click one to associate it with the character.</li>
+    </ul>
+
+    <h3 id="view-images">Viewing Images</h3>
+
+    <ul>
+      <li>The <strong>first image</strong> (primary) is shown large at the top of the expanded profile and as a circular <strong>avatar</strong> in the collapsed character row.</li>
+      <li>If there are <strong>multiple images</strong>, a thumbnail strip appears below the primary image. Click any thumbnail to view it full-size in a lightbox.</li>
+    </ul>
+
+    <h3 id="manage-images">Managing Images</h3>
+
+    <p>Hover over a thumbnail to reveal action buttons:</p>
+
+    <ul>
+      <li><strong>&#9733; (star)</strong> &mdash; Set this image as the primary image (shown as avatar and first in the profile).</li>
+      <li><strong>&times; (remove)</strong> &mdash; Remove this image from the character. The image remains in project assets &mdash; only the association is removed.</li>
+    </ul>
+
+    <h2 id="build-from-script">Build from Script</h2>
+
+    <p>The <strong>Build from Script</strong> feature automatically extracts character information from your screenplay's action lines:</p>
+
+    <ol class="steps">
+      <li>Click the <strong>Build from Script</strong> button in the Characters panel.</li>
+      <li>OpenDraft scans your action lines for character introductions (e.g., "SARAH (30s, sharp eyes, messy bun) waits in line").</li>
+      <li>It automatically populates the character's description and age fields from the introduction text.</li>
+    </ol>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>Tip:</strong> Follow the screenwriting convention of writing character names in ALL CAPS on first appearance in an action line (e.g., "SARAH enters the room"). This helps OpenDraft's Build from Script find and extract character introductions.</p>
+      </div>
+    </div>
+
+    <h2 id="highlighting">Character Highlighting</h2>
+
+    <p>Each character can be assigned a highlight color. When <strong>character highlighting</strong> is enabled (via <strong>Tools &gt; Character Highlighter</strong>), each character's dialogue is tinted with their assigned color in the editor. This makes it easy to visually scan who's speaking at a glance.</p>
+
+    <p>Colors are automatically assigned from a 12-color palette when characters are first detected. You can change any character's color in their expanded profile.</p>
+
+    <h2 id="sorting">Sorting Characters</h2>
+
+    <p>Sort the character list by:</p>
+
+    <ul>
+      <li><strong>Name</strong> &mdash; Alphabetical order</li>
+      <li><strong>Importance</strong> &mdash; By number of dialogue lines (most dialogue first)</li>
+      <li><strong>Scenes</strong> &mdash; By number of scene appearances</li>
+      <li><strong>Dialogues</strong> &mdash; By dialogue count</li>
+      <li><strong>Appearance</strong> &mdash; Order of first appearance in the script</li>
+    </ul>
+
+    <h2 id="referred-characters">Referred Characters</h2>
+
+    <p>The <strong>Show Referred</strong> toggle displays characters who are mentioned in action lines but never speak. This helps you track all characters in your story, not just those with dialogue.</p>
+
+    <h2 id="search-characters">Searching Characters</h2>
+
+    <p>Use the search field at the top of the Characters panel to filter the list by name. This is helpful in scripts with large casts.</p>
+
+    <div class="page-nav">
+      <a href="beat-board.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Beat Board</span>
+      </a>
+      <a href="script-notes.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Script Notes</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.3.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

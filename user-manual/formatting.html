@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formatting - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link active">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span><a href="writing-screenplay.html">Writing</a><span class="sep">/</span>Formatting
+    </div>
+
+    <h1>Formatting</h1>
+    <p class="page-subtitle">Bold, italic, underline, fonts, and text styling.</p>
+
+    <h2 id="text-style">Text Styling</h2>
+
+    <p>You can apply text styles to selected text using keyboard shortcuts or the toolbar:</p>
+
+    <table>
+      <thead>
+        <tr><th>Style</th><th>Shortcut</th><th>Toolbar</th><th>Usage</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Bold</strong></td>
+          <td><kbd>&#8984;</kbd><kbd>B</kbd></td>
+          <td><strong>B</strong> button</td>
+          <td>Emphasize important text in action lines</td>
+        </tr>
+        <tr>
+          <td><em>Italic</em></td>
+          <td><kbd>&#8984;</kbd><kbd>I</kbd></td>
+          <td><em>I</em> button</td>
+          <td>Sounds, foreign words, titles of works</td>
+        </tr>
+        <tr>
+          <td><u>Underline</u></td>
+          <td><kbd>&#8984;</kbd><kbd>U</kbd></td>
+          <td><u>U</u> button</td>
+          <td>Emphasis (used sparingly in screenwriting)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>To apply a style:</p>
+    <ol>
+      <li>Select the text you want to format.</li>
+      <li>Press the keyboard shortcut, or click the style button in the toolbar.</li>
+      <li>To remove a style, select the text and press the same shortcut again (toggle).</li>
+    </ol>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Screenplay convention:</strong> Most professional screenplays use minimal formatting. Bold and underline are used sparingly. Italic is common for sounds (e.g., <em>BANG!</em>) and foreign language.</p>
+      </div>
+    </div>
+
+    <h2 id="fonts">Fonts</h2>
+
+    <p>Screenplays traditionally use a <strong>Courier</strong> font at <strong>12pt</strong> size. OpenDraft supports several industry-standard fonts:</p>
+
+    <ul>
+      <li><strong>Courier Prime</strong> (default) &mdash; A modern, highly readable Courier variant designed for screenwriters.</li>
+      <li><strong>Courier New</strong> &mdash; The classic monospaced font.</li>
+      <li><strong>Courier Final Draft</strong> &mdash; The font used by Final Draft software.</li>
+    </ul>
+
+    <h3 id="change-font">Changing the Font</h3>
+
+    <p>You can change fonts at two levels:</p>
+
+    <ul>
+      <li><strong>Page-level default:</strong> Use the font dropdown in the toolbar to change the default font for the entire screenplay.</li>
+      <li><strong>Character-level:</strong> Select specific text and change its font independently from the rest.</li>
+    </ul>
+
+    <h3 id="font-size">Font Size</h3>
+
+    <p>The standard screenplay font size is <strong>12pt</strong>. You can adjust font size from 8pt to 72pt using the size dropdown in the toolbar. Keep in mind that changing from 12pt will affect page count accuracy (1 page = ~1 minute is based on 12pt Courier).</p>
+
+    <h2 id="format-panel">Format Panel</h2>
+
+    <p>For more detailed formatting control, open the <strong>Format Panel</strong> by right-clicking in the editor and selecting <strong>Format Panel</strong>. This dialog provides a live preview of formatting changes and lets you adjust:</p>
+
+    <ul>
+      <li>Element-specific font and size</li>
+      <li>Text alignment</li>
+      <li>Margins and spacing</li>
+    </ul>
+
+    <h2 id="zoom">Zoom</h2>
+
+    <p>Adjust the editor zoom level using the zoom control in the toolbar. The range is <strong>50% to 200%</strong>. This affects only the on-screen display, not print output.</p>
+
+    <div class="page-nav">
+      <a href="writing-screenplay.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Writing Your Screenplay</span>
+      </a>
+      <a href="find-replace.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Find &amp; Replace</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.3.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

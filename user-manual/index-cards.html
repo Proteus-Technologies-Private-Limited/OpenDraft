@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Index Cards - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link active">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Index Cards
+    </div>
+
+    <h1>Index Cards</h1>
+    <p class="page-subtitle">A visual card-based view of your scenes for big-picture planning.</p>
+
+    <h2 id="what-are-index-cards">What Are Index Cards?</h2>
+
+    <p>Index Cards show each scene in your screenplay as a visual card, similar to how screenwriters traditionally pin index cards on a corkboard. Each card displays the scene heading and an optional synopsis.</p>
+
+    <div class="screenshot">
+      <p>&#128247; Screenshot: Index Cards view showing scene cards in a grid</p>
+      <p class="screenshot-label">Add screenshot: screenshots/index-cards.png</p>
+    </div>
+
+    <h2 id="open-panel">Opening Index Cards</h2>
+
+    <p>Open Index Cards from <strong>View &gt; Index Cards</strong>. The cards appear in a panel alongside (or instead of) the editor.</p>
+
+    <h2 id="scene-cards">Working with Scene Cards</h2>
+
+    <p>Each card shows:</p>
+    <ul>
+      <li><strong>Scene heading</strong> &mdash; The location and time (e.g., "INT. OFFICE - NIGHT")</li>
+      <li><strong>Synopsis</strong> &mdash; A brief summary of what happens in the scene</li>
+    </ul>
+
+    <h3 id="add-synopsis">Adding a Synopsis</h3>
+
+    <p>Click on a card's synopsis area to type a brief description of the scene. Synopses help you see your story at a glance without reading the full script. They are not included in the screenplay itself &mdash; they're for your planning purposes only.</p>
+
+    <h2 id="reorder-scenes">Reordering Scenes</h2>
+
+    <p>One of the most powerful features of Index Cards is <strong>drag-and-drop scene reordering</strong>:</p>
+
+    <ol class="steps">
+      <li>Click and hold a card.</li>
+      <li>Drag it to a new position in the card grid.</li>
+      <li>Release to drop it. The scene (including all its content) moves to the new position in your screenplay.</li>
+    </ol>
+
+    <div class="callout callout-warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Note:</strong> Reordering scenes in Index Cards moves the actual scene content in your screenplay. This is a real change to your script. If you want to undo it, press <kbd>&#8984;</kbd><kbd>Z</kbd>.</p>
+      </div>
+    </div>
+
+    <h2 id="fullscreen">Fullscreen Mode</h2>
+
+    <p>Click the fullscreen toggle to expand Index Cards to fill the entire window. This gives you a distraction-free view of your story structure, much like a physical corkboard.</p>
+
+    <h2 id="use-cases">Common Use Cases</h2>
+
+    <ul>
+      <li><strong>Story outlining</strong> &mdash; Write scene headings and synopses before fleshing out the full script.</li>
+      <li><strong>Restructuring</strong> &mdash; Drag cards around to experiment with scene order without manually cutting and pasting.</li>
+      <li><strong>Overview</strong> &mdash; Get a bird's eye view of your entire script to spot pacing issues.</li>
+      <li><strong>Pitching</strong> &mdash; Use the fullscreen card view to walk through your story visually.</li>
+    </ul>
+
+    <div class="page-nav">
+      <a href="scene-navigator.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Scene Navigator</span>
+      </a>
+      <a href="beat-board.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Beat Board</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.3.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

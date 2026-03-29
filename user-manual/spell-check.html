@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spell Check - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link active">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span><a href="writing-screenplay.html">Writing</a><span class="sep">/</span>Spell Check
+    </div>
+
+    <h1>Spell Check</h1>
+    <p class="page-subtitle">Catch typos and spelling errors as you write.</p>
+
+    <h2 id="enable">Enabling Spell Check</h2>
+
+    <p>Toggle spell check on or off via <strong>Tools &gt; Spell Check</strong>.</p>
+
+    <p>When enabled, misspelled words are underlined with a red squiggly line in the editor.</p>
+
+    <h2 id="fix-word">Fixing a Misspelled Word</h2>
+
+    <ol class="steps">
+      <li>Right-click on the underlined word.</li>
+      <li>The context menu shows <strong>spelling suggestions</strong> at the top.</li>
+      <li>Click a suggestion to replace the misspelled word.</li>
+    </ol>
+
+    <h2 id="custom-dictionary">Custom Dictionary</h2>
+
+    <p>Screenplays often contain character names, fictional places, and invented terms that aren't in the standard dictionary. You have two options for handling these:</p>
+
+    <ul>
+      <li><strong>Add to Dictionary</strong> &mdash; Right-click the word and select <strong>Add to Dictionary</strong>. The word will never be flagged again across all your projects.</li>
+      <li><strong>Ignore</strong> &mdash; Right-click and select <strong>Ignore</strong> to skip this instance without adding it permanently.</li>
+    </ul>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>Tip:</strong> Add your character names to the dictionary early on. This keeps the spell checker from flagging them throughout your script and lets you focus on real typos.</p>
+      </div>
+    </div>
+
+    <h2 id="when-to-use">When to Use Spell Check</h2>
+
+    <p>Some writers prefer to write freely first and check spelling later. Others want real-time feedback. OpenDraft supports both approaches:</p>
+
+    <ul>
+      <li><strong>While writing:</strong> Keep spell check on to catch typos as they happen.</li>
+      <li><strong>After writing:</strong> Turn it off while drafting, then enable it for a proofreading pass.</li>
+    </ul>
+
+    <div class="page-nav">
+      <a href="find-replace.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Find &amp; Replace</span>
+      </a>
+      <a href="scene-navigator.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Scene Navigator</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.3.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

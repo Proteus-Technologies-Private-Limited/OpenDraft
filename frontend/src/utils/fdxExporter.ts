@@ -27,6 +27,15 @@ function esc(str: string): string {
     .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
+/** Strip HTML tags to plain text (for FDX export — CastMember Description is plain text only) */
+function stripHtml(html: string): string {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/\s+/g, ' ').trim();
+}
+
 // Default ElementSettings matching Final Draft US Screenplay template
 const ELEMENT_SETTINGS = `
   <ElementSettings Type="Scene Heading">
@@ -196,10 +205,11 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
     lines.push('');
     lines.push('  <CastList>');
     for (const p of characterProfiles) {
-      if (p.description) {
+      const plainDesc = stripHtml(p.description);
+      if (plainDesc) {
         lines.push(`    <CastMember>`);
         lines.push(`      <Name>${esc(p.name)}</Name>`);
-        lines.push(`      <Description>${esc(p.description)}</Description>`);
+        lines.push(`      <Description>${esc(plainDesc)}</Description>`);
         lines.push(`    </CastMember>`);
       }
     }
