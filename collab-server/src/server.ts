@@ -236,6 +236,30 @@ app.post('/api/reset-document', async (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Close all connections for a document (called by host after revoking all sessions)
+app.post('/api/close-document', async (req, res) => {
+  const { documentName } = req.body;
+  if (!documentName) {
+    res.status(400).json({ error: 'documentName is required' });
+    return;
+  }
+
+  // Close all active WebSocket connections for this document.
+  // Guests will try to reconnect — their revoked tokens will fail auth,
+  // triggering onAuthenticationFailed on the client which exits collab mode.
+  hocuspocus.closeConnections(documentName);
+  console.log(`Document closed (all connections kicked): ${documentName}`);
+
+  // Also clean up the persisted Yjs file
+  const filePath = docPath(documentName);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+    console.log(`Document file deleted: ${documentName}`);
+  }
+
+  res.json({ status: 'ok' });
+});
+
 // ── HTTP(S) server with WebSocket upgrade ──
 
 const PORT = config.port;

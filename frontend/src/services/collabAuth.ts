@@ -142,6 +142,13 @@ export const collabAuthApi = {
       method: 'POST',
       body: JSON.stringify({ documentName, token }),
     }),
+
+  /** Close all connections for a document (called by host after ending a session) */
+  closeDocument: (documentName: string) =>
+    collabRequest<{ status: string }>('/api/close-document', {
+      method: 'POST',
+      body: JSON.stringify({ documentName }),
+    }),
 };
 
 // ── Helper: handle auth response and store tokens ──
