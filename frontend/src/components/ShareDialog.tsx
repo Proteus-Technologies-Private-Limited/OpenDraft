@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import type { CollabSession } from '../services/api';
 import { SERVER_BASE } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
+import { collabAuthApi } from '../services/collabAuth';
 import { showToast } from './Toast';
 
 interface ShareDialogProps {
@@ -69,6 +70,14 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
 
     setGenerating(true);
     try {
+      // Verify the collab server is reachable before creating an invite
+      const serverOk = await collabAuthApi.testConnection();
+      if (!serverOk) {
+        showToast('Cannot reach the collaboration server. Make sure it is running.', 'error');
+        setGenerating(false);
+        return;
+      }
+
       const session = await api.createCollabInvite(projectId, scriptId, trimmed, role, expiryHours);
       setSessions((prev) => [...prev, session]);
       setName('');
