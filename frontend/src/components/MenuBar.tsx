@@ -384,6 +384,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, isCollabActive
         { label: 'Manage Projects...', action: () => { window.location.href = '/projects'; } },
         { separator: true, label: '' },
         { label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate },
+        { separator: true, label: '' },
+        { label: 'System Settings...', action: () => { window.location.href = '/settings'; } },
       ],
     },
     {

@@ -81,7 +81,9 @@ export interface CollabSession {
   project_id: string;
   script_id: string;
   collaborator_name: string;
+  role: string;
   created_at: string;
+  expires_at: string;
   active: boolean;
 }
 
@@ -168,10 +170,10 @@ export const api = {
     }),
 
   // Collaboration
-  createCollabInvite: (projectId: string, scriptId: string, collaboratorName: string) =>
+  createCollabInvite: (projectId: string, scriptId: string, collaboratorName: string, role: string = 'editor', expiresInHours: number = 1) =>
     request<CollabSession>('/collab/invite', {
       method: 'POST',
-      body: JSON.stringify({ project_id: projectId, script_id: scriptId, collaborator_name: collaboratorName }),
+      body: JSON.stringify({ project_id: projectId, script_id: scriptId, collaborator_name: collaboratorName, role, expires_in_hours: expiresInHours }),
     }),
 
   validateCollabSession: (token: string) =>

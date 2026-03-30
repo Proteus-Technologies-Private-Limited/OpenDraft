@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import type { CollabSession } from '../services/api';
+import { useSettingsStore } from '../stores/settingsStore';
 import { showToast } from './Toast';
 
 interface ShareDialogProps {
@@ -12,6 +13,30 @@ interface ShareDialogProps {
   onClose: () => void;
 }
 
+const EXPIRY_OPTIONS = [
+  { label: '30 min', hours: 0.5 },
+  { label: '1 hour', hours: 1 },
+  { label: '6 hours', hours: 6 },
+  { label: '12 hours', hours: 12 },
+  { label: '24 hours', hours: 24 },
+  { label: '48 hours', hours: 48 },
+  { label: '7 days', hours: 168 },
+  { label: '30 days', hours: 720 },
+];
+
+function formatExpiry(expiresAt: string): string {
+  if (!expiresAt) return '';
+  const exp = new Date(expiresAt);
+  const now = new Date();
+  const diffMs = exp.getTime() - now.getTime();
+  if (diffMs <= 0) return 'Expired';
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 60) return `${diffMin}m left`;
+  const diffHrs = Math.floor(diffMin / 60);
+  if (diffHrs < 24) return `${diffHrs}h left`;
+  return `${Math.floor(diffHrs / 24)}d left`;
+}
+
 const ShareDialog: React.FC<ShareDialogProps> = ({
   projectId,
   scriptId,
@@ -21,6 +46,10 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
   onClose,
 }) => {
   const [name, setName] = useState('');
+  const [role, setRole] = useState<'editor' | 'viewer'>('editor');
+  const [expiryHours, setExpiryHours] = useState(
+    useSettingsStore.getState().defaultInviteExpiry || 1,
+  );
   const [sessions, setSessions] = useState<CollabSession[]>([]);
   const [generating, setGenerating] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
@@ -39,7 +68,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
 
     setGenerating(true);
     try {
-      const session = await api.createCollabInvite(projectId, scriptId, trimmed);
+      const session = await api.createCollabInvite(projectId, scriptId, trimmed, role, expiryHours);
       setSessions((prev) => [...prev, session]);
       setName('');
       inputRef.current?.focus();
@@ -94,7 +123,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
     <div className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box"
-        style={{ maxWidth: 520 }}
+        style={{ maxWidth: 560 }}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
@@ -133,6 +162,50 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
             </button>
           </div>
 
+          {/* Role and expiry options */}
+          <div className="collab-invite-options">
+            <div className="collab-role-selector">
+              <label className="dialog-label" style={{ marginTop: 12 }}>Permission</label>
+              <div className="collab-role-radios">
+                <label className="collab-radio-label">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="editor"
+                    checked={role === 'editor'}
+                    onChange={() => setRole('editor')}
+                  />
+                  Co-Edit
+                </label>
+                <label className="collab-radio-label">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="viewer"
+                    checked={role === 'viewer'}
+                    onChange={() => setRole('viewer')}
+                  />
+                  Read Only
+                </label>
+              </div>
+            </div>
+
+            <div className="collab-expiry-selector">
+              <label className="dialog-label" style={{ marginTop: 12 }}>Token Valid For</label>
+              <select
+                className="dialog-input collab-expiry-select"
+                value={expiryHours}
+                onChange={(e) => setExpiryHours(Number(e.target.value))}
+              >
+                {EXPIRY_OPTIONS.map((opt) => (
+                  <option key={opt.hours} value={opt.hours}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {sessions.length > 0 && (
             <div className="collab-sessions-list">
               <label className="dialog-label" style={{ marginTop: 16 }}>
@@ -141,9 +214,17 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
               {sessions.map((s) => (
                 <div key={s.token} className="collab-session-item">
                   <div className="collab-session-info">
-                    <span className="collab-session-name">{s.collaborator_name}</span>
+                    <span className="collab-session-name">
+                      {s.collaborator_name}
+                      <span className={`collab-role-badge collab-role-${s.role || 'editor'}`}>
+                        {s.role === 'viewer' ? 'Read Only' : 'Co-Edit'}
+                      </span>
+                    </span>
                     <span className="collab-session-date">
                       {new Date(s.created_at).toLocaleString()}
+                      {s.expires_at && (
+                        <span className="collab-session-expiry"> · {formatExpiry(s.expires_at)}</span>
+                      )}
                     </span>
                   </div>
                   <div className="collab-session-actions">

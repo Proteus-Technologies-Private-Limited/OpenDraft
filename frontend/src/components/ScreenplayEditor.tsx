@@ -48,7 +48,7 @@ import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck
 import { spellChecker } from '../editor/spellchecker';
 import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
-import { API_BASE, COLLAB_WS_URL } from '../config';
+import { API_BASE, getCollabWsUrl } from '../config';
 import { showToast } from './Toast';
 import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';
@@ -57,7 +57,9 @@ import OpenFromProject from './OpenFromProject';
 import WelcomeDialog from './WelcomeDialog';
 import SaveAsDialog from './SaveAsDialog';
 import ShareDialog from './ShareDialog';
+import CollabLoginDialog from './CollabLoginDialog';
 import CompareVersionPicker from './CompareVersionPicker';
+import { useSettingsStore } from '../stores/settingsStore';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
 
@@ -185,7 +187,9 @@ const ScreenplayEditor: React.FC = () => {
   // ── Collaboration state ──
   const [collabMode, setCollabMode] = useState(false);
   const [collabUserName, setCollabUserName] = useState('Owner');
+  const [collabRole, setCollabRole] = useState<'editor' | 'viewer'>('editor');
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [collabLoginOpen, setCollabLoginOpen] = useState(false);
   const [collabUsers, setCollabUsers] = useState<{ name: string; color: string }[]>([]);
   const collabColor = useMemo(() => randomCollabColor(), []);
 
@@ -207,11 +211,18 @@ const ScreenplayEditor: React.FC = () => {
   }, []);
 
   // Create Yjs doc + provider synchronously (so refs are ready when editor memo runs)
-  const setupCollab = useCallback((docName: string, token: string, _userName: string) => {
+  const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string) => {
     destroyCollab();
     const ydoc = new Y.Doc();
+
+    // Build compound token: "jwt:<access>|invite:<invite>" when auth is available
+    const { collabAuth } = useSettingsStore.getState();
+    const token = collabAuth.accessToken
+      ? `jwt:${collabAuth.accessToken}|invite:${inviteToken}`
+      : inviteToken;
+
     const provider = new HocuspocusProvider({
-      url: COLLAB_WS_URL,
+      url: getCollabWsUrl(),
       name: docName,
       document: ydoc,
       token,
@@ -301,6 +312,7 @@ const ScreenplayEditor: React.FC = () => {
         setupCollab(docName, urlCollabToken, session.collaborator_name);
 
         setCollabUserName(session.collaborator_name);
+        setCollabRole((session.role as 'editor' | 'viewer') || 'editor');
         setCollabMode(true);
         setEditorKey((k) => k + 1);
 
@@ -308,6 +320,10 @@ const ScreenplayEditor: React.FC = () => {
         setCurrentScriptId(session.script_id);
         setDocumentTitle(scriptResp.meta.title);
         setCollabLoading(false);
+
+        if (session.role === 'viewer') {
+          showToast('Connected as viewer (read-only)', 'info');
+        }
       } catch (err) {
         showToast('Invalid or expired collaboration link', 'error');
         setCollabLoading(false);
@@ -537,7 +553,7 @@ const ScreenplayEditor: React.FC = () => {
     content: collabMode
       ? (collabInitialContent.current || { type: 'doc', content: [{ type: 'action', content: [] }] })
       : (urlScriptId || urlCommitHash) ? undefined : SAMPLE_CONTENT,
-    editable: !isHistoryMode,
+    editable: !isHistoryMode && !(collabMode && collabRole === 'viewer'),
     editorProps: {
       attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: isHistoryMode ? 'false' : 'true' },
     },
@@ -1430,8 +1446,13 @@ const ScreenplayEditor: React.FC = () => {
       {!isHistoryMode && <MenuBar editor={editor} onCollaborate={() => {
         if (!currentProject || !currentScriptId) {
           showToast('Save your screenplay to a project first — opening Save As...', 'info');
-          // Open the Save As dialog; after saving, user can click Collaborate again
           useEditorStore.getState().setSaveAsOpen(true);
+          return;
+        }
+        // Check if user is authenticated to the collab server
+        const { collabAuth: auth } = useSettingsStore.getState();
+        if (!auth.accessToken) {
+          setCollabLoginOpen(true);
           return;
         }
         setShareDialogOpen(true);
@@ -1576,6 +1597,15 @@ const ScreenplayEditor: React.FC = () => {
           isCollabActive={collabMode}
           onStartCollab={handleStartCollab}
           onClose={() => setShareDialogOpen(false)}
+        />
+      )}
+      {collabLoginOpen && (
+        <CollabLoginDialog
+          onClose={() => setCollabLoginOpen(false)}
+          onSuccess={() => {
+            setCollabLoginOpen(false);
+            setShareDialogOpen(true);
+          }}
         />
       )}
       {!isHistoryMode && <StatusBar />}

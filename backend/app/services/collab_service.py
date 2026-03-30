@@ -1,6 +1,6 @@
 import json
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.config import PROJECTS_DIR
@@ -26,18 +26,23 @@ def create_session(
     project_id: str,
     script_id: str,
     collaborator_name: str,
+    role: str = "editor",
+    expires_in_hours: float = 1,
 ) -> dict:
     """Create a collab invite session. Returns the session dict with token."""
     sessions = _read_sessions()
     token = secrets.token_urlsafe(32)
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc)
+    expires_at = (now + timedelta(hours=expires_in_hours)).isoformat()
 
     session = {
         "token": token,
         "project_id": project_id,
         "script_id": script_id,
         "collaborator_name": collaborator_name,
-        "created_at": now,
+        "role": role,
+        "created_at": now.isoformat(),
+        "expires_at": expires_at,
         "active": True,
     }
     sessions[token] = session
@@ -46,12 +51,23 @@ def create_session(
 
 
 def validate_session(token: str) -> dict | None:
-    """Validate a collab token. Returns session info or None if invalid."""
+    """Validate a collab token. Returns session info or None if invalid/expired."""
     sessions = _read_sessions()
     session = sessions.get(token)
-    if session and session.get("active", False):
-        return session
-    return None
+    if not session or not session.get("active", False):
+        return None
+    # Check expiration
+    expires_at = session.get("expires_at")
+    if expires_at:
+        try:
+            expiry = datetime.fromisoformat(expires_at)
+            if datetime.now(timezone.utc) > expiry:
+                session["active"] = False
+                _write_sessions(sessions)
+                return None
+        except (ValueError, TypeError):
+            pass
+    return session
 
 
 def list_sessions(project_id: str, script_id: str) -> list[dict]:
