@@ -16,6 +16,7 @@ import PageSetupDialog from './PageSetupDialog';
 interface MenuBarProps {
   editor: Editor | null;
   onCollaborate?: () => void;
+  onJoinCollab?: () => void;
   isCollabActive?: boolean;
 }
 
@@ -32,7 +33,7 @@ interface MenuSection {
   items: MenuItem[];
 }
 
-const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, isCollabActive }) => {
+const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, isCollabActive }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const {
@@ -384,6 +385,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, isCollabActive
         { label: 'Manage Projects...', action: () => { window.location.href = '/projects'; } },
         { separator: true, label: '' },
         { label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate },
+        { label: 'Join Collaboration...', action: onJoinCollab },
         { separator: true, label: '' },
         { label: 'System Settings...', action: () => { window.location.href = '/settings'; } },
       ],
