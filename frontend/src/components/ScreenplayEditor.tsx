@@ -213,6 +213,18 @@ const ScreenplayEditor: React.FC = () => {
   }, []);
 
   // Create Yjs doc + provider synchronously (so refs are ready when editor memo runs)
+  // Called when host broadcasts session-ended — guest auto-disconnects
+  const handleSessionEnded = useCallback(() => {
+    showToast('The host has ended the collaboration session', 'info');
+    destroyCollab();
+    setCollabMode(false);
+    setCollabRole('editor');
+    setEditorKey((k) => k + 1);
+  }, [destroyCollab]);
+
+  const handleSessionEndedRef = useRef(handleSessionEnded);
+  handleSessionEndedRef.current = handleSessionEnded;
+
   const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string) => {
     destroyCollab();
     const ydoc = new Y.Doc();
@@ -230,11 +242,17 @@ const ScreenplayEditor: React.FC = () => {
       token,
       onAwarenessUpdate: ({ states }) => {
         const users: { name: string; color: string }[] = [];
+        let sessionEnded = false;
         states.forEach((state: Record<string, unknown>) => {
-          const user = state.user as { name: string; color: string } | undefined;
+          const user = state.user as { name: string; color: string; sessionEnded?: boolean } | undefined;
+          if (user?.sessionEnded) sessionEnded = true;
           if (user?.name) users.push(user);
         });
         setCollabUsers(users);
+        // If host broadcast session-ended, auto-disconnect guests
+        if (sessionEnded) {
+          handleSessionEndedRef.current();
+        }
       },
     });
     ydocRef.current = ydoc;
@@ -336,11 +354,35 @@ const ScreenplayEditor: React.FC = () => {
 
   // handleStartCollab is defined after the editor — see below useEditor
 
-  const handleStopCollab = useCallback(() => {
+  const handleStopCollab = useCallback(async () => {
+    const isHost = collabUserName === 'Host';
+
+    if (isHost && currentProject && currentScriptId) {
+      // Host: broadcast session-ended to all connected guests via awareness
+      if (providerRef.current) {
+        providerRef.current.setAwarenessField('user', {
+          name: 'Host',
+          color: collabColor,
+          sessionEnded: true,
+        });
+        // Brief delay to allow awareness to propagate before destroying
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      // Host: revoke all invitation links
+      try {
+        await api.revokeAllCollabSessions(currentProject.id, currentScriptId);
+      } catch { /* ignore — cleanup is best-effort */ }
+    }
+
     destroyCollab();
     setCollabMode(false);
+    setCollabRole('editor');
     setEditorKey((k) => k + 1);
-  }, [destroyCollab]);
+
+    if (isHost) {
+      showToast('Collaboration session ended', 'success');
+    }
+  }, [destroyCollab, collabUserName, collabColor, currentProject, currentScriptId]);
 
   // Join a collab session via pasted link/token (works from app without browser)
   const handleJoinCollab = useCallback(async (session: import('../services/api').CollabSession, token: string) => {
@@ -1496,7 +1538,7 @@ const ScreenplayEditor: React.FC = () => {
           return;
         }
         setShareDialogOpen(true);
-      }} onJoinCollab={() => setJoinCollabOpen(true)} isCollabActive={collabMode} />}
+      }} onJoinCollab={() => setJoinCollabOpen(true)} isCollabActive={collabMode} isCollabGuest={collabMode && collabUserName !== 'Host'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
       <div className="editor-layout">
         {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} />}
