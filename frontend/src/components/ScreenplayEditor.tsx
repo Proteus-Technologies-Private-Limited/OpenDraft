@@ -225,6 +225,36 @@ const ScreenplayEditor: React.FC = () => {
   const handleSessionEndedRef = useRef(handleSessionEnded);
   handleSessionEndedRef.current = handleSessionEnded;
 
+  // Called when host broadcasts document-switch — guest auto-follows
+  const handleDocumentSwitch = useCallback(async (projectId: string, scriptId: string, sharedToken: string) => {
+    try {
+      const project = await api.getProject(projectId);
+      const scriptResp = await api.getScript(projectId, scriptId);
+
+      const content = scriptResp.content as Record<string, unknown> | null;
+      if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
+        const { _notes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
+        collabInitialContent.current = pmDoc;
+      } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
+        collabInitialContent.current = content;
+      }
+
+      const docName = `${projectId}/${scriptId}`;
+      setupCollab(docName, sharedToken, collabUserName);
+
+      setCurrentProject(project);
+      setCurrentScriptId(scriptId);
+      setDocumentTitle(scriptResp.meta.title);
+      setEditorKey((k) => k + 1);
+      showToast(`Host switched to: ${scriptResp.meta.title}`, 'info');
+    } catch {
+      showToast('Failed to follow host to new document', 'error');
+    }
+  }, [setupCollab, collabUserName, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
+
+  const handleDocumentSwitchRef = useRef(handleDocumentSwitch);
+  handleDocumentSwitchRef.current = handleDocumentSwitch;
+
   const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string) => {
     destroyCollab();
     const ydoc = new Y.Doc();
@@ -243,15 +273,21 @@ const ScreenplayEditor: React.FC = () => {
       onAwarenessUpdate: ({ states }) => {
         const users: { name: string; color: string }[] = [];
         let sessionEnded = false;
+        let docSwitch: { projectId: string; scriptId: string; token: string } | null = null;
         states.forEach((state: Record<string, unknown>) => {
-          const user = state.user as { name: string; color: string; sessionEnded?: boolean } | undefined;
+          const user = state.user as { name: string; color: string; sessionEnded?: boolean; documentSwitch?: { projectId: string; scriptId: string; token: string } } | undefined;
           if (user?.sessionEnded) sessionEnded = true;
+          if (user?.documentSwitch) docSwitch = user.documentSwitch;
           if (user?.name) users.push(user);
         });
         setCollabUsers(users);
         // If host broadcast session-ended, auto-disconnect guests
         if (sessionEnded) {
           handleSessionEndedRef.current();
+        }
+        // If host broadcast document-switch, auto-follow to new document
+        if (docSwitch) {
+          handleDocumentSwitchRef.current(docSwitch.projectId, docSwitch.scriptId, docSwitch.token);
         }
       },
     });
@@ -383,6 +419,69 @@ const ScreenplayEditor: React.FC = () => {
       showToast('Collaboration session ended', 'success');
     }
   }, [destroyCollab, collabUserName, collabColor, currentProject, currentScriptId]);
+
+  // Host switches to a different document while collab is active
+  const switchCollabDocument = useCallback(async (newProjectId: string, newScriptId: string) => {
+    if (!providerRef.current) return;
+
+    // 1. Create a shared invite token for the new document so guests can follow
+    let sharedToken: string;
+    try {
+      const invite = await api.createCollabInvite(newProjectId, newScriptId, 'Guest', 'editor', 1);
+      sharedToken = invite.token;
+    } catch {
+      showToast('Failed to create invite for new document', 'error');
+      return;
+    }
+
+    // 2. Revoke old invites for the previous document
+    if (currentProject && currentScriptId) {
+      try {
+        await api.revokeAllCollabSessions(currentProject.id, currentScriptId);
+      } catch { /* best-effort */ }
+    }
+
+    // 3. Broadcast document-switch to all guests via awareness
+    providerRef.current.setAwarenessField('user', {
+      name: 'Host',
+      color: collabColor,
+      documentSwitch: { projectId: newProjectId, scriptId: newScriptId, token: sharedToken },
+    });
+    await new Promise((r) => setTimeout(r, 400));
+
+    // 4. Load the new script content and reconnect host
+    try {
+      const project = await api.getProject(newProjectId);
+      const scriptResp = await api.getScript(newProjectId, newScriptId);
+
+      const content = scriptResp.content as Record<string, unknown> | null;
+      if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
+        const { _notes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
+        collabInitialContent.current = pmDoc;
+      } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
+        collabInitialContent.current = content;
+      }
+
+      // Create host's own token for the new document
+      let hostToken: string;
+      try {
+        const hostInvite = await api.createCollabInvite(newProjectId, newScriptId, 'Host', 'editor', 24);
+        hostToken = hostInvite.token;
+      } catch {
+        hostToken = sharedToken;
+      }
+
+      const docName = `${newProjectId}/${newScriptId}`;
+      setupCollab(docName, hostToken, 'Host');
+
+      setCurrentProject(project);
+      setCurrentScriptId(newScriptId);
+      setDocumentTitle(scriptResp.meta.title);
+      setEditorKey((k) => k + 1);
+    } catch {
+      showToast('Failed to switch collab document', 'error');
+    }
+  }, [collabColor, currentProject, currentScriptId, setupCollab, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
   // Join a collab session via pasted link/token (works from app without browser)
   const handleJoinCollab = useCallback(async (session: import('../services/api').CollabSession, token: string) => {
@@ -990,6 +1089,17 @@ const ScreenplayEditor: React.FC = () => {
     const loadKey = `${urlProjectId}/${urlScriptId}${urlCommitHash ? `@${urlCommitHash}` : ''}`;
     // Avoid reloading the same script
     if (loadedScriptRef.current === loadKey) return;
+
+    // Host switching documents during collab — redirect through switchCollabDocument
+    if (collabMode && collabUserName === 'Host' && !isHistoryMode) {
+      const isNewScript = currentScriptId && currentScriptId !== urlScriptId;
+      if (isNewScript) {
+        loadedScriptRef.current = loadKey;
+        switchCollabDocument(urlProjectId, urlScriptId);
+        return;
+      }
+    }
+
     loadedScriptRef.current = loadKey;
     clearTrackChanges();
     (async () => {
@@ -1073,7 +1183,7 @@ const ScreenplayEditor: React.FC = () => {
         showToast(`Failed to load script: ${err instanceof Error ? err.message : String(err)}`, 'error');
       }
     })();
-  }, [editor, urlProjectId, urlScriptId, urlCommitHash, isHistoryMode, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes]);
+  }, [editor, urlProjectId, urlScriptId, urlCommitHash, isHistoryMode, collabMode, collabUserName, currentScriptId, switchCollabDocument, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes]);
 
   // --- Sync orphaned marks: runs ONCE after editor is ready, not on every doc change ---
   const orphanSyncDone = useRef(false);
@@ -1201,6 +1311,13 @@ const ScreenplayEditor: React.FC = () => {
         return;
       }
       setOpenFromProjectOpen(false);
+
+      // Host switching documents during collab
+      if (collabMode && collabUserName === 'Host') {
+        await switchCollabDocument(projectId, scriptId);
+        return;
+      }
+
       clearTrackChanges();
       try {
         const scriptResp = await api.getScript(projectId, scriptId);
@@ -1261,7 +1378,7 @@ const ScreenplayEditor: React.FC = () => {
         showToast('Failed to open script. Make sure the backend server is running on port 8000.', 'error');
       }
     },
-    [editor, setOpenFromProjectOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes],
+    [editor, collabMode, collabUserName, switchCollabDocument, setOpenFromProjectOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes],
   );
 
   const handleWelcomeClose = useCallback(() => {
