@@ -85,14 +85,16 @@ const hocuspocus = new Hocuspocus({
         }
       }
 
-      // Validate JWT if present
+      // Validate JWT if present — but don't reject if it's expired;
+      // the invite token is the primary auth, JWT is supplementary identity
       if (parts.jwt) {
         const jwtPayload = verifyAccessToken(parts.jwt);
-        if (!jwtPayload) {
-          throw new Error('Invalid or expired auth token');
+        if (jwtPayload) {
+          userId = jwtPayload.sub;
+          userEmail = jwtPayload.email;
+        } else {
+          console.warn('JWT expired/invalid — continuing with invite token only');
         }
-        userId = jwtPayload.sub;
-        userEmail = jwtPayload.email;
       }
 
       inviteToken = parts.invite || '';
@@ -197,6 +199,41 @@ app.use('/auth', authRoutes);
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'opendraft-collab' });
+});
+
+// Reset a document's persisted Yjs state (called by host before starting a new collab session)
+app.post('/api/reset-document', async (req, res) => {
+  const { documentName, token } = req.body;
+  if (!documentName || !token) {
+    res.status(400).json({ error: 'documentName and token are required' });
+    return;
+  }
+
+  // Validate the invite token to ensure the caller is authorized
+  const session = await validateInviteToken(token);
+  if (!session) {
+    res.status(403).json({ error: 'Invalid or expired token' });
+    return;
+  }
+
+  // If the document is still in Hocuspocus memory, close connections to force unload.
+  // This triggers onStoreDocument (which re-writes the file), so we must delete the file AFTER.
+  const doc = hocuspocus.documents?.get(documentName);
+  if (doc) {
+    hocuspocus.closeConnections(documentName);
+    // Brief wait for cleanup to complete
+    await new Promise((r) => setTimeout(r, 100));
+    console.log(`Document reset (connections closed): ${documentName}`);
+  }
+
+  // Delete the persisted .yjs file so the next connection starts fresh
+  const filePath = docPath(documentName);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+    console.log(`Document reset (file deleted): ${documentName}`);
+  }
+
+  res.json({ status: 'ok' });
 });
 
 // ── HTTP(S) server with WebSocket upgrade ──

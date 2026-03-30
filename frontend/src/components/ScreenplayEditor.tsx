@@ -62,6 +62,7 @@ import JoinCollabDialog from './JoinCollabDialog';
 import CompareVersionPicker from './CompareVersionPicker';
 import { useSettingsStore } from '../stores/settingsStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
+import { collabAuthApi } from '../services/collabAuth';
 import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
@@ -241,11 +242,32 @@ const ScreenplayEditor: React.FC = () => {
       ? `jwt:${collabAuth.accessToken}|invite:${inviteToken}`
       : inviteToken;
 
+    const wsUrl = getCollabWsUrl();
+    console.log(`[Collab] setupCollab: docName="${docName}", wsUrl="${wsUrl}", isHost=${isHost}, tokenPrefix="${inviteToken.slice(0, 8)}..."`);
+
     const provider = new HocuspocusProvider({
-      url: getCollabWsUrl(),
+      url: wsUrl,
       name: docName,
       document: ydoc,
       token,
+      onConnect: () => {
+        console.log(`[Collab] Connected to room "${docName}" (${isHost ? 'host' : 'guest'})`);
+      },
+      onClose: ({ event }) => {
+        console.log(`[Collab] Connection closed for "${docName}": code=${event.code}`);
+      },
+      onSynced: ({ state }) => {
+        console.log(`[Collab] Synced for "${docName}": state=${state}`);
+      },
+      onAuthenticationFailed: ({ reason }) => {
+        console.error(`[Collab] Auth FAILED for "${docName}": ${reason}`);
+        showToast(`Collaboration auth failed: ${reason}`, 'error');
+        // Stop reconnecting — destroy provider and exit collab mode
+        destroyCollab();
+        setCollabMode(false);
+        setCollabRole('editor');
+        setEditorKey((k) => k + 1);
+      },
       onAwarenessUpdate: ({ states }) => {
         const users: { name: string; color: string }[] = [];
         let sessionEnded = false;
@@ -697,7 +719,11 @@ const ScreenplayEditor: React.FC = () => {
 
   // Build collaboration extensions when in collab mode
   const collabExtensions = useMemo(() => {
-    if (!collabMode || !ydocRef.current || !providerRef.current) return [];
+    if (!collabMode || !ydocRef.current || !providerRef.current) {
+      console.log(`[Collab] collabExtensions: EMPTY (collabMode=${collabMode}, ydoc=${!!ydocRef.current}, provider=${!!providerRef.current})`);
+      return [];
+    }
+    console.log(`[Collab] collabExtensions: Collaboration + Cursor configured, hasInitialContent=${!!collabInitialContent.current}`);
     return [
       Collaboration.configure({
         document: ydocRef.current,
@@ -777,6 +803,12 @@ const ScreenplayEditor: React.FC = () => {
     }
 
     const docName = `${currentProject.id}/${currentScriptId}`;
+
+    // Clear any stale Yjs state from a previous collab session for this document
+    try {
+      await collabAuthApi.resetDocument(docName, ownerToken);
+    } catch { /* best-effort — continue even if reset fails */ }
+
     setupCollab(docName, ownerToken, 'Host', true);
 
     setCollabUserName('Host');

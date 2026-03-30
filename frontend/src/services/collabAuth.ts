@@ -135,6 +135,13 @@ export const collabAuthApi = {
       return false;
     }
   },
+
+  /** Reset a document's persisted Yjs state on the collab server (called by host before starting a new session) */
+  resetDocument: (documentName: string, token: string) =>
+    collabRequest<{ status: string }>('/api/reset-document', {
+      method: 'POST',
+      body: JSON.stringify({ documentName, token }),
+    }),
 };
 
 // ── Helper: handle auth response and store tokens ──
