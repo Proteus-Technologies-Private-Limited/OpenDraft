@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import ScreenplayEditor from './components/ScreenplayEditor';
 import ProjectList from './components/ProjectList';
 import ProjectView from './components/ProjectView';
+import SettingsPage from './components/SettingsPage';
 import Toast from './components/Toast';
 import './styles/screenplay.css';
 
@@ -15,6 +16,7 @@ function App() {
         <Route path="/project/:projectId/edit/:scriptId" element={<ScreenplayEditor />} />
         <Route path="/project/:projectId/history/:scriptId/:commitHash" element={<ScreenplayEditor />} />
         <Route path="/collab/:collabToken" element={<ScreenplayEditor />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Routes>
       <Toast />
     </>

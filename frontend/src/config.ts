@@ -14,8 +14,17 @@ export const API_BASE: string =
 /** Server root without the /api suffix (used for asset URLs, etc.) */
 export const SERVER_BASE: string = API_BASE.replace(/\/api$/, '');
 
-/** WebSocket URL for the Hocuspocus collaboration server */
+/** WebSocket URL for the Hocuspocus collaboration server.
+ *  Reads from localStorage (settings store) first, then falls back
+ *  to the VITE env var, then to the default.
+ */
 const DEFAULT_COLLAB_WS = 'ws://localhost:4000';
+export function getCollabWsUrl(): string {
+  const stored = localStorage.getItem('opendraft:collabServerUrl');
+  if (stored) return stored;
+  return import.meta.env.VITE_COLLAB_WS_URL || DEFAULT_COLLAB_WS;
+}
+// Static alias kept for backward-compatible imports
 export const COLLAB_WS_URL: string =
   import.meta.env.VITE_COLLAB_WS_URL || DEFAULT_COLLAB_WS;
 

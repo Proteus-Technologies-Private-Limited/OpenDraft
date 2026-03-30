@@ -10,6 +10,8 @@ class InviteRequest(BaseModel):
     project_id: str
     script_id: str
     collaborator_name: str
+    role: str = "editor"
+    expires_in_hours: float = 1
 
 
 class InviteResponse(BaseModel):
@@ -17,7 +19,9 @@ class InviteResponse(BaseModel):
     project_id: str
     script_id: str
     collaborator_name: str
+    role: str
     created_at: str
+    expires_at: str
 
 
 class SessionResponse(BaseModel):
@@ -25,7 +29,9 @@ class SessionResponse(BaseModel):
     project_id: str
     script_id: str
     collaborator_name: str
+    role: str = "editor"
     created_at: str
+    expires_at: str = ""
     active: bool
 
 
@@ -36,6 +42,8 @@ async def create_invite(req: InviteRequest):
         project_id=req.project_id,
         script_id=req.script_id,
         collaborator_name=req.collaborator_name,
+        role=req.role,
+        expires_in_hours=req.expires_in_hours,
     )
     return InviteResponse(**session)
 
