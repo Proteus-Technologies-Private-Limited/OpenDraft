@@ -235,12 +235,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
-        handleSave();
+        if (!isCollabGuest) handleSave();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleSave]);
+  }, [handleSave, isCollabGuest]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

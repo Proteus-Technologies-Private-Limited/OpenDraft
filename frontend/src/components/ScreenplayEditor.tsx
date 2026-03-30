@@ -201,6 +201,8 @@ const ScreenplayEditor: React.FC = () => {
   // Yjs document & provider — stable across renders while collab is active
   const ydocRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<HocuspocusProvider | null>(null);
+  // Editor ref for onSynced callback to seed content when Yjs doc is empty
+  const collabEditorRef = useRef<ReturnType<typeof useEditor>>(null);
 
   // Cleanup collab provider
   const destroyCollab = useCallback(() => {
@@ -263,7 +265,6 @@ const ScreenplayEditor: React.FC = () => {
       name: docName,
       document: ydoc,
       token,
-      connect: false, // Don't connect yet — wait until the editor seeds the Yjs doc
       onConnect: () => {
         console.log(`[Collab] Connected to room "${docName}" (${isHost ? 'host' : 'guest'})`);
       },
@@ -271,9 +272,25 @@ const ScreenplayEditor: React.FC = () => {
         console.log(`[Collab] Connection closed for "${docName}": code=${event.code}`);
       },
       onSynced: ({ state }) => {
-        console.log(`[Collab] Synced for "${docName}": state=${state}`);
+        console.log(`[Collab] Synced for "${docName}": state=${state}, isHost=${isHost}`);
+        // After initial sync, if the Yjs doc is empty (fresh room) and we have
+        // content to seed, force-set it via the editor.
+        if (state && isHost && providerRef.current === provider) {
+          const fragment = ydoc.getXmlFragment('default');
+          if (fragment.length === 0 && collabInitialContent.current) {
+            console.log('[Collab] Yjs doc empty after sync — seeding from initial content');
+            const ed = collabEditorRef.current;
+            if (ed && !ed.isDestroyed) {
+              ed.commands.setContent(collabInitialContent.current);
+            }
+          }
+        }
       },
       onAuthenticationFailed: ({ reason }) => {
+        // Ignore auth failures from a stale provider (e.g. old provider fires
+        // after host switched documents and a new provider replaced it)
+        if (providerRef.current !== provider) return;
+
         console.error(`[Collab] Auth FAILED for "${docName}": ${reason}`);
         const isSessionEnded = reason?.includes('expired') || reason?.includes('Invalid');
         showToast(
@@ -283,9 +300,7 @@ const ScreenplayEditor: React.FC = () => {
           isSessionEnded ? 'info' : 'error',
         );
         // Prevent reconnection loop — disconnect provider immediately, then clean up
-        if (providerRef.current) {
-          providerRef.current.disconnect();
-        }
+        provider.disconnect();
         setTimeout(() => {
           destroyCollab();
           setCollabMode(false);
@@ -294,6 +309,9 @@ const ScreenplayEditor: React.FC = () => {
         }, 0);
       },
       onAwarenessUpdate: ({ states }) => {
+        // Ignore events from a stale provider after doc switch
+        if (providerRef.current !== provider) return;
+
         const users: { name: string; color: string }[] = [];
         let sessionEnded = false;
         let switchProjectId = '';
@@ -310,6 +328,11 @@ const ScreenplayEditor: React.FC = () => {
           if (user?.name) users.push(user);
         });
         setCollabUsers(users);
+        // Only guests react to sessionEnded / documentSwitch — the host
+        // handles these itself via handleStopCollab / switchCollabDocument.
+        // Without this guard the host processes its OWN awareness broadcast,
+        // causing a second setupCollab that fights with the first.
+        if (isHost) return;
         if (sessionEnded) {
           handleSessionEndedRef.current();
         }
@@ -508,14 +531,10 @@ const ScreenplayEditor: React.FC = () => {
       return;
     }
 
-    // 2. Revoke old invites for the previous document
-    if (currentProject && currentScriptId) {
-      try {
-        await api.revokeAllCollabSessions(currentProject.id, currentScriptId);
-      } catch { /* best-effort */ }
-    }
-
-    // 3. Broadcast document-switch to all guests via awareness
+    // 2. Broadcast document-switch to all guests via awareness
+    // (Old invites are NOT revoked here — they expire naturally.
+    //  Revoking during switch caused a race where the backend file write
+    //  from revoke could corrupt reads from concurrent token validation.)
     providerRef.current.setAwarenessField('user', {
       name: 'Host',
       color: collabColor,
@@ -825,15 +844,8 @@ const ScreenplayEditor: React.FC = () => {
     },
   }, [editorKey]);
 
-  // Connect the Yjs provider AFTER the editor has created and seeded the Yjs doc.
-  // The provider is created with connect:false in setupCollab to avoid a race where
-  // the server syncs an empty room before the editor can seed its content.
-  useEffect(() => {
-    if (collabMode && editor && providerRef.current && providerRef.current.status === 'disconnected') {
-      console.log('[Collab] Editor ready — connecting provider now');
-      providerRef.current.connect();
-    }
-  }, [collabMode, editor, editorKey]);
+  // Keep editor ref updated for onSynced callback
+  collabEditorRef.current = editor;
 
   // ── Owner starts collaboration — save current content, create own token, switch to collab mode ──
   const handleStartCollab = useCallback(async (guestSession: import('../services/api').CollabSession) => {
@@ -1177,10 +1189,14 @@ const ScreenplayEditor: React.FC = () => {
   const loadedScriptRef = useRef<string | null>(null);
   const [historyVersionLabel, setHistoryVersionLabel] = useState('');
   useEffect(() => {
-    if (editor) {
-      loadedScriptRef.current = null; // allow re-load for new editor instance
+    // Allow re-load for new editor instance, but NOT during collab —
+    // switchCollabDocument already handles content seeding via collabInitialContent.
+    // Resetting the guard during collab caused the normal load path to run and
+    // create duplicate setupCollab calls with different nonces.
+    if (editor && !collabMode) {
+      loadedScriptRef.current = null;
     }
-  }, [editor]);
+  }, [editor, collabMode]);
   useEffect(() => {
     if (!editor || !urlProjectId || !urlScriptId) return;
     const loadKey = `${urlProjectId}/${urlScriptId}${urlCommitHash ? `@${urlCommitHash}` : ''}`;
