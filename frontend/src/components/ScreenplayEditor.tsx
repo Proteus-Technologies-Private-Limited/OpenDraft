@@ -263,6 +263,7 @@ const ScreenplayEditor: React.FC = () => {
       name: docName,
       document: ydoc,
       token,
+      connect: false, // Don't connect yet — wait until the editor seeds the Yjs doc
       onConnect: () => {
         console.log(`[Collab] Connected to room "${docName}" (${isHost ? 'host' : 'guest'})`);
       },
@@ -327,6 +328,10 @@ const ScreenplayEditor: React.FC = () => {
   // Called when host broadcasts document-switch — guest auto-follows
   const handleDocumentSwitch = useCallback(async (projectId: string, scriptId: string, sharedToken: string) => {
     try {
+      // Validate the shared token to get the session_nonce for the room name
+      const session = await api.validateCollabSession(sharedToken);
+      const nonce = session.session_nonce || '';
+
       const project = await api.getProject(projectId);
       const scriptResp = await api.getScript(projectId, scriptId);
 
@@ -338,7 +343,7 @@ const ScreenplayEditor: React.FC = () => {
         collabInitialContent.current = content;
       }
 
-      const docName = `${projectId}/${scriptId}`;
+      const docName = `${projectId}/${scriptId}${nonce ? `/${nonce}` : ''}`;
       setupCollab(docName, sharedToken, collabUserName);
 
       setCurrentProject(project);
@@ -493,9 +498,11 @@ const ScreenplayEditor: React.FC = () => {
 
     // 1. Create a shared invite token for the new document so guests can follow
     let sharedToken: string;
+    let sharedNonce: string;
     try {
       const invite = await api.createCollabInvite(newProjectId, newScriptId, 'Guest', 'editor', 1);
       sharedToken = invite.token;
+      sharedNonce = invite.session_nonce || '';
     } catch {
       showToast('Failed to create invite for new document', 'error');
       return;
@@ -529,16 +536,16 @@ const ScreenplayEditor: React.FC = () => {
         collabInitialContent.current = content;
       }
 
-      // Create host's own token for the new document
+      // Create host's own token for the new document, sharing the same nonce
       let hostToken: string;
       try {
-        const hostInvite = await api.createCollabInvite(newProjectId, newScriptId, 'Host', 'editor', 24);
+        const hostInvite = await api.createCollabInvite(newProjectId, newScriptId, 'Host', 'editor', 24, sharedNonce);
         hostToken = hostInvite.token;
       } catch {
         hostToken = sharedToken;
       }
 
-      const docName = `${newProjectId}/${newScriptId}`;
+      const docName = `${newProjectId}/${newScriptId}${sharedNonce ? `/${sharedNonce}` : ''}`;
       setupCollab(docName, hostToken, 'Host', true);
 
       setCurrentProject(project);
@@ -817,6 +824,16 @@ const ScreenplayEditor: React.FC = () => {
       }
     },
   }, [editorKey]);
+
+  // Connect the Yjs provider AFTER the editor has created and seeded the Yjs doc.
+  // The provider is created with connect:false in setupCollab to avoid a race where
+  // the server syncs an empty room before the editor can seed its content.
+  useEffect(() => {
+    if (collabMode && editor && providerRef.current && providerRef.current.status === 'disconnected') {
+      console.log('[Collab] Editor ready — connecting provider now');
+      providerRef.current.connect();
+    }
+  }, [collabMode, editor, editorKey]);
 
   // ── Owner starts collaboration — save current content, create own token, switch to collab mode ──
   const handleStartCollab = useCallback(async (guestSession: import('../services/api').CollabSession) => {
