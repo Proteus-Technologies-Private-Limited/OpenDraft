@@ -28,12 +28,17 @@ def create_session(
     collaborator_name: str,
     role: str = "editor",
     expires_in_hours: float = 1,
+    session_nonce: str = "",
 ) -> dict:
     """Create a collab invite session. Returns the session dict with token."""
     sessions = _read_sessions()
     token = secrets.token_urlsafe(32)
     now = datetime.now(timezone.utc)
     expires_at = (now + timedelta(hours=expires_in_hours)).isoformat()
+
+    # session_nonce ties all invites for the same collab session to the same
+    # Yjs room.  The first invite generates it; subsequent invites reuse it.
+    nonce = session_nonce or secrets.token_urlsafe(8)
 
     session = {
         "token": token,
@@ -44,6 +49,7 @@ def create_session(
         "created_at": now.isoformat(),
         "expires_at": expires_at,
         "active": True,
+        "session_nonce": nonce,
     }
     sessions[token] = session
     _write_sessions(sessions)

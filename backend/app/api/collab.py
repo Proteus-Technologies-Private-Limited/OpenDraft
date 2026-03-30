@@ -12,6 +12,7 @@ class InviteRequest(BaseModel):
     collaborator_name: str
     role: str = "editor"
     expires_in_hours: float = 1
+    session_nonce: str = ""
 
 
 class InviteResponse(BaseModel):
@@ -22,6 +23,7 @@ class InviteResponse(BaseModel):
     role: str
     created_at: str
     expires_at: str
+    session_nonce: str = ""
 
 
 class SessionResponse(BaseModel):
@@ -33,6 +35,7 @@ class SessionResponse(BaseModel):
     created_at: str
     expires_at: str = ""
     active: bool
+    session_nonce: str = ""
 
 
 @router.post("/invite", response_model=InviteResponse)
@@ -44,6 +47,7 @@ async def create_invite(req: InviteRequest):
         collaborator_name=req.collaborator_name,
         role=req.role,
         expires_in_hours=req.expires_in_hours,
+        session_nonce=req.session_nonce,
     )
     return InviteResponse(**session)
 
