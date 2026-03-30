@@ -58,6 +58,7 @@ import WelcomeDialog from './WelcomeDialog';
 import SaveAsDialog from './SaveAsDialog';
 import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
+import JoinCollabDialog from './JoinCollabDialog';
 import CompareVersionPicker from './CompareVersionPicker';
 import { useSettingsStore } from '../stores/settingsStore';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
@@ -190,6 +191,7 @@ const ScreenplayEditor: React.FC = () => {
   const [collabRole, setCollabRole] = useState<'editor' | 'viewer'>('editor');
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [collabLoginOpen, setCollabLoginOpen] = useState(false);
+  const [joinCollabOpen, setJoinCollabOpen] = useState(false);
   const [collabUsers, setCollabUsers] = useState<{ name: string; color: string }[]>([]);
   const collabColor = useMemo(() => randomCollabColor(), []);
 
@@ -339,6 +341,44 @@ const ScreenplayEditor: React.FC = () => {
     setCollabMode(false);
     setEditorKey((k) => k + 1);
   }, [destroyCollab]);
+
+  // Join a collab session via pasted link/token (works from app without browser)
+  const handleJoinCollab = useCallback(async (session: import('../services/api').CollabSession, token: string) => {
+    try {
+      // Load script content to seed the Yjs doc
+      const project = await api.getProject(session.project_id);
+      const scriptResp = await api.getScript(session.project_id, session.script_id);
+
+      const content = scriptResp.content as Record<string, unknown> | null;
+      if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
+        const { _notes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
+        collabInitialContent.current = pmDoc;
+      } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
+        collabInitialContent.current = content;
+      }
+
+      const docName = `${session.project_id}/${session.script_id}`;
+      setupCollab(docName, token, session.collaborator_name);
+
+      setCollabUserName(session.collaborator_name);
+      setCollabRole((session.role as 'editor' | 'viewer') || 'editor');
+      setCollabMode(true);
+      setJoinCollabOpen(false);
+      setEditorKey((k) => k + 1);
+
+      setCurrentProject(project);
+      setCurrentScriptId(session.script_id);
+      setDocumentTitle(scriptResp.meta.title);
+
+      if (session.role === 'viewer') {
+        showToast('Connected as viewer (read-only)', 'info');
+      } else {
+        showToast(`Joined collaboration as ${session.collaborator_name}`, 'success');
+      }
+    } catch {
+      showToast('Failed to join collaboration session', 'error');
+    }
+  }, [setupCollab, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -1456,7 +1496,7 @@ const ScreenplayEditor: React.FC = () => {
           return;
         }
         setShareDialogOpen(true);
-      }} isCollabActive={collabMode} />}
+      }} onJoinCollab={() => setJoinCollabOpen(true)} isCollabActive={collabMode} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
       <div className="editor-layout">
         {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} />}
@@ -1606,6 +1646,12 @@ const ScreenplayEditor: React.FC = () => {
             setCollabLoginOpen(false);
             setShareDialogOpen(true);
           }}
+        />
+      )}
+      {joinCollabOpen && (
+        <JoinCollabDialog
+          onJoin={handleJoinCollab}
+          onClose={() => setJoinCollabOpen(false)}
         />
       )}
       {!isHistoryMode && <StatusBar />}
