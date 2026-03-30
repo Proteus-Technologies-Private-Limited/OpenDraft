@@ -103,7 +103,7 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
         </div>
 
         <div className="dialog-body">
-          <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--fd-text-secondary, #888)' }}>
+          <p style={{ margin: '0 0 16px', fontSize: 14, color: 'var(--fd-text-muted)' }}>
             A collaboration account is required to use real-time editing.
             You can manage your account in System Settings.
           </p>

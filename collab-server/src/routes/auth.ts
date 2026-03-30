@@ -72,13 +72,18 @@ router.post('/register', veryStrictLimiter, async (req, res) => {
       return;
     }
 
-    const user = userService.createUser(email, password, displayName);
+    let user = userService.createUser(email, password, displayName);
     const accessToken = tokenService.generateAccessToken(user.id, user.email);
     const { token: refreshToken } = tokenService.generateRefreshToken(user.id);
 
-    // Send verification email
-    const code = emailService.createVerificationCode(user.id);
-    await emailService.sendVerificationEmail(user.email, code);
+    // Send verification email if SMTP is configured, otherwise auto-verify
+    if (config.smtpHost) {
+      const code = emailService.createVerificationCode(user.id);
+      await emailService.sendVerificationEmail(user.email, code);
+    } else {
+      userService.setEmailVerified(user.id);
+      user = userService.findUserById(user.id)!;
+    }
 
     auditService.logEvent('register', user.id, null, { email: user.email }, getClientIp(req));
 
