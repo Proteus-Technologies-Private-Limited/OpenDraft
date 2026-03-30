@@ -169,7 +169,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
           {/* Role and expiry options */}
           <div className="collab-invite-options">
             <div className="collab-role-selector">
-              <label className="dialog-label" style={{ fontSize: 14 }} style={{ marginTop: 12 }}>Permission</label>
+              <label className="dialog-label" style={{ fontSize: 14, marginTop: 12 }}>Permission</label>
               <div className="collab-role-radios">
                 <label className="collab-radio-label">
                   <input
@@ -195,7 +195,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
             </div>
 
             <div className="collab-expiry-selector">
-              <label className="dialog-label" style={{ fontSize: 14 }} style={{ marginTop: 12 }}>Token Valid For</label>
+              <label className="dialog-label" style={{ fontSize: 14, marginTop: 12 }}>Token Valid For</label>
               <select
                 className="dialog-input collab-expiry-select"
                 value={expiryHours}
@@ -212,7 +212,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
 
           {sessions.length > 0 && (
             <div className="collab-sessions-list">
-              <label className="dialog-label" style={{ fontSize: 14 }} style={{ marginTop: 16 }}>
+              <label className="dialog-label" style={{ fontSize: 14, marginTop: 16 }}>
                 Active invites ({sessions.length})
               </label>
               {sessions.map((s) => (
