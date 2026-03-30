@@ -110,6 +110,7 @@ const hocuspocus = new Hocuspocus({
     // Validate invite token against backend
     const session = await validateInviteToken(inviteToken);
     if (!session) {
+      console.error(`[onAuthenticate] Invalid or expired invite token: ${inviteToken.slice(0, 12)}... for doc: ${data.documentName}`);
       throw new Error('Invalid or expired invite token');
     }
 
