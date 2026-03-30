@@ -422,7 +422,9 @@ const ScreenplayEditor: React.FC = () => {
         }
 
         // Setup provider synchronously before triggering editor rebuild
-        const docName = `${session.project_id}/${session.script_id}`;
+        // Include session_nonce so guest joins the exact same Yjs room as the host
+        const nonce = session.session_nonce || '';
+        const docName = `${session.project_id}/${session.script_id}${nonce ? `/${nonce}` : ''}`;
         setupCollab(docName, urlCollabToken, session.collaborator_name);
 
         setCollabUserName(session.collaborator_name);
@@ -563,7 +565,8 @@ const ScreenplayEditor: React.FC = () => {
         collabInitialContent.current = content;
       }
 
-      const docName = `${session.project_id}/${session.script_id}`;
+      const nonce = session.session_nonce || '';
+      const docName = `${session.project_id}/${session.script_id}${nonce ? `/${nonce}` : ''}`;
       setupCollab(docName, token, session.collaborator_name);
 
       setCollabUserName(session.collaborator_name);
@@ -824,22 +827,23 @@ const ScreenplayEditor: React.FC = () => {
     const { _notes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = doc as Record<string, unknown>;
     collabInitialContent.current = pmDoc;
 
-    // Create a separate session token for the owner (the collab server needs a valid token)
+    // The guest invite carries a session_nonce that makes the Yjs room unique
+    // per collab session, so stale state from previous sessions is never loaded.
+    const nonce = guestSession.session_nonce || '';
+
+    // Create a separate session token for the owner, sharing the same nonce
     let ownerToken: string;
     try {
-      const ownerSession = await api.createCollabInvite(currentProject.id, currentScriptId, 'Host');
+      const ownerSession = await api.createCollabInvite(
+        currentProject.id, currentScriptId, 'Host', 'editor', 1, nonce,
+      );
       ownerToken = ownerSession.token;
     } catch {
       ownerToken = guestSession.token;
     }
 
-    const docName = `${currentProject.id}/${currentScriptId}`;
-
-    // Clear any stale Yjs state from a previous collab session for this document
-    try {
-      await collabAuthApi.resetDocument(docName, ownerToken);
-    } catch { /* best-effort — continue even if reset fails */ }
-
+    // Include the nonce in the room name so each session gets a fresh Yjs document
+    const docName = `${currentProject.id}/${currentScriptId}/${nonce}`;
     setupCollab(docName, ownerToken, 'Host', true);
 
     setCollabUserName('Host');
