@@ -105,7 +105,12 @@ const SettingsPage: React.FC = () => {
     try {
       const response = await collabAuthApi.register(regEmail, regPassword, regName);
       handleAuthResponse(response);
-      showToast('Account created! Check your email for a verification code.', 'success');
+      showToast(
+        response.user.emailVerified
+          ? 'Account created successfully!'
+          : 'Account created! Check your email for a verification code.',
+        'success',
+      );
       setRegEmail('');
       setRegPassword('');
       setRegConfirm('');

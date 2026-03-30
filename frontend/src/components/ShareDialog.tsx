@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import type { CollabSession } from '../services/api';
+import { SERVER_BASE } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
 import { showToast } from './Toast';
 
@@ -104,7 +105,10 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
   };
 
   const copyLink = (token: string) => {
-    const link = `${window.location.origin}/collab/${token}`;
+    // Use SERVER_BASE for the collab link so it works from Tauri desktop
+    // (window.location.origin would give tauri://localhost which isn't a valid URL for collaborators)
+    const base = window.location.origin.startsWith('tauri://') ? SERVER_BASE : window.location.origin;
+    const link = `${base}/collab/${token}`;
     navigator.clipboard.writeText(link).then(() => {
       setCopiedToken(token);
       setTimeout(() => setCopiedToken(null), 2000);
@@ -138,11 +142,11 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
             </div>
           )}
 
-          <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--fd-text-secondary, #888)' }}>
+          <p style={{ margin: '0 0 12px', fontSize: 14, color: 'var(--fd-text-muted)' }}>
             Generate a link for each collaborator. They can open the link to join a live editing session.
           </p>
 
-          <label className="dialog-label">Invite a collaborator</label>
+          <label className="dialog-label" style={{ fontSize: 14 }}>Invite a collaborator</label>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               ref={inputRef}
@@ -165,7 +169,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
           {/* Role and expiry options */}
           <div className="collab-invite-options">
             <div className="collab-role-selector">
-              <label className="dialog-label" style={{ marginTop: 12 }}>Permission</label>
+              <label className="dialog-label" style={{ fontSize: 14 }} style={{ marginTop: 12 }}>Permission</label>
               <div className="collab-role-radios">
                 <label className="collab-radio-label">
                   <input
@@ -191,7 +195,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
             </div>
 
             <div className="collab-expiry-selector">
-              <label className="dialog-label" style={{ marginTop: 12 }}>Token Valid For</label>
+              <label className="dialog-label" style={{ fontSize: 14 }} style={{ marginTop: 12 }}>Token Valid For</label>
               <select
                 className="dialog-input collab-expiry-select"
                 value={expiryHours}
@@ -208,7 +212,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
 
           {sessions.length > 0 && (
             <div className="collab-sessions-list">
-              <label className="dialog-label" style={{ marginTop: 16 }}>
+              <label className="dialog-label" style={{ fontSize: 14 }} style={{ marginTop: 16 }}>
                 Active invites ({sessions.length})
               </label>
               {sessions.map((s) => (
