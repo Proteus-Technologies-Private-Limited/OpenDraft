@@ -216,6 +216,7 @@ interface EditorState {
 
   // Beats
   beats: BeatInfo[];
+  setBeats: (beats: BeatInfo[]) => void;
   addBeat: (title: string, actIndex: number) => void;
   updateBeat: (id: string, updates: Partial<{ title: string; description: string; actIndex: number; position: number }>) => void;
   deleteBeat: (id: string) => void;
@@ -362,6 +363,7 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   // Beats
   beats: [],
+  setBeats: (beats) => set({ beats }),
   addBeat: (title, actIndex) =>
     set((s) => {
       const actsBeats = s.beats.filter((b) => b.actIndex === actIndex);

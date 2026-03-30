@@ -61,6 +61,7 @@ import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
 import CompareVersionPicker from './CompareVersionPicker';
 import { useSettingsStore } from '../stores/settingsStore';
+import { startCollabSync, stopCollabSync } from '../services/collabSync';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
 
@@ -201,6 +202,7 @@ const ScreenplayEditor: React.FC = () => {
 
   // Cleanup collab provider
   const destroyCollab = useCallback(() => {
+    stopCollabSync();
     if (providerRef.current) {
       providerRef.current.destroy();
       providerRef.current = null;
@@ -255,7 +257,7 @@ const ScreenplayEditor: React.FC = () => {
   const handleDocumentSwitchRef = useRef(handleDocumentSwitch);
   handleDocumentSwitchRef.current = handleDocumentSwitch;
 
-  const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string) => {
+  const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string, isHost = false) => {
     destroyCollab();
     const ydoc = new Y.Doc();
 
@@ -281,11 +283,9 @@ const ScreenplayEditor: React.FC = () => {
           if (user?.name) users.push(user);
         });
         setCollabUsers(users);
-        // If host broadcast session-ended, auto-disconnect guests
         if (sessionEnded) {
           handleSessionEndedRef.current();
         }
-        // If host broadcast document-switch, auto-follow to new document
         if (docSwitch) {
           handleDocumentSwitchRef.current(docSwitch.projectId, docSwitch.scriptId, docSwitch.token);
         }
@@ -293,6 +293,9 @@ const ScreenplayEditor: React.FC = () => {
     });
     ydocRef.current = ydoc;
     providerRef.current = provider;
+
+    // Start syncing metadata (characters, notes, tags, beats) via Yjs
+    startCollabSync(ydoc, isHost);
   }, [destroyCollab]);
 
   // Force editor recreation when collab mode toggles
@@ -472,7 +475,7 @@ const ScreenplayEditor: React.FC = () => {
       }
 
       const docName = `${newProjectId}/${newScriptId}`;
-      setupCollab(docName, hostToken, 'Host');
+      setupCollab(docName, hostToken, 'Host', true);
 
       setCurrentProject(project);
       setCurrentScriptId(newScriptId);
@@ -764,7 +767,7 @@ const ScreenplayEditor: React.FC = () => {
     }
 
     const docName = `${currentProject.id}/${currentScriptId}`;
-    setupCollab(docName, ownerToken, 'Host');
+    setupCollab(docName, ownerToken, 'Host', true);
 
     setCollabUserName('Host');
     setCollabMode(true);
