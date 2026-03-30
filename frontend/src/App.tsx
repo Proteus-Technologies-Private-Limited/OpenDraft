@@ -4,9 +4,12 @@ import ProjectList from './components/ProjectList';
 import ProjectView from './components/ProjectView';
 import SettingsPage from './components/SettingsPage';
 import Toast from './components/Toast';
+import { pluginRegistry } from './plugins/registry';
 import './styles/screenplay.css';
 
 function App() {
+  const pluginRoutes = pluginRegistry.getRoutes();
+
   return (
     <>
       <Routes>
@@ -17,6 +20,9 @@ function App() {
         <Route path="/project/:projectId/history/:scriptId/:commitHash" element={<ScreenplayEditor />} />
         <Route path="/collab/:collabToken" element={<ScreenplayEditor />} />
         <Route path="/settings" element={<SettingsPage />} />
+        {pluginRoutes.map((r) => (
+          <Route key={r.path} path={r.path} element={<r.component />} />
+        ))}
       </Routes>
       <Toast />
     </>

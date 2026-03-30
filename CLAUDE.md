@@ -1,5 +1,34 @@
 # OpenDraft — Claude Instructions
 
+## Open-Core Architecture
+
+OpenDraft is the **open-source core** (MIT license). A separate **OpenDraft-Pro** repo (private, at `../OpenDraft-Pro/`) extends it with commercial plugins.
+
+### Plugin System
+
+The core exposes a plugin architecture so Pro features can be added without modifying core code:
+
+- **Frontend:** `frontend/src/plugins/registry.ts` — `pluginRegistry.register()` to add menu items, sidebar panels, routes, and editor extensions
+- **Backend:** `backend/app/plugins.py` — `register_router()` and `register_hook()` for API routes and lifecycle hooks
+- **Integration points:** MenuBar appends plugin menu items, App.tsx renders plugin routes, ScreenplayEditor renders plugin panels and editor extensions
+
+### Key Rules
+
+- **Never add commercial/Pro features to this repo** — they go in OpenDraft-Pro
+- Plugin architecture changes (registry, hooks, extension points) belong HERE
+- Bug fixes to existing features go HERE — they automatically flow to Pro via git submodule
+- The `pluginRegistry` import in MenuBar, App.tsx, and ScreenplayEditor is how Pro injects features at runtime
+
+### Repo Relationship
+
+```
+OpenDraft (this repo, public, MIT)     ← upstream
+    ↑
+OpenDraft-Pro (private, proprietary)   ← imports this as git submodule at core/
+```
+
+---
+
 ## macOS Desktop Build — Code Signing & Notarization
 
 The macOS `.dmg` is built **locally** — never via GitHub Actions. It must be properly signed and notarized or macOS Gatekeeper will reject it as "damaged".

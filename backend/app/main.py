@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 
 from app.api import scripts, auth, export, projects, versions, assets, collab
 from app.config import PROJECTS_DIR, BASE_DIR
+from app.plugins import get_plugin_routers
 
 STATIC_DIR = BASE_DIR / "static"
 
@@ -48,6 +49,10 @@ app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 app.include_router(versions.router, prefix="/api/projects", tags=["versions"])
 app.include_router(assets.router, prefix="/api/projects", tags=["assets"])
 app.include_router(collab.router, prefix="/api/collab", tags=["collab"])
+
+# Mount plugin routers (registered by external plugins before app startup)
+for _prefix, _router, _tags in get_plugin_routers():
+    app.include_router(_router, prefix=_prefix, tags=_tags)
 
 
 @app.get("/health")

@@ -12,6 +12,8 @@ import { downloadFountain } from '../utils/fountainExporter';
 import { exportPDF } from '../utils/pdfExporter';
 import { trackChangesPluginKey } from '../editor/trackChanges';
 import PageSetupDialog from './PageSetupDialog';
+import { pluginRegistry } from '../plugins/registry';
+import type { MenuSection as PluginMenuSection } from '../plugins/registry';
 
 interface MenuBarProps {
   editor: Editor | null;
@@ -492,6 +494,23 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       ],
     },
   ];
+
+  // Append plugin menu items to each section
+  const pluginCtx = { editor };
+  for (const menu of menus) {
+    const pluginItems = pluginRegistry.getMenuItems(menu.label as PluginMenuSection);
+    if (pluginItems.length > 0) {
+      menu.items.push({ separator: true, label: '' });
+      for (const p of pluginItems) {
+        menu.items.push({
+          label: p.label,
+          shortcut: p.shortcut,
+          action: () => p.action(pluginCtx),
+          disabled: typeof p.disabled === 'function' ? p.disabled(pluginCtx) : p.disabled,
+        });
+      }
+    }
+  }
 
   return (
     <>
