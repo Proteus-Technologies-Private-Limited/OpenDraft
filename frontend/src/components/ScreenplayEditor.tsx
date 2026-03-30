@@ -62,6 +62,7 @@ import JoinCollabDialog from './JoinCollabDialog';
 import CompareVersionPicker from './CompareVersionPicker';
 import { useSettingsStore } from '../stores/settingsStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
+import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
 
@@ -731,6 +732,7 @@ const ScreenplayEditor: React.FC = () => {
       TrackChangesExtension,
       ...(isHistoryMode ? [] : [EnterHandlerExtension]),
       SpellCheck,
+      ...pluginRegistry.getEditorExtensions(),
     ],
     // In collab mode, pass fetched content so TipTap seeds the Yjs doc on first connect.
     // For normal editing from URL, content is loaded later via useEffect.
@@ -1730,6 +1732,9 @@ const ScreenplayEditor: React.FC = () => {
         {!isHistoryMode && <ScriptNotes editor={editor} />}
         {!isHistoryMode && <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} />}
         {!isHistoryMode && <TagsPanel editor={editor} />}
+        {!isHistoryMode && pluginRegistry.getPanels('right-sidebar').map((p) => (
+          <p.component key={p.id} editor={editor} />
+        ))}
       </div>
       {!isHistoryMode && <SearchReplace editor={editor} />}
       {!isHistoryMode && <GoToPage onGoToPage={handleGoToPage} />}
