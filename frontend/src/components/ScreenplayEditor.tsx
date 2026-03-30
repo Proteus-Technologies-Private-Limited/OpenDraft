@@ -261,7 +261,13 @@ const ScreenplayEditor: React.FC = () => {
       },
       onAuthenticationFailed: ({ reason }) => {
         console.error(`[Collab] Auth FAILED for "${docName}": ${reason}`);
-        showToast(`Collaboration auth failed: ${reason}`, 'error');
+        const isTokenRevoked = reason?.includes('expired') || reason?.includes('Invalid');
+        showToast(
+          isTokenRevoked
+            ? 'The collaboration session has ended'
+            : `Collaboration auth failed: ${reason}`,
+          'info',
+        );
         // Stop reconnecting — destroy provider and exit collab mode
         destroyCollab();
         setCollabMode(false);
@@ -442,6 +448,13 @@ const ScreenplayEditor: React.FC = () => {
       try {
         await api.revokeAllCollabSessions(currentProject.id, currentScriptId);
       } catch { /* ignore — cleanup is best-effort */ }
+
+      // Host: kick all remaining connections on the collab server.
+      // Guests will try to reconnect with revoked tokens → auth fails → they exit collab.
+      const docName = `${currentProject.id}/${currentScriptId}`;
+      try {
+        await collabAuthApi.closeDocument(docName);
+      } catch { /* best-effort */ }
     }
 
     destroyCollab();
