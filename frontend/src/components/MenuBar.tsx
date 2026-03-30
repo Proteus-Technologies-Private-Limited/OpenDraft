@@ -18,6 +18,7 @@ interface MenuBarProps {
   onCollaborate?: () => void;
   onJoinCollab?: () => void;
   isCollabActive?: boolean;
+  isCollabGuest?: boolean;
 }
 
 interface MenuItem {
@@ -33,7 +34,7 @@ interface MenuSection {
   items: MenuItem[];
 }
 
-const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, isCollabActive }) => {
+const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, isCollabActive, isCollabGuest }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const {
@@ -353,6 +354,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         {
           label: 'New Screenplay',
           shortcut: '⌘N',
+          disabled: isCollabGuest,
           action: () => {
             if (!editor) return;
             clearTrackChanges();
@@ -368,24 +370,24 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           },
         },
         { separator: true, label: '' },
-        { label: 'Import...', action: handleImport },
-        { label: 'Open from Project...', action: () => setOpenFromProjectOpen(true) },
-        { label: 'Save', shortcut: '\u2318S', action: handleSave },
+        { label: 'Import...', action: handleImport, disabled: isCollabGuest },
+        { label: 'Open from Project...', action: () => setOpenFromProjectOpen(true), disabled: isCollabGuest },
+        { label: 'Save', shortcut: '\u2318S', action: handleSave, disabled: isCollabGuest },
         { separator: true, label: '' },
-        { label: 'Save as Final Draft (.fdx)', action: handleExportFDX },
-        { label: 'Save as Fountain (.fountain)', action: handleExportFountain },
+        { label: 'Save as Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
+        { label: 'Save as Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
         { label: 'Save as PDF', shortcut: '\u2318P', action: handleExportPDF },
         { separator: true, label: '' },
-        { label: 'Check In...', action: handleCheckinOpen },
-        { label: 'Version History', action: () => setVersionHistoryOpen(true) },
+        { label: 'Check In...', action: handleCheckinOpen, disabled: isCollabGuest },
+        { label: 'Version History', action: () => setVersionHistoryOpen(true), disabled: isCollabGuest },
         { separator: true, label: '' },
         { label: 'Page Setup...', action: () => setPageSetupOpen(true) },
         { label: 'Print...', shortcut: '\u2318P', action: () => window.print() },
         { separator: true, label: '' },
-        { label: 'Manage Projects...', action: () => { window.location.href = '/projects'; } },
+        { label: 'Manage Projects...', action: () => { window.location.href = '/projects'; }, disabled: isCollabGuest },
         { separator: true, label: '' },
-        { label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate },
-        { label: 'Join Collaboration...', action: onJoinCollab },
+        { label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate, disabled: isCollabGuest },
+        { label: 'Join Collaboration...', action: onJoinCollab, disabled: isCollabGuest },
         { separator: true, label: '' },
         { label: 'System Settings...', action: () => { window.location.href = '/settings'; } },
       ],
