@@ -228,6 +228,56 @@ const ScreenplayEditor: React.FC = () => {
   const handleSessionEndedRef = useRef(handleSessionEnded);
   handleSessionEndedRef.current = handleSessionEnded;
 
+  // Ref for document-switch handler (defined after setupCollab to avoid circular dependency)
+  const handleDocumentSwitchRef = useRef<(projectId: string, scriptId: string, token: string) => void>(() => {});
+
+  const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string, isHost = false) => {
+    destroyCollab();
+    const ydoc = new Y.Doc();
+
+    // Build compound token: "jwt:<access>|invite:<invite>" when auth is available
+    const { collabAuth } = useSettingsStore.getState();
+    const token = collabAuth.accessToken
+      ? `jwt:${collabAuth.accessToken}|invite:${inviteToken}`
+      : inviteToken;
+
+    const provider = new HocuspocusProvider({
+      url: getCollabWsUrl(),
+      name: docName,
+      document: ydoc,
+      token,
+      onAwarenessUpdate: ({ states }) => {
+        const users: { name: string; color: string }[] = [];
+        let sessionEnded = false;
+        let switchProjectId = '';
+        let switchScriptId = '';
+        let switchToken = '';
+        states.forEach((state: Record<string, unknown>) => {
+          const user = state.user as { name: string; color: string; sessionEnded?: boolean; documentSwitch?: { projectId: string; scriptId: string; token: string } } | undefined;
+          if (user?.sessionEnded) sessionEnded = true;
+          if (user?.documentSwitch) {
+            switchProjectId = user.documentSwitch.projectId;
+            switchScriptId = user.documentSwitch.scriptId;
+            switchToken = user.documentSwitch.token;
+          }
+          if (user?.name) users.push(user);
+        });
+        setCollabUsers(users);
+        if (sessionEnded) {
+          handleSessionEndedRef.current();
+        }
+        if (switchProjectId && switchScriptId && switchToken) {
+          handleDocumentSwitchRef.current(switchProjectId, switchScriptId, switchToken);
+        }
+      },
+    });
+    ydocRef.current = ydoc;
+    providerRef.current = provider;
+
+    // Start syncing metadata (characters, notes, tags, beats) via Yjs
+    startCollabSync(ydoc, isHost);
+  }, [destroyCollab]);
+
   // Called when host broadcasts document-switch — guest auto-follows
   const handleDocumentSwitch = useCallback(async (projectId: string, scriptId: string, sharedToken: string) => {
     try {
@@ -255,49 +305,7 @@ const ScreenplayEditor: React.FC = () => {
     }
   }, [setupCollab, collabUserName, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
-  const handleDocumentSwitchRef = useRef(handleDocumentSwitch);
   handleDocumentSwitchRef.current = handleDocumentSwitch;
-
-  const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string, isHost = false) => {
-    destroyCollab();
-    const ydoc = new Y.Doc();
-
-    // Build compound token: "jwt:<access>|invite:<invite>" when auth is available
-    const { collabAuth } = useSettingsStore.getState();
-    const token = collabAuth.accessToken
-      ? `jwt:${collabAuth.accessToken}|invite:${inviteToken}`
-      : inviteToken;
-
-    const provider = new HocuspocusProvider({
-      url: getCollabWsUrl(),
-      name: docName,
-      document: ydoc,
-      token,
-      onAwarenessUpdate: ({ states }) => {
-        const users: { name: string; color: string }[] = [];
-        let sessionEnded = false;
-        let docSwitch: { projectId: string; scriptId: string; token: string } | null = null;
-        states.forEach((state: Record<string, unknown>) => {
-          const user = state.user as { name: string; color: string; sessionEnded?: boolean; documentSwitch?: { projectId: string; scriptId: string; token: string } } | undefined;
-          if (user?.sessionEnded) sessionEnded = true;
-          if (user?.documentSwitch) docSwitch = user.documentSwitch;
-          if (user?.name) users.push(user);
-        });
-        setCollabUsers(users);
-        if (sessionEnded) {
-          handleSessionEndedRef.current();
-        }
-        if (docSwitch) {
-          handleDocumentSwitchRef.current(docSwitch.projectId, docSwitch.scriptId, docSwitch.token);
-        }
-      },
-    });
-    ydocRef.current = ydoc;
-    providerRef.current = provider;
-
-    // Start syncing metadata (characters, notes, tags, beats) via Yjs
-    startCollabSync(ydoc, isHost);
-  }, [destroyCollab]);
 
   // Force editor recreation when collab mode toggles
   const [editorKey, setEditorKey] = useState(0);
