@@ -236,11 +236,24 @@ const ScreenplayEditor: React.FC = () => {
     destroyCollab();
     const ydoc = new Y.Doc();
 
-    // Build compound token: "jwt:<access>|invite:<invite>" when auth is available
-    const { collabAuth } = useSettingsStore.getState();
-    const token = collabAuth.accessToken
-      ? `jwt:${collabAuth.accessToken}|invite:${inviteToken}`
-      : inviteToken;
+    // Build compound token: "jwt:<access>|invite:<invite>" when auth is available and valid
+    const { collabAuth, clearCollabAuth } = useSettingsStore.getState();
+    let token = inviteToken;
+    if (collabAuth.accessToken) {
+      // Check JWT expiry client-side to avoid sending expired tokens
+      try {
+        const payload = JSON.parse(atob(collabAuth.accessToken.split('.')[1]));
+        if (payload.exp && payload.exp * 1000 > Date.now()) {
+          token = `jwt:${collabAuth.accessToken}|invite:${inviteToken}`;
+        } else {
+          // JWT expired — clear it so we don't keep sending it
+          clearCollabAuth();
+        }
+      } catch {
+        // Malformed JWT — just use invite token
+        clearCollabAuth();
+      }
+    }
 
     const wsUrl = getCollabWsUrl();
     console.log(`[Collab] setupCollab: docName="${docName}", wsUrl="${wsUrl}", isHost=${isHost}, tokenPrefix="${inviteToken.slice(0, 8)}..."`);
@@ -261,18 +274,23 @@ const ScreenplayEditor: React.FC = () => {
       },
       onAuthenticationFailed: ({ reason }) => {
         console.error(`[Collab] Auth FAILED for "${docName}": ${reason}`);
-        const isTokenRevoked = reason?.includes('expired') || reason?.includes('Invalid');
+        const isSessionEnded = reason?.includes('expired') || reason?.includes('Invalid');
         showToast(
-          isTokenRevoked
+          isSessionEnded
             ? 'The collaboration session has ended'
-            : `Collaboration auth failed: ${reason}`,
-          'info',
+            : `Unable to join collaboration: ${reason}`,
+          isSessionEnded ? 'info' : 'error',
         );
-        // Stop reconnecting — destroy provider and exit collab mode
-        destroyCollab();
-        setCollabMode(false);
-        setCollabRole('editor');
-        setEditorKey((k) => k + 1);
+        // Prevent reconnection loop — disconnect provider immediately, then clean up
+        if (providerRef.current) {
+          providerRef.current.disconnect();
+        }
+        setTimeout(() => {
+          destroyCollab();
+          setCollabMode(false);
+          setCollabRole('editor');
+          setEditorKey((k) => k + 1);
+        }, 0);
       },
       onAwarenessUpdate: ({ states }) => {
         const users: { name: string; color: string }[] = [];
