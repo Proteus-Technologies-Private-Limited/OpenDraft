@@ -13,26 +13,27 @@ export type AuditAction =
   | 'email_verified'
   | 'google_login';
 
-export function logEvent(
+export async function logEvent(
   action: AuditAction,
   userId?: string | null,
   documentName?: string | null,
   detail?: Record<string, unknown> | null,
   ipAddress?: string | null,
-): void {
+): Promise<void> {
   try {
     const db = getDB();
     const now = new Date().toISOString();
-    db.prepare(`
-      INSERT INTO audit_log (user_id, action, document_name, detail, ip_address, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
-      userId || null,
-      action,
-      documentName || null,
-      detail ? JSON.stringify(detail) : null,
-      ipAddress || null,
-      now,
+    await db.run(
+      `INSERT INTO audit_log (user_id, action, document_name, detail, ip_address, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        userId || null,
+        action,
+        documentName || null,
+        detail ? JSON.stringify(detail) : null,
+        ipAddress || null,
+        now,
+      ],
     );
   } catch (err) {
     console.error('Audit log write failed:', err);

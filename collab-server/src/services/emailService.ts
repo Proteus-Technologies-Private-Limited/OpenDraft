@@ -19,7 +19,7 @@ function getTransporter(): nodemailer.Transporter | null {
   return transporter;
 }
 
-export function createVerificationCode(userId: string): string {
+export async function createVerificationCode(userId: string): Promise<string> {
   const db = getDB();
   const code = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit
   const id = uuidv4();
@@ -27,29 +27,31 @@ export function createVerificationCode(userId: string): string {
   const expiresAt = new Date(now.getTime() + 15 * 60 * 1000).toISOString(); // 15 minutes
 
   // Invalidate any existing codes for this user
-  db.prepare('UPDATE email_verifications SET used = 1 WHERE user_id = ? AND used = 0').run(userId);
+  await db.run('UPDATE email_verifications SET used = 1 WHERE user_id = ? AND used = 0', [userId]);
 
-  db.prepare(`
-    INSERT INTO email_verifications (id, user_id, code, expires_at, used, created_at)
-    VALUES (?, ?, ?, ?, 0, ?)
-  `).run(id, userId, code, expiresAt, now.toISOString());
+  await db.run(
+    `INSERT INTO email_verifications (id, user_id, code, expires_at, used, created_at)
+     VALUES (?, ?, ?, ?, 0, ?)`,
+    [id, userId, code, expiresAt, now.toISOString()],
+  );
 
   return code;
 }
 
-export function validateVerificationCode(userId: string, code: string): boolean {
+export async function validateVerificationCode(userId: string, code: string): Promise<boolean> {
   const db = getDB();
   const now = new Date().toISOString();
 
-  const row = db.prepare(`
-    SELECT id FROM email_verifications
-    WHERE user_id = ? AND code = ? AND used = 0 AND expires_at > ?
-    ORDER BY created_at DESC LIMIT 1
-  `).get(userId, code, now) as { id: string } | undefined;
+  const row = await db.get<{ id: string }>(
+    `SELECT id FROM email_verifications
+     WHERE user_id = ? AND code = ? AND used = 0 AND expires_at > ?
+     ORDER BY created_at DESC LIMIT 1`,
+    [userId, code, now],
+  );
 
   if (!row) return false;
 
-  db.prepare('UPDATE email_verifications SET used = 1 WHERE id = ?').run(row.id);
+  await db.run('UPDATE email_verifications SET used = 1 WHERE id = ?', [row.id]);
   return true;
 }
 

@@ -1,7 +1,9 @@
-import Database from 'better-sqlite3';
-import * as path from 'path';
-import * as fs from 'fs';
 import { config } from './config';
+import type { DBAdapter } from './database/adapter';
+import { SQLiteAdapter } from './database/sqlite';
+import { PostgresAdapter } from './database/postgres';
+
+export { DBAdapter };
 
 export interface UserRow {
   id: string;
@@ -42,73 +44,79 @@ export interface AuditLogRow {
   created_at: string;
 }
 
-let db: Database.Database | null = null;
+let adapter: DBAdapter | null = null;
 
-export function initDB(): Database.Database {
-  if (db) return db;
+const SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    email_verified INTEGER DEFAULT 0,
+    password_hash TEXT,
+    google_id TEXT UNIQUE,
+    display_name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 
-  const dataDir = config.dataDir;
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  CREATE TABLE IF NOT EXISTS email_verifications (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    revoked INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT,
+    action TEXT NOT NULL,
+    document_name TEXT,
+    detail TEXT,
+    ip_address TEXT,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+  CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
+  CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+  CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
+  CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);
+`;
+
+export async function initDB(): Promise<DBAdapter> {
+  if (adapter) return adapter;
+
+  if (config.dbType === 'postgresql') {
+    console.log(`Connecting to PostgreSQL at ${config.dbHost}:${config.dbPort}/${config.dbName}`);
+    adapter = new PostgresAdapter({
+      host: config.dbHost,
+      port: config.dbPort,
+      database: config.dbName,
+      user: config.dbUser,
+      password: config.dbPassword,
+    });
+  } else {
+    console.log(`Using SQLite database in ${config.dataDir}`);
+    adapter = new SQLiteAdapter(config.dataDir);
   }
 
-  const dbPath = path.join(dataDir, 'collab.sqlite3');
-  db = new Database(dbPath);
-
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      email TEXT UNIQUE NOT NULL,
-      email_verified INTEGER DEFAULT 0,
-      password_hash TEXT,
-      google_id TEXT UNIQUE,
-      display_name TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS email_verifications (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      code TEXT NOT NULL,
-      expires_at TEXT NOT NULL,
-      used INTEGER DEFAULT 0,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS refresh_tokens (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      token_hash TEXT NOT NULL,
-      expires_at TEXT NOT NULL,
-      revoked INTEGER DEFAULT 0,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS audit_log (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id TEXT,
-      action TEXT NOT NULL,
-      document_name TEXT,
-      detail TEXT,
-      ip_address TEXT,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
-    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
-    CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
-    CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);
-  `);
-
-  return db;
+  await adapter.exec(SCHEMA_SQL);
+  return adapter;
 }
 
-export function getDB(): Database.Database {
-  if (!db) return initDB();
-  return db;
+export function getDB(): DBAdapter {
+  if (!adapter) {
+    throw new Error('Database not initialized — call initDB() first');
+  }
+  return adapter;
 }

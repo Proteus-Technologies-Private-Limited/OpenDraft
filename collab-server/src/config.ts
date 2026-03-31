@@ -25,6 +25,21 @@ export interface ServerConfig {
   rateLimitWindowMs: number;
   rateLimitMax: number;
   corsOrigins: string[];
+
+  // Database
+  dbType: 'sqlite' | 'postgresql';
+  dbHost: string;
+  dbPort: number;
+  dbName: string;
+  dbUser: string;
+  dbPassword: string;
+
+  // Document eviction
+  docIdleTimeoutMinutes: number;
+
+  // WebSocket connection limits
+  wsMaxConnectionsPerIp: number;
+  wsMaxConnectionsPerUser: number;
 }
 
 function loadConfig(): ServerConfig {
@@ -63,7 +78,22 @@ function loadConfig(): ServerConfig {
     smtpFrom: process.env.SMTP_FROM || 'noreply@opendraft.app',
     rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || String(15 * 60 * 1000), 10),
     rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
-    corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000,tauri://localhost,https://tauri.localhost').split(',').map(s => s.trim()),
+    corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000,http://localhost:8000,http://localhost:18321,tauri://localhost,https://tauri.localhost').split(',').map(s => s.trim()),
+
+    // Database (default: sqlite)
+    dbType: (process.env.DB_TYPE === 'postgresql' ? 'postgresql' : 'sqlite') as 'sqlite' | 'postgresql',
+    dbHost: process.env.DB_HOST || 'localhost',
+    dbPort: parseInt(process.env.DB_PORT || '5432', 10),
+    dbName: process.env.DB_NAME || 'opendraft_collab',
+    dbUser: process.env.DB_USER || 'opendraft',
+    dbPassword: process.env.DB_PASSWORD || '',
+
+    // Document eviction (0 = disabled)
+    docIdleTimeoutMinutes: parseInt(process.env.DOC_IDLE_TIMEOUT_MINUTES || '30', 10),
+
+    // WebSocket connection limits (0 = unlimited)
+    wsMaxConnectionsPerIp: parseInt(process.env.WS_MAX_CONNECTIONS_PER_IP || '50', 10),
+    wsMaxConnectionsPerUser: parseInt(process.env.WS_MAX_CONNECTIONS_PER_USER || '10', 10),
   };
 }
 

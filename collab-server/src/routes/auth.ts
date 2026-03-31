@@ -66,26 +66,26 @@ router.post('/register', veryStrictLimiter, async (req, res) => {
     const { email, password, displayName } = parsed.data;
 
     // Check if email already exists
-    const existing = userService.findUserByEmail(email);
+    const existing = await userService.findUserByEmail(email);
     if (existing) {
       res.status(409).json({ error: 'Email already registered' });
       return;
     }
 
-    let user = userService.createUser(email, password, displayName);
+    let user = await userService.createUser(email, password, displayName);
     const accessToken = tokenService.generateAccessToken(user.id, user.email);
-    const { token: refreshToken } = tokenService.generateRefreshToken(user.id);
+    const { token: refreshToken } = await tokenService.generateRefreshToken(user.id);
 
     // Send verification email if SMTP is configured, otherwise auto-verify
     if (config.smtpHost) {
-      const code = emailService.createVerificationCode(user.id);
+      const code = await emailService.createVerificationCode(user.id);
       await emailService.sendVerificationEmail(user.email, code);
     } else {
-      userService.setEmailVerified(user.id);
-      user = userService.findUserById(user.id)!;
+      await userService.setEmailVerified(user.id);
+      user = (await userService.findUserById(user.id))!;
     }
 
-    auditService.logEvent('register', user.id, null, { email: user.email }, getClientIp(req));
+    await auditService.logEvent('register', user.id, null, { email: user.email }, getClientIp(req));
 
     res.status(201).json({
       user: userResponse(user),
@@ -107,18 +107,18 @@ router.post('/login', strictLimiter, async (req, res) => {
     }
 
     const { email, password } = parsed.data;
-    const user = userService.findUserByEmail(email);
+    const user = await userService.findUserByEmail(email);
 
-    if (!user || !userService.verifyPassword(user, password)) {
-      auditService.logEvent('login_failed', null, null, { email }, getClientIp(req));
+    if (!user || !(await userService.verifyPassword(user, password))) {
+      await auditService.logEvent('login_failed', null, null, { email }, getClientIp(req));
       res.status(401).json({ error: 'Invalid email or password' });
       return;
     }
 
     const accessToken = tokenService.generateAccessToken(user.id, user.email);
-    const { token: refreshToken } = tokenService.generateRefreshToken(user.id);
+    const { token: refreshToken } = await tokenService.generateRefreshToken(user.id);
 
-    auditService.logEvent('login', user.id, null, { email: user.email }, getClientIp(req));
+    await auditService.logEvent('login', user.id, null, { email: user.email }, getClientIp(req));
 
     res.json({
       user: userResponse(user),
@@ -131,7 +131,7 @@ router.post('/login', strictLimiter, async (req, res) => {
   }
 });
 
-router.post('/refresh', strictLimiter, (req, res) => {
+router.post('/refresh', strictLimiter, async (req, res) => {
   try {
     const parsed = refreshSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -139,13 +139,13 @@ router.post('/refresh', strictLimiter, (req, res) => {
       return;
     }
 
-    const result = tokenService.rotateRefreshToken(parsed.data.refreshToken);
+    const result = await tokenService.rotateRefreshToken(parsed.data.refreshToken);
     if (!result) {
       res.status(401).json({ error: 'Invalid or expired refresh token' });
       return;
     }
 
-    auditService.logEvent('token_refresh', result.userId, null, null, getClientIp(req));
+    await auditService.logEvent('token_refresh', result.userId, null, null, getClientIp(req));
 
     res.json({
       accessToken: result.accessToken,
@@ -157,7 +157,7 @@ router.post('/refresh', strictLimiter, (req, res) => {
   }
 });
 
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
   try {
     const parsed = refreshSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -165,8 +165,8 @@ router.post('/logout', (req, res) => {
       return;
     }
 
-    tokenService.revokeRefreshToken(parsed.data.refreshToken);
-    auditService.logEvent('logout', null, null, null, getClientIp(req));
+    await tokenService.revokeRefreshToken(parsed.data.refreshToken);
+    await auditService.logEvent('logout', null, null, null, getClientIp(req));
 
     res.json({ message: 'Logged out' });
   } catch (err) {
@@ -175,7 +175,7 @@ router.post('/logout', (req, res) => {
   }
 });
 
-router.post('/verify-email', requireAuth, veryStrictLimiter, (req, res) => {
+router.post('/verify-email', requireAuth, veryStrictLimiter, async (req, res) => {
   try {
     const parsed = verifyEmailSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -183,14 +183,14 @@ router.post('/verify-email', requireAuth, veryStrictLimiter, (req, res) => {
       return;
     }
 
-    const valid = emailService.validateVerificationCode(req.user!.id, parsed.data.code);
+    const valid = await emailService.validateVerificationCode(req.user!.id, parsed.data.code);
     if (!valid) {
       res.status(400).json({ error: 'Invalid or expired verification code' });
       return;
     }
 
-    userService.setEmailVerified(req.user!.id);
-    auditService.logEvent('email_verified', req.user!.id, null, null, getClientIp(req));
+    await userService.setEmailVerified(req.user!.id);
+    await auditService.logEvent('email_verified', req.user!.id, null, null, getClientIp(req));
 
     res.json({ message: 'Email verified' });
   } catch (err) {
@@ -201,7 +201,7 @@ router.post('/verify-email', requireAuth, veryStrictLimiter, (req, res) => {
 
 router.post('/resend-verification', requireAuth, veryStrictLimiter, async (req, res) => {
   try {
-    const user = userService.findUserById(req.user!.id);
+    const user = await userService.findUserById(req.user!.id);
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -212,7 +212,7 @@ router.post('/resend-verification', requireAuth, veryStrictLimiter, async (req, 
       return;
     }
 
-    const code = emailService.createVerificationCode(user.id);
+    const code = await emailService.createVerificationCode(user.id);
     await emailService.sendVerificationEmail(user.email, code);
 
     res.json({ message: 'Verification email sent' });
@@ -247,16 +247,16 @@ router.post('/google', strictLimiter, async (req, res) => {
       return;
     }
 
-    const user = userService.findOrCreateGoogleUser(
+    const user = await userService.findOrCreateGoogleUser(
       payload.sub,
       payload.email,
       payload.name || payload.email.split('@')[0],
     );
 
     const accessToken = tokenService.generateAccessToken(user.id, user.email);
-    const { token: refreshToken } = tokenService.generateRefreshToken(user.id);
+    const { token: refreshToken } = await tokenService.generateRefreshToken(user.id);
 
-    auditService.logEvent('google_login', user.id, null, { email: user.email }, getClientIp(req));
+    await auditService.logEvent('google_login', user.id, null, { email: user.email }, getClientIp(req));
 
     res.json({
       user: userResponse(user),
@@ -269,9 +269,9 @@ router.post('/google', strictLimiter, async (req, res) => {
   }
 });
 
-router.get('/me', requireAuth, (req, res) => {
+router.get('/me', requireAuth, async (req, res) => {
   try {
-    const user = userService.findUserById(req.user!.id);
+    const user = await userService.findUserById(req.user!.id);
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;

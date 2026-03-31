@@ -67,10 +67,10 @@ import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
 
-// Random color for collaboration cursor
+// Vibrant dark colors for collaboration cursors and avatars
 const COLLAB_COLORS = [
-  '#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8',
-  '#94FADB', '#B9F18D', '#E8A0BF', '#C4B5FD', '#67E8F9',
+  '#7C3AED', '#DC2626', '#D97706', '#059669', '#2563EB',
+  '#DB2777', '#7C2D12', '#4338CA', '#0E7490', '#9333EA',
 ];
 function randomCollabColor() {
   return COLLAB_COLORS[Math.floor(Math.random() * COLLAB_COLORS.length)];
@@ -458,11 +458,40 @@ const ScreenplayEditor: React.FC = () => {
     collabInitDone.current = true;
     (async () => {
       try {
-        const session = await api.validateCollabSession(urlCollabToken);
+        // Try collab server first (validates against all configured backends),
+        // then fall back to local backend
+        let session: import('../services/api').CollabSession | null = null;
+        const collabHttpUrl = getCollabWsUrl().replace(/^ws/, 'http');
+        try {
+          const res = await fetch(`${collabHttpUrl}/api/collab/session/${urlCollabToken}`);
+          if (res.ok) session = await res.json();
+        } catch { /* collab server unreachable */ }
+        if (!session) {
+          session = await api.validateCollabSession(urlCollabToken);
+        }
 
-        // Load script content FIRST so the editor can seed the Yjs doc
-        const project = await api.getProject(session.project_id);
-        const scriptResp = await api.getScript(session.project_id, session.script_id);
+        // Load script content FIRST so the editor can seed the Yjs doc.
+        // Try multiple backends (local + alternatives) for cross-backend joins.
+        const backends = [
+          API_BASE,
+          'http://localhost:8000/api',
+          'http://localhost:18321/api',
+        ].filter((v, i, a) => a.indexOf(v) === i);
+
+        let project: any = null;
+        let scriptResp: any = null;
+        for (const base of backends) {
+          try {
+            const pRes = await fetch(`${base}/projects/${session.project_id}`);
+            if (!pRes.ok) continue;
+            project = await pRes.json();
+            const sRes = await fetch(`${base}/projects/${session.project_id}/scripts/${session.script_id}`);
+            if (!sRes.ok) continue;
+            scriptResp = await sRes.json();
+            break;
+          } catch { /* try next */ }
+        }
+        if (!project || !scriptResp) throw new Error('Could not load document from any backend');
 
         // Strip app metadata keys, keep only ProseMirror doc
         const content = scriptResp.content as Record<string, unknown> | null;
@@ -631,16 +660,43 @@ const ScreenplayEditor: React.FC = () => {
   // Join a collab session via pasted link/token (works from app without browser)
   const handleJoinCollab = useCallback(async (session: import('../services/api').CollabSession, token: string) => {
     try {
-      // Load script content to seed the Yjs doc
-      const project = await api.getProject(session.project_id);
-      const scriptResp = await api.getScript(session.project_id, session.script_id);
+      // Load script content to seed the Yjs doc.
+      // Try the local backend first; if the project lives on another backend
+      // (e.g. browser on :8000 vs Tauri sidecar on :18321), try alternatives.
+      const backends = [
+        API_BASE,
+        'http://localhost:8000/api',
+        'http://localhost:18321/api',
+      ].filter((v, i, a) => a.indexOf(v) === i); // deduplicate
+
+      let project: Record<string, unknown> | null = null;
+      let scriptResp: { content: unknown; meta: { title: string } } | null = null;
+
+      for (const base of backends) {
+        try {
+          const pRes = await fetch(`${base}/projects/${session.project_id}`);
+          if (!pRes.ok) continue;
+          project = await pRes.json();
+          const sRes = await fetch(`${base}/projects/${session.project_id}/scripts/${session.script_id}`);
+          if (!sRes.ok) continue;
+          scriptResp = await sRes.json();
+          break;
+        } catch {
+          // This backend unreachable — try next
+        }
+      }
+
+      if (!project || !scriptResp) {
+        showToast('Could not load the collaboration document from any backend', 'error');
+        return;
+      }
 
       const content = scriptResp.content as Record<string, unknown> | null;
       if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
         const { _notes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
         collabInitialContent.current = pmDoc;
       } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
-        collabInitialContent.current = content;
+        collabInitialContent.current = content as Record<string, unknown>;
       }
 
       const nonce = session.session_nonce || '';
@@ -653,7 +709,7 @@ const ScreenplayEditor: React.FC = () => {
       setJoinCollabOpen(false);
       setEditorKey((k) => k + 1);
 
-      setCurrentProject(project);
+      setCurrentProject(project as any);
       setCurrentScriptId(session.script_id);
       setDocumentTitle(scriptResp.meta.title);
 
@@ -662,8 +718,9 @@ const ScreenplayEditor: React.FC = () => {
       } else {
         showToast(`Joined collaboration as ${session.collaborator_name}`, 'success');
       }
-    } catch {
-      showToast('Failed to join collaboration session', 'error');
+    } catch (err) {
+      console.error('[Collab] handleJoinCollab failed:', err);
+      showToast(`Failed to join collaboration: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
   }, [setupCollab, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
@@ -1188,9 +1245,12 @@ const ScreenplayEditor: React.FC = () => {
   }, [editor]);
 
   // --- Auto-save to backend every 30 seconds if a project/script is active ---
+  // Skip for collab guests — they don't own the document and the project may
+  // not exist on their local backend.
   const lastSavedJsonRef = useRef<string>('');
+  const isCollabGuest = collabMode && collabUserName !== 'Host';
   useEffect(() => {
-    if (!editor || !currentProject || !currentScriptId) return;
+    if (!editor || !currentProject || !currentScriptId || isCollabGuest) return;
     const timer = setInterval(() => {
       const content = buildSaveContent();
       if (!content) return;
@@ -1204,7 +1264,7 @@ const ScreenplayEditor: React.FC = () => {
       }
     }, 30000);
     return () => clearInterval(timer);
-  }, [editor, currentProject, currentScriptId, buildSaveContent]);
+  }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
 
   // --- Save on page unload (refresh / close) ---
   // Uses keepalive fetch so the request completes even as the page unloads.
@@ -1212,7 +1272,7 @@ const ScreenplayEditor: React.FC = () => {
   // editor may already be destroyed at that point, and editor.getJSON()
   // would return an empty doc, overwriting the saved file with blank content.
   useEffect(() => {
-    if (!editor || !currentProject || !currentScriptId) return;
+    if (!editor || !currentProject || !currentScriptId || isCollabGuest) return;
     const pid = currentProject.id;
     const sid = currentScriptId;
     const handleBeforeUnload = () => {
@@ -1231,7 +1291,7 @@ const ScreenplayEditor: React.FC = () => {
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [editor, currentProject, currentScriptId, buildSaveContent]);
+  }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
 
   // --- Load script from URL params ---
   // Reset the guard when the editor instance changes so we reload

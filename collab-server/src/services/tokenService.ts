@@ -16,7 +16,7 @@ export function generateAccessToken(userId: string, email: string): string {
   return jwt.sign(payload, config.jwtSecret, { expiresIn: config.jwtAccessExpiry as any });
 }
 
-export function generateRefreshToken(userId: string): { token: string; expiresAt: string } {
+export async function generateRefreshToken(userId: string): Promise<{ token: string; expiresAt: string }> {
   const db = getDB();
   const token = crypto.randomBytes(48).toString('base64url');
   const tokenHash = bcrypt.hashSync(token, 10);
@@ -35,10 +35,11 @@ export function generateRefreshToken(userId: string): { token: string; expiresAt
 
   const expiresAt = new Date(now.getTime() + expiresMs).toISOString();
 
-  db.prepare(`
-    INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, revoked, created_at)
-    VALUES (?, ?, ?, ?, 0, ?)
-  `).run(id, userId, tokenHash, expiresAt, now.toISOString());
+  await db.run(
+    `INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, revoked, created_at)
+     VALUES (?, ?, ?, ?, 0, ?)`,
+    [id, userId, tokenHash, expiresAt, now.toISOString()],
+  );
 
   return { token, expiresAt };
 }
@@ -53,14 +54,15 @@ export function verifyAccessToken(token: string): { sub: string; email: string }
   }
 }
 
-export function rotateRefreshToken(oldToken: string): { accessToken: string; refreshToken: string; userId: string } | null {
+export async function rotateRefreshToken(oldToken: string): Promise<{ accessToken: string; refreshToken: string; userId: string } | null> {
   const db = getDB();
   const now = new Date().toISOString();
 
   // Find all non-revoked, non-expired refresh tokens
-  const rows = db.prepare(
-    'SELECT * FROM refresh_tokens WHERE revoked = 0 AND expires_at > ?'
-  ).all(now) as Array<{ id: string; user_id: string; token_hash: string }>;
+  const rows = await db.all<{ id: string; user_id: string; token_hash: string }>(
+    'SELECT * FROM refresh_tokens WHERE revoked = 0 AND expires_at > ?',
+    [now],
+  );
 
   // Find matching token
   let matchedRow: { id: string; user_id: string } | null = null;
@@ -74,34 +76,35 @@ export function rotateRefreshToken(oldToken: string): { accessToken: string; ref
   if (!matchedRow) return null;
 
   // Revoke old token
-  db.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE id = ?').run(matchedRow.id);
+  await db.run('UPDATE refresh_tokens SET revoked = 1 WHERE id = ?', [matchedRow.id]);
 
   // Look up user for new access token
-  const user = db.prepare('SELECT email FROM users WHERE id = ?').get(matchedRow.user_id) as { email: string } | undefined;
+  const user = await db.get<{ email: string }>('SELECT email FROM users WHERE id = ?', [matchedRow.user_id]);
   if (!user) return null;
 
   // Issue new pair
   const accessToken = generateAccessToken(matchedRow.user_id, user.email);
-  const { token: refreshToken } = generateRefreshToken(matchedRow.user_id);
+  const { token: refreshToken } = await generateRefreshToken(matchedRow.user_id);
 
   return { accessToken, refreshToken, userId: matchedRow.user_id };
 }
 
-export function revokeAllRefreshTokens(userId: string): void {
+export async function revokeAllRefreshTokens(userId: string): Promise<void> {
   const db = getDB();
-  db.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?').run(userId);
+  await db.run('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?', [userId]);
 }
 
-export function revokeRefreshToken(token: string): boolean {
+export async function revokeRefreshToken(token: string): Promise<boolean> {
   const db = getDB();
   const now = new Date().toISOString();
-  const rows = db.prepare(
-    'SELECT * FROM refresh_tokens WHERE revoked = 0 AND expires_at > ?'
-  ).all(now) as Array<{ id: string; token_hash: string }>;
+  const rows = await db.all<{ id: string; token_hash: string }>(
+    'SELECT * FROM refresh_tokens WHERE revoked = 0 AND expires_at > ?',
+    [now],
+  );
 
   for (const row of rows) {
     if (bcrypt.compareSync(token, row.token_hash)) {
-      db.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE id = ?').run(row.id);
+      await db.run('UPDATE refresh_tokens SET revoked = 1 WHERE id = ?', [row.id]);
       return true;
     }
   }

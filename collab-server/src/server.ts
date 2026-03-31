@@ -24,9 +24,6 @@ import * as auditService from './services/auditService';
 import authRoutes from './routes/auth';
 import { standardLimiter } from './middleware/rateLimit';
 
-// ── Initialize database ──
-initDB();
-
 // ── Data directory for Yjs documents ──
 const DATA_DIR = config.dataDir;
 if (!fs.existsSync(DATA_DIR)) {
@@ -60,6 +57,58 @@ async function validateInviteToken(token: string): Promise<CollabSession | null>
     }
   }
   return null;
+}
+
+// ── Connection tracking for WebSocket limits ──
+
+const connectionsPerIp = new Map<string, number>();
+const connectionsPerUser = new Map<string, number>();
+
+function incrementCounter(map: Map<string, number>, key: string): number {
+  const count = (map.get(key) || 0) + 1;
+  map.set(key, count);
+  return count;
+}
+
+function decrementCounter(map: Map<string, number>, key: string): void {
+  const count = (map.get(key) || 1) - 1;
+  if (count <= 0) {
+    map.delete(key);
+  } else {
+    map.set(key, count);
+  }
+}
+
+// ── Document activity tracking for eviction ──
+
+const docLastActivity = new Map<string, number>();
+
+function touchDocument(documentName: string): void {
+  docLastActivity.set(documentName, Date.now());
+}
+
+function startDocumentEviction(): void {
+  const timeoutMinutes = config.docIdleTimeoutMinutes;
+  if (timeoutMinutes <= 0) {
+    console.log('Document eviction: disabled');
+    return;
+  }
+
+  console.log(`Document eviction: idle documents unloaded after ${timeoutMinutes} minutes`);
+
+  setInterval(() => {
+    const now = Date.now();
+    const timeoutMs = timeoutMinutes * 60 * 1000;
+
+    for (const [docName, lastActive] of docLastActivity.entries()) {
+      if (now - lastActive > timeoutMs) {
+        const idleMinutes = Math.round((now - lastActive) / 60_000);
+        console.log(`Evicting idle document: ${docName} (idle ${idleMinutes}m)`);
+        hocuspocus.closeConnections(docName);
+        docLastActivity.delete(docName);
+      }
+    }
+  }, 60 * 1000); // Check every minute
 }
 
 // ── Hocuspocus WebSocket server ──
@@ -116,6 +165,17 @@ const hocuspocus = new Hocuspocus({
       throw new Error('Invalid or expired invite token');
     }
 
+    // Per-user connection limit check
+    const userKey = userId || session.collaborator_name;
+    if (config.wsMaxConnectionsPerUser > 0) {
+      const userCount = connectionsPerUser.get(userKey) || 0;
+      if (userCount >= config.wsMaxConnectionsPerUser) {
+        console.warn(`[onAuthenticate] User connection limit reached for: ${userKey} (${userCount}/${config.wsMaxConnectionsPerUser})`);
+        throw new Error('Too many connections for this user');
+      }
+    }
+    incrementCounter(connectionsPerUser, userKey);
+
     // Store session info in the connection context
     data.context.user = {
       id: userId,
@@ -124,9 +184,10 @@ const hocuspocus = new Hocuspocus({
       projectId: session.project_id,
       scriptId: session.script_id,
       role: session.role || 'editor',
+      _connKey: userKey, // internal: for tracking disconnections
     };
 
-    auditService.logEvent('connect', userId, data.documentName, {
+    await auditService.logEvent('connect', userId, data.documentName, {
       name: session.collaborator_name,
       role: session.role,
     });
@@ -135,12 +196,19 @@ const hocuspocus = new Hocuspocus({
   async onConnect(data: onConnectPayload) {
     const user = data.context?.user;
     console.log(`Client connected to document: ${data.documentName} (${user?.name || 'unknown'}, role: ${user?.role || 'unknown'})`);
+    touchDocument(data.documentName);
   },
 
   async onDisconnect(data: onDisconnectPayload) {
     const user = data.context?.user;
     console.log(`Client disconnected from document: ${data.documentName} (${user?.name || 'unknown'})`);
-    auditService.logEvent('disconnect', user?.id || null, data.documentName, {
+
+    // Decrement per-user connection counter
+    if (user?._connKey) {
+      decrementCounter(connectionsPerUser, user._connKey);
+    }
+
+    await auditService.logEvent('disconnect', user?.id || null, data.documentName, {
       name: user?.name,
     });
   },
@@ -152,6 +220,7 @@ const hocuspocus = new Hocuspocus({
     if (data.context?.user?.role === 'viewer') {
       return;
     }
+    touchDocument(data.documentName);
   },
 
   async onLoadDocument(data: onLoadDocumentPayload) {
@@ -170,7 +239,8 @@ const hocuspocus = new Hocuspocus({
       console.log(`New document (no persisted state): ${data.documentName}`);
     }
 
-    auditService.logEvent('document_load', null, data.documentName);
+    touchDocument(data.documentName);
+    await auditService.logEvent('document_load', null, data.documentName);
     return data.document;
   },
 
@@ -185,7 +255,7 @@ const hocuspocus = new Hocuspocus({
       console.error(`Failed to store document ${data.documentName}:`, err);
     }
 
-    auditService.logEvent('document_store', null, data.documentName);
+    await auditService.logEvent('document_store', null, data.documentName);
   },
 });
 
@@ -201,9 +271,42 @@ app.use(standardLimiter);
 // Auth routes
 app.use('/auth', authRoutes);
 
-// Health check
+// Validate a collab session token (tries all configured backends)
+// Used by the frontend to validate tokens regardless of which backend created them
+app.get('/api/collab/session/:token', async (req, res) => {
+  const session = await validateInviteToken(req.params.token);
+  if (!session) {
+    res.status(404).json({ error: 'Invalid or expired invite' });
+    return;
+  }
+  res.json(session);
+});
+
+// Health check with memory & connection stats
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'opendraft-collab' });
+  const mem = process.memoryUsage();
+  const totalWsConnections = Array.from(connectionsPerIp.values()).reduce((a, b) => a + b, 0);
+
+  res.json({
+    status: 'ok',
+    service: 'opendraft-collab',
+    uptime: Math.round(process.uptime()),
+    database: config.dbType,
+    memory: {
+      rss_mb: Math.round(mem.rss / 1024 / 1024),
+      heap_used_mb: Math.round(mem.heapUsed / 1024 / 1024),
+      heap_total_mb: Math.round(mem.heapTotal / 1024 / 1024),
+      external_mb: Math.round(mem.external / 1024 / 1024),
+    },
+    documents: {
+      tracked: docLastActivity.size,
+    },
+    connections: {
+      total: totalWsConnections,
+      unique_ips: connectionsPerIp.size,
+      unique_users: connectionsPerUser.size,
+    },
+  });
 });
 
 // Reset a document's persisted Yjs state (called by host before starting a new collab session)
@@ -238,6 +341,7 @@ app.post('/api/reset-document', async (req, res) => {
     console.log(`Document reset (file deleted): ${documentName}`);
   }
 
+  docLastActivity.delete(documentName);
   res.json({ status: 'ok' });
 });
 
@@ -262,38 +366,72 @@ app.post('/api/close-document', async (req, res) => {
     console.log(`Document file deleted: ${documentName}`);
   }
 
+  docLastActivity.delete(documentName);
   res.json({ status: 'ok' });
 });
 
-// ── HTTP(S) server with WebSocket upgrade ──
+// ── Bootstrap: init DB then start HTTP(S) server ──
 
-const PORT = config.port;
-let httpServer: http.Server | https.Server;
+async function main(): Promise<void> {
+  // Initialize database (async — needed for PostgreSQL)
+  await initDB();
 
-if (config.tlsCert && config.tlsKey) {
-  const cert = fs.readFileSync(config.tlsCert);
-  const key = fs.readFileSync(config.tlsKey);
-  httpServer = https.createServer({ cert, key }, app);
-  console.log('TLS enabled (wss://)');
-} else {
-  httpServer = http.createServer(app);
-  console.log('TLS disabled (ws://)');
+  const PORT = config.port;
+  let httpServer: http.Server | https.Server;
+
+  if (config.tlsCert && config.tlsKey) {
+    const cert = fs.readFileSync(config.tlsCert);
+    const key = fs.readFileSync(config.tlsKey);
+    httpServer = https.createServer({ cert, key }, app);
+    console.log('TLS enabled (wss://)');
+  } else {
+    httpServer = http.createServer(app);
+    console.log('TLS disabled (ws://)');
+  }
+
+  // WebSocket server (noServer mode — we handle upgrade manually)
+  const wss = new WebSocketServer({ noServer: true });
+
+  httpServer.on('upgrade', (request, socket, head) => {
+    // Per-IP connection limit check
+    const ip = request.socket.remoteAddress || 'unknown';
+    if (config.wsMaxConnectionsPerIp > 0) {
+      const ipCount = connectionsPerIp.get(ip) || 0;
+      if (ipCount >= config.wsMaxConnectionsPerIp) {
+        console.warn(`[upgrade] IP connection limit reached for: ${ip} (${ipCount}/${config.wsMaxConnectionsPerIp})`);
+        socket.write('HTTP/1.1 429 Too Many Requests\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+    }
+
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      incrementCounter(connectionsPerIp, ip);
+
+      ws.on('close', () => {
+        decrementCounter(connectionsPerIp, ip);
+      });
+
+      // Pass the upgraded WebSocket connection to Hocuspocus
+      hocuspocus.handleConnection(ws, request);
+    });
+  });
+
+  // Start document eviction timer
+  startDocumentEviction();
+
+  httpServer.listen(PORT, () => {
+    const protocol = config.tlsCert ? 'wss' : 'ws';
+    console.log(`OpenDraft Collaboration Server running on port ${PORT}`);
+    console.log(`  WebSocket: ${protocol}://localhost:${PORT}`);
+    console.log(`  REST API:  ${config.tlsCert ? 'https' : 'http'}://localhost:${PORT}`);
+    console.log(`  Backend:   ${config.backendUrl}`);
+    console.log(`  Database:  ${config.dbType}`);
+    console.log(`  WS limits: ${config.wsMaxConnectionsPerIp}/IP, ${config.wsMaxConnectionsPerUser}/user`);
+  });
 }
 
-// WebSocket server (noServer mode — we handle upgrade manually)
-const wss = new WebSocketServer({ noServer: true });
-
-httpServer.on('upgrade', (request, socket, head) => {
-  wss.handleUpgrade(request, socket, head, (ws) => {
-    // Pass the upgraded WebSocket connection to Hocuspocus
-    hocuspocus.handleConnection(ws, request);
-  });
-});
-
-httpServer.listen(PORT, () => {
-  const protocol = config.tlsCert ? 'wss' : 'ws';
-  console.log(`OpenDraft Collaboration Server running on port ${PORT}`);
-  console.log(`  WebSocket: ${protocol}://localhost:${PORT}`);
-  console.log(`  REST API:  ${config.tlsCert ? 'https' : 'http'}://localhost:${PORT}`);
-  console.log(`  Backend:   ${config.backendUrl}`);
+main().catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });
