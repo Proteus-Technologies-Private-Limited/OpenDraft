@@ -590,22 +590,22 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.3.1</div>
+            <div className="about-version">Version 0.4.0</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.3.1</div>
+              <div className="about-section-title">What's New in 0.4.0</div>
               <ul className="about-list">
-                <li><strong>Track Changes</strong> — Compare your script against any checked-in version with inline insertions (green) and deletions (red strikethrough). Editable while viewing changes.</li>
-                <li><strong>Git History Viewer</strong> — View any version of your script in full read-only editor mode with clear visual feedback.</li>
-                <li><strong>Entity-Based Tagging</strong> — Tag reusable entities (props, sets, costumes) across multiple scenes. Same entity, multiple occurrences, shared notes.</li>
-                <li><strong>Location Navigator</strong> — Locations auto-extracted from scene headings with batch rename across the entire script.</li>
-                <li><strong>Scene Reordering</strong> — Drag and drop scenes in Index Cards view to rearrange your script structure.</li>
-                <li><strong>Dark / Light Theme</strong> — Switch via View menu. Editor page stays white in both themes.</li>
-                <li><strong>Page Setup</strong> — Configure page size, margins, and header/footer from File menu.</li>
-                <li><strong>Project Organization</strong> — Drag-drop, pin, color-code, and sort projects and scripts.</li>
-                <li><strong>Print Fix</strong> — Multi-page printing now works correctly.</li>
-                <li><strong>Draggable Find &amp; Replace</strong> — Move the search panel anywhere on screen.</li>
+                <li><strong>Card View</strong> — Toggle between list and card view for screenplays with content previews and drag-and-drop reorder.</li>
+                <li><strong>Inline Rename</strong> — Double-click any project or screenplay name to rename it in place.</li>
+                <li><strong>Duplicate Screenplay</strong> — One-click duplicate from the actions menu.</li>
+                <li><strong>Export from File List</strong> — Export any screenplay as FDX, Fountain, PDF, or native .odraft directly from the project view.</li>
+                <li><strong>Native .odraft Format</strong> — Lossless import/export in OpenDraft's own format for easy sharing and backup.</li>
+                <li><strong>Zip Import/Export</strong> — Export an entire project as a zip archive, or import a zip to create a new project.</li>
+                <li><strong>Pinned Section</strong> — Pinned projects and screenplays now appear in a dedicated section at the top. Sorting only applies to unpinned items.</li>
+                <li><strong>Improved Readability</strong> — Larger fonts and better spacing throughout the project and file lists.</li>
+                <li><strong>Actions Menu</strong> — Three-dot menu on each screenplay with rename, duplicate, export, and delete options.</li>
+                <li><strong>Light Theme Fix</strong> — Project properties dialog now displays correctly in light theme.</li>
               </ul>
             </div>
           </div>
