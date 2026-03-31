@@ -590,11 +590,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.3.0</div>
+            <div className="about-version">Version 0.3.1</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.3.0</div>
+              <div className="about-section-title">What's New in 0.3.1</div>
               <ul className="about-list">
                 <li><strong>Track Changes</strong> — Compare your script against any checked-in version with inline insertions (green) and deletions (red strikethrough). Editable while viewing changes.</li>
                 <li><strong>Git History Viewer</strong> — View any version of your script in full read-only editor mode with clear visual feedback.</li>
