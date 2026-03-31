@@ -4,64 +4,70 @@ import { getDB } from '../db';
 import type { UserRow } from '../db';
 import { config } from '../config';
 
-export function createUser(email: string, password: string, displayName: string): UserRow {
+export async function createUser(email: string, password: string, displayName: string): Promise<UserRow> {
   const db = getDB();
   const id = uuidv4();
   const now = new Date().toISOString();
   const passwordHash = bcrypt.hashSync(password, config.bcryptRounds);
 
-  db.prepare(`
-    INSERT INTO users (id, email, email_verified, password_hash, display_name, created_at, updated_at)
-    VALUES (?, ?, 0, ?, ?, ?, ?)
-  `).run(id, email.toLowerCase(), passwordHash, displayName, now, now);
+  await db.run(
+    `INSERT INTO users (id, email, email_verified, password_hash, display_name, created_at, updated_at)
+     VALUES (?, ?, 0, ?, ?, ?, ?)`,
+    [id, email.toLowerCase(), passwordHash, displayName, now, now],
+  );
 
-  return findUserById(id)!;
+  return (await findUserById(id))!;
 }
 
-export function findUserByEmail(email: string): UserRow | null {
+export async function findUserByEmail(email: string): Promise<UserRow | null> {
   const db = getDB();
-  return db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase()) as UserRow | undefined || null;
+  const row = await db.get<UserRow>('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+  return row ?? null;
 }
 
-export function findUserById(id: string): UserRow | null {
+export async function findUserById(id: string): Promise<UserRow | null> {
   const db = getDB();
-  return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow | undefined || null;
+  const row = await db.get<UserRow>('SELECT * FROM users WHERE id = ?', [id]);
+  return row ?? null;
 }
 
-export function findOrCreateGoogleUser(googleId: string, email: string, displayName: string): UserRow {
+export async function findOrCreateGoogleUser(googleId: string, email: string, displayName: string): Promise<UserRow> {
   const db = getDB();
 
   // Check if user exists by google_id
-  const existing = db.prepare('SELECT * FROM users WHERE google_id = ?').get(googleId) as UserRow | undefined;
+  const existing = await db.get<UserRow>('SELECT * FROM users WHERE google_id = ?', [googleId]);
   if (existing) return existing;
 
   // Check if user exists by email (link accounts)
-  const emailUser = findUserByEmail(email);
+  const emailUser = await findUserByEmail(email);
   if (emailUser) {
     const now = new Date().toISOString();
-    db.prepare('UPDATE users SET google_id = ?, email_verified = 1, updated_at = ? WHERE id = ?')
-      .run(googleId, now, emailUser.id);
-    return findUserById(emailUser.id)!;
+    await db.run(
+      'UPDATE users SET google_id = ?, email_verified = 1, updated_at = ? WHERE id = ?',
+      [googleId, now, emailUser.id],
+    );
+    return (await findUserById(emailUser.id))!;
   }
 
   // Create new user
   const id = uuidv4();
   const now = new Date().toISOString();
-  db.prepare(`
-    INSERT INTO users (id, email, email_verified, google_id, display_name, created_at, updated_at)
-    VALUES (?, ?, 1, ?, ?, ?, ?)
-  `).run(id, email.toLowerCase(), googleId, displayName, now, now);
+  await db.run(
+    `INSERT INTO users (id, email, email_verified, google_id, display_name, created_at, updated_at)
+     VALUES (?, ?, 1, ?, ?, ?, ?)`,
+    [id, email.toLowerCase(), googleId, displayName, now, now],
+  );
 
-  return findUserById(id)!;
+  return (await findUserById(id))!;
 }
 
-export function verifyPassword(user: UserRow, password: string): boolean {
+export async function verifyPassword(user: UserRow, password: string): Promise<boolean> {
   if (!user.password_hash) return false;
   return bcrypt.compareSync(password, user.password_hash);
 }
 
-export function setEmailVerified(userId: string): void {
+export async function setEmailVerified(userId: string): Promise<void> {
   const db = getDB();
   const now = new Date().toISOString();
-  db.prepare('UPDATE users SET email_verified = 1, updated_at = ? WHERE id = ?').run(now, userId);
+  await db.run('UPDATE users SET email_verified = 1, updated_at = ? WHERE id = ?', [now, userId]);
 }

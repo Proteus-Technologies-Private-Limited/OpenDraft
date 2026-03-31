@@ -26,6 +26,7 @@
     "nodemailer": "^8.0.4",
     "uuid": "^13.0.0",
     "ws": "^8.20.0",
+    "pg": "^8.16.0",
     "yjs": "^13.6.30",
     "zod": "^4.3.6"
   },
@@ -37,6 +38,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.5.0",
     "@types/nodemailer": "^7.0.11",
+    "@types/pg": "^8.15.4",
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.18.1",
     "ts-node": "^10.9.2",

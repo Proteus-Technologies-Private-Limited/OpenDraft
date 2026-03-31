@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../services/api';
 import type { CollabSession } from '../services/api';
+import { getCollabWsUrl } from '../config';
 import { showToast } from './Toast';
 
 interface JoinCollabDialogProps {
@@ -9,21 +10,33 @@ interface JoinCollabDialogProps {
 }
 
 /**
- * Extract the collab token from a pasted link or raw token.
+ * Extract the collab token and originating server base URL from a pasted link.
  * Supports formats:
  *   - Full URL: http://localhost:8000/collab/TOKEN
  *   - Full URL: https://example.com/collab/TOKEN
  *   - Path only: /collab/TOKEN
  *   - Raw token: TOKEN
+ *
+ * Returns { token, baseUrl } where baseUrl is the API base of the server that
+ * created the invite (e.g. "http://localhost:8000/api") or null for raw tokens.
  */
-function extractToken(input: string): string {
+function extractTokenAndBase(input: string): { token: string; baseUrl: string | null } {
   const trimmed = input.trim();
   // Try to match /collab/<token> in a URL or path
   const match = trimmed.match(/\/collab\/([A-Za-z0-9_-]+)/);
-  if (match) return match[1];
+  if (match) {
+    // Try to extract the origin from a full URL
+    try {
+      const url = new URL(trimmed);
+      return { token: match[1], baseUrl: `${url.origin}/api` };
+    } catch {
+      // Path only — no origin available
+      return { token: match[1], baseUrl: null };
+    }
+  }
   // If no slashes, treat the whole thing as a raw token
-  if (!trimmed.includes('/') && trimmed.length > 10) return trimmed;
-  return trimmed;
+  if (!trimmed.includes('/') && trimmed.length > 10) return { token: trimmed, baseUrl: null };
+  return { token: trimmed, baseUrl: null };
 }
 
 const JoinCollabDialog: React.FC<JoinCollabDialogProps> = ({ onJoin, onClose }) => {
@@ -36,7 +49,7 @@ const JoinCollabDialog: React.FC<JoinCollabDialogProps> = ({ onJoin, onClose }) 
   }, []);
 
   const handleJoin = async () => {
-    const token = extractToken(linkInput);
+    const { token } = extractTokenAndBase(linkInput);
     if (!token) {
       showToast('Please paste a collaboration link or token', 'error');
       return;
@@ -44,7 +57,23 @@ const JoinCollabDialog: React.FC<JoinCollabDialogProps> = ({ onJoin, onClose }) 
 
     setJoining(true);
     try {
-      const session = await api.validateCollabSession(token);
+      let session: CollabSession | null = null;
+
+      // Try the collab server first — it validates against ALL configured backends
+      // (handles cross-backend scenarios: e.g. browser on :8000, Tauri on :18321)
+      const collabHttpUrl = getCollabWsUrl().replace(/^ws/, 'http');
+      try {
+        const res = await fetch(`${collabHttpUrl}/api/collab/session/${token}`);
+        if (res.ok) session = await res.json();
+      } catch {
+        // Collab server unreachable — fall through to local backend
+      }
+
+      // Fall back to the local backend
+      if (!session) {
+        session = await api.validateCollabSession(token);
+      }
+
       onJoin(session, token);
     } catch {
       showToast('Invalid or expired collaboration link', 'error');
