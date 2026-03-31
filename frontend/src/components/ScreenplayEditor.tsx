@@ -218,15 +218,25 @@ const ScreenplayEditor: React.FC = () => {
     setCollabUsers([]);
   }, []);
 
-  // Create Yjs doc + provider synchronously (so refs are ready when editor memo runs)
+  // Guard to prevent duplicate collab-exit handling (awareness fires multiple
+  // times, and onAuthenticationFailed may also fire after session-ended).
+  const collabExitingRef = useRef(false);
+
   // Called when host broadcasts session-ended — guest auto-disconnects
   const handleSessionEnded = useCallback(() => {
+    if (collabExitingRef.current) return;
+    collabExitingRef.current = true;
     showToast('The host has ended the collaboration session', 'info');
     destroyCollab();
     setCollabMode(false);
     setCollabRole('editor');
+    // Clear project context so sample content can't overwrite the real file on save
+    setCurrentProject(null);
+    setCurrentScriptId(null);
+    setDocumentTitle('Untitled Screenplay');
     setEditorKey((k) => k + 1);
-  }, [destroyCollab]);
+    navigate('/');
+  }, [destroyCollab, navigate, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
   const handleSessionEndedRef = useRef(handleSessionEnded);
   handleSessionEndedRef.current = handleSessionEnded;
@@ -236,6 +246,7 @@ const ScreenplayEditor: React.FC = () => {
 
   const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string, isHost = false) => {
     destroyCollab();
+    collabExitingRef.current = false;
     const ydoc = new Y.Doc();
 
     // Build compound token: "jwt:<access>|invite:<invite>" when auth is available and valid
@@ -290,6 +301,12 @@ const ScreenplayEditor: React.FC = () => {
         // Ignore auth failures from a stale provider (e.g. old provider fires
         // after host switched documents and a new provider replaced it)
         if (providerRef.current !== provider) return;
+        // Skip if session-ended already handled the exit
+        if (collabExitingRef.current) {
+          provider.disconnect();
+          return;
+        }
+        collabExitingRef.current = true;
 
         console.error(`[Collab] Auth FAILED for "${docName}": ${reason}`);
         const isSessionEnded = reason?.includes('expired') || reason?.includes('Invalid');
@@ -305,7 +322,14 @@ const ScreenplayEditor: React.FC = () => {
           destroyCollab();
           setCollabMode(false);
           setCollabRole('editor');
+          if (!isHost) {
+            // Clear project context so sample content can't overwrite the real file
+            setCurrentProject(null);
+            setCurrentScriptId(null);
+            setDocumentTitle('Untitled Screenplay');
+          }
           setEditorKey((k) => k + 1);
+          if (!isHost) navigate('/');
         }, 0);
       },
       onAwarenessUpdate: ({ states }) => {
@@ -481,6 +505,23 @@ const ScreenplayEditor: React.FC = () => {
   const handleStopCollab = useCallback(async () => {
     const isHost = collabUserName === 'Host';
 
+    // Host: save the latest editor content before tearing down collab so it's not lost
+    const ed = collabEditorRef.current;
+    if (isHost && ed && !ed.isDestroyed && currentProject && currentScriptId) {
+      const doc = ed.getJSON();
+      const store = useEditorStore.getState();
+      const content = {
+        ...doc,
+        _notes: store.notes,
+        _tags: store.tags,
+        _tagCategories: store.tagCategories,
+        _characterProfiles: store.characterProfiles,
+      };
+      try {
+        await api.saveScript(currentProject.id, currentScriptId, { content });
+      } catch { /* best-effort — auto-save will catch up */ }
+    }
+
     if (isHost && currentProject && currentScriptId) {
       // Host: broadcast session-ended to all connected guests via awareness
       if (providerRef.current) {
@@ -508,12 +549,23 @@ const ScreenplayEditor: React.FC = () => {
     destroyCollab();
     setCollabMode(false);
     setCollabRole('editor');
-    setEditorKey((k) => k + 1);
 
-    if (isHost) {
+    if (isHost && currentProject && currentScriptId) {
+      // Navigate to the project URL so the content-loading effect reloads the saved file
+      navigate(`/project/${currentProject.id}/edit/${currentScriptId}`);
       showToast('Collaboration session ended', 'success');
+    } else if (isHost) {
+      setEditorKey((k) => k + 1);
+      showToast('Collaboration session ended', 'success');
+    } else {
+      // Clear project context so sample content can't overwrite the real file
+      setCurrentProject(null);
+      setCurrentScriptId(null);
+      setDocumentTitle('Untitled Screenplay');
+      setEditorKey((k) => k + 1);
+      navigate('/');
     }
-  }, [destroyCollab, collabUserName, collabColor, currentProject, currentScriptId]);
+  }, [destroyCollab, collabUserName, collabColor, currentProject, currentScriptId, navigate, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
   // Host switches to a different document while collab is active
   const switchCollabDocument = useCallback(async (newProjectId: string, newScriptId: string) => {
@@ -780,10 +832,8 @@ const ScreenplayEditor: React.FC = () => {
   // Build collaboration extensions when in collab mode
   const collabExtensions = useMemo(() => {
     if (!collabMode || !ydocRef.current || !providerRef.current) {
-      console.log(`[Collab] collabExtensions: EMPTY (collabMode=${collabMode}, ydoc=${!!ydocRef.current}, provider=${!!providerRef.current})`);
       return [];
     }
-    console.log(`[Collab] collabExtensions: Collaboration + Cursor configured, hasInitialContent=${!!collabInitialContent.current}`);
     return [
       Collaboration.configure({
         document: ydocRef.current,
@@ -877,7 +927,7 @@ const ScreenplayEditor: React.FC = () => {
 
     setCollabUserName('Host');
     setCollabMode(true);
-    setShareDialogOpen(false);
+    // Keep ShareDialog open so the host can immediately copy the invite link
     setEditorKey((k) => k + 1);
   }, [editor, currentProject, currentScriptId, setupCollab]);
 
@@ -1735,12 +1785,30 @@ const ScreenplayEditor: React.FC = () => {
         <div className="collab-banner">
           <span className="collab-dot" />
           <span className="collab-banner-text">
-            Live Collaboration — Editing as <strong>{collabUserName}</strong>
+            Live Collaboration — {collabRole === 'viewer' ? 'Read Only' : 'Editing'} as <strong>{collabUserName}</strong>
             {collabUsers.length > 0 && ` — ${collabUsers.length} user${collabUsers.length !== 1 ? 's' : ''} connected`}
           </span>
           <div className="collab-avatars">
             {collabUsers.map((u, i) => (
-              <span key={i} className="collab-avatar" style={{ backgroundColor: u.color }} title={u.name}>
+              <span
+                key={i}
+                className="collab-avatar"
+                style={{ backgroundColor: u.color, cursor: 'pointer' }}
+                title={`Click to jump to ${u.name}'s cursor`}
+                onClick={() => {
+                  // Find the collaboration cursor label matching this user and scroll to it
+                  const labels = document.querySelectorAll('.collaboration-cursor__label');
+                  for (const label of labels) {
+                    if (label.textContent === u.name) {
+                      const caret = label.closest('.collaboration-cursor__caret');
+                      if (caret) {
+                        caret.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }
+                      return;
+                    }
+                  }
+                }}
+              >
                 {u.name.charAt(0).toUpperCase()}
               </span>
             ))}
