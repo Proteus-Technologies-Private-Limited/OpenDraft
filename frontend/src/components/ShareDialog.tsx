@@ -78,7 +78,9 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
         return;
       }
 
-      const session = await api.createCollabInvite(projectId, scriptId, trimmed, role, expiryHours);
+      // Reuse the session nonce from the first invite so all guests join the same Yjs room
+      const existingNonce = sessions.length > 0 ? sessions[0].session_nonce || '' : '';
+      const session = await api.createCollabInvite(projectId, scriptId, trimmed, role, expiryHours, existingNonce);
       setSessions((prev) => [...prev, session]);
       setName('');
       inputRef.current?.focus();
@@ -171,7 +173,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
               onClick={handleGenerate}
               disabled={!name.trim() || generating}
             >
-              {generating ? 'Creating...' : 'Generate Link'}
+              {generating ? 'Creating...' : 'Invite'}
             </button>
           </div>
 

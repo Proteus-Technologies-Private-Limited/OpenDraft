@@ -144,9 +144,11 @@ const hocuspocus = new Hocuspocus({
   },
 
   async onChange(data: onChangePayload) {
-    // Enforce viewer role — reject writes
+    // Viewers may trigger onChange during initial Yjs sync (the Collaboration
+    // extension seeds the fragment even with editable:false).  Silently ignore
+    // these instead of crashing the server.
     if (data.context?.user?.role === 'viewer') {
-      throw new Error('Viewer cannot edit');
+      return;
     }
   },
 

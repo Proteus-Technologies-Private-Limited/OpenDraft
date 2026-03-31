@@ -168,6 +168,46 @@
 [data-theme="light"] .dialog-actions button:hover {
   background: var(--fd-menu-hover);
 }
+/* Light theme: dialog buttons */
+[data-theme="light"] .dialog-btn {
+  background: var(--fd-toolbar-bg);
+  color: var(--fd-text);
+  border-color: var(--fd-border);
+}
+[data-theme="light"] .dialog-btn:hover {
+  background: var(--fd-menu-hover);
+}
+[data-theme="light"] .dialog-btn-primary {
+  background: var(--fd-accent);
+  border-color: var(--fd-accent);
+  color: #fff;
+}
+[data-theme="light"] .dialog-btn-primary:hover {
+  background: var(--fd-accent);
+  opacity: .85;
+}
+[data-theme="light"] .dialog-footer button {
+  background: var(--fd-toolbar-bg);
+  color: var(--fd-text);
+  border-color: var(--fd-border);
+}
+[data-theme="light"] .dialog-footer button:hover {
+  background: var(--fd-menu-hover);
+}
+[data-theme="light"] .collab-copy-btn {
+  background: var(--fd-toolbar-bg);
+  color: var(--fd-text);
+  border-color: var(--fd-border);
+}
+[data-theme="light"] .collab-copy-btn:hover {
+  background: var(--fd-menu-hover);
+}
+[data-theme="light"] .collab-revoke-btn {
+  color: #c62828;
+}
+[data-theme="light"] .collab-revoke-btn:hover {
+  background: #ffebee;
+}
 /* Light theme: context menu */
 [data-theme="light"] .ctx-menu {
   background: var(--fd-menu-bg);
@@ -840,6 +880,23 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .dialog-actions button:hover { background: var(--fd-menu-hover); }
 .dialog-primary { background: var(--fd-accent) !important; border-color: var(--fd-accent) !important; color: #fff !important; }
 .dialog-primary:hover { opacity: .9; }
+.dialog-btn {
+  height: 34px; padding: 0 18px; background: var(--fd-toolbar-bg); color: var(--fd-text);
+  border: 1px solid var(--fd-border); border-radius: 4px; cursor: pointer; font-size: 14px;
+}
+.dialog-btn:hover { background: var(--fd-toolbar-hover); }
+.dialog-btn-primary {
+  background: var(--fd-accent); border-color: var(--fd-accent); color: #fff;
+}
+.dialog-btn-primary:hover { opacity: .9; }
+.dialog-btn-primary:disabled { opacity: .5; cursor: default; }
+.dialog-label { display: block; font-size: 13px; color: var(--fd-text-muted); margin-bottom: 4px; }
+.dialog-input {
+  height: 34px; background: var(--fd-input-bg); color: var(--fd-text);
+  border: 1px solid var(--fd-border); border-radius: 4px; padding: 0 10px;
+  font-size: 14px; outline: none; width: 100%; box-sizing: border-box;
+}
+.dialog-input:focus { border-color: var(--fd-accent); }
 
 /* ============ ABOUT DIALOG ============ */
 .about-dialog {
