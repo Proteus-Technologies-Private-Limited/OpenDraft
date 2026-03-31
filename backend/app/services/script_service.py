@@ -47,7 +47,30 @@ def create_script(
     return {"meta": meta, "content": script_content}
 
 
-def list_scripts(project_id: str) -> list[dict]:
+def _extract_preview(content: dict, max_chars: int = 200) -> str:
+    """Extract plain text preview from TipTap JSON content."""
+    if not content or "content" not in content:
+        return ""
+    texts: list[str] = []
+    char_count = 0
+    for node in content.get("content", []):
+        if char_count >= max_chars:
+            break
+        line_parts: list[str] = []
+        for child in node.get("content", []):
+            if child.get("type") == "text":
+                t = child.get("text", "")
+                line_parts.append(t)
+                char_count += len(t)
+                if char_count >= max_chars:
+                    break
+        if line_parts:
+            texts.append("".join(line_parts))
+    result = "\n".join(texts)
+    return result[:max_chars]
+
+
+def list_scripts(project_id: str, include_preview: bool = False) -> list[dict]:
     """List all script metadata in a project, enriched with file size."""
     scripts_path = _scripts_dir(project_id)
 
@@ -62,6 +85,13 @@ def list_scripts(project_id: str) -> list[dict]:
         data.setdefault("color", "")
         data.setdefault("pinned", False)
         data.setdefault("sort_order", 0)
+        data.setdefault("preview", "")
+        if include_preview and content_file.exists():
+            try:
+                content = json.loads(content_file.read_text(encoding="utf-8"))
+                data["preview"] = _extract_preview(content)
+            except Exception:
+                data["preview"] = ""
         metas.append(data)
     return metas
 
@@ -125,6 +155,42 @@ def update_script(
     meta.setdefault("sort_order", 0)
 
     return {"meta": meta, "content": current_content}
+
+
+def duplicate_script(project_id: str, script_id: str) -> dict:
+    """Duplicate a script with a new UUID and '(Copy)' title suffix."""
+    original = get_script(project_id, script_id)
+    scripts_path = _scripts_dir(project_id)
+
+    new_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Determine next sort_order
+    existing = list_scripts(project_id)
+    max_order = max((s.get("sort_order", 0) for s in existing), default=0)
+
+    meta = {
+        "id": new_id,
+        "title": f"{original['meta'].get('title', 'Untitled')} (Copy)",
+        "author": original["meta"].get("author", ""),
+        "format": original["meta"].get("format", "json"),
+        "created_at": now,
+        "updated_at": now,
+        "color": original["meta"].get("color", ""),
+        "pinned": False,
+        "sort_order": max_order + 1,
+    }
+
+    content = original.get("content", {})
+
+    (scripts_path / f"{new_id}.meta.json").write_text(
+        json.dumps(meta, indent=2), encoding="utf-8"
+    )
+    (scripts_path / f"{new_id}.json").write_text(
+        json.dumps(content, indent=2), encoding="utf-8"
+    )
+
+    return {"meta": meta, "content": content}
 
 
 def delete_script(project_id: str, script_id: str) -> None:

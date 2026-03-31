@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   DndContext,
@@ -12,12 +12,19 @@ import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
+  rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { api } from '../services/api';
 import type { ProjectInfo, ScriptMeta, VersionInfo } from '../services/api';
 import { parseFountain } from '../utils/fountainParser';
 import { parseFDXFull } from '../utils/fdxParser';
+import { downloadFDX } from '../utils/fdxExporter';
+import { downloadFountain } from '../utils/fountainExporter';
+import { exportPDF } from '../utils/pdfExporter';
+import { downloadOdraft, parseOdraft } from '../utils/odraftFormat';
+import { exportProjectAsZip } from '../utils/zipExport';
+import { DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import AssetManager from './AssetManager';
 import ProjectPropertiesDialog from './ProjectPropertiesDialog';
 import { showToast } from './Toast';
@@ -41,6 +48,9 @@ interface SortableScriptRowProps {
   onPin: (id: string, pinned: boolean) => void;
   onColor: (id: string, color: string) => void;
   onDelete: (id: string) => void;
+  onRename: (id: string, title: string) => void;
+  onDuplicate: (id: string) => void;
+  onExport: (id: string, format: string) => void;
   formatDate: (iso: string) => string;
   formatSize: (bytes: number) => string;
 }
@@ -52,6 +62,9 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
   onPin,
   onColor,
   onDelete,
+  onRename,
+  onDuplicate,
+  onExport,
   formatDate,
   formatSize,
 }) => {
@@ -65,6 +78,32 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
   } = useSortable({ id: script.id, disabled: sortKey !== 'custom' });
 
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showActions, setShowActions] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(script.title);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!showActions) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (rowRef.current && !rowRef.current.contains(e.target as Node)) {
+        setShowActions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showActions]);
+
+  const handleRenameSubmit = () => {
+    const trimmed = editTitle.trim();
+    if (trimmed && trimmed !== script.title) {
+      onRename(script.id, trimmed);
+    } else {
+      setEditTitle(script.title);
+    }
+    setEditing(false);
+  };
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -75,7 +114,7 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => { setNodeRef(node); (rowRef as React.MutableRefObject<HTMLDivElement | null>).current = node; }}
       style={style}
       className={`project-script-item${script.pinned ? ' pinned' : ''}`}
     >
@@ -94,8 +133,29 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
         </div>
       )}
 
-      <div className="project-script-info" onClick={() => onNavigate(script.id)}>
-        <div className="project-script-title">{script.title}</div>
+      <div className="project-script-info" onClick={() => { if (showActions) { setShowActions(false); return; } if (!editing) onNavigate(script.id); }}>
+        {editing ? (
+          <input
+            className="inline-rename-input"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRenameSubmit();
+              if (e.key === 'Escape') { setEditTitle(script.title); setEditing(false); }
+            }}
+            onBlur={handleRenameSubmit}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+          />
+        ) : (
+          <div
+            className="project-script-title"
+            onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); setEditTitle(script.title); }}
+            title="Double-click to rename"
+          >
+            {script.title}
+          </div>
+        )}
         <div className="project-script-meta">
           <span>Created {formatDate(script.created_at)}</span>
           <span className="project-card-dot">&middot;</span>
@@ -131,13 +191,28 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
           />
         </button>
         <button
-          className="project-script-delete"
-          onClick={() => onDelete(script.id)}
-          title="Delete script"
+          className="card-action-btn more-btn"
+          onClick={() => setShowActions(!showActions)}
+          title="More actions"
         >
-          &#x2715;
+          &#x22EE;
         </button>
       </div>
+
+      {/* Actions dropdown */}
+      {showActions && (
+        <div className="script-actions-dropdown" onClick={(e) => e.stopPropagation()}>
+          <div className="dropdown-item" onClick={() => { setEditing(true); setEditTitle(script.title); setShowActions(false); }}>Rename</div>
+          <div className="dropdown-item" onClick={() => { onDuplicate(script.id); setShowActions(false); }}>Duplicate</div>
+          <div className="dropdown-separator" />
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'fdx'); setShowActions(false); }}>Export as FDX</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'fountain'); setShowActions(false); }}>Export as Fountain</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'pdf'); setShowActions(false); }}>Export as PDF</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'odraft'); setShowActions(false); }}>Export as .odraft</div>
+          <div className="dropdown-separator" />
+          <div className="dropdown-item dropdown-item-danger" onClick={() => { onDelete(script.id); setShowActions(false); }}>Delete</div>
+        </div>
+      )}
 
       {showColorPicker && (
         <div className="color-picker-dropdown" onClick={(e) => e.stopPropagation()}>
@@ -152,6 +227,169 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
               {!c && <span className="color-none-x">&#x2715;</span>}
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Script card (card view) ──────────────────────────────────────────────
+
+interface ScriptCardProps {
+  script: ScriptMeta;
+  sortKey: ScriptSortKey;
+  onNavigate: (id: string) => void;
+  onPin: (id: string, pinned: boolean) => void;
+  onRename: (id: string, title: string) => void;
+  onDuplicate: (id: string) => void;
+  onExport: (id: string, format: string) => void;
+  onDelete: (id: string) => void;
+  formatDate: (iso: string) => string;
+}
+
+const ScriptCard: React.FC<ScriptCardProps> = ({
+  script,
+  sortKey,
+  onNavigate,
+  onPin,
+  onRename,
+  onDuplicate,
+  onExport,
+  onDelete,
+  formatDate,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: script.id, disabled: sortKey !== 'custom' });
+
+  const [showActions, setShowActions] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(script.title);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!showActions) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setShowActions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showActions]);
+
+  const handleRenameSubmit = () => {
+    const trimmed = editTitle.trim();
+    if (trimmed && trimmed !== script.title) {
+      onRename(script.id, trimmed);
+    } else {
+      setEditTitle(script.title);
+    }
+    setEditing(false);
+  };
+
+  const handleCardClick = () => {
+    // Don't navigate if menu is open, editing, or dragging
+    if (showActions) { setShowActions(false); return; }
+    if (editing) return;
+    onNavigate(script.id);
+  };
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : undefined,
+  };
+
+  return (
+    <div
+      ref={(node) => { setNodeRef(node); (cardRef as React.MutableRefObject<HTMLDivElement | null>).current = node; }}
+      style={style}
+      className={`script-card${script.pinned ? ' pinned' : ''}`}
+      onClick={handleCardClick}
+    >
+      {script.color && (
+        <div className="script-card-color-stripe" style={{ backgroundColor: script.color }} />
+      )}
+      <div className="script-card-header">
+        {/* Drag handle — only in custom sort */}
+        {sortKey === 'custom' && (
+          <div
+            className="card-drag-handle"
+            {...attributes}
+            {...listeners}
+            title="Drag to reorder"
+            onClick={(e) => e.stopPropagation()}
+          >
+            &#x2630;
+          </div>
+        )}
+        {editing ? (
+          <input
+            className="inline-rename-input"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRenameSubmit();
+              if (e.key === 'Escape') { setEditTitle(script.title); setEditing(false); }
+            }}
+            onBlur={handleRenameSubmit}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+          />
+        ) : (
+          <div
+            className="script-card-title"
+            onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); setEditTitle(script.title); }}
+            title="Double-click to rename"
+          >
+            {script.title}
+          </div>
+        )}
+        <div className="script-card-actions">
+          <button
+            className={`card-action-btn pin-btn${script.pinned ? ' active' : ''}`}
+            onClick={(e) => { e.stopPropagation(); onPin(script.id, !script.pinned); }}
+            title={script.pinned ? 'Unpin' : 'Pin to top'}
+          >
+            &#x1F4CC;
+          </button>
+          <button
+            className="card-action-btn more-btn"
+            onClick={(e) => { e.stopPropagation(); setShowActions(!showActions); }}
+            title="More actions"
+          >
+            &#x22EE;
+          </button>
+        </div>
+      </div>
+      <div className="script-card-preview">
+        {script.preview || 'Empty screenplay'}
+      </div>
+      <div className="script-card-meta">
+        {script.page_count > 0 && <span>{script.page_count} pg</span>}
+        <span>{formatDate(script.updated_at)}</span>
+      </div>
+
+      {/* Actions dropdown */}
+      {showActions && (
+        <div className="script-actions-dropdown script-card-dropdown" onClick={(e) => e.stopPropagation()}>
+          <div className="dropdown-item" onClick={() => { setEditing(true); setEditTitle(script.title); setShowActions(false); }}>Rename</div>
+          <div className="dropdown-item" onClick={() => { onDuplicate(script.id); setShowActions(false); }}>Duplicate</div>
+          <div className="dropdown-separator" />
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'fdx'); setShowActions(false); }}>Export as FDX</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'fountain'); setShowActions(false); }}>Export as Fountain</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'pdf'); setShowActions(false); }}>Export as PDF</div>
+          <div className="dropdown-item" onClick={() => { onExport(script.id, 'odraft'); setShowActions(false); }}>Export as .odraft</div>
+          <div className="dropdown-separator" />
+          <div className="dropdown-item dropdown-item-danger" onClick={() => { onDelete(script.id); setShowActions(false); }}>Delete</div>
         </div>
       )}
     </div>
@@ -174,8 +412,13 @@ const ProjectView: React.FC = () => {
   const [creatingScript, setCreatingScript] = useState(false);
   const [showProperties, setShowProperties] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [editingProjectName, setEditingProjectName] = useState(false);
+  const [editProjectName, setEditProjectName] = useState('');
   const [scriptSortKey, setScriptSortKey] = useState<ScriptSortKey>(() => {
     return (localStorage.getItem('opendraft:scriptSort') as ScriptSortKey) || 'custom';
+  });
+  const [viewMode, setViewMode] = useState<'list' | 'card'>(() => {
+    return (localStorage.getItem('opendraft:scriptViewMode') as 'list' | 'card') || 'list';
   });
 
   const sensors = useSensors(
@@ -223,9 +466,17 @@ const ProjectView: React.FC = () => {
     localStorage.setItem('opendraft:scriptSort', scriptSortKey);
   }, [scriptSortKey]);
 
+  useEffect(() => {
+    localStorage.setItem('opendraft:scriptViewMode', viewMode);
+    // Re-fetch with previews when switching to card view
+    if (viewMode === 'card' && projectId) {
+      api.listScripts(projectId, true).then(setScripts).catch(() => {});
+    }
+  }, [viewMode, projectId]);
+
   // ── Sorting ──
 
-  const sortedScripts = React.useMemo(() => {
+  const { pinnedScripts, unpinnedScripts } = React.useMemo(() => {
     const list = [...scripts];
     const compareFn = (a: ScriptMeta, b: ScriptMeta): number => {
       switch (scriptSortKey) {
@@ -246,10 +497,16 @@ const ProjectView: React.FC = () => {
           return a.sort_order - b.sort_order;
       }
     };
-    const pinned = list.filter((s) => s.pinned).sort(compareFn);
+    // Pinned items sorted by sort_order only, unpinned by user-selected sort
+    const pinned = list.filter((s) => s.pinned).sort((a, b) => a.sort_order - b.sort_order);
     const unpinned = list.filter((s) => !s.pinned).sort(compareFn);
-    return [...pinned, ...unpinned];
+    return { pinnedScripts: pinned, unpinnedScripts: unpinned };
   }, [scripts, scriptSortKey]);
+
+  const allSortedScripts = React.useMemo(
+    () => [...pinnedScripts, ...unpinnedScripts],
+    [pinnedScripts, unpinnedScripts],
+  );
 
   // ── Handlers ──
 
@@ -319,17 +576,92 @@ const ProjectView: React.FC = () => {
     [projectId],
   );
 
+  const handleRenameScript = useCallback(
+    async (id: string, title: string) => {
+      if (!projectId) return;
+      const prev = scripts.find((s) => s.id === id);
+      setScripts((list) =>
+        list.map((s) => (s.id === id ? { ...s, title } : s)),
+      );
+      try {
+        await api.saveScript(projectId, id, { title });
+      } catch {
+        if (prev) {
+          setScripts((list) =>
+            list.map((s) => (s.id === id ? { ...s, title: prev.title } : s)),
+          );
+        }
+      }
+    },
+    [projectId, scripts],
+  );
+
+  const handleDuplicateScript = useCallback(
+    async (id: string) => {
+      if (!projectId) return;
+      try {
+        await api.duplicateScript(projectId, id);
+        await fetchScripts();
+        showToast('Script duplicated', 'success');
+      } catch (err) {
+        showToast(
+          `Duplicate failed: ${err instanceof Error ? err.message : String(err)}`,
+          'error',
+        );
+      }
+    },
+    [projectId, fetchScripts],
+  );
+
+  const handleExportScript = useCallback(
+    async (id: string, format: string) => {
+      if (!projectId) return;
+      try {
+        const resp = await api.getScript(projectId, id);
+        const content = resp.content as Record<string, unknown>;
+        const title = resp.meta.title || 'Untitled';
+
+        // Extract embedded metadata from content if present
+        const profiles = (content as any)?._characterProfiles;
+        const cats = (content as any)?._tagCategories;
+        const tags = (content as any)?._tags;
+
+        switch (format) {
+          case 'fdx':
+            downloadFDX(content as any, title, profiles, cats, tags);
+            break;
+          case 'fountain':
+            downloadFountain(content as any, title);
+            break;
+          case 'pdf':
+            exportPDF(content as any, title, DEFAULT_PAGE_LAYOUT);
+            break;
+          case 'odraft':
+            downloadOdraft(resp.meta, content);
+            break;
+        }
+        showToast(`Exported as ${format.toUpperCase()}`, 'success');
+      } catch (err) {
+        showToast(
+          `Export failed: ${err instanceof Error ? err.message : String(err)}`,
+          'error',
+        );
+      }
+    },
+    [projectId],
+  );
+
   const handleScriptDragEnd = useCallback(
     (event: DragEndEvent) => {
       if (!projectId) return;
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
-      const oldIndex = sortedScripts.findIndex((s) => s.id === active.id);
-      const newIndex = sortedScripts.findIndex((s) => s.id === over.id);
+      const oldIndex = allSortedScripts.findIndex((s) => s.id === active.id);
+      const newIndex = allSortedScripts.findIndex((s) => s.id === over.id);
       if (oldIndex < 0 || newIndex < 0) return;
 
-      const reordered = [...sortedScripts];
+      const reordered = [...allSortedScripts];
       const [moved] = reordered.splice(oldIndex, 1);
       reordered.splice(newIndex, 0, moved);
 
@@ -343,23 +675,27 @@ const ProjectView: React.FC = () => {
         )
         .catch(() => {});
     },
-    [projectId, sortedScripts],
+    [projectId, allSortedScripts],
   );
 
   const handleImportScript = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.fountain,.fdx,.txt';
+    input.accept = '.fountain,.fdx,.txt,.odraft';
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file || !projectId) return;
-      const title = file.name.replace(/\.\w+$/, '') || 'Untitled';
+      let title = file.name.replace(/\.\w+$/, '') || 'Untitled';
       const reader = new FileReader();
       reader.onload = async () => {
         const text = reader.result as string;
         const ext = file.name.split('.').pop()?.toLowerCase();
         let doc;
-        if (ext === 'fdx') {
+        if (ext === 'odraft') {
+          const parsed = parseOdraft(text);
+          title = parsed.meta.title || title;
+          doc = parsed.content;
+        } else if (ext === 'fdx') {
           const result = parseFDXFull(text);
           doc = result.doc;
         } else {
@@ -420,9 +756,39 @@ const ProjectView: React.FC = () => {
           &#x2190; Projects
         </button>
         <div>
-          <h1 className="project-view-title">
-            {project?.name || projectId}
-          </h1>
+          {editingProjectName ? (
+            <input
+              className="inline-rename-input project-view-title-input"
+              value={editProjectName}
+              onChange={(e) => setEditProjectName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const trimmed = editProjectName.trim();
+                  if (trimmed && project && trimmed !== project.name) {
+                    api.updateProject(project.id, { name: trimmed }).then((updated) => setProject(updated)).catch(() => {});
+                  }
+                  setEditingProjectName(false);
+                }
+                if (e.key === 'Escape') setEditingProjectName(false);
+              }}
+              onBlur={() => {
+                const trimmed = editProjectName.trim();
+                if (trimmed && project && trimmed !== project.name) {
+                  api.updateProject(project.id, { name: trimmed }).then((updated) => setProject(updated)).catch(() => {});
+                }
+                setEditingProjectName(false);
+              }}
+              autoFocus
+            />
+          ) : (
+            <h1
+              className="project-view-title"
+              onDoubleClick={() => { setEditProjectName(project?.name || ''); setEditingProjectName(true); }}
+              title="Double-click to rename"
+            >
+              {project?.name || projectId}
+            </h1>
+          )}
           {project && (
             <div className="project-view-meta">
               <span>
@@ -435,12 +801,25 @@ const ProjectView: React.FC = () => {
             </div>
           )}
         </div>
-        <button
-          className="project-action-btn"
-          onClick={() => setShowProperties(true)}
-        >
-          Properties
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            className="project-action-btn"
+            onClick={() => {
+              if (!projectId) return;
+              exportProjectAsZip(projectId)
+                .then(() => showToast('Project exported as zip', 'success'))
+                .catch((err) => showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error'));
+            }}
+          >
+            Export Project
+          </button>
+          <button
+            className="project-action-btn"
+            onClick={() => setShowProperties(true)}
+          >
+            Properties
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -465,7 +844,7 @@ const ProjectView: React.FC = () => {
                 className="project-action-btn"
                 onClick={() => setShowNewScript(true)}
               >
-                + New Script
+                + New Screenplay
               </button>
               <button
                 className="project-action-btn"
@@ -488,40 +867,156 @@ const ProjectView: React.FC = () => {
                 <option value="size">Size</option>
                 <option value="pages">Pages</option>
               </select>
+              <div className="view-toggle-group">
+                <button
+                  className={`view-toggle-btn${viewMode === 'list' ? ' active' : ''}`}
+                  onClick={() => setViewMode('list')}
+                  title="List view"
+                >
+                  &#x2630;
+                </button>
+                <button
+                  className={`view-toggle-btn${viewMode === 'card' ? ' active' : ''}`}
+                  onClick={() => setViewMode('card')}
+                  title="Card view"
+                >
+                  &#x25A6;
+                </button>
+              </div>
             </div>
             {scripts.length === 0 ? (
               <div className="project-tab-empty">
                 No scripts yet. Create or import one to get started.
               </div>
-            ) : (
+            ) : viewMode === 'card' ? (
+              /* ── Card view ── */
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
                 onDragEnd={handleScriptDragEnd}
               >
-                <SortableContext
-                  items={sortedScripts.map((s) => s.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="project-scripts-list">
-                    {sortedScripts.map((script) => (
-                      <SortableScriptRow
-                        key={script.id}
-                        script={script}
-                        projectId={projectId!}
-                        sortKey={scriptSortKey}
-                        onNavigate={(id) =>
-                          navigate(`/project/${projectId}/edit/${id}`)
-                        }
-                        onPin={handlePinScript}
-                        onColor={handleColorScript}
-                        onDelete={handleDeleteScript}
-                        formatDate={formatDate}
-                        formatSize={formatSize}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
+                {pinnedScripts.length > 0 && (
+                  <>
+                    <div className="pinned-section-header">Pinned</div>
+                    <SortableContext
+                      items={pinnedScripts.map((s) => s.id)}
+                      strategy={rectSortingStrategy}
+                    >
+                      <div className="script-cards-grid">
+                        {pinnedScripts.map((script) => (
+                          <ScriptCard
+                            key={script.id}
+                            script={script}
+                            sortKey={scriptSortKey}
+                            onNavigate={(id) => navigate(`/project/${projectId}/edit/${id}`)}
+                            onPin={handlePinScript}
+                            onRename={handleRenameScript}
+                            onDuplicate={handleDuplicateScript}
+                            onExport={handleExportScript}
+                            onDelete={handleDeleteScript}
+                            formatDate={formatDate}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </>
+                )}
+                {unpinnedScripts.length > 0 && (
+                  <>
+                    <div className="section-header">All Screenplays</div>
+                    <SortableContext
+                      items={unpinnedScripts.map((s) => s.id)}
+                      strategy={rectSortingStrategy}
+                    >
+                      <div className="script-cards-grid">
+                        {unpinnedScripts.map((script) => (
+                          <ScriptCard
+                            key={script.id}
+                            script={script}
+                            sortKey={scriptSortKey}
+                            onNavigate={(id) => navigate(`/project/${projectId}/edit/${id}`)}
+                            onPin={handlePinScript}
+                            onRename={handleRenameScript}
+                            onDuplicate={handleDuplicateScript}
+                            onExport={handleExportScript}
+                            onDelete={handleDeleteScript}
+                            formatDate={formatDate}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </>
+                )}
+              </DndContext>
+            ) : (
+              /* ── List view ── */
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleScriptDragEnd}
+              >
+                {pinnedScripts.length > 0 && (
+                  <>
+                    <div className="pinned-section-header">Pinned</div>
+                    <SortableContext
+                      items={pinnedScripts.map((s) => s.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="project-scripts-list">
+                        {pinnedScripts.map((script) => (
+                          <SortableScriptRow
+                            key={script.id}
+                            script={script}
+                            projectId={projectId!}
+                            sortKey={scriptSortKey}
+                            onNavigate={(id) =>
+                              navigate(`/project/${projectId}/edit/${id}`)
+                            }
+                            onPin={handlePinScript}
+                            onColor={handleColorScript}
+                            onDelete={handleDeleteScript}
+                            onRename={handleRenameScript}
+                            onDuplicate={handleDuplicateScript}
+                            onExport={handleExportScript}
+                            formatDate={formatDate}
+                            formatSize={formatSize}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </>
+                )}
+                {unpinnedScripts.length > 0 && (
+                  <>
+                    <div className="section-header">All Screenplays</div>
+                    <SortableContext
+                      items={unpinnedScripts.map((s) => s.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="project-scripts-list">
+                        {unpinnedScripts.map((script) => (
+                          <SortableScriptRow
+                            key={script.id}
+                            script={script}
+                            projectId={projectId!}
+                            sortKey={scriptSortKey}
+                            onNavigate={(id) =>
+                              navigate(`/project/${projectId}/edit/${id}`)
+                            }
+                            onPin={handlePinScript}
+                            onColor={handleColorScript}
+                            onDelete={handleDeleteScript}
+                            onRename={handleRenameScript}
+                            onDuplicate={handleDuplicateScript}
+                            onExport={handleExportScript}
+                            formatDate={formatDate}
+                            formatSize={formatSize}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </>
+                )}
               </DndContext>
             )}
           </div>
@@ -560,10 +1055,10 @@ const ProjectView: React.FC = () => {
           onClick={() => setShowNewScript(false)}
         >
           <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">New Script</div>
+            <div className="dialog-header">New Screenplay</div>
             <div className="dialog-body">
               <div className="dialog-row">
-                <label>Script Title:</label>
+                <label>Screenplay Title:</label>
                 <input
                   type="text"
                   placeholder="Untitled Screenplay"

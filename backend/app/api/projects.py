@@ -79,9 +79,9 @@ async def create_script(project_id: str, body: ScriptCreate):
 
 
 @router.get("/{project_id}/scripts/", response_model=list[ScriptMeta])
-async def list_scripts(project_id: str):
+async def list_scripts(project_id: str, include_preview: bool = False):
     try:
-        return script_service.list_scripts(project_id)
+        return script_service.list_scripts(project_id, include_preview=include_preview)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -90,6 +90,14 @@ async def list_scripts(project_id: str):
 async def get_script(project_id: str, script_id: str):
     try:
         return script_service.get_script(project_id, script_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/{project_id}/scripts/{script_id}/duplicate", response_model=ScriptResponse)
+async def duplicate_script(project_id: str, script_id: str):
+    try:
+        return script_service.duplicate_script(project_id, script_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 

@@ -149,7 +149,7 @@ export async function createMobileStorage() {
         meta: {
           id, title: data.title, author: '', format: 'screenplay',
           created_at: ts, updated_at: ts, page_count: 0, size_bytes: sizeBytes,
-          color: '', pinned: false, sort_order: 0,
+          color: '', pinned: false, sort_order: 0, preview: '',
         },
         content: data.content ?? null,
       };
@@ -467,5 +467,6 @@ function rowToScriptMeta(r: any): ScriptMeta {
     color: r.color || '',
     pinned: !!r.pinned,
     sort_order: r.sort_order ?? 0,
+    preview: '',
   };
 }
