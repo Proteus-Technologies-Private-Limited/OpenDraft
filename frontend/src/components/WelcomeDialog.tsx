@@ -10,7 +10,7 @@ const WelcomeDialog: React.FC<WelcomeDialogProps> = ({ onClose }) => {
       <div className="welcome-card" onClick={(e) => e.stopPropagation()}>
         <div className="welcome-hero">
           <div className="welcome-logo">OD</div>
-          <h1 className="welcome-title">OpenDraft</h1>
+          <h1 className="welcome-title">Open Draft</h1>
           <p className="welcome-subtitle">Professional screenwriting, open source.</p>
         </div>
 

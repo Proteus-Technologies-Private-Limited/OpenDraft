@@ -7,6 +7,7 @@ dotenv.config();
 export interface ServerConfig {
   port: number;
   backendUrl: string;
+  backendUrls: string[];
   jwtSecret: string;
   jwtAccessExpiry: string;
   jwtRefreshExpiry: string;
@@ -39,7 +40,13 @@ function loadConfig(): ServerConfig {
 
   return {
     port: parseInt(process.env.PORT || '4000', 10),
+    // Comma-separated list of backend URLs to try for token validation
+    // (supports both the dev server on 8000 and the Tauri sidecar on 18321)
     backendUrl: process.env.BACKEND_URL || 'http://localhost:8000/api',
+    backendUrls: (process.env.BACKEND_URL || 'http://localhost:8000/api,http://localhost:18321/api')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean),
     jwtSecret,
     jwtAccessExpiry: process.env.JWT_ACCESS_EXPIRY || '15m',
     jwtRefreshExpiry: process.env.JWT_REFRESH_EXPIRY || '7d',

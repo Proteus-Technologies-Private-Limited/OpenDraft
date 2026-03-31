@@ -483,7 +483,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       label: 'Help',
       items: [
         {
-          label: 'About OpenDraft',
+          label: 'About Open Draft',
           action: () => setAboutOpen(true),
         },
         {
@@ -587,9 +587,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     {aboutOpen && (
       <div className="dialog-overlay" onClick={() => setAboutOpen(false)}>
         <div className="dialog-box about-dialog" onClick={(e) => e.stopPropagation()}>
-          <div className="dialog-header">About OpenDraft</div>
+          <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
-            <div className="about-title">OpenDraft</div>
+            <div className="about-title">Open Draft</div>
             <div className="about-version">Version 0.3.0</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
