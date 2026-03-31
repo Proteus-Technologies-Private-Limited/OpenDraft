@@ -50,14 +50,16 @@ interface CollabSession {
 }
 
 async function validateInviteToken(token: string): Promise<CollabSession | null> {
-  try {
-    const res = await fetch(`${config.backendUrl}/collab/session/${token}`);
-    if (!res.ok) return null;
-    return await res.json() as CollabSession;
-  } catch (err) {
-    console.error('Invite token validation failed:', err);
-    return null;
+  // Try each configured backend URL (supports dev server + Tauri sidecar)
+  for (const url of config.backendUrls) {
+    try {
+      const res = await fetch(`${url}/collab/session/${token}`);
+      if (res.ok) return await res.json() as CollabSession;
+    } catch {
+      // This backend is unreachable — try the next one
+    }
   }
+  return null;
 }
 
 // ── Hocuspocus WebSocket server ──

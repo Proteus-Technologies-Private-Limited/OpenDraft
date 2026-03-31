@@ -335,7 +335,7 @@ const ProjectList: React.FC = () => {
     <div className="project-list-page">
       <div className="project-list-header">
         <div className="project-list-title-area">
-          <h1 className="project-list-title">OpenDraft</h1>
+          <h1 className="project-list-title">Open Draft</h1>
           <span className="project-list-subtitle">Your Projects</span>
         </div>
         <div className="project-list-controls">
