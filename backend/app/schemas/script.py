@@ -27,6 +27,7 @@ class ScriptMeta(BaseModel):
     color: str = ""
     pinned: bool = False
     sort_order: int = 0
+    preview: str = ""
 
 
 class ScriptResponse(BaseModel):

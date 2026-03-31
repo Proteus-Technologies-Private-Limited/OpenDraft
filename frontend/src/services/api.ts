@@ -55,6 +55,7 @@ export interface ScriptMeta {
   color: string;
   pinned: boolean;
   sort_order: number;
+  preview: string;
 }
 
 export interface ScriptResponse {
@@ -116,8 +117,8 @@ export const api = {
     }),
 
   // Scripts
-  listScripts: (projectId: string) =>
-    request<ScriptMeta[]>(`/projects/${projectId}/scripts/`),
+  listScripts: (projectId: string, includePreview: boolean = false) =>
+    request<ScriptMeta[]>(`/projects/${projectId}/scripts/${includePreview ? '?include_preview=true' : ''}`),
 
   createScript: (projectId: string, data: { title: string; content?: any }) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/`, {
@@ -138,6 +139,11 @@ export const api = {
     request<{ message: string }>(`/projects/${projectId}/scripts/reorder`, {
       method: 'PUT',
       body: JSON.stringify({ items }),
+    }),
+
+  duplicateScript: (projectId: string, scriptId: string) =>
+    request<ScriptResponse>(`/projects/${projectId}/scripts/${scriptId}/duplicate`, {
+      method: 'POST',
     }),
 
   deleteScript: (projectId: string, scriptId: string) =>

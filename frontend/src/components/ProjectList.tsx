@@ -16,6 +16,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { api } from '../services/api';
 import type { ProjectInfo } from '../services/api';
+import { importProjectFromZip } from '../utils/zipImport';
 import { showToast } from './Toast';
 
 const ITEM_COLORS = [
@@ -39,6 +40,7 @@ interface SortableCardProps {
   onPin: (id: string, pinned: boolean) => void;
   onColor: (id: string, color: string) => void;
   onDelete: (id: string) => void;
+  onRename: (id: string, name: string) => void;
   formatDate: (iso: string) => string;
 }
 
@@ -49,6 +51,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
   onPin,
   onColor,
   onDelete,
+  onRename,
   formatDate,
 }) => {
   const {
@@ -61,6 +64,18 @@ const SortableCard: React.FC<SortableCardProps> = ({
   } = useSortable({ id: project.id, disabled: sortKey !== 'custom' });
 
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(project.name);
+
+  const handleRenameSubmit = () => {
+    const trimmed = editName.trim();
+    if (trimmed && trimmed !== project.name) {
+      onRename(project.id, trimmed);
+    } else {
+      setEditName(project.name);
+    }
+    setEditing(false);
+  };
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -90,12 +105,33 @@ const SortableCard: React.FC<SortableCardProps> = ({
         </div>
       )}
 
-      {/* Card body — clicking navigates */}
-      <div className="project-card-body" onClick={() => onNavigate(project.id)}>
-        <div className="project-card-name">{project.name}</div>
+      {/* Card body — clicking navigates, double-click name to rename */}
+      <div className="project-card-body" onClick={() => !editing && onNavigate(project.id)}>
+        {editing ? (
+          <input
+            className="inline-rename-input"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRenameSubmit();
+              if (e.key === 'Escape') { setEditName(project.name); setEditing(false); }
+            }}
+            onBlur={handleRenameSubmit}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+          />
+        ) : (
+          <div
+            className="project-card-name"
+            onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); setEditName(project.name); }}
+            title="Double-click to rename"
+          >
+            {project.name}
+          </div>
+        )}
         <div className="project-card-meta">
           <span>
-            {project.script_count} script{project.script_count !== 1 ? 's' : ''}
+            {project.script_count} screenplay{project.script_count !== 1 ? 's' : ''}
           </span>
         </div>
         <div className="project-card-meta">
@@ -204,7 +240,7 @@ const ProjectList: React.FC = () => {
 
   // ── Sorting ──
 
-  const sortedProjects = React.useMemo(() => {
+  const { pinnedProjects, unpinnedProjects } = React.useMemo(() => {
     const list = [...projects];
 
     const compareFn = (a: ProjectWithCount, b: ProjectWithCount): number => {
@@ -223,11 +259,16 @@ const ProjectList: React.FC = () => {
       }
     };
 
-    // Pinned items always first, then sort within each group
-    const pinned = list.filter((p) => p.pinned).sort(compareFn);
+    // Pinned items sorted by sort_order only, unpinned by user-selected sort
+    const pinned = list.filter((p) => p.pinned).sort((a, b) => a.sort_order - b.sort_order);
     const unpinned = list.filter((p) => !p.pinned).sort(compareFn);
-    return [...pinned, ...unpinned];
+    return { pinnedProjects: pinned, unpinnedProjects: unpinned };
   }, [projects, sortKey]);
+
+  const allSortedProjects = React.useMemo(
+    () => [...pinnedProjects, ...unpinnedProjects],
+    [pinnedProjects, unpinnedProjects],
+  );
 
   // ── Handlers ──
 
@@ -244,6 +285,25 @@ const ProjectList: React.FC = () => {
     }
     setCreating(false);
   };
+
+  const handleRename = useCallback(
+    async (id: string, name: string) => {
+      const prev = projects.find((p) => p.id === id);
+      setProjects((list) =>
+        list.map((p) => (p.id === id ? { ...p, name } : p)),
+      );
+      try {
+        await api.updateProject(id, { name });
+      } catch {
+        if (prev) {
+          setProjects((list) =>
+            list.map((p) => (p.id === id ? { ...p, name: prev.name } : p)),
+          );
+        }
+      }
+    },
+    [projects],
+  );
 
   const handlePin = useCallback(
     async (id: string, pinned: boolean) => {
@@ -300,11 +360,11 @@ const ProjectList: React.FC = () => {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
-      const oldIndex = sortedProjects.findIndex((p) => p.id === active.id);
-      const newIndex = sortedProjects.findIndex((p) => p.id === over.id);
+      const oldIndex = allSortedProjects.findIndex((p) => p.id === active.id);
+      const newIndex = allSortedProjects.findIndex((p) => p.id === over.id);
       if (oldIndex < 0 || newIndex < 0) return;
 
-      const reordered = [...sortedProjects];
+      const reordered = [...allSortedProjects];
       const [moved] = reordered.splice(oldIndex, 1);
       reordered.splice(newIndex, 0, moved);
 
@@ -315,7 +375,7 @@ const ProjectList: React.FC = () => {
       // Persist
       api.reorderProjects(updated.map((p) => ({ id: p.id, sort_order: p.sort_order }))).catch(() => {});
     },
-    [sortedProjects],
+    [allSortedProjects],
   );
 
   const formatDate = (iso: string): string => {
@@ -352,6 +412,32 @@ const ProjectList: React.FC = () => {
           </select>
           <button
             className="project-new-btn"
+            onClick={() => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = '.zip';
+              input.onchange = async (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (!file) return;
+                try {
+                  const newId = await importProjectFromZip(file);
+                  await fetchProjects();
+                  showToast('Project imported', 'success');
+                  navigate(`/project/${newId}`);
+                } catch (err) {
+                  showToast(
+                    `Import failed: ${err instanceof Error ? err.message : String(err)}`,
+                    'error',
+                  );
+                }
+              };
+              input.click();
+            }}
+          >
+            Import Project
+          </button>
+          <button
+            className="project-new-btn"
             onClick={() => setShowNewDialog(true)}
           >
             + New Project
@@ -372,25 +458,56 @@ const ProjectList: React.FC = () => {
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          <SortableContext
-            items={sortedProjects.map((p) => p.id)}
-            strategy={rectSortingStrategy}
-          >
-            <div className="project-list-grid">
-              {sortedProjects.map((project) => (
-                <SortableCard
-                  key={project.id}
-                  project={project}
-                  sortKey={sortKey}
-                  onNavigate={(id) => navigate(`/project/${id}`)}
-                  onPin={handlePin}
-                  onColor={handleColor}
-                  onDelete={handleDelete}
-                  formatDate={formatDate}
-                />
-              ))}
-            </div>
-          </SortableContext>
+          {pinnedProjects.length > 0 && (
+            <>
+              <div className="pinned-section-header">Pinned</div>
+              <SortableContext
+                items={pinnedProjects.map((p) => p.id)}
+                strategy={rectSortingStrategy}
+              >
+                <div className="project-list-grid">
+                  {pinnedProjects.map((project) => (
+                    <SortableCard
+                      key={project.id}
+                      project={project}
+                      sortKey={sortKey}
+                      onNavigate={(id) => navigate(`/project/${id}`)}
+                      onPin={handlePin}
+                      onColor={handleColor}
+                      onDelete={handleDelete}
+                      onRename={handleRename}
+                      formatDate={formatDate}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </>
+          )}
+          {unpinnedProjects.length > 0 && (
+            <>
+              <div className="section-header">All Projects</div>
+              <SortableContext
+                items={unpinnedProjects.map((p) => p.id)}
+                strategy={rectSortingStrategy}
+              >
+                <div className="project-list-grid">
+                  {unpinnedProjects.map((project) => (
+                    <SortableCard
+                      key={project.id}
+                      project={project}
+                      sortKey={sortKey}
+                      onNavigate={(id) => navigate(`/project/${id}`)}
+                      onPin={handlePin}
+                      onColor={handleColor}
+                      onDelete={handleDelete}
+                      onRename={handleRename}
+                      formatDate={formatDate}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </>
+          )}
         </DndContext>
       )}
 
