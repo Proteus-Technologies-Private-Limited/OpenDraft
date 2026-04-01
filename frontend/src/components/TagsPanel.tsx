@@ -347,6 +347,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
           className={`tags-visibility-btn${tagsVisible ? ' active' : ''}`}
           onClick={() => setTagsVisible(!tagsVisible)}
           title={tagsVisible ? 'Hide tag highlights' : 'Show tag highlights'}
+          aria-label={tagsVisible ? 'Hide tag highlights' : 'Show tag highlights'}
         >
           {tagsVisible ? (
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3C4.36 3 1.26 5.28 0 8.5c1.26 3.22 4.36 5.5 8 5.5s6.74-2.28 8-5.5C14.74 5.28 11.64 3 8 3zm0 9.17c-1.84 0-3.33-1.49-3.33-3.33S6.16 5.5 8 5.5s3.33 1.49 3.33 3.33S9.84 12.17 8 12.17zm0-5.34a2 2 0 100 4 2 2 0 000-4z"/></svg>
@@ -354,7 +355,12 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M13.36 11.35l2.06 2.06-.71.71L.65 0.06l.71-.71 2.68 2.68C5.19 1.38 6.55 1 8 1c3.64 0 6.74 2.28 8 5.5a9.77 9.77 0 01-2.64 3.85zM8 3.5c-1.1 0-2.12.53-2.75 1.4l1.18 1.18A2 2 0 018 4.83a2 2 0 012 2c0 .23-.04.44-.1.65l1.18 1.18c.87-.63 1.4-1.65 1.4-2.75A3.33 3.33 0 008 3.5zm-4.65.82L5.12 6.1a3.33 3.33 0 004.28 4.28l1.25 1.25C9.56 12.22 8.82 12.5 8 12.5c-3.64 0-6.74-2.28-8-5.5a9.77 9.77 0 013.35-3.68z"/></svg>
           )}
         </button>
-        <button className="tags-panel-close" onClick={toggleTagsPanel} title="Close">
+        <button
+          className="tags-panel-close"
+          onClick={toggleTagsPanel}
+          title="Close"
+          aria-label="Close production tags panel"
+        >
           &times;
         </button>
       </div>
@@ -364,7 +370,13 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
         <div className="tags-pending">
           <div className="tags-pending-header">
             <span>Tag: &ldquo;{pendingTagSelection.text.slice(0, 40)}{pendingTagSelection.text.length > 40 ? '...' : ''}&rdquo;</span>
-            <button className="tags-pending-cancel" onClick={handleCancelPending}>&times;</button>
+            <button
+              className="tags-pending-cancel"
+              onClick={handleCancelPending}
+              aria-label="Cancel pending tag selection"
+            >
+              &times;
+            </button>
           </div>
           <div className="tags-pending-label">Select a category:</div>
           <div className="tags-pending-list">
@@ -390,7 +402,13 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
               {tagCategories.find((c) => c.id === pendingCategoryId)?.name}
               {' '}&rarr; &ldquo;{pendingTagSelection.text.slice(0, 30)}{pendingTagSelection.text.length > 30 ? '...' : ''}&rdquo;
             </span>
-            <button className="tags-pending-cancel" onClick={handleCancelPending}>&times;</button>
+            <button
+              className="tags-pending-cancel"
+              onClick={handleCancelPending}
+              aria-label="Cancel pending tag selection"
+            >
+              &times;
+            </button>
           </div>
 
           {/* Create new entity */}
@@ -404,6 +422,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
                 onChange={(e) => setNewEntityName(e.target.value)}
                 placeholder="Entity name..."
                 autoFocus
+                aria-label="New entity name"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && newEntityName.trim()) {
                     handleCreateNewEntity(pendingCategoryId);
@@ -482,6 +501,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
                       className="tags-item-delete"
                       onClick={(e) => { e.stopPropagation(); deleteTagCategory(cat.id); }}
                       title="Delete custom category"
+                      aria-label={`Delete custom category ${cat.name}`}
                     >
                       &times;
                     </button>
@@ -521,6 +541,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
                               className="tags-item-expand"
                               onClick={() => setExpandedTagId(isEntityExpanded ? null : entity.id)}
                               title={isEntityExpanded ? 'Collapse' : 'Details'}
+                              aria-label={isEntityExpanded ? `Collapse details for ${entity.name}` : `Expand details for ${entity.name}`}
                             >
                               {isEntityExpanded ? '\u25B4' : '\u25BE'}
                             </button>
@@ -528,6 +549,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
                               className="tags-item-delete"
                               onClick={() => handleDeleteEntity(entity.id)}
                               title="Delete entity and all occurrences"
+                              aria-label={`Delete entity ${entity.name} and all occurrences`}
                             >
                               &times;
                             </button>
@@ -543,6 +565,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
                                   type="text"
                                   value={entity.name}
                                   onChange={(e) => updateTag(entity.id, { name: e.target.value })}
+                                  aria-label={`Edit name for ${entity.name}`}
                                 />
                               </div>
                               <textarea
@@ -551,6 +574,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
                                 onChange={(e) => updateTag(entity.id, { notes: e.target.value })}
                                 placeholder="Add details: description, requirements, budget notes..."
                                 rows={3}
+                                aria-label={`Notes for ${entity.name}`}
                               />
                               {entityOccs.length > 0 && (
                                 <div className="tags-occ-list">
@@ -571,6 +595,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
                                         className="tags-occ-remove"
                                         onClick={() => handleRemoveOccurrence(occ.tagId, occ.from, occ.to)}
                                         title="Remove this occurrence"
+                                        aria-label={`Remove occurrence of ${entity.name}`}
                                       >
                                         &times;
                                       </button>
@@ -602,12 +627,14 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
             onChange={(e) => setNewCatName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
             autoFocus
+            aria-label="New category name"
           />
           <input
             type="color"
             className="tags-add-color"
             value={newCatColor}
             onChange={(e) => setNewCatColor(e.target.value)}
+            aria-label="New category color"
           />
           <button className="tags-add-ok" onClick={handleAddCategory}>Add</button>
           <button className="tags-add-cancel" onClick={() => setShowAddForm(false)}>Cancel</button>
