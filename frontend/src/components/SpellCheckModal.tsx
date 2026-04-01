@@ -92,20 +92,27 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
     return spellChecker.findAllErrors(editor.state.doc);
   }, [editor]);
 
-  // Initial scan
+  // Initial scan — wait for dictionary to load first
   useEffect(() => {
-    const found = rescan();
-    if (found.length === 0) {
-      setComplete(true);
-      return;
-    }
-    setErrors(found);
-    setCurrentIndex(0);
-    const sugs = spellChecker.suggest(found[0].word);
-    setSuggestions(sugs);
-    setSelectedSuggestion(0);
-    setReplacementText(sugs[0] || found[0].word);
-    editor.chain().setTextSelection({ from: found[0].from, to: found[0].to }).scrollIntoView().run();
+    let cancelled = false;
+    const doScan = async () => {
+      await spellChecker.whenReady();
+      if (cancelled) return;
+      const found = rescan();
+      if (found.length === 0) {
+        setComplete(true);
+        return;
+      }
+      setErrors(found);
+      setCurrentIndex(0);
+      const sugs = spellChecker.suggest(found[0].word);
+      setSuggestions(sugs);
+      setSelectedSuggestion(0);
+      setReplacementText(sugs[0] || found[0].word);
+      editor.chain().setTextSelection({ from: found[0].from, to: found[0].to }).scrollIntoView().run();
+    };
+    doScan();
+    return () => { cancelled = true; };
   }, [editor, rescan]);
 
   const currentError = errors[currentIndex] as SpellError | undefined;

@@ -62,11 +62,22 @@ export const SpellCheck = Extension.create({
           },
         },
         view(editorView: EditorView) {
-          const runCheck = () => {
+          const runCheck = async () => {
             const pluginState = spellCheckPluginKey.getState(
               editorView.state,
             ) as SpellCheckPluginState | undefined;
-            if (!pluginState?.enabled || !spellChecker.isReady()) return;
+            if (!pluginState?.enabled) return;
+
+            // Wait for dictionary to finish loading if still in progress
+            if (!spellChecker.isReady()) {
+              const ok = await spellChecker.whenReady();
+              if (!ok) return;
+              // Re-check enabled state — it may have been toggled off while we waited
+              const ps = spellCheckPluginKey.getState(editorView.state) as
+                | SpellCheckPluginState
+                | undefined;
+              if (!ps?.enabled) return;
+            }
 
             const decorations: Decoration[] = [];
             const { doc } = editorView.state;

@@ -45,6 +45,7 @@ backend/dist/
 
 # Internal docs (not for GitHub)
 docs/PROMOTION_STRATEGY.md
+Promotion/
 
 # Certificates and signing
 certificates/

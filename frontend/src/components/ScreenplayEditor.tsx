@@ -1215,7 +1215,7 @@ const ScreenplayEditor: React.FC = () => {
 
   // --- Initialize spell checker on mount ---
   useEffect(() => {
-    spellChecker.init();
+    spellChecker.init().catch(() => {});
   }, []);
 
   // --- Toggle spell check plugin when store changes ---
