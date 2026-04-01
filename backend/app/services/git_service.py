@@ -86,7 +86,7 @@ def commit(project_path: Path, message: str) -> dict:
             return {"message": "No changes to commit"}
     except KeyError:
         # No HEAD yet — first commit, proceed
-        pass
+        logger.warning("Git repo at %s has no HEAD yet; creating initial commit", project_path)
 
     commit_id = porcelain.commit(
         repo_path,
@@ -110,6 +110,7 @@ def get_log(project_path: Path, limit: int = 50) -> list[dict]:
     try:
         head = repo.head()
     except KeyError:
+        logger.warning("Git repo at %s has no HEAD; returning empty log", project_path)
         return []
 
     result = []

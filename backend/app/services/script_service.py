@@ -1,9 +1,12 @@
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 from app.config import PROJECTS_DIR
+
+logger = logging.getLogger(__name__)
 
 
 def _scripts_dir(project_id: str) -> Path:
@@ -90,7 +93,13 @@ def list_scripts(project_id: str, include_preview: bool = False) -> list[dict]:
             try:
                 content = json.loads(content_file.read_text(encoding="utf-8"))
                 data["preview"] = _extract_preview(content)
-            except Exception:
+            except Exception as exc:
+                logger.warning(
+                    "Failed to build preview for script %s in project %s: %s",
+                    script_id,
+                    project_id,
+                    exc,
+                )
                 data["preview"] = ""
         metas.append(data)
     return metas
