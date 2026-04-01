@@ -17,6 +17,13 @@ class SpellChecker {
 
   private async _doInit(): Promise<void> {
     try {
+      // On mobile Tauri, dictionaries are not served — skip spell check
+      const { isMobileTauri } = await import('../services/platform');
+      if (isMobileTauri()) {
+        console.log('SpellChecker: skipped on mobile (no dictionary server)');
+        return;
+      }
+
       const [affResponse, dicResponse] = await Promise.all([
         fetch('/dictionaries/en_US.aff'),
         fetch('/dictionaries/en_US.dic'),

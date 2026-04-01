@@ -17,6 +17,8 @@ import {
   exists,
   BaseDirectory,
 } from '@tauri-apps/plugin-fs';
+import { convertFileSrc } from '@tauri-apps/api/core';
+import { appDataDir } from '@tauri-apps/api/path';
 import type {
   ProjectInfo,
   ProjectProperties,
@@ -71,7 +73,10 @@ export async function createMobileStorage() {
     await mkdir('assets', { baseDir: BaseDirectory.AppData, recursive: true });
   }
 
-  return {
+  // Resolve the app data dir once for asset URLs
+  const baseDir = await appDataDir();
+
+  const storage = {
     // ── Projects ───────────────────────────────────────────────────────────
 
     async listProjects(): Promise<ProjectInfo[]> {
@@ -206,6 +211,107 @@ export async function createMobileStorage() {
         [now(), projectId],
       );
       return { message: 'deleted' };
+    },
+
+    async deleteProject(id: string): Promise<{ message: string }> {
+      await db.execute('DELETE FROM scripts WHERE project_id = $1', [id]);
+      await db.execute('DELETE FROM versions WHERE project_id = $1', [id]);
+      await db.execute('DELETE FROM assets WHERE project_id = $1', [id]);
+      await db.execute('DELETE FROM projects WHERE id = $1', [id]);
+      return { message: 'deleted' };
+    },
+
+    async reorderProjects(
+      items: Array<{ id: string; sort_order: number }>,
+    ): Promise<{ message: string }> {
+      for (const item of items) {
+        await db.execute(
+          'UPDATE projects SET sort_order = $1 WHERE id = $2',
+          [item.sort_order, item.id],
+        );
+      }
+      return { message: 'ok' };
+    },
+
+    async reorderScripts(
+      projectId: string,
+      items: Array<{ id: string; sort_order: number }>,
+    ): Promise<{ message: string }> {
+      for (const item of items) {
+        await db.execute(
+          'UPDATE scripts SET sort_order = $1 WHERE id = $2 AND project_id = $3',
+          [item.sort_order, item.id, projectId],
+        );
+      }
+      return { message: 'ok' };
+    },
+
+    async duplicateScript(
+      projectId: string,
+      scriptId: string,
+    ): Promise<ScriptResponse> {
+      const original = await this.getScript(projectId, scriptId);
+      const id = uuid();
+      const ts = now();
+      const contentStr = original.content ? JSON.stringify(original.content) : null;
+      const sizeBytes = contentStr ? new Blob([contentStr]).size : 0;
+      const title = `${original.meta.title} (Copy)`;
+      await db.execute(
+        'INSERT INTO scripts (id, project_id, title, content, size_bytes, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [id, projectId, title, contentStr, sizeBytes, ts, ts],
+      );
+      await db.execute(
+        'UPDATE projects SET updated_at = $1 WHERE id = $2',
+        [ts, projectId],
+      );
+      return {
+        meta: {
+          id, title, author: '', format: 'screenplay',
+          created_at: ts, updated_at: ts, page_count: 0, size_bytes: sizeBytes,
+          color: '', pinned: false, sort_order: 0, preview: '',
+        },
+        content: original.content,
+      };
+    },
+
+    async getScriptAtVersion(
+      projectId: string,
+      hash: string,
+      scriptId: string,
+    ): Promise<ScriptResponse> {
+      const rows = await db.select<any[]>(
+        'SELECT snapshot FROM versions WHERE id = $1 AND project_id = $2',
+        [hash, projectId],
+      );
+      if (!rows.length) throw new Error(`Version not found: ${hash}`);
+      const scripts: any[] = JSON.parse(rows[0].snapshot);
+      const found = scripts.find((s: any) => s.id === scriptId);
+      if (!found) throw new Error(`Script ${scriptId} not found in version ${hash}`);
+      return {
+        meta: {
+          id: found.id, title: found.title, author: '', format: 'screenplay',
+          created_at: '', updated_at: '', page_count: 0, size_bytes: 0,
+          color: '', pinned: false, sort_order: 0, preview: '',
+        },
+        content: found.content,
+      };
+    },
+
+    // Collab methods — not available on mobile (offline only)
+    async createCollabInvite(): Promise<never> {
+      throw new Error('Collaboration is not available on mobile');
+    },
+    async validateCollabSession(): Promise<never> {
+      throw new Error('Collaboration is not available on mobile');
+    },
+    async listCollabSessions(): Promise<never> {
+      throw new Error('Collaboration is not available on mobile');
+    },
+    async revokeCollabSession(): Promise<never> {
+      throw new Error('Collaboration is not available on mobile');
+    },
+    async revokeAllCollabSessions(): Promise<never> {
+      throw new Error('Collaboration is not available on mobile');
     },
 
     // ── Versions ───────────────────────────────────────────────────────────
@@ -420,6 +526,11 @@ export async function createMobileStorage() {
       );
     },
 
+    getAssetUrl: (projectId: string, assetId: string, filename?: string): string => {
+      const filePath = `${baseDir}/assets/${projectId}/${filename || assetId}`;
+      return convertFileSrc(filePath);
+    },
+
     async deleteAsset(projectId: string, assetId: string): Promise<void> {
       const rows = await db.select<any[]>(
         'SELECT filename FROM assets WHERE id = $1 AND project_id = $2',
@@ -437,6 +548,8 @@ export async function createMobileStorage() {
       );
     },
   };
+
+  return storage;
 }
 
 // ── Row mappers ──────────────────────────────────────────────────────────────

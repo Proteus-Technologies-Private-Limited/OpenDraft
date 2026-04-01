@@ -194,6 +194,39 @@ export const api = {
 
   revokeAllCollabSessions: (projectId: string, scriptId: string) =>
     request<{ message: string }>(`/collab/sessions/${projectId}/${scriptId}`, { method: 'DELETE' }),
+
+  // Assets
+  listAssets: async (projectId: string): Promise<any[]> => {
+    const data = await request<{ assets: any[] }>(`/projects/${projectId}/assets/`);
+    return data.assets || [];
+  },
+
+  uploadAsset: async (projectId: string, file: File, tags: string[] = []): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (tags.length) formData.append('tags', tags.join(','));
+    const res = await fetch(`${API_BASE}/projects/${projectId}/assets/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+    return res.json();
+  },
+
+  deleteAsset: async (projectId: string, assetId: string): Promise<void> => {
+    await request<{ message: string }>(`/projects/${projectId}/assets/${assetId}`, { method: 'DELETE' });
+  },
+
+  updateAssetTags: async (projectId: string, assetId: string, tags: string[]): Promise<void> => {
+    await request<any>(`/projects/${projectId}/assets/${assetId}/tags`, {
+      method: 'PUT',
+      body: JSON.stringify(tags),
+    });
+  },
+
+  getAssetUrl: (projectId: string, assetId: string, _filename?: string): string => {
+    return `${API_BASE.replace(/\/api$/, '')}/api/projects/${projectId}/assets/${assetId}`;
+  },
 };
 
 // ── Mobile storage initialisation ───────────────────────────────────────────

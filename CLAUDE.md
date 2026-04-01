@@ -64,6 +64,12 @@ The macOS `.dmg` is built **locally** — never via GitHub Actions. It must be p
 - **Sign deepest binaries first** — sidecar before main binary before app bundle
 - The App Store build (`build-appstore.sh`) uses different certificates ("3rd Party Mac Developer"). Don't mix them up.
 
+## Promotion & Articles
+
+Promotion materials (blog posts, articles, social media content) go in `Promotion/posts/` in the project root — **not** in `docs/`.
+
+---
+
 ## Release Process
 
 See `docs/RELEASE.md` for the full checklist. Key points:

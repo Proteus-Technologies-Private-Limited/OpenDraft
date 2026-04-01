@@ -10,10 +10,11 @@ import {
 } from '../stores/editorStore';
 import { useAssetStore, type Asset } from '../stores/assetStore';
 import { useProjectStore } from '../stores/projectStore';
-import { SERVER_BASE } from '../config';
+import { api } from '../services/api';
 
 interface ScriptNotesProps {
   editor: Editor | null;
+  style?: React.CSSProperties;
 }
 
 /** Check if a string looks like an image URL */
@@ -98,7 +99,7 @@ const NoteContentDisplay: React.FC<{
         if (asset) {
           const isImg = asset.mime_type.startsWith('image/');
           const url = projectId
-            ? `${SERVER_BASE}/api/projects/${projectId}/assets/${asset.id}`
+            ? api.getAssetUrl(projectId, asset.id)
             : '#';
           if (isImg) {
             lineElements.push(
@@ -134,7 +135,7 @@ const NoteContentDisplay: React.FC<{
   return <div className="note-content-rendered">{elements}</div>;
 };
 
-const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor }) => {
+const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
   const {
     notes,
     scriptNotesOpen,
@@ -434,7 +435,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor }) => {
   if (!scriptNotesOpen) return null;
 
   return (
-    <div className="script-notes-panel">
+    <div className="script-notes-panel" style={style}>
       <div className="script-notes-header">
         <span className="script-notes-title">Script Notes</span>
         <span className="script-notes-count">

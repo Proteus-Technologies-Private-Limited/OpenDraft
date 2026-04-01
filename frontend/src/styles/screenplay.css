@@ -351,9 +351,24 @@ body {
 /* ============ EDITOR LAYOUT ============ */
 .editor-layout { display: flex; flex: 1; overflow: hidden; }
 
+/* ── Panel resize handle ── */
+.panel-resize-handle {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+.panel-resize-handle:hover,
+.panel-resize-handle:active {
+  background: var(--fd-accent);
+  opacity: 0.5;
+}
+
 /* ============ SCENE NAVIGATOR ============ */
 .scene-navigator {
-  width: 240px; min-width: 240px; background: var(--fd-navigator-bg);
+  width: 240px; min-width: 160px; background: var(--fd-navigator-bg);
   border-right: 1px solid var(--fd-border); display: flex;
   flex-direction: column; overflow: hidden;
 }
@@ -401,6 +416,17 @@ body {
   color: var(--fd-accent);
   border-bottom-color: var(--fd-accent);
 }
+.navigator-close {
+  background: none;
+  border: none;
+  color: var(--fd-text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 8px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.navigator-close:hover { color: var(--fd-text); }
 
 /* Location items */
 .location-group {
@@ -1496,7 +1522,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 /* ── Script Notes Panel ── */
 .script-notes-panel {
   width: 300px;
-  min-width: 300px;
+  min-width: 200px;
   background: var(--fd-navigator-bg);
   border-left: 1px solid var(--fd-border);
   display: flex;
@@ -1911,7 +1937,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 /* ============ CHARACTER PROFILES PANEL ============ */
 .char-profiles-panel {
   width: 300px;
-  min-width: 300px;
+  min-width: 200px;
   background: var(--fd-navigator-bg);
   border-left: 1px solid var(--fd-border);
   display: flex;
@@ -4528,7 +4554,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 /* Tags panel sidebar */
 .tags-panel {
   width: 300px;
-  min-width: 300px;
+  min-width: 200px;
   background: var(--fd-navigator-bg);
   border-left: 1px solid var(--fd-border);
   display: flex;
@@ -5506,7 +5532,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 /* ── Interaction hints for touch devices ── */
 @media (hover: none) and (pointer: coarse) {
   /* Larger close buttons on panels */
-  .script-notes-close, .version-history-close, .search-close-btn,
+  .navigator-close, .script-notes-close, .version-history-close, .search-close-btn,
   .asset-manager-close, .format-panel-close {
     min-width: 44px;
     min-height: 44px;
