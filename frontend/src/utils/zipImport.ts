@@ -14,8 +14,8 @@ import { api } from '../services/api';
  * Import a zip file as a new project.
  * @returns The new project ID.
  */
-export async function importProjectFromZip(file: File): Promise<string> {
-  const buf = await file.arrayBuffer();
+export async function importProjectFromZip(input: File | ArrayBuffer): Promise<string> {
+  const buf = input instanceof ArrayBuffer ? input : await input.arrayBuffer();
   const zip = await JSZip.loadAsync(buf);
 
   // Read project metadata
@@ -25,7 +25,8 @@ export async function importProjectFromZip(file: File): Promise<string> {
   }
 
   const projectData = JSON.parse(await projectJsonFile.async('string'));
-  const baseName = projectData.name || file.name.replace(/\.zip$/i, '') || 'Imported Project';
+  const fallbackName = input instanceof File ? input.name.replace(/\.zip$/i, '') : '';
+  const baseName = projectData.name || fallbackName || 'Imported Project';
 
   // Create project (append timestamp if slug conflict)
   let project;

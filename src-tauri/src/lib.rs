@@ -1,5 +1,29 @@
 use tauri::Manager;
 
+// ── File I/O commands ──────────────────────────────────────────────────────
+// These bypass the fs plugin scope so the user can save/open files anywhere
+// via the native dialog.
+
+#[tauri::command]
+fn save_text_to_path(path: String, contents: String) -> Result<(), String> {
+    std::fs::write(&path, contents).map_err(|e| format!("Failed to write {}: {}", path, e))
+}
+
+#[tauri::command]
+fn save_binary_to_path(path: String, contents: Vec<u8>) -> Result<(), String> {
+    std::fs::write(&path, contents).map_err(|e| format!("Failed to write {}: {}", path, e))
+}
+
+#[tauri::command]
+fn read_text_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
+}
+
+#[tauri::command]
+fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
+    std::fs::read(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
+}
+
 // ── Sidecar (desktop only) ──────────────────────────────────────────────────
 // On desktop (macOS / Windows / Linux) we spawn a Python backend sidecar.
 // On mobile (iOS / Android) the frontend uses local SQLite instead, so
@@ -52,6 +76,13 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![
+            save_text_to_path,
+            save_binary_to_path,
+            read_text_file,
+            read_binary_file,
+        ])
         .setup(|app| {
             // Determine user data directory for storage
             let app_data_dir = app
@@ -66,7 +97,7 @@ pub fn run() {
             {
                 let data_dir_str = app_data_dir.to_string_lossy().to_string();
 
-                if let Some(bin) = desktop::sidecar_path() {
+                let sidecar_spawned = if let Some(bin) = desktop::sidecar_path() {
                     match std::process::Command::new(&bin)
                         .args([
                             "--port",
@@ -83,21 +114,30 @@ pub fn run() {
                             app.manage(desktop::BackendProcess(
                                 std::sync::Mutex::new(Some(child)),
                             ));
+                            true
                         }
                         Err(e) => {
                             eprintln!("Failed to spawn sidecar {:?}: {}", bin, e);
+                            false
                         }
                     }
                 } else {
                     eprintln!("Sidecar binary not found (dev mode?)");
-                }
+                    false
+                };
 
                 // Splash → main window transition
                 let splash = app.get_webview_window("splashscreen");
                 let main_window = app.get_webview_window("main");
+                let app_handle = app.handle().clone();
 
                 std::thread::spawn(move || {
-                    desktop::wait_for_backend(desktop::BACKEND_PORT, 30);
+                    let backend_ready = if sidecar_spawned {
+                        desktop::wait_for_backend(desktop::BACKEND_PORT, 30)
+                    } else {
+                        false
+                    };
+
                     std::thread::sleep(std::time::Duration::from_millis(500));
 
                     if let Some(main) = main_window {
@@ -106,6 +146,24 @@ pub fn run() {
                     }
                     if let Some(sp) = splash {
                         let _ = sp.close();
+                    }
+
+                    if !backend_ready {
+                        use tauri_plugin_dialog::DialogExt;
+                        let msg = if sidecar_spawned {
+                            "The backend server started but is not responding.\n\n\
+                             Try restarting the application. If the problem persists,\n\
+                             your antivirus may be blocking the server process."
+                        } else {
+                            "The backend server could not be started.\n\n\
+                             On Windows, your antivirus or SmartScreen may have\n\
+                             blocked it. Please allow OpenDraft through your\n\
+                             security settings and restart the application."
+                        };
+                        app_handle.dialog()
+                            .message(msg)
+                            .title("OpenDraft — Backend Error")
+                            .show(|_| {});
                     }
                 });
             }

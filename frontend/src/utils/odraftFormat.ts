@@ -43,19 +43,15 @@ export function exportOdraft(
 }
 
 /** Download a script as an .odraft file. */
-export function downloadOdraft(
+export async function downloadOdraft(
   meta: ScriptMeta,
   content: Record<string, unknown>,
-): void {
+): Promise<void> {
   const blob = exportOdraft(meta, content);
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${meta.title || 'Untitled'}.odraft`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const text = await blob.text();
+  const filename = `${meta.title || 'Untitled'}.odraft`;
+  const { saveFile } = await import('./fileOps');
+  await saveFile(text, filename, [{ name: 'OpenDraft', extensions: ['odraft'] }]);
 }
 
 /** Parse an .odraft JSON string back into meta + content. */

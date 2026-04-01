@@ -35,8 +35,9 @@ export async function exportScriptAsZip(
   zip.file(`${title}.meta.json`, JSON.stringify(metaClean, null, 2));
   zip.file(`${title}.json`, JSON.stringify(resp.content || {}, null, 2));
 
-  const blob = await zip.generateAsync({ type: 'blob' });
-  triggerDownload(blob, `${title}.zip`);
+  const data = await zip.generateAsync({ type: 'uint8array' });
+  const { saveFile } = await import('./fileOps');
+  await saveFile(data, `${title}.zip`, [{ name: 'ZIP Archive', extensions: ['zip'] }]);
 }
 
 /** Export an entire project as a zip with project.json + scripts/ folder. */
@@ -73,17 +74,7 @@ export async function exportProjectAsZip(projectId: string): Promise<void> {
   }
 
   const projectName = sanitizeFilename(project.name || 'project');
-  const blob = await zip.generateAsync({ type: 'blob' });
-  triggerDownload(blob, `${projectName}.zip`);
-}
-
-function triggerDownload(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const data = await zip.generateAsync({ type: 'uint8array' });
+  const { saveFile } = await import('./fileOps');
+  await saveFile(data, `${projectName}.zip`, [{ name: 'ZIP Archive', extensions: ['zip'] }]);
 }

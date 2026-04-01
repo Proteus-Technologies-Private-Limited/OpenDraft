@@ -317,13 +317,9 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   return lines.join('\n');
 }
 
-export function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[]) {
+export async function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[]) {
   const xml = exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns);
-  const blob = new Blob([xml], { type: 'application/xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${title.replace(/[^a-zA-Z0-9_\- ]/g, '')}.fdx`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const filename = `${title.replace(/[^a-zA-Z0-9_\- ]/g, '')}.fdx`;
+  const { saveFile } = await import('./fileOps');
+  await saveFile(xml, filename, [{ name: 'Final Draft', extensions: ['fdx'] }]);
 }

@@ -80,13 +80,9 @@ export function exportFountain(doc: JSONContent): string {
   return lines.join('\n');
 }
 
-export function downloadFountain(doc: JSONContent, title: string = 'Untitled') {
+export async function downloadFountain(doc: JSONContent, title: string = 'Untitled') {
   const text = exportFountain(doc);
-  const blob = new Blob([text], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${title.replace(/[^a-zA-Z0-9_\- ]/g, '')}.fountain`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const filename = `${title.replace(/[^a-zA-Z0-9_\- ]/g, '')}.fountain`;
+  const { saveFile } = await import('./fileOps');
+  await saveFile(text, filename, [{ name: 'Fountain', extensions: ['fountain'] }]);
 }

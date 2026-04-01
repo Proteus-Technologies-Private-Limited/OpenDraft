@@ -412,26 +412,23 @@ const ProjectList: React.FC = () => {
           </select>
           <button
             className="project-new-btn"
-            onClick={() => {
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = '.zip';
-              input.onchange = async (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0];
-                if (!file) return;
-                try {
-                  const newId = await importProjectFromZip(file);
-                  await fetchProjects();
-                  showToast('Project imported', 'success');
-                  navigate(`/project/${newId}`);
-                } catch (err) {
-                  showToast(
-                    `Import failed: ${err instanceof Error ? err.message : String(err)}`,
-                    'error',
-                  );
-                }
-              };
-              input.click();
+            onClick={async () => {
+              try {
+                const { openBinaryFile } = await import('../utils/fileOps');
+                const result = await openBinaryFile([
+                  { name: 'ZIP Archive', extensions: ['zip'] },
+                ]);
+                if (!result) return;
+                const newId = await importProjectFromZip(result.content);
+                await fetchProjects();
+                showToast('Project imported', 'success');
+                navigate(`/project/${newId}`);
+              } catch (err) {
+                showToast(
+                  `Import failed: ${err instanceof Error ? err.message : String(err)}`,
+                  'error',
+                );
+              }
             }}
           >
             Import Project

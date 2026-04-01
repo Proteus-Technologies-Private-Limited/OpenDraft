@@ -22,6 +22,7 @@
         { "path": "$APPDATA/**" },
         { "path": "$RESOURCE/**" }
       ]
-    }
+    },
+    "dialog:default"
   ]
 }
