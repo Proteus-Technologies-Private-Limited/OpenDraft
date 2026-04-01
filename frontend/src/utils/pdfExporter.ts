@@ -223,13 +223,16 @@ function renderLine(
 
 // --- Main export function ---
 
-export function exportPDF(doc: JSONContent, title: string, layout: PageLayout): void {
+export async function exportPDF(doc: JSONContent, title: string, layout: PageLayout): Promise<void> {
+  const { saveFile } = await import('./fileOps');
+  const filename = `${sanitizeFilename(title)}.pdf`;
+
   if (!doc || !doc.content || doc.content.length === 0) {
     const pdf = new jsPDF({
       unit: 'pt',
       format: [layout.pageWidth * PTS_PER_INCH, layout.pageHeight * PTS_PER_INCH],
     });
-    pdf.save(`${sanitizeFilename(title)}.pdf`);
+    await saveFile(new Uint8Array(pdf.output('arraybuffer')), filename, [{ name: 'PDF', extensions: ['pdf'] }]);
     return;
   }
 
@@ -472,7 +475,7 @@ export function exportPDF(doc: JSONContent, title: string, layout: PageLayout): 
     i++;
   }
 
-  pdf.save(`${sanitizeFilename(title)}.pdf`);
+  await saveFile(new Uint8Array(pdf.output('arraybuffer')), filename, [{ name: 'PDF', extensions: ['pdf'] }]);
 }
 
 // --- Render helpers ---
@@ -526,6 +529,6 @@ function sanitizeFilename(name: string): string {
 }
 
 // Convenience download function matching the pattern of other exporters
-export function downloadPDF(doc: JSONContent, title: string, layout: PageLayout): void {
-  exportPDF(doc, title, layout);
+export async function downloadPDF(doc: JSONContent, title: string, layout: PageLayout): Promise<void> {
+  await exportPDF(doc, title, layout);
 }

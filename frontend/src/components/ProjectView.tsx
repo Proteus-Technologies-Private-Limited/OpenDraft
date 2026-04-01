@@ -628,16 +628,16 @@ const ProjectView: React.FC = () => {
 
         switch (format) {
           case 'fdx':
-            downloadFDX(content as any, title, profiles, cats, tags);
+            await downloadFDX(content as any, title, profiles, cats, tags);
             break;
           case 'fountain':
-            downloadFountain(content as any, title);
+            await downloadFountain(content as any, title);
             break;
           case 'pdf':
-            exportPDF(content as any, title, DEFAULT_PAGE_LAYOUT);
+            await exportPDF(content as any, title, DEFAULT_PAGE_LAYOUT);
             break;
           case 'odraft':
-            downloadOdraft(resp.meta, content);
+            await downloadOdraft(resp.meta, content);
             break;
         }
         showToast(`Exported as ${format.toUpperCase()}`, 'success');

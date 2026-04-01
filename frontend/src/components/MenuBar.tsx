@@ -298,92 +298,86 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     editor.chain().focus().setNode(type).run();
   };
 
-  const handleImport = useCallback(() => {
+  const handleImport = useCallback(async () => {
     if (!editor) return;
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.fountain,.fdx,.txt';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const text = reader.result as string;
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        let doc;
-        if (ext === 'fdx') {
-          const result = parseFDXFull(text);
-          doc = result.doc;
-          if (result.pageLayout) {
-            useEditorStore.getState().setPageLayout({
-              pageWidth: result.pageLayout.pageWidth,
-              pageHeight: result.pageLayout.pageHeight,
-              topMargin: result.pageLayout.topMargin,
-              bottomMargin: result.pageLayout.bottomMargin,
-              headerMargin: result.pageLayout.headerMargin,
-              footerMargin: result.pageLayout.footerMargin,
-              leftMargin: result.pageLayout.leftMargin,
-              rightMargin: result.pageLayout.rightMargin,
-            });
-          }
-          // Import beats from Outline elements
-          if (result.beats.length > 0) {
-            const store = useEditorStore.getState();
-            store.setBeats(result.beats);
-            if (result.beatColumns.length > 0) {
-              store.setBeatColumns(result.beatColumns);
-            }
-          }
-          // Import character profiles from CastList + CharacterHighlighting
-          if (result.castList.length > 0 || result.characterHighlighting.length > 0) {
-            const store = useEditorStore.getState();
-            const highlightMap = new Map(result.characterHighlighting.map((h) => [h.name.toUpperCase(), h]));
-            for (const member of result.castList) {
-              const hl = highlightMap.get(member.name.toUpperCase());
-              store.upsertCharacterProfile(member.name, {
-                description: member.description,
-                color: hl?.color || '',
-                highlighted: hl?.highlighted || false,
-              });
-              highlightMap.delete(member.name.toUpperCase());
-            }
-            // Remaining highlights without cast entries
-            for (const [, hl] of highlightMap) {
-              store.upsertCharacterProfile(hl.name, {
-                color: hl.color,
-                highlighted: hl.highlighted,
-              });
-            }
-          }
-        } else {
-          doc = parseFountain(text);
-        }
-        editor.commands.setContent(doc);
+    const { openTextFile } = await import('../utils/fileOps');
+    const result = await openTextFile([
+      { name: 'Screenplay', extensions: ['fountain', 'fdx', 'txt'] },
+    ]);
+    if (!result) return;
 
-        // Create project + script in backend via Save As dialog
-        const scriptTitle = file.name.replace(/\.\w+$/, '') || 'Untitled';
-        useEditorStore.getState().setDocumentTitle(scriptTitle);
-        setSaveAsOpen(true);
-      };
-      reader.readAsText(file);
-    };
-    input.click();
+    const { name, content: text } = result;
+    const ext = name.split('.').pop()?.toLowerCase();
+    let doc;
+    if (ext === 'fdx') {
+      const parsed = parseFDXFull(text);
+      doc = parsed.doc;
+      if (parsed.pageLayout) {
+        useEditorStore.getState().setPageLayout({
+          pageWidth: parsed.pageLayout.pageWidth,
+          pageHeight: parsed.pageLayout.pageHeight,
+          topMargin: parsed.pageLayout.topMargin,
+          bottomMargin: parsed.pageLayout.bottomMargin,
+          headerMargin: parsed.pageLayout.headerMargin,
+          footerMargin: parsed.pageLayout.footerMargin,
+          leftMargin: parsed.pageLayout.leftMargin,
+          rightMargin: parsed.pageLayout.rightMargin,
+        });
+      }
+      // Import beats from Outline elements
+      if (parsed.beats.length > 0) {
+        const store = useEditorStore.getState();
+        store.setBeats(parsed.beats);
+        if (parsed.beatColumns.length > 0) {
+          store.setBeatColumns(parsed.beatColumns);
+        }
+      }
+      // Import character profiles from CastList + CharacterHighlighting
+      if (parsed.castList.length > 0 || parsed.characterHighlighting.length > 0) {
+        const store = useEditorStore.getState();
+        const highlightMap = new Map(parsed.characterHighlighting.map((h) => [h.name.toUpperCase(), h]));
+        for (const member of parsed.castList) {
+          const hl = highlightMap.get(member.name.toUpperCase());
+          store.upsertCharacterProfile(member.name, {
+            description: member.description,
+            color: hl?.color || '',
+            highlighted: hl?.highlighted || false,
+          });
+          highlightMap.delete(member.name.toUpperCase());
+        }
+        // Remaining highlights without cast entries
+        for (const [, hl] of highlightMap) {
+          store.upsertCharacterProfile(hl.name, {
+            color: hl.color,
+            highlighted: hl.highlighted,
+          });
+        }
+      }
+    } else {
+      doc = parseFountain(text);
+    }
+    editor.commands.setContent(doc);
+
+    // Create project + script in backend via Save As dialog
+    const scriptTitle = name.replace(/\.\w+$/, '') || 'Untitled';
+    useEditorStore.getState().setDocumentTitle(scriptTitle);
+    setSaveAsOpen(true);
   }, [editor, setCurrentProject, setCurrentScriptId, setScripts, setSaveAsOpen]);
 
-  const handleExportFDX = useCallback(() => {
+  const handleExportFDX = useCallback(async () => {
     if (!editor) return;
     const s = useEditorStore.getState();
-    downloadFDX(editor.getJSON(), documentTitle, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns);
+    await downloadFDX(editor.getJSON(), documentTitle, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns);
   }, [editor, documentTitle]);
 
-  const handleExportFountain = useCallback(() => {
+  const handleExportFountain = useCallback(async () => {
     if (!editor) return;
-    downloadFountain(editor.getJSON(), documentTitle);
+    await downloadFountain(editor.getJSON(), documentTitle);
   }, [editor, documentTitle]);
 
-  const handleExportPDF = useCallback(() => {
+  const handleExportPDF = useCallback(async () => {
     if (!editor) return;
-    exportPDF(editor.getJSON(), documentTitle, pageLayout);
+    await exportPDF(editor.getJSON(), documentTitle, pageLayout);
   }, [editor, documentTitle, pageLayout]);
 
   const handleMenuClick = (label: string) => {

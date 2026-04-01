@@ -32,11 +32,11 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",       # Vite dev server
-        "http://localhost:3000",       # Alt dev server
         "tauri://localhost",           # Tauri desktop (macOS/Linux)
-        "https://tauri.localhost",     # Tauri desktop (Windows)
     ],
+    # Allow localhost, *.localhost (Tauri Windows), and local-network IPs
+    # so the app works from phones / other devices on the same network.
+    allow_origin_regex=r"^https?://(localhost|[\w.-]*\.localhost|127\.0\.0\.1|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
