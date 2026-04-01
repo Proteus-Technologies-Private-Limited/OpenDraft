@@ -165,12 +165,23 @@ export interface CharacterProfile {
   images: string[];
 }
 
+export interface BeatColumn {
+  id: string;
+  title: string;
+  position: number;
+  width: number; // pixels, 0 = auto/fill
+}
+
 export interface BeatInfo {
   id: string;
   title: string;
   description: string;
-  actIndex: number;
+  columnId: string;
   position: number;
+  color: string;
+  imageUrl: string;
+  cardWidth: number;  // pixels, 0 = fill column
+  cardHeight: number; // pixels, 0 = auto
 }
 
 interface EditorState {
@@ -215,10 +226,15 @@ interface EditorState {
   setNoteFilter: (filter: NoteFilter) => void;
 
   // Beats
+  beatColumns: BeatColumn[];
+  setBeatColumns: (columns: BeatColumn[]) => void;
+  addBeatColumn: (title: string) => string;
+  updateBeatColumn: (id: string, updates: Partial<{ title: string; position: number; width: number }>) => void;
+  deleteBeatColumn: (id: string) => void;
   beats: BeatInfo[];
   setBeats: (beats: BeatInfo[]) => void;
-  addBeat: (title: string, actIndex: number) => void;
-  updateBeat: (id: string, updates: Partial<{ title: string; description: string; actIndex: number; position: number }>) => void;
+  addBeat: (title: string, columnId: string) => void;
+  updateBeat: (id: string, updates: Partial<{ title: string; description: string; columnId: string; position: number; color: string; imageUrl: string; cardWidth: number; cardHeight: number }>) => void;
   deleteBeat: (id: string) => void;
 
   // Revision
@@ -264,6 +280,8 @@ interface EditorState {
   // Zoom
   zoomLevel: number;
   setZoomLevel: (level: number) => void;
+  zoomPanelOpen: boolean;
+  setZoomPanelOpen: (open: boolean) => void;
 
   // Font
   fontFamily: string;
@@ -362,12 +380,31 @@ export const useEditorStore = create<EditorState>((set) => ({
   setNoteFilter: (filter) => set({ noteFilter: filter }),
 
   // Beats
+  beatColumns: [],
+  setBeatColumns: (columns) => set({ beatColumns: columns }),
+  addBeatColumn: (title) => {
+    const id = crypto.randomUUID();
+    set((s) => {
+      const maxPos = s.beatColumns.length > 0 ? Math.max(...s.beatColumns.map((c) => c.position)) : -1;
+      return { beatColumns: [...s.beatColumns, { id, title, position: maxPos + 1, width: 0 }] };
+    });
+    return id;
+  },
+  updateBeatColumn: (id, updates) =>
+    set((s) => ({
+      beatColumns: s.beatColumns.map((c) => (c.id === id ? { ...c, ...updates } : c)),
+    })),
+  deleteBeatColumn: (id) =>
+    set((s) => ({
+      beatColumns: s.beatColumns.filter((c) => c.id !== id),
+      beats: s.beats.filter((b) => b.columnId !== id),
+    })),
   beats: [],
   setBeats: (beats) => set({ beats }),
-  addBeat: (title, actIndex) =>
+  addBeat: (title, columnId) =>
     set((s) => {
-      const actsBeats = s.beats.filter((b) => b.actIndex === actIndex);
-      const maxPos = actsBeats.length > 0 ? Math.max(...actsBeats.map((b) => b.position)) : -1;
+      const colBeats = s.beats.filter((b) => b.columnId === columnId);
+      const maxPos = colBeats.length > 0 ? Math.max(...colBeats.map((b) => b.position)) : -1;
       return {
         beats: [
           ...s.beats,
@@ -375,8 +412,12 @@ export const useEditorStore = create<EditorState>((set) => ({
             id: crypto.randomUUID(),
             title,
             description: '',
-            actIndex,
+            columnId,
             position: maxPos + 1,
+            color: '',
+            imageUrl: '',
+            cardWidth: 0,
+            cardHeight: 0,
           },
         ],
       };
@@ -484,6 +525,8 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   zoomLevel: 100,
   setZoomLevel: (level) => set({ zoomLevel: Math.min(200, Math.max(50, level)) }),
+  zoomPanelOpen: false,
+  setZoomPanelOpen: (open) => set({ zoomPanelOpen: open }),
 
   fontFamily: 'Courier Prime',
   setFontFamily: (font) => set({ fontFamily: font }),

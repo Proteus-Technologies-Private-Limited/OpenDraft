@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Editor } from '@tiptap/react';
 import {
   FaBold,
@@ -44,6 +44,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     setActiveElement,
     zoomLevel,
     setZoomLevel,
+    zoomPanelOpen,
+    setZoomPanelOpen,
     fontFamily,
     setFontFamily,
     fontSize,
@@ -135,6 +137,18 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     return editor.isActive(format);
   };
 
+  // Editable zoom input
+  const [zoomInput, setZoomInput] = useState(String(zoomLevel));
+  const [zoomEditing, setZoomEditing] = useState(false);
+  const zoomInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (!zoomEditing) setZoomInput(String(zoomLevel)); }, [zoomLevel, zoomEditing]);
+  const commitZoom = () => {
+    const val = parseInt(zoomInput, 10);
+    if (!isNaN(val) && val >= 50 && val <= 200) setZoomLevel(val);
+    else setZoomInput(String(zoomLevel));
+    setZoomEditing(false);
+  };
+
   return (
     <div className="toolbar">
       {/* Undo / Redo */}
@@ -176,86 +190,81 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
       <div className="toolbar-separator" />
 
-      {/* Font family */}
-      <div className="toolbar-group">
-        <FontPicker
-          value={cursorFont}
-          extraFonts={extraFonts}
-          onChange={(val) => {
-            setFontFamily(val);
-            const entry = FONT_REGISTRY.find(f => f.name === val);
-            if (entry) loadFont(entry);
-            // If selecting a default screenplay font, remove the inline fontFamily
-            // so text inherits from the page wrapper CSS (avoids letter-spacing mismatch)
-            const DEFAULT_FONTS = ['Courier Final Draft', 'Courier Prime', 'Courier New', 'Courier'];
-            if (DEFAULT_FONTS.includes(val)) {
-              editor?.chain().focus().setMark('textStyle', { fontFamily: null }).removeEmptyTextStyle().run();
-            } else {
-              editor?.chain().focus().setMark('textStyle', { fontFamily: val }).run();
-            }
-          }}
-        />
+      {/* Font, size, style, language — hidden on mobile (available via context menu) */}
+      <div className="toolbar-desktop-only">
+        <div className="toolbar-group">
+          <FontPicker
+            value={cursorFont}
+            extraFonts={extraFonts}
+            onChange={(val) => {
+              setFontFamily(val);
+              const entry = FONT_REGISTRY.find(f => f.name === val);
+              if (entry) loadFont(entry);
+              const DEFAULT_FONTS = ['Courier Final Draft', 'Courier Prime', 'Courier New', 'Courier'];
+              if (DEFAULT_FONTS.includes(val)) {
+                editor?.chain().focus().setMark('textStyle', { fontFamily: null }).removeEmptyTextStyle().run();
+              } else {
+                editor?.chain().focus().setMark('textStyle', { fontFamily: val }).run();
+              }
+            }}
+          />
+        </div>
+
+        <div className="toolbar-group">
+          <select
+            className="font-size-selector"
+            value={cursorSize}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              setFontSize(val);
+              if (val === 12) {
+                editor?.chain().focus().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
+              } else {
+                editor?.chain().focus().setFontSize(`${val}pt`).run();
+              }
+            }}
+            title="Font Size"
+          >
+            {(FONT_SIZES.includes(cursorSize) ? FONT_SIZES : [...FONT_SIZES, cursorSize].sort((a, b) => a - b)).map((s) => (
+              <option key={s} value={s}>
+                {s}pt
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="toolbar-separator" />
+
+        <div className="toolbar-group">
+          <button
+            className={`toolbar-btn ${isActive('bold') ? 'active' : ''}`}
+            title="Bold (⌘B)"
+            onClick={() => editor?.chain().focus().toggleBold().run()}
+          >
+            <FaBold />
+          </button>
+          <button
+            className={`toolbar-btn ${isActive('italic') ? 'active' : ''}`}
+            title="Italic (⌘I)"
+            onClick={() => editor?.chain().focus().toggleItalic().run()}
+          >
+            <FaItalic />
+          </button>
+          <button
+            className={`toolbar-btn ${isActive('underline') ? 'active' : ''}`}
+            title="Underline (⌘U)"
+            onClick={() => editor?.chain().focus().toggleUnderline().run()}
+          >
+            <FaUnderline />
+          </button>
+        </div>
+
+        <div className="toolbar-separator" />
+
+        <LanguageSelector editor={editor} activeElement={activeElement} />
+
+        <div className="toolbar-separator" />
       </div>
-
-      {/* Font size */}
-      <div className="toolbar-group">
-        <select
-          className="font-size-selector"
-          value={cursorSize}
-          onChange={(e) => {
-            const val = Number(e.target.value);
-            setFontSize(val);
-            // If setting back to default 12pt, remove the inline fontSize mark
-            if (val === 12) {
-              editor?.chain().focus().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
-            } else {
-              editor?.chain().focus().setFontSize(`${val}pt`).run();
-            }
-          }}
-          title="Font Size"
-        >
-          {/* Include cursorSize if not in the standard list */}
-          {(FONT_SIZES.includes(cursorSize) ? FONT_SIZES : [...FONT_SIZES, cursorSize].sort((a, b) => a - b)).map((s) => (
-            <option key={s} value={s}>
-              {s}pt
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="toolbar-separator" />
-
-      {/* Bold / Italic / Underline */}
-      <div className="toolbar-group">
-        <button
-          className={`toolbar-btn ${isActive('bold') ? 'active' : ''}`}
-          title="Bold (⌘B)"
-          onClick={() => editor?.chain().focus().toggleBold().run()}
-        >
-          <FaBold />
-        </button>
-        <button
-          className={`toolbar-btn ${isActive('italic') ? 'active' : ''}`}
-          title="Italic (⌘I)"
-          onClick={() => editor?.chain().focus().toggleItalic().run()}
-        >
-          <FaItalic />
-        </button>
-        <button
-          className={`toolbar-btn ${isActive('underline') ? 'active' : ''}`}
-          title="Underline (⌘U)"
-          onClick={() => editor?.chain().focus().toggleUnderline().run()}
-        >
-          <FaUnderline />
-        </button>
-      </div>
-
-      <div className="toolbar-separator" />
-
-      {/* Language selector (only for dialogue/parenthetical/character) */}
-      <LanguageSelector editor={editor} activeElement={activeElement} />
-
-      <div className="toolbar-separator" />
 
       {/* Search */}
       <div className="toolbar-group">
@@ -278,7 +287,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Zoom */}
+      {/* Zoom — desktop: inline +/- with editable percentage */}
       <div className="toolbar-group zoom-group">
         <button
           className="toolbar-btn"
@@ -288,12 +297,45 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         >
           <FaSearchMinus />
         </button>
-        <span className="zoom-label">{zoomLevel}%</span>
+        {zoomEditing ? (
+          <input
+            ref={zoomInputRef}
+            className="zoom-input"
+            type="number"
+            min={50}
+            max={200}
+            step={10}
+            value={zoomInput}
+            onChange={(e) => setZoomInput(e.target.value)}
+            onBlur={commitZoom}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitZoom(); if (e.key === 'Escape') { setZoomInput(String(zoomLevel)); setZoomEditing(false); } }}
+            autoFocus
+          />
+        ) : (
+          <span
+            className="zoom-label"
+            onClick={() => { setZoomEditing(true); setTimeout(() => zoomInputRef.current?.select(), 0); }}
+            title="Click to edit zoom"
+          >
+            {zoomLevel}%
+          </span>
+        )}
         <button
           className="toolbar-btn"
           title="Zoom In"
           onClick={() => setZoomLevel(zoomLevel + 10)}
           disabled={zoomLevel >= 200}
+        >
+          <FaSearchPlus />
+        </button>
+      </div>
+
+      {/* Zoom — mobile: single button */}
+      <div className="toolbar-group zoom-mobile-group">
+        <button
+          className="toolbar-btn"
+          title="Zoom"
+          onClick={() => setZoomPanelOpen(!zoomPanelOpen)}
         >
           <FaSearchPlus />
         </button>

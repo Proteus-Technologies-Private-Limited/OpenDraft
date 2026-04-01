@@ -17,6 +17,7 @@ const SYNC_KEYS = [
   'tags',
   'tagCategories',
   'beats',
+  'beatColumns',
 ] as const;
 
 type SyncKey = (typeof SYNC_KEYS)[number];
@@ -46,6 +47,7 @@ export function startCollabSync(ydoc: Y.Doc, isHost: boolean): void {
       metaMap!.set('tags', JSON.stringify(store.tags));
       metaMap!.set('tagCategories', JSON.stringify(store.tagCategories));
       metaMap!.set('beats', JSON.stringify(store.beats));
+      metaMap!.set('beatColumns', JSON.stringify(store.beatColumns));
     });
   }
 
@@ -100,6 +102,7 @@ function takeSnapshot(): Record<SyncKey, string> {
     tags: JSON.stringify(s.tags),
     tagCategories: JSON.stringify(s.tagCategories),
     beats: JSON.stringify(s.beats),
+    beatColumns: JSON.stringify(s.beatColumns),
   };
 }
 
@@ -136,6 +139,11 @@ function applyYjsToStore() {
     const b = metaMap.get('beats');
     if (b) {
       try { store.setBeats(JSON.parse(b)); } catch { /* ignore */ }
+    }
+
+    const bc = metaMap.get('beatColumns');
+    if (bc) {
+      try { store.setBeatColumns(JSON.parse(bc)); } catch { /* ignore */ }
     }
   } finally {
     fromYjs = false;

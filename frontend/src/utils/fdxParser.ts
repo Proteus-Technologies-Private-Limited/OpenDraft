@@ -13,6 +13,9 @@ interface TipTapNode {
   attrs?: Record<string, unknown>;
 }
 
+// Outline element types — used for beat board import (not rendered as script elements)
+const OUTLINE_TYPES = new Set(['Outline 1', 'Outline 2', 'Outline 3', 'Outline 4', 'Outline Body', 'Summary', 'Note']);
+
 const FDX_TYPE_MAP: Record<string, string> = {
   'Scene Heading': 'sceneHeading',
   'Action': 'action',
@@ -75,6 +78,25 @@ export interface FDXTagItem {
   label: string;
 }
 
+export interface FDXBeatColumn {
+  id: string;
+  title: string;
+  position: number;
+  width: number;
+}
+
+export interface FDXBeat {
+  id: string;
+  title: string;
+  description: string;
+  columnId: string;
+  position: number;
+  color: string;
+  imageUrl: string;
+  cardWidth: number;
+  cardHeight: number;
+}
+
 export interface FDXParseResult {
   doc: TipTapNode;
   pageLayout: FDXPageLayout | null;
@@ -82,6 +104,8 @@ export interface FDXParseResult {
   characterHighlighting: FDXCharacterHighlight[];
   tagCategories: FDXTagCategory[];
   tagItems: FDXTagItem[];
+  beats: FDXBeat[];
+  beatColumns: FDXBeatColumn[];
 }
 
 export function parseFDX(xmlString: string): TipTapNode {
@@ -132,13 +156,79 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
   // --- Parse Content ---
   const contentEl = xmlDoc.querySelector('Content');
   if (!contentEl) {
-    return { doc: { type: 'doc', content: [{ type: 'action', content: [] }] }, pageLayout, castList: [], characterHighlighting: [], tagCategories: [], tagItems: [] };
+    return { doc: { type: 'doc', content: [{ type: 'action', content: [] }] }, pageLayout, castList: [], characterHighlighting: [], tagCategories: [], tagItems: [], beats: [], beatColumns: [] };
   }
 
   const paragraphs = contentEl.querySelectorAll(':scope > Paragraph');
 
+  // --- Extract beats from Outline paragraph types ---
+  // Create columns dynamically as acts are encountered
+  const beatColumns: FDXBeatColumn[] = [];
+  const beats: FDXBeat[] = [];
+  const columnForAct = new Map<number, string>(); // actIndex → columnId
+
+  const getOrCreateColumn = (actIndex: number, actTitle?: string): string => {
+    let colId = columnForAct.get(actIndex);
+    if (!colId) {
+      colId = crypto.randomUUID();
+      columnForAct.set(actIndex, colId);
+      beatColumns.push({ id: colId, title: actTitle || `Act ${actIndex + 1}`, position: beatColumns.length, width: 0 });
+    }
+    return colId;
+  };
+
+  // Ensure at least act 0 column exists for beats before any New Act
+  let currentActIndex = 0;
+  let beatPosition = 0;
+  let currentBeat: FDXBeat | null = null;
+
   paragraphs.forEach((para) => {
     const fdxType = para.getAttribute('Type') || 'General';
+
+    // Track act boundaries
+    if (fdxType === 'New Act') {
+      currentActIndex++;
+      beatPosition = 0;
+    }
+
+    // Extract outline elements as beats
+    if (OUTLINE_TYPES.has(fdxType)) {
+      const text = para.textContent?.trim() || '';
+      if (fdxType === 'Outline 1' || fdxType === 'Outline 2' || fdxType === 'Outline 3' || fdxType === 'Outline 4') {
+        const colId = getOrCreateColumn(currentActIndex);
+        currentBeat = {
+          id: crypto.randomUUID(),
+          title: text,
+          description: '',
+          columnId: colId,
+          position: beatPosition++,
+          color: '',
+          imageUrl: '',
+          cardWidth: 0,
+          cardHeight: 0,
+        };
+        beats.push(currentBeat);
+      } else if (fdxType === 'Outline Body' && currentBeat) {
+        currentBeat.description += (currentBeat.description ? '\n' : '') + text;
+      } else if (fdxType === 'Summary' && text) {
+        const colId = getOrCreateColumn(currentActIndex);
+        currentBeat = {
+          id: crypto.randomUUID(),
+          title: text.length > 60 ? text.substring(0, 60) + '...' : text,
+          description: text.length > 60 ? text : '',
+          columnId: colId,
+          position: beatPosition++,
+          color: '',
+          imageUrl: '',
+          cardWidth: 0,
+          cardHeight: 0,
+        };
+        beats.push(currentBeat);
+      }
+      // Skip outline paragraphs from script content — they go to the beat board
+      return;
+    }
+
     const nodeType = FDX_TYPE_MAP[fdxType] || 'general';
 
     // --- Paragraph-level attributes ---
@@ -292,6 +382,8 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     characterHighlighting,
     tagCategories: parsedTagCategories,
     tagItems: parsedTagItems,
+    beats,
+    beatColumns,
   };
 }
 

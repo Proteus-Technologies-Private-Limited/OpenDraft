@@ -1,6 +1,6 @@
 // Final Draft XML (.fdx) exporter — full formatting & layout support
 import type { JSONContent } from '@tiptap/react';
-import type { CharacterProfile, TagCategory, TagItem } from '../stores/editorStore';
+import type { CharacterProfile, TagCategory, TagItem, BeatInfo, BeatColumn } from '../stores/editorStore';
 
 const NODE_TO_FDX: Record<string, string> = {
   sceneHeading: 'Scene Heading',
@@ -102,6 +102,21 @@ const ELEMENT_SETTINGS = `
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold+AllCaps"/>
     <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="0"/>
+  </ElementSettings>
+  <ElementSettings Type="Outline 1">
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold+AllCaps"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
+    <Behavior PaginateAs="Action" ReturnKey="Outline Body" Shortcut="0"/>
+  </ElementSettings>
+  <ElementSettings Type="Outline 2">
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.75" RightIndent="7.25" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+    <Behavior PaginateAs="Action" ReturnKey="Outline Body" Shortcut="0"/>
+  </ElementSettings>
+  <ElementSettings Type="Outline Body">
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+    <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="0"/>
   </ElementSettings>`;
 
 interface MarkInfo { type: string; attrs?: Record<string, unknown>; }
@@ -131,7 +146,7 @@ function getTextAttributes(marks?: MarkInfo[]): string {
   return parts.length > 0 ? ' ' + parts.join(' ') : '';
 }
 
-export function exportFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[]): string {
+export function exportFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[]): string {
   const lines: string[] = [];
   lines.push('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>');
   lines.push('<FinalDraft DocumentType="Script" Template="No" Version="5">');
@@ -166,8 +181,50 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   lines.push('  </TitlePage>');
   lines.push('');
 
-  // Script content
+  // Script content — write all beats as Outline paragraphs before the script body
   lines.push('  <Content>');
+
+  // Write beats grouped by column, in column order
+  if (beats && beats.length > 0) {
+    const sortedCols = beatColumns
+      ? [...beatColumns].sort((a, b) => a.position - b.position)
+      : [];
+    const colIds = new Set(sortedCols.map((c) => c.id));
+    // Group beats by columnId
+    const beatsByCol = new Map<string, BeatInfo[]>();
+    for (const beat of [...beats].sort((a, b) => a.position - b.position)) {
+      const arr = beatsByCol.get(beat.columnId) || [];
+      arr.push(beat);
+      beatsByCol.set(beat.columnId, arr);
+    }
+    // Write column-by-column
+    for (const col of sortedCols) {
+      const colBeats = beatsByCol.get(col.id);
+      if (!colBeats || colBeats.length === 0) continue;
+      // Column header as Outline 1 section marker
+      lines.push(`    <Paragraph Type="Outline 1"><Text>${esc(col.title)}</Text></Paragraph>`);
+      for (const beat of colBeats) {
+        lines.push(`    <Paragraph Type="Outline 2"><Text>${esc(beat.title)}</Text></Paragraph>`);
+        if (beat.description) {
+          for (const descLine of beat.description.split('\n')) {
+            lines.push(`    <Paragraph Type="Outline Body"><Text>${esc(descLine)}</Text></Paragraph>`);
+          }
+        }
+      }
+    }
+    // Beats in unknown columns (orphaned)
+    for (const [colId, colBeats] of beatsByCol) {
+      if (colIds.has(colId)) continue;
+      for (const beat of colBeats) {
+        lines.push(`    <Paragraph Type="Outline 1"><Text>${esc(beat.title)}</Text></Paragraph>`);
+        if (beat.description) {
+          for (const descLine of beat.description.split('\n')) {
+            lines.push(`    <Paragraph Type="Outline Body"><Text>${esc(descLine)}</Text></Paragraph>`);
+          }
+        }
+      }
+    }
+  }
 
   if (doc.content) {
     for (const node of doc.content) {
@@ -246,13 +303,22 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
     lines.push('  </TagData>');
   }
 
+  // DisplayBoards — Beat Board canvas metadata
+  if (beats && beats.length > 0) {
+    lines.push('');
+    lines.push('  <DisplayBoards>');
+    lines.push('    <DisplayBoard Height="55" ScrollOrigin="0,0" Type="StoryMap" Width="2032" ZoomLevel="100.000"/>');
+    lines.push('    <DisplayBoard Height="10000" ScrollOrigin="0,0" Type="Beat" Width="24000" ZoomLevel="100.000"/>');
+    lines.push('  </DisplayBoards>');
+  }
+
   lines.push('</FinalDraft>');
 
   return lines.join('\n');
 }
 
-export function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[]) {
-  const xml = exportFDX(doc, title, characterProfiles, tagCategories, tags);
+export function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[]) {
+  const xml = exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns);
   const blob = new Blob([xml], { type: 'application/xml' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
