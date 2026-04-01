@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { uuid } from '../utils/uuid';
 
 export type ElementType =
   | 'sceneHeading'
@@ -341,10 +342,9 @@ export const useEditorStore = create<EditorState>((set) => ({
   beatBoardOpen: false,
   toggleBeatBoard: () => set((s) => ({ beatBoardOpen: !s.beatBoardOpen })),
   scriptNotesOpen: false,
-  toggleScriptNotes: () => set((s) => {
-    const opening = !s.scriptNotesOpen;
-    return { scriptNotesOpen: opening, notesVisible: opening };
-  }),
+  toggleScriptNotes: () => set((s) => ({
+    scriptNotesOpen: !s.scriptNotesOpen,
+  })),
   notesVisible: false,
   setNotesVisible: (v) => set({ notesVisible: v }),
 
@@ -357,7 +357,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   notes: [],
   setNotes: (notes) => set({ notes }),
   addNote: (note) => {
-    const id = crypto.randomUUID();
+    const id = uuid();
     set((s) => ({
       notes: [
         ...s.notes,
@@ -383,7 +383,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   beatColumns: [],
   setBeatColumns: (columns) => set({ beatColumns: columns }),
   addBeatColumn: (title) => {
-    const id = crypto.randomUUID();
+    const id = uuid();
     set((s) => {
       const maxPos = s.beatColumns.length > 0 ? Math.max(...s.beatColumns.map((c) => c.position)) : -1;
       return { beatColumns: [...s.beatColumns, { id, title, position: maxPos + 1, width: 0 }] };
@@ -409,7 +409,7 @@ export const useEditorStore = create<EditorState>((set) => ({
         beats: [
           ...s.beats,
           {
-            id: crypto.randomUUID(),
+            id: uuid(),
             title,
             description: '',
             columnId,
@@ -485,7 +485,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   tagCategories: [...DEFAULT_TAG_CATEGORIES],
   setTagCategories: (cats) => set({ tagCategories: cats }),
   addTagCategory: (name, color) => {
-    const id = crypto.randomUUID();
+    const id = uuid();
     set((s) => ({
       tagCategories: [...s.tagCategories, { id, name, color, isBuiltIn: false }],
     }));
@@ -499,7 +499,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   tags: [],
   setTags: (tags) => set({ tags }),
   addTag: (tag) => {
-    const id = crypto.randomUUID();
+    const id = uuid();
     set((s) => ({
       tags: [...s.tags, { ...tag, name: tag.name || tag.text, id, createdAt: new Date().toISOString() }],
     }));
@@ -514,10 +514,9 @@ export const useEditorStore = create<EditorState>((set) => ({
   tagsVisible: false,
   setTagsVisible: (v) => set({ tagsVisible: v }),
   tagsPanelOpen: false,
-  toggleTagsPanel: () => set((s) => {
-    const opening = !s.tagsPanelOpen;
-    return { tagsPanelOpen: opening, tagsVisible: opening };
-  }),
+  toggleTagsPanel: () => set((s) => ({
+    tagsPanelOpen: !s.tagsPanelOpen,
+  })),
   pendingTagSelection: null,
   setPendingTagSelection: (sel) => set({ pendingTagSelection: sel }),
   editingTagId: null,

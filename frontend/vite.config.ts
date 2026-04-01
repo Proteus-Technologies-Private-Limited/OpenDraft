@@ -7,6 +7,7 @@ export default defineConfig({
 
   // Allow Tauri dev server to connect
   server: {
+    host: true,
     strictPort: true,
   },
 

@@ -46,6 +46,8 @@ interface ScriptContextMenuProps {
   spellInfo: SpellInfo | null;
   onClose: () => void;
   onOpenFormatPanel: () => void;
+  /** Pre-captured selection from long-press (touch devices blur the editor before mounting). */
+  overrideSelection?: { from: number; to: number };
 }
 
 const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
@@ -54,6 +56,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   spellInfo,
   onClose,
   onOpenFormatPanel,
+  overrideSelection,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [elementSubOpen, setElementSubOpen] = useState(false);
@@ -67,13 +70,35 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
     deleteTag, tagsPanelOpen, toggleTagsPanel, setPendingTagSelection, setEditingTagId,
   } = useEditorStore();
 
-  // Capture selection state at mount time (before any focus changes)
-  const savedSelection = useRef({
-    from: editor.state.selection.from,
-    to: editor.state.selection.to,
-    empty: editor.state.selection.empty,
-  });
-  const { $from } = editor.state.selection;
+  // Use overrideSelection (from long-press on touch) if available,
+  // otherwise capture from editor state (desktop right-click).
+  const selFrom = overrideSelection?.from ?? editor.state.selection.from;
+  const selTo = overrideSelection?.to ?? editor.state.selection.to;
+  const savedSelection = useRef({ from: selFrom, to: selTo, empty: selFrom === selTo });
+
+  // Restore ProseMirror selection so editor commands work correctly.
+  // Wrapped in try/catch — positions may be stale if the document changed.
+  useEffect(() => {
+    if (overrideSelection && overrideSelection.from !== overrideSelection.to) {
+      try {
+        const docSize = editor.state.doc.content.size;
+        const from = Math.min(overrideSelection.from, docSize);
+        const to = Math.min(overrideSelection.to, docSize);
+        if (from < to) {
+          const { TextSelection } = require('@tiptap/pm/state');
+          const { tr } = editor.state;
+          tr.setSelection(TextSelection.create(editor.state.doc, from, to));
+          editor.view.dispatch(tr);
+        }
+      } catch (e) {
+        console.warn('ScriptContextMenu: failed to restore selection', e);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const safeSelFrom = Math.min(selFrom, editor.state.doc.content.size);
+  const $from = editor.state.doc.resolve(safeSelFrom);
   const currentNodeType = $from.parent.type.name as ElementType;
   const hasSelection = !savedSelection.current.empty;
 
@@ -262,7 +287,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   };
 
   const handleAddScriptNote = () => {
-    const { from, to } = editor.state.selection;
+    const { from, to } = savedSelection.current;
     const anchorText = hasSelection
       ? editor.state.doc.textBetween(from, to, ' ')
       : editor.state.doc.textBetween(
@@ -293,24 +318,14 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       sceneId,
     });
 
-    // Apply the note highlight mark to the selected or current paragraph text
-    if (hasSelection) {
-      editor.chain().focus()
-        .setMark('scriptNote', { noteId, color: defaultColor.hex })
-        .run();
-    } else {
-      // If no selection, mark the entire current paragraph
-      editor.chain().focus()
-        .command(({ tr }) => {
-          tr.addMark(
-            $from.start(),
-            $from.end(),
-            editor.schema.marks.scriptNote.create({ noteId, color: defaultColor.hex }),
-          );
-          return true;
-        })
-        .run();
-    }
+    // Apply the note highlight mark using chain (editor should still have valid state
+    // since context menu is open and editor hasn't been blurred by a panel)
+    const markFrom = hasSelection ? from : $from.start();
+    const markTo = hasSelection ? to : $from.end();
+    editor.chain().focus()
+      .setTextSelection({ from: markFrom, to: markTo })
+      .setMark('scriptNote', { noteId, color: defaultColor.hex })
+      .run();
 
     // Filter to the newly created note
     setNoteFilter({ elementType: null, contextLabel: null, color: null, noteId });
@@ -387,7 +402,6 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
     const selTo = empty ? $from.end() : to;
     const text = editor.state.doc.textBetween(selFrom, selTo, ' ');
 
-    // Determine scene
     let sceneId: string | null = null;
     let sceneIdx = 0;
     editor.state.doc.nodesBetween(0, selFrom, (node) => {
@@ -395,11 +409,12 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       return true;
     });
 
-    // Set pending selection so Tags panel can apply the tag
     setPendingTagSelection({ from: selFrom, to: selTo, text: text.slice(0, 80), elementType: currentNodeType, sceneId });
     if (!tagsPanelOpen) toggleTagsPanel();
     onClose();
   };
+
+
 
   const handleRemoveTag = () => {
     if (!existingTagInfo) return;
@@ -648,11 +663,6 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           <div className="ctx-item" onClick={() => {
             if (existingTagInfo) {
               setEditingTagId(existingTagInfo.tagId);
-              // Also expand the category in the panel
-              const tag = useEditorStore.getState().tags.find((t) => t.id === existingTagInfo.tagId);
-              if (tag) {
-                // Category will be auto-expanded by TagsPanel when editingTagId is set
-              }
             }
             if (!tagsPanelOpen) toggleTagsPanel();
             onClose();

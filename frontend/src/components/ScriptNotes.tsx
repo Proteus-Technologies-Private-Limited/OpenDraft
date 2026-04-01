@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
+import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import {
   useEditorStore,
   ELEMENT_LABELS,
@@ -432,10 +433,17 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
     });
   };
 
-  if (!scriptNotesOpen) return null;
+  const { shouldRender, animationState } = useDelayedUnmount(scriptNotesOpen, 250);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useSwipeDismiss(panelRef, { direction: 'right', onDismiss: toggleScriptNotes, enabled: shouldRender });
+
+  if (!shouldRender) return null;
+
+  const panelClass = animationState === 'entered'
+    ? 'panel-open' : animationState === 'exiting' ? 'panel-closing' : '';
 
   return (
-    <div className="script-notes-panel" style={style}>
+    <div ref={panelRef} className={`script-notes-panel ${panelClass}`} style={style}>
       <div className="script-notes-header">
         <span className="script-notes-title">Script Notes</span>
         <span className="script-notes-count">

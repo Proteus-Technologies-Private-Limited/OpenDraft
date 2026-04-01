@@ -9,8 +9,10 @@ import {
   FaSearchPlus,
   FaSearchMinus,
   FaSearch,
+  FaStickyNote,
+  FaTags,
 } from 'react-icons/fa';
-import { useEditorStore, ELEMENT_LABELS } from '../stores/editorStore';
+import { useEditorStore, ELEMENT_LABELS, NOTE_COLORS } from '../stores/editorStore';
 import type { ElementType } from '../stores/editorStore';
 import FontPicker from './FontPicker';
 import LanguageSelector from './LanguageSelector';
@@ -52,6 +54,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     setFontSize,
     setSearchOpen,
     setGoToPageOpen,
+    scriptNotesOpen,
+    toggleScriptNotes,
+    addNote,
+    setNoteFilter,
+    tagsPanelOpen,
+    toggleTagsPanel,
+    setPendingTagSelection,
+    setEditingTagId,
   } = useEditorStore();
 
   // Track the font/size of the text at current cursor position
@@ -281,6 +291,149 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           onClick={() => setGoToPageOpen(true)}
         >
           Go to
+        </button>
+      </div>
+
+      <div className="toolbar-separator" />
+
+      {/* Notes & Tags — prevent focus steal so editor selection is preserved */}
+      <div className="toolbar-group">
+        <button
+          className={`toolbar-btn${scriptNotesOpen ? ' active' : ''}`}
+          title="Script Notes"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            if (!editor) { toggleScriptNotes(); return; }
+
+            // Detect if cursor is on an existing note
+            const noteMarkType = editor.schema.marks.scriptNote;
+            if (noteMarkType) {
+              const $from = editor.state.selection.$from;
+              let noteMark = $from.marks().find((m) => m.type === noteMarkType);
+              if (!noteMark) {
+                const node = $from.nodeAfter || $from.nodeBefore;
+                if (node?.marks) noteMark = node.marks.find((m) => m.type === noteMarkType);
+              }
+              if (noteMark) {
+                // Existing note → open panel filtered to this note
+                setNoteFilter({ elementType: null, contextLabel: null, color: null, noteId: noteMark.attrs.noteId as string });
+                if (!scriptNotesOpen) toggleScriptNotes();
+                return;
+              }
+            }
+
+            // No existing note → add a new note if there's text
+            const { from, to, empty } = editor.state.selection;
+            const $from = editor.state.selection.$from;
+            const selFrom = empty ? $from.start() : from;
+            const selTo = empty ? $from.end() : to;
+            const text = editor.state.doc.textBetween(selFrom, selTo, ' ');
+
+            if (text.trim()) {
+              // Derive context label
+              const currentNodeType = $from.parent.type.name;
+              const nodeText = $from.parent.textContent.trim();
+              let contextLabel = nodeText.slice(0, 60);
+              if (currentNodeType === 'character') {
+                contextLabel = nodeText.replace(/\s*\([^)]*\)\s*/g, '').trim();
+              } else if (currentNodeType === 'sceneHeading') {
+                contextLabel = nodeText;
+              } else if (currentNodeType === 'dialogue' || currentNodeType === 'parenthetical') {
+                let charName = '';
+                editor.state.doc.nodesBetween(0, selFrom, (node) => {
+                  if (node.type.name === 'character') {
+                    charName = node.textContent.trim().replace(/\s*\([^)]*\)\s*/g, '').trim();
+                  }
+                  return true;
+                });
+                if (charName) contextLabel = charName;
+              }
+
+              let sceneId: string | null = null;
+              let sceneIdx = 0;
+              editor.state.doc.nodesBetween(0, selFrom, (node) => {
+                if (node.type.name === 'sceneHeading') { sceneId = `scene-${sceneIdx}`; sceneIdx++; }
+                return true;
+              });
+
+              const defaultColor = NOTE_COLORS[0];
+              const noteId = addNote({
+                content: '',
+                anchorText: text.slice(0, 120),
+                elementType: currentNodeType,
+                contextLabel,
+                color: defaultColor.name,
+                sceneId,
+              });
+
+              // Apply highlight mark
+              const { tr } = editor.state;
+              const markType = editor.schema.marks.scriptNote;
+              if (markType) {
+                tr.addMark(selFrom, selTo, markType.create({ noteId, color: defaultColor.hex }));
+                editor.view.dispatch(tr);
+                editor.emit('update', { editor, transaction: tr });
+              }
+
+              setNoteFilter({ elementType: null, contextLabel: null, color: null, noteId });
+              if (!scriptNotesOpen) toggleScriptNotes();
+            } else {
+              toggleScriptNotes();
+            }
+          }}
+        >
+          <FaStickyNote />
+        </button>
+        <button
+          className={`toolbar-btn${tagsPanelOpen ? ' active' : ''}`}
+          title="Production Tags"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            if (!editor) { toggleTagsPanel(); return; }
+
+            // Detect if cursor/selection is on an existing production tag
+            const markType = editor.schema.marks.productionTag;
+            if (markType) {
+              const $from = editor.state.selection.$from;
+              const storedMarks = $from.marks();
+              let tagMark = storedMarks.find((m) => m.type === markType);
+              if (!tagMark) {
+                const node = $from.nodeAfter || $from.nodeBefore;
+                if (node?.marks) tagMark = node.marks.find((m) => m.type === markType);
+              }
+
+              if (tagMark) {
+                // Existing tag → open panel and edit it
+                setEditingTagId(tagMark.attrs.tagId as string);
+                if (!tagsPanelOpen) toggleTagsPanel();
+                return;
+              }
+            }
+
+            // No existing tag → start add-tag flow if there's a selection
+            const { from, to, empty } = editor.state.selection;
+            const $from = editor.state.selection.$from;
+            const selFrom = empty ? $from.start() : from;
+            const selTo = empty ? $from.end() : to;
+            const text = editor.state.doc.textBetween(selFrom, selTo, ' ');
+
+            if (text.trim()) {
+              const currentNodeType = $from.parent.type.name;
+              let sceneId: string | null = null;
+              let sceneIdx = 0;
+              editor.state.doc.nodesBetween(0, selFrom, (node) => {
+                if (node.type.name === 'sceneHeading') { sceneId = `scene-${sceneIdx}`; sceneIdx++; }
+                return true;
+              });
+              setPendingTagSelection({ from: selFrom, to: selTo, text: text.slice(0, 80), elementType: currentNodeType, sceneId });
+              if (!tagsPanelOpen) toggleTagsPanel();
+            } else {
+              // No text to tag — just toggle panel
+              toggleTagsPanel();
+            }
+          }}
+        >
+          <FaTags />
         </button>
       </div>
 

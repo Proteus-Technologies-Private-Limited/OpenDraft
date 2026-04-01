@@ -61,6 +61,7 @@ import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
 import CompareVersionPicker from './CompareVersionPicker';
 import ZoomPanel from './ZoomPanel';
+import { useIsTouchDevice, useSwipeEdge, usePinchZoom } from '../hooks/useTouch';
 import { useSettingsStore } from '../stores/settingsStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
 import { collabAuthApi } from '../services/collabAuth';
@@ -184,7 +185,8 @@ const ScreenplayEditor: React.FC = () => {
     setActiveElement, setScenes, setPageCount, setCurrentPage,
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     beatBoardOpen,
-    navigatorOpen, scriptNotesOpen, characterProfilesOpen, tagsPanelOpen,
+    navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
+    characterProfilesOpen, tagsPanelOpen,
     spellCheckEnabled, setDocumentTitle,
   } = useEditorStore();
 
@@ -207,32 +209,31 @@ const ScreenplayEditor: React.FC = () => {
   const resizeStartXRef = useRef(0);
   const resizeStartWidthRef = useRef(0);
 
-  const handleResizeMouseDown = useCallback((side: 'left' | 'right', e: React.MouseEvent) => {
+  const handleResizePointerDown = useCallback((side: 'left' | 'right', e: React.PointerEvent) => {
     e.preventDefault();
     resizingRef.current = side;
     resizeStartXRef.current = e.clientX;
     resizeStartWidthRef.current = side === 'left' ? navWidth : rightPanelWidth;
 
-    const handleMouseMove = (ev: MouseEvent) => {
+    const handlePointerMove = (ev: PointerEvent) => {
       const delta = ev.clientX - resizeStartXRef.current;
       if (resizingRef.current === 'left') {
         setNavWidth(Math.max(160, Math.min(500, resizeStartWidthRef.current + delta)));
       } else {
-        // Right panel: dragging left increases width
         setRightPanelWidth(Math.max(200, Math.min(600, resizeStartWidthRef.current - delta)));
       }
     };
 
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       resizingRef.current = null;
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerup', handlePointerUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   }, [navWidth, rightPanelWidth]);
@@ -455,6 +456,24 @@ const ScreenplayEditor: React.FC = () => {
   setPageCountRef.current = setPageCount;
   const pageLayoutRef = useRef(pageLayout);
   pageLayoutRef.current = pageLayout;
+
+  // ── Touch gestures (must be after editorMainRef) ──
+  const isTouch = useIsTouchDevice();
+  useSwipeEdge({
+    edge: 'left',
+    onSwipe: toggleNavigator,
+    enabled: isTouch && !navigatorOpen && typeof window !== 'undefined' && window.innerWidth <= 900,
+  });
+  useSwipeEdge({
+    edge: 'right',
+    onSwipe: toggleScriptNotes,
+    enabled: isTouch && !rightPanelVisible,
+  });
+  usePinchZoom(editorMainRef, {
+    currentZoom: zoomLevel,
+    onZoomChange: setZoomLevel,
+    enabled: isTouch && !beatBoardOpen,
+  });
 
   const zoomLevelRef = useRef(zoomLevel);
   zoomLevelRef.current = zoomLevel;
@@ -805,6 +824,7 @@ const ScreenplayEditor: React.FC = () => {
     visible: boolean;
     position: { x: number; y: number };
     spellInfo: { word: string; from: number; to: number; suggestions: string[] } | null;
+    savedSelection?: { from: number; to: number };
   }>({ visible: false, position: { x: 0, y: 0 }, spellInfo: null });
 
   const breaksRef = useRef<import('../editor/pagination').BreakInfo[]>([]);
@@ -1744,9 +1764,15 @@ const ScreenplayEditor: React.FC = () => {
   }, []);
 
   // --- Click on script note highlight → auto-filter notes panel ---
+  // Only opens the panel when note highlights are visible (notesVisible).
+  // When highlights are off, clicks pass through as normal editing.
   useEffect(() => {
     if (!editor) return;
     const handleClick = (e: MouseEvent) => {
+      const store = useEditorStore.getState();
+      // Only intercept clicks when highlights are visible
+      if (!store.notesVisible) return;
+
       const target = e.target as HTMLElement;
       const noteEl = target.closest('.script-note-highlight') as HTMLElement | null;
       if (!noteEl) return;
@@ -1754,7 +1780,6 @@ const ScreenplayEditor: React.FC = () => {
       const noteId = noteEl.getAttribute('data-note-id');
       if (!noteId) return;
 
-      const store = useEditorStore.getState();
       const note = store.notes.find((n) => n.id === noteId);
       if (!note) return;
 
@@ -1804,11 +1829,15 @@ const ScreenplayEditor: React.FC = () => {
   // --- Script context menu (right-click) ---
   useEffect(() => {
     if (!editor) return;
+    const isTouchDevice = navigator.maxTouchPoints > 0;
     const handleContextMenu = (e: MouseEvent) => {
-      // Only intercept right-click inside the editor area
+      // On touch devices, suppress native contextmenu entirely —
+      // the long-press handler provides the context menu instead.
+      // On desktop (Mac trackpad / mouse), handle it normally.
       const editorDom = editor.view.dom;
       if (!editorDom.contains(e.target as Node)) return;
       e.preventDefault();
+      if (isTouchDevice) return;
 
       // Move cursor to click position only if no text is selected,
       // or if the click is outside the current selection
@@ -1864,65 +1893,46 @@ const ScreenplayEditor: React.FC = () => {
     setCtxMenuState(s => ({ ...s, visible: false }));
   }, []);
 
-  // --- Long-press to open context menu on touch devices ---
+  // --- Floating "..." button on touch devices when text is selected ---
+  const [touchSelBtn, setTouchSelBtn] = useState<{ x: number; y: number } | null>(null);
+  const touchSelRef = useRef<{ from: number; to: number; pos: { x: number; y: number } } | null>(null);
+  const isTouchDev = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
+
   useEffect(() => {
-    if (!editor) return;
-    const editorEl = editor.view.dom.parentElement;
-    if (!editorEl) return;
-
-    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
-    let touchStartPos = { x: 0, y: 0 };
-
-    const handleTouchStart = (e: TouchEvent) => {
-      const touch = e.touches[0];
-      touchStartPos = { x: touch.clientX, y: touch.clientY };
-      longPressTimer = setTimeout(() => {
-        // Move cursor to touch position
-        const pos = editor.view.posAtCoords({ left: touch.clientX, top: touch.clientY });
-        if (pos) {
-          const { from, to } = editor.state.selection;
-          const clickInSelection = pos.pos >= from && pos.pos <= to && from !== to;
-          if (!clickInSelection) {
-            editor.commands.setTextSelection(pos.pos);
-          }
-        }
-        setCtxMenuState({
-          visible: true,
-          position: { x: touch.clientX, y: touch.clientY },
-          spellInfo: null,
-        });
-      }, 500);
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!longPressTimer) return;
-      const touch = e.touches[0];
-      const dx = touch.clientX - touchStartPos.x;
-      const dy = touch.clientY - touchStartPos.y;
-      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
+    if (!editor || !isTouchDev) return;
+    const update = () => {
+      const { from, to } = editor.state.selection;
+      if (from === to) { setTouchSelBtn(null); touchSelRef.current = null; return; }
+      try {
+        const endCoords = editor.view.coordsAtPos(to);
+        const pos = { x: endCoords.left, y: endCoords.top - 44 };
+        setTouchSelBtn(pos);
+        touchSelRef.current = { from, to, pos };
+      } catch {
+        setTouchSelBtn(null);
+        touchSelRef.current = null;
       }
     };
-
-    const handleTouchEnd = () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-    };
-
-    editorEl.addEventListener('touchstart', handleTouchStart, { passive: true });
-    editorEl.addEventListener('touchmove', handleTouchMove, { passive: true });
-    editorEl.addEventListener('touchend', handleTouchEnd);
-    editorEl.addEventListener('touchcancel', handleTouchEnd);
+    editor.on('selectionUpdate', update);
+    // Don't clear on blur — the button tap causes a blur before onClick fires.
+    // Instead clear on empty selection (handled in update above).
     return () => {
-      editorEl.removeEventListener('touchstart', handleTouchStart);
-      editorEl.removeEventListener('touchmove', handleTouchMove);
-      editorEl.removeEventListener('touchend', handleTouchEnd);
-      editorEl.removeEventListener('touchcancel', handleTouchEnd);
+      editor.off('selectionUpdate', update);
     };
-  }, [editor]);
+  }, [editor, isTouchDev]);
+
+  const handleTouchCtxMenu = useCallback(() => {
+    const saved = touchSelRef.current;
+    if (!saved) return;
+    const pos = saved.pos;
+    setTouchSelBtn(null);
+    setCtxMenuState({
+      visible: true,
+      position: pos,
+      spellInfo: null,
+      savedSelection: { from: saved.from, to: saved.to },
+    });
+  }, []);
 
   // --- Spell check: open modal when toggled on (or from menu) ---
   // The modal is opened via the Tools menu or spellCheckEnabled toggle.
@@ -2023,7 +2033,7 @@ const ScreenplayEditor: React.FC = () => {
       <div className="editor-layout">
         {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} style={{ width: navWidth, minWidth: navWidth }} />}
         {!isHistoryMode && navigatorOpen && (
-          <div className="panel-resize-handle" onMouseDown={(e) => handleResizeMouseDown('left', e)} />
+          <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
         )}
         <div className="editor-center">
           {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainRef.current} />}
@@ -2099,7 +2109,7 @@ const ScreenplayEditor: React.FC = () => {
           )}
         </div>
         {!isHistoryMode && rightPanelVisible && (
-          <div className="panel-resize-handle" onMouseDown={(e) => handleResizeMouseDown('right', e)} />
+          <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('right', e)} style={{ touchAction: 'none' }} />
         )}
         {!isHistoryMode && <ScriptNotes editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
@@ -2127,6 +2137,16 @@ const ScreenplayEditor: React.FC = () => {
           onDismiss={handleCharAutoDismiss}
         />
       )}
+      {/* Floating "..." button on touch devices when text is selected */}
+      {!isHistoryMode && touchSelBtn && !ctxMenuState.visible && (
+        <button
+          className="touch-ctx-btn"
+          style={{ top: Math.max(8, touchSelBtn.y), left: Math.min(window.innerWidth - 48, Math.max(8, touchSelBtn.x)) }}
+          onPointerDown={(e) => { e.preventDefault(); handleTouchCtxMenu(); }}
+        >
+          &#x22EF;
+        </button>
+      )}
       {!isHistoryMode && ctxMenuState.visible && editor && (
         <ScriptContextMenu
           editor={editor}
@@ -2134,6 +2154,7 @@ const ScreenplayEditor: React.FC = () => {
           spellInfo={ctxMenuState.spellInfo}
           onClose={handleCtxMenuClose}
           onOpenFormatPanel={() => setFormatPanelOpen(true)}
+          overrideSelection={ctxMenuState.savedSelection}
         />
       )}
       {!isHistoryMode && formatPanelOpen && editor && (

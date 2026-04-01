@@ -1,4 +1,5 @@
 // Final Draft XML (.fdx) parser — full formatting & layout support
+import { uuid } from './uuid';
 
 interface TipTapMark {
   type: string;
@@ -170,7 +171,7 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
   const getOrCreateColumn = (actIndex: number, actTitle?: string): string => {
     let colId = columnForAct.get(actIndex);
     if (!colId) {
-      colId = crypto.randomUUID();
+      colId = uuid();
       columnForAct.set(actIndex, colId);
       beatColumns.push({ id: colId, title: actTitle || `Act ${actIndex + 1}`, position: beatColumns.length, width: 0 });
     }
@@ -197,7 +198,7 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
       if (fdxType === 'Outline 1' || fdxType === 'Outline 2' || fdxType === 'Outline 3' || fdxType === 'Outline 4') {
         const colId = getOrCreateColumn(currentActIndex);
         currentBeat = {
-          id: crypto.randomUUID(),
+          id: uuid(),
           title: text,
           description: '',
           columnId: colId,
@@ -213,7 +214,7 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
       } else if (fdxType === 'Summary' && text) {
         const colId = getOrCreateColumn(currentActIndex);
         currentBeat = {
-          id: crypto.randomUUID(),
+          id: uuid(),
           title: text.length > 60 ? text.substring(0, 60) + '...' : text,
           description: text.length > 60 ? text : '',
           columnId: colId,
