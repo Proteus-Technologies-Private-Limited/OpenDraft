@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Ask a Question
+    url: https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions/categories/q-a
+    about: Use GitHub Discussions to ask questions and get help from the community.
+  - name: Ideas & Suggestions
+    url: https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions/categories/ideas
+    about: Share and discuss ideas for OpenDraft in GitHub Discussions.

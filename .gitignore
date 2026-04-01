@@ -43,6 +43,9 @@ backend/dist/
 # Claude Code
 .claude/
 
+# Internal docs (not for GitHub)
+docs/PROMOTION_STRATEGY.md
+
 # Certificates and signing
 certificates/
 

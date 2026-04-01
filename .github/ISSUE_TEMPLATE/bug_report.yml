@@ -1,0 +1,68 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in OpenDraft
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the details below so we can reproduce and fix it.
+
+  - type: input
+    id: version
+    attributes:
+      label: OpenDraft Version
+      description: Which version are you running? (Check Help > About or the release you downloaded)
+      placeholder: "e.g., 0.4.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: How are you running OpenDraft?
+      options:
+        - Desktop — macOS
+        - Desktop — Windows
+        - Desktop — Linux
+        - Browser (self-hosted)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: Describe what you expected to happen vs. what actually happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this?
+      placeholder: |
+        1. Open a screenplay
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or screen recordings
+      description: If applicable, add screenshots or recordings to help explain the issue.
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Any other context — browser version, OS version, error messages in the console, etc.
+    validations:
+      required: false

@@ -1,0 +1,60 @@
+name: Feature Request
+description: Suggest a new feature or improvement for OpenDraft
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to make OpenDraft better? We'd love to hear it!
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the problem or frustration this feature would address.
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+      description: A clear description of what you want to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered any alternative solutions or workarounds?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area of OpenDraft?
+      description: Which part of the app does this relate to?
+      options:
+        - Screenplay Editor
+        - Beat Board / Index Cards
+        - Character Profiles
+        - Collaboration
+        - Version History
+        - Import / Export
+        - Project Management
+        - Desktop App
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, mockups, links to similar features in other tools, etc.
+    validations:
+      required: false
