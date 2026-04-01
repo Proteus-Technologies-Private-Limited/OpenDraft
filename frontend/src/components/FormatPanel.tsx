@@ -153,7 +153,13 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
       <div className="format-panel">
         <div className="format-panel-header">
           <span>Font & Formatting</span>
-          <button className="format-panel-close" onClick={handleCancel}>&times;</button>
+          <button
+            className="format-panel-close"
+            onClick={handleCancel}
+            aria-label="Close formatting panel"
+          >
+            &times;
+          </button>
         </div>
 
         <div className="format-panel-body">
@@ -170,6 +176,7 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
               className="format-size-select"
               value={size}
               onChange={(e) => handleSizeChange(Number(e.target.value))}
+              aria-label="Font size"
             >
               {(FONT_SIZES.includes(size) ? FONT_SIZES : [...FONT_SIZES, size].sort((a, b) => a - b)).map((s) => (
                 <option key={s} value={s}>{s}pt</option>
@@ -185,6 +192,7 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
                 className={`format-style-btn${bold ? ' active' : ''}`}
                 onClick={handleBoldToggle}
                 title="Bold"
+                aria-label="Toggle bold"
               >
                 <strong>B</strong>
               </button>
@@ -192,6 +200,7 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
                 className={`format-style-btn${italic ? ' active' : ''}`}
                 onClick={handleItalicToggle}
                 title="Italic"
+                aria-label="Toggle italic"
               >
                 <em>I</em>
               </button>
@@ -199,6 +208,7 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
                 className={`format-style-btn${underline ? ' active' : ''}`}
                 onClick={handleUnderlineToggle}
                 title="Underline"
+                aria-label="Toggle underline"
               >
                 <u>U</u>
               </button>
