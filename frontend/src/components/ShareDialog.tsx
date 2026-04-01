@@ -249,7 +249,11 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
                       className="collab-copy-btn"
                       onClick={() => copyLink(s.token)}
                       title="Copy invite link"
-                      aria-label={`Copy invite link for ${s.collaborator_name}`}
+                      aria-label={
+                        copiedToken === s.token
+                          ? `Copied invite link for ${s.collaborator_name}`
+                          : `Copy invite link for ${s.collaborator_name}`
+                      }
                     >
                       {copiedToken === s.token ? 'Copied!' : 'Copy Link'}
                     </button>
