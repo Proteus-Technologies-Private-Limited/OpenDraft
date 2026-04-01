@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { Editor } from '@tiptap/react';
 import { useEditorStore, type CharacterProfile } from '../stores/editorStore';
 import { useAssetStore } from '../stores/assetStore';
-import { SERVER_BASE } from '../config';
+import { api } from '../services/api';
 import MiniRichText from './MiniRichText';
 
 // Default colors for auto-assignment (Final Draft typical palette)
@@ -26,9 +26,10 @@ function stripHtml(html: string): string {
 interface CharacterProfilesProps {
   editor: Editor | null;
   projectId: string;
+  style?: React.CSSProperties;
 }
 
-const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId }) => {
+const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId, style }) => {
   const {
     characters,
     characterProfiles,
@@ -62,11 +63,8 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
   const fetchAssets = useCallback(async () => {
     if (!projectId) return;
     try {
-      const res = await fetch(`${SERVER_BASE}/api/projects/${projectId}/assets/`);
-      if (res.ok) {
-        const data = await res.json();
-        setAssets(data.assets || []);
-      }
+      const list = await api.listAssets(projectId);
+      setAssets(list);
     } catch { /* ignore */ }
   }, [projectId, setAssets]);
 
@@ -424,7 +422,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
 
   // Image helpers
   const getAssetUrl = useCallback((assetId: string) => {
-    return `${SERVER_BASE}/api/projects/${projectId}/assets/${assetId}`;
+    return api.getAssetUrl(projectId, assetId);
   }, [projectId]);
 
   const imageAssets = useMemo(() => {
@@ -433,16 +431,9 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
 
   const handleUploadImage = useCallback(async (charName: string, file: File) => {
     if (!projectId) return;
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('tags', `character:${charName}`);
     try {
-      const res = await fetch(`${SERVER_BASE}/api/projects/${projectId}/assets/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.uploadAsset(projectId, file, [`character:${charName}`]);
+      {
         const assetId = data.id || data.asset?.id;
         if (assetId) {
           const profile = characterProfiles.find((p) => p.name === charName);
@@ -656,7 +647,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
   if (!characterProfilesOpen) return null;
 
   return (
-    <div className={`char-profiles-panel${isFullscreen ? ' char-profiles-fullscreen' : ''}${isFullscreen && fsViewMode === 'list' ? ' char-fs-list-mode' : ''}`}>
+    <div className={`char-profiles-panel${isFullscreen ? ' char-profiles-fullscreen' : ''}${isFullscreen && fsViewMode === 'list' ? ' char-fs-list-mode' : ''}`} style={isFullscreen ? undefined : style}>
       {/* Hidden file input for image uploads */}
       <input
         ref={fileInputRef}

@@ -183,6 +183,7 @@ const ScreenplayEditor: React.FC = () => {
     setActiveElement, setScenes, setPageCount, setCurrentPage,
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     beatBoardOpen,
+    navigatorOpen, scriptNotesOpen, characterProfilesOpen, tagsPanelOpen,
     spellCheckEnabled, setDocumentTitle,
   } = useEditorStore();
 
@@ -197,6 +198,45 @@ const ScreenplayEditor: React.FC = () => {
   const [joinCollabOpen, setJoinCollabOpen] = useState(false);
   const [collabUsers, setCollabUsers] = useState<{ name: string; color: string }[]>([]);
   const collabColor = useMemo(() => randomCollabColor(), []);
+
+  // ── Panel resize state ──
+  const [navWidth, setNavWidth] = useState(240);
+  const [rightPanelWidth, setRightPanelWidth] = useState(300);
+  const resizingRef = useRef<'left' | 'right' | null>(null);
+  const resizeStartXRef = useRef(0);
+  const resizeStartWidthRef = useRef(0);
+
+  const handleResizeMouseDown = useCallback((side: 'left' | 'right', e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingRef.current = side;
+    resizeStartXRef.current = e.clientX;
+    resizeStartWidthRef.current = side === 'left' ? navWidth : rightPanelWidth;
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      const delta = ev.clientX - resizeStartXRef.current;
+      if (resizingRef.current === 'left') {
+        setNavWidth(Math.max(160, Math.min(500, resizeStartWidthRef.current + delta)));
+      } else {
+        // Right panel: dragging left increases width
+        setRightPanelWidth(Math.max(200, Math.min(600, resizeStartWidthRef.current - delta)));
+      }
+    };
+
+    const handleMouseUp = () => {
+      resizingRef.current = null;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [navWidth, rightPanelWidth]);
+
+  const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen;
 
   // Yjs document & provider — stable across renders while collab is active
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -1267,7 +1307,7 @@ const ScreenplayEditor: React.FC = () => {
   }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
 
   // --- Save on page unload (refresh / close) ---
-  // Uses keepalive fetch so the request completes even as the page unloads.
+  // Uses api.saveScript so it works on both web/desktop (HTTP) and mobile (SQLite).
   // NOTE: We intentionally do NOT save on component unmount because the
   // editor may already be destroyed at that point, and editor.getJSON()
   // would return an empty doc, overwriting the saved file with blank content.
@@ -1281,12 +1321,7 @@ const ScreenplayEditor: React.FC = () => {
       const json = JSON.stringify(content);
       if (json !== lastSavedJsonRef.current) {
         lastSavedJsonRef.current = json;
-        fetch(`${API_BASE}/projects/${pid}/scripts/${sid}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content }),
-          keepalive: true,
-        });
+        api.saveScript(pid, sid, { content }).catch(() => {});
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -1899,7 +1934,10 @@ const ScreenplayEditor: React.FC = () => {
       }} onJoinCollab={() => setJoinCollabOpen(true)} isCollabActive={collabMode} isCollabGuest={collabMode && collabUserName !== 'Host'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
       <div className="editor-layout">
-        {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} />}
+        {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} style={{ width: navWidth, minWidth: navWidth }} />}
+        {!isHistoryMode && navigatorOpen && (
+          <div className="panel-resize-handle" onMouseDown={(e) => handleResizeMouseDown('left', e)} />
+        )}
         <div className="editor-center">
           {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainRef.current} />}
           {!isHistoryMode && beatBoardOpen ? (
@@ -1965,9 +2003,12 @@ const ScreenplayEditor: React.FC = () => {
             </div>
           )}
         </div>
-        {!isHistoryMode && <ScriptNotes editor={editor} />}
-        {!isHistoryMode && <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} />}
-        {!isHistoryMode && <TagsPanel editor={editor} />}
+        {!isHistoryMode && rightPanelVisible && (
+          <div className="panel-resize-handle" onMouseDown={(e) => handleResizeMouseDown('right', e)} />
+        )}
+        {!isHistoryMode && <ScriptNotes editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
+        {!isHistoryMode && <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
+        {!isHistoryMode && <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && pluginRegistry.getPanels('right-sidebar').map((p) => (
           <p.component key={p.id} editor={editor} />
         ))}

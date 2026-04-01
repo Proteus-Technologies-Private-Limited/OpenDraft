@@ -1,8 +1,6 @@
 import React from 'react';
 import type { Asset } from '../stores/assetStore';
-import { SERVER_BASE } from '../config';
-
-const API_BASE = SERVER_BASE;
+import { api } from '../services/api';
 
 interface AssetViewerProps {
   asset: Asset;
@@ -11,7 +9,7 @@ interface AssetViewerProps {
 }
 
 const AssetViewer: React.FC<AssetViewerProps> = ({ asset, projectId, onClose }) => {
-  const assetUrl = `${API_BASE}/api/projects/${projectId}/assets/${asset.id}`;
+  const assetUrl = api.getAssetUrl(projectId, asset.id, asset.filename);
   const mime = asset.mime_type;
 
   const renderPreview = () => {

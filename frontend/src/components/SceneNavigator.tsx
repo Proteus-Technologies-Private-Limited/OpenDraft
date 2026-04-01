@@ -5,6 +5,7 @@ import { useEditorStore } from '../stores/editorStore';
 interface SceneNavigatorProps {
   editor: Editor | null;
   scrollContainer?: HTMLDivElement | null;
+  style?: React.CSSProperties;
 }
 
 type NavTab = 'scenes' | 'locations';
@@ -97,8 +98,8 @@ function groupByLocation(
 
 // ── Main component ──────────────────────────────────────────────────────
 
-const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer }) => {
-  const { scenes, navigatorOpen } = useEditorStore();
+const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style }) => {
+  const { scenes, navigatorOpen, toggleNavigator } = useEditorStore();
   const [activeTab, setActiveTab] = useState<NavTab>('scenes');
   const [expandedLocation, setExpandedLocation] = useState<string | null>(null);
   const [renamingLocation, setRenamingLocation] = useState<string | null>(null);
@@ -202,7 +203,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   if (!navigatorOpen) return null;
 
   return (
-    <div className="scene-navigator">
+    <div className="scene-navigator" style={style}>
       {/* Tab bar */}
       <div className="navigator-tabs">
         <button
@@ -217,6 +218,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         >
           Locations
         </button>
+        <button className="navigator-close" onClick={toggleNavigator} title="Close Navigator">×</button>
       </div>
 
       {/* ── Scenes tab ───────────────────────────────────────────────── */}

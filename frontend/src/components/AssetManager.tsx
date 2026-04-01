@@ -2,9 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAssetStore } from '../stores/assetStore';
 import type { Asset } from '../stores/assetStore';
 import AssetViewer from './AssetViewer';
-import { SERVER_BASE } from '../config';
-
-const API_BASE = SERVER_BASE;
+import { api } from '../services/api';
 
 interface AssetManagerProps {
   projectId: string;
@@ -25,11 +23,8 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
 
   const fetchAssets = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/projects/${projectId}/assets/`);
-      if (res.ok) {
-        const data = await res.json();
-        setAssets(data.assets || []);
-      }
+      const list = await api.listAssets(projectId);
+      setAssets(list);
     } catch {
       // silently fail
     }
@@ -45,16 +40,9 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
     if (!files || files.length === 0) return;
     setUploading(true);
     for (const file of Array.from(files)) {
-      const formData = new FormData();
-      formData.append('file', file);
-      if (tagInput.trim()) {
-        formData.append('tags', tagInput.trim());
-      }
+      const tags = tagInput.trim() ? tagInput.trim().split(',').map((t) => t.trim()).filter(Boolean) : [];
       try {
-        await fetch(`${API_BASE}/api/projects/${projectId}/assets/upload`, {
-          method: 'POST',
-          body: formData,
-        });
+        await api.uploadAsset(projectId, file, tags);
       } catch {
         // silently fail
       }
@@ -66,9 +54,7 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
 
   const handleDelete = async (assetId: string) => {
     try {
-      await fetch(`${API_BASE}/api/projects/${projectId}/assets/${assetId}`, {
-        method: 'DELETE',
-      });
+      await api.deleteAsset(projectId, assetId);
       await fetchAssets();
     } catch {
       // silently fail
@@ -76,7 +62,7 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
   };
 
   const handleDownload = (asset: Asset) => {
-    const url = `${API_BASE}/api/projects/${projectId}/assets/${asset.id}`;
+    const url = api.getAssetUrl(projectId, asset.id, asset.filename);
     const a = document.createElement('a');
     a.href = url;
     a.download = asset.original_name;
@@ -86,11 +72,7 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
   const handleSaveTags = async (assetId: string) => {
     const tags = editTagsValue.split(',').map((t) => t.trim()).filter(Boolean);
     try {
-      await fetch(`${API_BASE}/api/projects/${projectId}/assets/${assetId}/tags`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(tags),
-      });
+      await api.updateAssetTags(projectId, assetId, tags);
       await fetchAssets();
     } catch {
       // silently fail

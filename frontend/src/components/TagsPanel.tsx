@@ -4,6 +4,7 @@ import { useEditorStore } from '../stores/editorStore';
 
 interface TagsPanelProps {
   editor: Editor | null;
+  style?: React.CSSProperties;
 }
 
 /** An occurrence of a tag entity found by scanning the document. */
@@ -17,7 +18,7 @@ interface TagOccurrence {
   elementType: string;
 }
 
-const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
+const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
   const {
     tagCategories,
     tags,
@@ -339,7 +340,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor }) => {
     : [];
 
   return (
-    <div className="tags-panel">
+    <div className="tags-panel" style={style}>
       <div className="tags-panel-header">
         <span className="tags-panel-title">Production Tags</span>
         <span className="tags-panel-count">{tags.length}</span>
