@@ -1,9 +1,12 @@
 import json
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.config import PROJECTS_DIR
+
+logger = logging.getLogger(__name__)
 
 
 def _sessions_file() -> Path:
@@ -72,7 +75,11 @@ def validate_session(token: str) -> dict | None:
                 _write_sessions(sessions)
                 return None
         except (ValueError, TypeError):
-            pass
+            logger.warning(
+                "Invalid collab session expiry for token %s: %r",
+                token,
+                expires_at,
+            )
     return session
 
 
