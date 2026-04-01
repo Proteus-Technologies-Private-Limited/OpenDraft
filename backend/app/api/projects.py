@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectList, ReorderRequest
@@ -5,6 +7,7 @@ from app.schemas.script import ScriptCreate, ScriptUpdate, ScriptMeta, ScriptRes
 from app.services import project_service, script_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # ── Project endpoints ──────────────────────────────────────────────────────────
@@ -41,7 +44,7 @@ async def reorder_projects(body: ReorderRequest):
         try:
             project_service.update_project(item.id, sort_order=item.sort_order)
         except FileNotFoundError:
-            pass  # skip missing projects
+            logger.warning("Skipping missing project during reorder: %s", item.id)
     return {"message": "ok"}
 
 
@@ -109,7 +112,11 @@ async def reorder_scripts(project_id: str, body: ReorderRequest):
         try:
             script_service.update_script(project_id, item.id, sort_order=item.sort_order)
         except FileNotFoundError:
-            pass
+            logger.warning(
+                "Skipping missing script during reorder: project=%s script=%s",
+                project_id,
+                item.id,
+            )
     return {"message": "ok"}
 
 
