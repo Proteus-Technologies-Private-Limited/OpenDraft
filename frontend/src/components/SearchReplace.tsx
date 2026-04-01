@@ -359,6 +359,7 @@ const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
         <button
           className="search-close-btn"
           onClick={() => setSearchOpen(false)}
+          aria-label="Close find and replace"
         >
           ✕
         </button>
@@ -371,6 +372,7 @@ const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Find text"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && e.shiftKey) {
                 e.preventDefault();
@@ -394,6 +396,7 @@ const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
             type="text"
             value={replaceTerm}
             onChange={(e) => setReplaceTerm(e.target.value)}
+            aria-label="Replace with text"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
@@ -422,16 +425,32 @@ const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
           </label>
         </div>
         <div className="search-actions">
-          <button onClick={findPrev} disabled={!searchTerm || matches.length === 0}>
+          <button
+            onClick={findPrev}
+            disabled={!searchTerm || matches.length === 0}
+            aria-label="Find previous match"
+          >
             ◀ Prev
           </button>
-          <button onClick={findNext} disabled={!searchTerm || matches.length === 0}>
+          <button
+            onClick={findNext}
+            disabled={!searchTerm || matches.length === 0}
+            aria-label="Find next match"
+          >
             Next ▶
           </button>
-          <button onClick={replaceOne} disabled={!searchTerm || matches.length === 0}>
+          <button
+            onClick={replaceOne}
+            disabled={!searchTerm || matches.length === 0}
+            aria-label="Replace current match"
+          >
             Replace
           </button>
-          <button onClick={replaceAll} disabled={!searchTerm || matches.length === 0}>
+          <button
+            onClick={replaceAll}
+            disabled={!searchTerm || matches.length === 0}
+            aria-label="Replace all matches"
+          >
             Replace All
           </button>
         </div>

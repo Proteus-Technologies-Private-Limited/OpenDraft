@@ -59,7 +59,13 @@ const AssetViewer: React.FC<AssetViewerProps> = ({ asset, projectId, onClose }) 
       <div className="asset-viewer" onClick={(e) => e.stopPropagation()}>
         <div className="asset-viewer-header">
           <span className="asset-viewer-title">{asset.original_name}</span>
-          <button className="asset-viewer-close" onClick={onClose}>&times;</button>
+          <button
+            className="asset-viewer-close"
+            onClick={onClose}
+            aria-label="Close asset viewer"
+          >
+            &times;
+          </button>
         </div>
         <div className="asset-viewer-content">
           {renderPreview()}
