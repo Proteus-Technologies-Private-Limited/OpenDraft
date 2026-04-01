@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
 import { useEditorStore } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
@@ -94,6 +95,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       _tags: store.tags,
       _tagCategories: store.tagCategories,
       _characterProfiles: store.characterProfiles,
+      _beats: store.beats,
+      _beatColumns: store.beatColumns,
     };
   }, [editor]);
 
@@ -248,15 +251,47 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     return () => window.removeEventListener('keydown', handler);
   }, [handleSave, isCollabGuest]);
 
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // Capture the portal dropdown element via a callback ref on the portal
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setActiveMenu(null);
-      }
+    if (activeMenu) {
+      // The portal dropdown is the last .menu-dropdown in the body
+      dropdownRef.current = document.body.querySelector(':scope > .menu-dropdown');
+    } else {
+      dropdownRef.current = null;
+    }
+  }, [activeMenu]);
+
+  useEffect(() => {
+    if (!activeMenu) return;
+    // Only listen for outside clicks when a menu is open.
+    // Delay registration so the opening click/touch doesn't immediately close it.
+    let active = true;
+    const timerId = setTimeout(() => {
+      if (!active) return;
+      const handleClose = (e: MouseEvent | TouchEvent) => {
+        const target = e.target as Node;
+        const inMenu = menuRef.current?.contains(target);
+        const inDropdown = dropdownRef.current?.contains(target);
+        if (!inMenu && !inDropdown) {
+          setActiveMenu(null);
+        }
+      };
+      document.addEventListener('mousedown', handleClose);
+      document.addEventListener('touchstart', handleClose);
+      cleanup = () => {
+        document.removeEventListener('mousedown', handleClose);
+        document.removeEventListener('touchstart', handleClose);
+      };
+    }, 10);
+    let cleanup: (() => void) | null = null;
+    return () => {
+      active = false;
+      clearTimeout(timerId);
+      cleanup?.();
     };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
+  }, [activeMenu]);
 
   const setElement = (type: string) => {
     if (!editor) return;
@@ -290,6 +325,14 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
               leftMargin: result.pageLayout.leftMargin,
               rightMargin: result.pageLayout.rightMargin,
             });
+          }
+          // Import beats from Outline elements
+          if (result.beats.length > 0) {
+            const store = useEditorStore.getState();
+            store.setBeats(result.beats);
+            if (result.beatColumns.length > 0) {
+              store.setBeatColumns(result.beatColumns);
+            }
           }
           // Import character profiles from CastList + CharacterHighlighting
           if (result.castList.length > 0 || result.characterHighlighting.length > 0) {
@@ -330,7 +373,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   const handleExportFDX = useCallback(() => {
     if (!editor) return;
     const s = useEditorStore.getState();
-    downloadFDX(editor.getJSON(), documentTitle, s.characterProfiles, s.tagCategories, s.tags);
+    downloadFDX(editor.getJSON(), documentTitle, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns);
   }, [editor, documentTitle]);
 
   const handleExportFountain = useCallback(() => {
@@ -518,12 +561,29 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     }
   }
 
+  // Track the active menu item's position for the portal dropdown
+  const menuItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!activeMenu) return;
+    const el = menuItemRefs.current[activeMenu];
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom, left: rect.left });
+    }
+  }, [activeMenu]);
+
+  // Find the active menu's items
+  const activeMenuData = activeMenu ? menus.find(m => m.label === activeMenu) : null;
+
   return (
     <>
     <div className="menu-bar" ref={menuRef}>
       {menus.map((menu) => (
         <div
           key={menu.label}
+          ref={(el) => { menuItemRefs.current[menu.label] = el; }}
           className={`menu-item ${activeMenu === menu.label ? 'active' : ''}`}
           onClick={() => handleMenuClick(menu.label)}
           onMouseEnter={() => {
@@ -531,29 +591,33 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           }}
         >
           <span className="menu-label">{menu.label}</span>
-          {activeMenu === menu.label && (
-            <div className="menu-dropdown">
-              {menu.items.map((item, i) =>
-                item.separator ? (
-                  <div key={i} className="menu-separator" />
-                ) : (
-                  <div
-                    key={item.label}
-                    className={`menu-dropdown-item ${item.disabled ? 'disabled' : ''}`}
-                    onClick={(e) => handleItemClick(item, e)}
-                  >
-                    <span>{item.label}</span>
-                    {item.shortcut && (
-                      <span className="menu-shortcut">{item.shortcut}</span>
-                    )}
-                  </div>
-                )
-              )}
-            </div>
-          )}
         </div>
       ))}
     </div>
+    {activeMenuData && createPortal(
+      <div
+        className="menu-dropdown"
+        style={{ top: dropdownPos.top, left: dropdownPos.left }}
+      >
+        {activeMenuData.items.map((item, i) =>
+          item.separator ? (
+            <div key={i} className="menu-separator" />
+          ) : (
+            <div
+              key={item.label}
+              className={`menu-dropdown-item ${item.disabled ? 'disabled' : ''}`}
+              onClick={(e) => handleItemClick(item, e)}
+            >
+              <span>{item.label}</span>
+              {item.shortcut && (
+                <span className="menu-shortcut">{item.shortcut}</span>
+              )}
+            </div>
+          )
+        )}
+      </div>,
+      document.body,
+    )}
     {checkinOpen && (
       <div className="dialog-overlay" onClick={() => setCheckinOpen(false)}>
         <div className="dialog-box" onClick={(e) => e.stopPropagation()}>

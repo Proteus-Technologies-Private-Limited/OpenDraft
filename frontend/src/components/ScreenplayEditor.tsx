@@ -60,6 +60,7 @@ import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
 import CompareVersionPicker from './CompareVersionPicker';
+import ZoomPanel from './ZoomPanel';
 import { useSettingsStore } from '../stores/settingsStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
 import { collabAuthApi } from '../services/collabAuth';
@@ -455,6 +456,9 @@ const ScreenplayEditor: React.FC = () => {
   const pageLayoutRef = useRef(pageLayout);
   pageLayoutRef.current = pageLayout;
 
+  const zoomLevelRef = useRef(zoomLevel);
+  zoomLevelRef.current = zoomLevel;
+
   const [overlays, setOverlays] = useState<OverlayInfo[]>([]);
 
   const {
@@ -818,16 +822,18 @@ const ScreenplayEditor: React.FC = () => {
     const breaks = breaksRef.current;
     if (breaks.length === 0) { setOverlays([]); return; }
 
+    // getBoundingClientRect returns coordinates in viewport space (affected by
+    // CSS transform: scale), but the overlay top is in the page's local
+    // (unscaled) coordinate system.  Divide by zoom to convert.
+    const scale = (zoomLevelRef.current || 100) / 100;
     const lineHeightPx = 12 * (96 / 72); // 16px — matches pagination LINE_HEIGHT_PT
     const newOverlays: OverlayInfo[] = [];
     for (const brk of breaks) {
       const el = children[brk.nodeIndex];
       if (!el) continue;
-      // The element has Decoration.node margin-top = whitespace + sepHeight + contdHeight
-      // The overlay goes just above the element, occupying sepHeight + contdHeight
       const elRect = el.getBoundingClientRect();
       const contdHeight = brk.isDialogueSplit ? lineHeightPx : 0;
-      const overlayTop = elRect.top - pageRect.top - m.sepHeightPx - contdHeight;
+      const overlayTop = (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
       newOverlays.push({
         top: overlayTop,
         pageNumber: brk.pageNumber,
@@ -1281,6 +1287,8 @@ const ScreenplayEditor: React.FC = () => {
       _tags: store.tags,
       _tagCategories: store.tagCategories,
       _characterProfiles: store.characterProfiles,
+      _beats: store.beats,
+      _beatColumns: store.beatColumns,
     };
   }, [editor]);
 
@@ -1378,7 +1386,7 @@ const ScreenplayEditor: React.FC = () => {
         // Strip app metadata keys before feeding to ProseMirror
         let pmDoc: Record<string, unknown> | null = null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _tags, _tagCategories, _characterProfiles, ...rest } = content as any;
+          const { _notes, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, ...rest } = content as any;
           pmDoc = rest;
         }
 
@@ -1401,6 +1409,11 @@ const ScreenplayEditor: React.FC = () => {
           const store = useEditorStore.getState();
           // Clear per-screenplay metadata so we don't carry over from a previously opened screenplay
           store.setCharacterProfiles([]);
+          store.setNotes([]);
+          store.setTags([]);
+          store.setTagCategories([]);
+          store.setBeats([]);
+          store.setBeatColumns([]);
           const parseAttr = (val: unknown): unknown[] => {
             if (typeof val === 'string') { try { const p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch { return []; } }
             if (Array.isArray(val)) return val;
@@ -1431,6 +1444,10 @@ const ScreenplayEditor: React.FC = () => {
                 }
               }
             }
+            const beatsArr = parseAttr(c._beats);
+            store.setBeats(beatsArr as import('../stores/editorStore').BeatInfo[]);
+            const beatColsArr = parseAttr(c._beatColumns);
+            store.setBeatColumns(beatColsArr as import('../stores/editorStore').BeatColumn[]);
           }
         }
 
@@ -1583,7 +1600,7 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as any;
+            const { _notes, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, ...pmDoc } = content as any;
             editor.commands.setContent(pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             editor.commands.setContent(content);
@@ -1598,6 +1615,13 @@ const ScreenplayEditor: React.FC = () => {
 
         // Restore metadata from top-level content keys
         const store = useEditorStore.getState();
+        // Clear all per-file metadata first
+        store.setCharacterProfiles([]);
+        store.setNotes([]);
+        store.setTags([]);
+        store.setTagCategories([]);
+        store.setBeats([]);
+        store.setBeatColumns([]);
         const parseAttr2 = (val: unknown): unknown[] => {
           if (typeof val === 'string') { try { const p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch { return []; } }
           if (Array.isArray(val)) return val;
@@ -1625,8 +1649,11 @@ const ScreenplayEditor: React.FC = () => {
               }
             }
           }
+          const beatsArr2 = parseAttr2(c._beats);
+          store.setBeats(beatsArr2 as import('../stores/editorStore').BeatInfo[]);
+          const beatCols2 = parseAttr2(c._beatColumns);
+          store.setBeatColumns(beatCols2 as import('../stores/editorStore').BeatColumn[]);
         }
-
         setCurrentProject(project);
         setCurrentScriptId(scriptId);
         setDocumentTitle(scriptTitle);
@@ -1837,6 +1864,66 @@ const ScreenplayEditor: React.FC = () => {
     setCtxMenuState(s => ({ ...s, visible: false }));
   }, []);
 
+  // --- Long-press to open context menu on touch devices ---
+  useEffect(() => {
+    if (!editor) return;
+    const editorEl = editor.view.dom.parentElement;
+    if (!editorEl) return;
+
+    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+    let touchStartPos = { x: 0, y: 0 };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      touchStartPos = { x: touch.clientX, y: touch.clientY };
+      longPressTimer = setTimeout(() => {
+        // Move cursor to touch position
+        const pos = editor.view.posAtCoords({ left: touch.clientX, top: touch.clientY });
+        if (pos) {
+          const { from, to } = editor.state.selection;
+          const clickInSelection = pos.pos >= from && pos.pos <= to && from !== to;
+          if (!clickInSelection) {
+            editor.commands.setTextSelection(pos.pos);
+          }
+        }
+        setCtxMenuState({
+          visible: true,
+          position: { x: touch.clientX, y: touch.clientY },
+          spellInfo: null,
+        });
+      }, 500);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!longPressTimer) return;
+      const touch = e.touches[0];
+      const dx = touch.clientX - touchStartPos.x;
+      const dy = touch.clientY - touchStartPos.y;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
+    editorEl.addEventListener('touchstart', handleTouchStart, { passive: true });
+    editorEl.addEventListener('touchmove', handleTouchMove, { passive: true });
+    editorEl.addEventListener('touchend', handleTouchEnd);
+    editorEl.addEventListener('touchcancel', handleTouchEnd);
+    return () => {
+      editorEl.removeEventListener('touchstart', handleTouchStart);
+      editorEl.removeEventListener('touchmove', handleTouchMove);
+      editorEl.removeEventListener('touchend', handleTouchEnd);
+      editorEl.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [editor]);
+
   // --- Spell check: open modal when toggled on (or from menu) ---
   // The modal is opened via the Tools menu or spellCheckEnabled toggle.
 
@@ -1941,14 +2028,21 @@ const ScreenplayEditor: React.FC = () => {
         <div className="editor-center">
           {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainRef.current} />}
           {!isHistoryMode && beatBoardOpen ? (
-            <BeatBoard editor={editor} />
+            <BeatBoard />
           ) : (
             <div className="editor-main" ref={editorMainRef}>
+              <div
+                className="page-sizer"
+                style={{
+                  width: `calc(${pageLayout.pageWidth}in * ${zoomScale})`,
+                  minWidth: `calc(${pageLayout.pageWidth}in * ${zoomScale})`,
+                }}
+              >
               <div
                 className="page-container"
                 style={{
                   transform: `scale(${zoomScale})`,
-                  transformOrigin: 'top center',
+                  transformOrigin: 'top left',
                   width: `${pageLayout.pageWidth}in`,
                   minWidth: `${pageLayout.pageWidth}in`,
                   maxWidth: `${pageLayout.pageWidth}in`,
@@ -2000,6 +2094,7 @@ const ScreenplayEditor: React.FC = () => {
                   <EditorContent editor={editor} />
                 </div>
               </div>
+              </div>
             </div>
           )}
         </div>
@@ -2015,6 +2110,7 @@ const ScreenplayEditor: React.FC = () => {
       </div>
       {!isHistoryMode && <SearchReplace editor={editor} />}
       {!isHistoryMode && <GoToPage onGoToPage={handleGoToPage} />}
+      <ZoomPanel />
       {!isHistoryMode && pickerState.visible && (
         <ElementPicker
           position={pickerState.position}
