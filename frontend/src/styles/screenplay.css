@@ -4066,6 +4066,10 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   border-color: var(--fd-accent);
   background: rgba(74, 158, 255, 0.05);
 }
+.asset-upload-zone.is-uploading {
+  cursor: progress;
+  opacity: 0.75;
+}
 .asset-upload-icon {
   font-size: 24px;
   margin-bottom: 8px;
@@ -4223,6 +4227,12 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   white-space: nowrap;
   width: 80px;
 }
+.asset-action-status {
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--fd-text-muted);
+  font-size: 11px;
+}
 .asset-action-btn {
   background: none;
   border: none;
@@ -4235,6 +4245,14 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 }
 .asset-action-btn:hover { color: var(--fd-accent); background: rgba(74, 158, 255, 0.1); }
 .asset-action-delete:hover { color: #ff6b6b; background: rgba(255, 107, 107, 0.1); }
+.asset-action-btn:disabled {
+  cursor: progress;
+  opacity: 0.5;
+}
+.asset-action-btn:disabled:hover {
+  color: var(--fd-text-muted);
+  background: none;
+}
 
 /* Asset list scrollbar */
 .asset-list::-webkit-scrollbar { width: 6px; }

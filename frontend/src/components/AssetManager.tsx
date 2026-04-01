@@ -18,6 +18,8 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
   const [tagInput, setTagInput] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [pendingUploads, setPendingUploads] = useState(0);
+  const [deletingAssetIds, setDeletingAssetIds] = useState<string[]>([]);
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
   const [editingTagsId, setEditingTagsId] = useState<string | null>(null);
   const [editTagsValue, setEditTagsValue] = useState('');
@@ -42,9 +44,11 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
   }, [embedded, assetManagerOpen, fetchAssets]);
 
   const handleUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || uploading) return;
     setUploading(true);
-    for (const file of Array.from(files)) {
+    const uploadFiles = Array.from(files);
+    setPendingUploads(uploadFiles.length);
+    for (const file of uploadFiles) {
       const formData = new FormData();
       formData.append('file', file);
       if (tagInput.trim()) {
@@ -57,14 +61,22 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
         });
       } catch {
         // silently fail
+      } finally {
+        setPendingUploads((count) => Math.max(0, count - 1));
       }
     }
     setTagInput('');
     await fetchAssets();
     setUploading(false);
+    setPendingUploads(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleDelete = async (assetId: string) => {
+    if (deletingAssetIds.includes(assetId)) return;
+    setDeletingAssetIds((ids) => [...ids, assetId]);
     try {
       await fetch(`${API_BASE}/api/projects/${projectId}/assets/${assetId}`, {
         method: 'DELETE',
@@ -72,6 +84,8 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
       await fetchAssets();
     } catch {
       // silently fail
+    } finally {
+      setDeletingAssetIds((ids) => ids.filter((id) => id !== assetId));
     }
   };
 
@@ -133,22 +147,28 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
     <div className="asset-manager-content">
       {/* Upload section */}
       <div
-        className={`asset-upload-zone ${dragOver ? 'drag-over' : ''}`}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        className={`asset-upload-zone ${dragOver ? 'drag-over' : ''} ${uploading ? 'is-uploading' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!uploading) setDragOver(true);
+        }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => !uploading && fileInputRef.current?.click()}
       >
         <input
           ref={fileInputRef}
           type="file"
           multiple
           style={{ display: 'none' }}
+          disabled={uploading}
           onChange={(e) => handleUpload(e.target.files)}
         />
         <div className="asset-upload-icon">{uploading ? '\u23f3' : '\u2b06'}</div>
         <div className="asset-upload-text">
-          {uploading ? 'Uploading...' : 'Drop files here or click to upload'}
+          {uploading
+            ? `Uploading ${pendingUploads} file${pendingUploads === 1 ? '' : 's'}...`
+            : 'Drop files here or click to upload'}
         </div>
       </div>
 
@@ -160,6 +180,7 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
           value={tagInput}
           onChange={(e) => setTagInput(e.target.value)}
           className="asset-tag-input"
+          disabled={uploading}
         />
       </div>
 
@@ -255,19 +276,24 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
                     )}
                   </td>
                   <td className="asset-cell-actions">
+                    {deletingAssetIds.includes(asset.id) ? (
+                      <span className="asset-action-status">Deleting...</span>
+                    ) : null}
                     <button
                       className="asset-action-btn"
                       onClick={() => handleDownload(asset)}
                       title="Download"
+                      disabled={deletingAssetIds.includes(asset.id)}
                     >
                       &#x2B07;
                     </button>
                     <button
                       className="asset-action-btn asset-action-delete"
                       onClick={() => handleDelete(asset.id)}
-                      title="Delete"
+                      title={deletingAssetIds.includes(asset.id) ? 'Deleting...' : 'Delete'}
+                      disabled={deletingAssetIds.includes(asset.id)}
                     >
-                      &#x2715;
+                      {deletingAssetIds.includes(asset.id) ? '\u23f3' : '\u2715'}
                     </button>
                   </td>
                 </tr>
