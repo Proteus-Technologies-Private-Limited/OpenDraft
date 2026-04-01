@@ -111,25 +111,9 @@ That's it. The script installs dependencies, builds the app, and opens it in you
 
 ## Screenshots
 
-<!-- TODO: Replace these placeholders with actual screenshots.
-     Save screenshots to images/ folder, recommended sizes:
-     - editor.png      — The screenplay editor with a sample script (1280x800)
-     - beatboard.png   — Beat Board with scenes organized across acts (1280x800)
-     - collab.png      — Two cursors editing the same screenplay (1280x800)
-     - versions.png    — Version history with diff view (1280x800)
-     - projects.png    — Project management screen with multiple screenplays (1280x800)
-
-     Then uncomment the img tags below and remove this comment block.
--->
-
-<p align="center">
-  <em>Screenshots coming soon — see <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases">Releases</a> to download and try it yourself.</em>
-</p>
-
-<!--
 <p align="center">
   <img src="images/editor.png" alt="Screenplay Editor" width="80%"><br>
-  <em>Industry-standard screenplay formatting</em>
+  <em>Industry-standard screenplay formatting with scene navigator</em>
 </p>
 
 <p align="center">
@@ -138,10 +122,34 @@ That's it. The script installs dependencies, builds the app, and opens it in you
 </p>
 
 <p align="center">
-  <img src="images/collab.png" alt="Real-time Collaboration" width="80%"><br>
-  <em>Real-time collaboration with live cursors</em>
+  <img src="images/collaboration_1.png" alt="Real-time Collaboration" width="80%"><br>
+  <em>Real-time collaboration — multiple users editing simultaneously</em>
 </p>
--->
+
+<p align="center">
+  <img src="images/collaboration.png" alt="Collaboration Invite Dialog" width="80%"><br>
+  <em>Invite collaborators with granular permissions (Co-Edit / Read Only)</em>
+</p>
+
+<p align="center">
+  <img src="images/version_history.png" alt="Version History" width="80%"><br>
+  <em>Built-in version history — check in drafts, view and restore any version</em>
+</p>
+
+<p align="center">
+  <img src="images/version_history_view.png" alt="Version History View" width="80%"><br>
+  <em>View any previous version in read-only mode</em>
+</p>
+
+<p align="center">
+  <img src="images/project.png" alt="Projects Screen" width="80%"><br>
+  <em>Manage multiple projects from the home screen</em>
+</p>
+
+<p align="center">
+  <img src="images/project_1.png" alt="Project Detail" width="80%"><br>
+  <em>Project detail view with screenplay cards, assets, and versions</em>
+</p>
 
 ---
 
