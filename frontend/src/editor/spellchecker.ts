@@ -6,26 +6,64 @@ class SpellChecker {
   private customWords: Set<string> = new Set();
   private ignoreWords: Set<string> = new Set(); // session-only
   private ready = false;
+  private initPromise: Promise<void> | null = null;
 
   async init(): Promise<void> {
     if (this.ready) return;
-    const [affData, dicData] = await Promise.all([
-      fetch('/dictionaries/en_US.aff').then((r) => r.text()),
-      fetch('/dictionaries/en_US.dic').then((r) => r.text()),
-    ]);
-    this.typo = new Typo('en_US', affData, dicData);
-    // Load custom dictionary from localStorage
-    const stored = localStorage.getItem('opendraft:customDictionary');
-    if (stored) {
-      try {
-        (JSON.parse(stored) as string[]).forEach((w: string) =>
-          this.customWords.add(w),
-        );
-      } catch {
-        // ignore corrupt data
+    if (this.initPromise) return this.initPromise;
+    this.initPromise = this._doInit();
+    return this.initPromise;
+  }
+
+  private async _doInit(): Promise<void> {
+    try {
+      const [affResponse, dicResponse] = await Promise.all([
+        fetch('/dictionaries/en_US.aff'),
+        fetch('/dictionaries/en_US.dic'),
+      ]);
+
+      if (!affResponse.ok || !dicResponse.ok) {
+        console.error('SpellChecker: failed to load dictionary files —',
+          'aff:', affResponse.status, 'dic:', dicResponse.status);
+        return;
       }
+
+      const [affData, dicData] = await Promise.all([
+        affResponse.text(),
+        dicResponse.text(),
+      ]);
+
+      // Sanity check: .aff must start with SET, .dic must start with word count
+      if (!affData.startsWith('SET') || !/^\d+/.test(dicData)) {
+        console.error('SpellChecker: dictionary data appears corrupt (got HTML or empty response?)');
+        return;
+      }
+
+      this.typo = new Typo('en_US', affData, dicData);
+      // Load custom dictionary from localStorage
+      const stored = localStorage.getItem('opendraft:customDictionary');
+      if (stored) {
+        try {
+          (JSON.parse(stored) as string[]).forEach((w: string) =>
+            this.customWords.add(w),
+          );
+        } catch {
+          // ignore corrupt data
+        }
+      }
+      this.ready = true;
+    } catch (err) {
+      console.error('SpellChecker: initialization failed', err);
     }
-    this.ready = true;
+  }
+
+  /** Wait for initialization to complete (if in progress). */
+  async whenReady(): Promise<boolean> {
+    if (this.ready) return true;
+    if (this.initPromise) {
+      await this.initPromise;
+    }
+    return this.ready;
   }
 
   isReady(): boolean {
