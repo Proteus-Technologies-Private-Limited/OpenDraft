@@ -167,6 +167,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={generating}
+              aria-label="Collaborator name"
             />
             <button
               className="dialog-btn dialog-btn-primary"
@@ -211,6 +212,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
                 className="dialog-input collab-expiry-select"
                 value={expiryHours}
                 onChange={(e) => setExpiryHours(Number(e.target.value))}
+                aria-label="Invite expiry duration"
               >
                 {EXPIRY_OPTIONS.map((opt) => (
                   <option key={opt.hours} value={opt.hours}>
@@ -247,6 +249,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
                       className="collab-copy-btn"
                       onClick={() => copyLink(s.token)}
                       title="Copy invite link"
+                      aria-label={`Copy invite link for ${s.collaborator_name}`}
                     >
                       {copiedToken === s.token ? 'Copied!' : 'Copy Link'}
                     </button>
@@ -254,6 +257,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
                       className="collab-revoke-btn"
                       onClick={() => handleRevoke(s.token)}
                       title="Revoke this invite"
+                      aria-label={`Revoke invite for ${s.collaborator_name}`}
                     >
                       Revoke
                     </button>
