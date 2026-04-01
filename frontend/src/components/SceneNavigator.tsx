@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Editor } from '@tiptap/react';
+import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore } from '../stores/editorStore';
 
 interface SceneNavigatorProps {
@@ -200,10 +201,17 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     setExpandedLocation(newName.toUpperCase());
   }, [editor, renamingLocation, renameValue]);
 
-  if (!navigatorOpen) return null;
+  const { shouldRender, animationState } = useDelayedUnmount(navigatorOpen, 250);
+  const navPanelRef = useRef<HTMLDivElement>(null);
+  useSwipeDismiss(navPanelRef, { direction: 'left', onDismiss: toggleNavigator, enabled: shouldRender });
+
+  if (!shouldRender) return null;
+
+  const panelClass = animationState === 'entered'
+    ? 'panel-open' : animationState === 'exiting' ? 'panel-closing' : '';
 
   return (
-    <div className="scene-navigator" style={style}>
+    <div ref={navPanelRef} className={`scene-navigator ${panelClass}`} style={style}>
       {/* Tab bar */}
       <div className="navigator-tabs">
         <button

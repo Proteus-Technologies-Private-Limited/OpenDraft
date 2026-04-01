@@ -376,6 +376,7 @@ async function main(): Promise<void> {
   // Initialize database (async — needed for PostgreSQL)
   await initDB();
 
+  const HOST = config.host;
   const PORT = config.port;
   let httpServer: http.Server | https.Server;
 
@@ -420,11 +421,11 @@ async function main(): Promise<void> {
   // Start document eviction timer
   startDocumentEviction();
 
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, HOST, () => {
     const protocol = config.tlsCert ? 'wss' : 'ws';
-    console.log(`OpenDraft Collaboration Server running on port ${PORT}`);
-    console.log(`  WebSocket: ${protocol}://localhost:${PORT}`);
-    console.log(`  REST API:  ${config.tlsCert ? 'https' : 'http'}://localhost:${PORT}`);
+    console.log(`OpenDraft Collaboration Server running on ${HOST}:${PORT}`);
+    console.log(`  WebSocket: ${protocol}://${HOST}:${PORT}`);
+    console.log(`  REST API:  ${config.tlsCert ? 'https' : 'http'}://${HOST}:${PORT}`);
     console.log(`  Backend:   ${config.backendUrl}`);
     console.log(`  Database:  ${config.dbType}`);
     console.log(`  WS limits: ${config.wsMaxConnectionsPerIp}/IP, ${config.wsMaxConnectionsPerUser}/user`);

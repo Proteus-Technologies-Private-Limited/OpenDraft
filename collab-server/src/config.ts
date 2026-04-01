@@ -5,6 +5,7 @@ import * as crypto from 'crypto';
 dotenv.config();
 
 export interface ServerConfig {
+  host: string;
   port: number;
   backendUrl: string;
   backendUrls: string[];
@@ -54,6 +55,7 @@ function loadConfig(): ServerConfig {
   }
 
   return {
+    host: process.env.HOST || '0.0.0.0',
     port: parseInt(process.env.PORT || '4000', 10),
     // Comma-separated list of backend URLs to try for token validation
     // (supports both the dev server on 8000 and the Tauri sidecar on 18321)

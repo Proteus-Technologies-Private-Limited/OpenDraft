@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
+import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore, type CharacterProfile } from '../stores/editorStore';
 import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
@@ -644,10 +645,17 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     );
   };
 
-  if (!characterProfilesOpen) return null;
+  const { shouldRender, animationState } = useDelayedUnmount(characterProfilesOpen, 250);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useSwipeDismiss(panelRef, { direction: 'right', onDismiss: toggleCharacterProfiles, enabled: shouldRender && !isFullscreen });
+
+  if (!shouldRender) return null;
+
+  const panelClass = !isFullscreen && animationState === 'entered'
+    ? 'panel-open' : !isFullscreen && animationState === 'exiting' ? 'panel-closing' : '';
 
   return (
-    <div className={`char-profiles-panel${isFullscreen ? ' char-profiles-fullscreen' : ''}${isFullscreen && fsViewMode === 'list' ? ' char-fs-list-mode' : ''}`} style={isFullscreen ? undefined : style}>
+    <div ref={panelRef} className={`char-profiles-panel${isFullscreen ? ' char-profiles-fullscreen' : ''}${isFullscreen && fsViewMode === 'list' ? ' char-fs-list-mode' : ''} ${panelClass}`} style={isFullscreen ? undefined : style}>
       {/* Hidden file input for image uploads */}
       <input
         ref={fileInputRef}

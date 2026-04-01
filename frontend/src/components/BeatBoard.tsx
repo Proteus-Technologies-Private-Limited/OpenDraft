@@ -26,14 +26,14 @@ const BEAT_COLORS = [
   '#cc5de8', '#ff922b', '#20c997', '#f06595',
 ];
 
-/* ─── Beat Card Resize Handle ─── */
+/* ─── Beat Card Resize Handle (pointer events for mouse + touch) ─── */
 const useResizeHandle = (
   onResize: (dw: number, dh: number) => void,
 ) => {
   const startRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
 
-  const onMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
       e.preventDefault();
       e.stopPropagation();
       const el = (e.target as HTMLElement).closest('.beat-card') as HTMLElement;
@@ -41,58 +41,55 @@ const useResizeHandle = (
       const rect = el.getBoundingClientRect();
       startRef.current = { x: e.clientX, y: e.clientY, w: rect.width, h: rect.height };
 
-      const onMove = (ev: MouseEvent) => {
+      const onMove = (ev: PointerEvent) => {
         if (!startRef.current) return;
-        const dw = ev.clientX - startRef.current.x;
-        const dh = ev.clientY - startRef.current.y;
         onResize(
-          Math.max(160, startRef.current.w + dw),
-          Math.max(80, startRef.current.h + dh),
+          Math.max(160, startRef.current.w + (ev.clientX - startRef.current.x)),
+          Math.max(80, startRef.current.h + (ev.clientY - startRef.current.y)),
         );
       };
       const onUp = () => {
         startRef.current = null;
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
       };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
     },
     [onResize],
   );
 
-  return onMouseDown;
+  return onPointerDown;
 };
 
-/* ─── Column Resize Handle ─── */
+/* ─── Column Resize Handle (pointer events for mouse + touch) ─── */
 const useColumnResize = (onResize: (width: number) => void) => {
   const startRef = useRef<{ x: number; w: number } | null>(null);
 
-  const onMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
       e.preventDefault();
       e.stopPropagation();
       const col = (e.target as HTMLElement).closest('.beat-column') as HTMLElement;
       if (!col) return;
       startRef.current = { x: e.clientX, w: col.getBoundingClientRect().width };
 
-      const onMove = (ev: MouseEvent) => {
+      const onMove = (ev: PointerEvent) => {
         if (!startRef.current) return;
-        const newW = Math.max(200, startRef.current.w + (ev.clientX - startRef.current.x));
-        onResize(newW);
+        onResize(Math.max(200, startRef.current.w + (ev.clientX - startRef.current.x)));
       };
       const onUp = () => {
         startRef.current = null;
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
       };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
     },
     [onResize],
   );
 
-  return onMouseDown;
+  return onPointerDown;
 };
 
 /* ─── Sortable Beat Card ─── */
@@ -134,7 +131,7 @@ const SortableBeatCard: React.FC<SortableBeatCardProps> = ({ beat, onUpdate, onD
     },
     [beat.id, onUpdate],
   );
-  const resizeMouseDown = useResizeHandle(handleResize);
+  const resizePointerDown = useResizeHandle(handleResize);
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,7 +216,7 @@ const SortableBeatCard: React.FC<SortableBeatCardProps> = ({ beat, onUpdate, onD
         </div>
 
         {/* Resize handle */}
-        <div className="beat-card-resize-handle" onMouseDown={resizeMouseDown} />
+        <div className="beat-card-resize-handle" onPointerDown={resizePointerDown} style={{ touchAction: 'none' }} />
       </div>
     </div>
   );
@@ -341,7 +338,7 @@ const BeatColumnView: React.FC<BeatColumnViewProps> = ({
   col, colBeats, isSingleColumn,
   onUpdateColumn, onDeleteColumn, onAddBeat, onUpdateBeat, onDeleteBeat,
 }) => {
-  const colResizeDown = useColumnResize((w) => onUpdateColumn(col.id, { width: w }));
+  const colResizePointerDown = useColumnResize((w) => onUpdateColumn(col.id, { width: w }));
 
   const colStyle: React.CSSProperties = isSingleColumn
     ? { flex: 1, maxWidth: 'none', minWidth: 0 }
@@ -369,7 +366,7 @@ const BeatColumnView: React.FC<BeatColumnViewProps> = ({
       </SortableContext>
       <button className="beat-add-btn" onClick={() => onAddBeat('New Beat', col.id)}>+ Add Beat</button>
       {/* Column resize handle (right edge) */}
-      {!isSingleColumn && <div className="beat-column-resize-handle" onMouseDown={colResizeDown} />}
+      {!isSingleColumn && <div className="beat-column-resize-handle" onPointerDown={colResizePointerDown} style={{ touchAction: 'none' }} />}
     </div>
   );
 };

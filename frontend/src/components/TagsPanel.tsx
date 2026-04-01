@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
+import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore } from '../stores/editorStore';
 
 interface TagsPanelProps {
@@ -37,9 +38,18 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
     setEditingTagId,
   } = useEditorStore();
 
+  const [activeTab, setActiveTab] = useState<'view' | 'manage'>('view');
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [expandedTagId, setExpandedTagId] = useState<string | null>(null);
   const tagItemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // View-tab: which entity's occurrences are shown
+  const [viewExpandedTagId, setViewExpandedTagId] = useState<string | null>(null);
+
+  // Ref-based handler for the Create button — bypasses React event delegation
+  // to work around iOS WebKit swallowing touch events during keyboard dismiss.
+  const createBtnRef = useRef<HTMLButtonElement>(null);
+  const createActionRef = useRef<(() => void) | null>(null);
 
   // Pending-selection step: null → pick category → pick entity or create new
   const [pendingCategoryId, setPendingCategoryId] = useState<string | null>(null);
@@ -48,6 +58,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatColor, setNewCatColor] = useState('#6fa8dc');
+
 
   // ── Scan document for tag occurrences ─────────────────────────────────
 
@@ -119,6 +130,11 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
 
   // ── Auto-expand when editingTagId is set from context menu ────────────
 
+  // Auto-switch to Manage tab when pending selection or editing tag
+  useEffect(() => {
+    if (pendingTagSelection) setActiveTab('manage');
+  }, [pendingTagSelection]);
+
   const lastEditingTagRef = useRef<string | null>(null);
   useEffect(() => {
     if (!editingTagId || editingTagId === lastEditingTagRef.current) return;
@@ -126,6 +142,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
     const tag = tags.find((t) => t.id === editingTagId);
     if (!tag) { setEditingTagId(null); return; }
 
+    setActiveTab('manage');
     setExpandedCats((prev) => {
       const next = new Set(prev);
       next.add(tag.categoryId);
@@ -266,6 +283,28 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
   }, [pendingTagSelection]);
 
   /** Apply pending selection to an EXISTING entity */
+  /** Apply a production tag mark to the pending selection range. */
+  const applyTagMark = useCallback(
+    (from: number, to: number, tagId: string, categoryId: string, color: string) => {
+      if (!editor) return;
+      const markType = editor.schema.marks.productionTag;
+      if (!markType) return;
+      const docSize = editor.state.doc.content.size;
+      const safeFrom = Math.max(0, Math.min(from, docSize));
+      const safeTo = Math.max(safeFrom, Math.min(to, docSize));
+      if (safeFrom === safeTo) return;
+
+      // Use raw dispatch (works without focus), then emit 'update' so
+      // React/TipTap re-renders and the useMemo recomputes occurrences.
+      const { tr } = editor.state;
+      tr.addMark(safeFrom, safeTo, markType.create({ tagId, categoryId, color }));
+      editor.view.dispatch(tr);
+      // Force TipTap to notify React listeners
+      editor.emit('update', { editor, transaction: tr });
+    },
+    [editor],
+  );
+
   const handleAddToExistingEntity = useCallback(
     (entity: typeof tags[0]) => {
       if (!editor || !pendingTagSelection) return;
@@ -273,12 +312,8 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
       const cat = tagCategories.find((c) => c.id === entity.categoryId);
       const color = cat?.color || '#9370DB';
 
-      editor.chain().focus()
-        .setTextSelection({ from, to })
-        .setMark('productionTag', { tagId: entity.id, categoryId: entity.categoryId, color })
-        .run();
+      applyTagMark(from, to, entity.id, entity.categoryId, color);
 
-      // Expand entity in panel
       setExpandedCats((prev) => {
         const next = new Set(prev);
         next.add(entity.categoryId);
@@ -288,24 +323,27 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
       setPendingTagSelection(null);
       setPendingCategoryId(null);
     },
-    [editor, pendingTagSelection, tagCategories, setPendingTagSelection],
+    [editor, pendingTagSelection, tagCategories, setPendingTagSelection, applyTagMark],
   );
 
   /** Create a NEW entity from pending selection */
+  const newEntityNameRef = useRef(newEntityName);
+  newEntityNameRef.current = newEntityName;
   const handleCreateNewEntity = useCallback(
     (categoryId: string) => {
       if (!editor || !pendingTagSelection) return;
       const { from, to, text, elementType, sceneId } = pendingTagSelection;
       const cat = tagCategories.find((c) => c.id === categoryId);
       const color = cat?.color || '#9370DB';
-      const entityName = newEntityName.trim() || text;
+      const entityName = newEntityNameRef.current.trim() || text;
 
       const tagId = addTag({ categoryId, text, name: entityName, notes: '', sceneId, elementType });
 
-      editor.chain().focus()
-        .setTextSelection({ from, to })
-        .setMark('productionTag', { tagId, categoryId, color })
-        .run();
+      try {
+        applyTagMark(from, to, tagId, categoryId, color);
+      } catch {
+        // Mark application can fail if the document changed; tag entity is still created
+      }
 
       setExpandedCats((prev) => {
         const next = new Set(prev);
@@ -316,13 +354,31 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
       setPendingTagSelection(null);
       setPendingCategoryId(null);
     },
-    [editor, pendingTagSelection, tagCategories, newEntityName, addTag, setPendingTagSelection],
+    [editor, pendingTagSelection, tagCategories, newEntityName, addTag, setPendingTagSelection, applyTagMark],
   );
 
   const handleCancelPending = useCallback(() => {
     setPendingTagSelection(null);
     setPendingCategoryId(null);
   }, [setPendingTagSelection]);
+
+  // Keep createActionRef in sync with current closure values
+  createActionRef.current = pendingCategoryId
+    ? () => handleCreateNewEntity(pendingCategoryId)
+    : null;
+
+  // Native event listener on the Create button — iOS WebKit sometimes
+  // swallows React synthetic events during keyboard dismiss.
+  useEffect(() => {
+    const btn = createBtnRef.current;
+    if (!btn) return;
+    const handler = (e: Event) => {
+      e.preventDefault();
+      createActionRef.current?.();
+    };
+    btn.addEventListener('touchstart', handler, { passive: false });
+    return () => btn.removeEventListener('touchstart', handler);
+  }, [pendingCategoryId]);
 
   const handleAddCategory = useCallback(() => {
     if (!newCatName.trim()) return;
@@ -332,7 +388,14 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
     setShowAddForm(false);
   }, [newCatName, newCatColor, addTagCategory]);
 
-  if (!tagsPanelOpen) return null;
+  const { shouldRender, animationState } = useDelayedUnmount(tagsPanelOpen, 250);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useSwipeDismiss(panelRef, { direction: 'right', onDismiss: toggleTagsPanel, enabled: shouldRender });
+
+  if (!shouldRender) return null;
+
+  const panelClass = animationState === 'entered'
+    ? 'panel-open' : animationState === 'exiting' ? 'panel-closing' : '';
 
   // Entities in the currently-selected pending category
   const pendingCatEntities = pendingCategoryId
@@ -340,7 +403,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
     : [];
 
   return (
-    <div className="tags-panel" style={style}>
+    <div ref={panelRef} className={`tags-panel ${panelClass}`} style={style}>
       <div className="tags-panel-header">
         <span className="tags-panel-title">Production Tags</span>
         <span className="tags-panel-count">{tags.length}</span>
@@ -366,220 +429,91 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
         </button>
       </div>
 
-      {/* ── Pending tag selection ──────────────────────────────────────── */}
-      {pendingTagSelection && !pendingCategoryId && (
-        <div className="tags-pending">
-          <div className="tags-pending-header">
-            <span>Tag: &ldquo;{pendingTagSelection.text.slice(0, 40)}{pendingTagSelection.text.length > 40 ? '...' : ''}&rdquo;</span>
-            <button
-              className="tags-pending-cancel"
-              onClick={handleCancelPending}
-              aria-label="Cancel pending tag selection"
-            >
-              &times;
-            </button>
-          </div>
-          <div className="tags-pending-label">Select a category:</div>
-          <div className="tags-pending-list">
-            {tagCategories.map((cat) => (
-              <div
-                key={cat.id}
-                className="tags-pending-item"
-                onClick={() => handlePickCategory(cat.id)}
-              >
-                <span className="tags-category-swatch" style={{ background: cat.color }} />
-                <span>{cat.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* ── Tab bar ──────────────────────────────────────────────────── */}
+      <div className="tags-tab-bar">
+        <button
+          className={`tags-tab${activeTab === 'view' ? ' tags-tab-active' : ''}`}
+          onClick={() => setActiveTab('view')}
+        >
+          View
+        </button>
+        <button
+          className={`tags-tab${activeTab === 'manage' ? ' tags-tab-active' : ''}`}
+          onClick={() => setActiveTab('manage')}
+        >
+          Manage
+          {pendingTagSelection && <span className="tags-tab-dot" />}
+        </button>
+      </div>
 
-      {/* ── Step 2: pick existing entity or create new ────────────────── */}
-      {pendingTagSelection && pendingCategoryId && (
-        <div className="tags-pending">
-          <div className="tags-pending-header">
-            <span>
-              {tagCategories.find((c) => c.id === pendingCategoryId)?.name}
-              {' '}&rarr; &ldquo;{pendingTagSelection.text.slice(0, 30)}{pendingTagSelection.text.length > 30 ? '...' : ''}&rdquo;
-            </span>
-            <button
-              className="tags-pending-cancel"
-              onClick={handleCancelPending}
-              aria-label="Cancel pending tag selection"
-            >
-              &times;
-            </button>
-          </div>
 
-          {/* Create new entity */}
-          <div className="tags-entity-create">
-            <div className="tags-pending-label">Create new:</div>
-            <div className="tags-entity-create-row">
-              <input
-                className="tags-entity-name-input"
-                type="text"
-                value={newEntityName}
-                onChange={(e) => setNewEntityName(e.target.value)}
-                placeholder="Entity name..."
-                autoFocus
-                aria-label="New entity name"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && newEntityName.trim()) {
-                    handleCreateNewEntity(pendingCategoryId);
-                  }
-                }}
-              />
-              <button
-                className="tags-entity-create-btn"
-                onClick={() => handleCreateNewEntity(pendingCategoryId)}
-                disabled={!newEntityName.trim()}
-              >
-                Create
-              </button>
+      {/* ════════════════════════════════════════════════════════════════
+           VIEW TAB — clean read-only browse, click to navigate
+         ════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'view' && (
+        <div className="tags-panel-list">
+          {tags.length === 0 ? (
+            <div className="tags-panel-empty">
+              No tags yet. Select text in the editor, right-click, and choose &ldquo;Tag&rdquo; to get started.
             </div>
-          </div>
-
-          {/* Existing entities in this category */}
-          {pendingCatEntities.length > 0 && (
-            <>
-              <div className="tags-pending-label tags-pending-separator">Or add to existing:</div>
-              <div className="tags-pending-list">
-                {pendingCatEntities.map((entity) => {
-                  const occCount = occurrencesByTag.get(entity.id)?.length || 0;
-                  return (
-                    <div
-                      key={entity.id}
-                      className="tags-pending-item tags-entity-pick"
-                      onClick={() => handleAddToExistingEntity(entity)}
-                    >
-                      <span className="tags-entity-pick-name">{entity.name}</span>
-                      <span className="tags-entity-pick-count">{occCount}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          <button
-            className="tags-pending-back"
-            onClick={() => setPendingCategoryId(null)}
-          >
-            &larr; Back to categories
-          </button>
-        </div>
-      )}
-
-      {/* ── Main tag list: entities grouped by category ───────────────── */}
-      <div className="tags-panel-list">
-        {tagCategories.length === 0 ? (
-          <div className="tags-panel-empty">No categories available.</div>
-        ) : (
-          tagCategories.map((cat) => {
-            const entities = tagsByCategory.get(cat.id) || [];
-            const isExpanded = expandedCats.has(cat.id);
-            // Count total occurrences across all entities in this category
-            const totalOccs = entities.reduce(
-              (sum, e) => sum + (occurrencesByTag.get(e.id)?.length || 0),
-              0,
-            );
-            return (
-              <div key={cat.id} className={`tags-category-section${entities.length === 0 ? ' tags-cat-empty' : ''}`}>
-                <div
-                  className="tags-category-header"
-                  onClick={() => entities.length > 0 && toggleCategory(cat.id)}
-                >
-                  <span className="tags-category-swatch" style={{ background: cat.color }} />
-                  <span className="tags-category-name">{cat.name}</span>
-                  {entities.length > 0 && (
+          ) : (
+            tagCategories.map((cat) => {
+              const entities = tagsByCategory.get(cat.id) || [];
+              if (entities.length === 0) return null;
+              const isExpanded = expandedCats.has(cat.id);
+              const totalOccs = entities.reduce(
+                (sum, e) => sum + (occurrencesByTag.get(e.id)?.length || 0), 0,
+              );
+              return (
+                <div key={cat.id} className="tags-category-section">
+                  <div
+                    className="tags-category-header"
+                    onClick={() => toggleCategory(cat.id)}
+                  >
+                    <span className="tags-category-swatch" style={{ background: cat.color }} />
+                    <span className="tags-category-name">{cat.name}</span>
                     <span className="tags-category-count" title={`${entities.length} entities, ${totalOccs} occurrences`}>
                       {entities.length}
                     </span>
-                  )}
-                  {!cat.isBuiltIn && (
-                    <button
-                      className="tags-item-delete"
-                      onClick={(e) => { e.stopPropagation(); deleteTagCategory(cat.id); }}
-                      title="Delete custom category"
-                      aria-label={`Delete custom category ${cat.name}`}
-                    >
-                      &times;
-                    </button>
-                  )}
-                  {entities.length > 0 && (
                     <span className={`tags-category-chevron${isExpanded ? ' expanded' : ''}`}>&#9662;</span>
-                  )}
-                </div>
+                  </div>
 
-                {isExpanded && entities.length > 0 && (
-                  <div className="tags-category-items">
-                    {entities.map((entity) => {
-                      const entityOccs = occurrencesByTag.get(entity.id) || [];
-                      const isEntityExpanded = expandedTagId === entity.id;
-                      return (
-                        <div
-                          key={entity.id}
-                          className={`tags-item-wrap${isEntityExpanded ? ' tags-item-editing' : ''}`}
-                          ref={(el) => { if (el) tagItemRefs.current.set(entity.id, el); }}
-                        >
-                          {/* Entity header */}
-                          <div className="tags-item">
-                            <span
-                              className="tags-item-text tags-entity-name"
-                              onClick={() => handleNavigateToTag(entity.id)}
-                              title="Click to navigate to first occurrence"
-                            >
-                              {entity.name}
-                            </span>
-                            <span className="tags-entity-occ-count" title={`${entityOccs.length} occurrence${entityOccs.length !== 1 ? 's' : ''}`}>
-                              {entityOccs.length}
-                            </span>
-                            {entity.notes && !isEntityExpanded && (
-                              <span className="tags-item-has-notes" title="Has notes">*</span>
-                            )}
-                            <button
-                              className="tags-item-expand"
-                              onClick={() => setExpandedTagId(isEntityExpanded ? null : entity.id)}
-                              title={isEntityExpanded ? 'Collapse' : 'Details'}
-                              aria-label={isEntityExpanded ? `Collapse details for ${entity.name}` : `Expand details for ${entity.name}`}
-                            >
-                              {isEntityExpanded ? '\u25B4' : '\u25BE'}
-                            </button>
-                            <button
-                              className="tags-item-delete"
-                              onClick={() => handleDeleteEntity(entity.id)}
-                              title="Delete entity and all occurrences"
-                              aria-label={`Delete entity ${entity.name} and all occurrences`}
-                            >
-                              &times;
-                            </button>
-                          </div>
-
-                          {/* Expanded detail: name edit, notes, occurrences */}
-                          {isEntityExpanded && (
-                            <div className="tags-item-detail">
-                              <div className="tags-entity-name-row">
-                                <label className="tags-detail-label">Name</label>
-                                <input
-                                  className="tags-entity-name-edit"
-                                  type="text"
-                                  value={entity.name}
-                                  onChange={(e) => updateTag(entity.id, { name: e.target.value })}
-                                  aria-label={`Edit name for ${entity.name}`}
-                                />
-                              </div>
-                              <textarea
-                                className="tags-item-notes"
-                                value={entity.notes}
-                                onChange={(e) => updateTag(entity.id, { notes: e.target.value })}
-                                placeholder="Add details: description, requirements, budget notes..."
-                                rows={3}
-                                aria-label={`Notes for ${entity.name}`}
-                              />
-                              {entityOccs.length > 0 && (
-                                <div className="tags-occ-list">
-                                  <div className="tags-detail-label">Occurrences ({entityOccs.length})</div>
+                  {isExpanded && (
+                    <div className="tags-category-items">
+                      {entities.map((entity) => {
+                        const entityOccs = occurrencesByTag.get(entity.id) || [];
+                        const isViewExpanded = viewExpandedTagId === entity.id;
+                        return (
+                          <div key={entity.id} className="tags-item-wrap">
+                            <div className="tags-item">
+                              <span
+                                className="tags-item-text tags-entity-name"
+                                onClick={() => handleNavigateToTag(entity.id)}
+                                title="Navigate to first occurrence"
+                              >
+                                {entity.name}
+                              </span>
+                              <span className="tags-entity-occ-count" title={`${entityOccs.length} occurrence${entityOccs.length !== 1 ? 's' : ''}`}>
+                                {entityOccs.length}
+                              </span>
+                              {entity.notes && (
+                                <span className="tags-item-has-notes" title="Has notes">*</span>
+                              )}
+                              {entityOccs.length > 1 && (
+                                <button
+                                  className="tags-item-expand"
+                                  onClick={() => setViewExpandedTagId(isViewExpanded ? null : entity.id)}
+                                  title={isViewExpanded ? 'Hide occurrences' : 'Show occurrences'}
+                                  aria-label={isViewExpanded ? `Hide occurrences for ${entity.name}` : `Show occurrences for ${entity.name}`}
+                                >
+                                  {isViewExpanded ? '\u25B4' : '\u25BE'}
+                                </button>
+                              )}
+                            </div>
+                            {/* Read-only occurrence list */}
+                            {isViewExpanded && entityOccs.length > 1 && (
+                              <div className="tags-item-detail">
+                                <div className="tags-occ-list" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
                                   {entityOccs.map((occ, i) => (
                                     <div key={`${occ.from}-${i}`} className="tags-occ-item">
                                       <span
@@ -592,58 +526,290 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
                                       {occ.sceneName && (
                                         <span className="tags-occ-scene">{occ.sceneName.slice(0, 30)}</span>
                                       )}
-                                      <button
-                                        className="tags-occ-remove"
-                                        onClick={() => handleRemoveOccurrence(occ.tagId, occ.from, occ.to)}
-                                        title="Remove this occurrence"
-                                        aria-label={`Remove occurrence of ${entity.name}`}
-                                      >
-                                        &times;
-                                      </button>
                                     </div>
                                   ))}
                                 </div>
-                              )}
-                            </div>
-                          )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════
+           MANAGE TAB — add/edit/delete tags and categories
+         ════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'manage' && (
+        <>
+          {/* ── Pending tag selection: step 1 — pick category ─────────── */}
+          {pendingTagSelection && !pendingCategoryId && (
+            <div className="tags-pending">
+              <div className="tags-pending-header">
+                <span>Tag: &ldquo;{pendingTagSelection.text.slice(0, 40)}{pendingTagSelection.text.length > 40 ? '...' : ''}&rdquo;</span>
+                <button
+                  className="tags-pending-cancel"
+                  onClick={handleCancelPending}
+                  aria-label="Cancel pending tag selection"
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="tags-pending-label">Select a category:</div>
+              <div className="tags-pending-list">
+                {tagCategories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="tags-pending-item"
+                    onClick={() => handlePickCategory(cat.id)}
+                  >
+                    <span className="tags-category-swatch" style={{ background: cat.color }} />
+                    <span>{cat.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Pending tag selection: step 2 — pick entity or create ─── */}
+          {pendingTagSelection && pendingCategoryId && (
+            <div className="tags-pending">
+              <div className="tags-pending-header">
+                <span>
+                  {tagCategories.find((c) => c.id === pendingCategoryId)?.name}
+                  {' '}&rarr; &ldquo;{pendingTagSelection.text.slice(0, 30)}{pendingTagSelection.text.length > 30 ? '...' : ''}&rdquo;
+                </span>
+                <button
+                  className="tags-pending-cancel"
+                  onClick={handleCancelPending}
+                  aria-label="Cancel pending tag selection"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div className="tags-entity-create">
+                <div className="tags-pending-label">Create new:</div>
+                <div className="tags-entity-create-row">
+                  <input
+                    className="tags-entity-name-input"
+                    type="text"
+                    value={newEntityName}
+                    onChange={(e) => setNewEntityName(e.target.value)}
+                    placeholder="Entity name..."
+                    aria-label="New entity name"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newEntityName.trim()) {
+                        if (pendingCategoryId) handleCreateNewEntity(pendingCategoryId);
+                      }
+                    }}
+                  />
+                  <button
+                    ref={createBtnRef}
+                    className="tags-entity-create-btn"
+                    onClick={() => { if (pendingCategoryId) handleCreateNewEntity(pendingCategoryId); }}
+                  >
+                    Create
+                  </button>
+                </div>
+              </div>
+
+              {pendingCatEntities.length > 0 && (
+                <>
+                  <div className="tags-pending-label tags-pending-separator">Or add to existing:</div>
+                  <div className="tags-pending-list">
+                    {pendingCatEntities.map((entity) => {
+                      const occCount = occurrencesByTag.get(entity.id)?.length || 0;
+                      return (
+                        <div
+                          key={entity.id}
+                          className="tags-pending-item tags-entity-pick"
+                          onClick={() => handleAddToExistingEntity(entity)}
+                        >
+                          <span className="tags-entity-pick-name">{entity.name}</span>
+                          <span className="tags-entity-pick-count">{occCount}</span>
                         </div>
                       );
                     })}
                   </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+                </>
+              )}
 
-      {/* Add custom category */}
-      {showAddForm ? (
-        <div className="tags-add-form">
-          <input
-            type="text"
-            className="tags-add-input"
-            placeholder="Category name..."
-            value={newCatName}
-            onChange={(e) => setNewCatName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
-            autoFocus
-            aria-label="New category name"
-          />
-          <input
-            type="color"
-            className="tags-add-color"
-            value={newCatColor}
-            onChange={(e) => setNewCatColor(e.target.value)}
-            aria-label="New category color"
-          />
-          <button className="tags-add-ok" onClick={handleAddCategory}>Add</button>
-          <button className="tags-add-cancel" onClick={() => setShowAddForm(false)}>Cancel</button>
-        </div>
-      ) : (
-        <button className="tags-add-btn" onClick={() => setShowAddForm(true)}>
-          + Add Category
-        </button>
+              <button
+                className="tags-pending-back"
+                onClick={() => setPendingCategoryId(null)}
+              >
+                &larr; Back to categories
+              </button>
+            </div>
+          )}
+
+          {/* ── Editable tag list (hidden during pending selection) ───── */}
+          <div className="tags-panel-list" style={pendingTagSelection ? { display: 'none' } : undefined}>
+            {tagCategories.length === 0 ? (
+              <div className="tags-panel-empty">No categories yet. Add one below.</div>
+            ) : (
+              tagCategories.map((cat) => {
+                const entities = tagsByCategory.get(cat.id) || [];
+                const isExpanded = expandedCats.has(cat.id);
+                const totalOccs = entities.reduce(
+                  (sum, e) => sum + (occurrencesByTag.get(e.id)?.length || 0), 0,
+                );
+                return (
+                  <div key={cat.id} className={`tags-category-section${entities.length === 0 ? ' tags-cat-empty' : ''}`}>
+                    <div
+                      className="tags-category-header"
+                      onClick={() => entities.length > 0 && toggleCategory(cat.id)}
+                    >
+                      <span className="tags-category-swatch" style={{ background: cat.color }} />
+                      <span className="tags-category-name">{cat.name}</span>
+                      {entities.length > 0 && (
+                        <span className="tags-category-count" title={`${entities.length} entities, ${totalOccs} occurrences`}>
+                          {entities.length}
+                        </span>
+                      )}
+                      {!cat.isBuiltIn && (
+                        <button
+                          className="tags-item-delete"
+                          onClick={(e) => { e.stopPropagation(); deleteTagCategory(cat.id); }}
+                          title="Delete custom category"
+                          aria-label={`Delete custom category ${cat.name}`}
+                        >
+                          &times;
+                        </button>
+                      )}
+                      {entities.length > 0 && (
+                        <span className={`tags-category-chevron${isExpanded ? ' expanded' : ''}`}>&#9662;</span>
+                      )}
+                    </div>
+
+                    {isExpanded && entities.length > 0 && (
+                      <div className="tags-category-items">
+                        {entities.map((entity) => {
+                          const entityOccs = occurrencesByTag.get(entity.id) || [];
+                          const isEntityExpanded = expandedTagId === entity.id;
+                          return (
+                            <div
+                              key={entity.id}
+                              className={`tags-item-wrap${isEntityExpanded ? ' tags-item-editing' : ''}`}
+                              ref={(el) => { if (el) tagItemRefs.current.set(entity.id, el); }}
+                            >
+                              <div className="tags-item">
+                                <span
+                                  className="tags-item-text tags-entity-name"
+                                  onClick={() => setExpandedTagId(isEntityExpanded ? null : entity.id)}
+                                  title="Click to edit"
+                                >
+                                  {entity.name}
+                                </span>
+                                <span className="tags-entity-occ-count" title={`${entityOccs.length} occurrence${entityOccs.length !== 1 ? 's' : ''}`}>
+                                  {entityOccs.length}
+                                </span>
+                                <button
+                                  className="tags-item-delete"
+                                  onClick={() => handleDeleteEntity(entity.id)}
+                                  title="Delete entity and all occurrences"
+                                  aria-label={`Delete entity ${entity.name} and all occurrences`}
+                                >
+                                  &times;
+                                </button>
+                              </div>
+
+                              {isEntityExpanded && (
+                                <div className="tags-item-detail">
+                                  <div className="tags-entity-name-row">
+                                    <label className="tags-detail-label">Name</label>
+                                    <input
+                                      className="tags-entity-name-edit"
+                                      type="text"
+                                      value={entity.name}
+                                      onChange={(e) => updateTag(entity.id, { name: e.target.value })}
+                                      aria-label={`Edit name for ${entity.name}`}
+                                    />
+                                  </div>
+                                  <textarea
+                                    className="tags-item-notes"
+                                    value={entity.notes}
+                                    onChange={(e) => updateTag(entity.id, { notes: e.target.value })}
+                                    placeholder="Add details: description, requirements, budget notes..."
+                                    rows={3}
+                                    aria-label={`Notes for ${entity.name}`}
+                                  />
+                                  {entityOccs.length > 0 && (
+                                    <div className="tags-occ-list">
+                                      <div className="tags-detail-label">Occurrences ({entityOccs.length})</div>
+                                      {entityOccs.map((occ, i) => (
+                                        <div key={`${occ.from}-${i}`} className="tags-occ-item">
+                                          <span
+                                            className="tags-occ-text"
+                                            onClick={() => handleNavigateToOccurrence(occ.from)}
+                                            title="Navigate to this occurrence"
+                                          >
+                                            &ldquo;{occ.text.slice(0, 40)}{occ.text.length > 40 ? '...' : ''}&rdquo;
+                                          </span>
+                                          {occ.sceneName && (
+                                            <span className="tags-occ-scene">{occ.sceneName.slice(0, 30)}</span>
+                                          )}
+                                          <button
+                                            className="tags-occ-remove"
+                                            onClick={() => handleRemoveOccurrence(occ.tagId, occ.from, occ.to)}
+                                            title="Remove this occurrence"
+                                            aria-label={`Remove occurrence of ${entity.name}`}
+                                          >
+                                            &times;
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Add custom category */}
+          {showAddForm ? (
+            <div className="tags-add-form">
+              <input
+                type="text"
+                className="tags-add-input"
+                placeholder="Category name..."
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                autoFocus
+                aria-label="New category name"
+              />
+              <input
+                type="color"
+                className="tags-add-color"
+                value={newCatColor}
+                onChange={(e) => setNewCatColor(e.target.value)}
+                aria-label="New category color"
+              />
+              <button className="tags-add-ok" onClick={handleAddCategory}>Add</button>
+              <button className="tags-add-cancel" onClick={() => setShowAddForm(false)}>Cancel</button>
+            </div>
+          ) : (
+            <button className="tags-add-btn" onClick={() => setShowAddForm(true)}>
+              + Add Category
+            </button>
+          )}
+        </>
       )}
     </div>
   );
