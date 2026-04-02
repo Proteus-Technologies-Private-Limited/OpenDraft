@@ -40,7 +40,7 @@ const OpenFromProject: React.FC<OpenFromProjectProps> = ({ onOpen, onClose }) =>
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog-box" style={{ minWidth: 460, maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
+      <div className="dialog-box open-from-project-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">Open from Project</div>
         <div className="dialog-body" style={{ maxHeight: 420, overflow: 'auto', padding: '8px 16px 16px' }}>
           {loading ? (
