@@ -1563,8 +1563,9 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .beat-board-columns {
   display: flex;
   gap: 16px;
-  padding: 16px;
+  padding: 16px 32px 32px 16px;
   overflow-x: auto;
+  overflow-y: auto;
   flex: 1;
   align-items: flex-start;
 }
@@ -1703,6 +1704,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   border-radius: 4px;
   overflow: hidden;
   max-height: 140px;
+  flex-shrink: 0;
 }
 .beat-card-image img {
   width: 100%;
@@ -1711,26 +1713,130 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   display: block;
   border-radius: 4px;
 }
-.beat-card-image-remove {
+/* Full-card image mode: image fills the card, content at bottom */
+.beat-card-img-full {
+  overflow: hidden;
+  justify-content: flex-end;
+}
+.beat-card-img-full .beat-card-image {
+  position: absolute;
+  inset: 0;
+  max-height: none;
+  border-radius: 0;
+  z-index: 0;
+}
+.beat-card-img-full .beat-card-image img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+  border-radius: 0;
+}
+.beat-card-img-full .beat-card-drag-handle {
+  position: relative;
+  z-index: 1;
+}
+.beat-card-img-full .beat-card-content-bottom {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+  background: linear-gradient(transparent, rgba(0,0,0,0.6) 20%);
+  padding: 8px 4px 4px;
+  border-radius: 0 0 5px 5px;
+  margin: auto -10px -10px -10px;
+  padding: 24px 10px 10px;
+}
+.beat-card-img-full .beat-card-title {
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+.beat-card-img-full .beat-card-delete {
+  color: rgba(255,255,255,0.7);
+}
+.beat-card-img-full .beat-card-description {
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+}
+.beat-card-img-full .beat-card-toolbar {
+  position: relative;
+  z-index: 1;
+}
+.beat-card-img-full .beat-card-resize-handle {
+  z-index: 2;
+}
+/* Floating image actions in full mode — direct child of card, above drag handle */
+.beat-card-image-actions-floating {
   position: absolute;
   top: 4px;
   right: 4px;
-  width: 20px;
-  height: 20px;
+  display: flex;
+  gap: 4px;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.beat-card-img-full:hover .beat-card-image-actions-floating {
+  opacity: 1;
+}
+
+/* Image action buttons (top-right cluster) */
+.beat-card-image-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.beat-card-image:hover .beat-card-image-actions { opacity: 1; }
+.beat-card-image-action-btn,
+.beat-card-image-remove {
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: rgba(0,0,0,0.7);
   color: #fff;
   border: none;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.12s;
+}
+.beat-card-image-action-btn:hover,
+.beat-card-image-remove:hover {
+  background: rgba(0,0,0,0.9);
+}
+
+/* Image bottom-edge resize handle */
+.beat-card-image-resize-handle {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
   opacity: 0;
   transition: opacity 0.15s;
 }
-.beat-card-image:hover .beat-card-image-remove { opacity: 1; }
+.beat-card-image-resize-handle::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.6);
+}
+.beat-card-image:hover .beat-card-image-resize-handle { opacity: 1; }
 
 /* ── Title + delete ── */
 .beat-card-top {
@@ -1908,6 +2014,60 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .beat-column-cards::-webkit-scrollbar { width: 5px; }
 .beat-column-cards::-webkit-scrollbar-track { background: transparent; }
 .beat-column-cards::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+
+/* ── Beat Board Mode Toggle ── */
+.beat-mode-toggle {
+  display: flex;
+  border: 1px solid var(--fd-border);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-right: auto;
+}
+.beat-mode-btn {
+  background: transparent;
+  border: none;
+  color: var(--fd-text-muted);
+  font-size: 11px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.beat-mode-btn:first-child {
+  border-right: 1px solid var(--fd-border);
+}
+.beat-mode-btn:hover {
+  color: var(--fd-text);
+  background: rgba(255,255,255,0.04);
+}
+.beat-mode-btn.active {
+  background: var(--fd-accent);
+  color: #fff;
+}
+
+/* ── Custom Canvas (free-form mode) ── */
+.beat-custom-canvas {
+  flex: 1;
+  position: relative;
+  overflow: auto;
+  min-height: 400px;
+  background:
+    radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.beat-card-wrap-free {
+  user-select: none;
+}
+.beat-card-wrap-free .beat-card-drag-handle {
+  cursor: grab;
+}
+.beat-card-wrap-free .beat-card-drag-handle:active {
+  cursor: grabbing;
+}
+.beat-custom-canvas::-webkit-scrollbar { width: 8px; height: 8px; }
+.beat-custom-canvas::-webkit-scrollbar-track { background: var(--fd-bg); }
+.beat-custom-canvas::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+.beat-custom-canvas::-webkit-scrollbar-thumb:hover { background: #666; }
 
 /* ============ SCRIPT NOTES ============ */
 /* ── Script Notes Panel ── */
@@ -6017,6 +6177,8 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   .beat-column { min-width: 220px; max-width: 260px; }
   .beat-card { padding: 12px; }
   .beat-add-btn { padding: 12px; min-height: 44px; }
+  .beat-mode-btn { padding: 6px 10px; font-size: 11px; min-height: 36px; }
+  .beat-board-header { flex-wrap: wrap; }
 
   /* Menu dropdown: phone max-height */
   .menu-dropdown {

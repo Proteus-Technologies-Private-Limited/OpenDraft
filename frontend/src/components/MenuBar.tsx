@@ -411,7 +411,16 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             setCurrentProject(null);
             setCurrentScriptId(null);
             setScripts([]);
-            useEditorStore.getState().setDocumentTitle('Untitled Screenplay');
+            const store = useEditorStore.getState();
+            store.setDocumentTitle('Untitled Screenplay');
+            store.setBeats([]);
+            store.setBeatColumns([]);
+            store.setBeatArrangeMode('auto');
+            store.setNotes([]);
+            store.setTags([]);
+            store.setTagCategories([]);
+            store.setCharacterProfiles([]);
+            store.setScenes([]);
           },
         },
         { separator: true, label: '' },
