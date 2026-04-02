@@ -397,11 +397,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     setOpenSubmenu(null);
   };
 
-  // Mouse: hover opens/closes submenu (desktop)
+  // Mouse: hover switches submenu (desktop) — no pointerleave to avoid layout shift
   const handleSubmenuPointerEnter = (label: string, e: React.PointerEvent) => {
     if (e.pointerType === 'mouse') setOpenSubmenu(label);
   };
-  const handleSubmenuPointerLeave = (e: React.PointerEvent) => {
+  const handleItemPointerEnter = (e: React.PointerEvent) => {
     if (e.pointerType === 'mouse') setOpenSubmenu(null);
   };
   // Touch: tap toggles submenu (mobile)
@@ -627,13 +627,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       >
         {activeMenuData.items.map((item, i) =>
           item.separator ? (
-            <div key={i} className="menu-separator" />
+            <div key={i} className="menu-separator" onPointerEnter={handleItemPointerEnter} />
           ) : item.children ? (
             <div
               key={item.label}
               className={`menu-dropdown-item has-children ${openSubmenu === item.label ? 'submenu-open' : ''}`}
               onPointerEnter={(e) => handleSubmenuPointerEnter(item.label!, e)}
-              onPointerLeave={handleSubmenuPointerLeave}
               onTouchEnd={(e) => handleSubmenuTouchEnd(item.label!, e)}
             >
               <span>{item.label}</span>
@@ -646,6 +645,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
                     <div
                       key={child.label}
                       className={`menu-dropdown-item ${child.disabled ? 'disabled' : ''}`}
+                      onTouchEnd={(e) => e.stopPropagation()}
                       onClick={(e) => handleItemClick(child, e)}
                     >
                       <span>{child.label}</span>
@@ -661,6 +661,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div
               key={item.label}
               className={`menu-dropdown-item ${item.disabled ? 'disabled' : ''}`}
+              onPointerEnter={handleItemPointerEnter}
               onClick={(e) => handleItemClick(item, e)}
             >
               <span>{item.label}</span>
