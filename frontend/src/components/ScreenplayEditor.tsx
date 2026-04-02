@@ -245,10 +245,13 @@ const ScreenplayEditor: React.FC = () => {
   const providerRef = useRef<HocuspocusProvider | null>(null);
   // Editor ref for onSynced callback to seed content when Yjs doc is empty
   const collabEditorRef = useRef<ReturnType<typeof useEditor>>(null);
+  // Track current collab document name to prevent duplicate setup (React StrictMode)
+  const collabDocNameRef = useRef<string | null>(null);
 
   // Cleanup collab provider
   const destroyCollab = useCallback(() => {
     stopCollabSync();
+    collabDocNameRef.current = null;
     if (providerRef.current) {
       providerRef.current.destroy();
       providerRef.current = null;
@@ -287,7 +290,13 @@ const ScreenplayEditor: React.FC = () => {
   const handleDocumentSwitchRef = useRef<(projectId: string, scriptId: string, token: string) => void>(() => {});
 
   const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string, isHost = false, overrideWsUrl?: string) => {
+    // Skip if already setting up the same document (prevents React StrictMode
+    // double-invoke from destroying a provider that's still connecting)
+    if (collabDocNameRef.current === docName && providerRef.current) {
+      return;
+    }
     destroyCollab();
+    collabDocNameRef.current = docName;
     collabExitingRef.current = false;
     const ydoc = new Y.Doc();
 
