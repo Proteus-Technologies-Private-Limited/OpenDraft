@@ -249,6 +249,10 @@ interface EditorState {
   beatRedo: () => void;
   canBeatUndo: boolean;
   canBeatRedo: boolean;
+  _beatUndoStack: { beats: BeatInfo[]; beatColumns: BeatColumn[] }[];
+  _beatRedoStack: { beats: BeatInfo[]; beatColumns: BeatColumn[] }[];
+  _beatSnapshotTime: number;
+  _beatIsUndoing: boolean;
 
   // Revision
   revisionMode: boolean;

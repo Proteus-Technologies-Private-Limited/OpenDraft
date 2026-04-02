@@ -450,7 +450,7 @@ const BeatBoard: React.FC = () => {
     addBeat, updateBeat, deleteBeat, setBeats,
     addBeatColumn, updateBeatColumn, deleteBeatColumn,
     setBeatArrangeMode,
-    beatUndo, beatRedo, canBeatUndo, canBeatRedo,
+    beatUndo, beatRedo,
   } = useEditorStore();
 
   const boardRef = useRef<HTMLDivElement>(null);

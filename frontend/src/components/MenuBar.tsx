@@ -40,6 +40,7 @@ interface MenuSection {
 
 const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, isCollabActive, isCollabGuest }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const {
     navigatorOpen,
@@ -277,6 +278,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         const inDropdown = dropdownRef.current?.contains(target);
         if (!inMenu && !inDropdown) {
           setActiveMenu(null);
+          setOpenSubmenu(null);
         }
       };
       document.addEventListener('mousedown', handleClose);
@@ -383,6 +385,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
 
   const handleMenuClick = (label: string) => {
     setActiveMenu((prev) => (prev === label ? null : label));
+    setOpenSubmenu(null);
   };
 
   const handleItemClick = (item: MenuItem, e: React.MouseEvent) => {
@@ -391,6 +394,21 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       item.action();
     }
     setActiveMenu(null);
+    setOpenSubmenu(null);
+  };
+
+  // Mouse: hover opens/closes submenu (desktop)
+  const handleSubmenuPointerEnter = (label: string, e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse') setOpenSubmenu(label);
+  };
+  const handleSubmenuPointerLeave = (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse') setOpenSubmenu(null);
+  };
+  // Touch: tap toggles submenu (mobile)
+  const handleSubmenuTouchEnd = (label: string, e: React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setOpenSubmenu((prev) => (prev === label ? null : label));
   };
 
   const menus: MenuSection[] = [
@@ -613,11 +631,14 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           ) : item.children ? (
             <div
               key={item.label}
-              className="menu-dropdown-item has-children"
+              className={`menu-dropdown-item has-children ${openSubmenu === item.label ? 'submenu-open' : ''}`}
+              onPointerEnter={(e) => handleSubmenuPointerEnter(item.label!, e)}
+              onPointerLeave={handleSubmenuPointerLeave}
+              onTouchEnd={(e) => handleSubmenuTouchEnd(item.label!, e)}
             >
               <span>{item.label}</span>
-              <span className="menu-submenu-arrow">{'\u25B8'}</span>
-              <div className="menu-submenu">
+              <span className="menu-submenu-arrow">{openSubmenu === item.label ? '\u25BE' : '\u25B8'}</span>
+              <div className={`menu-submenu ${openSubmenu === item.label ? 'submenu-visible' : ''}`}>
                 {item.children.map((child, j) =>
                   child.separator ? (
                     <div key={j} className="menu-separator" />
