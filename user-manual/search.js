@@ -11,7 +11,7 @@
     // Index / Home
     { page: 'Home', title: 'Welcome to OpenDraft', section: '', text: 'Free open-source screenwriting application. Professional screenplay editing with real-time collaboration. No subscription required.', url: 'index.html' },
     { page: 'Home', title: 'Quick Start', section: 'Quick Start', text: 'Install OpenDraft download desktop app. Create a project. Start writing new script. Save your work Cmd S check in version checkpoint.', url: 'index.html#quick-start' },
-    { page: 'Home', title: "What's New in v0.5.0", section: "What's New", text: 'Beat board visual story planning drag-drop cards colors images resize FDX import export. Redesigned tags notes two-tab panel smart toolbar tagging annotation. Smoother zooming dampened pinch-to-zoom editor scaling. Windows compatibility file operations executable. Spell checker robust async initialization error handling. Accessibility aria labels UI controls screen reader. Error logging backend exceptions debugging.', url: 'index.html#whats-new' },
+    { page: 'Home', title: "What's New in v0.6.0", section: "What's New", text: 'Beat board custom arrange free-form canvas absolute positioning drag cards auto arrange column layout. Beat board image resize drag bottom edge fill card background text overlay. Beat board undo redo history Cmd Z scoped debounced snapshots. Beat board persistent mode arrange mode saved file synced collaborators. New screenplay cleanup clears beats notes tags character profiles.', url: 'index.html#whats-new' },
 
     // Getting Started
     { page: 'Getting Started', title: 'Getting Started', section: '', text: 'Write your first screenplay in 5 minutes. Beginner guide walkthrough basics. New to screenwriting software.', url: 'getting-started.html' },
