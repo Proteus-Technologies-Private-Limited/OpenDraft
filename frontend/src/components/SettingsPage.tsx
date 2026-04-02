@@ -68,8 +68,14 @@ const SettingsPage: React.FC = () => {
 
   const handleTestConnection = async () => {
     setConnectionStatus('testing');
-    const ok = await collabAuthApi.testConnection();
-    setConnectionStatus(ok ? 'ok' : 'fail');
+    // Test the URL currently in the input field, not the last saved value
+    try {
+      const httpUrl = urlInput.trim().replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
+      const res = await fetch(`${httpUrl}/health`, { signal: AbortSignal.timeout(5000) });
+      setConnectionStatus(res.ok ? 'ok' : 'fail');
+    } catch {
+      setConnectionStatus('fail');
+    }
     setTimeout(() => setConnectionStatus('idle'), 3000);
   };
 
