@@ -316,8 +316,11 @@ export function usePinchZoom(
       // Dead zone: ignore tiny scale changes (prevents zoom during two-finger scroll)
       if (ratio > 0.95 && ratio < 1.05) return;
 
+      // Dampen the ratio so zoom feels smooth rather than jumpy.
+      // A factor of 0.4 means only 40% of the raw pinch movement is applied.
+      const dampenedRatio = 1 + (ratio - 1) * 0.55;
       const newZoom = Math.round(
-        Math.min(maxZoom, Math.max(minZoom, stateRef.current.initialZoom * ratio)),
+        Math.min(maxZoom, Math.max(minZoom, stateRef.current.initialZoom * dampenedRatio)),
       );
       onZoomRef.current(newZoom);
     };
