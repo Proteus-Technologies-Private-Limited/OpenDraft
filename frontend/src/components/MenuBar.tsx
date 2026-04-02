@@ -30,6 +30,7 @@ interface MenuItem {
   action?: () => void;
   separator?: boolean;
   disabled?: boolean;
+  children?: MenuItem[];
 }
 
 interface MenuSection {
@@ -407,7 +408,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
               type: 'doc',
               content: [{ type: 'sceneHeading', content: [] }],
             });
-            // Clear project state so save will prompt for project/file name
             setCurrentProject(null);
             setCurrentScriptId(null);
             setScripts([]);
@@ -419,22 +419,34 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         { label: 'Open from Project...', action: () => setOpenFromProjectOpen(true), disabled: isCollabGuest },
         { label: 'Save', shortcut: '\u2318S', action: handleSave, disabled: isCollabGuest },
         { separator: true, label: '' },
-        { label: 'Save as Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
-        { label: 'Save as Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
-        { label: 'Save as PDF', shortcut: '\u2318P', action: handleExportPDF },
+        {
+          label: 'Export',
+          children: [
+            { label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
+            { label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
+            { label: 'PDF', action: handleExportPDF },
+          ],
+        },
         { separator: true, label: '' },
-        { label: 'Check In...', action: handleCheckinOpen, disabled: isCollabGuest },
-        { label: 'Version History', action: () => setVersionHistoryOpen(true), disabled: isCollabGuest },
+        {
+          label: 'Versions',
+          disabled: isCollabGuest,
+          children: [
+            { label: 'Check In...', action: handleCheckinOpen, disabled: isCollabGuest },
+            { label: 'Version History', action: () => setVersionHistoryOpen(true), disabled: isCollabGuest },
+            { separator: true, label: '' },
+            {
+              label: trackChangesEnabled
+                ? '\u2713 Track Changes'
+                : 'Track Changes Since Last Check-In',
+              action: handleTrackChangesToggle,
+            },
+            { label: 'Compare with Version\u2026', action: () => setCompareVersionOpen(true) },
+          ],
+        },
         { separator: true, label: '' },
         { label: 'Page Setup...', action: () => setPageSetupOpen(true) },
         { label: 'Print...', shortcut: '\u2318P', action: () => window.print() },
-        { separator: true, label: '' },
-        { label: 'Manage Projects...', action: () => { window.location.href = '/projects'; }, disabled: isCollabGuest },
-        { separator: true, label: '' },
-        { label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate, disabled: isCollabGuest },
-        { label: 'Join Collaboration...', action: onJoinCollab, disabled: isCollabGuest },
-        { separator: true, label: '' },
-        { label: 'System Settings...', action: () => { window.location.href = '/settings'; } },
       ],
     },
     {
@@ -443,10 +455,14 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         { label: 'Undo', shortcut: '⌘Z', action: () => { try { editor?.chain().focus().undo().run(); } catch {} } },
         { label: 'Redo', shortcut: '⇧⌘Z', action: () => { try { editor?.chain().focus().redo().run(); } catch {} } },
         { separator: true, label: '' },
+        { label: 'Cut', shortcut: '⌘X', action: () => document.execCommand('cut') },
+        { label: 'Copy', shortcut: '⌘C', action: () => document.execCommand('copy') },
+        { label: 'Paste', shortcut: '⌘V', action: () => document.execCommand('paste') },
         { label: 'Select All', shortcut: '⌘A', action: () => editor?.chain().focus().selectAll().run() },
         { separator: true, label: '' },
         { label: 'Find & Replace...', shortcut: '⌘F', action: () => setSearchOpen(true) },
         { label: 'Go to Page...', shortcut: '⌘G', action: () => setGoToPageOpen(true) },
+        { label: spellCheckEnabled ? '\u2713 Spell Check' : 'Spell Check', action: toggleSpellCheck },
       ],
     },
     {
@@ -486,14 +502,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         { label: tagsVisible ? '\u2713 Tag Highlights' : 'Tag Highlights', action: () => setTagsVisible(!tagsVisible) },
         { separator: true, label: '' },
         {
-          label: trackChangesEnabled
-            ? '\u2713 Track Changes'
-            : 'Track Changes Since Last Check-In',
-          action: handleTrackChangesToggle,
-        },
-        { label: 'Compare with Version\u2026', action: () => setCompareVersionOpen(true) },
-        { separator: true, label: '' },
-        {
           label: theme === 'light' ? '\u2713 Light Theme' : 'Light Theme',
           action: () => setTheme(theme === 'light' ? 'dark' : 'light'),
         },
@@ -502,24 +510,21 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     {
       label: 'Production',
       items: [
-        { label: revisionMode ? '✓ Revision Mode' : 'Revision Mode', action: () => setRevisionMode(!revisionMode) },
-        { label: 'Tagging...', action: toggleTagsPanel },
-        { separator: true, label: '' },
+        { label: revisionMode ? '\u2713 Revision Mode' : 'Revision Mode', action: () => setRevisionMode(!revisionMode) },
         { label: 'Scene Numbers...', disabled: true },
         { label: 'Lock Pages', disabled: true },
+        { separator: true, label: '' },
+        { label: 'Asset Manager', action: () => useAssetStore.getState().toggleAssetManager() },
       ],
     },
     {
       label: 'Tools',
       items: [
-        { label: 'Asset Manager', action: () => useAssetStore.getState().toggleAssetManager() },
+        { label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate, disabled: isCollabGuest },
+        { label: 'Join Collaboration...', action: onJoinCollab, disabled: isCollabGuest },
         { separator: true, label: '' },
-        { label: spellCheckEnabled ? '\u2713 Spell Check' : 'Spell Check', action: toggleSpellCheck },
-        { separator: true, label: '' },
-        { label: 'Character Highlighter', action: toggleCharacterProfiles },
-        { label: 'SmartType', disabled: true },
-        { separator: true, label: '' },
-        { label: 'Statistics...', disabled: true },
+        { label: 'Manage Projects...', action: () => { window.location.href = '/projects'; }, disabled: isCollabGuest },
+        { label: 'System Settings...', action: () => { window.location.href = '/settings'; } },
       ],
     },
     {
@@ -596,6 +601,32 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         {activeMenuData.items.map((item, i) =>
           item.separator ? (
             <div key={i} className="menu-separator" />
+          ) : item.children ? (
+            <div
+              key={item.label}
+              className="menu-dropdown-item has-children"
+            >
+              <span>{item.label}</span>
+              <span className="menu-submenu-arrow">{'\u25B8'}</span>
+              <div className="menu-submenu">
+                {item.children.map((child, j) =>
+                  child.separator ? (
+                    <div key={j} className="menu-separator" />
+                  ) : (
+                    <div
+                      key={child.label}
+                      className={`menu-dropdown-item ${child.disabled ? 'disabled' : ''}`}
+                      onClick={(e) => handleItemClick(child, e)}
+                    >
+                      <span>{child.label}</span>
+                      {child.shortcut && (
+                        <span className="menu-shortcut">{child.shortcut}</span>
+                      )}
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
           ) : (
             <div
               key={item.label}
