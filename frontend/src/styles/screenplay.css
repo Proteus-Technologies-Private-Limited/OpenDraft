@@ -4967,6 +4967,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .asset-viewer-download-link:hover { opacity: 0.85; }
 
 /* ============ OPEN FROM PROJECT ============ */
+.open-from-project-dialog { min-width: 460px; max-width: 540px; }
 .open-project-group-header {
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
   color: var(--fd-text-muted); padding: 6px 4px 4px; font-weight: 600;
