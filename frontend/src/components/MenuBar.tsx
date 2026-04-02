@@ -694,19 +694,17 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.5.0</div>
+            <div className="about-version">Version 0.6.0</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.5.0</div>
+              <div className="about-section-title">What's New in 0.6.0</div>
               <ul className="about-list">
-                <li><strong>Beat Board</strong> — Visual story planning with drag-and-drop cards, colors, images, resize, and FDX import/export.</li>
-                <li><strong>Redesigned Tags &amp; Notes</strong> — Two-tab panel with smart toolbar for streamlined tagging and annotation.</li>
-                <li><strong>Smoother Zooming</strong> — Dampened pinch-to-zoom for smoother editor scaling.</li>
-                <li><strong>Windows Compatibility</strong> — Fixed file operations on Windows executable.</li>
-                <li><strong>Spell Checker</strong> — Robust async initialization with better error handling.</li>
-                <li><strong>Accessibility</strong> — Aria labels on key UI controls for screen reader support.</li>
-                <li><strong>Error Logging</strong> — Previously silent backend exceptions are now logged for easier debugging.</li>
+                <li><strong>Beat Board: Custom Arrange</strong> — Free-form canvas mode with absolute positioning; drag cards anywhere, alongside the original Auto Arrange column layout.</li>
+                <li><strong>Beat Board: Image Resize</strong> — Drag the bottom edge to resize images, or fill the entire card as a background with text overlay.</li>
+                <li><strong>Beat Board: Undo / Redo</strong> — Full undo/redo history (Cmd+Z / Shift+Cmd+Z) scoped to the beat board, with debounced snapshots for smooth editing.</li>
+                <li><strong>Beat Board: Persistent Mode</strong> — Arrange mode saved with the file and synced across collaborators.</li>
+                <li><strong>New Screenplay Cleanup</strong> — Creating a new screenplay now properly clears beats, notes, tags, and character profiles from the previous document.</li>
               </ul>
             </div>
           </div>
