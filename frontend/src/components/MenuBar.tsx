@@ -722,11 +722,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.6.0</div>
               <ul className="about-list">
-                <li><strong>Beat Board: Custom Arrange</strong> — Free-form canvas mode with absolute positioning; drag cards anywhere, alongside the original Auto Arrange column layout.</li>
-                <li><strong>Beat Board: Image Resize</strong> — Drag the bottom edge to resize images, or fill the entire card as a background with text overlay.</li>
-                <li><strong>Beat Board: Undo / Redo</strong> — Full undo/redo history (Cmd+Z / Shift+Cmd+Z) scoped to the beat board, with debounced snapshots for smooth editing.</li>
-                <li><strong>Beat Board: Persistent Mode</strong> — Arrange mode saved with the file and synced across collaborators.</li>
-                <li><strong>New Screenplay Cleanup</strong> — Creating a new screenplay now properly clears beats, notes, tags, and character profiles from the previous document.</li>
+                <li><strong>Mobile: Open from Project</strong> — Fixed dialog not visible on mobile devices by making it responsive.</li>
+                <li><strong>Mobile: Submenu Navigation</strong> — Fixed submenus not opening on mobile and resolved hover flicker on touch devices.</li>
+                <li><strong>Light Theme Redesign</strong> — Refreshed light theme styling with improved panel overlays and backdrop.</li>
               </ul>
             </div>
           </div>
