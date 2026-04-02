@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import type { CollabSession } from '../services/api';
-import { SERVER_BASE } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
 import { collabAuthApi } from '../services/collabAuth';
 import { showToast } from './Toast';
@@ -116,10 +115,12 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
   };
 
   const copyLink = (token: string) => {
-    // Use SERVER_BASE for the collab link so it works from Tauri desktop
-    // (window.location.origin would give tauri://localhost which isn't a valid URL for collaborators)
-    const base = window.location.origin.startsWith('tauri://') ? SERVER_BASE : window.location.origin;
-    const link = `${base}/collab/${token}`;
+    // Build invite link from the collab server URL in Settings.
+    // The guest will open this on the collab server (which may be on a different
+    // machine than the frontend/backend).
+    const collabWs = useSettingsStore.getState().collabServerUrl;
+    const collabHttp = collabWs.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
+    const link = `${collabHttp}/collab/${token}`;
     navigator.clipboard.writeText(link).then(() => {
       setCopiedToken(token);
       setTimeout(() => setCopiedToken(null), 2000);

@@ -286,7 +286,7 @@ const ScreenplayEditor: React.FC = () => {
   // Ref for document-switch handler (defined after setupCollab to avoid circular dependency)
   const handleDocumentSwitchRef = useRef<(projectId: string, scriptId: string, token: string) => void>(() => {});
 
-  const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string, isHost = false) => {
+  const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string, isHost = false, overrideWsUrl?: string) => {
     destroyCollab();
     collabExitingRef.current = false;
     const ydoc = new Y.Doc();
@@ -310,7 +310,9 @@ const ScreenplayEditor: React.FC = () => {
       }
     }
 
-    const wsUrl = getCollabWsUrl();
+    // Use the collab server URL extracted from the invite link if provided,
+    // otherwise fall back to the local setting.
+    const wsUrl = overrideWsUrl || getCollabWsUrl();
     console.log(`[Collab] setupCollab: docName="${docName}", wsUrl="${wsUrl}", isHost=${isHost}, tokenPrefix="${inviteToken.slice(0, 8)}..."`);
 
     const provider = new HocuspocusProvider({
@@ -535,10 +537,12 @@ const ScreenplayEditor: React.FC = () => {
 
         // Load script content FIRST so the editor can seed the Yjs doc.
         // Try multiple backends (local + alternatives) for cross-backend joins.
+        // Derive host from the collab server URL setting so cross-machine access works.
+        const collabHost = (() => { try { return new URL(collabHttpUrl).hostname; } catch { return 'localhost'; } })();
         const backends = [
           API_BASE,
-          'http://localhost:8000/api',
-          'http://localhost:18321/api',
+          `http://${collabHost}:8000/api`,
+          `http://${collabHost}:18321/api`,
         ].filter((v, i, a) => a.indexOf(v) === i);
 
         let project: any = null;
@@ -721,15 +725,20 @@ const ScreenplayEditor: React.FC = () => {
   }, [collabColor, currentProject, currentScriptId, setupCollab, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
   // Join a collab session via pasted link/token (works from app without browser)
-  const handleJoinCollab = useCallback(async (session: import('../services/api').CollabSession, token: string) => {
+  const handleJoinCollab = useCallback(async (session: import('../services/api').CollabSession, token: string, collabServerUrl?: string) => {
     try {
+      // Determine the collab server to use: prefer URL extracted from invite link,
+      // fall back to local setting.
+      const collabWs = collabServerUrl || getCollabWsUrl();
+      const collabHttp = collabWs.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
+      const collabHost = (() => { try { return new URL(collabHttp).hostname; } catch { return 'localhost'; } })();
+
       // Load script content to seed the Yjs doc.
-      // Try the local backend first; if the project lives on another backend
-      // (e.g. browser on :8000 vs Tauri sidecar on :18321), try alternatives.
+      // Try the collab server's host backend first, then local alternatives.
       const backends = [
         API_BASE,
-        'http://localhost:8000/api',
-        'http://localhost:18321/api',
+        `http://${collabHost}:8000/api`,
+        `http://${collabHost}:18321/api`,
       ].filter((v, i, a) => a.indexOf(v) === i); // deduplicate
 
       let project: Record<string, unknown> | null = null;
@@ -764,7 +773,7 @@ const ScreenplayEditor: React.FC = () => {
 
       const nonce = session.session_nonce || '';
       const docName = `${session.project_id}/${session.script_id}${nonce ? `/${nonce}` : ''}`;
-      setupCollab(docName, token, session.collaborator_name);
+      setupCollab(docName, token, session.collaborator_name, false, collabWs);
 
       setCollabUserName(session.collaborator_name);
       setCollabRole((session.role as 'editor' | 'viewer') || 'editor');

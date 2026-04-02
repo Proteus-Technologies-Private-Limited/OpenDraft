@@ -264,7 +264,35 @@ const hocuspocus = new Hocuspocus({
 const app = express();
 
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: config.corsOrigins, credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. curl, Tauri, mobile apps)
+    if (!origin) return callback(null, true);
+
+    // Allow explicitly configured origins
+    if (config.corsOrigins.includes(origin)) return callback(null, true);
+
+    // Allow any private/local network origin (192.168.*, 10.*, 172.16-31.*, localhost, 127.*)
+    try {
+      const url = new URL(origin);
+      const host = url.hostname;
+      if (
+        host === 'localhost' ||
+        host.startsWith('127.') ||
+        host.startsWith('10.') ||
+        host.startsWith('192.168.') ||
+        /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+        host === '::1' ||
+        host === 'tauri.localhost'
+      ) {
+        return callback(null, true);
+      }
+    } catch { /* invalid URL, fall through to reject */ }
+
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(standardLimiter);
 

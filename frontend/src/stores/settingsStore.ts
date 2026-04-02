@@ -53,6 +53,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     set({ collabServerUrl: url });
   },
 
+
   collabAuth: loadAuth(),
   setCollabAuth: (auth) => {
     localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(auth));
