@@ -96,6 +96,9 @@ export interface FDXBeat {
   imageUrl: string;
   cardWidth: number;
   cardHeight: number;
+  x: number;
+  y: number;
+  imageHeight: number;
 }
 
 export interface FDXParseResult {
@@ -207,6 +210,9 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
           imageUrl: '',
           cardWidth: 0,
           cardHeight: 0,
+          x: 0,
+          y: 0,
+          imageHeight: 0,
         };
         beats.push(currentBeat);
       } else if (fdxType === 'Outline Body' && currentBeat) {
@@ -223,6 +229,9 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
           imageUrl: '',
           cardWidth: 0,
           cardHeight: 0,
+          x: 0,
+          y: 0,
+          imageHeight: 0,
         };
         beats.push(currentBeat);
       }

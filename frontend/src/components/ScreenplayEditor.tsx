@@ -1327,6 +1327,7 @@ const ScreenplayEditor: React.FC = () => {
       _characterProfiles: store.characterProfiles,
       _beats: store.beats,
       _beatColumns: store.beatColumns,
+      _beatArrangeMode: store.beatArrangeMode,
     };
   }, [editor]);
 
@@ -1424,7 +1425,7 @@ const ScreenplayEditor: React.FC = () => {
         // Strip app metadata keys before feeding to ProseMirror
         let pmDoc: Record<string, unknown> | null = null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, ...rest } = content as any;
+          const { _notes, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode, ...rest } = content as any;
           pmDoc = rest;
         }
 
@@ -1486,6 +1487,9 @@ const ScreenplayEditor: React.FC = () => {
             store.setBeats(beatsArr as import('../stores/editorStore').BeatInfo[]);
             const beatColsArr = parseAttr(c._beatColumns);
             store.setBeatColumns(beatColsArr as import('../stores/editorStore').BeatColumn[]);
+            if (c._beatArrangeMode === 'auto' || c._beatArrangeMode === 'custom') {
+              store.setBeatArrangeMode(c._beatArrangeMode);
+            }
           }
         }
 
@@ -1638,7 +1642,7 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, ...pmDoc } = content as any;
+            const { _notes, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode: _bam, ...pmDoc } = content as any;
             editor.commands.setContent(pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             editor.commands.setContent(content);

@@ -181,9 +181,14 @@ export interface BeatInfo {
   position: number;
   color: string;
   imageUrl: string;
-  cardWidth: number;  // pixels, 0 = fill column
-  cardHeight: number; // pixels, 0 = auto
+  cardWidth: number;   // pixels, 0 = fill column
+  cardHeight: number;  // pixels, 0 = auto
+  x: number;           // custom-arrange: absolute X position on canvas
+  y: number;           // custom-arrange: absolute Y position on canvas
+  imageHeight: number; // pixels, 0 = default (140px)
 }
+
+export type BeatArrangeMode = 'auto' | 'custom';
 
 interface EditorState {
   // Current element type
@@ -227,6 +232,8 @@ interface EditorState {
   setNoteFilter: (filter: NoteFilter) => void;
 
   // Beats
+  beatArrangeMode: BeatArrangeMode;
+  setBeatArrangeMode: (mode: BeatArrangeMode) => void;
   beatColumns: BeatColumn[];
   setBeatColumns: (columns: BeatColumn[]) => void;
   addBeatColumn: (title: string) => string;
@@ -235,8 +242,13 @@ interface EditorState {
   beats: BeatInfo[];
   setBeats: (beats: BeatInfo[]) => void;
   addBeat: (title: string, columnId: string) => void;
-  updateBeat: (id: string, updates: Partial<{ title: string; description: string; columnId: string; position: number; color: string; imageUrl: string; cardWidth: number; cardHeight: number }>) => void;
+  updateBeat: (id: string, updates: Partial<{ title: string; description: string; columnId: string; position: number; color: string; imageUrl: string; cardWidth: number; cardHeight: number; x: number; y: number; imageHeight: number }>) => void;
   deleteBeat: (id: string) => void;
+  // Beat undo/redo
+  beatUndo: () => void;
+  beatRedo: () => void;
+  canBeatUndo: boolean;
+  canBeatRedo: boolean;
 
   // Revision
   revisionMode: boolean;
@@ -321,7 +333,24 @@ interface EditorState {
   setSaveAsOpen: (open: boolean) => void;
 }
 
-export const useEditorStore = create<EditorState>((set) => ({
+const BEAT_UNDO_MAX = 50;
+const BEAT_SNAPSHOT_DEBOUNCE = 300; // ms — group rapid changes into one undo step
+
+/** Push current beat state onto the undo stack (debounced unless forced). */
+function _pushBeatSnapshot(get: () => EditorState, force = false) {
+  const s = get() as EditorState & { _beatIsUndoing: boolean; _beatUndoStack: unknown[]; _beatSnapshotTime: number };
+  if (s._beatIsUndoing) {
+    useEditorStore.setState({ _beatIsUndoing: false } as any);
+    return;
+  }
+  const now = Date.now();
+  if (!force && now - s._beatSnapshotTime < BEAT_SNAPSHOT_DEBOUNCE) return;
+  const stack = [...(s._beatUndoStack as { beats: BeatInfo[]; beatColumns: BeatColumn[] }[]), { beats: s.beats, beatColumns: s.beatColumns }];
+  if (stack.length > BEAT_UNDO_MAX) stack.shift();
+  useEditorStore.setState({ _beatUndoStack: stack, _beatRedoStack: [], _beatSnapshotTime: now, canBeatUndo: true, canBeatRedo: false } as any);
+}
+
+export const useEditorStore = create<EditorState>((set, get) => ({
   activeElement: 'action',
   setActiveElement: (el) => set({ activeElement: el }),
 
@@ -379,29 +408,80 @@ export const useEditorStore = create<EditorState>((set) => ({
   noteFilter: { elementType: null, contextLabel: null, color: null, noteId: null },
   setNoteFilter: (filter) => set({ noteFilter: filter }),
 
+  // Beats — undo/redo internals (not serialized)
+  _beatUndoStack: [] as { beats: BeatInfo[]; beatColumns: BeatColumn[] }[],
+  _beatRedoStack: [] as { beats: BeatInfo[]; beatColumns: BeatColumn[] }[],
+  _beatSnapshotTime: 0,
+  _beatIsUndoing: false,
+  canBeatUndo: false,
+  canBeatRedo: false,
+  beatUndo: () =>
+    set((s) => {
+      const stack = s._beatUndoStack as { beats: BeatInfo[]; beatColumns: BeatColumn[] }[];
+      if (stack.length === 0) return {};
+      const prev = stack[stack.length - 1];
+      const redo = [...(s._beatRedoStack as { beats: BeatInfo[]; beatColumns: BeatColumn[] }[]), { beats: s.beats, beatColumns: s.beatColumns }];
+      return {
+        beats: prev.beats,
+        beatColumns: prev.beatColumns,
+        _beatUndoStack: stack.slice(0, -1),
+        _beatRedoStack: redo,
+        _beatIsUndoing: true,
+        canBeatUndo: stack.length > 1,
+        canBeatRedo: true,
+      };
+    }),
+  beatRedo: () =>
+    set((s) => {
+      const stack = s._beatRedoStack as { beats: BeatInfo[]; beatColumns: BeatColumn[] }[];
+      if (stack.length === 0) return {};
+      const next = stack[stack.length - 1];
+      const undo = [...(s._beatUndoStack as { beats: BeatInfo[]; beatColumns: BeatColumn[] }[]), { beats: s.beats, beatColumns: s.beatColumns }];
+      return {
+        beats: next.beats,
+        beatColumns: next.beatColumns,
+        _beatUndoStack: undo,
+        _beatRedoStack: stack.slice(0, -1),
+        _beatIsUndoing: true,
+        canBeatUndo: true,
+        canBeatRedo: stack.length > 1,
+      };
+    }),
+
   // Beats
+  beatArrangeMode: 'auto',
+  setBeatArrangeMode: (mode) => set({ beatArrangeMode: mode }),
   beatColumns: [],
   setBeatColumns: (columns) => set({ beatColumns: columns }),
   addBeatColumn: (title) => {
     const id = uuid();
+    _pushBeatSnapshot(get);
     set((s) => {
       const maxPos = s.beatColumns.length > 0 ? Math.max(...s.beatColumns.map((c) => c.position)) : -1;
       return { beatColumns: [...s.beatColumns, { id, title, position: maxPos + 1, width: 0 }] };
     });
     return id;
   },
-  updateBeatColumn: (id, updates) =>
+  updateBeatColumn: (id, updates) => {
+    _pushBeatSnapshot(get);
     set((s) => ({
       beatColumns: s.beatColumns.map((c) => (c.id === id ? { ...c, ...updates } : c)),
-    })),
-  deleteBeatColumn: (id) =>
+    }));
+  },
+  deleteBeatColumn: (id) => {
+    _pushBeatSnapshot(get, true);
     set((s) => ({
       beatColumns: s.beatColumns.filter((c) => c.id !== id),
       beats: s.beats.filter((b) => b.columnId !== id),
-    })),
+    }));
+  },
   beats: [],
-  setBeats: (beats) => set({ beats }),
-  addBeat: (title, columnId) =>
+  setBeats: (beats) => {
+    _pushBeatSnapshot(get);
+    set({ beats });
+  },
+  addBeat: (title, columnId) => {
+    _pushBeatSnapshot(get, true);
     set((s) => {
       const colBeats = s.beats.filter((b) => b.columnId === columnId);
       const maxPos = colBeats.length > 0 ? Math.max(...colBeats.map((b) => b.position)) : -1;
@@ -418,16 +498,24 @@ export const useEditorStore = create<EditorState>((set) => ({
             imageUrl: '',
             cardWidth: 0,
             cardHeight: 0,
+            x: 0,
+            y: 0,
+            imageHeight: 0,
           },
         ],
       };
-    }),
-  updateBeat: (id, updates) =>
+    });
+  },
+  updateBeat: (id, updates) => {
+    _pushBeatSnapshot(get);
     set((s) => ({
       beats: s.beats.map((b) => (b.id === id ? { ...b, ...updates } : b)),
-    })),
-  deleteBeat: (id) =>
-    set((s) => ({ beats: s.beats.filter((b) => b.id !== id) })),
+    }));
+  },
+  deleteBeat: (id) => {
+    _pushBeatSnapshot(get, true);
+    set((s) => ({ beats: s.beats.filter((b) => b.id !== id) }));
+  },
 
   revisionMode: false,
   revisionColor: 'White',
