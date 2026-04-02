@@ -654,22 +654,19 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.4.0</div>
+            <div className="about-version">Version 0.5.0</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.4.0</div>
+              <div className="about-section-title">What's New in 0.5.0</div>
               <ul className="about-list">
-                <li><strong>Card View</strong> — Toggle between list and card view for screenplays with content previews and drag-and-drop reorder.</li>
-                <li><strong>Inline Rename</strong> — Double-click any project or screenplay name to rename it in place.</li>
-                <li><strong>Duplicate Screenplay</strong> — One-click duplicate from the actions menu.</li>
-                <li><strong>Export from File List</strong> — Export any screenplay as FDX, Fountain, PDF, or native .odraft directly from the project view.</li>
-                <li><strong>Native .odraft Format</strong> — Lossless import/export in OpenDraft's own format for easy sharing and backup.</li>
-                <li><strong>Zip Import/Export</strong> — Export an entire project as a zip archive, or import a zip to create a new project.</li>
-                <li><strong>Pinned Section</strong> — Pinned projects and screenplays now appear in a dedicated section at the top. Sorting only applies to unpinned items.</li>
-                <li><strong>Improved Readability</strong> — Larger fonts and better spacing throughout the project and file lists.</li>
-                <li><strong>Actions Menu</strong> — Three-dot menu on each screenplay with rename, duplicate, export, and delete options.</li>
-                <li><strong>Light Theme Fix</strong> — Project properties dialog now displays correctly in light theme.</li>
+                <li><strong>Beat Board</strong> — Visual story planning with drag-and-drop cards, colors, images, resize, and FDX import/export.</li>
+                <li><strong>Redesigned Tags &amp; Notes</strong> — Two-tab panel with smart toolbar for streamlined tagging and annotation.</li>
+                <li><strong>Smoother Zooming</strong> — Dampened pinch-to-zoom for smoother editor scaling.</li>
+                <li><strong>Windows Compatibility</strong> — Fixed file operations on Windows executable.</li>
+                <li><strong>Spell Checker</strong> — Robust async initialization with better error handling.</li>
+                <li><strong>Accessibility</strong> — Aria labels on key UI controls for screen reader support.</li>
+                <li><strong>Error Logging</strong> — Previously silent backend exceptions are now logged for easier debugging.</li>
               </ul>
             </div>
           </div>

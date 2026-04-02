@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="OpenDraft API",
     description="Backend API for OpenDraft screenwriting application",
-    version="0.4.0",
+    version="0.5.0",
     lifespan=lifespan,
 )
 
@@ -74,8 +74,8 @@ if STATIC_DIR.is_dir():
         index = STATIC_DIR / "index.html"
         if index.exists():
             return FileResponse(index)
-        return {"app": "OpenDraft", "version": "0.3.0"}
+        return {"app": "OpenDraft", "version": "0.5.0"}
 else:
     @app.get("/")
     async def root():
-        return {"app": "OpenDraft", "version": "0.3.0", "note": "Run build.sh to deploy frontend"}
+        return {"app": "OpenDraft", "version": "0.5.0", "note": "Run build.sh to deploy frontend"}
