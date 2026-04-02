@@ -716,11 +716,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.6.0</div>
+            <div className="about-version">Version 0.6.1</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.6.0</div>
+              <div className="about-section-title">What's New in 0.6.1</div>
               <ul className="about-list">
                 <li><strong>Mobile: Open from Project</strong> — Fixed dialog not visible on mobile devices by making it responsive.</li>
                 <li><strong>Mobile: Submenu Navigation</strong> — Fixed submenus not opening on mobile and resolved hover flicker on touch devices.</li>
