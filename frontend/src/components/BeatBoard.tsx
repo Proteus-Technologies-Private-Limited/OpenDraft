@@ -236,6 +236,8 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [descFocused, setDescFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const descHeightRef = useRef<number | null>(null);
+  const descRef = useRef<HTMLTextAreaElement>(null);
   const imgH = beat.imageHeight || 0;
   const isImgFull = imgH === -1; // -1 = full card
 
@@ -308,6 +310,10 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
 
   return (
     <div className={`beat-card${isImgFull ? ' beat-card-img-full' : ''}`} style={cardStyle}>
+      {/* Floating drag handle over image */}
+      {beat.imageUrl && (
+        <span className="beat-drag-icon beat-drag-icon-floating" {...(dragHandleProps || {})} style={{ touchAction: 'none' }}>&#x2630;</span>
+      )}
       {beat.imageUrl && (
         <>
           <div className="beat-card-image" style={imgStyle}>
@@ -372,12 +378,14 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
           </div>
           {descFocused ? (
             <textarea
+              ref={descRef}
               className="beat-card-description"
               value={beat.description}
               onChange={(e) => onUpdate(beat.id, { description: e.target.value })}
-              onBlur={() => setDescFocused(false)}
+              onBlur={() => { if (descRef.current) descHeightRef.current = descRef.current.offsetHeight; setDescFocused(false); }}
               placeholder="Describe this beat..."
               rows={2}
+              style={descHeightRef.current ? { height: descHeightRef.current } : undefined}
               autoFocus
             />
           ) : (
@@ -409,12 +417,14 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
           </div>
           {descFocused ? (
             <textarea
+              ref={descRef}
               className="beat-card-description"
               value={beat.description}
               onChange={(e) => onUpdate(beat.id, { description: e.target.value })}
-              onBlur={() => setDescFocused(false)}
+              onBlur={() => { if (descRef.current) descHeightRef.current = descRef.current.offsetHeight; setDescFocused(false); }}
               placeholder="Describe this beat..."
               rows={3}
+              style={descHeightRef.current ? { height: descHeightRef.current } : undefined}
               autoFocus
             />
           ) : (
@@ -786,7 +796,7 @@ const BeatBoard: React.FC = () => {
                 isSingleColumn={isSingleColumn || maximizedColumnId === col.id}
                 isMaximized={maximizedColumnId === col.id}
                 onToggleMaximize={() => setMaximizedColumnId(maximizedColumnId === col.id ? null : col.id)}
-                showMaximizeBtn={sortedColumns.length > 1}
+                showMaximizeBtn={true}
                 onUpdateColumn={updateBeatColumn}
                 onDeleteColumn={deleteBeatColumn}
                 onAddBeat={addBeat}

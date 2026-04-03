@@ -1791,6 +1791,28 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   object-fit: cover;
   border-radius: 0;
 }
+/* Floating drag handle — visible over images */
+.beat-drag-icon-floating {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 3;
+  cursor: grab;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity .15s;
+  user-select: none;
+}
+.beat-drag-icon-floating:active { cursor: grabbing; }
+.beat-card:hover .beat-drag-icon-floating { opacity: 1; }
 .beat-card-img-full .beat-drag-icon {
   position: relative;
   z-index: 1;
