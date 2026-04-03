@@ -1650,6 +1650,31 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 }
 .beat-column-header:hover .beat-column-delete { opacity: 1; }
 .beat-column-delete:hover { color: #ff6b6b; }
+/* ── Maximize / restore button ── */
+.beat-column-maximize {
+  background: none;
+  border: none;
+  color: var(--fd-text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.beat-column-header:hover .beat-column-maximize { opacity: 1; }
+.beat-column-maximize:hover { color: var(--fd-accent); }
+/* Maximized column fills the board */
+.beat-column-maximized {
+  max-width: none !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+  height: 100%;
+}
+.beat-board-columns-maximized {
+  padding: 8px;
+}
 .beat-column-cards {
   padding: 8px;
   display: flex;
@@ -1668,6 +1693,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 }
 .beat-card-wrap {
   min-width: 0;
+  touch-action: manipulation;
 }
 /* Column right-edge resize handle */
 .beat-column-resize-handle {
@@ -1708,21 +1734,18 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   transform: rotate(2deg);
 }
 
-/* ── Drag handle ── */
-.beat-card-drag-handle {
-  cursor: grab;
-  padding: 2px 0;
-  display: flex;
-  align-items: center;
-  color: var(--fd-text-muted);
-  user-select: none;
-}
-.beat-card-drag-handle:active { cursor: grabbing; }
+/* ── Drag handle (inline with title) ── */
 .beat-drag-icon {
+  cursor: grab;
   font-size: 12px;
   letter-spacing: 1px;
-  opacity: 0.5;
+  opacity: 0.35;
+  user-select: none;
+  flex-shrink: 0;
+  padding: 2px 2px 2px 0;
+  color: var(--fd-text-muted);
 }
+.beat-drag-icon:active { cursor: grabbing; }
 .beat-card:hover .beat-drag-icon { opacity: 1; }
 
 /* ── Image preview ── */
@@ -1759,7 +1782,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   object-fit: cover;
   border-radius: 0;
 }
-.beat-card-img-full .beat-card-drag-handle {
+.beat-card-img-full .beat-drag-icon {
   position: relative;
   z-index: 1;
 }
@@ -2085,10 +2108,10 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .beat-card-wrap-free {
   user-select: none;
 }
-.beat-card-wrap-free .beat-card-drag-handle {
+.beat-card-wrap-free .beat-drag-icon {
   cursor: grab;
 }
-.beat-card-wrap-free .beat-card-drag-handle:active {
+.beat-card-wrap-free .beat-drag-icon:active {
   cursor: grabbing;
 }
 .beat-custom-canvas::-webkit-scrollbar { width: 8px; height: 8px; }
