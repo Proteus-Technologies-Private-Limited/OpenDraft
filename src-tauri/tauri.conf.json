@@ -58,6 +58,12 @@
     "macOS": {
       "minimumSystemVersion": "12.0"
     },
+    "windows": {
+      "nsis": {
+        "installMode": "perMachine",
+        "installerHooks": "nsis-hooks.nsh"
+      }
+    },
     "category": "public.app-category.productivity"
   },
   "plugins": {}

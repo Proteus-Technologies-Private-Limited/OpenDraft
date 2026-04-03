@@ -99,6 +99,15 @@ jobs:
           mkdir -p src-tauri/sidecar
           cp -r backend/dist/opendraft-api/* src-tauri/sidecar/
 
+      - name: Download Visual C++ Redistributable
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          Write-Host "Downloading Visual C++ Redistributable..."
+          Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" -OutFile "src-tauri/vc_redist.x64.exe"
+          $size = (Get-Item "src-tauri/vc_redist.x64.exe").Length / 1MB
+          Write-Host "Downloaded vc_redist.x64.exe ($([math]::Round($size, 1)) MB)"
+
       - name: Import Windows signing certificate
         if: matrix.platform == 'windows-latest'
         env:
@@ -132,14 +141,14 @@ jobs:
           # Windows: switch from externalBin (onefile) to resources (onedir)
           if sys.platform == 'win32':
               cfg['bundle'].pop('externalBin', None)
-              cfg['bundle']['resources'] = ['sidecar/*', 'sidecar/**/*']
+              cfg['bundle']['resources'] = ['sidecar/*', 'sidecar/**/*', 'vc_redist.x64.exe']
               # Add Windows code signing if certificate is available
               thumbprint = os.environ.get('CERTIFICATE_THUMBPRINT', '')
               if thumbprint:
-                  cfg['bundle'].setdefault('windows', {})
-                  cfg['bundle']['windows']['certificateThumbprint'] = thumbprint
-                  cfg['bundle']['windows']['timestampUrl'] = 'http://timestamp.digicert.com'
-                  cfg['bundle']['windows']['digestAlgorithm'] = 'sha256'
+                  win = cfg['bundle'].setdefault('windows', {})
+                  win['certificateThumbprint'] = thumbprint
+                  win['timestampUrl'] = 'http://timestamp.digicert.com'
+                  win['digestAlgorithm'] = 'sha256'
                   print(f'Windows code signing configured with thumbprint: {thumbprint[:8]}...')
               else:
                   print('No certificate thumbprint found - build will be unsigned')
