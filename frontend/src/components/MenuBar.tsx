@@ -720,11 +720,10 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.6.1</div>
+              <div className="about-section-title">What's New in 0.6.2</div>
               <ul className="about-list">
-                <li><strong>Mobile: Open from Project</strong> — Fixed dialog not visible on mobile devices by making it responsive.</li>
-                <li><strong>Mobile: Submenu Navigation</strong> — Fixed submenus not opening on mobile and resolved hover flicker on touch devices.</li>
-                <li><strong>Light Theme Redesign</strong> — Refreshed light theme styling with improved panel overlays and backdrop.</li>
+                <li><strong>Windows: Better Error Diagnostics</strong> — Improved backend startup error messages with crash detection, stderr capture, and actionable troubleshooting steps.</li>
+                <li><strong>Splash Screen</strong> — Fixed "OPEN DRAFT" text spacing for better readability.</li>
               </ul>
             </div>
           </div>
