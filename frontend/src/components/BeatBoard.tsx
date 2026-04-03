@@ -1,16 +1,19 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   closestCenter,
+  pointerWithin,
   PointerSensor,
   useSensor,
   useSensors,
   DragOverlay,
+  useDroppable,
 } from '@dnd-kit/core';
 import type {
   DragEndEvent,
   DragStartEvent,
   DragOverEvent,
+  CollisionDetection,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -19,12 +22,138 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useEditorStore, type BeatInfo } from '../stores/editorStore';
+import { useEditorStore, type BeatInfo, type BeatLinkPreview } from '../stores/editorStore';
+import { api } from '../services/api';
 
 const BEAT_COLORS = [
   '', '#4a9eff', '#ff6b6b', '#51cf66', '#ffd43b',
   '#cc5de8', '#ff922b', '#20c997', '#f06595',
 ];
+
+/* ─── URL detection ─── */
+const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
+
+function extractUrls(text: string): string[] {
+  if (!text) return [];
+  const matches = text.match(URL_REGEX);
+  return matches ? [...new Set(matches)] : [];
+}
+
+/* ─── Link Preview fetcher with in-memory cache ─── */
+const _previewCache = new Map<string, BeatLinkPreview | 'loading' | 'error'>();
+
+function useLinkPreviews(
+  beatId: string,
+  description: string,
+  existingPreviews: BeatLinkPreview[] | undefined,
+  onUpdate: (id: string, updates: Partial<BeatInfo>) => void,
+) {
+  const urls = useMemo(() => extractUrls(description), [description]);
+
+  useEffect(() => {
+    if (urls.length === 0) return;
+
+    // Find URLs that aren't already cached on the beat or in the in-memory cache
+    const existingUrls = new Set((existingPreviews || []).map((p) => p.url));
+    const newUrls = urls.filter((u) => !existingUrls.has(u) && _previewCache.get(u) !== 'loading');
+
+    if (newUrls.length === 0) {
+      // Check if any cached previews can fill in
+      const cached = urls
+        .map((u) => _previewCache.get(u))
+        .filter((v): v is BeatLinkPreview => !!v && typeof v === 'object');
+      if (cached.length > 0 && cached.length > (existingPreviews || []).length) {
+        onUpdate(beatId, { linkPreviews: cached });
+      }
+      return;
+    }
+
+    for (const url of newUrls) {
+      _previewCache.set(url, 'loading');
+      api.fetchLinkPreview(url).then((resp) => {
+        const preview: BeatLinkPreview = {
+          url: resp.url,
+          title: resp.title,
+          description: resp.description,
+          image: resp.image,
+          siteName: resp.site_name,
+        };
+        _previewCache.set(url, preview);
+        // Merge into beat's cached previews
+        const store = useEditorStore.getState();
+        const beat = store.beats.find((b) => b.id === beatId);
+        const current = beat?.linkPreviews || [];
+        if (!current.some((p) => p.url === url)) {
+          onUpdate(beatId, { linkPreviews: [...current, preview] });
+        }
+      }).catch(() => {
+        _previewCache.set(url, 'error');
+      });
+    }
+  }, [beatId, urls, existingPreviews, onUpdate]);
+
+  // Return only previews for URLs still in the description
+  return useMemo(() => {
+    return (existingPreviews || []).filter((p) => urls.includes(p.url));
+  }, [existingPreviews, urls]);
+}
+
+/* ─── Link Preview Card ─── */
+const LinkPreviewCard: React.FC<{
+  preview: BeatLinkPreview;
+  onRemove: () => void;
+}> = ({ preview, onRemove }) => (
+  <a
+    className="beat-link-preview"
+    href={preview.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    title={preview.url}
+    onClick={(e) => e.stopPropagation()}
+  >
+    {preview.image && (
+      <div className="beat-link-preview-image">
+        <img src={preview.image} alt="" loading="lazy" />
+      </div>
+    )}
+    <div className="beat-link-preview-body">
+      {preview.siteName && <div className="beat-link-preview-site">{preview.siteName}</div>}
+      <div className="beat-link-preview-title">{preview.title || preview.url}</div>
+      {preview.description && <div className="beat-link-preview-desc">{preview.description}</div>}
+    </div>
+    <button
+      className="beat-link-preview-remove"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
+      title="Remove preview"
+    >&times;</button>
+  </a>
+);
+
+/* ─── Render description text with clickable links ─── */
+const DescriptionWithLinks: React.FC<{ text: string }> = ({ text }) => {
+  if (!text) return null;
+  const parts = text.split(URL_REGEX);
+  const urls = text.match(URL_REGEX) || [];
+  const elements: React.ReactNode[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i]) elements.push(<span key={`t${i}`}>{parts[i]}</span>);
+    if (urls[i]) {
+      elements.push(
+        <a
+          key={`u${i}`}
+          className="beat-desc-link"
+          href={urls[i]}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {urls[i]}
+        </a>,
+      );
+    }
+  }
+  return <div className="beat-card-description-rendered">{elements}</div>;
+};
 
 /* ─── Beat Card Resize Handle (pointer events for mouse + touch) ─── */
 const useResizeHandle = (
@@ -105,9 +234,22 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
   beat, onUpdate, onDelete, dragHandleProps, resizePointerDown,
 }) => {
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [descFocused, setDescFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imgH = beat.imageHeight || 0;
   const isImgFull = imgH === -1; // -1 = full card
+
+  // Fetch and cache link previews for URLs in description
+  const linkPreviews = useLinkPreviews(beat.id, beat.description, beat.linkPreviews, onUpdate);
+
+  const handleRemovePreview = useCallback(
+    (url: string) => {
+      const updated = (beat.linkPreviews || []).filter((p) => p.url !== url);
+      onUpdate(beat.id, { linkPreviews: updated });
+      _previewCache.set(url, 'error'); // prevent re-fetch
+    },
+    [beat.id, beat.linkPreviews, onUpdate],
+  );
 
   const cardStyle: React.CSSProperties = {
     ...(beat.color ? { borderLeftColor: beat.color, borderLeftWidth: 4 } : {}),
@@ -166,11 +308,6 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
 
   return (
     <div className={`beat-card${isImgFull ? ' beat-card-img-full' : ''}`} style={cardStyle}>
-      {/* Drag handle */}
-      <div className="beat-card-drag-handle" {...(dragHandleProps || {})}>
-        <span className="beat-drag-icon">&#x2630;</span>
-      </div>
-
       {beat.imageUrl && (
         <>
           <div className="beat-card-image" style={imgStyle}>
@@ -224,6 +361,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
       {isImgFull ? (
         <div className="beat-card-content-bottom">
           <div className="beat-card-top">
+            <span className="beat-drag-icon" {...(dragHandleProps || {})} style={{ touchAction: 'none' }}>&#x2630;</span>
             <input
               className="beat-card-title"
               value={beat.title}
@@ -232,17 +370,35 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
             />
             <button className="beat-card-delete" onClick={() => onDelete(beat.id)} title="Delete beat">&times;</button>
           </div>
-          <textarea
-            className="beat-card-description"
-            value={beat.description}
-            onChange={(e) => onUpdate(beat.id, { description: e.target.value })}
-            placeholder="Describe this beat..."
-            rows={2}
-          />
+          {descFocused ? (
+            <textarea
+              className="beat-card-description"
+              value={beat.description}
+              onChange={(e) => onUpdate(beat.id, { description: e.target.value })}
+              onBlur={() => setDescFocused(false)}
+              placeholder="Describe this beat..."
+              rows={2}
+              autoFocus
+            />
+          ) : (
+            <div className="beat-card-description-view" onClick={() => setDescFocused(true)}>
+              {beat.description ? <DescriptionWithLinks text={beat.description} /> : (
+                <span className="beat-card-desc-placeholder">Describe this beat...</span>
+              )}
+            </div>
+          )}
+          {linkPreviews.length > 0 && (
+            <div className="beat-link-previews">
+              {linkPreviews.map((p) => (
+                <LinkPreviewCard key={p.url} preview={p} onRemove={() => handleRemovePreview(p.url)} />
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <>
           <div className="beat-card-top">
+            <span className="beat-drag-icon" {...(dragHandleProps || {})} style={{ touchAction: 'none' }}>&#x2630;</span>
             <input
               className="beat-card-title"
               value={beat.title}
@@ -251,13 +407,30 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
             />
             <button className="beat-card-delete" onClick={() => onDelete(beat.id)} title="Delete beat">&times;</button>
           </div>
-          <textarea
-            className="beat-card-description"
-            value={beat.description}
-            onChange={(e) => onUpdate(beat.id, { description: e.target.value })}
-            placeholder="Describe this beat..."
-            rows={3}
-          />
+          {descFocused ? (
+            <textarea
+              className="beat-card-description"
+              value={beat.description}
+              onChange={(e) => onUpdate(beat.id, { description: e.target.value })}
+              onBlur={() => setDescFocused(false)}
+              placeholder="Describe this beat..."
+              rows={3}
+              autoFocus
+            />
+          ) : (
+            <div className="beat-card-description-view" onClick={() => setDescFocused(true)}>
+              {beat.description ? <DescriptionWithLinks text={beat.description} /> : (
+                <span className="beat-card-desc-placeholder">Describe this beat...</span>
+              )}
+            </div>
+          )}
+          {linkPreviews.length > 0 && (
+            <div className="beat-link-previews">
+              {linkPreviews.map((p) => (
+                <LinkPreviewCard key={p.url} preview={p} onRemove={() => handleRemovePreview(p.url)} />
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -414,8 +587,7 @@ const FreeBeatCard: React.FC<FreeBeatCardProps> = ({ beat, onUpdate, onDelete })
 /* ─── DragOverlay card ─── */
 const BeatCardOverlay: React.FC<{ beat: BeatInfo }> = ({ beat }) => (
   <div className="beat-card beat-card-overlay" style={beat.color ? { borderLeftColor: beat.color, borderLeftWidth: 4 } : {}}>
-    <div className="beat-card-drag-handle"><span className="beat-drag-icon">&#x2630;</span></div>
-    <div className="beat-card-top"><input className="beat-card-title" value={beat.title} readOnly /></div>
+    <div className="beat-card-top"><span className="beat-drag-icon">&#x2630;</span><input className="beat-card-title" value={beat.title} readOnly /></div>
   </div>
 );
 
@@ -443,6 +615,13 @@ const CustomCanvas: React.FC<CustomCanvasProps> = ({
   );
 };
 
+/* ─── Custom collision detection: prefer beat cards, fallback to column droppables ─── */
+const beatCollisionDetection: CollisionDetection = (args) => {
+  const centerCollisions = closestCenter(args);
+  if (centerCollisions.length > 0) return centerCollisions;
+  return pointerWithin(args);
+};
+
 /* ─── Main Beat Board ─── */
 const BeatBoard: React.FC = () => {
   const {
@@ -455,12 +634,21 @@ const BeatBoard: React.FC = () => {
 
   const boardRef = useRef<HTMLDivElement>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const [maximizedColumnId, setMaximizedColumnId] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
 
-  // Undo/redo keyboard shortcut — only when focus is inside the beat board
+  // Undo/redo + Escape keyboard shortcuts — only when focus is inside the beat board
   useEffect(() => {
     if (!beatBoardOpen) return;
     const handler = (e: KeyboardEvent) => {
+      // Escape restores maximized column
+      if (e.key === 'Escape' && maximizedColumnId) {
+        e.preventDefault();
+        setMaximizedColumnId(null);
+        return;
+      }
       if (!boardRef.current?.contains(document.activeElement)) return;
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key === 'z' && !e.shiftKey) {
@@ -475,7 +663,7 @@ const BeatBoard: React.FC = () => {
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
-  }, [beatBoardOpen, beatUndo, beatRedo]);
+  }, [beatBoardOpen, beatUndo, beatRedo, maximizedColumnId]);
 
   const sortedColumns = [...beatColumns].sort((a, b) => a.position - b.position);
   const isSingleColumn = sortedColumns.length === 1;
@@ -491,9 +679,23 @@ const BeatBoard: React.FC = () => {
       const { active, over } = event;
       if (!over) return;
       const activeBeat = beats.find((b) => b.id === active.id);
-      const overBeat = beats.find((b) => b.id === String(over.id));
-      if (activeBeat && overBeat && overBeat.columnId !== activeBeat.columnId) {
+      if (!activeBeat) return;
+
+      const overId = String(over.id);
+
+      // Check if dragging over a beat in a different column
+      const overBeat = beats.find((b) => b.id === overId);
+      if (overBeat && overBeat.columnId !== activeBeat.columnId) {
         setBeats(beats.map((b) => b.id === activeBeat.id ? { ...b, columnId: overBeat.columnId } : b));
+        return;
+      }
+
+      // Check if dragging over an empty column droppable (id starts with "column-drop-")
+      if (overId.startsWith('column-drop-')) {
+        const targetColId = overId.replace('column-drop-', '');
+        if (targetColId !== activeBeat.columnId) {
+          setBeats(beats.map((b) => b.id === activeBeat.id ? { ...b, columnId: targetColId, position: 0 } : b));
+        }
       }
     },
     [beats, setBeats],
@@ -571,16 +773,20 @@ const BeatBoard: React.FC = () => {
       </div>
 
       {beatArrangeMode === 'auto' ? (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-          <div className="beat-board-columns">
+        <DndContext sensors={sensors} collisionDetection={beatCollisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+          <div className={`beat-board-columns${maximizedColumnId ? ' beat-board-columns-maximized' : ''}`}>
             {sortedColumns.map((col) => {
+              if (maximizedColumnId && maximizedColumnId !== col.id) return null;
               const colBeats = beats.filter((b) => b.columnId === col.id).sort((a, b) => a.position - b.position);
 
               return <BeatColumnView
                 key={col.id}
                 col={col}
                 colBeats={colBeats}
-                isSingleColumn={isSingleColumn}
+                isSingleColumn={isSingleColumn || maximizedColumnId === col.id}
+                isMaximized={maximizedColumnId === col.id}
+                onToggleMaximize={() => setMaximizedColumnId(maximizedColumnId === col.id ? null : col.id)}
+                showMaximizeBtn={sortedColumns.length > 1}
                 onUpdateColumn={updateBeatColumn}
                 onDeleteColumn={deleteBeatColumn}
                 onAddBeat={addBeat}
@@ -589,7 +795,7 @@ const BeatBoard: React.FC = () => {
               />;
             })}
           </div>
-          <DragOverlay>{activeBeat ? <BeatCardOverlay beat={activeBeat} /> : null}</DragOverlay>
+          <DragOverlay dropAnimation={{ duration: 200, easing: 'ease' }}>{activeBeat ? <BeatCardOverlay beat={activeBeat} /> : null}</DragOverlay>
         </DndContext>
       ) : (
         <CustomCanvas
@@ -607,6 +813,9 @@ interface BeatColumnViewProps {
   col: { id: string; title: string; width: number };
   colBeats: BeatInfo[];
   isSingleColumn: boolean;
+  isMaximized: boolean;
+  onToggleMaximize: () => void;
+  showMaximizeBtn: boolean;
   onUpdateColumn: (id: string, updates: Partial<{ title: string; width: number }>) => void;
   onDeleteColumn: (id: string) => void;
   onAddBeat: (title: string, columnId: string) => void;
@@ -615,19 +824,22 @@ interface BeatColumnViewProps {
 }
 
 const BeatColumnView: React.FC<BeatColumnViewProps> = ({
-  col, colBeats, isSingleColumn,
+  col, colBeats, isSingleColumn, isMaximized, onToggleMaximize, showMaximizeBtn,
   onUpdateColumn, onDeleteColumn, onAddBeat, onUpdateBeat, onDeleteBeat,
 }) => {
   const colResizePointerDown = useColumnResize((w) => onUpdateColumn(col.id, { width: w }));
+  const { setNodeRef: setDropRef } = useDroppable({ id: `column-drop-${col.id}` });
 
-  const colStyle: React.CSSProperties = isSingleColumn
+  const colStyle: React.CSSProperties = isMaximized
     ? { flex: 1, maxWidth: 'none', minWidth: 0 }
-    : col.width > 0
-      ? { width: col.width, minWidth: 200, maxWidth: 'none', flexShrink: 0 }
-      : {};
+    : isSingleColumn
+      ? { flex: 1, maxWidth: 'none', minWidth: 0 }
+      : col.width > 0
+        ? { width: col.width, minWidth: 200, maxWidth: 'none', flexShrink: 0 }
+        : {};
 
   return (
-    <div className="beat-column" style={colStyle}>
+    <div className={`beat-column${isMaximized ? ' beat-column-maximized' : ''}`} style={colStyle}>
       <div className="beat-column-header">
         <input
           className="beat-column-title-input"
@@ -635,10 +847,17 @@ const BeatColumnView: React.FC<BeatColumnViewProps> = ({
           onChange={(e) => onUpdateColumn(col.id, { title: e.target.value })}
           placeholder="Column name..."
         />
+        {showMaximizeBtn && (
+          <button
+            className="beat-column-maximize"
+            onClick={onToggleMaximize}
+            title={isMaximized ? 'Restore column' : 'Maximize column'}
+          >{isMaximized ? '\u29C9' : '\u2922'}</button>
+        )}
         <button className="beat-column-delete" onClick={() => onDeleteColumn(col.id)} title="Delete column">&times;</button>
       </div>
       <SortableContext items={colBeats.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-        <div className={`beat-column-cards${isSingleColumn ? ' beat-column-cards-wrap' : ''}`}>
+        <div ref={setDropRef} className={`beat-column-cards${isSingleColumn ? ' beat-column-cards-wrap' : ''}`}>
           {colBeats.map((beat) => (
             <SortableBeatCard key={beat.id} beat={beat} onUpdate={onUpdateBeat} onDelete={onDeleteBeat} />
           ))}
@@ -646,7 +865,7 @@ const BeatColumnView: React.FC<BeatColumnViewProps> = ({
       </SortableContext>
       <button className="beat-add-btn" onClick={() => onAddBeat('New Beat', col.id)}>+ Add Beat</button>
       {/* Column resize handle (right edge) */}
-      {!isSingleColumn && <div className="beat-column-resize-handle" onPointerDown={colResizePointerDown} style={{ touchAction: 'none' }} />}
+      {!isSingleColumn && !isMaximized && <div className="beat-column-resize-handle" onPointerDown={colResizePointerDown} style={{ touchAction: 'none' }} />}
     </div>
   );
 };

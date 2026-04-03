@@ -440,7 +440,7 @@ const ScreenplayEditor: React.FC = () => {
 
       const content = scriptResp.content as Record<string, unknown> | null;
       if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-        const { _notes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
+        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
         collabInitialContent.current = pmDoc;
       } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
         collabInitialContent.current = content;
@@ -575,7 +575,7 @@ const ScreenplayEditor: React.FC = () => {
         // Strip app metadata keys, keep only ProseMirror doc
         const content = scriptResp.content as Record<string, unknown> | null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
+          const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
           collabInitialContent.current = pmDoc;
         } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
           collabInitialContent.current = content;
@@ -621,6 +621,7 @@ const ScreenplayEditor: React.FC = () => {
       const content = {
         ...doc,
         _notes: store.notes,
+        _generalNotes: store.generalNotes,
         _tags: store.tags,
         _tagCategories: store.tagCategories,
         _characterProfiles: store.characterProfiles,
@@ -709,7 +710,7 @@ const ScreenplayEditor: React.FC = () => {
 
       const content = scriptResp.content as Record<string, unknown> | null;
       if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-        const { _notes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
+        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
         collabInitialContent.current = pmDoc;
       } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
         collabInitialContent.current = content;
@@ -777,7 +778,7 @@ const ScreenplayEditor: React.FC = () => {
 
       const content = scriptResp.content as Record<string, unknown> | null;
       if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-        const { _notes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
+        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
         collabInitialContent.current = pmDoc;
       } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
         collabInitialContent.current = content as Record<string, unknown>;
@@ -1047,7 +1048,7 @@ const ScreenplayEditor: React.FC = () => {
 
     // Save current editor content so it can seed the Yjs doc
     const doc = editor.getJSON();
-    const { _notes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = doc as Record<string, unknown>;
+    const { _notes, _generalNotes: _gn3, _tags, _tagCategories, _characterProfiles, ...pmDoc } = doc as Record<string, unknown>;
     collabInitialContent.current = pmDoc;
 
     // The guest invite carries a session_nonce that makes the Yjs room unique
@@ -1325,6 +1326,7 @@ const ScreenplayEditor: React.FC = () => {
     return {
       ...doc,
       _notes: store.notes,
+      _generalNotes: store.generalNotes,
       _tags: store.tags,
       _tagCategories: store.tagCategories,
       _characterProfiles: store.characterProfiles,
@@ -1428,7 +1430,7 @@ const ScreenplayEditor: React.FC = () => {
         // Strip app metadata keys before feeding to ProseMirror
         let pmDoc: Record<string, unknown> | null = null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode, ...rest } = content as any;
+          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode, ...rest } = content as any;
           pmDoc = rest;
         }
 
@@ -1465,6 +1467,8 @@ const ScreenplayEditor: React.FC = () => {
             const c = content as Record<string, unknown>;
             const notes = parseAttr(c._notes);
             if (notes.length > 0) store.setNotes(notes as import('../stores/editorStore').NoteInfo[]);
+            const gNotes = parseAttr(c._generalNotes);
+            if (gNotes.length > 0) store.setGeneralNotes(gNotes as import('../stores/editorStore').GeneralNote[]);
             const tagsArr = parseAttr(c._tags);
             if (tagsArr.length > 0) store.setTags(tagsArr as import('../stores/editorStore').TagItem[]);
             const tagCats = parseAttr(c._tagCategories);
@@ -1645,7 +1649,7 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode: _bam, ...pmDoc } = content as any;
+            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode: _bam, ...pmDoc } = content as any;
             editor.commands.setContent(pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             editor.commands.setContent(content);
@@ -1676,6 +1680,8 @@ const ScreenplayEditor: React.FC = () => {
           const c = content as Record<string, unknown>;
           const notes2 = parseAttr2(c._notes);
           if (notes2.length > 0) store.setNotes(notes2 as import('../stores/editorStore').NoteInfo[]);
+          const gNotes2 = parseAttr2(c._generalNotes);
+          if (gNotes2.length > 0) store.setGeneralNotes(gNotes2 as import('../stores/editorStore').GeneralNote[]);
           const tags2 = parseAttr2(c._tags);
           if (tags2.length > 0) store.setTags(tags2 as import('../stores/editorStore').TagItem[]);
           const tagCats2 = parseAttr2(c._tagCategories);
