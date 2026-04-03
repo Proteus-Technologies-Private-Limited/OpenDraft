@@ -2,15 +2,18 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   DndContext,
   closestCenter,
+  pointerWithin,
   PointerSensor,
   useSensor,
   useSensors,
   DragOverlay,
+  useDroppable,
 } from '@dnd-kit/core';
 import type {
   DragEndEvent,
   DragStartEvent,
   DragOverEvent,
+  CollisionDetection,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -166,11 +169,6 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
 
   return (
     <div className={`beat-card${isImgFull ? ' beat-card-img-full' : ''}`} style={cardStyle}>
-      {/* Drag handle */}
-      <div className="beat-card-drag-handle" {...(dragHandleProps || {})}>
-        <span className="beat-drag-icon">&#x2630;</span>
-      </div>
-
       {beat.imageUrl && (
         <>
           <div className="beat-card-image" style={imgStyle}>
@@ -224,6 +222,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
       {isImgFull ? (
         <div className="beat-card-content-bottom">
           <div className="beat-card-top">
+            <span className="beat-drag-icon" {...(dragHandleProps || {})} style={{ touchAction: 'none' }}>&#x2630;</span>
             <input
               className="beat-card-title"
               value={beat.title}
@@ -243,6 +242,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
       ) : (
         <>
           <div className="beat-card-top">
+            <span className="beat-drag-icon" {...(dragHandleProps || {})} style={{ touchAction: 'none' }}>&#x2630;</span>
             <input
               className="beat-card-title"
               value={beat.title}
@@ -414,8 +414,7 @@ const FreeBeatCard: React.FC<FreeBeatCardProps> = ({ beat, onUpdate, onDelete })
 /* ─── DragOverlay card ─── */
 const BeatCardOverlay: React.FC<{ beat: BeatInfo }> = ({ beat }) => (
   <div className="beat-card beat-card-overlay" style={beat.color ? { borderLeftColor: beat.color, borderLeftWidth: 4 } : {}}>
-    <div className="beat-card-drag-handle"><span className="beat-drag-icon">&#x2630;</span></div>
-    <div className="beat-card-top"><input className="beat-card-title" value={beat.title} readOnly /></div>
+    <div className="beat-card-top"><span className="beat-drag-icon">&#x2630;</span><input className="beat-card-title" value={beat.title} readOnly /></div>
   </div>
 );
 
@@ -443,6 +442,13 @@ const CustomCanvas: React.FC<CustomCanvasProps> = ({
   );
 };
 
+/* ─── Custom collision detection: prefer beat cards, fallback to column droppables ─── */
+const beatCollisionDetection: CollisionDetection = (args) => {
+  const centerCollisions = closestCenter(args);
+  if (centerCollisions.length > 0) return centerCollisions;
+  return pointerWithin(args);
+};
+
 /* ─── Main Beat Board ─── */
 const BeatBoard: React.FC = () => {
   const {
@@ -455,12 +461,21 @@ const BeatBoard: React.FC = () => {
 
   const boardRef = useRef<HTMLDivElement>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const [maximizedColumnId, setMaximizedColumnId] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
 
-  // Undo/redo keyboard shortcut — only when focus is inside the beat board
+  // Undo/redo + Escape keyboard shortcuts — only when focus is inside the beat board
   useEffect(() => {
     if (!beatBoardOpen) return;
     const handler = (e: KeyboardEvent) => {
+      // Escape restores maximized column
+      if (e.key === 'Escape' && maximizedColumnId) {
+        e.preventDefault();
+        setMaximizedColumnId(null);
+        return;
+      }
       if (!boardRef.current?.contains(document.activeElement)) return;
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key === 'z' && !e.shiftKey) {
@@ -475,7 +490,7 @@ const BeatBoard: React.FC = () => {
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
-  }, [beatBoardOpen, beatUndo, beatRedo]);
+  }, [beatBoardOpen, beatUndo, beatRedo, maximizedColumnId]);
 
   const sortedColumns = [...beatColumns].sort((a, b) => a.position - b.position);
   const isSingleColumn = sortedColumns.length === 1;
@@ -491,9 +506,23 @@ const BeatBoard: React.FC = () => {
       const { active, over } = event;
       if (!over) return;
       const activeBeat = beats.find((b) => b.id === active.id);
-      const overBeat = beats.find((b) => b.id === String(over.id));
-      if (activeBeat && overBeat && overBeat.columnId !== activeBeat.columnId) {
+      if (!activeBeat) return;
+
+      const overId = String(over.id);
+
+      // Check if dragging over a beat in a different column
+      const overBeat = beats.find((b) => b.id === overId);
+      if (overBeat && overBeat.columnId !== activeBeat.columnId) {
         setBeats(beats.map((b) => b.id === activeBeat.id ? { ...b, columnId: overBeat.columnId } : b));
+        return;
+      }
+
+      // Check if dragging over an empty column droppable (id starts with "column-drop-")
+      if (overId.startsWith('column-drop-')) {
+        const targetColId = overId.replace('column-drop-', '');
+        if (targetColId !== activeBeat.columnId) {
+          setBeats(beats.map((b) => b.id === activeBeat.id ? { ...b, columnId: targetColId, position: 0 } : b));
+        }
       }
     },
     [beats, setBeats],
@@ -571,16 +600,20 @@ const BeatBoard: React.FC = () => {
       </div>
 
       {beatArrangeMode === 'auto' ? (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-          <div className="beat-board-columns">
+        <DndContext sensors={sensors} collisionDetection={beatCollisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+          <div className={`beat-board-columns${maximizedColumnId ? ' beat-board-columns-maximized' : ''}`}>
             {sortedColumns.map((col) => {
+              if (maximizedColumnId && maximizedColumnId !== col.id) return null;
               const colBeats = beats.filter((b) => b.columnId === col.id).sort((a, b) => a.position - b.position);
 
               return <BeatColumnView
                 key={col.id}
                 col={col}
                 colBeats={colBeats}
-                isSingleColumn={isSingleColumn}
+                isSingleColumn={isSingleColumn || maximizedColumnId === col.id}
+                isMaximized={maximizedColumnId === col.id}
+                onToggleMaximize={() => setMaximizedColumnId(maximizedColumnId === col.id ? null : col.id)}
+                showMaximizeBtn={sortedColumns.length > 1}
                 onUpdateColumn={updateBeatColumn}
                 onDeleteColumn={deleteBeatColumn}
                 onAddBeat={addBeat}
@@ -589,7 +622,7 @@ const BeatBoard: React.FC = () => {
               />;
             })}
           </div>
-          <DragOverlay>{activeBeat ? <BeatCardOverlay beat={activeBeat} /> : null}</DragOverlay>
+          <DragOverlay dropAnimation={{ duration: 200, easing: 'ease' }}>{activeBeat ? <BeatCardOverlay beat={activeBeat} /> : null}</DragOverlay>
         </DndContext>
       ) : (
         <CustomCanvas
@@ -607,6 +640,9 @@ interface BeatColumnViewProps {
   col: { id: string; title: string; width: number };
   colBeats: BeatInfo[];
   isSingleColumn: boolean;
+  isMaximized: boolean;
+  onToggleMaximize: () => void;
+  showMaximizeBtn: boolean;
   onUpdateColumn: (id: string, updates: Partial<{ title: string; width: number }>) => void;
   onDeleteColumn: (id: string) => void;
   onAddBeat: (title: string, columnId: string) => void;
@@ -615,19 +651,22 @@ interface BeatColumnViewProps {
 }
 
 const BeatColumnView: React.FC<BeatColumnViewProps> = ({
-  col, colBeats, isSingleColumn,
+  col, colBeats, isSingleColumn, isMaximized, onToggleMaximize, showMaximizeBtn,
   onUpdateColumn, onDeleteColumn, onAddBeat, onUpdateBeat, onDeleteBeat,
 }) => {
   const colResizePointerDown = useColumnResize((w) => onUpdateColumn(col.id, { width: w }));
+  const { setNodeRef: setDropRef } = useDroppable({ id: `column-drop-${col.id}` });
 
-  const colStyle: React.CSSProperties = isSingleColumn
+  const colStyle: React.CSSProperties = isMaximized
     ? { flex: 1, maxWidth: 'none', minWidth: 0 }
-    : col.width > 0
-      ? { width: col.width, minWidth: 200, maxWidth: 'none', flexShrink: 0 }
-      : {};
+    : isSingleColumn
+      ? { flex: 1, maxWidth: 'none', minWidth: 0 }
+      : col.width > 0
+        ? { width: col.width, minWidth: 200, maxWidth: 'none', flexShrink: 0 }
+        : {};
 
   return (
-    <div className="beat-column" style={colStyle}>
+    <div className={`beat-column${isMaximized ? ' beat-column-maximized' : ''}`} style={colStyle}>
       <div className="beat-column-header">
         <input
           className="beat-column-title-input"
@@ -635,10 +674,17 @@ const BeatColumnView: React.FC<BeatColumnViewProps> = ({
           onChange={(e) => onUpdateColumn(col.id, { title: e.target.value })}
           placeholder="Column name..."
         />
+        {showMaximizeBtn && (
+          <button
+            className="beat-column-maximize"
+            onClick={onToggleMaximize}
+            title={isMaximized ? 'Restore column' : 'Maximize column'}
+          >{isMaximized ? '\u29C9' : '\u2922'}</button>
+        )}
         <button className="beat-column-delete" onClick={() => onDeleteColumn(col.id)} title="Delete column">&times;</button>
       </div>
       <SortableContext items={colBeats.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-        <div className={`beat-column-cards${isSingleColumn ? ' beat-column-cards-wrap' : ''}`}>
+        <div ref={setDropRef} className={`beat-column-cards${isSingleColumn ? ' beat-column-cards-wrap' : ''}`}>
           {colBeats.map((beat) => (
             <SortableBeatCard key={beat.id} beat={beat} onUpdate={onUpdateBeat} onDelete={onDeleteBeat} />
           ))}
@@ -646,7 +692,7 @@ const BeatColumnView: React.FC<BeatColumnViewProps> = ({
       </SortableContext>
       <button className="beat-add-btn" onClick={() => onAddBeat('New Beat', col.id)}>+ Add Beat</button>
       {/* Column resize handle (right edge) */}
-      {!isSingleColumn && <div className="beat-column-resize-handle" onPointerDown={colResizePointerDown} style={{ touchAction: 'none' }} />}
+      {!isSingleColumn && !isMaximized && <div className="beat-column-resize-handle" onPointerDown={colResizePointerDown} style={{ touchAction: 'none' }} />}
     </div>
   );
 };
