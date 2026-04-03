@@ -91,6 +91,13 @@ if IS_WINDOWS:
     # Onefile mode extracts DLLs to %TEMP% on every launch, which Windows
     # Defender frequently blocks ("Invalid access to memory location").
     # Onedir keeps all files in the install directory — no temp extraction.
+    #
+    # IMPORTANT: strip=False and upx=False are critical on Windows.
+    # The CI runner's `strip` is MinGW-based and corrupts MSVC-compiled DLLs
+    # (python312.dll, vcruntime140.dll), causing LoadLibrary to fail with
+    # "Invalid access to memory location". UPX can trigger similar issues.
+    # contents_directory='.' flattens the layout so python312.dll is next to
+    # the bootloader, avoiding DLL search path issues.
     exe = EXE(
         pyz,
         a.scripts,
@@ -99,10 +106,11 @@ if IS_WINDOWS:
         name='opendraft-api',
         debug=False,
         bootloader_ignore_signals=False,
-        strip=True,
-        upx=True,
+        strip=False,
+        upx=False,
         console=True,
         target_arch=None,
+        contents_directory='.',
     )
 
     coll = COLLECT(
@@ -110,8 +118,8 @@ if IS_WINDOWS:
         a.binaries,
         a.zipfiles,
         a.datas,
-        strip=True,
-        upx=True,
+        strip=False,
+        upx=False,
         name='opendraft-api',
     )
 else:
