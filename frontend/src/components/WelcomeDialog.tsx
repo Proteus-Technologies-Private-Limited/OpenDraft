@@ -1,12 +1,14 @@
 import React from 'react';
 
+export type WelcomeChoice = 'blank' | 'sample' | 'import';
+
 interface WelcomeDialogProps {
-  onClose: () => void;
+  onChoice: (choice: WelcomeChoice) => void;
 }
 
-const WelcomeDialog: React.FC<WelcomeDialogProps> = ({ onClose }) => {
+const WelcomeDialog: React.FC<WelcomeDialogProps> = ({ onChoice }) => {
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <div className="dialog-overlay">
       <div className="welcome-card" onClick={(e) => e.stopPropagation()}>
         <div className="welcome-hero">
           <div className="welcome-logo">OD</div>
@@ -29,12 +31,34 @@ const WelcomeDialog: React.FC<WelcomeDialogProps> = ({ onClose }) => {
           </div>
         </div>
 
-        <button className="welcome-start-btn" onClick={onClose}>
-          Start Writing
-        </button>
+        <p className="welcome-choose-label">How would you like to start?</p>
+
+        <div className="welcome-choices">
+          <button className="welcome-choice-btn welcome-choice-blank" onClick={() => onChoice('blank')}>
+            <span className="welcome-choice-icon">&#128196;</span>
+            <span className="welcome-choice-text">
+              <strong>Blank Document</strong>
+              <small>Start with an empty page</small>
+            </span>
+          </button>
+          <button className="welcome-choice-btn welcome-choice-sample" onClick={() => onChoice('sample')}>
+            <span className="welcome-choice-icon">&#127916;</span>
+            <span className="welcome-choice-text">
+              <strong>Sample Script</strong>
+              <small>Explore with a demo screenplay</small>
+            </span>
+          </button>
+          <button className="welcome-choice-btn welcome-choice-import" onClick={() => onChoice('import')}>
+            <span className="welcome-choice-icon">&#128194;</span>
+            <span className="welcome-choice-text">
+              <strong>Import File</strong>
+              <small>.fountain, .fdx, or .txt</small>
+            </span>
+          </button>
+        </div>
 
         <p className="welcome-footer">
-          Import scripts via <strong>File &gt; Import</strong> &middot; Explore features in the menus above
+          Explore features in the menus above
         </p>
       </div>
     </div>

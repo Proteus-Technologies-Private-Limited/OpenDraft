@@ -43,6 +43,7 @@ import GoToPage from './GoToPage';
 import ElementPicker from './ElementPicker';
 import CharacterAutocomplete from './CharacterAutocomplete';
 import SpellCheckModal from './SpellCheckModal';
+import MobileAccessoryBar from './MobileAccessoryBar';
 import ScriptContextMenu from './ScriptContextMenu';
 import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { spellChecker } from '../editor/spellchecker';
@@ -54,7 +55,9 @@ import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';
 import { useParams, useNavigate } from 'react-router-dom';
 import OpenFromProject from './OpenFromProject';
-import WelcomeDialog from './WelcomeDialog';
+import WelcomeDialog, { type WelcomeChoice } from './WelcomeDialog';
+import { parseFountain } from '../utils/fountainParser';
+import { parseFDXFull } from '../utils/fdxParser';
 import SaveAsDialog from './SaveAsDialog';
 import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
@@ -1023,7 +1026,7 @@ const ScreenplayEditor: React.FC = () => {
     // For normal editing from URL, content is loaded later via useEffect.
     content: collabMode
       ? (collabInitialContent.current || { type: 'doc', content: [{ type: 'action', content: [] }] })
-      : (urlScriptId || urlCommitHash) ? undefined : SAMPLE_CONTENT,
+      : (urlScriptId || urlCommitHash) ? undefined : { type: 'doc', content: [{ type: 'action', content: [] }] },
     editable: !isHistoryMode && !(collabMode && collabRole === 'viewer'),
     editorProps: {
       attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: isHistoryMode ? 'false' : 'true' },
@@ -1708,10 +1711,73 @@ const ScreenplayEditor: React.FC = () => {
     [editor, collabMode, collabUserName, switchCollabDocument, setOpenFromProjectOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes],
   );
 
-  const handleWelcomeClose = useCallback(() => {
+  const handleWelcomeChoice = useCallback(async (choice: WelcomeChoice) => {
     setShowWelcome(false);
     localStorage.setItem('opendraft:welcomed', 'true');
-  }, []);
+
+    if (choice === 'sample') {
+      editor?.commands.setContent(SAMPLE_CONTENT);
+    } else if (choice === 'import') {
+      if (!editor) return;
+      const { openTextFile } = await import('../utils/fileOps');
+      const result = await openTextFile([
+        { name: 'Screenplay', extensions: ['fountain', 'fdx', 'txt'] },
+      ]);
+      if (!result) return;
+
+      const { name, content: text } = result;
+      const ext = name.split('.').pop()?.toLowerCase();
+      let doc;
+      if (ext === 'fdx') {
+        const parsed = parseFDXFull(text);
+        doc = parsed.doc;
+        if (parsed.pageLayout) {
+          useEditorStore.getState().setPageLayout({
+            pageWidth: parsed.pageLayout.pageWidth,
+            pageHeight: parsed.pageLayout.pageHeight,
+            topMargin: parsed.pageLayout.topMargin,
+            bottomMargin: parsed.pageLayout.bottomMargin,
+            headerMargin: parsed.pageLayout.headerMargin,
+            footerMargin: parsed.pageLayout.footerMargin,
+            leftMargin: parsed.pageLayout.leftMargin,
+            rightMargin: parsed.pageLayout.rightMargin,
+          });
+        }
+        if (parsed.beats.length > 0) {
+          const store = useEditorStore.getState();
+          store.setBeats(parsed.beats);
+          if (parsed.beatColumns.length > 0) {
+            store.setBeatColumns(parsed.beatColumns);
+          }
+        }
+        if (parsed.castList.length > 0 || parsed.characterHighlighting.length > 0) {
+          const store = useEditorStore.getState();
+          const highlightMap = new Map(parsed.characterHighlighting.map((h) => [h.name.toUpperCase(), h]));
+          for (const member of parsed.castList) {
+            const hl = highlightMap.get(member.name.toUpperCase());
+            store.upsertCharacterProfile(member.name, {
+              description: member.description,
+              color: hl?.color || '',
+              highlighted: hl?.highlighted || false,
+            });
+            highlightMap.delete(member.name.toUpperCase());
+          }
+          for (const [, hl] of highlightMap) {
+            store.upsertCharacterProfile(hl.name, {
+              color: hl.color,
+              highlighted: hl.highlighted,
+            });
+          }
+        }
+      } else {
+        doc = parseFountain(text);
+      }
+      editor.commands.setContent(doc);
+      const scriptTitle = name.replace(/\.\w+$/, '') || 'Untitled';
+      useEditorStore.getState().setDocumentTitle(scriptTitle);
+    }
+    // 'blank' — editor already has empty content, nothing to do
+  }, [editor]);
 
   const handleSaveAsComplete = useCallback(
     async (projectId: string, _projectName: string, scriptId: string, scriptTitle: string) => {
@@ -1915,46 +1981,8 @@ const ScreenplayEditor: React.FC = () => {
     setCtxMenuState(s => ({ ...s, visible: false }));
   }, []);
 
-  // --- Floating "..." button on touch devices when text is selected ---
-  const [touchSelBtn, setTouchSelBtn] = useState<{ x: number; y: number } | null>(null);
-  const touchSelRef = useRef<{ from: number; to: number; pos: { x: number; y: number } } | null>(null);
+  // --- Touch device detection (for mobile accessory bar) ---
   const isTouchDev = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
-
-  useEffect(() => {
-    if (!editor || !isTouchDev) return;
-    const update = () => {
-      const { from, to } = editor.state.selection;
-      if (from === to) { setTouchSelBtn(null); touchSelRef.current = null; return; }
-      try {
-        const endCoords = editor.view.coordsAtPos(to);
-        const pos = { x: endCoords.left, y: endCoords.top - 44 };
-        setTouchSelBtn(pos);
-        touchSelRef.current = { from, to, pos };
-      } catch {
-        setTouchSelBtn(null);
-        touchSelRef.current = null;
-      }
-    };
-    editor.on('selectionUpdate', update);
-    // Don't clear on blur — the button tap causes a blur before onClick fires.
-    // Instead clear on empty selection (handled in update above).
-    return () => {
-      editor.off('selectionUpdate', update);
-    };
-  }, [editor, isTouchDev]);
-
-  const handleTouchCtxMenu = useCallback(() => {
-    const saved = touchSelRef.current;
-    if (!saved) return;
-    const pos = saved.pos;
-    setTouchSelBtn(null);
-    setCtxMenuState({
-      visible: true,
-      position: pos,
-      spellInfo: null,
-      savedSelection: { from: saved.from, to: saved.to },
-    });
-  }, []);
 
   // --- Spell check: open modal when toggled on (or from menu) ---
   // The modal is opened via the Tools menu or spellCheckEnabled toggle.
@@ -2159,15 +2187,14 @@ const ScreenplayEditor: React.FC = () => {
           onDismiss={handleCharAutoDismiss}
         />
       )}
-      {/* Floating "..." button on touch devices when text is selected */}
-      {!isHistoryMode && touchSelBtn && !ctxMenuState.visible && (
-        <button
-          className="touch-ctx-btn"
-          style={{ top: Math.max(8, touchSelBtn.y), left: Math.min(window.innerWidth - 48, Math.max(8, touchSelBtn.x)) }}
-          onPointerDown={(e) => { e.preventDefault(); handleTouchCtxMenu(); }}
-        >
-          &#x22EF;
-        </button>
+      {/* Mobile accessory bar — docked above virtual keyboard on touch devices */}
+      {!isHistoryMode && isTouchDev && editor && (
+        <MobileAccessoryBar
+          editor={editor}
+          onOpenContextMenu={(pos, savedSel) => {
+            setCtxMenuState({ visible: true, position: pos, spellInfo: null, savedSelection: savedSel });
+          }}
+        />
       )}
       {!isHistoryMode && ctxMenuState.visible && editor && (
         <ScriptContextMenu
@@ -2196,7 +2223,7 @@ const ScreenplayEditor: React.FC = () => {
           onClose={() => setOpenFromProjectOpen(false)}
         />
       )}
-      {!isHistoryMode && showWelcome && <WelcomeDialog onClose={handleWelcomeClose} />}
+      {!isHistoryMode && showWelcome && <WelcomeDialog onChoice={handleWelcomeChoice} />}
       {!isHistoryMode && saveAsOpen && (
         <SaveAsDialog
           defaultProjectName="My Project"

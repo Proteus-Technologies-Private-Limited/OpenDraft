@@ -5028,20 +5028,62 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   background: #444; color: var(--fd-text); padding: 1px 5px;
   border-radius: 3px; font-size: 11px; border: 1px solid #555;
 }
-.welcome-start-btn {
-  margin: 20px 24px 0;
-  width: calc(100% - 48px);
-  height: 38px;
-  background: var(--fd-accent);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity .15s;
+.welcome-choose-label {
+  margin: 16px 24px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fd-text-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
 }
-.welcome-start-btn:hover { opacity: .9; }
+.welcome-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 24px 0;
+}
+.welcome-choice-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--fd-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  text-align: left;
+}
+.welcome-choice-btn:hover {
+  background: rgba(74,158,255,.1);
+  border-color: var(--fd-accent);
+}
+.welcome-choice-icon {
+  font-size: 22px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(74,158,255,.12);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.welcome-choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.welcome-choice-text strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fd-text);
+}
+.welcome-choice-text small {
+  font-size: 11px;
+  color: var(--fd-text-muted);
+}
 .welcome-footer {
   padding: 14px 24px 20px;
   font-size: 11px;
@@ -5584,6 +5626,155 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .tags-panel-list::-webkit-scrollbar { width: 6px; }
 .tags-panel-list::-webkit-scrollbar-track { background: transparent; }
 .tags-panel-list::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+
+/* ============ MOBILE ACCESSORY BAR ============ */
+/* Docked above virtual keyboard on touch devices */
+.mob-acc-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 3600;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  background: var(--fd-toolbar-bg, var(--fd-bg-secondary));
+  border-top: 1px solid var(--fd-border);
+  box-shadow: 0 -2px 8px rgba(0,0,0,.2);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+[data-theme="light"] .mob-acc-bar {
+  background: #f5f5f5;
+  box-shadow: 0 -2px 8px rgba(0,0,0,.08);
+}
+
+/* Element type button — prominent, left-aligned */
+.mob-acc-elem-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 10px;
+  background: var(--fd-accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.mob-acc-elem-btn:active {
+  opacity: 0.8;
+}
+.mob-acc-elem-arrow {
+  font-size: 9px;
+  opacity: 0.8;
+}
+
+/* Separator between element button and icon buttons */
+.mob-acc-sep {
+  width: 1px;
+  height: 24px;
+  background: var(--fd-border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* Icon buttons */
+.mob-acc-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--fd-text-secondary, #aaa);
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.mob-acc-btn:active {
+  background: var(--fd-accent);
+  color: #fff;
+}
+[data-theme="light"] .mob-acc-btn {
+  color: #555;
+}
+[data-theme="light"] .mob-acc-btn:active {
+  background: var(--fd-accent);
+  color: #fff;
+}
+
+/* Bottom sheet overlay for element picker */
+.mob-acc-sheet-overlay {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 3550;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.mob-acc-sheet {
+  background: var(--fd-dropdown-bg);
+  border-top: 1px solid var(--fd-border);
+  border-radius: 12px 12px 0 0;
+  max-height: 50vh;
+  overflow-y: auto;
+  box-shadow: 0 -4px 20px rgba(0,0,0,.3);
+  padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+[data-theme="light"] .mob-acc-sheet {
+  background: #fff;
+  box-shadow: 0 -4px 20px rgba(0,0,0,.1);
+}
+.mob-acc-sheet-header {
+  padding: 12px 16px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fd-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  background: inherit;
+}
+.mob-acc-sheet-list {
+  display: flex;
+  flex-direction: column;
+}
+.mob-acc-sheet-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: var(--fd-text);
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mob-acc-sheet-item:active {
+  background: var(--fd-accent);
+  color: #fff;
+}
+.mob-acc-sheet-item.active {
+  color: var(--fd-accent);
+  font-weight: 600;
+}
+.mob-acc-sheet-item.active::before {
+  content: '\2713\00a0';
+}
 
 /* ============ SCRIPT CONTEXT MENU ============ */
 /* Floating context-menu trigger button (touch devices) */

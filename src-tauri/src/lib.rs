@@ -134,6 +134,12 @@ pub fn run() {
                 // Spawn sidecar — capture stderr for diagnostics
                 let spawn_result = if let Some(bin) = desktop::sidecar_path() {
                     eprintln!("Sidecar binary found: {:?}", bin);
+                    // Set current_dir to the sidecar's directory so PyInstaller's
+                    // bootloader can find python312.dll and other DLLs next to the exe.
+                    // Without this, relaunching from Start Menu uses a different CWD
+                    // (e.g. C:\Users\...) and DLL loading fails with "Invalid access
+                    // to memory location".
+                    let sidecar_dir = bin.parent().unwrap_or(std::path::Path::new("."));
                     match std::process::Command::new(&bin)
                         .args([
                             "--port",
@@ -142,6 +148,7 @@ pub fn run() {
                             &data_dir_str,
                         ])
                         .env("OPENDRAFT_DATA_DIR", &data_dir_str)
+                        .current_dir(sidecar_dir)
                         .stderr(std::process::Stdio::piped())
                         .spawn()
                     {
