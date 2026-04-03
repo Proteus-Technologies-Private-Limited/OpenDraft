@@ -241,6 +241,11 @@ jobs:
       - name: Build frontend
         run: cd frontend && npm run build
 
+      - name: Setup root package.json for Gradle build
+        run: |
+          echo '{"private":true,"scripts":{"tauri":"tauri"}}' > package.json
+          ln -s frontend/node_modules node_modules
+
       - name: Initialize Android project
         run: npx --prefix frontend tauri android init
 
