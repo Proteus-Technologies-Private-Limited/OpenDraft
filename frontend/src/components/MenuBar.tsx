@@ -720,11 +720,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.6.5</div>
+              <div className="about-section-title">What's New in 0.6.6</div>
               <ul className="about-list">
-                <li><strong>Windows: Fix Antivirus Blocking</strong> — Switched to onedir bundling so DLLs stay in the install directory instead of being extracted to temp where antivirus blocks them.</li>
-                <li><strong>Windows: Better Error Diagnostics</strong> — Improved backend startup error messages with crash detection, stderr capture, and actionable troubleshooting steps.</li>
-                <li><strong>Splash Screen</strong> — Fixed "OPEN DRAFT" text spacing for better readability.</li>
+                <li><strong>Windows: Fix DLL Loading Crash</strong> — Fixed "failed to load python dll" error when reopening the app after the first launch.</li>
+                <li><strong>Welcome Screen</strong> — New start options: Blank Document, Sample Script, or Import File directly from the welcome dialog.</li>
+                <li><strong>Android: Custom App Icons</strong> — Added proper OpenDraft icons for the Android build.</li>
               </ul>
             </div>
           </div>

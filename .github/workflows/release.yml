@@ -258,6 +258,14 @@ jobs:
       - name: Initialize Android project
         run: npx --prefix frontend tauri android init
 
+      - name: Copy Android icons
+        run: |
+          RES_DIR="src-tauri/gen/android/app/src/main/res"
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            mkdir -p "$RES_DIR/mipmap-$density"
+            cp images/android-icons/mipmap-$density/* "$RES_DIR/mipmap-$density/"
+          done
+
       - name: Patch tauri.conf.json for Android CI
         run: |
           cd src-tauri
