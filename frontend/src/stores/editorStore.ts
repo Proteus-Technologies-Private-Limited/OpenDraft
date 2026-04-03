@@ -100,6 +100,15 @@ export interface NoteFilter {
   noteId: string | null;
 }
 
+/** A general note attached to the screenplay file (not anchored to any text) */
+export interface GeneralNote {
+  id: string;
+  title: string;
+  content: string;
+  color: NoteColor;
+  createdAt: string;
+}
+
 // ── Production Tagging (Final Draft TagData) ──
 
 export interface TagCategory {
@@ -173,6 +182,14 @@ export interface BeatColumn {
   width: number; // pixels, 0 = auto/fill
 }
 
+export interface BeatLinkPreview {
+  url: string;
+  title: string;
+  description: string;
+  image: string;
+  siteName: string;
+}
+
 export interface BeatInfo {
   id: string;
   title: string;
@@ -186,6 +203,7 @@ export interface BeatInfo {
   x: number;           // custom-arrange: absolute X position on canvas
   y: number;           // custom-arrange: absolute Y position on canvas
   imageHeight: number; // pixels, 0 = default (140px)
+  linkPreviews?: BeatLinkPreview[]; // cached link preview metadata
 }
 
 export type BeatArrangeMode = 'auto' | 'custom';
@@ -230,6 +248,13 @@ interface EditorState {
   deleteNote: (id: string) => void;
   noteFilter: NoteFilter;
   setNoteFilter: (filter: NoteFilter) => void;
+
+  // General notes (file-level, not anchored to text)
+  generalNotes: GeneralNote[];
+  setGeneralNotes: (notes: GeneralNote[]) => void;
+  addGeneralNote: (note: Omit<GeneralNote, 'id' | 'createdAt'>) => string;
+  updateGeneralNote: (id: string, updates: Partial<Pick<GeneralNote, 'title' | 'content' | 'color'>>) => void;
+  deleteGeneralNote: (id: string) => void;
 
   // Beats
   beatArrangeMode: BeatArrangeMode;
@@ -411,6 +436,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((s) => ({ notes: s.notes.filter((n) => n.id !== id) })),
   noteFilter: { elementType: null, contextLabel: null, color: null, noteId: null },
   setNoteFilter: (filter) => set({ noteFilter: filter }),
+
+  // General notes
+  generalNotes: [],
+  setGeneralNotes: (generalNotes) => set({ generalNotes }),
+  addGeneralNote: (note) => {
+    const id = uuid();
+    set((s) => ({
+      generalNotes: [
+        ...s.generalNotes,
+        { ...note, id, createdAt: new Date().toISOString() },
+      ],
+    }));
+    return id;
+  },
+  updateGeneralNote: (id, updates) =>
+    set((s) => ({
+      generalNotes: s.generalNotes.map((n) => (n.id === id ? { ...n, ...updates } : n)),
+    })),
+  deleteGeneralNote: (id) =>
+    set((s) => ({ generalNotes: s.generalNotes.filter((n) => n.id !== id) })),
 
   // Beats — undo/redo internals (not serialized)
   _beatUndoStack: [] as { beats: BeatInfo[]; beatColumns: BeatColumn[] }[],
