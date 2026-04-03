@@ -389,7 +389,8 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
               autoFocus
             />
           ) : (
-            <div className="beat-card-description-view" onClick={() => setDescFocused(true)}>
+            <div className="beat-card-description-view" onClick={() => setDescFocused(true)}
+              style={descHeightRef.current ? { minHeight: descHeightRef.current } : undefined}>
               {beat.description ? <DescriptionWithLinks text={beat.description} /> : (
                 <span className="beat-card-desc-placeholder">Describe this beat...</span>
               )}
@@ -428,7 +429,8 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
               autoFocus
             />
           ) : (
-            <div className="beat-card-description-view" onClick={() => setDescFocused(true)}>
+            <div className="beat-card-description-view" onClick={() => setDescFocused(true)}
+              style={descHeightRef.current ? { minHeight: descHeightRef.current } : undefined}>
               {beat.description ? <DescriptionWithLinks text={beat.description} /> : (
                 <span className="beat-card-desc-placeholder">Describe this beat...</span>
               )}
@@ -444,7 +446,7 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
         </>
       )}
 
-      <div className="beat-card-toolbar">
+      <div className="beat-card-toolbar" style={{ marginTop: 'auto' }}>
         <div className="beat-color-picker-wrap">
           <button
             className="beat-toolbar-btn"
