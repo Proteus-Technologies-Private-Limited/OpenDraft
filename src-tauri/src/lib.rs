@@ -40,16 +40,44 @@ mod desktop {
 
     pub const BACKEND_PORT: u16 = 18321;
 
+    /// Result of waiting for the backend.
+    pub enum BackendStatus {
+        Ready,
+        ProcessCrashed { exit_code: Option<i32>, stderr: String },
+        Timeout,
+    }
+
     /// Wait for the backend to accept TCP connections.
-    pub fn wait_for_backend(port: u16, timeout_secs: u64) -> bool {
+    /// Checks if the process has crashed during the wait.
+    pub fn wait_for_backend(child: &mut Child, port: u16, timeout_secs: u64) -> BackendStatus {
         let start = Instant::now();
         while start.elapsed().as_secs() < timeout_secs {
+            // Check if the process exited (crashed)
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    // Process has exited — read any stderr output
+                    let stderr = if let Some(ref mut err) = child.stderr {
+                        use std::io::Read;
+                        let mut buf = String::new();
+                        let _ = err.read_to_string(&mut buf);
+                        buf
+                    } else {
+                        String::new()
+                    };
+                    return BackendStatus::ProcessCrashed {
+                        exit_code: status.code(),
+                        stderr,
+                    };
+                }
+                Ok(None) => { /* still running, keep waiting */ }
+                Err(_) => { /* can't check status, keep waiting */ }
+            }
             if TcpStream::connect(format!("127.0.0.1:{}", port)).is_ok() {
-                return true;
+                return BackendStatus::Ready;
             }
             std::thread::sleep(Duration::from_millis(200));
         }
-        false
+        BackendStatus::Timeout
     }
 
     /// Resolve the sidecar binary path.
@@ -97,7 +125,9 @@ pub fn run() {
             {
                 let data_dir_str = app_data_dir.to_string_lossy().to_string();
 
-                let sidecar_spawned = if let Some(bin) = desktop::sidecar_path() {
+                // Spawn sidecar — capture stderr for diagnostics
+                let spawn_result = if let Some(bin) = desktop::sidecar_path() {
+                    eprintln!("Sidecar binary found: {:?}", bin);
                     match std::process::Command::new(&bin)
                         .args([
                             "--port",
@@ -106,24 +136,27 @@ pub fn run() {
                             &data_dir_str,
                         ])
                         .env("OPENDRAFT_DATA_DIR", &data_dir_str)
+                        .stderr(std::process::Stdio::piped())
                         .spawn()
                     {
                         Ok(child) => {
-                            eprintln!("Sidecar started: {:?} (PID {})", bin, child.id());
+                            eprintln!("Sidecar started: PID {}", child.id());
                             eprintln!("Data dir: {}", data_dir_str);
-                            app.manage(desktop::BackendProcess(
-                                std::sync::Mutex::new(Some(child)),
-                            ));
-                            true
+                            Ok(child)
                         }
                         Err(e) => {
                             eprintln!("Failed to spawn sidecar {:?}: {}", bin, e);
-                            false
+                            Err(format!("Could not start the backend process.\n\n\
+                                Error: {}\n\n\
+                                On Windows, your antivirus or SmartScreen may have\n\
+                                blocked it. Please allow OpenDraft through your\n\
+                                security settings and restart the application.", e))
                         }
                     }
                 } else {
                     eprintln!("Sidecar binary not found (dev mode?)");
-                    false
+                    Err("The backend server binary was not found.\n\n\
+                         The installation may be incomplete. Please reinstall OpenDraft.".to_string())
                 };
 
                 // Splash → main window transition
@@ -132,10 +165,81 @@ pub fn run() {
                 let app_handle = app.handle().clone();
 
                 std::thread::spawn(move || {
-                    let backend_ready = if sidecar_spawned {
-                        desktop::wait_for_backend(desktop::BACKEND_PORT, 30)
-                    } else {
-                        false
+                    let error_msg = match spawn_result {
+                        Ok(mut child) => {
+                            match desktop::wait_for_backend(&mut child, desktop::BACKEND_PORT, 30) {
+                                desktop::BackendStatus::Ready => {
+                                    eprintln!("Backend is ready on port {}", desktop::BACKEND_PORT);
+                                    app_handle.manage(desktop::BackendProcess(
+                                        std::sync::Mutex::new(Some(child)),
+                                    ));
+                                    None
+                                }
+                                desktop::BackendStatus::ProcessCrashed { exit_code, stderr } => {
+                                    let code_str = exit_code
+                                        .map(|c| c.to_string())
+                                        .unwrap_or_else(|| "unknown".to_string());
+                                    eprintln!("Sidecar crashed with exit code {}", code_str);
+                                    if !stderr.is_empty() {
+                                        eprintln!("Sidecar stderr:\n{}", stderr);
+                                    }
+                                    let detail = if !stderr.is_empty() {
+                                        // Show last few lines of stderr for context
+                                        let last_lines: String = stderr
+                                            .lines()
+                                            .rev()
+                                            .take(5)
+                                            .collect::<Vec<_>>()
+                                            .into_iter()
+                                            .rev()
+                                            .collect::<Vec<_>>()
+                                            .join("\n");
+                                        format!(
+                                            "The backend server crashed on startup (exit code {}).\n\n\
+                                             Error details:\n{}\n\n\
+                                             This is often caused by:\n\
+                                             • Antivirus software blocking the server\n\
+                                             • A missing Visual C++ Redistributable\n\
+                                             • Port {} already in use by another application\n\n\
+                                             Try adding OpenDraft to your antivirus exceptions\n\
+                                             and restart the application.",
+                                            code_str, last_lines, desktop::BACKEND_PORT
+                                        )
+                                    } else {
+                                        format!(
+                                            "The backend server crashed on startup (exit code {}).\n\n\
+                                             This is often caused by:\n\
+                                             • Antivirus software blocking the server\n\
+                                             • A missing Visual C++ Redistributable\n\
+                                             • Port {} already in use by another application\n\n\
+                                             Try adding OpenDraft to your antivirus exceptions\n\
+                                             and restart the application.",
+                                            code_str, desktop::BACKEND_PORT
+                                        )
+                                    };
+                                    Some(detail)
+                                }
+                                desktop::BackendStatus::Timeout => {
+                                    // Process is still running but not listening — likely blocked
+                                    app_handle.manage(desktop::BackendProcess(
+                                        std::sync::Mutex::new(Some(child)),
+                                    ));
+                                    Some(format!(
+                                        "The backend server started but is not responding on port {}.\n\n\
+                                         This is often caused by:\n\
+                                         • Windows Firewall blocking localhost connections\n\
+                                         • Antivirus software intercepting the connection\n\
+                                         • Another application using port {}\n\n\
+                                         Try these steps:\n\
+                                         1. Add OpenDraft to your antivirus exceptions\n\
+                                         2. Allow OpenDraft through Windows Firewall\n\
+                                         3. Restart the application",
+                                        desktop::BACKEND_PORT, desktop::BACKEND_PORT
+                                    ))
+                                }
+                            }
+                        }
+                        Err(msg) => Some(msg),
                     };
 
                     std::thread::sleep(std::time::Duration::from_millis(500));
@@ -148,18 +252,8 @@ pub fn run() {
                         let _ = sp.close();
                     }
 
-                    if !backend_ready {
+                    if let Some(msg) = error_msg {
                         use tauri_plugin_dialog::DialogExt;
-                        let msg = if sidecar_spawned {
-                            "The backend server started but is not responding.\n\n\
-                             Try restarting the application. If the problem persists,\n\
-                             your antivirus may be blocking the server process."
-                        } else {
-                            "The backend server could not be started.\n\n\
-                             On Windows, your antivirus or SmartScreen may have\n\
-                             blocked it. Please allow OpenDraft through your\n\
-                             security settings and restart the application."
-                        };
                         app_handle.dialog()
                             .message(msg)
                             .title("OpenDraft — Backend Error")
