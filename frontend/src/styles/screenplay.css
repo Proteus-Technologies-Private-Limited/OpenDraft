@@ -2238,6 +2238,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   flex: 1;
   position: relative;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
   min-height: 400px;
   background:
     radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
@@ -6558,8 +6559,11 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   /* Index cards fullscreen: 2 columns */
   .index-cards-fullscreen .index-cards-grid { grid-template-columns: repeat(2, 1fr); }
 
-  /* Beat board: narrower columns */
-  .beat-column { min-width: 240px; max-width: 280px; }
+  /* Beat board: narrower columns, touch-scroll */
+  .beat-column { min-width: 240px; max-width: 320px; }
+  .beat-board-columns {
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* ── Phone portrait (≤480px) ── */
@@ -6657,12 +6661,51 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   .index-cards-header { padding: 8px 12px; }
   .ic-action-btn { padding: 6px 10px; min-height: 32px; }
 
-  /* Beat board: narrower, touch-friendly */
-  .beat-column { min-width: 220px; max-width: 260px; }
+  /* Beat board: mobile-optimized */
+  .beat-board-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  .beat-board-title { font-size: 11px; }
+  .beat-board-info { margin-right: 0; }
+  .beat-mode-toggle { order: 10; width: 100%; }
+  .beat-mode-btn {
+    flex: 1;
+    padding: 8px 10px;
+    font-size: 12px;
+    min-height: 40px;
+    text-align: center;
+  }
+  .beat-board-add-col-btn {
+    min-height: 36px;
+    padding: 6px 14px;
+    font-size: 12px;
+  }
+  .beat-board-columns {
+    padding: 10px 10px 24px 10px;
+    gap: 10px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .beat-column {
+    min-width: 85vw;
+    max-width: 90vw;
+    scroll-snap-align: start;
+  }
   .beat-card { padding: 12px; }
-  .beat-add-btn { padding: 12px; min-height: 44px; }
-  .beat-mode-btn { padding: 6px 10px; font-size: 11px; min-height: 36px; }
-  .beat-board-header { flex-wrap: wrap; }
+  .beat-add-btn { padding: 12px; min-height: 44px; font-size: 13px; }
+  .beat-card-description, .beat-card-description-view {
+    font-size: 14px;
+    min-height: 44px;
+  }
+  .beat-card-title { font-size: 15px; }
+  /* Link previews: stack image above text on phone */
+  .beat-link-preview { flex-direction: column; }
+  .beat-link-preview-image { width: 100%; height: 120px; }
+  .beat-link-preview-remove { opacity: 1; width: 24px; height: 24px; font-size: 14px; }
+  /* Custom canvas: full-width on phone */
+  .beat-custom-canvas { min-height: 60vh; }
 
   /* Menu dropdown: phone max-height */
   .menu-dropdown {
@@ -6718,10 +6761,28 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   /* Index card actions: larger */
   .ic-action-btn { min-height: 36px; padding: 6px 12px; }
 
-  /* Beat board: larger tap targets */
+  /* Beat board: larger tap targets & always-visible controls */
   .beat-card-delete { min-width: 36px; min-height: 36px; font-size: 20px;
     display: flex; align-items: center; justify-content: center; }
   .beat-add-btn { min-height: 44px; }
+  .beat-column-delete { opacity: 0.7 !important; min-width: 36px; min-height: 36px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .beat-column-maximize { opacity: 0.7 !important; min-width: 36px; min-height: 36px;
+    display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .beat-drag-icon { opacity: 0.7 !important; min-width: 28px; min-height: 28px;
+    display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .beat-mode-btn { min-height: 40px; }
+  .beat-board-add-col-btn { min-height: 36px; }
+  /* Link preview: always show remove on touch */
+  .beat-link-preview-remove { opacity: 1 !important; min-width: 28px; min-height: 28px; }
+  /* Description view: adequate tap target */
+  .beat-card-description-view { min-height: 44px; }
+  /* Color picker swatches: larger on touch */
+  .beat-color-swatch { min-width: 32px; min-height: 32px; }
+  .beat-toolbar-btn { min-width: 36px; min-height: 36px; font-size: 16px; }
+  /* Image action buttons: larger on touch */
+  .beat-card-image-action-btn,
+  .beat-card-image-remove { width: 32px; height: 32px; font-size: 16px; }
 
   /* Note items: larger */
   .sn-filter-chip { padding: 4px 10px; min-height: 28px; }
