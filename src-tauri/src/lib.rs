@@ -81,10 +81,16 @@ mod desktop {
     }
 
     /// Resolve the sidecar binary path.
+    /// macOS/Linux: single file via externalBin (next to the main executable).
+    /// Windows: onedir folder via resources (sidecar/ subdirectory).
     pub fn sidecar_path() -> Option<PathBuf> {
         let exe = std::env::current_exe().ok()?;
         let dir = exe.parent()?;
         let candidates = [
+            // Windows onedir: sidecar/ directory next to exe
+            dir.join("sidecar").join("opendraft-api.exe"),
+            dir.join("sidecar").join("opendraft-api"),
+            // macOS/Linux onefile: single binary next to exe (externalBin)
             dir.join("opendraft-api"),
             dir.join("opendraft-api.exe"),
         ];

@@ -2,8 +2,10 @@
 """PyInstaller spec for the OpenDraft API sidecar binary."""
 
 import os
+import sys
 
 block_cipher = None
+IS_WINDOWS = sys.platform == 'win32'
 ROOT = os.path.abspath(os.path.dirname(SPEC))
 
 a = Analysis(
@@ -84,19 +86,50 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
-    name='opendraft-api',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=True,
-    upx=True,
-    console=True,   # sidecar runs headless, console output is useful for debugging
-    target_arch=None,
-    codesign_identity=os.environ.get('CODESIGN_IDENTITY', None),
-)
+if IS_WINDOWS:
+    # ── Windows: onedir mode ──────────────────────────────────────────────
+    # Onefile mode extracts DLLs to %TEMP% on every launch, which Windows
+    # Defender frequently blocks ("Invalid access to memory location").
+    # Onedir keeps all files in the install directory — no temp extraction.
+    exe = EXE(
+        pyz,
+        a.scripts,
+        [],
+        exclude_binaries=True,
+        name='opendraft-api',
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=True,
+        upx=True,
+        console=True,
+        target_arch=None,
+    )
+
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        strip=True,
+        upx=True,
+        name='opendraft-api',
+    )
+else:
+    # ── macOS / Linux: onefile mode ───────────────────────────────────────
+    # Single self-contained binary, simpler to bundle as Tauri sidecar.
+    exe = EXE(
+        pyz,
+        a.scripts,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        [],
+        name='opendraft-api',
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=True,
+        upx=True,
+        console=True,
+        target_arch=None,
+        codesign_identity=os.environ.get('CODESIGN_IDENTITY', None),
+    )
