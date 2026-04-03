@@ -33,7 +33,8 @@ fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
 #[cfg(not(target_os = "android"))]
 mod desktop {
     use std::net::TcpStream;
-    use std::path::PathBuf;
+    #[allow(unused_imports)] // Path is used on Windows only (prepare_sidecar_in_appdata)
+    use std::path::{Path, PathBuf};
     use std::process::Child;
     use std::sync::Mutex;
     use std::time::{Duration, Instant};
@@ -80,10 +81,10 @@ mod desktop {
         BackendStatus::Timeout
     }
 
-    /// Resolve the sidecar binary path.
+    /// Resolve the sidecar binary in the install directory.
     /// macOS/Linux: single file via externalBin (next to the main executable).
     /// Windows: onedir folder via resources (sidecar/ subdirectory).
-    pub fn sidecar_path() -> Option<PathBuf> {
+    pub fn install_sidecar_path() -> Option<PathBuf> {
         let exe = std::env::current_exe().ok()?;
         let dir = exe.parent()?;
         let candidates = [
@@ -95,6 +96,65 @@ mod desktop {
             dir.join("opendraft-api.exe"),
         ];
         candidates.into_iter().find(|p| p.exists())
+    }
+
+    /// On Windows, copy the sidecar directory from the install location
+    /// (C:\Program Files\...) to AppData and return the exe path there.
+    ///
+    /// Why: The NSIS installer runs elevated, so the first app launch from
+    /// the installer inherits admin privileges and DLLs load fine. Subsequent
+    /// launches from Start Menu run as a normal user. Windows Defender and
+    /// SmartScreen can block unsigned DLLs in Program Files for non-elevated
+    /// processes, causing "failed to load python dll — invalid access to
+    /// memory location". AppData is user-owned and less aggressively scanned.
+    #[cfg(target_os = "windows")]
+    pub fn prepare_sidecar_in_appdata(
+        install_bin: &Path,
+        app_data_dir: &Path,
+    ) -> Option<PathBuf> {
+        let install_dir = install_bin.parent()?;
+        let runtime_dir = app_data_dir.join("sidecar");
+        let version_marker = runtime_dir.join(".version");
+        let current_version = env!("CARGO_PKG_VERSION");
+
+        let needs_copy = if version_marker.exists() {
+            std::fs::read_to_string(&version_marker)
+                .map(|v| v.trim() != current_version)
+                .unwrap_or(true)
+        } else {
+            true
+        };
+
+        if needs_copy {
+            eprintln!("Copying sidecar to AppData for runtime use...");
+            // Remove stale copy
+            let _ = std::fs::remove_dir_all(&runtime_dir);
+            if let Err(e) = copy_dir_recursive(install_dir, &runtime_dir) {
+                eprintln!("Failed to copy sidecar to AppData: {}", e);
+                eprintln!("Falling back to install directory");
+                return None;
+            }
+            let _ = std::fs::write(&version_marker, current_version);
+            eprintln!("Sidecar copied to: {:?}", runtime_dir);
+        }
+
+        let bin = runtime_dir.join("opendraft-api.exe");
+        if bin.exists() { Some(bin) } else { None }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
+        std::fs::create_dir_all(dst)?;
+        for entry in std::fs::read_dir(src)? {
+            let entry = entry?;
+            let target = dst.join(entry.file_name());
+            if entry.file_type()?.is_dir() {
+                copy_dir_recursive(&entry.path(), &target)?;
+            } else {
+                std::fs::copy(entry.path(), &target)?;
+            }
+        }
+        Ok(())
     }
 
     /// Holds the sidecar child process so it can be killed on exit.
@@ -132,14 +192,30 @@ pub fn run() {
                 let data_dir_str = app_data_dir.to_string_lossy().to_string();
 
                 // Spawn sidecar — capture stderr for diagnostics
-                let spawn_result = if let Some(bin) = desktop::sidecar_path() {
-                    eprintln!("Sidecar binary found: {:?}", bin);
-                    // Set current_dir to the sidecar's directory so PyInstaller's
-                    // bootloader can find python312.dll and other DLLs next to the exe.
-                    // Without this, relaunching from Start Menu uses a different CWD
-                    // (e.g. C:\Users\...) and DLL loading fails with "Invalid access
-                    // to memory location".
+                let spawn_result = if let Some(install_bin) = desktop::install_sidecar_path() {
+                    eprintln!("Sidecar binary found: {:?}", install_bin);
+
+                    // On Windows: copy sidecar to AppData and run from there.
+                    // Program Files is restricted for non-elevated processes —
+                    // Defender/SmartScreen can block DLL loading after the first
+                    // (installer-elevated) launch.
+                    #[cfg(target_os = "windows")]
+                    let bin = desktop::prepare_sidecar_in_appdata(&install_bin, &app_data_dir)
+                        .unwrap_or_else(|| install_bin.clone());
+                    #[cfg(not(target_os = "windows"))]
+                    let bin = install_bin;
+
                     let sidecar_dir = bin.parent().unwrap_or(std::path::Path::new("."));
+
+                    // Prepend sidecar dir to PATH so DLL dependencies (vcruntime140.dll
+                    // etc.) are found even if the system PATH doesn't include it.
+                    let mut path_env = std::ffi::OsString::from(sidecar_dir.as_os_str());
+                    #[cfg(target_os = "windows")]
+                    path_env.push(";");
+                    #[cfg(not(target_os = "windows"))]
+                    path_env.push(":");
+                    path_env.push(std::env::var_os("PATH").unwrap_or_default());
+
                     match std::process::Command::new(&bin)
                         .args([
                             "--port",
@@ -148,12 +224,15 @@ pub fn run() {
                             &data_dir_str,
                         ])
                         .env("OPENDRAFT_DATA_DIR", &data_dir_str)
+                        .env("PATH", &path_env)
+                        .env("PYTHONDONTWRITEBYTECODE", "1")
                         .current_dir(sidecar_dir)
                         .stderr(std::process::Stdio::piped())
                         .spawn()
                     {
                         Ok(child) => {
                             eprintln!("Sidecar started: PID {}", child.id());
+                            eprintln!("Sidecar dir: {:?}", sidecar_dir);
                             eprintln!("Data dir: {}", data_dir_str);
                             Ok(child)
                         }
