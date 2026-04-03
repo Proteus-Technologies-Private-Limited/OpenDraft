@@ -263,22 +263,39 @@ jobs:
               json.dump(cfg, f, indent=2)
           "
 
-      - name: Decode signing keystore
+      - name: Setup signing keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > $RUNNER_TEMP/release.keystore
-            echo "KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> $GITHUB_ENV
-            echo "SIGNING_CONFIGURED=true" >> $GITHUB_ENV
-            echo "Signing keystore decoded successfully"
+            echo "Using release keystore from secrets"
           else
-            echo "No signing keystore configured — build will produce unsigned APK"
+            echo "No release keystore — generating temporary keystore for signing"
+            keytool -genkey -v \
+              -keystore $RUNNER_TEMP/release.keystore \
+              -alias opendraft \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=OpenDraft, O=OpenDraft" \
+              -storepass opendraft -keypass opendraft
           fi
+          echo "KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> $GITHUB_ENV
 
       - name: Configure release signing
-        if: env.SIGNING_CONFIGURED == 'true'
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          # Use secrets if available, otherwise use temp keystore defaults
+          KS_PASSWORD="${ANDROID_KEYSTORE_PASSWORD:-opendraft}"
+          KS_ALIAS="${ANDROID_KEY_ALIAS:-opendraft}"
+          KS_KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-opendraft}"
+
+          echo "KEYSTORE_PASSWORD=$KS_PASSWORD" >> $GITHUB_ENV
+          echo "KEY_ALIAS=$KS_ALIAS" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=$KS_KEY_PASSWORD" >> $GITHUB_ENV
+
           python3 << 'PYEOF'
           path = 'src-tauri/gen/android/app/build.gradle.kts'
           with open(path) as f:
@@ -308,17 +325,17 @@ jobs:
       - name: Build Android APK
         env:
           KEYSTORE_PATH: ${{ env.KEYSTORE_PATH }}
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ env.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
         run: npx --prefix frontend tauri android build --apk
 
       - name: Build Android AAB
         env:
           KEYSTORE_PATH: ${{ env.KEYSTORE_PATH }}
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ env.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
         run: npx --prefix frontend tauri android build --aab
 
       - name: Prepare artifacts
