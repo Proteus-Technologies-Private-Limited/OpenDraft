@@ -182,6 +182,14 @@ export interface BeatColumn {
   width: number; // pixels, 0 = auto/fill
 }
 
+export interface BeatLinkPreview {
+  url: string;
+  title: string;
+  description: string;
+  image: string;
+  siteName: string;
+}
+
 export interface BeatInfo {
   id: string;
   title: string;
@@ -195,6 +203,7 @@ export interface BeatInfo {
   x: number;           // custom-arrange: absolute X position on canvas
   y: number;           // custom-arrange: absolute Y position on canvas
   imageHeight: number; // pixels, 0 = default (140px)
+  linkPreviews?: BeatLinkPreview[]; // cached link preview metadata
 }
 
 export type BeatArrangeMode = 'auto' | 'custom';

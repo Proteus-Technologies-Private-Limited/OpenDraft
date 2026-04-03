@@ -14,6 +14,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+export interface LinkPreview {
+  url: string;
+  title: string;
+  description: string;
+  image: string;
+  site_name: string;
+}
+
 export interface ProjectProperties {
   genre: string;
   logline: string;
@@ -226,6 +234,13 @@ export const api = {
 
   getAssetUrl: (projectId: string, assetId: string, _filename?: string): string => {
     return `${API_BASE.replace(/\/api$/, '')}/api/projects/${projectId}/assets/${assetId}`;
+  },
+
+  fetchLinkPreview: async (url: string): Promise<LinkPreview> => {
+    return request<LinkPreview>('/link/preview', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    });
   },
 };
 
