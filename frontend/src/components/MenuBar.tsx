@@ -720,8 +720,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.6.2</div>
+              <div className="about-section-title">What's New in 0.6.3</div>
               <ul className="about-list">
+                <li><strong>Windows: Fix Antivirus Blocking</strong> — Switched to onedir bundling so DLLs stay in the install directory instead of being extracted to temp where antivirus blocks them.</li>
                 <li><strong>Windows: Better Error Diagnostics</strong> — Improved backend startup error messages with crash detection, stderr capture, and actionable troubleshooting steps.</li>
                 <li><strong>Splash Screen</strong> — Fixed "OPEN DRAFT" text spacing for better readability.</li>
               </ul>
