@@ -75,5 +75,47 @@ Promotion materials (blog posts, articles, social media content) go in `Promotio
 See `docs/RELEASE.md` for the full checklist. Key points:
 - Use `./release.sh X.Y.Z` to automate the full release
 - macOS `.dmg` is built locally with signing + notarization, then uploaded to GitHub Release via `gh`
-- GitHub Actions builds Windows + Linux only
+- GitHub Actions builds Windows, Linux, **and Android** (APK + AAB)
 - Update "What's New" content in MenuBar.tsx and user-manual before releasing
+
+---
+
+## Android Build
+
+The Android `.apk` and `.aab` are built via **GitHub Actions** (in `.github/workflows/release.yml`, the `build-android` job). There is no local Android build — the CI runner provides the SDK, NDK, and Rust cross-compilation targets.
+
+### How it works
+
+1. CI runs `tauri android init` to generate the Gradle project (since `src-tauri/gen/` is gitignored)
+2. Patches `tauri.conf.json` to remove `externalBin` (no Python sidecar on Android — the app uses local SQLite)
+3. If signing secrets are configured, patches `build.gradle.kts` with release signing config
+4. Builds both `.apk` (sideloadable) and `.aab` (Play Store)
+5. Uploads renamed artifacts (`OpenDraft_X.Y.Z_android.apk/aab`) to the GitHub Release
+
+### GitHub Secrets for Android signing
+
+For unsigned builds (testing), no secrets are needed. For signed/production builds, add these repository secrets:
+
+| Secret | Description |
+|--------|-------------|
+| `ANDROID_KEYSTORE_BASE64` | Base64-encoded release keystore (`base64 -i release.keystore`) |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_ALIAS` | Key alias (e.g., `opendraft`) |
+| `ANDROID_KEY_PASSWORD` | Key password |
+
+### Generate a keystore (one-time)
+
+```bash
+keytool -genkey -v -keystore opendraft-release.keystore \
+  -alias opendraft -keyalg RSA -keysize 2048 -validity 10000 \
+  -dname "CN=OpenDraft, O=Proteus Technologies"
+base64 -i opendraft-release.keystore | pbcopy  # copy to clipboard for GitHub secret
+```
+
+### Local Android development (optional)
+
+Requires Android Studio (or SDK command-line tools), NDK 27, and Rust Android targets:
+```bash
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+cd frontend && npx tauri android init && npx tauri android build --apk
+```

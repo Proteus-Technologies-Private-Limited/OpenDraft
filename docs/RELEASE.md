@@ -27,6 +27,7 @@ The `release.sh` script handles the entire process — version bumps, commit, lo
 - GitHub CLI (`gh`) installed and authenticated
 - Rust, Node.js, Python 3.12 in your environment
 - Apple Developer certificates configured for code signing
+- Windows code signing certificate configured in GitHub secrets (optional, see [WINDOWS_SIGNING.md](WINDOWS_SIGNING.md))
 - No uncommitted changes in the working tree
 
 ---
