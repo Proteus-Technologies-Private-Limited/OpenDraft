@@ -151,11 +151,10 @@
       </a>
     </div>
 
-    <h2 id="whats-new">What's New in v0.6.6</h2>
+    <h2 id="whats-new">What's New in v0.6.7</h2>
     <ul>
-      <li><strong>Windows: Fix DLL Loading Crash</strong> &mdash; Fixed "failed to load python dll" error when reopening the app after the first launch</li>
-      <li><strong>Welcome Screen</strong> &mdash; New start options: Blank Document, Sample Script, or Import File directly from the welcome dialog</li>
-      <li><strong>Android: Custom App Icons</strong> &mdash; Added proper OpenDraft icons for the Android build</li>
+      <li><strong>Windows: Fix DLL Loading on Relaunch</strong> &mdash; Sidecar now runs from AppData instead of Program Files, eliminating the &ldquo;failed to load python dll&rdquo; error caused by Windows Defender blocking DLLs for non-elevated processes</li>
+      <li><strong>Windows: Proper Defender Exclusions</strong> &mdash; Installer now uses the official PowerShell API for Defender exclusions instead of direct registry writes that Tamper Protection blocks</li>
     </ul>
 
     <!-- Page Nav -->

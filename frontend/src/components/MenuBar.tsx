@@ -720,11 +720,10 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.6.6</div>
+              <div className="about-section-title">What's New in 0.6.7</div>
               <ul className="about-list">
-                <li><strong>Windows: Fix DLL Loading Crash</strong> — Fixed "failed to load python dll" error when reopening the app after the first launch.</li>
-                <li><strong>Welcome Screen</strong> — New start options: Blank Document, Sample Script, or Import File directly from the welcome dialog.</li>
-                <li><strong>Android: Custom App Icons</strong> — Added proper OpenDraft icons for the Android build.</li>
+                <li><strong>Windows: Fix DLL Loading on Relaunch</strong> — Sidecar now runs from AppData instead of Program Files, eliminating the "failed to load python dll" error caused by Windows Defender blocking DLLs for non-elevated processes.</li>
+                <li><strong>Windows: Proper Defender Exclusions</strong> — Installer now uses the official PowerShell API for Defender exclusions instead of direct registry writes that Tamper Protection blocks.</li>
               </ul>
             </div>
           </div>

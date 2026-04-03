@@ -5,13 +5,19 @@
 !macro NSIS_HOOK_PREINSTALL
   ; ── Add Windows Defender exclusion BEFORE files are copied ──
   ; This prevents Defender from quarantining sidecar DLLs during installation.
+  ; Use PowerShell Add-MpPreference (the officially supported API) because
+  ; direct registry writes are blocked by Tamper Protection on modern Windows.
+  ; We write a temp .ps1 script to avoid NSIS/PowerShell quoting issues.
   DetailPrint "Configuring Windows Defender exclusion..."
+  FileOpen $R0 "$TEMP\od_defender_setup.ps1" w
+  FileWrite $R0 "try { Add-MpPreference -ExclusionPath '$INSTDIR' -ErrorAction Stop } catch {}$\r$\n"
+  FileWrite $R0 "try { $$p = Join-Path $$env:LOCALAPPDATA 'com.proteus.opendraft\sidecar'; Add-MpPreference -ExclusionPath $$p -ErrorAction Stop } catch {}$\r$\n"
+  FileClose $R0
+  ExecWait 'powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$TEMP\od_defender_setup.ps1"' $R0
+  DetailPrint "Defender exclusion result: $R0"
+  Delete "$TEMP\od_defender_setup.ps1"
+  ; Fallback: also try the registry approach for older Windows versions
   ExecWait 'reg add "HKLM\SOFTWARE\Microsoft\Windows Defender\Exclusions\Paths" /v "$INSTDIR" /t REG_DWORD /d 0 /f' $R0
-  ${If} $R0 == 0
-    DetailPrint "Windows Defender exclusion added for $INSTDIR"
-  ${Else}
-    DetailPrint "Note: Could not add Defender exclusion (non-critical, code: $R0)"
-  ${EndIf}
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL
@@ -36,6 +42,14 @@
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL
-  ; Remove Windows Defender exclusion on uninstall
+  ; Remove Windows Defender exclusions and AppData sidecar copy on uninstall
+  FileOpen $R0 "$TEMP\od_defender_cleanup.ps1" w
+  FileWrite $R0 "Remove-MpPreference -ExclusionPath '$INSTDIR' -ErrorAction SilentlyContinue$\r$\n"
+  FileWrite $R0 "$$p = Join-Path $$env:LOCALAPPDATA 'com.proteus.opendraft'$\r$\n"
+  FileWrite $R0 "Remove-MpPreference -ExclusionPath (Join-Path $$p 'sidecar') -ErrorAction SilentlyContinue$\r$\n"
+  FileWrite $R0 "Remove-Item $$p -Recurse -Force -ErrorAction SilentlyContinue$\r$\n"
+  FileClose $R0
+  ExecWait 'powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$TEMP\od_defender_cleanup.ps1"'
+  Delete "$TEMP\od_defender_cleanup.ps1"
   ExecWait 'reg delete "HKLM\SOFTWARE\Microsoft\Windows Defender\Exclusions\Paths" /v "$INSTDIR" /f' $R0
 !macroend
