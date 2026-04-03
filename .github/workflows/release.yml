@@ -92,23 +92,27 @@ jobs:
           cp backend/dist/opendraft-api "src-tauri/binaries/opendraft-api-${{ matrix.target }}"
           chmod +x "src-tauri/binaries/opendraft-api-${{ matrix.target }}"
 
-      - name: Install sidecar binary (Windows)
+      - name: Install sidecar directory (Windows)
         if: matrix.platform == 'windows-latest'
         shell: bash
         run: |
-          mkdir -p src-tauri/binaries
-          cp backend/dist/opendraft-api.exe "src-tauri/binaries/opendraft-api-${{ matrix.target }}.exe"
+          mkdir -p src-tauri/sidecar
+          cp -r backend/dist/opendraft-api/* src-tauri/sidecar/
 
       - name: Patch tauri.conf.json for CI
         shell: bash
         run: |
           cd src-tauri
           python -c "
-          import json
+          import json, sys
           with open('tauri.conf.json') as f:
               cfg = json.load(f)
           cfg['build']['beforeBuildCommand'] = ''
           cfg['build']['beforeDevCommand'] = ''
+          # Windows: switch from externalBin (onefile) to resources (onedir)
+          if sys.platform == 'win32':
+              cfg['bundle'].pop('externalBin', None)
+              cfg['bundle']['resources'] = ['sidecar/*', 'sidecar/**/*']
           with open('tauri.conf.json', 'w') as f:
               json.dump(cfg, f, indent=2)
           "
