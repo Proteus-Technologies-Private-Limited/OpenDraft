@@ -14,6 +14,7 @@ import { useEditorStore } from '../stores/editorStore';
 const SYNC_KEYS = [
   'characterProfiles',
   'notes',
+  'generalNotes',
   'tags',
   'tagCategories',
   'beats',
@@ -45,6 +46,7 @@ export function startCollabSync(ydoc: Y.Doc, isHost: boolean): void {
     ydoc.transact(() => {
       metaMap!.set('characterProfiles', JSON.stringify(store.characterProfiles));
       metaMap!.set('notes', JSON.stringify(store.notes));
+      metaMap!.set('generalNotes', JSON.stringify(store.generalNotes));
       metaMap!.set('tags', JSON.stringify(store.tags));
       metaMap!.set('tagCategories', JSON.stringify(store.tagCategories));
       metaMap!.set('beats', JSON.stringify(store.beats));
@@ -101,6 +103,7 @@ function takeSnapshot(): Record<SyncKey, string> {
   return {
     characterProfiles: JSON.stringify(s.characterProfiles),
     notes: JSON.stringify(s.notes),
+    generalNotes: JSON.stringify(s.generalNotes),
     tags: JSON.stringify(s.tags),
     tagCategories: JSON.stringify(s.tagCategories),
     beats: JSON.stringify(s.beats),
@@ -127,6 +130,11 @@ function applyYjsToStore() {
     const n = metaMap.get('notes');
     if (n) {
       try { store.setNotes(JSON.parse(n)); } catch { /* ignore */ }
+    }
+
+    const gn = metaMap.get('generalNotes');
+    if (gn) {
+      try { store.setGeneralNotes(JSON.parse(gn)); } catch { /* ignore */ }
     }
 
     const t = metaMap.get('tags');

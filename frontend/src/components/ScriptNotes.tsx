@@ -8,6 +8,7 @@ import {
   type NoteColor,
   type ElementType,
   type NoteFilter,
+  type GeneralNote,
 } from '../stores/editorStore';
 import { useAssetStore, type Asset } from '../stores/assetStore';
 import { useProjectStore } from '../stores/projectStore';
@@ -136,6 +137,8 @@ const NoteContentDisplay: React.FC<{
   return <div className="note-content-rendered">{elements}</div>;
 };
 
+type NotesTab = 'script' | 'general';
+
 const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
   const {
     notes,
@@ -146,14 +149,24 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
     toggleScriptNotes,
     noteFilter,
     setNoteFilter,
+    generalNotes,
+    addGeneralNote,
+    updateGeneralNote,
+    deleteGeneralNote,
   } = useEditorStore();
 
   const { assets } = useAssetStore();
   const { currentProject } = useProjectStore();
   const projectId = currentProject?.id ?? null;
 
+  // Tab state: script notes vs general notes
+  const [activeTab, setActiveTab] = useState<NotesTab>('script');
+
   // Track which note is being edited (shows textarea), null = preview mode for all
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+
+  // Track which general note is being edited
+  const [editingGeneralNoteId, setEditingGeneralNoteId] = useState<string | null>(null);
 
   // @asset autocomplete state
   const [assetQuery, setAssetQuery] = useState<string | null>(null);
@@ -251,6 +264,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
   );
 
   const [pendingDeleteNoteId, setPendingDeleteNoteId] = useState<string | null>(null);
+  const [pendingDeleteGeneralNoteId, setPendingDeleteGeneralNoteId] = useState<string | null>(null);
 
   const handleDeleteRequest = useCallback((id: string) => {
     setPendingDeleteNoteId(id);
@@ -341,6 +355,26 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
     },
     [editor],
   );
+
+  // ── General notes handlers ──
+  const handleAddGeneralNote = useCallback(() => {
+    const id = addGeneralNote({ title: '', content: '', color: 'Yellow' as NoteColor });
+    setEditingGeneralNoteId(id);
+  }, [addGeneralNote]);
+
+  const handleDeleteGeneralNoteConfirm = useCallback(() => {
+    if (!pendingDeleteGeneralNoteId) return;
+    deleteGeneralNote(pendingDeleteGeneralNoteId);
+    setPendingDeleteGeneralNoteId(null);
+    if (editingGeneralNoteId === pendingDeleteGeneralNoteId) setEditingGeneralNoteId(null);
+  }, [deleteGeneralNote, pendingDeleteGeneralNoteId, editingGeneralNoteId]);
+
+  // When external filter opens panel to a specific script note, switch to script tab
+  useEffect(() => {
+    if (noteFilter.noteId || noteFilter.elementType || noteFilter.contextLabel || noteFilter.color) {
+      setActiveTab('script');
+    }
+  }, [noteFilter]);
 
   /** Handle @asset autocomplete inside textarea */
   const handleTextareaChange = useCallback(
@@ -445,15 +479,29 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
   return (
     <div ref={panelRef} className={`script-notes-panel ${panelClass}`} style={style}>
       <div className="script-notes-header">
-        <span className="script-notes-title">Script Notes</span>
-        <span className="script-notes-count">
-          {isFiltered ? `${filteredNotes.length}/` : ''}{notes.length}
-        </span>
+        <span className="script-notes-title">Notes</span>
         <button className="script-notes-close" onClick={toggleScriptNotes} title="Close">
           &times;
         </button>
       </div>
 
+      {/* ── Tab switcher ── */}
+      <div className="sn-tabs">
+        <button
+          className={`sn-tab${activeTab === 'general' ? ' active' : ''}`}
+          onClick={() => setActiveTab('general')}
+        >
+          General{generalNotes.length > 0 ? ` (${generalNotes.length})` : ''}
+        </button>
+        <button
+          className={`sn-tab${activeTab === 'script' ? ' active' : ''}`}
+          onClick={() => setActiveTab('script')}
+        >
+          Script{notes.length > 0 ? ` (${isFiltered ? `${filteredNotes.length}/` : ''}${notes.length})` : ''}
+        </button>
+      </div>
+
+      {activeTab === 'script' && <>
       {/* ── Multi-dimensional filter bar ── */}
       <div className="script-notes-filters">
         {/* Active filter summary + clear */}
@@ -709,6 +757,105 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
             </div>
           </div>
         </div>
+      )}
+      </>}
+
+      {/* ── General Notes tab ── */}
+      {activeTab === 'general' && (
+        <>
+          <div className="general-notes-toolbar">
+            <button className="general-notes-add-btn" onClick={handleAddGeneralNote}>+ Add Note</button>
+          </div>
+          <div className="script-notes-list">
+            {generalNotes.length === 0 ? (
+              <div className="script-notes-empty">
+                No general notes yet. Click &ldquo;+ Add Note&rdquo; to create one.
+              </div>
+            ) : (
+              generalNotes.map((gn) => {
+                const hex = getNoteColorHex(gn.color);
+                const isEditing = editingGeneralNoteId === gn.id;
+                return (
+                  <div key={gn.id} className="note-item" style={{ borderLeftColor: hex }}>
+                    <div className="note-item-header">
+                      <span className="note-item-date">{formatDate(gn.createdAt)}</span>
+                    </div>
+                    {isEditing ? (
+                      <>
+                        <input
+                          className="general-note-title-input"
+                          value={gn.title}
+                          onChange={(e) => updateGeneralNote(gn.id, { title: e.target.value })}
+                          placeholder="Note title..."
+                          autoFocus
+                        />
+                        <textarea
+                          className="note-item-content"
+                          value={gn.content}
+                          onChange={(e) => updateGeneralNote(gn.id, { content: e.target.value })}
+                          onBlur={() => setTimeout(() => setEditingGeneralNoteId(null), 200)}
+                          placeholder="Write your note..."
+                          rows={4}
+                        />
+                      </>
+                    ) : (
+                      <div
+                        className="note-item-preview"
+                        onClick={() => setEditingGeneralNoteId(gn.id)}
+                        title="Click to edit"
+                      >
+                        {gn.title && <div className="general-note-title">{gn.title}</div>}
+                        {gn.content ? (
+                          <NoteContentDisplay content={gn.content} assets={assets} projectId={projectId} />
+                        ) : (
+                          <span className="note-item-placeholder">
+                            {gn.title ? '' : 'Click to add note...'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <div className="note-item-actions">
+                      <div className="note-item-colors">
+                        {NOTE_COLORS.map((c) => (
+                          <button
+                            key={c.name}
+                            className={`note-color-dot${gn.color === c.name ? ' active' : ''}`}
+                            style={{ background: c.hex }}
+                            onClick={() => updateGeneralNote(gn.id, { color: c.name })}
+                            title={c.name}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        className="note-item-delete"
+                        onClick={() => setPendingDeleteGeneralNoteId(gn.id)}
+                        title="Delete note"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          {pendingDeleteGeneralNoteId && (
+            <div className="dialog-overlay" onClick={() => setPendingDeleteGeneralNoteId(null)}>
+              <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
+                <div className="dialog-header">Delete Note</div>
+                <div className="dialog-body">
+                  <p style={{ margin: 0 }}>Delete this general note?</p>
+                </div>
+                <div className="dialog-actions">
+                  <button onClick={() => setPendingDeleteGeneralNoteId(null)}>Cancel</button>
+                  <button className="dialog-primary" style={{ background: '#c0392b' }} onClick={handleDeleteGeneralNoteConfirm}>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

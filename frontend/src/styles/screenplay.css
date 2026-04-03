@@ -2162,6 +2162,78 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .script-notes-close:hover {
   color: var(--fd-text);
 }
+/* ── Tab switcher ── */
+.sn-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--fd-border);
+  flex-shrink: 0;
+}
+.sn-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--fd-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.sn-tab:hover {
+  color: var(--fd-text);
+}
+.sn-tab.active {
+  color: var(--fd-accent);
+  border-bottom-color: var(--fd-accent);
+}
+/* ── General notes toolbar ── */
+.general-notes-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--fd-border);
+  flex-shrink: 0;
+}
+.general-notes-add-btn {
+  background: transparent;
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  color: var(--fd-text-muted);
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.general-notes-add-btn:hover {
+  border-color: var(--fd-accent);
+  color: var(--fd-accent);
+}
+/* ── General note title ── */
+.general-note-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--fd-text);
+  margin-bottom: 4px;
+}
+.general-note-title-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--fd-border);
+  color: var(--fd-text);
+  font-weight: 600;
+  font-size: 13px;
+  outline: none;
+  padding: 4px 0;
+  margin-bottom: 6px;
+}
+.general-note-title-input:focus {
+  border-bottom-color: var(--fd-accent);
+}
+.general-note-title-input::placeholder {
+  color: var(--fd-text-muted);
+}
 /* ── Multi-dimensional filter bar ── */
 .script-notes-filters {
   border-bottom: 1px solid var(--fd-border);
