@@ -8,7 +8,6 @@ import {
   type NoteColor,
   type ElementType,
   type NoteFilter,
-  type GeneralNote,
 } from '../stores/editorStore';
 import { useAssetStore, type Asset } from '../stores/assetStore';
 import { useProjectStore } from '../stores/projectStore';
