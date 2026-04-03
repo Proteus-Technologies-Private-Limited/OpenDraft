@@ -26,6 +26,18 @@ If no certificate is configured, builds proceed unsigned (current default behavi
 
 ---
 
+## Automated prerequisites
+
+The Windows installer automatically handles common issues that previously required manual intervention:
+
+1. **Windows Defender exclusion** — added to the install directory *before* files are copied, preventing Defender from quarantining sidecar DLLs during installation
+2. **Visual C++ Redistributable** — checked and silently installed if missing (Python 3.12 requires VC++ 2015-2022 runtime)
+3. **Per-machine install** — installs to `C:\Program Files\OpenDraft\` (elevated), which is less likely to be flagged by security software than user-profile directories
+
+These are implemented via NSIS installer hooks (`src-tauri/nsis-hooks.nsh`) and the `perMachine` install mode in `tauri.conf.json`.
+
+---
+
 ## Getting a free certificate
 
 ### Option 1: SignPath Foundation (recommended for open-source)
