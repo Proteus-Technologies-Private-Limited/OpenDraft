@@ -6310,12 +6310,21 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 
 /* ============ RESPONSIVE ============ */
 
-/* Safe area insets for notched devices */
+/* Safe area insets for notched devices / Android system bars */
 @supports (padding: env(safe-area-inset-top)) {
   .app-container {
     padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+  }
+  .project-list-page {
+    padding-top: calc(40px + env(safe-area-inset-top));
+    padding-bottom: calc(40px + env(safe-area-inset-bottom));
+  }
+  .project-view {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
