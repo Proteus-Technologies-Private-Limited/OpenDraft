@@ -29,10 +29,9 @@ const ELEMENT_ORDER: Record<string, ElementType[]> = {
 
 interface MobileAccessoryBarProps {
   editor: Editor;
-  onOpenContextMenu: (position: { x: number; y: number }, savedSelection?: { from: number; to: number }) => void;
 }
 
-const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor, onOpenContextMenu }) => {
+const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
   const [bottom, setBottom] = useState(0);
   const [visible, setVisible] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -42,7 +41,6 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor, onOpenC
   const {
     scriptNotesOpen, toggleScriptNotes, addNote, setNoteFilter,
     tagsPanelOpen, toggleTagsPanel, setPendingTagSelection,
-    contextMenuEnabled,
   } = useEditorStore();
 
   // Track current element type at cursor
@@ -183,15 +181,6 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor, onOpenC
     if (!tagsPanelOpen) toggleTagsPanel();
   }, [editor, setPendingTagSelection, tagsPanelOpen, toggleTagsPanel]);
 
-  const handleMore = useCallback(() => {
-    const { from, to } = editor.state.selection;
-    // Position the context menu at center-top of viewport
-    const x = window.innerWidth / 2;
-    const y = 80;
-    const savedSel = from !== to ? { from, to } : undefined;
-    onOpenContextMenu({ x, y }, savedSel);
-  }, [editor, onOpenContextMenu]);
-
   if (!visible) return null;
 
   const orderedTypes = ELEMENT_ORDER[currentElement] || ELEMENT_TYPES;
@@ -267,20 +256,7 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor, onOpenC
           </svg>
         </button>
 
-        {/* More (...) — opens full context menu (only if enabled in View) */}
-        {contextMenuEnabled && (
-          <button
-            className="mob-acc-btn"
-            onPointerDown={(e) => { e.preventDefault(); handleMore(); }}
-            title="More"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="5" cy="12" r="2" />
-              <circle cx="12" cy="12" r="2" />
-              <circle cx="19" cy="12" r="2" />
-            </svg>
-          </button>
-        )}
+        {/* Context menu accessible via 3-finger touch on mobile */}
       </div>
     </>
   );
