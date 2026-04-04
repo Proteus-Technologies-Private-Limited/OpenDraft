@@ -9,6 +9,13 @@ async function init() {
   const savedTheme = localStorage.getItem('opendraft:theme') || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
 
+  // Android needs viewport-fit=cover and explicit safe-area padding
+  if (/android/i.test(navigator.userAgent)) {
+    document.documentElement.classList.add('android');
+    const vp = document.querySelector('meta[name="viewport"]');
+    if (vp) vp.setAttribute('content', vp.getAttribute('content') + ', viewport-fit=cover');
+  }
+
   // On Tauri (desktop + mobile) this swaps the HTTP api with local SQLite.
   // On web it is a no-op — the Python backend is used as-is.
   await initStorage();
