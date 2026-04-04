@@ -114,17 +114,32 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
     }
   };
 
-  const copyLink = (token: string) => {
+  const copyLink = async (token: string) => {
     // Build invite link from the collab server URL in Settings.
     // The guest will open this on the collab server (which may be on a different
     // machine than the frontend/backend).
     const collabWs = useSettingsStore.getState().collabServerUrl;
     const collabHttp = collabWs.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
     const link = `${collabHttp}/collab/${token}`;
-    navigator.clipboard.writeText(link).then(() => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(link);
+      } else {
+        // Fallback for non-secure contexts (HTTP)
+        const textarea = document.createElement('textarea');
+        textarea.value = link;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
       setCopiedToken(token);
       setTimeout(() => setCopiedToken(null), 2000);
-    });
+    } catch {
+      showToast('Failed to copy link to clipboard', 'error');
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

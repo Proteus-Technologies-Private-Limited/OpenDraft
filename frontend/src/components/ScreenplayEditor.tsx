@@ -193,7 +193,7 @@ const ScreenplayEditor: React.FC = () => {
     spellCheckEnabled, setDocumentTitle,
   } = useEditorStore();
 
-  const { currentProject, currentScriptId, setCurrentProject, setCurrentScriptId } = useProjectStore();
+  const { currentProject, currentScriptId, setCurrentProject, setCurrentScriptId, scriptReloadKey } = useProjectStore();
 
   // ── Collaboration state ──
   const [collabMode, setCollabMode] = useState(false);
@@ -1394,6 +1394,12 @@ const ScreenplayEditor: React.FC = () => {
       loadedScriptRef.current = null;
     }
   }, [editor, collabMode]);
+  // Reset load guard when a version is restored so the editor refetches the content
+  useEffect(() => {
+    if (scriptReloadKey > 0) {
+      loadedScriptRef.current = null;
+    }
+  }, [scriptReloadKey]);
   useEffect(() => {
     if (!editor || !urlProjectId || !urlScriptId) return;
     const loadKey = `${urlProjectId}/${urlScriptId}${urlCommitHash ? `@${urlCommitHash}` : ''}`;
@@ -1507,7 +1513,7 @@ const ScreenplayEditor: React.FC = () => {
         showToast(`Failed to load script: ${err instanceof Error ? err.message : String(err)}`, 'error');
       }
     })();
-  }, [editor, urlProjectId, urlScriptId, urlCommitHash, isHistoryMode, collabMode, collabUserName, currentScriptId, switchCollabDocument, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes]);
+  }, [editor, urlProjectId, urlScriptId, urlCommitHash, isHistoryMode, collabMode, collabUserName, currentScriptId, switchCollabDocument, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes, scriptReloadKey]);
 
   // --- Sync orphaned marks: runs ONCE after editor is ready, not on every doc change ---
   const orphanSyncDone = useRef(false);

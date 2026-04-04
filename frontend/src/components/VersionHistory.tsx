@@ -24,7 +24,7 @@ function relativeTime(dateStr: string): string {
 
 const VersionHistory: React.FC = () => {
   const navigate = useNavigate();
-  const { currentProject, currentScriptId, versions, setVersions, versionHistoryOpen, setVersionHistoryOpen } =
+  const { currentProject, currentScriptId, versions, setVersions, versionHistoryOpen, setVersionHistoryOpen, triggerScriptReload } =
     useProjectStore();
 
   const [selectedVersion, setSelectedVersion] = useState<VersionInfo | null>(null);
@@ -94,6 +94,7 @@ const VersionHistory: React.FC = () => {
         await loadVersions();
         setSelectedVersion(null);
         setDiffText(null);
+        triggerScriptReload();
         showToast(`Restored to version ${version.short_hash}`, 'success');
       } catch (err) {
         showToast(`Restore failed: ${err instanceof Error ? err.message : 'unknown error'}`, 'error');
