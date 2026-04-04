@@ -1510,10 +1510,17 @@ const ScreenplayEditor: React.FC = () => {
         requestAnimationFrame(() => updateScenes());
       } catch (err) {
         console.error('Failed to load script:', err);
-        showToast(`Failed to load script: ${err instanceof Error ? err.message : String(err)}`, 'error');
+        const errMsg = err instanceof Error ? err.message : String(err);
+        // If the script doesn't exist (404), redirect to the project view
+        if (errMsg.includes('404') && urlProjectId) {
+          showToast('Script not found. It may have been removed by a version restore.', 'error');
+          navigate(`/project/${urlProjectId}`, { replace: true });
+        } else {
+          showToast(`Failed to load script: ${errMsg}`, 'error');
+        }
       }
     })();
-  }, [editor, urlProjectId, urlScriptId, urlCommitHash, isHistoryMode, collabMode, collabUserName, currentScriptId, switchCollabDocument, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes, scriptReloadKey]);
+  }, [editor, urlProjectId, urlScriptId, urlCommitHash, isHistoryMode, collabMode, collabUserName, currentScriptId, switchCollabDocument, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes, scriptReloadKey, navigate]);
 
   // --- Sync orphaned marks: runs ONCE after editor is ready, not on every doc change ---
   const orphanSyncDone = useRef(false);
