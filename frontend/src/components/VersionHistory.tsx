@@ -94,13 +94,29 @@ const VersionHistory: React.FC = () => {
         await loadVersions();
         setSelectedVersion(null);
         setDiffText(null);
-        triggerScriptReload();
+
+        // Check if the current script still exists after restore
+        if (currentScriptId) {
+          try {
+            await api.getScript(currentProject.id, currentScriptId);
+            // Script still exists — reload it in the editor
+            triggerScriptReload();
+          } catch {
+            // Script was removed by the restore — go to project view
+            setVersionHistoryOpen(false);
+            navigate(`/project/${currentProject.id}`, { replace: true });
+            showToast(`Restored to version ${version.short_hash}. The open script no longer exists in this version.`, 'info');
+            return;
+          }
+        } else {
+          triggerScriptReload();
+        }
         showToast(`Restored to version ${version.short_hash}`, 'success');
       } catch (err) {
         showToast(`Restore failed: ${err instanceof Error ? err.message : 'unknown error'}`, 'error');
       }
     },
-    [currentProject, restoreConfirm, loadVersions]
+    [currentProject, currentScriptId, restoreConfirm, loadVersions, navigate, setVersionHistoryOpen, triggerScriptReload]
   );
 
   if (!versionHistoryOpen) return null;
