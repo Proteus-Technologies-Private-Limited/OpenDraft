@@ -3,14 +3,13 @@
 ## Architecture
 
 The desktop app uses **Tauri 2** to wrap the web application in a native window.
-The FastAPI backend is compiled into a standalone binary using **PyInstaller** and
-bundled as a Tauri "sidecar" process.
+All data is stored locally in a **SQLite database** — no backend process is needed.
 
 ```
 Tauri Native Window
 ├── Frontend (served from Tauri's built-in asset protocol)
-├── Backend Sidecar (PyInstaller binary on localhost:18321)
-└── On exit → sidecar is killed automatically
+├── Local SQLite database (opendraft.db)
+└── Collaboration via remote WebSocket server (optional)
 ```
 
 User data is stored in the platform-specific app data directory:
@@ -22,8 +21,6 @@ User data is stored in the platform-specific app data directory:
 
 - **Node.js** >= 18
 - **Rust** (install via https://rustup.rs)
-- **Python 3.12** with venv
-- **PyInstaller** (installed automatically by the build script)
 
 ### macOS additional requirements:
 - Xcode Command Line Tools: `xcode-select --install`
@@ -41,12 +38,9 @@ User data is stored in the platform-specific app data directory:
 ./build-desktop.sh
 ```
 
-This runs all 5 steps automatically:
-1. Builds the frontend with the Tauri API base URL
-2. Copies frontend dist to `backend/static/`
-3. Builds the backend sidecar with PyInstaller
-4. Copies the sidecar binary to `src-tauri/binaries/`
-5. Builds the Tauri desktop app
+This runs 2 steps:
+1. Builds the frontend
+2. Builds the Tauri desktop app (with signing + notarization on macOS)
 
 The final installer can be found in `src-tauri/target/release/bundle/`.
 
@@ -56,33 +50,10 @@ The final installer can be found in `src-tauri/target/release/bundle/`.
 
 ```bash
 cd frontend
-VITE_API_BASE="http://localhost:18321/api" npm run build
+npm run build
 ```
 
-### 2. Copy frontend to backend static dir
-
-```bash
-rm -rf backend/static
-cp -r frontend/dist backend/static
-```
-
-### 3. Build backend sidecar
-
-```bash
-cd backend
-../venv/bin/pip install pyinstaller
-../venv/bin/pyinstaller --noconfirm --clean opendraft-api.spec
-```
-
-### 4. Copy sidecar binary
-
-```bash
-TARGET_TRIPLE=$(rustc -vV | grep '^host:' | awk '{print $2}')
-cp backend/dist/opendraft-api src-tauri/binaries/opendraft-api-$TARGET_TRIPLE
-chmod +x src-tauri/binaries/opendraft-api-$TARGET_TRIPLE
-```
-
-### 5. Build Tauri app
+### 2. Build Tauri app
 
 ```bash
 cd frontend
@@ -104,6 +75,5 @@ This generates all required icon sizes for macOS, Windows, and Linux.
 ## Development Notes
 
 - For day-to-day development, use the existing web workflow (`start_backend.sh` + `npm run dev`).
-- `cargo tauri dev` can launch the frontend in a native window but requires the backend to be running manually on port 8000.
-- The sidecar binary does NOT exist during development — only created by `build-desktop.sh`.
-- The frontend detects the API URL via the `VITE_API_BASE` environment variable, defaulting to `http://localhost:8000/api` for development.
+- `cargo tauri dev` launches the frontend in a native window with local SQLite storage.
+- The web version uses the Python backend over HTTP. The desktop app does not need it.

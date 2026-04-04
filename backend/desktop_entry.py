@@ -1,7 +1,8 @@
-"""Entry point for the PyInstaller-bundled desktop backend.
+"""DEPRECATED: Entry point for the old PyInstaller-bundled desktop sidecar.
 
-Launched by the Tauri shell as a sidecar process.  Accepts ``--port``
-to override the default listen port (18321).
+The desktop app now uses local SQLite storage instead of a Python backend
+sidecar. This file is retained only for reference. The web version uses
+``uvicorn app.main:app`` directly (see start_backend.sh).
 """
 
 import argparse

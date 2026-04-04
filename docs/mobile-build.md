@@ -31,38 +31,34 @@ Then launch the iOS dev build:
 xcrun simctl boot "iPhone 16 Pro"
 
 # Build and run on simulator
-# Note: --no-dev-server-wait skips waiting for the dev server
-# Note: -c overrides externalBin since the Python sidecar is not needed on mobile
 ./frontend/node_modules/.bin/tauri ios dev "iPhone 16 Pro" \
-  --no-dev-server-wait \
-  -c '{"bundle":{"externalBin":[]},"build":{"beforeDevCommand":""}}'
+  --no-dev-server-wait
 ```
 
 ## Architecture
 
-On mobile, the Python backend sidecar is not available. Instead:
+All Tauri platforms (desktop + mobile) use the same local storage approach:
 
 - **Storage**: Local SQLite database (`opendraft.db`) in the app's data directory
 - **Assets**: Stored as files in the app's data directory under `assets/{projectId}/`
-- **Versioning**: SQLite-based snapshots (replaces Git-based versioning on desktop)
+- **Versioning**: Delta-based SQLite commits (only changed scripts stored per version)
+- **Collaboration**: Via remote WebSocket server (configurable in Settings)
 
-The mobile storage layer (`mobile-storage.ts`) is dynamically imported only on mobile
-devices and is tree-shaken out of web and desktop builds.
+The local storage layer (`local-storage.ts`) is dynamically imported on all Tauri
+platforms and is tree-shaken out of web builds.
 
 ## Building for Release
 
 ```bash
-./frontend/node_modules/.bin/tauri ios build \
-  -c '{"bundle":{"externalBin":[]}}'
+./frontend/node_modules/.bin/tauri ios build
 ```
 
-## Android (future)
+## Android
 
 ```bash
 # Initialize Android target (requires Android Studio + NDK)
 ./frontend/node_modules/.bin/tauri android init
 
 # Run on emulator
-./frontend/node_modules/.bin/tauri android dev \
-  -c '{"bundle":{"externalBin":[]},"build":{"beforeDevCommand":""}}'
+./frontend/node_modules/.bin/tauri android dev
 ```

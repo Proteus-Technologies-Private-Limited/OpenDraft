@@ -32,7 +32,6 @@ test-script/output/
 # Tauri desktop build
 src-tauri/target/
 src-tauri/binaries/
-src-tauri/sidecar/
 src-tauri/gen/
 src-tauri/icons/icon1024.png
 

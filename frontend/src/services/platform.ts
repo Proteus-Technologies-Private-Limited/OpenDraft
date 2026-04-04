@@ -2,12 +2,12 @@
  * Platform detection utilities.
  *
  * Determines whether we are running as:
- *  - a plain web app in the browser,
+ *  - a plain web app in the browser (uses Python backend over HTTP),
  *  - a Tauri desktop app (macOS / Windows / Linux), or
  *  - a Tauri mobile app (iOS / Android).
  *
- * On mobile Tauri the Python sidecar backend is unavailable, so the
- * frontend uses a local SQLite database for storage instead of HTTP.
+ * On all Tauri platforms (desktop + mobile) the app uses a local SQLite
+ * database for storage. The Python backend is only used by the web version.
  */
 
 /** True when running inside any Tauri WebView (desktop or mobile). */
@@ -22,7 +22,7 @@ export function isMobileTauri(): boolean {
   return /android/i.test(ua) || /iphone|ipad|ipod/i.test(ua);
 }
 
-/** True when running as a Tauri desktop app (has sidecar backend). */
+/** True when running as a Tauri desktop app (macOS / Windows / Linux). */
 export function isDesktopTauri(): boolean {
   return isTauri() && !isMobileTauri();
 }

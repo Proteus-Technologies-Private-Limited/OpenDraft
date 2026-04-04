@@ -554,7 +554,6 @@ const ScreenplayEditor: React.FC = () => {
         const backends = [
           API_BASE,
           `http://${collabHost}:8000/api`,
-          `http://${collabHost}:18321/api`,
         ].filter((v, i, a) => a.indexOf(v) === i);
 
         let project: any = null;
@@ -751,7 +750,6 @@ const ScreenplayEditor: React.FC = () => {
       const backends = [
         API_BASE,
         `http://${collabHost}:8000/api`,
-        `http://${collabHost}:18321/api`,
       ].filter((v, i, a) => a.indexOf(v) === i); // deduplicate
 
       let project: Record<string, unknown> | null = null;

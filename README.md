@@ -179,11 +179,11 @@ How does OpenDraft stack up against commercial screenwriting software?
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 19, TypeScript, Vite, TipTap editor |
-| Backend | Python 3.12, FastAPI, Uvicorn |
-| Desktop | Tauri 2 (Rust) with bundled Python backend |
+| Web Backend | Python 3.12, FastAPI, Uvicorn |
+| Desktop / Mobile | Tauri 2 (Rust) with local SQLite storage |
 | Collaboration | Hocuspocus WebSocket server, Yjs CRDT |
 | State Management | Zustand |
-| Version Control | Git (per-project, built-in) |
+| Version Control | Git (web), delta-based SQLite commits (desktop/mobile) |
 
 ---
 

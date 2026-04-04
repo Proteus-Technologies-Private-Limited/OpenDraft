@@ -57,10 +57,11 @@ function loadConfig(): ServerConfig {
   return {
     host: process.env.HOST || '0.0.0.0',
     port: parseInt(process.env.PORT || '4000', 10),
-    // Comma-separated list of backend URLs to try for token validation
-    // (supports both the dev server on 8000 and the Tauri sidecar on 18321)
+    // Backend URL for the web version's Python API (used for invite token
+    // validation fallback). Desktop/mobile apps create invites directly in
+    // the collab server's own database — no backend needed.
     backendUrl: process.env.BACKEND_URL || 'http://localhost:8000/api',
-    backendUrls: (process.env.BACKEND_URL || 'http://localhost:8000/api,http://localhost:18321/api')
+    backendUrls: (process.env.BACKEND_URL || 'http://localhost:8000/api')
       .split(',')
       .map(s => s.trim())
       .filter(Boolean),
@@ -80,7 +81,7 @@ function loadConfig(): ServerConfig {
     smtpFrom: process.env.SMTP_FROM || 'noreply@opendraft.app',
     rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || String(15 * 60 * 1000), 10),
     rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
-    corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000,http://localhost:8000,http://localhost:18321,tauri://localhost,https://tauri.localhost').split(',').map(s => s.trim()),
+    corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000,http://localhost:8000,tauri://localhost,https://tauri.localhost').split(',').map(s => s.trim()),
 
     // Database (default: sqlite)
     dbType: (process.env.DB_TYPE === 'postgresql' ? 'postgresql' : 'sqlite') as 'sqlite' | 'postgresql',

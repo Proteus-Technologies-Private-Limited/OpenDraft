@@ -42,7 +42,7 @@ The macOS `.dmg` is built **locally** — never via GitHub Actions. It must be p
 ### What the build does
 
 1. Loads Apple credentials from `.env` in project root
-2. Builds frontend, backend sidecar, and Tauri app
+2. Builds frontend and Tauri app (desktop uses local SQLite — no Python sidecar)
 3. Signs with **Developer ID Application** certificate (not "3rd Party Mac Developer" — that's for App Store only)
 4. Submits to Apple for **notarization** via `notarytool`
 5. **Staples** the notarization ticket to the `.dmg`
@@ -61,7 +61,6 @@ The macOS `.dmg` is built **locally** — never via GitHub Actions. It must be p
 
 - **Never skip signing/notarization** — unsigned `.dmg` files trigger "damaged and can't be opened" on user machines
 - **Never use `APPLE_SIGNING_IDENTITY="-"` for the final build** — that produces an unsigned app. It's only used as an intermediate step before re-signing
-- **Sign deepest binaries first** — sidecar before main binary before app bundle
 - The App Store build (`build-appstore.sh`) uses different certificates ("3rd Party Mac Developer"). Don't mix them up.
 
 ## Promotion & Articles
@@ -87,7 +86,7 @@ The Android `.apk` and `.aab` are built via **GitHub Actions** (in `.github/work
 ### How it works
 
 1. CI runs `tauri android init` to generate the Gradle project (since `src-tauri/gen/` is gitignored)
-2. Patches `tauri.conf.json` to remove `externalBin` (no Python sidecar on Android — the app uses local SQLite)
+2. Patches `tauri.conf.json` to clear build commands for CI
 3. If signing secrets are configured, patches `build.gradle.kts` with release signing config
 4. Builds both `.apk` (sideloadable) and `.aab` (Play Store)
 5. Uploads renamed artifacts (`OpenDraft_X.Y.Z_android.apk/aab`) to the GitHub Release

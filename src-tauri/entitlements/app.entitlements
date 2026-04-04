@@ -13,12 +13,8 @@
     <key>com.apple.developer.team-identifier</key>
     <string>335RGMFDB6</string>
 
-    <!-- Network: outbound to localhost sidecar -->
+    <!-- Network: outbound for collaboration server connection -->
     <key>com.apple.security.network.client</key>
-    <true/>
-
-    <!-- Network: sidecar listens on localhost:18321 -->
-    <key>com.apple.security.network.server</key>
     <true/>
 
     <!-- File access: open/save dialogs -->
