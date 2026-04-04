@@ -24,7 +24,8 @@ import { downloadFountain } from '../utils/fountainExporter';
 import { exportPDF } from '../utils/pdfExporter';
 import { downloadOdraft, parseOdraft } from '../utils/odraftFormat';
 import { exportProjectAsZip } from '../utils/zipExport';
-import { DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
+import { DEFAULT_PAGE_LAYOUT, useEditorStore } from '../stores/editorStore';
+import { useProjectStore } from '../stores/projectStore';
 import AssetManager from './AssetManager';
 import ProjectPropertiesDialog from './ProjectPropertiesDialog';
 import { showToast } from './Toast';
@@ -407,9 +408,6 @@ const ProjectView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('scripts');
   const [loading, setLoading] = useState(true);
 
-  const [showNewScript, setShowNewScript] = useState(false);
-  const [newScriptTitle, setNewScriptTitle] = useState('');
-  const [creatingScript, setCreatingScript] = useState(false);
   const [showProperties, setShowProperties] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState(false);
@@ -510,20 +508,24 @@ const ProjectView: React.FC = () => {
 
   // ── Handlers ──
 
-  const handleCreateScript = async () => {
-    if (!projectId || !newScriptTitle.trim()) return;
-    setCreatingScript(true);
-    try {
-      const resp = await api.createScript(projectId, {
-        title: newScriptTitle.trim(),
-      });
-      setShowNewScript(false);
-      setNewScriptTitle('');
-      navigate(`/project/${projectId}/edit/${resp.meta.id}`);
-    } catch {
-      // silently fail
-    }
-    setCreatingScript(false);
+  const handleCreateScript = () => {
+    if (!projectId || !project) return;
+    // Set project context but no script — Save will trigger Save As dialog
+    const projStore = useProjectStore.getState();
+    projStore.setCurrentProject(project);
+    projStore.setCurrentScriptId(null);
+    projStore.setScripts([]);
+    const edStore = useEditorStore.getState();
+    edStore.setDocumentTitle('Untitled Screenplay');
+    edStore.setBeats([]);
+    edStore.setBeatColumns([]);
+    edStore.setBeatArrangeMode('auto');
+    edStore.setNotes([]);
+    edStore.setTags([]);
+    edStore.setTagCategories([]);
+    edStore.setCharacterProfiles([]);
+    edStore.setScenes([]);
+    navigate('/');
   };
 
   const handleDeleteScript = (scriptId: string) => {
@@ -842,7 +844,7 @@ const ProjectView: React.FC = () => {
             <div className="project-scripts-actions">
               <button
                 className="project-action-btn"
-                onClick={() => setShowNewScript(true)}
+                onClick={handleCreateScript}
               >
                 + New Screenplay
               </button>
@@ -1047,44 +1049,6 @@ const ProjectView: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* New Script Dialog */}
-      {showNewScript && (
-        <div
-          className="dialog-overlay"
-          onClick={() => setShowNewScript(false)}
-        >
-          <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-header">New Screenplay</div>
-            <div className="dialog-body">
-              <div className="dialog-row">
-                <label>Screenplay Title:</label>
-                <input
-                  type="text"
-                  placeholder="Untitled Screenplay"
-                  value={newScriptTitle}
-                  onChange={(e) => setNewScriptTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleCreateScript();
-                    if (e.key === 'Escape') setShowNewScript(false);
-                  }}
-                  autoFocus
-                />
-              </div>
-            </div>
-            <div className="dialog-actions">
-              <button onClick={() => setShowNewScript(false)}>Cancel</button>
-              <button
-                className="dialog-primary"
-                onClick={handleCreateScript}
-                disabled={creatingScript || !newScriptTitle.trim()}
-              >
-                {creatingScript ? 'Creating...' : 'Create'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Delete Confirmation Dialog */}
       {pendingDeleteId && (

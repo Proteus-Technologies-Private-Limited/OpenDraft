@@ -313,12 +313,25 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
 
     const { name, content: text } = result;
     const ext = name.split('.').pop()?.toLowerCase();
+
+    // Clear previous document state before importing
+    clearTrackChanges();
+    const store = useEditorStore.getState();
+    store.setBeats([]);
+    store.setBeatColumns([]);
+    store.setBeatArrangeMode('auto');
+    store.setNotes([]);
+    store.setTags([]);
+    store.setTagCategories([]);
+    store.setCharacterProfiles([]);
+    store.setScenes([]);
+
     let doc;
     if (ext === 'fdx') {
       const parsed = parseFDXFull(text);
       doc = parsed.doc;
       if (parsed.pageLayout) {
-        useEditorStore.getState().setPageLayout({
+        store.setPageLayout({
           pageWidth: parsed.pageLayout.pageWidth,
           pageHeight: parsed.pageLayout.pageHeight,
           topMargin: parsed.pageLayout.topMargin,
@@ -331,7 +344,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       }
       // Import beats from Outline elements
       if (parsed.beats.length > 0) {
-        const store = useEditorStore.getState();
         store.setBeats(parsed.beats);
         if (parsed.beatColumns.length > 0) {
           store.setBeatColumns(parsed.beatColumns);
@@ -339,7 +351,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       }
       // Import character profiles from CastList + CharacterHighlighting
       if (parsed.castList.length > 0 || parsed.characterHighlighting.length > 0) {
-        const store = useEditorStore.getState();
         const highlightMap = new Map(parsed.characterHighlighting.map((h) => [h.name.toUpperCase(), h]));
         for (const member of parsed.castList) {
           const hl = highlightMap.get(member.name.toUpperCase());
@@ -352,10 +363,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         }
         // Remaining highlights without cast entries
         for (const [, hl] of highlightMap) {
-          store.upsertCharacterProfile(hl.name, {
-            color: hl.color,
-            highlighted: hl.highlighted,
-          });
+          store.upsertCharacterProfile(hl.name, { color: hl.color, highlighted: hl.highlighted });
         }
       }
     } else {
@@ -363,11 +371,13 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     }
     editor.commands.setContent(doc);
 
-    // Create project + script in backend via Save As dialog
+    // Open as unsaved document — user can save later via Cmd+S
     const scriptTitle = name.replace(/\.\w+$/, '') || 'Untitled';
-    useEditorStore.getState().setDocumentTitle(scriptTitle);
-    setSaveAsOpen(true);
-  }, [editor, setCurrentProject, setCurrentScriptId, setScripts, setSaveAsOpen]);
+    store.setDocumentTitle(scriptTitle);
+    setCurrentProject(null);
+    setCurrentScriptId(null);
+    setScripts([]);
+  }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
 
   const handleExportFDX = useCallback(async () => {
     if (!editor) return;
