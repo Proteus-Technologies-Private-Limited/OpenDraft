@@ -44,9 +44,11 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
         const list = await api.listProjects();
         setProjects(list);
 
-        // Priority: last-used project > defaultProjectName > "My Project"
+        // Priority: explicit default (from current project) > last-used > most recent > "My Project"
         const lastUsed = getLastProjectName();
-        if (lastUsed && list.some((p) => p.name.toLowerCase() === lastUsed.toLowerCase())) {
+        if (defaultProjectName && list.some((p) => p.name.toLowerCase() === defaultProjectName.toLowerCase())) {
+          setProjectName(defaultProjectName);
+        } else if (lastUsed && list.some((p) => p.name.toLowerCase() === lastUsed.toLowerCase())) {
           setProjectName(lastUsed);
         } else if (list.length > 0) {
           // Sort by updated_at descending to pick the most recent

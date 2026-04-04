@@ -2564,7 +2564,7 @@ const ScreenplayEditor: React.FC = () => {
       {!isHistoryMode && showWelcome && <WelcomeDialog onChoice={handleWelcomeChoice} />}
       {!isHistoryMode && saveAsOpen && (
         <SaveAsDialog
-          defaultProjectName="My Project"
+          defaultProjectName={currentProject?.name || 'My Project'}
           defaultFileName={useEditorStore.getState().documentTitle || 'First Draft'}
           onSaved={handleSaveAsComplete}
           onClose={() => setSaveAsOpen(false)}
