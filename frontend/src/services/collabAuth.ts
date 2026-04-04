@@ -1,5 +1,6 @@
 import { useSettingsStore } from '../stores/settingsStore';
 import type { CollabAuth, CollabUser } from '../stores/settingsStore';
+import { platformFetch } from './platform';
 
 // ── URL helpers ──
 
@@ -12,7 +13,7 @@ function getCollabHttpBase(): string {
 
 async function collabRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const base = getCollabHttpBase();
-  const res = await fetch(`${base}${path}`, {
+  const res = await platformFetch(`${base}${path}`, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...options?.headers },
   });
@@ -129,7 +130,7 @@ export const collabAuthApi = {
   testConnection: async (): Promise<boolean> => {
     try {
       const base = getCollabHttpBase();
-      const res = await fetch(`${base}/health`, { signal: AbortSignal.timeout(5000) });
+      const res = await platformFetch(`${base}/health`);
       return res.ok;
     } catch {
       return false;
@@ -149,7 +150,32 @@ export const collabAuthApi = {
       method: 'POST',
       body: JSON.stringify({ documentName }),
     }),
+
+  /** Revoke all collab sessions created by the authenticated user (called on logout) */
+  revokeMyCollabSessions: () =>
+    authRequest<{ message: string }>('/api/collab/my-sessions', { method: 'DELETE' }),
 };
+
+// ── Helper: check if current auth is valid (token present and not expired) ──
+
+export function isCollabAuthenticated(): boolean {
+  const { collabAuth } = useSettingsStore.getState();
+  if (!collabAuth.accessToken) return false;
+  try {
+    const payload = JSON.parse(atob(collabAuth.accessToken.split('.')[1]));
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      // Token expired — clear it
+      console.log('[collabAuth] Access token expired, clearing auth');
+      useSettingsStore.getState().clearCollabAuth();
+      return false;
+    }
+  } catch {
+    // Malformed token
+    useSettingsStore.getState().clearCollabAuth();
+    return false;
+  }
+  return true;
+}
 
 // ── Helper: handle auth response and store tokens ──
 
@@ -159,16 +185,39 @@ export function handleAuthResponse(response: AuthResponse): CollabAuth {
     refreshToken: response.refreshToken,
     user: response.user,
   };
+  console.log('[collabAuth] Storing auth token for', auth.user?.displayName, '- token:', auth.accessToken?.slice(0, 20) + '...');
   useSettingsStore.getState().setCollabAuth(auth);
   return auth;
 }
 
+/**
+ * Callback set by ScreenplayEditor to tear down an active collab session.
+ * Called by performLogout before revoking tokens.
+ */
+let _onLogoutCollabTeardown: (() => Promise<void>) | null = null;
+
+export function setLogoutCollabTeardown(fn: (() => Promise<void>) | null): void {
+  _onLogoutCollabTeardown = fn;
+}
+
 export async function performLogout(): Promise<void> {
   const { collabAuth, clearCollabAuth } = useSettingsStore.getState();
-  if (collabAuth.refreshToken) {
-    try {
-      await collabAuthApi.logout(collabAuth.refreshToken);
-    } catch { /* ignore */ }
+
+  // 1. End any active collab session in the editor
+  if (_onLogoutCollabTeardown) {
+    try { await _onLogoutCollabTeardown(); } catch { /* best-effort */ }
   }
+
+  // 2. Revoke all collab invite links this user created on the server
+  if (collabAuth.accessToken) {
+    try { await collabAuthApi.revokeMyCollabSessions(); } catch { /* best-effort */ }
+  }
+
+  // 3. Revoke the refresh token on the server
+  if (collabAuth.refreshToken) {
+    try { await collabAuthApi.logout(collabAuth.refreshToken); } catch { /* best-effort */ }
+  }
+
+  // 4. Clear local auth state
   clearCollabAuth();
 }

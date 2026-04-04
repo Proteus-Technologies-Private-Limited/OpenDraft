@@ -70,8 +70,9 @@ const SettingsPage: React.FC = () => {
     setConnectionStatus('testing');
     // Test the URL currently in the input field, not the last saved value
     try {
+      const { platformFetch } = await import('../services/platform');
       const httpUrl = urlInput.trim().replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
-      const res = await fetch(`${httpUrl}/health`, { signal: AbortSignal.timeout(5000) });
+      const res = await platformFetch(`${httpUrl}/health`);
       setConnectionStatus(res.ok ? 'ok' : 'fail');
     } catch {
       setConnectionStatus('fail');

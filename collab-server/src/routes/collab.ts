@@ -2,6 +2,8 @@ import { Router } from 'express';
 import * as crypto from 'crypto';
 import { getDB } from '../db';
 import type { CollabSessionRow } from '../db';
+import { validateInviteToken } from '../services/collabValidation';
+import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
@@ -17,7 +19,7 @@ function generateNonce(): string {
 
 // ── Create a collaboration invite ────────────────────────────────────────────
 
-router.post('/invite', async (req, res) => {
+router.post('/invite', requireAuth, async (req, res) => {
   try {
     const {
       project_id,
@@ -37,6 +39,7 @@ router.post('/invite', async (req, res) => {
     const token = generateToken();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + expires_in_hours * 60 * 60 * 1000);
+    const createdBy = req.user!.id;
 
     // Determine session nonce: reuse existing active nonce for same project/script,
     // use the provided one, or generate a new one.
@@ -53,9 +56,9 @@ router.post('/invite', async (req, res) => {
     }
 
     await db.run(
-      `INSERT INTO collab_sessions (token, project_id, script_id, collaborator_name, role, active, session_nonce, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)`,
-      [token, project_id, script_id, collaborator_name, role, nonce, now.toISOString(), expiresAt.toISOString()],
+      `INSERT INTO collab_sessions (token, project_id, script_id, collaborator_name, role, active, session_nonce, created_by, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+      [token, project_id, script_id, collaborator_name, role, nonce, createdBy, now.toISOString(), expiresAt.toISOString()],
     );
 
     res.status(201).json({
@@ -76,46 +79,32 @@ router.post('/invite', async (req, res) => {
 });
 
 // ── Validate a session token ─────────────────────────────────────────────────
+// Uses validateInviteToken which checks the collab server's own DB first,
+// then falls back to the Python backend for web-created sessions.
 
 router.get('/session/:token', async (req, res) => {
+  const tokenPreview = req.params.token.slice(0, 8) + '...';
+  console.log(`[collab] GET /session/${tokenPreview} from ${req.ip}`);
   try {
-    const db = getDB();
-    const session = await db.get<CollabSessionRow>(
-      'SELECT * FROM collab_sessions WHERE token = ?',
-      [req.params.token],
-    );
+    const session = await validateInviteToken(req.params.token);
 
     if (!session) {
+      console.log(`[collab] GET /session/${tokenPreview} → 404 not found`);
       res.status(404).json({ error: 'Invalid or expired invite' });
       return;
     }
 
-    // Check if expired or revoked
-    if (!session.active || new Date(session.expires_at) < new Date()) {
-      res.status(404).json({ error: 'Invalid or expired invite' });
-      return;
-    }
-
-    res.json({
-      token: session.token,
-      project_id: session.project_id,
-      script_id: session.script_id,
-      collaborator_name: session.collaborator_name,
-      role: session.role,
-      active: Boolean(session.active),
-      session_nonce: session.session_nonce,
-      created_at: session.created_at,
-      expires_at: session.expires_at,
-    });
+    console.log(`[collab] GET /session/${tokenPreview} → 200 (project: ${session.project_id})`);
+    res.json(session);
   } catch (err) {
-    console.error('Validate session error:', err);
+    console.error(`[collab] GET /session/${tokenPreview} → 500:`, err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // ── List active sessions for a project/script ────────────────────────────────
 
-router.get('/sessions/:projectId/:scriptId', async (req, res) => {
+router.get('/sessions/:projectId/:scriptId', requireAuth, async (req, res) => {
   try {
     const db = getDB();
     const now = new Date().toISOString();
@@ -146,7 +135,7 @@ router.get('/sessions/:projectId/:scriptId', async (req, res) => {
 
 // ── Revoke a specific invite ─────────────────────────────────────────────────
 
-router.delete('/session/:token', async (req, res) => {
+router.delete('/session/:token', requireAuth, async (req, res) => {
   try {
     const db = getDB();
     await db.run(
@@ -162,7 +151,7 @@ router.delete('/session/:token', async (req, res) => {
 
 // ── Revoke all invites for a project/script ──────────────────────────────────
 
-router.delete('/sessions/:projectId/:scriptId', async (req, res) => {
+router.delete('/sessions/:projectId/:scriptId', requireAuth, async (req, res) => {
   try {
     const db = getDB();
     await db.run(
@@ -172,6 +161,24 @@ router.delete('/sessions/:projectId/:scriptId', async (req, res) => {
     res.json({ message: 'All sessions revoked' });
   } catch (err) {
     console.error('Revoke all sessions error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Revoke all invites created by the authenticated user ────────────────────
+// Called on logout to clean up all sessions the user created.
+
+router.delete('/my-sessions', requireAuth, async (req, res) => {
+  try {
+    const db = getDB();
+    const result = await db.run(
+      'UPDATE collab_sessions SET active = 0 WHERE created_by = ? AND active = 1',
+      [req.user!.id],
+    );
+    console.log(`[collab] Revoked all sessions for user ${req.user!.id}`);
+    res.json({ message: 'All your sessions revoked', count: (result as any)?.changes || 0 });
+  } catch (err) {
+    console.error('Revoke my sessions error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

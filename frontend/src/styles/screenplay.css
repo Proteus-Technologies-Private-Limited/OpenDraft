@@ -6381,7 +6381,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
     top: 0;
     bottom: 0;
     z-index: 3400;
-    width: 320px;
+    width: 280px;
     min-width: 0;
     box-shadow: -4px 0 20px rgba(0,0,0,.4);
     transition: transform 0.25s ease;
@@ -6456,9 +6456,9 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   /* Editor: hide horizontal overflow for auto-zoom fit */
   .editor-main { padding: 12px 0 30px; }
 
-  /* Side panels: wider overlay on small devices */
+  /* Side panels: overlay, slightly narrower to avoid edge-swipe conflict */
   .script-notes-panel, .char-profiles-panel, .tags-panel {
-    width: min(320px, 85vw);
+    width: min(280px, 80vw);
   }
 
   /* Toolbar: horizontal scroll, no wrap; hide font/style on mobile */
@@ -6611,11 +6611,15 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
     border-left: none;
   }
 
-  /* Status bar: page number only */
-  .status-bar { height: 32px; padding: 0 8px; }
-  .status-left { display: none; }
+  /* Status bar: compact with filename + page */
+  .status-bar { height: 28px; padding: 0 10px; gap: 8px; }
+  .status-left { flex: 1; min-width: 0; gap: 4px !important; }
+  .status-left .status-project { display: none; }
+  .status-left .status-sep { display: none; }
+  .status-left .status-item { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline !important; }
   .status-center { display: none; }
-  .status-right { flex: 1; justify-content: center; }
+  .status-right { flex: 0 0 auto; white-space: nowrap; }
+  .status-right .status-page { font-size: 11px; }
   .status-revision { display: none; }
 
   /* Dialogs: full-screen */

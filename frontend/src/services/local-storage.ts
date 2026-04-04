@@ -86,15 +86,33 @@ function getCollabApiBase(): string {
 
 /**
  * Make an authenticated request to the collab server.
+ * Uses platformFetch to bypass WebView mixed-content restrictions on Tauri.
  */
 async function collabRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const { platformFetch } = await import('./platform');
+  const { useSettingsStore } = await import('../stores/settingsStore');
   const base = getCollabApiBase();
-  const res = await fetch(`${base}${path}`, {
+  const url = `${base}${path}`;
+
+  // Include auth token if available (collab server requires it for write operations)
+  const { collabAuth } = useSettingsStore.getState();
+  const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (collabAuth.accessToken) {
+    authHeaders['Authorization'] = `Bearer ${collabAuth.accessToken}`;
+  }
+
+  console.log(`[collabRequest] ${options?.method || 'GET'} ${url}`);
+  const res = await platformFetch(url, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { ...authHeaders, ...options?.headers },
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
+    console.error(`[collabRequest] ${url} → ${res.status}: ${detail}`);
+    // Clear stale auth on 401 so the UI prompts for re-login
+    if (res.status === 401) {
+      useSettingsStore.getState().clearCollabAuth();
+    }
     throw new Error(`Collab API error ${res.status}: ${detail}`);
   }
   return res.json();

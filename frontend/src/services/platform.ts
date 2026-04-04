@@ -31,3 +31,40 @@ export function isDesktopTauri(): boolean {
 export function isWeb(): boolean {
   return !isTauri();
 }
+
+/**
+ * Platform-aware fetch that works around Tauri's mixed-content restriction.
+ *
+ * The Tauri WebView loads from https://tauri.localhost, so browser fetch()
+ * to plain http:// addresses (collab server, local backends) is blocked by
+ * WKWebView as mixed content.  On Tauri we route through a Rust command
+ * that uses curl; on web we use standard fetch().
+ */
+export async function platformFetch(url: string, options?: RequestInit): Promise<Response> {
+  if (!isTauri()) return fetch(url, options);
+
+  const method = options?.method || 'GET';
+  console.log(`[platformFetch] ${method} ${url} (via Tauri invoke)`);
+
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const hdrs = options?.headers as Record<string, string> | undefined;
+    const result = await invoke<{ status: number; body: string }>('http_fetch', {
+      url,
+      method,
+      body: typeof options?.body === 'string' ? options.body : undefined,
+      contentType: hdrs?.['Content-Type'] || undefined,
+      authorization: hdrs?.['Authorization'] || undefined,
+    });
+
+    console.log(`[platformFetch] ${method} ${url} → ${result.status} (${result.body.length} bytes)`);
+
+    return new Response(result.body, {
+      status: result.status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    console.error(`[platformFetch] ${method} ${url} → invoke FAILED:`, err);
+    throw err;
+  }
+}
