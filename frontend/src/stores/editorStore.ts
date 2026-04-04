@@ -1,6 +1,33 @@
 import { create } from 'zustand';
 import { uuid } from '../utils/uuid';
 
+// ── View-state persistence helpers ──
+const VIEW_STATE_KEY = 'opendraft:viewState';
+interface ViewState {
+  navigatorOpen?: boolean;
+  indexCardsOpen?: boolean;
+  beatBoardOpen?: boolean;
+  scriptNotesOpen?: boolean;
+  characterProfilesOpen?: boolean;
+  tagsPanelOpen?: boolean;
+  notesVisible?: boolean;
+  tagsVisible?: boolean;
+  notesActiveTab?: 'script' | 'general';
+}
+function loadViewState(): ViewState {
+  try {
+    const raw = localStorage.getItem(VIEW_STATE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+function saveViewState(patch: Partial<ViewState>) {
+  try {
+    const current = loadViewState();
+    localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ ...current, ...patch }));
+  } catch { /* localStorage unavailable */ }
+}
+const _vs = loadViewState();
+
 export type ElementType =
   | 'sceneHeading'
   | 'action'
@@ -234,6 +261,8 @@ interface EditorState {
   toggleBeatBoard: () => void;
   scriptNotesOpen: boolean;
   toggleScriptNotes: () => void;
+  notesActiveTab: 'script' | 'general';
+  setNotesActiveTab: (tab: 'script' | 'general') => void;
   notesVisible: boolean;
   setNotesVisible: (v: boolean) => void;
 
@@ -392,19 +421,41 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   scenes: [],
   setScenes: (scenes) => set({ scenes }),
-  navigatorOpen: typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0 ? false : true,
-  toggleNavigator: () => set((s) => ({ navigatorOpen: !s.navigatorOpen })),
+  navigatorOpen: _vs.navigatorOpen ?? (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0 ? false : true),
+  toggleNavigator: () => set((s) => {
+    const v = !s.navigatorOpen;
+    saveViewState({ navigatorOpen: v });
+    return { navigatorOpen: v };
+  }),
 
-  indexCardsOpen: false,
-  toggleIndexCards: () => set((s) => ({ indexCardsOpen: !s.indexCardsOpen })),
-  beatBoardOpen: false,
-  toggleBeatBoard: () => set((s) => ({ beatBoardOpen: !s.beatBoardOpen })),
-  scriptNotesOpen: false,
-  toggleScriptNotes: () => set((s) => ({
-    scriptNotesOpen: !s.scriptNotesOpen,
-  })),
-  notesVisible: false,
-  setNotesVisible: (v) => set({ notesVisible: v }),
+  indexCardsOpen: _vs.indexCardsOpen ?? false,
+  toggleIndexCards: () => set((s) => {
+    const v = !s.indexCardsOpen;
+    saveViewState({ indexCardsOpen: v });
+    return { indexCardsOpen: v };
+  }),
+  beatBoardOpen: _vs.beatBoardOpen ?? false,
+  toggleBeatBoard: () => set((s) => {
+    const v = !s.beatBoardOpen;
+    saveViewState({ beatBoardOpen: v });
+    return { beatBoardOpen: v };
+  }),
+  scriptNotesOpen: _vs.scriptNotesOpen ?? false,
+  toggleScriptNotes: () => set((s) => {
+    const v = !s.scriptNotesOpen;
+    saveViewState({ scriptNotesOpen: v });
+    return { scriptNotesOpen: v };
+  }),
+  notesActiveTab: _vs.notesActiveTab ?? 'general',
+  setNotesActiveTab: (tab) => {
+    saveViewState({ notesActiveTab: tab });
+    set({ notesActiveTab: tab });
+  },
+  notesVisible: _vs.notesVisible ?? false,
+  setNotesVisible: (v) => {
+    saveViewState({ notesVisible: v });
+    set({ notesVisible: v });
+  },
 
   updateSceneSynopsis: (id, synopsis) =>
     set((s) => ({
@@ -612,9 +663,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((s) => ({
       characterProfiles: s.characterProfiles.filter((p) => p.name !== name.toUpperCase()),
     })),
-  characterProfilesOpen: false,
-  toggleCharacterProfiles: () =>
-    set((s) => ({ characterProfilesOpen: !s.characterProfilesOpen })),
+  characterProfilesOpen: _vs.characterProfilesOpen ?? false,
+  toggleCharacterProfiles: () => set((s) => {
+    const v = !s.characterProfilesOpen;
+    saveViewState({ characterProfilesOpen: v });
+    return { characterProfilesOpen: v };
+  }),
   selectedCharacter: null,
   setSelectedCharacter: (name) => set({ selectedCharacter: name }),
 
@@ -648,12 +702,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     })),
   deleteTag: (id) =>
     set((s) => ({ tags: s.tags.filter((t) => t.id !== id) })),
-  tagsVisible: false,
-  setTagsVisible: (v) => set({ tagsVisible: v }),
-  tagsPanelOpen: false,
-  toggleTagsPanel: () => set((s) => ({
-    tagsPanelOpen: !s.tagsPanelOpen,
-  })),
+  tagsVisible: _vs.tagsVisible ?? false,
+  setTagsVisible: (v) => {
+    saveViewState({ tagsVisible: v });
+    set({ tagsVisible: v });
+  },
+  tagsPanelOpen: _vs.tagsPanelOpen ?? false,
+  toggleTagsPanel: () => set((s) => {
+    const v = !s.tagsPanelOpen;
+    saveViewState({ tagsPanelOpen: v });
+    return { tagsPanelOpen: v };
+  }),
   pendingTagSelection: null,
   setPendingTagSelection: (sel) => set({ pendingTagSelection: sel }),
   editingTagId: null,

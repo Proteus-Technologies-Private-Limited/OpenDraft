@@ -1512,6 +1512,7 @@ const ScreenplayEditor: React.FC = () => {
           // Clear per-screenplay metadata so we don't carry over from a previously opened screenplay
           store.setCharacterProfiles([]);
           store.setNotes([]);
+          store.setGeneralNotes([]);
           store.setTags([]);
           store.setTagCategories([]);
           store.setBeats([]);
@@ -1732,6 +1733,7 @@ const ScreenplayEditor: React.FC = () => {
         // Clear all per-file metadata first
         store.setCharacterProfiles([]);
         store.setNotes([]);
+        store.setGeneralNotes([]);
         store.setTags([]);
         store.setTagCategories([]);
         store.setBeats([]);

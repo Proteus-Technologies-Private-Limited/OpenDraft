@@ -94,11 +94,13 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     return {
       ...doc,
       _notes: store.notes,
+      _generalNotes: store.generalNotes,
       _tags: store.tags,
       _tagCategories: store.tagCategories,
       _characterProfiles: store.characterProfiles,
       _beats: store.beats,
       _beatColumns: store.beatColumns,
+      _beatArrangeMode: store.beatArrangeMode,
     };
   }, [editor]);
 
@@ -521,7 +523,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         { label: navigatorOpen ? '\u2713 Navigator' : 'Navigator', action: toggleNavigator },
         { label: indexCardsOpen ? '\u2713 Index Cards' : 'Index Cards', action: toggleIndexCards },
         { label: beatBoardOpen ? '\u2713 Beat Board' : 'Beat Board', action: toggleBeatBoard },
-        { label: scriptNotesOpen ? '\u2713 Script Notes' : 'Script Notes', action: toggleScriptNotes },
+        { label: scriptNotesOpen ? '\u2713 Notes Panel' : 'Notes Panel', action: () => {
+          const hasSelection = editor && !editor.state.selection.empty;
+          useEditorStore.getState().setNotesActiveTab(hasSelection ? 'script' : 'general');
+          toggleScriptNotes();
+        } },
         { label: characterProfilesOpen ? '\u2713 Characters' : 'Characters', action: toggleCharacterProfiles },
         { label: tagsPanelOpen ? '\u2713 Tags' : 'Tags', action: toggleTagsPanel },
         { separator: true, label: '' },
