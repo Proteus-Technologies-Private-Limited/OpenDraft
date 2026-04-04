@@ -24,141 +24,140 @@ fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
     std::fs::read(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
 }
 
-// ── Sidecar (desktop only) ──────────────────────────────────────────────────
-// On desktop (macOS / Windows / Linux) we spawn a Python backend sidecar.
-// On mobile (iOS / Android) the frontend uses local SQLite instead, so
-// there is no sidecar to start.
+// ── Link preview command ───────────────────────────────────────────────────
+// Fetches a URL and extracts Open Graph metadata. Used by the editor's link
+// preview feature. Runs in Rust to avoid CORS issues that browser fetch has.
 
-#[cfg(not(target_os = "ios"))]
-#[cfg(not(target_os = "android"))]
-mod desktop {
-    use std::net::TcpStream;
-    #[allow(unused_imports)] // Path is used on Windows only (prepare_sidecar_in_appdata)
-    use std::path::{Path, PathBuf};
-    use std::process::Child;
-    use std::sync::Mutex;
-    use std::time::{Duration, Instant};
+#[derive(serde::Serialize)]
+struct LinkPreview {
+    url: String,
+    title: String,
+    description: String,
+    image: String,
+    site_name: String,
+}
 
-    pub const BACKEND_PORT: u16 = 18321;
+#[tauri::command]
+async fn fetch_link_preview(url: String) -> Result<LinkPreview, String> {
+    // Use a simple blocking HTTP client via ureq (or fall back to minimal parsing)
+    // For now, use std::process::Command with curl as a portable fallback,
+    // or we can use reqwest if added as a dependency.
+    //
+    // Minimal implementation: fetch the HTML and parse OG tags with string matching.
+    // This avoids adding heavy dependencies like reqwest.
 
-    /// Result of waiting for the backend.
-    pub enum BackendStatus {
-        Ready,
-        ProcessCrashed { exit_code: Option<i32>, stderr: String },
-        Timeout,
+    let html = fetch_url_body(&url).map_err(|e| format!("Failed to fetch {}: {}", url, e))?;
+
+    let title = extract_og_tag(&html, "og:title")
+        .or_else(|| extract_html_title(&html))
+        .unwrap_or_default();
+    let description = extract_og_tag(&html, "og:description")
+        .or_else(|| extract_meta_description(&html))
+        .unwrap_or_default();
+    let image = extract_og_tag(&html, "og:image").unwrap_or_default();
+    let site_name = extract_og_tag(&html, "og:site_name").unwrap_or_default();
+
+    Ok(LinkPreview { url, title, description, image, site_name })
+}
+
+/// Fetch URL body using a subprocess call to curl (available on all platforms).
+/// Limits response to 256KB and times out after 5 seconds.
+fn fetch_url_body(url: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let output = std::process::Command::new("curl")
+        .args([
+            "-sL",                          // silent, follow redirects
+            "--max-time", "5",              // 5 second timeout
+            "--max-filesize", "262144",     // 256KB limit
+            "-H", "User-Agent: Mozilla/5.0 (compatible; OpenDraft/1.0)",
+            url,
+        ])
+        .output()?;
+
+    if !output.status.success() {
+        return Err(format!("curl exited with {}", output.status).into());
     }
 
-    /// Wait for the backend to accept TCP connections.
-    /// Checks if the process has crashed during the wait.
-    pub fn wait_for_backend(child: &mut Child, port: u16, timeout_secs: u64) -> BackendStatus {
-        let start = Instant::now();
-        while start.elapsed().as_secs() < timeout_secs {
-            // Check if the process exited (crashed)
-            match child.try_wait() {
-                Ok(Some(status)) => {
-                    // Process has exited — read any stderr output
-                    let stderr = if let Some(ref mut err) = child.stderr {
-                        use std::io::Read;
-                        let mut buf = String::new();
-                        let _ = err.read_to_string(&mut buf);
-                        buf
-                    } else {
-                        String::new()
-                    };
-                    return BackendStatus::ProcessCrashed {
-                        exit_code: status.code(),
-                        stderr,
-                    };
-                }
-                Ok(None) => { /* still running, keep waiting */ }
-                Err(_) => { /* can't check status, keep waiting */ }
-            }
-            if TcpStream::connect(format!("127.0.0.1:{}", port)).is_ok() {
-                return BackendStatus::Ready;
-            }
-            std::thread::sleep(Duration::from_millis(200));
-        }
-        BackendStatus::Timeout
-    }
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
 
-    /// Resolve the sidecar binary in the install directory.
-    /// macOS/Linux: single file via externalBin (next to the main executable).
-    /// Windows: onedir folder via resources (sidecar/ subdirectory).
-    pub fn install_sidecar_path() -> Option<PathBuf> {
-        let exe = std::env::current_exe().ok()?;
-        let dir = exe.parent()?;
-        let candidates = [
-            // Windows onedir: sidecar/ directory next to exe
-            dir.join("sidecar").join("opendraft-api.exe"),
-            dir.join("sidecar").join("opendraft-api"),
-            // macOS/Linux onefile: single binary next to exe (externalBin)
-            dir.join("opendraft-api"),
-            dir.join("opendraft-api.exe"),
-        ];
-        candidates.into_iter().find(|p| p.exists())
-    }
+/// Extract an Open Graph meta tag value from HTML.
+fn extract_og_tag(html: &str, property: &str) -> Option<String> {
+    // Match: <meta property="og:title" content="...">
+    // Also match: <meta content="..." property="og:title">
+    let lower = html.to_lowercase();
+    let prop_pattern = format!("property=\"{}\"", property);
 
-    /// On Windows, copy the sidecar directory from the install location
-    /// (C:\Program Files\...) to AppData and return the exe path there.
-    ///
-    /// Why: The NSIS installer runs elevated, so the first app launch from
-    /// the installer inherits admin privileges and DLLs load fine. Subsequent
-    /// launches from Start Menu run as a normal user. Windows Defender and
-    /// SmartScreen can block unsigned DLLs in Program Files for non-elevated
-    /// processes, causing "failed to load python dll — invalid access to
-    /// memory location". AppData is user-owned and less aggressively scanned.
-    #[cfg(target_os = "windows")]
-    pub fn prepare_sidecar_in_appdata(
-        install_bin: &Path,
-        app_data_dir: &Path,
-    ) -> Option<PathBuf> {
-        let install_dir = install_bin.parent()?;
-        let runtime_dir = app_data_dir.join("sidecar");
-        let version_marker = runtime_dir.join(".version");
-        let current_version = env!("CARGO_PKG_VERSION");
-
-        let needs_copy = if version_marker.exists() {
-            std::fs::read_to_string(&version_marker)
-                .map(|v| v.trim() != current_version)
-                .unwrap_or(true)
-        } else {
-            true
+    // Find the meta tag containing this property
+    let mut search_from = 0;
+    while let Some(meta_start) = lower[search_from..].find("<meta ") {
+        let abs_start = search_from + meta_start;
+        let tag_end = match lower[abs_start..].find('>') {
+            Some(pos) => abs_start + pos,
+            None => break,
         };
+        let tag = &html[abs_start..=tag_end];
+        let tag_lower = &lower[abs_start..=tag_end];
 
-        if needs_copy {
-            eprintln!("Copying sidecar to AppData for runtime use...");
-            // Remove stale copy
-            let _ = std::fs::remove_dir_all(&runtime_dir);
-            if let Err(e) = copy_dir_recursive(install_dir, &runtime_dir) {
-                eprintln!("Failed to copy sidecar to AppData: {}", e);
-                eprintln!("Falling back to install directory");
-                return None;
-            }
-            let _ = std::fs::write(&version_marker, current_version);
-            eprintln!("Sidecar copied to: {:?}", runtime_dir);
-        }
-
-        let bin = runtime_dir.join("opendraft-api.exe");
-        if bin.exists() { Some(bin) } else { None }
-    }
-
-    #[cfg(target_os = "windows")]
-    fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
-        std::fs::create_dir_all(dst)?;
-        for entry in std::fs::read_dir(src)? {
-            let entry = entry?;
-            let target = dst.join(entry.file_name());
-            if entry.file_type()?.is_dir() {
-                copy_dir_recursive(&entry.path(), &target)?;
-            } else {
-                std::fs::copy(entry.path(), &target)?;
+        if tag_lower.contains(&prop_pattern) {
+            if let Some(content) = extract_attr(tag, "content") {
+                return Some(decode_html_entities(&content));
             }
         }
-        Ok(())
+        search_from = tag_end + 1;
     }
+    None
+}
 
-    /// Holds the sidecar child process so it can be killed on exit.
-    pub struct BackendProcess(pub Mutex<Option<Child>>);
+/// Extract the <title> tag content.
+fn extract_html_title(html: &str) -> Option<String> {
+    let lower = html.to_lowercase();
+    let start = lower.find("<title")?.checked_add(lower[lower.find("<title")?..].find('>')?)?;
+    let content_start = start + 1;
+    let end = lower[content_start..].find("</title>")?;
+    let title = html[content_start..content_start + end].trim();
+    if title.is_empty() { None } else { Some(decode_html_entities(title)) }
+}
+
+/// Extract <meta name="description" content="...">.
+fn extract_meta_description(html: &str) -> Option<String> {
+    let lower = html.to_lowercase();
+    let mut search_from = 0;
+    while let Some(meta_start) = lower[search_from..].find("<meta ") {
+        let abs_start = search_from + meta_start;
+        let tag_end = match lower[abs_start..].find('>') {
+            Some(pos) => abs_start + pos,
+            None => break,
+        };
+        let tag = &html[abs_start..=tag_end];
+        let tag_lower = &lower[abs_start..=tag_end];
+
+        if tag_lower.contains("name=\"description\"") {
+            if let Some(content) = extract_attr(tag, "content") {
+                return Some(decode_html_entities(&content));
+            }
+        }
+        search_from = tag_end + 1;
+    }
+    None
+}
+
+/// Extract an HTML attribute value (case-insensitive attribute name).
+fn extract_attr(tag: &str, attr_name: &str) -> Option<String> {
+    let lower = tag.to_lowercase();
+    let pattern = format!("{}=\"", attr_name);
+    let start = lower.find(&pattern)? + pattern.len();
+    let end = lower[start..].find('"')? + start;
+    Some(tag[start..end].to_string())
+}
+
+/// Decode common HTML entities.
+fn decode_html_entities(s: &str) -> String {
+    s.replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -176,164 +175,28 @@ pub fn run() {
             save_binary_to_path,
             read_text_file,
             read_binary_file,
+            fetch_link_preview,
         ])
         .setup(|app| {
-            // Determine user data directory for storage
+            // Ensure user data directory exists
             let app_data_dir = app
                 .path()
                 .app_data_dir()
                 .expect("failed to resolve app data directory");
             std::fs::create_dir_all(&app_data_dir).ok();
 
-            // ── Desktop: spawn the Python backend sidecar ──────────
+            eprintln!("OpenDraft starting — local SQLite storage");
+            eprintln!("Data dir: {}", app_data_dir.display());
+
+            // ── Desktop: show splash then transition to main window ───
             #[cfg(not(target_os = "ios"))]
             #[cfg(not(target_os = "android"))]
             {
-                let data_dir_str = app_data_dir.to_string_lossy().to_string();
-
-                // Spawn sidecar — capture stderr for diagnostics
-                let spawn_result = if let Some(install_bin) = desktop::install_sidecar_path() {
-                    eprintln!("Sidecar binary found: {:?}", install_bin);
-
-                    // On Windows: copy sidecar to AppData and run from there.
-                    // Program Files is restricted for non-elevated processes —
-                    // Defender/SmartScreen can block DLL loading after the first
-                    // (installer-elevated) launch.
-                    #[cfg(target_os = "windows")]
-                    let bin = desktop::prepare_sidecar_in_appdata(&install_bin, &app_data_dir)
-                        .unwrap_or_else(|| install_bin.clone());
-                    #[cfg(not(target_os = "windows"))]
-                    let bin = install_bin;
-
-                    let sidecar_dir = bin.parent().unwrap_or(std::path::Path::new("."));
-
-                    // Prepend sidecar dir to PATH so DLL dependencies (vcruntime140.dll
-                    // etc.) are found even if the system PATH doesn't include it.
-                    let mut path_env = std::ffi::OsString::from(sidecar_dir.as_os_str());
-                    #[cfg(target_os = "windows")]
-                    path_env.push(";");
-                    #[cfg(not(target_os = "windows"))]
-                    path_env.push(":");
-                    path_env.push(std::env::var_os("PATH").unwrap_or_default());
-
-                    match std::process::Command::new(&bin)
-                        .args([
-                            "--port",
-                            &desktop::BACKEND_PORT.to_string(),
-                            "--data-dir",
-                            &data_dir_str,
-                        ])
-                        .env("OPENDRAFT_DATA_DIR", &data_dir_str)
-                        .env("PATH", &path_env)
-                        .env("PYTHONDONTWRITEBYTECODE", "1")
-                        .current_dir(sidecar_dir)
-                        .stderr(std::process::Stdio::piped())
-                        .spawn()
-                    {
-                        Ok(child) => {
-                            eprintln!("Sidecar started: PID {}", child.id());
-                            eprintln!("Sidecar dir: {:?}", sidecar_dir);
-                            eprintln!("Data dir: {}", data_dir_str);
-                            Ok(child)
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to spawn sidecar {:?}: {}", bin, e);
-                            Err(format!("Could not start the backend process.\n\n\
-                                Error: {}\n\n\
-                                On Windows, your antivirus or SmartScreen may have\n\
-                                blocked it. Please allow OpenDraft through your\n\
-                                security settings and restart the application.", e))
-                        }
-                    }
-                } else {
-                    eprintln!("Sidecar binary not found (dev mode?)");
-                    Err("The backend server binary was not found.\n\n\
-                         The installation may be incomplete. Please reinstall OpenDraft.".to_string())
-                };
-
-                // Splash → main window transition
                 let splash = app.get_webview_window("splashscreen");
                 let main_window = app.get_webview_window("main");
-                let app_handle = app.handle().clone();
 
                 std::thread::spawn(move || {
-                    let error_msg = match spawn_result {
-                        Ok(mut child) => {
-                            match desktop::wait_for_backend(&mut child, desktop::BACKEND_PORT, 30) {
-                                desktop::BackendStatus::Ready => {
-                                    eprintln!("Backend is ready on port {}", desktop::BACKEND_PORT);
-                                    app_handle.manage(desktop::BackendProcess(
-                                        std::sync::Mutex::new(Some(child)),
-                                    ));
-                                    None
-                                }
-                                desktop::BackendStatus::ProcessCrashed { exit_code, stderr } => {
-                                    let code_str = exit_code
-                                        .map(|c| c.to_string())
-                                        .unwrap_or_else(|| "unknown".to_string());
-                                    eprintln!("Sidecar crashed with exit code {}", code_str);
-                                    if !stderr.is_empty() {
-                                        eprintln!("Sidecar stderr:\n{}", stderr);
-                                    }
-                                    let detail = if !stderr.is_empty() {
-                                        // Show last few lines of stderr for context
-                                        let last_lines: String = stderr
-                                            .lines()
-                                            .rev()
-                                            .take(5)
-                                            .collect::<Vec<_>>()
-                                            .into_iter()
-                                            .rev()
-                                            .collect::<Vec<_>>()
-                                            .join("\n");
-                                        format!(
-                                            "The backend server crashed on startup (exit code {}).\n\n\
-                                             Error details:\n{}\n\n\
-                                             This is often caused by:\n\
-                                             • Antivirus software blocking the server\n\
-                                             • A missing Visual C++ Redistributable\n\
-                                             • Port {} already in use by another application\n\n\
-                                             Try adding OpenDraft to your antivirus exceptions\n\
-                                             and restart the application.",
-                                            code_str, last_lines, desktop::BACKEND_PORT
-                                        )
-                                    } else {
-                                        format!(
-                                            "The backend server crashed on startup (exit code {}).\n\n\
-                                             This is often caused by:\n\
-                                             • Antivirus software blocking the server\n\
-                                             • A missing Visual C++ Redistributable\n\
-                                             • Port {} already in use by another application\n\n\
-                                             Try adding OpenDraft to your antivirus exceptions\n\
-                                             and restart the application.",
-                                            code_str, desktop::BACKEND_PORT
-                                        )
-                                    };
-                                    Some(detail)
-                                }
-                                desktop::BackendStatus::Timeout => {
-                                    // Process is still running but not listening — likely blocked
-                                    app_handle.manage(desktop::BackendProcess(
-                                        std::sync::Mutex::new(Some(child)),
-                                    ));
-                                    Some(format!(
-                                        "The backend server started but is not responding on port {}.\n\n\
-                                         This is often caused by:\n\
-                                         • Windows Firewall blocking localhost connections\n\
-                                         • Antivirus software intercepting the connection\n\
-                                         • Another application using port {}\n\n\
-                                         Try these steps:\n\
-                                         1. Add OpenDraft to your antivirus exceptions\n\
-                                         2. Allow OpenDraft through Windows Firewall\n\
-                                         3. Restart the application",
-                                        desktop::BACKEND_PORT, desktop::BACKEND_PORT
-                                    ))
-                                }
-                            }
-                        }
-                        Err(msg) => Some(msg),
-                    };
-
+                    // Brief splash display — no backend to wait for
                     std::thread::sleep(std::time::Duration::from_millis(500));
 
                     if let Some(main) = main_window {
@@ -343,22 +206,7 @@ pub fn run() {
                     if let Some(sp) = splash {
                         let _ = sp.close();
                     }
-
-                    if let Some(msg) = error_msg {
-                        use tauri_plugin_dialog::DialogExt;
-                        app_handle.dialog()
-                            .message(msg)
-                            .title("OpenDraft — Backend Error")
-                            .show(|_| {});
-                    }
                 });
-            }
-
-            // ── Mobile: no sidecar needed — frontend uses SQLite ───
-            #[cfg(any(target_os = "ios", target_os = "android"))]
-            {
-                eprintln!("Mobile mode — using local SQLite storage");
-                eprintln!("Data dir: {}", app_data_dir.display());
             }
 
             Ok(())
@@ -373,28 +221,7 @@ pub fn run() {
             panic!("{}", msg);
         });
 
-    app.run(|app, event| {
-            // ── Desktop: kill sidecar on exit ──────────────────────
-            #[cfg(not(target_os = "ios"))]
-            #[cfg(not(target_os = "android"))]
-            {
-                if let tauri::RunEvent::Exit = event {
-                    if let Some(state) = app.try_state::<desktop::BackendProcess>() {
-                        if let Ok(mut guard) = state.0.lock() {
-                            if let Some(mut child) = guard.take() {
-                                let _ = child.kill();
-                                let _ = child.wait();
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Suppress unused-variable warnings on mobile
-            #[cfg(any(target_os = "ios", target_os = "android"))]
-            {
-                let _ = app;
-                let _ = event;
-            }
-        });
+    app.run(|_app, _event| {
+        // No sidecar to clean up — nothing to do on exit
+    });
 }

@@ -34,6 +34,18 @@ export interface RefreshTokenRow {
   created_at: string;
 }
 
+export interface CollabSessionRow {
+  token: string;
+  project_id: string;
+  script_id: string;
+  collaborator_name: string;
+  role: string;
+  active: number;
+  session_nonce: string;
+  created_at: string;
+  expires_at: string;
+}
+
 export interface AuditLogRow {
   id: number;
   user_id: string | null;
@@ -86,11 +98,25 @@ const SCHEMA_SQL = `
     created_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS collab_sessions (
+    token TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    script_id TEXT NOT NULL,
+    collaborator_name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'editor',
+    active INTEGER NOT NULL DEFAULT 1,
+    session_nonce TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
   CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
   CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
   CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);
+  CREATE INDEX IF NOT EXISTS idx_collab_sessions_project_script
+    ON collab_sessions(project_id, script_id);
 `;
 
 export async function initDB(): Promise<DBAdapter> {

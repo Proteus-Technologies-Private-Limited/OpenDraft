@@ -2,8 +2,10 @@
  * API configuration.
  *
  * In development the Vite dev server proxies /api to the backend on port 8000.
- * For the Tauri desktop build, VITE_API_BASE is set to http://localhost:18321/api
- * so the frontend talks directly to the bundled sidecar backend.
+ * For web deployments the Python backend serves both frontend and API.
+ *
+ * On Tauri (desktop + mobile) the HTTP backend is NOT used — all data goes
+ * through local SQLite. The API_BASE is only relevant for the web build.
  */
 
 // Use the browser's hostname so the API is reachable when the frontend
@@ -33,18 +35,18 @@ export const COLLAB_WS_URL: string =
 /**
  * Get the URL for an asset.
  *
- * On web / desktop this returns the backend HTTP URL (synchronous).
- * On mobile Tauri this returns a convertFileSrc() URL pointing to the
- * local file on disk (async because it needs path APIs).
+ * On web this returns the backend HTTP URL (synchronous).
+ * On Tauri (desktop + mobile) this returns a convertFileSrc() URL pointing
+ * to the local file on disk (async because it needs path APIs).
  *
  * `filename` is the stored filename from the asset record — required on
- * mobile.  On web/desktop it is ignored.
+ * Tauri.  On web it is ignored.
  */
 export function getAssetUrlSync(
   projectId: string,
   assetId: string,
 ): string {
-  // Web / desktop — always use the HTTP backend
+  // Web — use the HTTP backend
   return `${SERVER_BASE}/api/projects/${projectId}/assets/${assetId}`;
 }
 
@@ -53,8 +55,8 @@ export async function getAssetUrl(
   assetId: string,
   filename?: string,
 ): Promise<string> {
-  const { isMobileTauri } = await import('./services/platform');
-  if (isMobileTauri()) {
+  const { isTauri } = await import('./services/platform');
+  if (isTauri()) {
     const { convertFileSrc } = await import('@tauri-apps/api/core');
     const { appDataDir } = await import('@tauri-apps/api/path');
     const base = await appDataDir();
