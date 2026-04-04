@@ -305,9 +305,10 @@ pub fn run() {
             panic!("{}", msg);
         });
 
-    app.run(|app_handle, event| {
-        // ── Handle file association open events (macOS, Android) ──────
-        if let tauri::RunEvent::Opened { urls } = event {
+    app.run(|_app_handle, _event| {
+        // ── Handle file association open events (macOS only) ──────
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Opened { urls } = &_event {
             for url in urls {
                 if let Ok(path) = url.to_file_path() {
                     let path_str = path.to_string_lossy().to_string();
@@ -317,12 +318,12 @@ pub fn run() {
                     eprintln!("RunEvent::Opened file: {}", path_str);
 
                     // Emit to frontend (works if window is already loaded)
-                    if let Some(window) = app_handle.get_webview_window("main") {
+                    if let Some(window) = _app_handle.get_webview_window("main") {
                         let _ = window.emit("open-file", &path_str);
                     }
 
                     // Also store in pending state (for startup timing edge case)
-                    if let Some(state) = app_handle.try_state::<PendingFile>() {
+                    if let Some(state) = _app_handle.try_state::<PendingFile>() {
                         *state.0.lock().unwrap() = Some(path_str);
                     }
                 }
