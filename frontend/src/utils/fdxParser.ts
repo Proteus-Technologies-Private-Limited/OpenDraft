@@ -128,20 +128,21 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     const pageSize = layoutEl.querySelector('PageSize');
     const pageWidth = parseFloat(pageSize?.getAttribute('Width') || '8.50');
 
-    // Derive left/right margins from Action paragraph indents (the base element)
-    // Look for an Action paragraph with explicit indents, or fall back to defaults
+    // Derive left/right margins from Action ElementSettings ParagraphSpec indents
     let leftIndent = 1.50;  // Final Draft default
     let rightIndent = 7.50; // Final Draft default
-    const actionPara = xmlDoc.querySelector('Paragraph[Type="Action"][LeftIndent]');
-    if (actionPara) {
-      leftIndent = parseFloat(actionPara.getAttribute('LeftIndent') || '1.50');
-      rightIndent = parseFloat(actionPara.getAttribute('RightIndent') || '7.50');
+
+    // Primary: read from ElementSettings for Action (the base screenplay element)
+    const actionSettings = xmlDoc.querySelector('ElementSettings[Type="Action"] > ParagraphSpec');
+    if (actionSettings) {
+      leftIndent = parseFloat(actionSettings.getAttribute('LeftIndent') || '1.50');
+      rightIndent = parseFloat(actionSettings.getAttribute('RightIndent') || '7.50');
     } else {
-      // Check Scene Heading paragraphs as fallback (they often have explicit indents)
-      const shPara = xmlDoc.querySelector('Paragraph[Type="Scene Heading"][LeftIndent]');
-      if (shPara) {
-        leftIndent = parseFloat(shPara.getAttribute('LeftIndent') || '1.50');
-        rightIndent = parseFloat(shPara.getAttribute('RightIndent') || '7.50');
+      // Fallback: check Scene Heading ElementSettings
+      const shSettings = xmlDoc.querySelector('ElementSettings[Type="Scene Heading"] > ParagraphSpec');
+      if (shSettings) {
+        leftIndent = parseFloat(shSettings.getAttribute('LeftIndent') || '1.50');
+        rightIndent = parseFloat(shSettings.getAttribute('RightIndent') || '7.50');
       }
     }
 
@@ -158,7 +159,8 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
   }
 
   // --- Parse Content ---
-  const contentEl = xmlDoc.querySelector('Content');
+  // Use 'FinalDraft > Content' to skip the TitlePage > Content element
+  const contentEl = xmlDoc.querySelector('FinalDraft > Content');
   if (!contentEl) {
     return { doc: { type: 'doc', content: [{ type: 'action', content: [] }] }, pageLayout, castList: [], characterHighlighting: [], tagCategories: [], tagItems: [], beats: [], beatColumns: [] };
   }

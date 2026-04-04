@@ -58,6 +58,7 @@ import OpenFromProject from './OpenFromProject';
 import WelcomeDialog, { type WelcomeChoice } from './WelcomeDialog';
 import { parseFountain } from '../utils/fountainParser';
 import { parseFDXFull } from '../utils/fdxParser';
+import { parseOdraft } from '../utils/odraftFormat';
 import SaveAsDialog from './SaveAsDialog';
 import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
@@ -867,6 +868,11 @@ const ScreenplayEditor: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState(() => {
     return !localStorage.getItem('opendraft:welcomed') && !urlScriptId && !urlCollabToken;
   });
+
+  // ── Drag-and-drop file import state ──
+  const [dragOverEditor, setDragOverEditor] = useState(false);
+  const [pendingDropFile, setPendingDropFile] = useState<File | null>(null);
+  const [dropConfirmOpen, setDropConfirmOpen] = useState(false);
 
   // Element picker state
   const [pickerState, setPickerState] = useState<{
@@ -1852,6 +1858,273 @@ const ScreenplayEditor: React.FC = () => {
     // 'blank' — editor already has empty content, nothing to do
   }, [editor]);
 
+  // ── File association: open files passed by the OS ──────────────────────
+  const handleExternalFile = useCallback(async (filePath: string) => {
+    if (!editor) return;
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const text = await invoke<string>('read_text_file', { path: filePath });
+
+      const ext = filePath.split('.').pop()?.toLowerCase();
+      const filename = filePath.replace(/^.*[\\/]/, '') || 'Untitled';
+      const title = filename.replace(/\.\w+$/, '');
+
+      let doc: any;
+      if (ext === 'fdx') {
+        const parsed = parseFDXFull(text);
+        doc = parsed.doc;
+        if (parsed.pageLayout) {
+          useEditorStore.getState().setPageLayout({
+            pageWidth: parsed.pageLayout.pageWidth,
+            pageHeight: parsed.pageLayout.pageHeight,
+            topMargin: parsed.pageLayout.topMargin,
+            bottomMargin: parsed.pageLayout.bottomMargin,
+            headerMargin: parsed.pageLayout.headerMargin,
+            footerMargin: parsed.pageLayout.footerMargin,
+            leftMargin: parsed.pageLayout.leftMargin,
+            rightMargin: parsed.pageLayout.rightMargin,
+          });
+        }
+        if (parsed.beats.length > 0) {
+          const store = useEditorStore.getState();
+          store.setBeats(parsed.beats);
+          if (parsed.beatColumns.length > 0) store.setBeatColumns(parsed.beatColumns);
+        }
+        if (parsed.castList.length > 0 || parsed.characterHighlighting.length > 0) {
+          const store = useEditorStore.getState();
+          const highlightMap = new Map(parsed.characterHighlighting.map((h) => [h.name.toUpperCase(), h]));
+          for (const member of parsed.castList) {
+            const hl = highlightMap.get(member.name.toUpperCase());
+            store.upsertCharacterProfile(member.name, {
+              description: member.description,
+              color: hl?.color || '',
+              highlighted: hl?.highlighted || false,
+            });
+            highlightMap.delete(member.name.toUpperCase());
+          }
+          for (const [, hl] of highlightMap) {
+            store.upsertCharacterProfile(hl.name, { color: hl.color, highlighted: hl.highlighted });
+          }
+        }
+      } else if (ext === 'odraft') {
+        const parsed = parseOdraft(text);
+        doc = parsed.content;
+        if (parsed.meta.title) {
+          setDocumentTitle(parsed.meta.title);
+          setShowWelcome(false);
+          setCurrentProject(null);
+          setCurrentScriptId(null);
+          editor.commands.setContent(doc);
+          return;
+        }
+      } else {
+        // .fountain, .txt — parse as Fountain
+        doc = parseFountain(text);
+      }
+
+      editor.commands.setContent(doc);
+      setDocumentTitle(title);
+      setShowWelcome(false);
+      // Clear project context — this is a standalone opened file
+      setCurrentProject(null);
+      setCurrentScriptId(null);
+    } catch (err) {
+      console.error('Failed to open external file:', err);
+      showToast(`Failed to open file: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, setDocumentTitle, setCurrentProject, setCurrentScriptId]);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    let cancelled = false;
+    let unlistenFn: (() => void) | null = null;
+
+    (async () => {
+      const { isTauri } = await import('../services/platform');
+      if (!isTauri() || cancelled) return;
+
+      // Check for a file passed at launch (CLI args or early RunEvent::Opened)
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const pending = await invoke<string | null>('get_opened_file');
+        if (pending && !cancelled) {
+          handleExternalFile(pending);
+        }
+      } catch (err) {
+        console.error('get_opened_file failed:', err);
+      }
+
+      // Listen for files opened while the app is already running
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        const unlisten = await listen<string>('open-file', (event) => {
+          if (!cancelled) handleExternalFile(event.payload);
+        });
+        if (cancelled) {
+          unlisten();
+        } else {
+          unlistenFn = unlisten;
+        }
+      } catch (err) {
+        console.error('Failed to listen for open-file events:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      unlistenFn?.();
+    };
+  }, [editor, handleExternalFile]);
+
+  // ── Drag-and-drop file import ─────────────────────────────────────────
+  const IMPORTABLE_EXTENSIONS = ['fdx', 'fountain', 'odraft', 'txt'];
+
+  const hasUnsavedChanges = useCallback((): boolean => {
+    if (!editor || !currentProject || !currentScriptId) return false;
+    const content = buildSaveContent();
+    if (!content) return false;
+    const json = JSON.stringify(content);
+    return json !== lastSavedJsonRef.current && lastSavedJsonRef.current !== '';
+  }, [editor, currentProject, currentScriptId, buildSaveContent]);
+
+  const importDroppedFile = useCallback(async (file: File) => {
+    if (!editor) return;
+    try {
+      const text = await file.text();
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const title = file.name.replace(/\.\w+$/, '') || 'Untitled';
+
+      let doc: any;
+      if (ext === 'fdx') {
+        const parsed = parseFDXFull(text);
+        doc = parsed.doc;
+        if (parsed.pageLayout) {
+          useEditorStore.getState().setPageLayout({
+            pageWidth: parsed.pageLayout.pageWidth,
+            pageHeight: parsed.pageLayout.pageHeight,
+            topMargin: parsed.pageLayout.topMargin,
+            bottomMargin: parsed.pageLayout.bottomMargin,
+            headerMargin: parsed.pageLayout.headerMargin,
+            footerMargin: parsed.pageLayout.footerMargin,
+            leftMargin: parsed.pageLayout.leftMargin,
+            rightMargin: parsed.pageLayout.rightMargin,
+          });
+        }
+        if (parsed.beats.length > 0) {
+          const store = useEditorStore.getState();
+          store.setBeats(parsed.beats);
+          if (parsed.beatColumns.length > 0) store.setBeatColumns(parsed.beatColumns);
+        }
+        if (parsed.castList.length > 0 || parsed.characterHighlighting.length > 0) {
+          const store = useEditorStore.getState();
+          const highlightMap = new Map(parsed.characterHighlighting.map((h) => [h.name.toUpperCase(), h]));
+          for (const member of parsed.castList) {
+            const hl = highlightMap.get(member.name.toUpperCase());
+            store.upsertCharacterProfile(member.name, {
+              description: member.description,
+              color: hl?.color || '',
+              highlighted: hl?.highlighted || false,
+            });
+            highlightMap.delete(member.name.toUpperCase());
+          }
+          for (const [, hl] of highlightMap) {
+            store.upsertCharacterProfile(hl.name, { color: hl.color, highlighted: hl.highlighted });
+          }
+        }
+      } else if (ext === 'odraft') {
+        const parsed = parseOdraft(text);
+        doc = parsed.content;
+        if (parsed.meta.title) {
+          setDocumentTitle(parsed.meta.title);
+          setCurrentProject(null);
+          setCurrentScriptId(null);
+          editor.commands.setContent(doc);
+          setShowWelcome(false);
+          return;
+        }
+      } else {
+        doc = parseFountain(text);
+      }
+
+      editor.commands.setContent(doc);
+      setDocumentTitle(title);
+      setCurrentProject(null);
+      setCurrentScriptId(null);
+      setShowWelcome(false);
+    } catch (err) {
+      console.error('Failed to import dropped file:', err);
+      showToast(`Failed to import file: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, setDocumentTitle, setCurrentProject, setCurrentScriptId]);
+
+  const handleEditorDragOver = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setDragOverEditor(true);
+  }, []);
+
+  const handleEditorDragLeave = useCallback((e: React.DragEvent) => {
+    // Only close if leaving the editor-main container itself
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setDragOverEditor(false);
+  }, []);
+
+  const handleEditorDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverEditor(false);
+
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!ext || !IMPORTABLE_EXTENSIONS.includes(ext)) {
+      showToast('Unsupported file type. Drop a .fdx, .fountain, .odraft, or .txt file.', 'error');
+      return;
+    }
+
+    if (hasUnsavedChanges()) {
+      setPendingDropFile(file);
+      setDropConfirmOpen(true);
+    } else {
+      importDroppedFile(file);
+    }
+  }, [hasUnsavedChanges, importDroppedFile]);
+
+  const handleDropConfirmSave = useCallback(async () => {
+    // Save current content first, then import
+    if (editor && currentProject && currentScriptId) {
+      const content = buildSaveContent();
+      if (content) {
+        try {
+          await api.saveScript(currentProject.id, currentScriptId, { content });
+          lastSavedJsonRef.current = JSON.stringify(content);
+        } catch (err) {
+          showToast(`Save failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+        }
+      }
+    }
+    setDropConfirmOpen(false);
+    if (pendingDropFile) {
+      importDroppedFile(pendingDropFile);
+      setPendingDropFile(null);
+    }
+  }, [editor, currentProject, currentScriptId, buildSaveContent, pendingDropFile, importDroppedFile]);
+
+  const handleDropConfirmDiscard = useCallback(() => {
+    setDropConfirmOpen(false);
+    if (pendingDropFile) {
+      importDroppedFile(pendingDropFile);
+      setPendingDropFile(null);
+    }
+  }, [pendingDropFile, importDroppedFile]);
+
+  const handleDropConfirmCancel = useCallback(() => {
+    setDropConfirmOpen(false);
+    setPendingDropFile(null);
+  }, []);
+
   const handleSaveAsComplete = useCallback(
     async (projectId: string, _projectName: string, scriptId: string, scriptTitle: string) => {
       setSaveAsOpen(false);
@@ -2163,7 +2436,7 @@ const ScreenplayEditor: React.FC = () => {
           {!isHistoryMode && beatBoardOpen ? (
             <BeatBoard />
           ) : (
-            <div className="editor-main" ref={editorMainRef}>
+            <div className="editor-main" ref={editorMainRef} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
               <div
                 className="page-sizer"
                 style={{
@@ -2292,7 +2565,7 @@ const ScreenplayEditor: React.FC = () => {
       {!isHistoryMode && saveAsOpen && (
         <SaveAsDialog
           defaultProjectName="My Project"
-          defaultFileName="First Draft"
+          defaultFileName={useEditorStore.getState().documentTitle || 'First Draft'}
           onSaved={handleSaveAsComplete}
           onClose={() => setSaveAsOpen(false)}
           buildContent={buildSaveContent}
@@ -2328,6 +2601,40 @@ const ScreenplayEditor: React.FC = () => {
           onJoin={handleJoinCollab}
           onClose={() => setJoinCollabOpen(false)}
         />
+      )}
+      {dragOverEditor && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(37,99,235,.15)',
+          border: '3px dashed var(--fd-accent, #2563eb)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+        }}>
+          <div style={{
+            background: 'var(--fd-bg)', padding: '20px 32px', borderRadius: 12,
+            boxShadow: '0 8px 32px rgba(0,0,0,.3)', fontSize: 16, fontWeight: 600,
+            color: 'var(--fd-text)',
+          }}>
+            Drop screenplay file to open
+          </div>
+        </div>
+      )}
+      {dropConfirmOpen && (
+        <div className="dialog-overlay" onClick={handleDropConfirmCancel}>
+          <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-header">Unsaved Changes</div>
+            <div className="dialog-body">
+              <p style={{ margin: 0, fontSize: 14, color: 'var(--fd-text)' }}>
+                You have unsaved changes. Would you like to save before opening the new file?
+              </p>
+            </div>
+            <div className="dialog-actions">
+              <button onClick={handleDropConfirmCancel}>Cancel</button>
+              <button onClick={handleDropConfirmDiscard}>Discard</button>
+              <button className="dialog-primary" onClick={handleDropConfirmSave}>Save &amp; Open</button>
+            </div>
+          </div>
+        </div>
       )}
       {!isHistoryMode && <StatusBar />}
     </div>

@@ -372,7 +372,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   const handleExportFDX = useCallback(async () => {
     if (!editor) return;
     const s = useEditorStore.getState();
-    await downloadFDX(editor.getJSON(), documentTitle, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns);
+    await downloadFDX(editor.getJSON(), documentTitle, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns, s.pageLayout);
   }, [editor, documentTitle]);
 
   const handleExportFountain = useCallback(async () => {
