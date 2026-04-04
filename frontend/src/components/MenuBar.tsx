@@ -736,10 +736,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.7.1</div>
+              <div className="about-section-title">What's New in 0.8.0</div>
               <ul className="about-list">
-                <li><strong>Panel State Persistence</strong> — Open panels (navigator, beat board, notes, characters, tags) are now remembered across sessions.</li>
-                <li><strong>Improved Notes Panel</strong> — Smart tab selection based on text selection; renamed to "Notes Panel" in View menu.</li>
+                <li><strong>Smoother Import Flow</strong> — Imported files open as unsaved documents without forcing an immediate Save As dialog.</li>
+                <li><strong>Quick New Screenplay</strong> — Creating a new screenplay from a project no longer asks for a name upfront; just start writing and name it when you save.</li>
+                <li><strong>Smarter Save As</strong> — Save As dialog now pre-selects the project you were working in.</li>
               </ul>
             </div>
           </div>
