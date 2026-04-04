@@ -8,6 +8,7 @@ interface ProjectState {
   scripts: ScriptMeta[];
   versions: VersionInfo[];
   versionHistoryOpen: boolean;
+  scriptReloadKey: number;
 
   setCurrentProject: (project: ProjectInfo | null) => void;
   setCurrentScriptId: (id: string | null) => void;
@@ -15,6 +16,7 @@ interface ProjectState {
   setScripts: (scripts: ScriptMeta[]) => void;
   setVersions: (versions: VersionInfo[]) => void;
   setVersionHistoryOpen: (open: boolean) => void;
+  triggerScriptReload: () => void;
 }
 
 export const useProjectStore = create<ProjectState>((set) => ({
@@ -24,6 +26,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
   scripts: [],
   versions: [],
   versionHistoryOpen: false,
+  scriptReloadKey: 0,
 
   setCurrentProject: (project) => set({ currentProject: project }),
   setCurrentScriptId: (id) => set({ currentScriptId: id }),
@@ -31,4 +34,5 @@ export const useProjectStore = create<ProjectState>((set) => ({
   setScripts: (scripts) => set({ scripts }),
   setVersions: (versions) => set({ versions }),
   setVersionHistoryOpen: (open) => set({ versionHistoryOpen: open }),
+  triggerScriptReload: () => set((state) => ({ scriptReloadKey: state.scriptReloadKey + 1 })),
 }));
