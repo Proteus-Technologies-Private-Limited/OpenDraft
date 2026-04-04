@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../services/api';
 import type { CollabSession } from '../services/api';
 import { getCollabWsUrl } from '../config';
+import { platformFetch } from '../services/platform';
 import { showToast } from './Toast';
 
 interface JoinCollabDialogProps {
@@ -52,6 +53,7 @@ const JoinCollabDialog: React.FC<JoinCollabDialogProps> = ({ onJoin, onClose }) 
 
   const handleJoin = async () => {
     const { token, collabServerUrl } = extractTokenAndServer(linkInput);
+    console.log('[JoinCollab] Extracted:', { token: token?.slice(0, 8) + '...', collabServerUrl });
     if (!token) {
       showToast('Please paste a collaboration link or token', 'error');
       return;
@@ -65,21 +67,38 @@ const JoinCollabDialog: React.FC<JoinCollabDialogProps> = ({ onJoin, onClose }) 
       // otherwise fall back to the local setting.
       const wsUrl = collabServerUrl || getCollabWsUrl();
       const collabHttpUrl = wsUrl.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
+      console.log('[JoinCollab] Step 1: trying collab server at', collabHttpUrl);
       try {
-        const res = await fetch(`${collabHttpUrl}/api/collab/session/${token}`);
-        if (res.ok) session = await res.json();
-      } catch {
-        // Collab server unreachable — fall through to local backend
+        const res = await platformFetch(`${collabHttpUrl}/api/collab/session/${token}`);
+        console.log('[JoinCollab] Step 1 response:', res.status);
+        if (res.ok) {
+          session = await res.json();
+          console.log('[JoinCollab] Step 1 session found:', session?.project_id);
+        } else {
+          const errBody = await res.text().catch(() => '');
+          console.warn('[JoinCollab] Step 1 failed:', res.status, errBody);
+        }
+      } catch (err) {
+        console.error('[JoinCollab] Step 1 error (collab server unreachable):', err);
       }
 
       // Fall back to the local backend
       if (!session) {
-        session = await api.validateCollabSession(token);
+        console.log('[JoinCollab] Step 2: falling back to api.validateCollabSession');
+        try {
+          session = await api.validateCollabSession(token);
+          console.log('[JoinCollab] Step 2 session found:', session?.project_id);
+        } catch (err) {
+          console.error('[JoinCollab] Step 2 failed:', err);
+          throw err;
+        }
       }
 
       onJoin(session, token, collabServerUrl || undefined);
-    } catch {
-      showToast('Invalid or expired collaboration link', 'error');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[JoinCollab] All attempts failed:', msg);
+      showToast(`Failed to join: ${msg}`, 'error');
     } finally {
       setJoining(false);
     }

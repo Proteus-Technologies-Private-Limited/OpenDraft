@@ -42,6 +42,7 @@ export interface CollabSessionRow {
   role: string;
   active: number;
   session_nonce: string;
+  created_by: string | null;
   created_at: string;
   expires_at: string;
 }
@@ -106,6 +107,7 @@ const SCHEMA_SQL = `
     role TEXT NOT NULL DEFAULT 'editor',
     active INTEGER NOT NULL DEFAULT 1,
     session_nonce TEXT NOT NULL DEFAULT '',
+    created_by TEXT,
     created_at TEXT NOT NULL,
     expires_at TEXT NOT NULL
   );
@@ -137,6 +139,14 @@ export async function initDB(): Promise<DBAdapter> {
   }
 
   await adapter.exec(SCHEMA_SQL);
+
+  // Migration: add created_by column to existing collab_sessions tables
+  try {
+    await adapter.run('ALTER TABLE collab_sessions ADD COLUMN created_by TEXT', []);
+  } catch {
+    // Column already exists — ignore
+  }
+
   return adapter;
 }
 

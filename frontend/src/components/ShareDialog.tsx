@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import type { CollabSession } from '../services/api';
 import { useSettingsStore } from '../stores/settingsStore';
-import { collabAuthApi } from '../services/collabAuth';
+import { collabAuthApi, isCollabAuthenticated } from '../services/collabAuth';
 import { showToast } from './Toast';
 
 interface ShareDialogProps {
@@ -58,14 +58,25 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
 
   useEffect(() => {
     inputRef.current?.focus();
-    api.listCollabSessions(projectId, scriptId)
-      .then(setSessions)
-      .catch(() => {});
-  }, [projectId, scriptId]);
+    // Only load existing sessions if collab is already active (host inviting more guests).
+    // When starting a fresh session, don't show stale invitations from previous sessions.
+    if (isCollabActive) {
+      api.listCollabSessions(projectId, scriptId)
+        .then(setSessions)
+        .catch(() => {});
+    }
+  }, [projectId, scriptId, isCollabActive]);
 
   const handleGenerate = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
+
+    // Verify user is still authenticated (also clears expired tokens)
+    if (!isCollabAuthenticated()) {
+      showToast('Session expired — please log in again (Settings → Collaboration)', 'error');
+      onClose();
+      return;
+    }
 
     setGenerating(true);
     try {

@@ -319,6 +319,10 @@ interface EditorState {
   editingTagId: string | null;
   setEditingTagId: (id: string | null) => void;
 
+  // Context menu (View toggle — defaults off on touch devices)
+  contextMenuEnabled: boolean;
+  setContextMenuEnabled: (v: boolean) => void;
+
   // Zoom
   zoomLevel: number;
   setZoomLevel: (level: number) => void;
@@ -392,7 +396,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   scenes: [],
   setScenes: (scenes) => set({ scenes }),
-  navigatorOpen: true,
+  navigatorOpen: typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0 ? false : true,
   toggleNavigator: () => set((s) => ({ navigatorOpen: !s.navigatorOpen })),
 
   indexCardsOpen: false,
@@ -658,6 +662,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setPendingTagSelection: (sel) => set({ pendingTagSelection: sel }),
   editingTagId: null,
   setEditingTagId: (id) => set({ editingTagId: id }),
+
+  // Context menu default: off on touch devices, on for desktop
+  contextMenuEnabled: typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0 ? false : true,
+  setContextMenuEnabled: (v) => set({ contextMenuEnabled: v }),
 
   zoomLevel: 100,
   setZoomLevel: (level) => set({ zoomLevel: Math.min(200, Math.max(50, level)) }),

@@ -37,54 +37,12 @@ function docPath(documentName: string): string {
 }
 
 // ── Invite token validation ──
-// First checks the collab server's own database (for invites created directly
-// here by Tauri clients). Falls back to the Python backend for invites created
-// via the web app's backend.
+// Extracted to services/collabValidation.ts to avoid circular imports
+// (routes/collab.ts also needs it).
 
-import type { CollabSessionRow } from './db';
-
-interface CollabSession {
-  token: string;
-  project_id: string;
-  script_id: string;
-  collaborator_name: string;
-  role: string;
-  active: boolean;
-}
-
-async function validateInviteToken(token: string): Promise<CollabSession | null> {
-  // 1. Check our own database first
-  try {
-    const db = getDB();
-    const session = await db.get<CollabSessionRow>(
-      'SELECT * FROM collab_sessions WHERE token = ? AND active = 1',
-      [token],
-    );
-    if (session && new Date(session.expires_at) > new Date()) {
-      return {
-        token: session.token,
-        project_id: session.project_id,
-        script_id: session.script_id,
-        collaborator_name: session.collaborator_name,
-        role: session.role,
-        active: true,
-      };
-    }
-  } catch {
-    // DB not ready or query failed — fall through to backend
-  }
-
-  // 2. Fall back to configured backend URLs (Python web backend)
-  for (const url of config.backendUrls) {
-    try {
-      const res = await fetch(`${url}/collab/session/${token}`);
-      if (res.ok) return await res.json() as CollabSession;
-    } catch {
-      // This backend is unreachable — try the next one
-    }
-  }
-  return null;
-}
+import { validateInviteToken } from './services/collabValidation';
+import type { CollabSession } from './services/collabValidation';
+export { validateInviteToken, type CollabSession };
 
 // ── Connection tracking for WebSocket limits ──
 
@@ -321,6 +279,13 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+
+// Request logger — logs all incoming HTTP requests
+app.use((req, _res, next) => {
+  console.log(`[http] ${req.method} ${req.path} from ${req.ip} origin=${req.headers.origin || 'none'}`);
+  next();
+});
+
 app.use(standardLimiter);
 
 // Auth routes

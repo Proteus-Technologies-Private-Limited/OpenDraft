@@ -24,6 +24,71 @@ fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
     std::fs::read(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
 }
 
+// ── Generic HTTP fetch command ────────────────────────────────────────────
+// Makes HTTP requests from Rust, bypassing WebView mixed-content restrictions.
+// The Tauri WebView loads from https://tauri.localhost, so browser fetch() to
+// plain http:// addresses (collab server, local backends) is blocked.
+
+#[derive(serde::Serialize)]
+struct HttpFetchResponse {
+    status: u16,
+    body: String,
+}
+
+#[tauri::command]
+async fn http_fetch(
+    url: String,
+    method: Option<String>,
+    body: Option<String>,
+    content_type: Option<String>,
+    authorization: Option<String>,
+) -> Result<HttpFetchResponse, String> {
+    let method_str = method.as_deref().unwrap_or("GET");
+    eprintln!("[http_fetch] {} {}", method_str, url);
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| {
+            eprintln!("[http_fetch] Client build error: {}", e);
+            format!("HTTP client error: {}", e)
+        })?;
+
+    let req_method = method_str.parse::<reqwest::Method>()
+        .map_err(|e| format!("Invalid method '{}': {}", method_str, e))?;
+
+    let mut req = client.request(req_method, &url);
+
+    if let Some(ct) = &content_type {
+        req = req.header("Content-Type", ct.as_str());
+    }
+
+    if let Some(auth) = &authorization {
+        req = req.header("Authorization", auth.as_str());
+    }
+
+    if let Some(b) = &body {
+        req = req.body(b.clone());
+    }
+
+    let resp = req.send().await
+        .map_err(|e| {
+            eprintln!("[http_fetch] {} {} → FAILED: {}", method_str, url, e);
+            format!("Request to {} failed: {}", url, e)
+        })?;
+
+    let status = resp.status().as_u16();
+    let body_text = resp.text().await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    eprintln!("[http_fetch] {} {} → {} ({} bytes)", method_str, url, status, body_text.len());
+
+    Ok(HttpFetchResponse {
+        status,
+        body: body_text,
+    })
+}
+
 // ── Link preview command ───────────────────────────────────────────────────
 // Fetches a URL and extracts Open Graph metadata. Used by the editor's link
 // preview feature. Runs in Rust to avoid CORS issues that browser fetch has.
@@ -39,14 +104,7 @@ struct LinkPreview {
 
 #[tauri::command]
 async fn fetch_link_preview(url: String) -> Result<LinkPreview, String> {
-    // Use a simple blocking HTTP client via ureq (or fall back to minimal parsing)
-    // For now, use std::process::Command with curl as a portable fallback,
-    // or we can use reqwest if added as a dependency.
-    //
-    // Minimal implementation: fetch the HTML and parse OG tags with string matching.
-    // This avoids adding heavy dependencies like reqwest.
-
-    let html = fetch_url_body(&url).map_err(|e| format!("Failed to fetch {}: {}", url, e))?;
+    let html = fetch_url_body(&url).await.map_err(|e| format!("Failed to fetch {}: {}", url, e))?;
 
     let title = extract_og_tag(&html, "og:title")
         .or_else(|| extract_html_title(&html))
@@ -60,24 +118,17 @@ async fn fetch_link_preview(url: String) -> Result<LinkPreview, String> {
     Ok(LinkPreview { url, title, description, image, site_name })
 }
 
-/// Fetch URL body using a subprocess call to curl (available on all platforms).
-/// Limits response to 256KB and times out after 5 seconds.
-fn fetch_url_body(url: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let output = std::process::Command::new("curl")
-        .args([
-            "-sL",                          // silent, follow redirects
-            "--max-time", "5",              // 5 second timeout
-            "--max-filesize", "262144",     // 256KB limit
-            "-H", "User-Agent: Mozilla/5.0 (compatible; OpenDraft/1.0)",
-            url,
-        ])
-        .output()?;
+/// Fetch URL body using reqwest (works on all platforms including iOS/Android).
+/// Times out after 5 seconds.
+async fn fetch_url_body(url: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .user_agent("Mozilla/5.0 (compatible; OpenDraft/1.0)")
+        .build()?;
 
-    if !output.status.success() {
-        return Err(format!("curl exited with {}", output.status).into());
-    }
-
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    let resp = client.get(url).send().await?;
+    let body = resp.text().await?;
+    Ok(body)
 }
 
 /// Extract an Open Graph meta tag value from HTML.
@@ -175,6 +226,7 @@ pub fn run() {
             save_binary_to_path,
             read_text_file,
             read_binary_file,
+            http_fetch,
             fetch_link_preview,
         ])
         .setup(|app| {
