@@ -9,8 +9,8 @@ async function init() {
   const savedTheme = localStorage.getItem('opendraft:theme') || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
 
-  // On mobile Tauri this swaps the HTTP api with local SQLite storage.
-  // On web and desktop it is a no-op — nothing changes.
+  // On Tauri (desktop + mobile) this swaps the HTTP api with local SQLite.
+  // On web it is a no-op — the Python backend is used as-is.
   await initStorage();
 
   createRoot(document.getElementById('root')!).render(
