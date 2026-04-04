@@ -244,22 +244,23 @@ export const api = {
   },
 };
 
-// ── Mobile storage initialisation ───────────────────────────────────────────
-// On mobile Tauri (iOS / Android) the Python sidecar is not available, so we
-// replace the HTTP methods above with a local SQLite implementation.
-// On web and desktop Tauri this function is a no-op — every existing call-site
-// continues to use the HTTP backend exactly as before.
+// ── Local storage initialisation ────────────────────────────────────────────
+// On Tauri (desktop + mobile) we use a local SQLite database instead of the
+// Python HTTP backend. This eliminates the sidecar process, removes the
+// localhost network attack surface, and gives instant startup.
+//
+// On web (no Tauri) this function is a no-op — the HTTP backend is used as-is.
 //
 // Must be called once before the React tree renders (see main.tsx).
 
 export async function initStorage(): Promise<void> {
-  // Dynamic imports keep the mobile code out of web/desktop bundles.
-  const { isMobileTauri } = await import('./platform');
-  if (!isMobileTauri()) return;                       // ← web & desktop: nothing changes
+  // Dynamic imports keep the Tauri/SQLite code out of web bundles.
+  const { isTauri } = await import('./platform');
+  if (!isTauri()) return;                             // ← web: nothing changes
 
-  const { createMobileStorage } = await import('./mobile-storage');
-  const mobileApi = await createMobileStorage();
+  const { createLocalStorage } = await import('./local-storage');
+  const localApi = await createLocalStorage();
   // Swap every method on the existing `api` object so all call-sites pick
   // up the local implementation automatically.
-  Object.assign(api, mobileApi);
+  Object.assign(api, localApi);
 }

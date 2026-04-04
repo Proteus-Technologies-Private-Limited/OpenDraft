@@ -18,10 +18,11 @@ import cors from 'cors';
 import { WebSocketServer } from 'ws';
 
 import { config } from './config';
-import { initDB } from './db';
+import { initDB, getDB } from './db';
 import { verifyAccessToken } from './services/tokenService';
 import * as auditService from './services/auditService';
 import authRoutes from './routes/auth';
+import collabRoutes from './routes/collab';
 import { standardLimiter } from './middleware/rateLimit';
 
 // ── Data directory for Yjs documents ──
@@ -35,7 +36,12 @@ function docPath(documentName: string): string {
   return path.join(DATA_DIR, `${safeName}.yjs`);
 }
 
-// ── Backend invite token validation ──
+// ── Invite token validation ──
+// First checks the collab server's own database (for invites created directly
+// here by Tauri clients). Falls back to the Python backend for invites created
+// via the web app's backend.
+
+import type { CollabSessionRow } from './db';
 
 interface CollabSession {
   token: string;
@@ -47,7 +53,28 @@ interface CollabSession {
 }
 
 async function validateInviteToken(token: string): Promise<CollabSession | null> {
-  // Try each configured backend URL (supports dev server + Tauri sidecar)
+  // 1. Check our own database first
+  try {
+    const db = getDB();
+    const session = await db.get<CollabSessionRow>(
+      'SELECT * FROM collab_sessions WHERE token = ? AND active = 1',
+      [token],
+    );
+    if (session && new Date(session.expires_at) > new Date()) {
+      return {
+        token: session.token,
+        project_id: session.project_id,
+        script_id: session.script_id,
+        collaborator_name: session.collaborator_name,
+        role: session.role,
+        active: true,
+      };
+    }
+  } catch {
+    // DB not ready or query failed — fall through to backend
+  }
+
+  // 2. Fall back to configured backend URLs (Python web backend)
   for (const url of config.backendUrls) {
     try {
       const res = await fetch(`${url}/collab/session/${token}`);
@@ -299,16 +326,9 @@ app.use(standardLimiter);
 // Auth routes
 app.use('/auth', authRoutes);
 
-// Validate a collab session token (tries all configured backends)
-// Used by the frontend to validate tokens regardless of which backend created them
-app.get('/api/collab/session/:token', async (req, res) => {
-  const session = await validateInviteToken(req.params.token);
-  if (!session) {
-    res.status(404).json({ error: 'Invalid or expired invite' });
-    return;
-  }
-  res.json(session);
-});
+// Collab invite management (create, validate, list, revoke)
+// Used by both Tauri desktop/mobile clients and the web frontend.
+app.use('/api/collab', collabRoutes);
 
 // Health check with memory & connection stats
 app.get('/health', (_req, res) => {
