@@ -43,7 +43,7 @@ import GoToPage from './GoToPage';
 import ElementPicker from './ElementPicker';
 import CharacterAutocomplete from './CharacterAutocomplete';
 import SpellCheckModal from './SpellCheckModal';
-import MobileAccessoryBar from './MobileAccessoryBar';
+// MobileAccessoryBar removed — context menu via 3-finger touch only
 import ScriptContextMenu from './ScriptContextMenu';
 import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { spellChecker } from '../editor/spellchecker';
@@ -192,7 +192,6 @@ const ScreenplayEditor: React.FC = () => {
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen,
     spellCheckEnabled, setDocumentTitle,
-    contextMenuEnabled,
   } = useEditorStore();
 
   const { currentProject, currentScriptId, setCurrentProject, setCurrentScriptId, scriptReloadKey } = useProjectStore();
@@ -1994,8 +1993,7 @@ const ScreenplayEditor: React.FC = () => {
       const editorDom = editor.view.dom;
       if (!editorDom.contains(e.target as Node)) return;
       e.preventDefault();
-      // If context menu is disabled (default on mobile), bail out
-      if (!useEditorStore.getState().contextMenuEnabled) return;
+      // No context menu on touch devices — use 3-finger touch instead
       if (isTouchDevice) return;
 
       // Move cursor to click position only if no text is selected,
@@ -2051,9 +2049,6 @@ const ScreenplayEditor: React.FC = () => {
   const handleCtxMenuClose = useCallback(() => {
     setCtxMenuState(s => ({ ...s, visible: false }));
   }, []);
-
-  // --- Touch device detection (for mobile accessory bar) ---
-  const isTouchDev = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
 
   // --- Spell check: open modal when toggled on (or from menu) ---
   // The modal is opened via the Tools menu or spellCheckEnabled toggle.
@@ -2263,15 +2258,7 @@ const ScreenplayEditor: React.FC = () => {
           onDismiss={handleCharAutoDismiss}
         />
       )}
-      {/* Mobile accessory bar — docked above virtual keyboard on touch devices */}
-      {!isHistoryMode && isTouchDev && editor && (
-        <MobileAccessoryBar
-          editor={editor}
-          onOpenContextMenu={(pos, savedSel) => {
-            setCtxMenuState({ visible: true, position: pos, spellInfo: null, savedSelection: savedSel });
-          }}
-        />
-      )}
+      {/* Context menu on mobile: 3-finger touch only */}
       {!isHistoryMode && ctxMenuState.visible && editor && (
         <ScriptContextMenu
           editor={editor}
