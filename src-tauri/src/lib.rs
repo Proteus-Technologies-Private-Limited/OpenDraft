@@ -1,4 +1,23 @@
-use tauri::Manager;
+use std::sync::Mutex;
+use tauri::{Emitter, Manager};
+
+// ── Pending file state ────────────────────────────────────────────────────
+// Stores the file path when the OS opens a screenplay file with OpenDraft.
+// The frontend retrieves it on startup via the get_opened_file command.
+struct PendingFile(Mutex<Option<String>>);
+
+/// Extensions that OpenDraft can open via file association.
+const OPENABLE_EXTENSIONS: &[&str] = &["fdx", "fountain", "odraft", "txt"];
+
+fn is_openable_file(path: &str) -> bool {
+    let ext = path.rsplit('.').next().unwrap_or("");
+    OPENABLE_EXTENSIONS.contains(&ext.to_lowercase().as_str())
+}
+
+#[tauri::command]
+fn get_opened_file(state: tauri::State<PendingFile>) -> Option<String> {
+    state.0.lock().unwrap().take()
+}
 
 // ── File I/O commands ──────────────────────────────────────────────────────
 // These bypass the fs plugin scope so the user can save/open files anywhere
@@ -228,6 +247,7 @@ pub fn run() {
             read_binary_file,
             http_fetch,
             fetch_link_preview,
+            get_opened_file,
         ])
         .setup(|app| {
             // Ensure user data directory exists
@@ -239,6 +259,18 @@ pub fn run() {
 
             eprintln!("OpenDraft starting — local SQLite storage");
             eprintln!("Data dir: {}", app_data_dir.display());
+
+            // ── Check CLI args for file association launch (Windows/Linux) ──
+            let mut pending: Option<String> = None;
+            let args: Vec<String> = std::env::args().collect();
+            if args.len() > 1 {
+                let path = &args[1];
+                if is_openable_file(path) && std::path::Path::new(path).is_file() {
+                    eprintln!("File association launch: {}", path);
+                    pending = Some(path.clone());
+                }
+            }
+            app.manage(PendingFile(Mutex::new(pending)));
 
             // ── Desktop: show splash then transition to main window ───
             #[cfg(not(target_os = "ios"))]
@@ -273,7 +305,28 @@ pub fn run() {
             panic!("{}", msg);
         });
 
-    app.run(|_app, _event| {
-        // No sidecar to clean up — nothing to do on exit
+    app.run(|app_handle, event| {
+        // ── Handle file association open events (macOS, Android) ──────
+        if let tauri::RunEvent::Opened { urls } = event {
+            for url in urls {
+                if let Ok(path) = url.to_file_path() {
+                    let path_str = path.to_string_lossy().to_string();
+                    if !is_openable_file(&path_str) {
+                        continue;
+                    }
+                    eprintln!("RunEvent::Opened file: {}", path_str);
+
+                    // Emit to frontend (works if window is already loaded)
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.emit("open-file", &path_str);
+                    }
+
+                    // Also store in pending state (for startup timing edge case)
+                    if let Some(state) = app_handle.try_state::<PendingFile>() {
+                        *state.0.lock().unwrap() = Some(path_str);
+                    }
+                }
+            }
+        }
     });
 }

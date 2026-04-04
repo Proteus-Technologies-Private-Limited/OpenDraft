@@ -1,6 +1,6 @@
 // Final Draft XML (.fdx) exporter — full formatting & layout support
 import type { JSONContent } from '@tiptap/react';
-import type { CharacterProfile, TagCategory, TagItem, BeatInfo, BeatColumn } from '../stores/editorStore';
+import type { CharacterProfile, TagCategory, TagItem, BeatInfo, BeatColumn, PageLayout } from '../stores/editorStore';
 
 const NODE_TO_FDX: Record<string, string> = {
   sceneHeading: 'Scene Heading',
@@ -36,88 +36,102 @@ function stripHtml(html: string): string {
     .replace(/\s+/g, ' ').trim();
 }
 
-// Default ElementSettings matching Final Draft US Screenplay template
-const ELEMENT_SETTINGS = `
+/**
+ * Generate ElementSettings using the document's actual margins.
+ * FDX indents are absolute positions (inches from left page edge).
+ * We shift all element indents relative to the Action baseline.
+ */
+function buildElementSettings(lm: number, ri: number): string {
+  // lm = left margin (Action LeftIndent), ri = Action RightIndent
+  const f = (n: number) => n.toFixed(2);
+  // Offsets from the standard Action indent (1.25/7.25) for each element type
+  const character_l = lm + 2.50, parenthetical_l = lm + 2.00, dialogue_l = lm + 1.31;
+  const transition_l = lm + 4.00, castList_l = lm + 0.25, outline2_l = lm + 0.50;
+  const dialogue_r = ri - 1.00, parenthetical_r = ri - 2.00, transition_r = ri - 0.50;
+  const castList_r = ri + 0.25;
+
+  return `
   <ElementSettings Type="Scene Heading">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Scene Heading" ReturnKey="Action" Shortcut="1"/>
   </ElementSettings>
   <ElementSettings Type="Action">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="2"/>
   </ElementSettings>
   <ElementSettings Type="Character">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="3.75" RightIndent="7.25" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(character_l)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Character" ReturnKey="Dialogue" Shortcut="3"/>
   </ElementSettings>
   <ElementSettings Type="Parenthetical">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
-    <ParagraphSpec Alignment="Left" FirstIndent="-0.10" Leading="Regular" LeftIndent="3.25" RightIndent="5.25" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="-0.10" Leading="Regular" LeftIndent="${f(parenthetical_l)}" RightIndent="${f(parenthetical_r)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Parenthetical" ReturnKey="Dialogue" Shortcut="4"/>
   </ElementSettings>
   <ElementSettings Type="Dialogue">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="2.56" RightIndent="6.25" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(dialogue_l)}" RightIndent="${f(dialogue_r)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Dialogue" ReturnKey="Action" Shortcut="5"/>
   </ElementSettings>
   <ElementSettings Type="Transition">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
-    <ParagraphSpec Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="5.25" RightIndent="6.75" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(transition_l)}" RightIndent="${f(transition_r)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Transition" ReturnKey="Scene Heading" Shortcut="6"/>
   </ElementSettings>
   <ElementSettings Type="Shot">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Scene Heading" ReturnKey="Action" Shortcut="7"/>
   </ElementSettings>
   <ElementSettings Type="General">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="General" ReturnKey="General" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Cast List">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.50" RightIndent="7.50" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(castList_l)}" RightIndent="${f(castList_r)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="8"/>
   </ElementSettings>
   <ElementSettings Type="Lyrics">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Italic"/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="2.56" RightIndent="6.25" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(dialogue_l)}" RightIndent="${f(dialogue_r)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Dialogue" ReturnKey="Action" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="New Act">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold+Underline+AllCaps"/>
-    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="24" Spacing="1" StartsNewPage="Yes"/>
+    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="1" StartsNewPage="Yes"/>
     <Behavior PaginateAs="Action" ReturnKey="Scene Heading" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="End of Act">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold+AllCaps"/>
-    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="New Act" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Show/Episode">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold+AllCaps"/>
-    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Outline 1">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold+AllCaps"/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Outline Body" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Outline 2">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold"/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.75" RightIndent="7.25" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(outline2_l)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Outline Body" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Outline Body">
     <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
-    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.25" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="0"/>
   </ElementSettings>`;
+}
 
 interface MarkInfo { type: string; attrs?: Record<string, unknown>; }
 
@@ -146,20 +160,28 @@ function getTextAttributes(marks?: MarkInfo[]): string {
   return parts.length > 0 ? ' ' + parts.join(' ') : '';
 }
 
-export function exportFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[]): string {
+export function exportFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout): string {
   const lines: string[] = [];
   lines.push('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>');
   lines.push('<FinalDraft DocumentType="Script" Template="No" Version="5">');
   lines.push('');
 
-  // Page layout (Final Draft defaults)
-  lines.push('  <PageLayout BackgroundColor="#FFFFFFFFFFFF" BottomMargin="62" BreakDialogueAndActionAtSentences="Yes" DocumentLeading="Normal" FooterMargin="36" ForegroundColor="#000000000000" HeaderMargin="36" InvisiblesColor="#808080808080" TopMargin="90" UsesSmartQuotes="No">');
-  lines.push('    <PageSize Height="11.00" Width="8.50"/>');
+  // Page layout — use the editor's current layout for lossless round-trip
+  const pw = pageLayout?.pageWidth?.toFixed(2) ?? '8.50';
+  const ph = pageLayout?.pageHeight?.toFixed(2) ?? '11.00';
+  const tm = pageLayout?.topMargin ?? 90;
+  const bm = pageLayout?.bottomMargin ?? 62;
+  const hm = pageLayout?.headerMargin ?? 36;
+  const fm = pageLayout?.footerMargin ?? 36;
+  lines.push(`  <PageLayout BackgroundColor="#FFFFFFFFFFFF" BottomMargin="${bm}" BreakDialogueAndActionAtSentences="Yes" DocumentLeading="Normal" FooterMargin="${fm}" ForegroundColor="#000000000000" HeaderMargin="${hm}" InvisiblesColor="#808080808080" TopMargin="${tm}" UsesSmartQuotes="No">`);
+  lines.push(`    <PageSize Height="${ph}" Width="${pw}"/>`);
   lines.push('  </PageLayout>');
   lines.push('');
 
-  // Element settings
-  lines.push(ELEMENT_SETTINGS);
+  // Element settings — use actual margins so re-import round-trips correctly
+  const leftIndent = pageLayout?.leftMargin ?? 1.25;
+  const rightIndent = pageLayout ? (pageLayout.pageWidth - pageLayout.rightMargin) : 7.25;
+  lines.push(buildElementSettings(leftIndent, rightIndent));
   lines.push('');
 
   // Header
@@ -317,8 +339,8 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   return lines.join('\n');
 }
 
-export async function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[]) {
-  const xml = exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns);
+export async function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout) {
+  const xml = exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns, pageLayout);
   const filename = `${title.replace(/[^a-zA-Z0-9_\- ]/g, '')}.fdx`;
   const { saveFile } = await import('./fileOps');
   await saveFile(xml, filename, [{ name: 'Final Draft', extensions: ['fdx'] }]);

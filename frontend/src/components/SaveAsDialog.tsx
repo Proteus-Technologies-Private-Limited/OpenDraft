@@ -1,5 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../services/api';
+import type { ProjectInfo } from '../services/api';
+
+const LAST_PROJECT_KEY = 'opendraft:lastProject';
+
+function getLastProjectName(): string {
+  try { return localStorage.getItem(LAST_PROJECT_KEY) || ''; } catch { return ''; }
+}
+function saveLastProjectName(name: string) {
+  try { localStorage.setItem(LAST_PROJECT_KEY, name); } catch { /* noop */ }
+}
 
 interface SaveAsDialogProps {
   defaultProjectName: string;
@@ -16,14 +26,77 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
   onClose,
   buildContent,
 }) => {
-  const [projectName, setProjectName] = useState(defaultProjectName);
+  const [projects, setProjects] = useState<ProjectInfo[]>([]);
+  const [projectName, setProjectName] = useState('');
   const [fileName, setFileName] = useState(defaultFileName);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const projectInputRef = useRef<HTMLInputElement>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);  // true when user is actively typing to filter
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const comboRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  // Load projects and pick the best default project name
   useEffect(() => {
-    projectInputRef.current?.select();
+    (async () => {
+      try {
+        const list = await api.listProjects();
+        setProjects(list);
+
+        // Priority: last-used project > defaultProjectName > "My Project"
+        const lastUsed = getLastProjectName();
+        if (lastUsed && list.some((p) => p.name.toLowerCase() === lastUsed.toLowerCase())) {
+          setProjectName(lastUsed);
+        } else if (list.length > 0) {
+          // Sort by updated_at descending to pick the most recent
+          const sorted = [...list].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+          setProjectName(sorted[0].name);
+        } else {
+          setProjectName(defaultProjectName || 'My Project');
+        }
+      } catch {
+        setProjectName(defaultProjectName || 'My Project');
+      }
+    })();
+  }, [defaultProjectName]);
+
+  // Focus the file name input once project name is set
+  useEffect(() => {
+    if (projectName) {
+      // Small delay to let React render the field
+      const t = setTimeout(() => {
+        fileInputRef.current?.focus();
+        fileInputRef.current?.select();
+      }, 50);
+      return () => clearTimeout(t);
+    }
+  }, [projectName ? 'set' : 'unset']); // only fire once project is populated
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (comboRef.current && !comboRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filteredProjects = isTyping && projectName.trim()
+    ? projects.filter((p) => p.name.toLowerCase().includes(projectName.toLowerCase()))
+    : projects;
+
+  const handleSelectProject = useCallback((name: string) => {
+    setProjectName(name);
+    setIsTyping(false);
+    setDropdownOpen(false);
+    // Focus filename after selection
+    setTimeout(() => {
+      fileInputRef.current?.focus();
+      fileInputRef.current?.select();
+    }, 30);
   }, []);
 
   const handleSave = async () => {
@@ -37,15 +110,16 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
     try {
       // Create or find existing project
       let project;
-      try {
-        project = await api.createProject(trimmedProject);
-      } catch {
-        const projects = await api.listProjects();
-        project = projects.find(
-          (p) => p.name.toLowerCase() === trimmedProject.toLowerCase()
-        );
-        if (!project) {
-          setError('Could not create or find project');
+      const existing = projects.find(
+        (p) => p.name.toLowerCase() === trimmedProject.toLowerCase()
+      );
+      if (existing) {
+        project = existing;
+      } else {
+        try {
+          project = await api.createProject(trimmedProject);
+        } catch {
+          setError('Could not create project');
           setSaving(false);
           return;
         }
@@ -58,6 +132,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
         content: content || undefined,
       });
 
+      saveLastProjectName(trimmedProject);
       onSaved(project.id, trimmedProject, scriptResp.meta.id, trimmedFile);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -67,9 +142,14 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && projectName.trim() && fileName.trim()) {
+      setDropdownOpen(false);
       handleSave();
     } else if (e.key === 'Escape') {
-      onClose();
+      if (dropdownOpen) {
+        setDropdownOpen(false);
+      } else {
+        onClose();
+      }
     }
   };
 
@@ -79,18 +159,93 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
         <div className="dialog-header">Save Screenplay</div>
         <div className="dialog-body">
           <div className="dialog-row">
-            <label>Project Name</label>
-            <input
-              ref={projectInputRef}
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              placeholder="My Project"
-              autoFocus
-            />
+            <label>Project</label>
+            <div ref={comboRef} style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', gap: 0 }}>
+                <input
+                  ref={inputRef}
+                  value={projectName}
+                  onChange={(e) => {
+                    setProjectName(e.target.value);
+                    setIsTyping(true);
+                    setDropdownOpen(true);
+                  }}
+                  onFocus={() => { setIsTyping(false); setDropdownOpen(true); }}
+                  placeholder="Project name"
+                  style={{ flex: 1, borderRadius: '4px 0 0 4px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => { setIsTyping(false); setDropdownOpen((v) => !v); }}
+                  style={{
+                    width: 32,
+                    border: '1px solid var(--fd-border)',
+                    borderLeft: 'none',
+                    borderRadius: '0 4px 4px 0',
+                    background: 'var(--fd-bg)',
+                    color: 'var(--fd-text)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 12,
+                    padding: 0,
+                  }}
+                  tabIndex={-1}
+                >
+                  &#9662;
+                </button>
+              </div>
+              {dropdownOpen && filteredProjects.length > 0 && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    maxHeight: 160,
+                    overflowY: 'auto',
+                    background: 'var(--fd-menu-bg, var(--fd-bg))',
+                    border: '1px solid var(--fd-border)',
+                    borderRadius: 4,
+                    marginTop: 2,
+                    zIndex: 10,
+                    boxShadow: '0 4px 12px rgba(0,0,0,.3)',
+                  }}
+                >
+                  {filteredProjects.map((p) => (
+                    <div
+                      key={p.id}
+                      onClick={() => handleSelectProject(p.name)}
+                      style={{
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        color: 'var(--fd-text)',
+                        background:
+                          p.name.toLowerCase() === projectName.toLowerCase()
+                            ? 'var(--fd-menu-hover)'
+                            : 'transparent',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--fd-menu-hover)')}
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background =
+                          p.name.toLowerCase() === projectName.toLowerCase()
+                            ? 'var(--fd-menu-hover)'
+                            : 'transparent')
+                      }
+                    >
+                      {p.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="dialog-row" style={{ marginTop: 12 }}>
             <label>File Name</label>
             <input
+              ref={fileInputRef}
               value={fileName}
               onChange={(e) => setFileName(e.target.value)}
               placeholder="First Draft"

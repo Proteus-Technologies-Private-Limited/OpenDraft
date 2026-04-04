@@ -13,6 +13,7 @@ interface ViewState {
   notesVisible?: boolean;
   tagsVisible?: boolean;
   notesActiveTab?: 'script' | 'general';
+  zoomLevel?: number;
 }
 function loadViewState(): ViewState {
   try {
@@ -718,8 +719,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   editingTagId: null,
   setEditingTagId: (id) => set({ editingTagId: id }),
 
-  zoomLevel: 100,
-  setZoomLevel: (level) => set({ zoomLevel: Math.min(200, Math.max(50, level)) }),
+  zoomLevel: _vs.zoomLevel ?? 100,
+  setZoomLevel: (level) => { const clamped = Math.min(200, Math.max(50, level)); set({ zoomLevel: clamped }); saveViewState({ zoomLevel: clamped }); },
   zoomPanelOpen: false,
   setZoomPanelOpen: (open) => set({ zoomPanelOpen: open }),
 

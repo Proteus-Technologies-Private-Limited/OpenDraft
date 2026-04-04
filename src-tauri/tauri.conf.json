@@ -61,7 +61,29 @@
         "installerHooks": "nsis-hooks.nsh"
       }
     },
-    "category": "public.app-category.productivity"
+    "category": "public.app-category.productivity",
+    "fileAssociations": [
+      {
+        "ext": ["fdx"],
+        "mimeType": "application/xml",
+        "description": "Final Draft Screenplay"
+      },
+      {
+        "ext": ["fountain"],
+        "mimeType": "text/plain",
+        "description": "Fountain Screenplay"
+      },
+      {
+        "ext": ["odraft"],
+        "mimeType": "application/json",
+        "description": "OpenDraft Screenplay"
+      },
+      {
+        "ext": ["txt"],
+        "mimeType": "text/plain",
+        "description": "Text File"
+      }
+    ]
   },
   "plugins": {}
 }
