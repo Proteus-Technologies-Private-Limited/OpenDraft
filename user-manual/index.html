@@ -151,10 +151,13 @@
       </a>
     </div>
 
-    <h2 id="whats-new">What's New in v0.6.7</h2>
+    <h2 id="whats-new">What's New in v0.7.0</h2>
     <ul>
-      <li><strong>Windows: Fix DLL Loading on Relaunch</strong> &mdash; Sidecar now runs from AppData instead of Program Files, eliminating the &ldquo;failed to load python dll&rdquo; error caused by Windows Defender blocking DLLs for non-elevated processes</li>
-      <li><strong>Windows: Proper Defender Exclusions</strong> &mdash; Installer now uses the official PowerShell API for Defender exclusions instead of direct registry writes that Tamper Protection blocks</li>
+      <li><strong>Local SQLite Storage</strong> &mdash; Desktop app now uses local SQLite instead of a Python sidecar, making it faster and eliminating DLL compatibility issues</li>
+      <li><strong>Remote Collaboration Server</strong> &mdash; Real-time collaboration moved to a dedicated server with JWT auth, Google OAuth, and TLS support</li>
+      <li><strong>Beat Board Improvements</strong> &mdash; Inline drag handles, column maximize, URL link previews, smoother drag-and-drop, and mobile/touch support</li>
+      <li><strong>General Notes</strong> &mdash; New General Notes tab in the Notes panel for free-form project notes</li>
+      <li><strong>iOS Mobile Fixes</strong> &mdash; Fixed status bar overlap, bottom padding, and removed mobile accessory bar for a cleaner experience</li>
     </ul>
 
     <!-- Page Nav -->

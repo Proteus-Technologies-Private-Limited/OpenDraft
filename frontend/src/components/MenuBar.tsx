@@ -720,10 +720,13 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.6.7</div>
+              <div className="about-section-title">What's New in 0.7.0</div>
               <ul className="about-list">
-                <li><strong>Windows: Fix DLL Loading on Relaunch</strong> — Sidecar now runs from AppData instead of Program Files, eliminating the "failed to load python dll" error caused by Windows Defender blocking DLLs for non-elevated processes.</li>
-                <li><strong>Windows: Proper Defender Exclusions</strong> — Installer now uses the official PowerShell API for Defender exclusions instead of direct registry writes that Tamper Protection blocks.</li>
+                <li><strong>Local SQLite Storage</strong> — Desktop app now uses local SQLite instead of a Python sidecar, making it faster and eliminating DLL compatibility issues.</li>
+                <li><strong>Remote Collaboration Server</strong> — Real-time collaboration moved to a dedicated server with JWT auth, Google OAuth, and TLS support.</li>
+                <li><strong>Beat Board Improvements</strong> — Inline drag handles, column maximize, URL link previews, smoother drag-and-drop, and mobile/touch support.</li>
+                <li><strong>General Notes</strong> — New General Notes tab in the Notes panel for free-form project notes.</li>
+                <li><strong>iOS Mobile Fixes</strong> — Fixed status bar overlap, bottom padding, and removed mobile accessory bar for a cleaner experience.</li>
               </ul>
             </div>
           </div>
