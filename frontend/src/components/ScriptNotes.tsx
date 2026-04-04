@@ -136,8 +136,6 @@ const NoteContentDisplay: React.FC<{
   return <div className="note-content-rendered">{elements}</div>;
 };
 
-type NotesTab = 'script' | 'general';
-
 const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
   const {
     notes,
@@ -152,14 +150,13 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
     addGeneralNote,
     updateGeneralNote,
     deleteGeneralNote,
+    notesActiveTab: activeTab,
+    setNotesActiveTab: setActiveTab,
   } = useEditorStore();
 
   const { assets } = useAssetStore();
   const { currentProject } = useProjectStore();
   const projectId = currentProject?.id ?? null;
-
-  // Tab state: script notes vs general notes
-  const [activeTab, setActiveTab] = useState<NotesTab>('script');
 
   // Track which note is being edited (shows textarea), null = preview mode for all
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
