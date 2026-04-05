@@ -736,11 +736,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.8.0</div>
+              <div className="about-section-title">What's New in 0.9.0</div>
               <ul className="about-list">
-                <li><strong>Smoother Import Flow</strong> — Imported files open as unsaved documents without forcing an immediate Save As dialog.</li>
-                <li><strong>Quick New Screenplay</strong> — Creating a new screenplay from a project no longer asks for a name upfront; just start writing and name it when you save.</li>
-                <li><strong>Smarter Save As</strong> — Save As dialog now pre-selects the project you were working in.</li>
+                <li><strong>Page Preview</strong> — New Pages tab in the navigator shows pixel-perfect page thumbnails with scroll sync. Click anywhere on a page to jump to that position.</li>
+                <li><strong>Scene Filters</strong> — Filter scenes by Character (multi-select), Location, INT/EXT, or Time of Day to quickly find what you need.</li>
+                <li><strong>Scene Length Indicator</strong> — Each scene shows a page-length icon; hover to see the exact decimal page count.</li>
+                <li><strong>Improved Readability</strong> — Better contrast in light theme, larger touch targets, and more prominent scene titles across all navigator tabs.</li>
               </ul>
             </div>
           </div>

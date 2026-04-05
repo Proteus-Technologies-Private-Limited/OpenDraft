@@ -11,7 +11,7 @@
     // Index / Home
     { page: 'Home', title: 'Welcome to OpenDraft', section: '', text: 'Free open-source screenwriting application. Professional screenplay editing with real-time collaboration. No subscription required.', url: 'index.html' },
     { page: 'Home', title: 'Quick Start', section: 'Quick Start', text: 'Install OpenDraft download desktop app. Create a project. Start writing new script. Save your work Cmd S check in version checkpoint.', url: 'index.html#quick-start' },
-    { page: 'Home', title: "What's New in v0.8.0", section: "What's New", text: 'Smoother import flow unsaved documents quick new screenplay save as pre-selects project.', url: 'index.html#whats-new' },
+    { page: 'Home', title: "What's New in v0.9.0", section: "What's New", text: 'Page preview thumbnails scroll sync scene filters character location time of day scene length indicator improved readability light theme touch friendly.', url: 'index.html#whats-new' },
 
     // Getting Started
     { page: 'Getting Started', title: 'Getting Started', section: '', text: 'Write your first screenplay in 5 minutes. Beginner guide walkthrough basics. New to screenwriting software.', url: 'getting-started.html' },
