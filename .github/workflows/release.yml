@@ -371,7 +371,7 @@ jobs:
           fi
 
           # Find and rename AAB
-          AAB=$(find src-tauri/gen/android -name "*.aab" -path "*/release/*" | head -1)
+          AAB=$(find src-tauri/gen/android -name "*.aab" -path "*Release*" | head -1)
           if [ -n "$AAB" ]; then
             cp "$AAB" "android-artifacts/OpenDraft_${VERSION}_android.aab"
             echo "AAB: $AAB -> OpenDraft_${VERSION}_android.aab"
