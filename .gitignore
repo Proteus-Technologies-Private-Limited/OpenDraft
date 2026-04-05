@@ -65,3 +65,6 @@ collab-server/data/
 OpenDraft.pkg
 build/
 dist/
+
+# Fastlane keys (service account, API keys)
+fastlane/keys/
