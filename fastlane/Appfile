@@ -1,0 +1,2 @@
+json_key_file("fastlane/keys/play-store-service-account.json")
+package_name("com.proteus.opendraft")
