@@ -234,3 +234,121 @@ function computeBreaks(doc: PmNode, layout: PageLayout): PaginationState {
 
   return { pageCount: pageNumber - 1, breaks };
 }
+
+// ── Scene length computation ────────────────────────────────────────────
+
+/**
+ * Compute the length of each scene in pages (decimal).
+ * Returns an array of page lengths, one per scene heading in document order.
+ */
+export function computeSceneLengths(doc: PmNode, layout: PageLayout): number[] {
+  const { linesPerPage } = getPageMetrics(layout);
+  const lengths: number[] = [];
+  let sceneLines = 0;
+  let inScene = false;
+  let nodeIdx = 0;
+
+  doc.forEach((node) => {
+    const typeName = node.type.name;
+    const cpl = CHARS_PER_LINE[typeName] || 62;
+    const textLines = getTextLines(node.textContent || '', cpl);
+    const sb = nodeIdx === 0 ? 0 : (SPACE_BEFORE[typeName] ?? 0);
+
+    if (typeName === 'sceneHeading') {
+      if (inScene) lengths.push(sceneLines / linesPerPage);
+      sceneLines = sb + textLines;
+      inScene = true;
+    } else if (inScene) {
+      sceneLines += sb + textLines;
+    }
+    nodeIdx++;
+  });
+  if (inScene) lengths.push(sceneLines / linesPerPage);
+  return lengths;
+}
+
+// ── Page block computation for page preview ─────────────────────────────
+
+export interface PageBlockInfo {
+  typeName: string;
+  lineStart: number;
+  lineCount: number;
+  docPos: number;
+  text: string;
+}
+
+export interface PageContentInfo {
+  pageNumber: number;
+  blocks: PageBlockInfo[];
+  linesPerPage: number;
+}
+
+/**
+ * Compute content blocks per page for page-preview thumbnails.
+ * Uses the same break algorithm as the pagination plugin for accuracy.
+ */
+export function computePageBlocks(doc: PmNode, layout: PageLayout): PageContentInfo[] {
+  const { linesPerPage } = getPageMetrics(layout);
+  const { breaks } = computeBreaks(doc, layout);
+
+  // Collect top-level nodes
+  const nodes: { typeName: string; text: string; offset: number }[] = [];
+  doc.forEach((node, offset) => {
+    nodes.push({ typeName: node.type.name, text: node.textContent || '', offset });
+  });
+
+  if (nodes.length === 0) return [];
+
+  // Determine page boundaries from breaks
+  const pageBounds: { pageNumber: number; startNode: number; endNode: number; dialogueSplit: boolean }[] = [];
+
+  if (breaks.length === 0) {
+    pageBounds.push({ pageNumber: 1, startNode: 0, endNode: nodes.length - 1, dialogueSplit: false });
+  } else {
+    // Page 1
+    if (breaks[0].nodeIndex > 0) {
+      pageBounds.push({ pageNumber: 1, startNode: 0, endNode: breaks[0].nodeIndex - 1, dialogueSplit: false });
+    }
+    // Pages from breaks
+    for (let i = 0; i < breaks.length; i++) {
+      const endNode = i + 1 < breaks.length ? breaks[i + 1].nodeIndex - 1 : nodes.length - 1;
+      pageBounds.push({
+        pageNumber: breaks[i].pageNumber,
+        startNode: breaks[i].nodeIndex,
+        endNode,
+        dialogueSplit: breaks[i].isDialogueSplit,
+      });
+    }
+  }
+
+  // Build page content
+  const pages: PageContentInfo[] = [];
+
+  for (const pb of pageBounds) {
+    if (pb.startNode > pb.endNode || pb.startNode >= nodes.length) continue;
+    const blocks: PageBlockInfo[] = [];
+    let lineOnPage = pb.dialogueSplit ? 1 : 0; // 1 for CONT'D overhead
+    let firstOnPage = true;
+
+    for (let i = pb.startNode; i <= Math.min(pb.endNode, nodes.length - 1); i++) {
+      const node = nodes[i];
+      const cpl = CHARS_PER_LINE[node.typeName] || 62;
+      const textLines = getTextLines(node.text, cpl);
+      const sb = firstOnPage ? 0 : (SPACE_BEFORE[node.typeName] ?? 0);
+      firstOnPage = false;
+
+      blocks.push({
+        typeName: node.typeName,
+        lineStart: lineOnPage + sb,
+        lineCount: textLines,
+        docPos: node.offset,
+        text: node.text,
+      });
+      lineOnPage += sb + textLines;
+    }
+
+    pages.push({ pageNumber: pb.pageNumber, blocks, linesPerPage });
+  }
+
+  return pages;
+}

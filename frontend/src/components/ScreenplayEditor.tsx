@@ -37,7 +37,7 @@ import ScriptNotes from './ScriptNotes';
 import CharacterProfiles from './CharacterProfiles';
 import TagsPanel from './TagsPanel';
 import FormatPanel from './FormatPanel';
-import StatusBar from './StatusBar';
+// StatusBar removed — page count now visible in Pages tab of SceneNavigator
 import SearchReplace, { createSearchPlugin } from './SearchReplace';
 import GoToPage from './GoToPage';
 import ElementPicker from './ElementPicker';
@@ -2636,7 +2636,6 @@ const ScreenplayEditor: React.FC = () => {
           </div>
         </div>
       )}
-      {!isHistoryMode && <StatusBar />}
     </div>
   );
 };
