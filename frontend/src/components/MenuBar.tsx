@@ -801,10 +801,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.9.0</div>
               <ul className="about-list">
-                <li><strong>Page Preview</strong> — New Pages tab in the navigator shows pixel-perfect page thumbnails with scroll sync. Click anywhere on a page to jump to that position.</li>
-                <li><strong>Scene Filters</strong> — Filter scenes by Character (multi-select), Location, INT/EXT, or Time of Day to quickly find what you need.</li>
-                <li><strong>Scene Length Indicator</strong> — Each scene shows a page-length icon; hover to see the exact decimal page count.</li>
-                <li><strong>Improved Readability</strong> — Better contrast in light theme, larger touch targets, and more prominent scene titles across all navigator tabs.</li>
+                <li><strong>Formatting Templates</strong> — Industry-standard screenplay formatting with customizable element rules and override/enforce modes.</li>
+                <li><strong>Responsive Toolbar</strong> — Toolbar buttons progressively collapse into a 3-dot overflow menu as the window narrows, like Google Docs.</li>
+                <li><strong>Unsaved Changes Prompt</strong> — New Screenplay, Import, and Open now prompt to save unsaved work before proceeding.</li>
+                <li><strong>Enhanced Font &amp; Formatting</strong> — Draggable formatting dialog with strikethrough, subscript, superscript, text color, and highlight color.</li>
+                <li><strong>Justified Alignment</strong> — New justify option alongside left, center, and right alignment.</li>
+                <li><strong>Context Menu Improvements</strong> — Style and Element submenus now work on click; added strikethrough, subscript, superscript to Style submenu.</li>
               </ul>
             </div>
           </div>
