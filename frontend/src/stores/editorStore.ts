@@ -390,6 +390,9 @@ interface EditorState {
   setOpenFromProjectOpen: (open: boolean) => void;
   saveAsOpen: boolean;
   setSaveAsOpen: (open: boolean) => void;
+  /** Optional callback to run after save-as completes (e.g. deferred import). */
+  postSaveAction: (() => void) | null;
+  setPostSaveAction: (action: (() => void) | null) => void;
 }
 
 const BEAT_UNDO_MAX = 50;
@@ -757,4 +760,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setOpenFromProjectOpen: (open) => set({ openFromProjectOpen: open }),
   saveAsOpen: false,
   setSaveAsOpen: (open) => set({ saveAsOpen: open }),
+  postSaveAction: null,
+  setPostSaveAction: (action) => set({ postSaveAction: action }),
 }));

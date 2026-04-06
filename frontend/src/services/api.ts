@@ -1,10 +1,30 @@
-import { API_BASE } from '../config';
+import { API_BASE, getCollabWsUrl } from '../config';
+import { useSettingsStore } from '../stores/settingsStore';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...options?.headers },
   });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`API error ${res.status}: ${detail}`);
+  }
+  return res.json();
+}
+
+/** Authenticated request to the collab server (not the Python backend). */
+async function collabServerRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const base = getCollabWsUrl().replace(/^ws(s?):\/\//, 'http$1://');
+  const { collabAuth } = useSettingsStore.getState();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  };
+  if (collabAuth.accessToken) {
+    headers['Authorization'] = `Bearer ${collabAuth.accessToken}`;
+  }
+  const res = await fetch(`${base}${path}`, { ...options, headers });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(`API error ${res.status}: ${detail}`);
@@ -184,24 +204,24 @@ export const api = {
       method: 'POST',
     }),
 
-  // Collaboration
+  // Collaboration (routed to collab server, not Python backend)
   createCollabInvite: (projectId: string, scriptId: string, collaboratorName: string, role: string = 'editor', expiresInHours: number = 1, sessionNonce: string = '') =>
-    request<CollabSession>('/collab/invite', {
+    collabServerRequest<CollabSession>('/api/collab/invite', {
       method: 'POST',
       body: JSON.stringify({ project_id: projectId, script_id: scriptId, collaborator_name: collaboratorName, role, expires_in_hours: expiresInHours, session_nonce: sessionNonce }),
     }),
 
   validateCollabSession: (token: string) =>
-    request<CollabSession>(`/collab/session/${token}`),
+    collabServerRequest<CollabSession>(`/api/collab/session/${token}`),
 
   listCollabSessions: (projectId: string, scriptId: string) =>
-    request<CollabSession[]>(`/collab/sessions/${projectId}/${scriptId}`),
+    collabServerRequest<CollabSession[]>(`/api/collab/sessions/${projectId}/${scriptId}`),
 
   revokeCollabSession: (token: string) =>
-    request<{ message: string }>(`/collab/session/${token}`, { method: 'DELETE' }),
+    collabServerRequest<{ message: string }>(`/api/collab/session/${token}`, { method: 'DELETE' }),
 
   revokeAllCollabSessions: (projectId: string, scriptId: string) =>
-    request<{ message: string }>(`/collab/sessions/${projectId}/${scriptId}`, { method: 'DELETE' }),
+    collabServerRequest<{ message: string }>(`/api/collab/sessions/${projectId}/${scriptId}`, { method: 'DELETE' }),
 
   // Assets
   listAssets: async (projectId: string): Promise<any[]> => {
@@ -242,6 +262,25 @@ export const api = {
       body: JSON.stringify({ url }),
     });
   },
+
+  // Formatting templates
+  listFormattingTemplates: () =>
+    request<any[]>('/formatting-templates/'),
+
+  createFormattingTemplate: (template: any) =>
+    request<any>('/formatting-templates/', {
+      method: 'POST',
+      body: JSON.stringify(template),
+    }),
+
+  updateFormattingTemplate: (id: string, template: any) =>
+    request<any>(`/formatting-templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(template),
+    }),
+
+  deleteFormattingTemplate: (id: string) =>
+    request<any>(`/formatting-templates/${id}`, { method: 'DELETE' }),
 };
 
 // ── Local storage initialisation ────────────────────────────────────────────

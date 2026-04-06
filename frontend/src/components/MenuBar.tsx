@@ -13,6 +13,7 @@ import { downloadFountain } from '../utils/fountainExporter';
 import { exportPDF } from '../utils/pdfExporter';
 import { trackChangesPluginKey } from '../editor/trackChanges';
 import PageSetupDialog from './PageSetupDialog';
+import TemplateSelectDialog from './TemplateSelectDialog';
 import { pluginRegistry } from '../plugins/registry';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
 
@@ -68,6 +69,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     spellCheckEnabled,
     toggleSpellCheck,
     setOpenFromProjectOpen,
+    setPostSaveAction,
     setSaveAsOpen,
     theme,
     setTheme,
@@ -122,8 +124,61 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     }
   }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen]);
 
+  // ── Unsaved-changes confirmation before New / Import ──
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
+  /** Returns true if the editor has unsaved changes worth prompting about.
+   *  - If never saved to a project: true when editor has any meaningful text.
+   *  - If saved to a project: always false (auto-save handles it). */
+  const editorHasUnsavedChanges = useCallback((): boolean => {
+    if (!editor) return false;
+    // Already saved to a project — auto-save keeps it in sync, no prompt needed
+    if (currentProject && currentScriptId) return false;
+    // Never-saved document — prompt only if there's real content
+    const text = editor.state.doc.textContent.trim();
+    return text.length > 0;
+  }, [editor, currentProject, currentScriptId]);
+
+  const confirmOrRun = useCallback((action: () => void) => {
+    if (editorHasUnsavedChanges()) {
+      setPendingAction(() => action);
+      setDiscardConfirmOpen(true);
+    } else {
+      action();
+    }
+  }, [editorHasUnsavedChanges]);
+
+  const handleDiscardConfirmSave = useCallback(async () => {
+    setDiscardConfirmOpen(false);
+    if (!currentProject || !currentScriptId) {
+      // No project yet — open save-as dialog; the pending action will run
+      // after save-as completes (via postSaveAction in the store).
+      if (pendingAction) setPostSaveAction(pendingAction);
+      setPendingAction(null);
+      setSaveAsOpen(true);
+      return;
+    }
+    // Existing project — save inline, then run pending action
+    await handleSave();
+    pendingAction?.();
+    setPendingAction(null);
+  }, [handleSave, pendingAction, currentProject, currentScriptId, setSaveAsOpen, setPostSaveAction]);
+
+  const handleDiscardConfirmDiscard = useCallback(() => {
+    setDiscardConfirmOpen(false);
+    pendingAction?.();
+    setPendingAction(null);
+  }, [pendingAction]);
+
+  const handleDiscardConfirmCancel = useCallback(() => {
+    setDiscardConfirmOpen(false);
+    setPendingAction(null);
+  }, []);
+
   // ── Page Setup ──
   const [pageSetupOpen, setPageSetupOpen] = useState(false);
+  const [templateSelectOpen, setTemplateSelectOpen] = useState(false);
 
   // ── About / What's New ──
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -369,7 +424,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     } else {
       doc = parseFountain(text);
     }
-    editor.commands.setContent(doc);
+    editor.commands.setContent(doc, true);
 
     // Open as unsaved document — user can save later via Cmd+S
     const scriptTitle = name.replace(/\.\w+$/, '') || 'Untitled';
@@ -432,30 +487,32 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           shortcut: '⌘N',
           disabled: isCollabGuest,
           action: () => {
-            if (!editor) return;
-            clearTrackChanges();
-            editor.commands.setContent({
-              type: 'doc',
-              content: [{ type: 'sceneHeading', content: [] }],
+            confirmOrRun(() => {
+              if (!editor) return;
+              clearTrackChanges();
+              editor.commands.setContent({
+                type: 'doc',
+                content: [{ type: 'sceneHeading', content: [] }],
+              }, true);
+              setCurrentProject(null);
+              setCurrentScriptId(null);
+              setScripts([]);
+              const store = useEditorStore.getState();
+              store.setDocumentTitle('Untitled Screenplay');
+              store.setBeats([]);
+              store.setBeatColumns([]);
+              store.setBeatArrangeMode('auto');
+              store.setNotes([]);
+              store.setTags([]);
+              store.setTagCategories([]);
+              store.setCharacterProfiles([]);
+              store.setScenes([]);
             });
-            setCurrentProject(null);
-            setCurrentScriptId(null);
-            setScripts([]);
-            const store = useEditorStore.getState();
-            store.setDocumentTitle('Untitled Screenplay');
-            store.setBeats([]);
-            store.setBeatColumns([]);
-            store.setBeatArrangeMode('auto');
-            store.setNotes([]);
-            store.setTags([]);
-            store.setTagCategories([]);
-            store.setCharacterProfiles([]);
-            store.setScenes([]);
           },
         },
         { separator: true, label: '' },
-        { label: 'Import...', action: handleImport, disabled: isCollabGuest },
-        { label: 'Open from Project...', action: () => setOpenFromProjectOpen(true), disabled: isCollabGuest },
+        { label: 'Import...', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
+        { label: 'Open from Project...', action: () => confirmOrRun(() => setOpenFromProjectOpen(true)), disabled: isCollabGuest },
         { label: 'Save', shortcut: '\u2318S', action: handleSave, disabled: isCollabGuest },
         { separator: true, label: '' },
         {
@@ -525,6 +582,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         { label: 'Bold', shortcut: '⌘B', action: () => editor?.chain().focus().toggleBold().run() },
         { label: 'Italic', shortcut: '⌘I', action: () => editor?.chain().focus().toggleItalic().run() },
         { label: 'Underline', shortcut: '⌘U', action: () => editor?.chain().focus().toggleUnderline().run() },
+        { label: 'Strikethrough', action: () => editor?.chain().focus().toggleStrike().run() },
+        { separator: true, label: '' },
+        { label: 'Formatting Template...', action: () => setTemplateSelectOpen(true) },
       ],
     },
     {
@@ -726,6 +786,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     {pageSetupOpen && (
       <PageSetupDialog onClose={() => setPageSetupOpen(false)} />
     )}
+    {templateSelectOpen && (
+      <TemplateSelectDialog onClose={() => setTemplateSelectOpen(false)} />
+    )}
     {aboutOpen && (
       <div className="dialog-overlay" onClick={() => setAboutOpen(false)}>
         <div className="dialog-box about-dialog" onClick={(e) => e.stopPropagation()}>
@@ -747,6 +810,23 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           </div>
           <div className="dialog-actions">
             <button className="dialog-primary" onClick={() => setAboutOpen(false)}>Close</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {discardConfirmOpen && (
+      <div className="dialog-overlay" onClick={handleDiscardConfirmCancel}>
+        <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
+          <div className="dialog-header">Unsaved Changes</div>
+          <div className="dialog-body">
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--fd-text)' }}>
+              You have unsaved changes. Would you like to save before proceeding?
+            </p>
+          </div>
+          <div className="dialog-actions">
+            <button onClick={handleDiscardConfirmCancel}>Cancel</button>
+            <button onClick={handleDiscardConfirmDiscard}>Discard</button>
+            <button className="dialog-primary" onClick={handleDiscardConfirmSave}>Save &amp; Continue</button>
           </div>
         </div>
       </div>

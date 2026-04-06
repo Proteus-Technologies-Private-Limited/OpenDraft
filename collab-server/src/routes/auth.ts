@@ -109,8 +109,14 @@ router.post('/login', strictLimiter, async (req, res) => {
     const { email, password } = parsed.data;
     const user = await userService.findUserByEmail(email);
 
-    if (!user || !(await userService.verifyPassword(user, password))) {
-      await auditService.logEvent('login_failed', null, null, { email }, getClientIp(req));
+    if (!user) {
+      await auditService.logEvent('login_failed', null, null, { email, reason: 'user_not_found' }, getClientIp(req));
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (!(await userService.verifyPassword(user, password))) {
+      await auditService.logEvent('login_failed', null, null, { email, reason: 'wrong_password' }, getClientIp(req));
       res.status(401).json({ error: 'Invalid email or password' });
       return;
     }

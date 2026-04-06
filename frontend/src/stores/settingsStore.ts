@@ -36,7 +36,7 @@ const STORAGE_KEY_URL = 'opendraft:collabServerUrl';
 const STORAGE_KEY_AUTH = 'opendraft:collabAuth';
 const STORAGE_KEY_EXPIRY = 'opendraft:defaultInviteExpiry';
 
-const DEFAULT_COLLAB_URL = 'ws://localhost:4000';
+const DEFAULT_COLLAB_URL = 'wss://opendraft-collab-267958344432.us-central1.run.app';
 
 function loadAuth(): CollabAuth {
   try {

@@ -244,6 +244,9 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   const handleBold = () => { editor.chain().focus().toggleBold().run(); onClose(); };
   const handleItalic = () => { editor.chain().focus().toggleItalic().run(); onClose(); };
   const handleUnderline = () => { editor.chain().focus().toggleUnderline().run(); onClose(); };
+  const handleStrike = () => { editor.chain().focus().toggleStrike().run(); onClose(); };
+  const handleSubscript = () => { editor.chain().focus().toggleSubscript().run(); onClose(); };
+  const handleSuperscript = () => { editor.chain().focus().toggleSuperscript().run(); onClose(); };
   const handleAllCaps = () => {
     // Toggle all caps on selection by transforming the text
     if (!hasSelection) { onClose(); return; }
@@ -526,10 +529,10 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       {/* Element submenu */}
       <div
         className="ctx-has-sub-wrap"
-        onMouseEnter={() => { setElementSubOpen(true); setStyleSubOpen(false); setRevisionSubOpen(false); }}
-        onMouseLeave={() => setElementSubOpen(false)}
+        onPointerEnter={(e) => { if (e.pointerType === 'mouse') { setElementSubOpen(true); setStyleSubOpen(false); setRevisionSubOpen(false); } }}
+        onPointerLeave={(e) => { if (e.pointerType === 'mouse') setElementSubOpen(false); }}
       >
-        <div className="ctx-item ctx-has-sub">
+        <div className="ctx-item ctx-has-sub" onClick={() => { setElementSubOpen(true); setStyleSubOpen(false); setRevisionSubOpen(false); }}>
           <span>Element</span>
           <span className="ctx-arrow">&#9656;</span>
         </div>
@@ -552,10 +555,10 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       {/* Style submenu */}
       <div
         className="ctx-has-sub-wrap"
-        onMouseEnter={() => { setStyleSubOpen(true); setElementSubOpen(false); setRevisionSubOpen(false); }}
-        onMouseLeave={() => setStyleSubOpen(false)}
+        onPointerEnter={(e) => { if (e.pointerType === 'mouse') { setStyleSubOpen(true); setElementSubOpen(false); setRevisionSubOpen(false); } }}
+        onPointerLeave={(e) => { if (e.pointerType === 'mouse') setStyleSubOpen(false); }}
       >
-        <div className="ctx-item ctx-has-sub">
+        <div className="ctx-item ctx-has-sub" onClick={() => { setStyleSubOpen(true); setElementSubOpen(false); setRevisionSubOpen(false); }}>
           <span>Style</span>
           <span className="ctx-arrow">&#9656;</span>
         </div>
@@ -572,6 +575,16 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
             <div className={`ctx-item${editor.isActive('underline') ? ' ctx-active' : ''}`} onClick={handleUnderline}>
               <span>Underline</span>
               <span className="ctx-shortcut">{mod}U</span>
+            </div>
+            <div className={`ctx-item${editor.isActive('strike') ? ' ctx-active' : ''}`} onClick={handleStrike}>
+              <span>Strikethrough</span>
+            </div>
+            <div className="ctx-separator" />
+            <div className={`ctx-item${editor.isActive('subscript') ? ' ctx-active' : ''}`} onClick={handleSubscript}>
+              <span>Subscript</span>
+            </div>
+            <div className={`ctx-item${editor.isActive('superscript') ? ' ctx-active' : ''}`} onClick={handleSuperscript}>
+              <span>Superscript</span>
             </div>
             <div className="ctx-separator" />
             <div className="ctx-item" onClick={handleAllCaps}>
@@ -615,10 +628,10 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       </div>
       <div
         className="ctx-has-sub-wrap"
-        onMouseEnter={() => { setRevisionSubOpen(true); setElementSubOpen(false); setStyleSubOpen(false); }}
-        onMouseLeave={() => setRevisionSubOpen(false)}
+        onPointerEnter={(e) => { if (e.pointerType === 'mouse') { setRevisionSubOpen(true); setElementSubOpen(false); setStyleSubOpen(false); } }}
+        onPointerLeave={(e) => { if (e.pointerType === 'mouse') setRevisionSubOpen(false); }}
       >
-        <div className="ctx-item ctx-has-sub">
+        <div className="ctx-item ctx-has-sub" onClick={() => { setRevisionSubOpen(true); setElementSubOpen(false); setStyleSubOpen(false); }}>
           <span>Revision Color</span>
           <span className="ctx-arrow">&#9656;</span>
         </div>

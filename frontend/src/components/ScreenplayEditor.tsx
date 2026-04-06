@@ -23,7 +23,14 @@ import {
   SceneHeading, Action, Character, Dialogue, Parenthetical,
   Transition, General, Shot, NewAct, EndOfAct, Lyrics,
   ShowEpisode, CastList, FontSize, ScriptNoteMark, TagMark,
+  FormatOverride, CustomElement,
 } from '../editor/extensions';
+import Strike from '@tiptap/extension-strike';
+import Subscript from '@tiptap/extension-subscript';
+import Superscript from '@tiptap/extension-superscript';
+import Highlight from '@tiptap/extension-highlight';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
 import { createPaginationPlugin, getPageMetrics } from '../editor/pagination';
 
 import { useEditorStore } from '../stores/editorStore';
@@ -37,7 +44,7 @@ import ScriptNotes from './ScriptNotes';
 import CharacterProfiles from './CharacterProfiles';
 import TagsPanel from './TagsPanel';
 import FormatPanel from './FormatPanel';
-// StatusBar removed — page count now visible in Pages tab of SceneNavigator
+import StatusBar from './StatusBar';
 import SearchReplace, { createSearchPlugin } from './SearchReplace';
 import GoToPage from './GoToPage';
 import ElementPicker from './ElementPicker';
@@ -444,11 +451,15 @@ const ScreenplayEditor: React.FC = () => {
 
       const content = scriptResp.content as Record<string, unknown> | null;
       if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
+        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _templateId, ...pmDoc } = content as Record<string, unknown>;
         collabInitialContent.current = pmDoc;
       } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
         collabInitialContent.current = content;
       }
+
+      // Restore per-document template
+      const tplId = (content as any)?._templateId;
+      useFormattingTemplateStore.getState().setActiveTemplateId(typeof tplId === 'string' ? tplId : null);
 
       const docName = `${projectId}/${scriptId}${nonce ? `/${nonce}` : ''}`;
       setupCollab(docName, sharedToken, collabUserName);
@@ -600,7 +611,7 @@ const ScreenplayEditor: React.FC = () => {
         if (scriptResp) {
           const content = scriptResp.content as Record<string, unknown> | null;
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
+            const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _templateId, ...pmDoc } = content as Record<string, unknown>;
             collabInitialContent.current = pmDoc;
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             collabInitialContent.current = content;
@@ -737,7 +748,7 @@ const ScreenplayEditor: React.FC = () => {
 
       const content = scriptResp.content as Record<string, unknown> | null;
       if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
+        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _templateId, ...pmDoc } = content as Record<string, unknown>;
         collabInitialContent.current = pmDoc;
       } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
         collabInitialContent.current = content;
@@ -801,7 +812,7 @@ const ScreenplayEditor: React.FC = () => {
       if (scriptResp) {
         const content = scriptResp.content as Record<string, unknown> | null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, ...pmDoc } = content as Record<string, unknown>;
+          const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _templateId, ...pmDoc } = content as Record<string, unknown>;
           collabInitialContent.current = pmDoc;
         } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
           collabInitialContent.current = content as Record<string, unknown>;
@@ -999,30 +1010,120 @@ const ScreenplayEditor: React.FC = () => {
               return true;
             }
 
+            // Check if cursor is at the very beginning of the block
+            const atBlockStart = $from.parentOffset === 0;
+
             // Non-empty line: split block, then fix up both halves' types
-            const nextType = DEFAULT_NEXT_TYPE[currentType] || currentType;
+            // Use template rules if available, fall back to DEFAULT_NEXT_TYPE
+            const templateStore = useFormattingTemplateStore.getState();
+            const activeTemplate = templateStore.getActiveTemplate();
+            // For custom elements, use customTypeId to find the rule
+            const effectiveType = currentType === 'customElement'
+              ? (currentNode.attrs?.customTypeId || currentType)
+              : currentType;
+            const elementRule = activeTemplate.rules[effectiveType];
+            const nextType = elementRule?.nextOnEnter || DEFAULT_NEXT_TYPE[currentType] || currentType;
             editor.chain().splitBlock().run();
 
             // After split, cursor is in the new (second) block.
-            // Fix its type, and ensure the first block kept original type.
             const { tr, schema, selection } = editor.state;
             const pos = selection.$from;
             const newBlockStart = pos.before(pos.depth);
-            const newNodeType = schema.nodes[nextType];
-            if (newNodeType && tr.doc.nodeAt(newBlockStart)?.type.name !== nextType) {
-              tr.setNodeMarkup(newBlockStart, newNodeType);
-            }
-            // Also fix the first block (the one above) if it got changed
-            const prevResolved = tr.doc.resolve(newBlockStart - 1);
-            const prevBlockStart = prevResolved.before(prevResolved.depth);
-            const origNodeType = schema.nodes[currentType];
-            if (origNodeType && tr.doc.nodeAt(prevBlockStart)?.type.name !== currentType) {
-              tr.setNodeMarkup(prevBlockStart, origNodeType);
+
+            if (atBlockStart) {
+              // Cursor was at position 0: user is inserting a blank line above.
+              // The second block (with content) should keep the original type.
+              // The first block (empty, above) becomes action for a clean blank line.
+              const origNodeType = schema.nodes[currentType];
+              if (origNodeType && tr.doc.nodeAt(newBlockStart)?.type.name !== currentType) {
+                tr.setNodeMarkup(newBlockStart, origNodeType);
+              }
+              const prevResolved = tr.doc.resolve(newBlockStart - 1);
+              const prevBlockStart = prevResolved.before(prevResolved.depth);
+              const actionType = schema.nodes['action'];
+              if (actionType && tr.doc.nodeAt(prevBlockStart)?.type.name !== 'action') {
+                tr.setNodeMarkup(prevBlockStart, actionType);
+              }
+            } else {
+              // Cursor was in the middle/end: apply normal type transition.
+              // Fix the new block's type, and ensure the first block kept original type.
+              const isNextBuiltIn = !!schema.nodes[nextType];
+              if (isNextBuiltIn) {
+                const newNodeType = schema.nodes[nextType];
+                if (newNodeType && tr.doc.nodeAt(newBlockStart)?.type.name !== nextType) {
+                  tr.setNodeMarkup(newBlockStart, newNodeType);
+                }
+              } else {
+                // Custom element transition
+                const customNodeType = schema.nodes['customElement'];
+                const nextRule = activeTemplate.rules[nextType];
+                if (customNodeType && nextRule) {
+                  tr.setNodeMarkup(newBlockStart, customNodeType, {
+                    customTypeId: nextType,
+                    customLabel: nextRule.label,
+                  });
+                }
+              }
+              const prevResolved = tr.doc.resolve(newBlockStart - 1);
+              const prevBlockStart = prevResolved.before(prevResolved.depth);
+              const origNodeType = schema.nodes[currentType] || schema.nodes['customElement'];
+              if (origNodeType && tr.doc.nodeAt(prevBlockStart)?.type.name !== currentType) {
+                if (schema.nodes[currentType]) {
+                  tr.setNodeMarkup(prevBlockStart, schema.nodes[currentType]);
+                }
+                // For customElement, the type is already correct from splitBlock
+              }
             }
             if (tr.steps.length > 0) {
               editor.view.dispatch(tr);
             }
             return true;
+          },
+        };
+      },
+    })
+  );
+
+  // Centralized Tab handler — reads nextOnTab from active template
+  const [TabHandlerExtension] = React.useState(() =>
+    Extension.create({
+      name: 'tabHandler',
+      priority: 1000,
+      addKeyboardShortcuts() {
+        return {
+          Tab: ({ editor }) => {
+            const { $from } = editor.state.selection;
+            const currentNode = $from.parent;
+            const currentType = currentNode.type.name;
+
+            // For custom elements, look up by customTypeId
+            const effectiveType = currentType === 'customElement'
+              ? (currentNode.attrs?.customTypeId || currentType)
+              : currentType;
+
+            const templateStore = useFormattingTemplateStore.getState();
+            const activeTemplate = templateStore.getActiveTemplate();
+            const rule = activeTemplate.rules[effectiveType];
+
+            if (!rule?.nextOnTab) return false;
+
+            const nextId = rule.nextOnTab;
+            // Check if next type is a built-in or custom element
+            const isBuiltIn = ALL_ELEMENT_TYPES.includes(nextId as ElementType);
+
+            if (isBuiltIn) {
+              return editor.chain().splitBlock().setNode(nextId).run();
+            } else {
+              // Custom element
+              const nextRule = activeTemplate.rules[nextId];
+              if (nextRule) {
+                return editor.chain().splitBlock().setNode('customElement', {
+                  customTypeId: nextId,
+                  customLabel: nextRule.label,
+                }).run();
+              }
+            }
+            return false;
           },
         };
       },
@@ -1050,13 +1151,32 @@ const ScreenplayEditor: React.FC = () => {
       Document.extend({
         content: 'block+',
       }),
-      Text, Bold, Italic, Underline, Dropcursor, Gapcursor,
+      Text, Bold, Italic, Underline, Strike, Dropcursor, Gapcursor,
+      Subscript, Superscript,
+      Highlight.configure({ multicolor: true }),
       TextStyle, Color, FontFamily, FontSize,
+      FormatOverride, CustomElement,
       // Use History in normal mode, Collaboration in collab mode
       ...(collabMode ? collabExtensions : [History]),
-      TextAlign.configure({ types: ALL_ELEMENT_TYPES }),
+      TextAlign.configure({ types: [...ALL_ELEMENT_TYPES, 'customElement'] }),
       Placeholder.configure({
         placeholder: ({ node }) => {
+          // Check template rules first for custom placeholders
+          const tplStore = useFormattingTemplateStore.getState();
+          const tpl = tplStore.getActiveTemplate();
+          // For custom elements, use customTypeId attribute
+          if (node.type.name === 'customElement') {
+            const customTypeId = node.attrs?.customTypeId;
+            if (customTypeId && tpl.rules[customTypeId]) {
+              return tpl.rules[customTypeId].placeholder || '';
+            }
+            return '';
+          }
+          // For built-in elements, check template rule
+          if (tpl.rules[node.type.name]?.placeholder) {
+            return tpl.rules[node.type.name].placeholder;
+          }
+          // Fallback defaults
           const m: Record<string, string> = {
             sceneHeading: 'INT./EXT. LOCATION - TIME', action: 'Describe what happens...',
             character: 'CHARACTER NAME', dialogue: 'Dialogue...',
@@ -1074,7 +1194,7 @@ const ScreenplayEditor: React.FC = () => {
       PaginationExtension,
       SearchExtension,
       TrackChangesExtension,
-      ...(isHistoryMode ? [] : [EnterHandlerExtension]),
+      ...(isHistoryMode ? [] : [EnterHandlerExtension, TabHandlerExtension]),
       SpellCheck,
       ...pluginRegistry.getEditorExtensions(),
     ],
@@ -1088,6 +1208,15 @@ const ScreenplayEditor: React.FC = () => {
       attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: isHistoryMode ? 'false' : 'true' },
     },
     onSelectionUpdate: ({ editor: ed }) => {
+      // Check custom element first
+      if (ed.isActive('customElement')) {
+        // Use customTypeId as the active element label
+        const attrs = ed.getAttributes('customElement');
+        if (attrs?.customTypeId) {
+          setActiveElement(attrs.customTypeId as ElementType);
+          return;
+        }
+      }
       for (const type of ALL_ELEMENT_TYPES) {
         if (ed.isActive(type)) { setActiveElement(type); break; }
       }
@@ -1097,13 +1226,38 @@ const ScreenplayEditor: React.FC = () => {
   // Keep editor ref updated for onSynced callback
   collabEditorRef.current = editor;
 
+  // ── Dynamic CSS injection for custom formatting templates ──
+  const formattingMode = useFormattingTemplateStore((s) => s.formattingMode);
+  const activeTemplateId = useFormattingTemplateStore((s) => s.activeTemplateId);
+  const defaultTemplateId = useFormattingTemplateStore((s) => s.defaultTemplateId);
+  const templatesLoaded = useFormattingTemplateStore((s) => s.loaded);
+
+  useEffect(() => {
+    // Load templates on mount
+    useFormattingTemplateStore.getState().loadTemplates();
+  }, []);
+
+  useEffect(() => {
+    const template = useFormattingTemplateStore.getState().getActiveTemplate();
+    // If the resolved template is industry standard, use static CSS
+    if (template.id === '__industry_standard__') {
+      injectTemplateCss(null);
+      return;
+    }
+    const pageLayout = useEditorStore.getState().pageLayout;
+    const css = generateTemplateCss(template, pageLayout);
+    injectTemplateCss(css);
+
+    return () => { injectTemplateCss(null); };
+  }, [formattingMode, activeTemplateId, defaultTemplateId, templatesLoaded]);
+
   // ── Owner starts collaboration — save current content, create own token, switch to collab mode ──
   const handleStartCollab = useCallback(async (guestSession: import('../services/api').CollabSession) => {
     if (!editor || !currentProject || !currentScriptId) return;
 
     // Save current editor content so it can seed the Yjs doc
     const doc = editor.getJSON();
-    const { _notes, _generalNotes: _gn3, _tags, _tagCategories, _characterProfiles, ...pmDoc } = doc as Record<string, unknown>;
+    const { _notes, _generalNotes: _gn3, _tags, _tagCategories, _characterProfiles, _templateId: _tpl3, ...pmDoc } = doc as Record<string, unknown>;
     collabInitialContent.current = pmDoc;
 
     // The guest invite carries a session_nonce that makes the Yjs room unique
@@ -1380,6 +1534,7 @@ const ScreenplayEditor: React.FC = () => {
   const buildSaveContent = useCallback((): Record<string, unknown> | undefined => {
     if (!editor || editor.isDestroyed) return undefined;
     const store = useEditorStore.getState();
+    const tplStore = useFormattingTemplateStore.getState();
     const doc = editor.getJSON();
     return {
       ...doc,
@@ -1391,6 +1546,7 @@ const ScreenplayEditor: React.FC = () => {
       _beats: store.beats,
       _beatColumns: store.beatColumns,
       _beatArrangeMode: store.beatArrangeMode,
+      _templateId: tplStore.activeTemplateId,
     };
   }, [editor]);
 
@@ -1494,7 +1650,7 @@ const ScreenplayEditor: React.FC = () => {
         // Strip app metadata keys before feeding to ProseMirror
         let pmDoc: Record<string, unknown> | null = null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode, ...rest } = content as any;
+          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, ...rest } = content as any;
           pmDoc = rest;
         }
 
@@ -1561,6 +1717,12 @@ const ScreenplayEditor: React.FC = () => {
             store.setBeatColumns(beatColsArr as import('../stores/editorStore').BeatColumn[]);
             if (c._beatArrangeMode === 'auto' || c._beatArrangeMode === 'custom') {
               store.setBeatArrangeMode(c._beatArrangeMode);
+            }
+            // Restore per-document formatting template
+            if (c._templateId && typeof c._templateId === 'string') {
+              useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
+            } else {
+              useFormattingTemplateStore.getState().setActiveTemplateId(null);
             }
           }
         }
@@ -1721,7 +1883,7 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode: _bam, ...pmDoc } = content as any;
+            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, ...pmDoc } = content as any;
             editor.commands.setContent(pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             editor.commands.setContent(content);
@@ -1777,6 +1939,12 @@ const ScreenplayEditor: React.FC = () => {
           store.setBeats(beatsArr2 as import('../stores/editorStore').BeatInfo[]);
           const beatCols2 = parseAttr2(c._beatColumns);
           store.setBeatColumns(beatCols2 as import('../stores/editorStore').BeatColumn[]);
+          // Restore per-document template
+          if (c._templateId && typeof c._templateId === 'string') {
+            useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
+          } else {
+            useFormattingTemplateStore.getState().setActiveTemplateId(null);
+          }
         }
         setCurrentProject(project);
         setCurrentScriptId(scriptId);
@@ -1795,7 +1963,7 @@ const ScreenplayEditor: React.FC = () => {
     localStorage.setItem('opendraft:welcomed', 'true');
 
     if (choice === 'sample') {
-      editor?.commands.setContent(SAMPLE_CONTENT);
+      editor?.commands.setContent(SAMPLE_CONTENT, true);
     } else if (choice === 'import') {
       if (!editor) return;
       const { openTextFile } = await import('../utils/fileOps');
@@ -1851,7 +2019,7 @@ const ScreenplayEditor: React.FC = () => {
       } else {
         doc = parseFountain(text);
       }
-      editor.commands.setContent(doc);
+      editor.commands.setContent(doc, true);
       const scriptTitle = name.replace(/\.\w+$/, '') || 'Untitled';
       useEditorStore.getState().setDocumentTitle(scriptTitle);
     }
@@ -1914,7 +2082,7 @@ const ScreenplayEditor: React.FC = () => {
           setShowWelcome(false);
           setCurrentProject(null);
           setCurrentScriptId(null);
-          editor.commands.setContent(doc);
+          editor.commands.setContent(doc, true);
           return;
         }
       } else {
@@ -1922,7 +2090,7 @@ const ScreenplayEditor: React.FC = () => {
         doc = parseFountain(text);
       }
 
-      editor.commands.setContent(doc);
+      editor.commands.setContent(doc, true);
       setDocumentTitle(title);
       setShowWelcome(false);
       // Clear project context — this is a standalone opened file
@@ -2039,7 +2207,7 @@ const ScreenplayEditor: React.FC = () => {
           setDocumentTitle(parsed.meta.title);
           setCurrentProject(null);
           setCurrentScriptId(null);
-          editor.commands.setContent(doc);
+          editor.commands.setContent(doc, true);
           setShowWelcome(false);
           return;
         }
@@ -2047,7 +2215,7 @@ const ScreenplayEditor: React.FC = () => {
         doc = parseFountain(text);
       }
 
-      editor.commands.setContent(doc);
+      editor.commands.setContent(doc, true);
       setDocumentTitle(title);
       setCurrentProject(null);
       setCurrentScriptId(null);
@@ -2140,6 +2308,13 @@ const ScreenplayEditor: React.FC = () => {
         showToast('Saved', 'success');
       } catch (err) {
         console.error('Failed to finalize save:', err);
+      }
+      // Run deferred action (e.g. import) that was waiting for save-as to finish
+      const store = useEditorStore.getState();
+      if (store.postSaveAction) {
+        const action = store.postSaveAction;
+        store.setPostSaveAction(null);
+        action();
       }
     },
     [setSaveAsOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, navigate],
@@ -2514,6 +2689,7 @@ const ScreenplayEditor: React.FC = () => {
           <p.component key={p.id} editor={editor} />
         ))}
       </div>
+      {!isHistoryMode && <StatusBar />}
       {!isHistoryMode && <SearchReplace editor={editor} />}
       {!isHistoryMode && <GoToPage onGoToPage={handleGoToPage} />}
       <ZoomPanel />

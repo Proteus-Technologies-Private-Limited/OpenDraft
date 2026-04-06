@@ -248,6 +248,12 @@ const hocuspocus = new Hocuspocus({
 
 const app = express();
 
+// Trust proxy headers (required behind Cloud Run / load balancers for correct
+// client IP in rate limiting and X-Forwarded-* headers)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', true);
+}
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
   origin: (origin, callback) => {

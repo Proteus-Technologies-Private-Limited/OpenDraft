@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from app.api import scripts, auth, export, projects, versions, assets, collab, link_preview
+from app.api import scripts, auth, export, projects, versions, assets, collab, link_preview, formatting_templates
 from app.config import PROJECTS_DIR, BASE_DIR
 from app.plugins import get_plugin_routers
 
@@ -37,7 +37,7 @@ app.add_middleware(
     # Allow localhost and *.localhost (Tauri Windows) only.
     # The web backend is no longer used by Tauri desktop/mobile (they use
     # local SQLite), so we don't need to allow arbitrary local-network IPs.
-    allow_origin_regex=r"^https?://(localhost|[\w.-]*\.localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost|[\w.-]*\.localhost|127\.0\.0\.1|(\d{1,3}\.){3}\d{1,3})(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,6 +51,7 @@ app.include_router(versions.router, prefix="/api/projects", tags=["versions"])
 app.include_router(assets.router, prefix="/api/projects", tags=["assets"])
 app.include_router(collab.router, prefix="/api/collab", tags=["collab"])
 app.include_router(link_preview.router, prefix="/api/link", tags=["link-preview"])
+app.include_router(formatting_templates.router, prefix="/api/formatting-templates", tags=["formatting-templates"])
 
 # Mount plugin routers (registered by external plugins before app startup)
 for _prefix, _router, _tags in get_plugin_routers():
