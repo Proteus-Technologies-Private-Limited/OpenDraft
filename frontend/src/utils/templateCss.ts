@@ -92,6 +92,14 @@ function generateRuleProperties(
   const pw = pageLayout.pageWidth;
   const prMargin = pageLayout.rightMargin;
 
+  // Font family & size (null = use document default)
+  if (rule.fontFamily) {
+    props.push(`font-family: '${rule.fontFamily}', 'Courier Prime', 'Courier New', monospace;`);
+  }
+  if (rule.fontSize != null) {
+    props.push(`font-size: ${rule.fontSize}pt;`);
+  }
+
   // Text style
   props.push(`font-weight: ${rule.bold ? 'bold' : 'normal'};`);
   props.push(`font-style: ${rule.italic ? 'italic' : 'normal'};`);

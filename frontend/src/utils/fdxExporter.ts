@@ -248,31 +248,51 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
     }
   }
 
+  // Helper: emit a single Paragraph element
+  const emitParagraph = (node: JSONContent, indent: string) => {
+    const fdxType = NODE_TO_FDX[node.type || ''] || 'General';
+    const paraAttrs: string[] = [`Type="${fdxType}"`];
+
+    if (node.attrs?.sceneNumber) paraAttrs.push(`Number="${node.attrs.sceneNumber}"`);
+    if (node.attrs?.textAlign) {
+      const a = ALIGNMENT_TO_FDX[node.attrs.textAlign as string];
+      if (a) paraAttrs.push(`Alignment="${a}"`);
+    }
+    if (node.attrs?.startsNewPage) paraAttrs.push('StartsNewPage="Yes"');
+
+    const attrStr = paraAttrs.join(' ');
+
+    if (node.content && node.content.length > 0) {
+      lines.push(`${indent}<Paragraph ${attrStr}>`);
+      for (const child of node.content) {
+        if (child.type === 'text' && child.text) {
+          const ta = getTextAttributes(child.marks as MarkInfo[] | undefined);
+          lines.push(`${indent}  <Text${ta}>${esc(child.text)}</Text>`);
+        }
+      }
+      lines.push(`${indent}</Paragraph>`);
+    } else {
+      lines.push(`${indent}<Paragraph ${attrStr}><Text></Text></Paragraph>`);
+    }
+  };
+
   if (doc.content) {
     for (const node of doc.content) {
-      const fdxType = NODE_TO_FDX[node.type || ''] || 'General';
-      const paraAttrs: string[] = [`Type="${fdxType}"`];
-
-      if (node.attrs?.sceneNumber) paraAttrs.push(`Number="${node.attrs.sceneNumber}"`);
-      if (node.attrs?.textAlign) {
-        const a = ALIGNMENT_TO_FDX[node.attrs.textAlign as string];
-        if (a) paraAttrs.push(`Alignment="${a}"`);
-      }
-      if (node.attrs?.startsNewPage) paraAttrs.push('StartsNewPage="Yes"');
-
-      const attrStr = paraAttrs.join(' ');
-
-      if (node.content && node.content.length > 0) {
-        lines.push(`    <Paragraph ${attrStr}>`);
-        for (const child of node.content) {
-          if (child.type === 'text' && child.text) {
-            const ta = getTextAttributes(child.marks as MarkInfo[] | undefined);
-            lines.push(`      <Text${ta}>${esc(child.text)}</Text>`);
+      if (node.type === 'dualDialogue') {
+        // Wrap in DualDialogue element — flatten columns into paragraphs
+        lines.push('    <DualDialogue>');
+        if (node.content) {
+          for (const col of node.content) {
+            if (col.type === 'dualDialogueColumn' && col.content) {
+              for (const child of col.content) {
+                emitParagraph(child, '      ');
+              }
+            }
           }
         }
-        lines.push('    </Paragraph>');
+        lines.push('    </DualDialogue>');
       } else {
-        lines.push(`    <Paragraph ${attrStr}><Text></Text></Paragraph>`);
+        emitParagraph(node, '    ');
       }
     }
   }

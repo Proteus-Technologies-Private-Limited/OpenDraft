@@ -15,6 +15,10 @@ export interface FormattingElementRule {
   /** Whether this element is available in the template */
   enabled: boolean;
 
+  // ── Font ──
+  fontFamily: string | null;  // font name or null = use default
+  fontSize: number | null;    // points or null = use default (12pt)
+
   // ── Text style ──
   bold: boolean;
   italic: boolean;
@@ -36,7 +40,15 @@ export interface FormattingElementRule {
 
   // ── Placeholder ──
   placeholder: string;
+
+  // ── Format override ──
+  /** When true (default), users can override non-template formatting in enforce mode.
+   *  When false, ALL formatting is locked for this element type in enforce mode. */
+  allowFormatOverride: boolean;
 }
+
+/** Template category: system templates are read-only, user templates are editable. */
+export type TemplateCategory = 'system' | 'user';
 
 /** A complete formatting template. */
 export interface FormattingTemplate {
@@ -45,6 +57,8 @@ export interface FormattingTemplate {
   description: string;
   /** 'enforce' = formatting locked; 'override' = user can change per-instance */
   mode: 'enforce' | 'override';
+  /** 'system' = read-only standard template; 'user' = editable custom template */
+  category: TemplateCategory;
   /** Formatting rules keyed by element id */
   rules: Record<string, FormattingElementRule>;
   createdAt: string;
@@ -102,6 +116,8 @@ export function createDefaultRule(
     label,
     isBuiltIn,
     enabled: true,
+    fontFamily: null,
+    fontSize: null,
     bold: false,
     italic: false,
     underline: false,
@@ -116,5 +132,6 @@ export function createDefaultRule(
     nextOnEnter: id,  // default: stay same type
     nextOnTab: null,
     placeholder: '',
+    allowFormatOverride: true,
   };
 }

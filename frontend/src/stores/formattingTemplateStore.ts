@@ -1,8 +1,8 @@
 /**
  * Zustand store for the formatting template system.
  *
- * Manages global formatting mode, template CRUD, per-document template
- * assignment, and provides the resolved active template.
+ * Manages template CRUD, per-document template assignment, and provides
+ * the resolved active template.
  */
 
 import { create } from 'zustand';
@@ -11,35 +11,28 @@ import { INDUSTRY_STANDARD_ID } from './formattingTypes';
 import { INDUSTRY_STANDARD_TEMPLATE } from './industryStandardTemplate';
 import { api } from '../services/api';
 
-const STORAGE_KEY_MODE = 'opendraft:formattingMode';
-const STORAGE_KEY_DEFAULT = 'opendraft:defaultTemplateId';
-
 interface FormattingTemplateState {
-  /** Global preference: use industry standard or custom templates */
-  formattingMode: 'standard' | 'custom';
   /** All user-created templates */
   templates: FormattingTemplate[];
-  /** Default template id for new documents (when mode = custom) */
-  defaultTemplateId: string | null;
   /** Active template id for the currently open document */
   activeTemplateId: string | null;
   /** Whether templates have been loaded from storage */
   loaded: boolean;
 
   // ── Computed helpers ──
-  /** Returns the resolved active template (industry standard or custom). */
+  /** Returns the resolved active template (per-document or industry standard). */
   getActiveTemplate: () => FormattingTemplate;
   /** Returns list of enabled element ids in the active template. */
   getEnabledElements: () => string[];
+  /** Returns whether the active template is in enforce mode. */
+  isEnforceMode: () => boolean;
 
   // ── Actions ──
-  setFormattingMode: (mode: 'standard' | 'custom') => void;
   loadTemplates: () => Promise<void>;
   createTemplate: (t: Partial<FormattingTemplate>) => Promise<FormattingTemplate>;
   updateTemplate: (id: string, data: Partial<FormattingTemplate>) => Promise<void>;
   deleteTemplate: (id: string) => Promise<void>;
   duplicateTemplate: (id: string) => Promise<FormattingTemplate>;
-  setDefaultTemplateId: (id: string | null) => void;
   setActiveTemplateId: (id: string | null) => void;
 }
 
@@ -60,20 +53,14 @@ function now(): string {
 }
 
 export const useFormattingTemplateStore = create<FormattingTemplateState>((set, get) => ({
-  formattingMode: (localStorage.getItem(STORAGE_KEY_MODE) as 'standard' | 'custom') || 'standard',
   templates: [],
-  defaultTemplateId: localStorage.getItem(STORAGE_KEY_DEFAULT) || null,
   activeTemplateId: null,
   loaded: false,
 
   getActiveTemplate: () => {
-    const { formattingMode, activeTemplateId, templates, defaultTemplateId } = get();
-    if (formattingMode === 'standard') return INDUSTRY_STANDARD_TEMPLATE;
-
-    // Resolve: document-specific > global default > industry standard
-    const resolvedId = activeTemplateId || defaultTemplateId;
-    if (resolvedId && resolvedId !== INDUSTRY_STANDARD_ID) {
-      const found = templates.find((t) => t.id === resolvedId);
+    const { activeTemplateId, templates } = get();
+    if (activeTemplateId && activeTemplateId !== INDUSTRY_STANDARD_ID) {
+      const found = templates.find((t) => t.id === activeTemplateId);
       if (found) return found;
     }
     return INDUSTRY_STANDARD_TEMPLATE;
@@ -86,9 +73,8 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
       .map((r) => r.id);
   },
 
-  setFormattingMode: (mode) => {
-    localStorage.setItem(STORAGE_KEY_MODE, mode);
-    set({ formattingMode: mode });
+  isEnforceMode: () => {
+    return get().getActiveTemplate().mode === 'enforce';
   },
 
   loadTemplates: async () => {
@@ -109,6 +95,7 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
       name: data.name || 'Untitled Template',
       description: data.description || '',
       mode: data.mode || 'enforce',
+      category: data.category || 'user',
       rules: data.rules || { ...INDUSTRY_STANDARD_TEMPLATE.rules },
       createdAt: ts,
       updatedAt: ts,
@@ -138,7 +125,6 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
   deleteTemplate: async (id) => {
     set((s) => ({
       templates: s.templates.filter((t) => t.id !== id),
-      defaultTemplateId: s.defaultTemplateId === id ? null : s.defaultTemplateId,
       activeTemplateId: s.activeTemplateId === id ? null : s.activeTemplateId,
     }));
     try {
@@ -158,15 +144,6 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
       mode: source.mode,
       rules: JSON.parse(JSON.stringify(source.rules)),
     });
-  },
-
-  setDefaultTemplateId: (id) => {
-    if (id) {
-      localStorage.setItem(STORAGE_KEY_DEFAULT, id);
-    } else {
-      localStorage.removeItem(STORAGE_KEY_DEFAULT);
-    }
-    set({ defaultTemplateId: id });
   },
 
   setActiveTemplateId: (id) => {

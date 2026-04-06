@@ -71,6 +71,27 @@ export function exportFountain(doc: JSONContent): string {
       case 'lyrics':
         lines.push(`~${text}`);
         break;
+      case 'dualDialogue':
+        if (node.content) {
+          node.content.forEach((col, colIndex) => {
+            if (col.type === 'dualDialogueColumn' && col.content) {
+              for (const child of col.content) {
+                const childText = getTextContent(child);
+                if (child.type === 'character') {
+                  lines.push('');
+                  // Second column character gets ^ marker
+                  lines.push(colIndex === 1 ? `${childText.toUpperCase()} ^` : childText.toUpperCase());
+                } else if (child.type === 'parenthetical') {
+                  lines.push(childText.startsWith('(') ? childText : `(${childText})`);
+                } else if (child.type === 'dialogue') {
+                  lines.push(childText);
+                  lines.push('');
+                }
+              }
+            }
+          });
+        }
+        break;
       default:
         lines.push(text);
         break;

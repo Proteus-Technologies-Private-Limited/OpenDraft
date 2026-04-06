@@ -18,6 +18,8 @@ function rule(
     label,
     isBuiltIn: true,
     enabled: true,
+    fontFamily: null,
+    fontSize: null,
     bold: false,
     italic: false,
     underline: false,
@@ -32,6 +34,7 @@ function rule(
     nextOnEnter: id,
     nextOnTab: null,
     placeholder: '',
+    allowFormatOverride: true,
     ...overrides,
   };
 }
@@ -41,6 +44,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
   name: 'Industry Standard',
   description: 'Standard screenplay formatting used by Final Draft and other professional tools.',
   mode: 'enforce',
+  category: 'system',
   createdAt: '',
   updatedAt: '',
   rules: {

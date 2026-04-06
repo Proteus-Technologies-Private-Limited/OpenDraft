@@ -23,7 +23,7 @@ import {
   SceneHeading, Action, Character, Dialogue, Parenthetical,
   Transition, General, Shot, NewAct, EndOfAct, Lyrics,
   ShowEpisode, CastList, FontSize, ScriptNoteMark, TagMark,
-  FormatOverride, CustomElement,
+  FormatOverride, CustomElement, DualDialogue, DualDialogueColumn,
 } from '../editor/extensions';
 import Strike from '@tiptap/extension-strike';
 import Subscript from '@tiptap/extension-subscript';
@@ -31,6 +31,7 @@ import Superscript from '@tiptap/extension-superscript';
 import Highlight from '@tiptap/extension-highlight';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
+import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { createPaginationPlugin, getPageMetrics } from '../editor/pagination';
 
 import { useEditorStore } from '../stores/editorStore';
@@ -973,6 +974,28 @@ const ScreenplayEditor: React.FC = () => {
     })
   );
 
+  // Block formatting shortcuts (Mod-b/i/u) when the attribute is locked by the template
+  const [EnforceGuardExtension] = React.useState(() =>
+    Extension.create({
+      name: 'enforceGuard',
+      priority: 1001,
+      addKeyboardShortcuts() {
+        const isLocked = (editor: any, attr: 'bold' | 'italic' | 'underline') => {
+          const tpl = useFormattingTemplateStore.getState().getActiveTemplate();
+          if (tpl.mode !== 'enforce') return false;
+          const rule = getCurrentElementRule(editor, tpl);
+          const locked = getLockedFormatting(rule, true);
+          return locked[attr];
+        };
+        return {
+          'Mod-b': ({ editor }) => isLocked(editor, 'bold'),
+          'Mod-i': ({ editor }) => isLocked(editor, 'italic'),
+          'Mod-u': ({ editor }) => isLocked(editor, 'underline'),
+        };
+      },
+    })
+  );
+
   // Centralized Enter handler — overrides per-extension Enter handlers via high priority
   const [EnterHandlerExtension] = React.useState(() =>
     Extension.create({
@@ -986,8 +1009,23 @@ const ScreenplayEditor: React.FC = () => {
             const currentType = currentNode.type.name;
             const isEmpty = currentNode.textContent.trim() === '';
 
-            // Blank line: show element picker (keep current block as-is)
+            // Inside dualDialogue on an empty line: exit the container
             if (isEmpty) {
+              for (let d = $from.depth; d >= 0; d--) {
+                if ($from.node(d).type.name === 'dualDialogue') {
+                  // Delete the empty node, then insert action after dual dialogue
+                  const emptyFrom = $from.before($from.depth);
+                  const emptyTo = $from.after($from.depth);
+                  const afterDual = $from.after(d);
+                  editor.chain()
+                    .deleteRange({ from: emptyFrom, to: emptyTo })
+                    .insertContentAt(afterDual - (emptyTo - emptyFrom), { type: 'action' })
+                    .focus(afterDual - (emptyTo - emptyFrom) + 1)
+                    .run();
+                  return true;
+                }
+              }
+              // Normal blank line: show element picker
               showPickerRef.current(currentType as ElementType);
               return true;
             }
@@ -1172,11 +1210,12 @@ const ScreenplayEditor: React.FC = () => {
       }),
       SceneHeading, Action, Character, Dialogue, Parenthetical,
       Transition, General, Shot, NewAct, EndOfAct, Lyrics,
-      ShowEpisode, CastList, ScriptNoteMark, TagMark,
+      ShowEpisode, CastList, DualDialogue, DualDialogueColumn,
+      ScriptNoteMark, TagMark,
       PaginationExtension,
       SearchExtension,
       TrackChangesExtension,
-      ...(isHistoryMode ? [] : [EnterHandlerExtension, TabHandlerExtension]),
+      ...(isHistoryMode ? [] : [EnforceGuardExtension, EnterHandlerExtension, TabHandlerExtension]),
       SpellCheck,
       ...pluginRegistry.getEditorExtensions(),
     ],
@@ -1209,9 +1248,7 @@ const ScreenplayEditor: React.FC = () => {
   collabEditorRef.current = editor;
 
   // ── Dynamic CSS injection for custom formatting templates ──
-  const formattingMode = useFormattingTemplateStore((s) => s.formattingMode);
   const activeTemplateId = useFormattingTemplateStore((s) => s.activeTemplateId);
-  const defaultTemplateId = useFormattingTemplateStore((s) => s.defaultTemplateId);
   const templatesLoaded = useFormattingTemplateStore((s) => s.loaded);
 
   useEffect(() => {
@@ -1231,7 +1268,7 @@ const ScreenplayEditor: React.FC = () => {
     injectTemplateCss(css);
 
     return () => { injectTemplateCss(null); };
-  }, [formattingMode, activeTemplateId, defaultTemplateId, templatesLoaded]);
+  }, [activeTemplateId, templatesLoaded]);
 
   // ── Owner starts collaboration — save current content, create own token, switch to collab mode ──
   const handleStartCollab = useCallback(async (guestSession: import('../services/api').CollabSession) => {
@@ -2278,6 +2315,10 @@ const ScreenplayEditor: React.FC = () => {
   const handleSaveAsComplete = useCallback(
     async (projectId: string, _projectName: string, scriptId: string, scriptTitle: string) => {
       setSaveAsOpen(false);
+      // Check if there's a deferred action (e.g. "New Screenplay") waiting
+      const store = useEditorStore.getState();
+      const hasDeferredAction = !!store.postSaveAction;
+
       try {
         const project = await api.getProject(projectId);
         setCurrentProject(project);
@@ -2285,18 +2326,20 @@ const ScreenplayEditor: React.FC = () => {
         setDocumentTitle(scriptTitle);
         const scripts = await api.listScripts(projectId);
         useProjectStore.getState().setScripts(scripts);
-        // Navigate to the project edit route so URL reflects project context
-        navigate(`/project/${projectId}/edit/${scriptId}`, { replace: true });
+        // Only navigate to the project route if there's no deferred action
+        // that will reset the editor state (e.g. New Screenplay)
+        if (!hasDeferredAction) {
+          navigate(`/project/${projectId}/edit/${scriptId}`, { replace: true });
+        }
         showToast('Saved', 'success');
       } catch (err) {
         console.error('Failed to finalize save:', err);
       }
-      // Run deferred action (e.g. import) that was waiting for save-as to finish
-      const store = useEditorStore.getState();
-      if (store.postSaveAction) {
+      // Run deferred action (e.g. New Screenplay, Import) that was waiting for save-as
+      if (hasDeferredAction) {
         const action = store.postSaveAction;
         store.setPostSaveAction(null);
-        action();
+        if (action) action();
       }
     },
     [setSaveAsOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, navigate],
@@ -2698,7 +2741,17 @@ const ScreenplayEditor: React.FC = () => {
           position={ctxMenuState.position}
           spellInfo={ctxMenuState.spellInfo}
           onClose={handleCtxMenuClose}
-          onOpenFormatPanel={() => setFormatPanelOpen(true)}
+          onOpenFormatPanel={() => {
+            // Block opening if element disallows all format overrides
+            if (editor) {
+              const tpl = useFormattingTemplateStore.getState().getActiveTemplate();
+              if (tpl.mode === 'enforce') {
+                const rule = getCurrentElementRule(editor, tpl);
+                if (rule && !rule.allowFormatOverride) return;
+              }
+            }
+            setFormatPanelOpen(true);
+          }}
           overrideSelection={ctxMenuState.savedSelection}
         />
       )}

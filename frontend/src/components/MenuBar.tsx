@@ -14,6 +14,8 @@ import { exportPDF } from '../utils/pdfExporter';
 import { trackChangesPluginKey } from '../editor/trackChanges';
 import PageSetupDialog from './PageSetupDialog';
 import TemplateSelectDialog from './TemplateSelectDialog';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { pluginRegistry } from '../plugins/registry';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
 
@@ -179,6 +181,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   // ── Page Setup ──
   const [pageSetupOpen, setPageSetupOpen] = useState(false);
   const [templateSelectOpen, setTemplateSelectOpen] = useState(false);
+
+  // ── Per-attribute locking from active template ──
+  const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
+  const isEnforceMode = activeTemplate.mode === 'enforce';
+  const editorRule = editor ? getCurrentElementRule(editor, activeTemplate) : null;
+  const locked = getLockedFormatting(editorRule, isEnforceMode);
 
   // ── About / What's New ──
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -507,6 +515,10 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
               store.setTagCategories([]);
               store.setCharacterProfiles([]);
               store.setScenes([]);
+              // Navigate to root so URL doesn't trigger stale project loading
+              if (window.location.pathname !== '/') {
+                window.history.replaceState(null, '', '/');
+              }
             });
           },
         },
@@ -564,27 +576,44 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     {
       label: 'Format',
       items: [
-        { label: 'Scene Heading', shortcut: '⌘1', action: () => setElement('sceneHeading') },
-        { label: 'Action', shortcut: '⌘2', action: () => setElement('action') },
-        { label: 'Character', shortcut: '⌘3', action: () => setElement('character') },
-        { label: 'Dialogue', shortcut: '⌘4', action: () => setElement('dialogue') },
-        { label: 'Parenthetical', shortcut: '⌘5', action: () => setElement('parenthetical') },
-        { label: 'Transition', shortcut: '⌘6', action: () => setElement('transition') },
-        { label: 'General', shortcut: '⌘7', action: () => setElement('general') },
-        { label: 'Shot', shortcut: '⌘8', action: () => setElement('shot') },
+        {
+          label: 'Element',
+          children: [
+            ...Object.values(activeTemplate.rules).filter((r) => r.enabled).map((r) => {
+              const shortcuts: Record<string, string> = {
+                sceneHeading: '⌘1', action: '⌘2', character: '⌘3', dialogue: '⌘4',
+                parenthetical: '⌘5', transition: '⌘6', general: '⌘7', shot: '⌘8',
+              };
+              return { label: r.label, shortcut: shortcuts[r.id], action: () => setElement(r.id as any) };
+            }),
+          ],
+        },
         { separator: true, label: '' },
-        { label: 'New Act', action: () => setElement('newAct') },
-        { label: 'End of Act', action: () => setElement('endOfAct') },
-        { label: 'Lyrics', action: () => setElement('lyrics') },
-        { label: 'Show/Episode', action: () => setElement('showEpisode') },
-        { label: 'Cast List', action: () => setElement('castList') },
+        {
+          label: 'Style',
+          children: [
+            { label: 'Bold', shortcut: '⌘B', action: () => editor?.chain().focus().toggleBold().run(), disabled: locked.bold },
+            { label: 'Italic', shortcut: '⌘I', action: () => editor?.chain().focus().toggleItalic().run(), disabled: locked.italic },
+            { label: 'Underline', shortcut: '⌘U', action: () => editor?.chain().focus().toggleUnderline().run(), disabled: locked.underline },
+            { label: 'Strikethrough', action: () => editor?.chain().focus().toggleStrike().run(), disabled: locked.strikethrough },
+            { separator: true, label: '' },
+            { label: 'Subscript', action: () => editor?.chain().focus().toggleSubscript().run(), disabled: locked.subscript },
+            { label: 'Superscript', action: () => editor?.chain().focus().toggleSuperscript().run(), disabled: locked.superscript },
+          ],
+        },
+        {
+          label: 'Alignment',
+          children: [
+            { label: 'Align Left', action: () => editor?.chain().focus().setTextAlign('left').run(), disabled: locked.textAlign },
+            { label: 'Align Center', action: () => editor?.chain().focus().setTextAlign('center').run(), disabled: locked.textAlign },
+            { label: 'Align Right', action: () => editor?.chain().focus().setTextAlign('right').run(), disabled: locked.textAlign },
+            { label: 'Justify', action: () => editor?.chain().focus().setTextAlign('justify').run(), disabled: locked.textAlign },
+          ],
+        },
         { separator: true, label: '' },
-        { label: 'Bold', shortcut: '⌘B', action: () => editor?.chain().focus().toggleBold().run() },
-        { label: 'Italic', shortcut: '⌘I', action: () => editor?.chain().focus().toggleItalic().run() },
-        { label: 'Underline', shortcut: '⌘U', action: () => editor?.chain().focus().toggleUnderline().run() },
-        { label: 'Strikethrough', action: () => editor?.chain().focus().toggleStrike().run() },
+        { label: 'Dual Dialogue', shortcut: '⌘D', action: () => (editor as any)?.commands?.toggleDualDialogue() },
         { separator: true, label: '' },
-        { label: 'Formatting Template...', action: () => setTemplateSelectOpen(true) },
+        { label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true) },
       ],
     },
     {
@@ -787,7 +816,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       <PageSetupDialog onClose={() => setPageSetupOpen(false)} />
     )}
     {templateSelectOpen && (
-      <TemplateSelectDialog onClose={() => setTemplateSelectOpen(false)} />
+      <TemplateSelectDialog editor={editor} onClose={() => setTemplateSelectOpen(false)} />
     )}
     {aboutOpen && (
       <div className="dialog-overlay" onClick={() => setAboutOpen(false)}>
