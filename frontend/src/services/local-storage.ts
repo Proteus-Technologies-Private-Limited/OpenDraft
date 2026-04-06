@@ -772,6 +772,50 @@ export async function createLocalStorage() {
         return { url, title: '', description: '', image: '', site_name: '' };
       }
     },
+
+    // ── Formatting templates ──────────────────────────────────────────────
+
+    async listFormattingTemplates(): Promise<any[]> {
+      const rows = await db.select<any[]>(
+        `SELECT * FROM formatting_templates ORDER BY name`,
+      );
+      return rows.map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        mode: r.mode,
+        rules: JSON.parse(r.rules),
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      }));
+    },
+
+    async createFormattingTemplate(template: any): Promise<void> {
+      await db.execute(
+        `INSERT INTO formatting_templates (id, name, description, mode, rules, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          template.id,
+          template.name,
+          template.description,
+          template.mode,
+          JSON.stringify(template.rules),
+          template.createdAt,
+          template.updatedAt,
+        ],
+      );
+    },
+
+    async updateFormattingTemplate(id: string, template: any): Promise<void> {
+      await db.execute(
+        `UPDATE formatting_templates SET name = $1, description = $2, mode = $3, rules = $4, updated_at = $5 WHERE id = $6`,
+        [template.name, template.description, template.mode, JSON.stringify(template.rules), template.updatedAt, id],
+      );
+    },
+
+    async deleteFormattingTemplate(id: string): Promise<void> {
+      await db.execute(`DELETE FROM formatting_templates WHERE id = $1`, [id]);
+    },
   };
 
   return storage;

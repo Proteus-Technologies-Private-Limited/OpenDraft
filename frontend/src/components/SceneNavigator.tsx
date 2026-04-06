@@ -109,10 +109,27 @@ function formatPageLength(pages: number): string {
 
 // ── Scene Length Icon ────────────────────────────────────────────────────
 
+function getPageFillStyle(pages: number): { color: string; opacity: number } {
+  if (pages <= 1) return { color: 'var(--fd-accent)', opacity: 0.6 };
+  const t = Math.min((pages - 1) / 4, 1); // 0 at 1 page, 1 at 5+ pages
+  const hue = Math.round(120 * (1 - t)); // green(120) → red(0)
+  const sat = 65 + Math.round(t * 25);   // 65% → 90%
+  const lit = 50 - Math.round(t * 10);   // 50% → 40%
+  const opacity = 0.65 + t * 0.3;        // 0.65 → 0.95
+  return { color: `hsl(${hue}, ${sat}%, ${lit}%)`, opacity };
+}
+
 const SceneLengthIcon: React.FC<{ pages: number }> = React.memo(({ pages }) => {
   const wholePgs = Math.floor(pages);
   const fraction = pages - wholePgs;
-  const fillH = (fraction > 0 ? fraction : 1) * 10;
+  const FILL_TOP = 2.5;
+  const FILL_BOT = 14;
+  const FILL_H = FILL_BOT - FILL_TOP; // 11.5 — full interior height
+  const fillH = (fraction > 0 ? fraction : 1) * FILL_H;
+  const { color: fillColor, opacity: fillOpacity } = getPageFillStyle(pages);
+  // For multi-page scenes, fill the remaining top portion with the previous page's color
+  const showBg = pages > 1 && fraction > 0;
+  const bgStyle = showBg ? getPageFillStyle(wholePgs) : null;
   return (
     <svg width="14" height="16" viewBox="0 0 14 16" style={{ flexShrink: 0 }}>
       {wholePgs >= 2 && (
@@ -122,7 +139,10 @@ const SceneLengthIcon: React.FC<{ pages: number }> = React.memo(({ pages }) => {
         <rect x="2.5" y="0.5" width="9.5" height="13.5" rx="1" fill="none" stroke="currentColor" strokeWidth="0.6" opacity="0.3" />
       )}
       <rect x="1" y="1.5" width="9.5" height="13" rx="1" fill="none" stroke="currentColor" strokeWidth="0.7" opacity="0.5" />
-      <rect x="2" y={14.5 - fillH} width="7.5" height={fillH} fill="var(--fd-accent)" opacity="0.6" rx="0.5" className="scene-length-fill" />
+      {bgStyle && (
+        <rect x="2" y={FILL_TOP} width="7.5" height={FILL_H} fill={bgStyle.color} opacity={bgStyle.opacity} rx="0.5" />
+      )}
+      <rect x="2" y={FILL_BOT - fillH} width="7.5" height={fillH} fill={fillColor} opacity={fillOpacity} rx="0.5" className="scene-length-fill" />
     </svg>
   );
 });

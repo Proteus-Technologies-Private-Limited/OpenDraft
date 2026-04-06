@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { INDUSTRY_STANDARD_ID } from '../stores/formattingTypes';
+import type { FormattingTemplate } from '../stores/formattingTypes';
+import TemplateEditorDialog from './TemplateEditorDialog';
 import { collabAuthApi, handleAuthResponse, performLogout } from '../services/collabAuth';
 import type { CollabServerConfig } from '../services/collabAuth';
 import { showToast } from './Toast';
@@ -45,6 +49,17 @@ const SettingsPage: React.FC = () => {
   const [serverConfig, setServerConfig] = useState<CollabServerConfig | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  // Formatting templates
+  const {
+    formattingMode, setFormattingMode,
+    templates, loadTemplates,
+    defaultTemplateId, setDefaultTemplateId,
+    createTemplate, updateTemplate, deleteTemplate, duplicateTemplate,
+  } = useFormattingTemplateStore();
+  const [editingTemplate, setEditingTemplate] = useState<FormattingTemplate | null>(null);
+
+  useEffect(() => { loadTemplates(); }, [loadTemplates]);
+
   // Load server config when URL is saved
   useEffect(() => {
     if (collabServerUrl) {
@@ -53,6 +68,7 @@ const SettingsPage: React.FC = () => {
   }, [collabServerUrl]);
 
   const isLoggedIn = Boolean(collabAuth.accessToken && collabAuth.user);
+  const isDemoServer = collabServerUrl.includes('opendraft-collab-267958344432.us-central1.run.app');
 
   // ── URL handlers ──
 
@@ -92,7 +108,13 @@ const SettingsPage: React.FC = () => {
       setLoginEmail('');
       setLoginPassword('');
     } catch (err: any) {
-      showToast(err.message || 'Login failed', 'error');
+      const msg = err.message || 'Login failed';
+      if (isDemoServer && (msg.toLowerCase().includes('user not found') || msg.includes('404'))) {
+        showToast('User not found', 'error');
+        showToast('Note: The demo server resets every hour — please create a new account.', 'info');
+      } else {
+        showToast(msg, 'error');
+      }
     } finally {
       setAuthLoading(false);
     }
@@ -194,6 +216,150 @@ const SettingsPage: React.FC = () => {
       </div>
 
       <div className="settings-content">
+        {/* ── Formatting ── */}
+        <section className="settings-section">
+          <h2 className="settings-section-title">Formatting</h2>
+          <p className="settings-section-desc">
+            Choose between industry-standard screenplay formatting or create custom templates
+            with your own rules for each element type.
+          </p>
+
+          <div className="settings-row">
+            <label>Formatting Mode</label>
+            <div className="template-editor-mode-toggle">
+              <button
+                className={`template-mode-btn${formattingMode === 'standard' ? ' active' : ''}`}
+                onClick={() => setFormattingMode('standard')}
+              >
+                Industry Standard
+              </button>
+              <button
+                className={`template-mode-btn${formattingMode === 'custom' ? ' active' : ''}`}
+                onClick={() => setFormattingMode('custom')}
+              >
+                Custom Template
+              </button>
+            </div>
+          </div>
+
+          {formattingMode === 'custom' && (
+            <>
+              <div className="settings-row">
+                <label>Default Template</label>
+                <select
+                  className="dialog-input settings-select"
+                  value={defaultTemplateId || ''}
+                  onChange={(e) => setDefaultTemplateId(e.target.value || null)}
+                >
+                  <option value="">Select a template...</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="settings-row">
+                <label>Templates</label>
+                <div className="template-list">
+                  {templates.length === 0 && (
+                    <div className="template-list-empty">
+                      No custom templates yet. Create one to get started.
+                    </div>
+                  )}
+                  {templates.map((t) => (
+                    <div key={t.id} className="template-list-item">
+                      <div className="template-list-info">
+                        <span className="template-list-name">{t.name}</span>
+                        <div className="template-list-mode-toggle">
+                          <button
+                            className={`template-mode-btn template-mode-btn-sm${t.mode === 'enforce' ? ' active' : ''}`}
+                            onClick={async () => {
+                              await updateTemplate(t.id, { ...t, mode: 'enforce' });
+                            }}
+                            title="Formatting is locked — users cannot change element-level styling"
+                          >
+                            Enforce
+                          </button>
+                          <button
+                            className={`template-mode-btn template-mode-btn-sm${t.mode === 'override' ? ' active' : ''}`}
+                            onClick={async () => {
+                              await updateTemplate(t.id, { ...t, mode: 'override' });
+                            }}
+                            title="Formatting sets defaults — users can override per-instance"
+                          >
+                            Override
+                          </button>
+                        </div>
+                      </div>
+                      <div className="template-list-actions">
+                        <button
+                          className="dialog-btn dialog-btn-sm"
+                          onClick={() => setEditingTemplate(t)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="dialog-btn dialog-btn-sm"
+                          onClick={async () => {
+                            await duplicateTemplate(t.id);
+                            showToast('Template duplicated', 'success');
+                          }}
+                        >
+                          Duplicate
+                        </button>
+                        <button
+                          className="dialog-btn dialog-btn-sm dialog-btn-danger"
+                          onClick={async () => {
+                            if (confirm(`Delete template "${t.name}"?`)) {
+                              await deleteTemplate(t.id);
+                              showToast('Template deleted', 'success');
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="template-list-footer">
+                  <button
+                    className="dialog-btn dialog-btn-primary"
+                    onClick={async () => {
+                      const t = await createTemplate({ name: 'New Template' });
+                      setEditingTemplate(t);
+                    }}
+                  >
+                    + Create Template
+                  </button>
+                  <button
+                    className="dialog-btn"
+                    onClick={async () => {
+                      const t = await duplicateTemplate(INDUSTRY_STANDARD_ID);
+                      setEditingTemplate(t);
+                    }}
+                  >
+                    Duplicate Industry Standard
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* Template Editor Dialog */}
+        {editingTemplate && (
+          <TemplateEditorDialog
+            template={editingTemplate}
+            onSave={async (updated) => {
+              await updateTemplate(updated.id, updated);
+              setEditingTemplate(null);
+              showToast('Template saved', 'success');
+            }}
+            onCancel={() => setEditingTemplate(null)}
+          />
+        )}
+
         {/* ── Collaboration Server URL ── */}
         <section className="settings-section">
           <h2 className="settings-section-title">Collaboration Server</h2>
@@ -209,7 +375,7 @@ const SettingsPage: React.FC = () => {
                 className="dialog-input settings-url-input"
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="ws://localhost:4000 or wss://collab.example.com"
+                placeholder="wss://opendraft-collab-267958344432.us-central1.run.app"
                 onKeyDown={(e) => handleKeyDown(e, handleSaveUrl)}
               />
               <button className="dialog-btn dialog-btn-primary" onClick={handleSaveUrl}>
@@ -247,6 +413,14 @@ const SettingsPage: React.FC = () => {
             Sign in to the collaboration server to use real-time editing features.
             An account is only required for collaboration — all other features work offline.
           </p>
+
+          {isDemoServer && (
+            <div className="settings-demo-notice">
+              <strong>Demo Server:</strong> This is a shared demo server. Registered accounts and
+              collaboration data are automatically removed every hour. For persistent use,
+              deploy your own collab server or upgrade to the paid version.
+            </div>
+          )}
 
           {isLoggedIn ? (
             <div className="settings-auth-card">

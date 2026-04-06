@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collabAuthApi, handleAuthResponse } from '../services/collabAuth';
 import type { CollabServerConfig } from '../services/collabAuth';
+import { useSettingsStore } from '../stores/settingsStore';
 import { showToast } from './Toast';
 
 interface CollabLoginDialogProps {
@@ -12,6 +13,8 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [loading, setLoading] = useState(false);
   const [serverConfig, setServerConfig] = useState<CollabServerConfig | null>(null);
+  const collabServerUrl = useSettingsStore((s) => s.collabServerUrl);
+  const isDemoServer = collabServerUrl.includes('opendraft-collab-267958344432.us-central1.run.app');
 
   // Login fields
   const [loginEmail, setLoginEmail] = useState('');
@@ -36,7 +39,13 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
       showToast('Signed in', 'success');
       onSuccess();
     } catch (err: any) {
-      showToast(err.message || 'Login failed', 'error');
+      const msg = err.message || 'Login failed';
+      if (isDemoServer && (msg.toLowerCase().includes('user not found') || msg.includes('404'))) {
+        showToast('User not found', 'error');
+        showToast('Note: The demo server resets every hour — please create a new account.', 'info');
+      } else {
+        showToast(msg, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -107,6 +116,14 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
             A collaboration account is required to use real-time editing.
             You can manage your account in System Settings.
           </p>
+
+          {isDemoServer && (
+            <div className="settings-demo-notice" style={{ marginBottom: 16 }}>
+              <strong>Demo Server:</strong> This is a shared demo server. Registered accounts and
+              collaboration data are automatically removed every hour. For persistent use,
+              deploy your own collab server or upgrade to the paid version.
+            </div>
+          )}
 
           <div className="settings-auth-tabs">
             <button

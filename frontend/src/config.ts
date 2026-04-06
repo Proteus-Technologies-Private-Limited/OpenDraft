@@ -22,7 +22,7 @@ export const SERVER_BASE: string = API_BASE.replace(/\/api$/, '');
  *  Reads from localStorage (settings store) first, then falls back
  *  to the VITE env var, then to the default.
  */
-const DEFAULT_COLLAB_WS = 'ws://localhost:4000';
+const DEFAULT_COLLAB_WS = 'wss://opendraft-collab-267958344432.us-central1.run.app';
 export function getCollabWsUrl(): string {
   const stored = localStorage.getItem('opendraft:collabServerUrl');
   if (stored) return stored;

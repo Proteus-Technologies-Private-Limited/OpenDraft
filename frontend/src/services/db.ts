@@ -122,6 +122,20 @@ async function migrate(db: Database): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_assets_project ON assets(project_id);
   `);
 
+  // ── Formatting templates ───────────────────────────────────────────────────
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS formatting_templates (
+      id            TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      description   TEXT NOT NULL DEFAULT '',
+      mode          TEXT NOT NULL DEFAULT 'enforce',
+      rules         TEXT NOT NULL,
+      created_at    TEXT NOT NULL,
+      updated_at    TEXT NOT NULL
+    );
+  `);
+
   // ── Migration from old schema ─────────────────────────────────────────────
   // If the old `versions` table (full-snapshot) exists, migrate data.
   // If the old `scripts` table has a `content` column, migrate it.
@@ -230,6 +244,9 @@ async function migrateFromOldSchema(db: Database): Promise<void> {
   }
   if (!scriptColNames.has('sort_order')) {
     await db.execute(`ALTER TABLE scripts ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`);
+  }
+  if (!scriptColNames.has('template_id')) {
+    await db.execute(`ALTER TABLE scripts ADD COLUMN template_id TEXT DEFAULT NULL`);
   }
 }
 
