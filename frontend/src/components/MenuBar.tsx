@@ -799,14 +799,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.10.0</div>
+              <div className="about-section-title">What's New in 0.10.1</div>
               <ul className="about-list">
-                <li><strong>Formatting Templates</strong> — Industry-standard screenplay formatting with customizable element rules and override/enforce modes.</li>
-                <li><strong>Responsive Toolbar</strong> — Toolbar buttons progressively collapse into a 3-dot overflow menu as the window narrows, like Google Docs.</li>
-                <li><strong>Unsaved Changes Prompt</strong> — New Screenplay, Import, and Open now prompt to save unsaved work before proceeding.</li>
-                <li><strong>Enhanced Font &amp; Formatting</strong> — Draggable formatting dialog with strikethrough, subscript, superscript, text color, and highlight color.</li>
-                <li><strong>Justified Alignment</strong> — New justify option alongside left, center, and right alignment.</li>
-                <li><strong>Context Menu Improvements</strong> — Style and Element submenus now work on click; added strikethrough, subscript, superscript to Style submenu.</li>
+                <li><strong>Cloud Collab Server</strong> — Default collaboration server now hosted on Google Cloud Run with automatic HTTPS/WSS.</li>
+                <li><strong>Web Collab Fix</strong> — Fixed collaboration sessions not working when using the web frontend served by FastAPI.</li>
+                <li><strong>Demo Server Notices</strong> — Clear messaging that the demo collab server resets hourly, with distinct error handling for expired accounts.</li>
+                <li><strong>Release Process</strong> — Web frontend build now included in the release pipeline.</li>
               </ul>
             </div>
           </div>
