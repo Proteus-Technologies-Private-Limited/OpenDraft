@@ -799,9 +799,10 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.10.1</div>
+              <div className="about-section-title">What's New in 0.10.2</div>
               <ul className="about-list">
                 <li><strong>Cloud Collab Server</strong> — Default collaboration server now hosted on Google Cloud Run with automatic HTTPS/WSS.</li>
+                <li><strong>Cross-Device Collab Fix</strong> — Fixed joining collab sessions from browser when host is on desktop — WebSocket now connects immediately without waiting for backend.</li>
                 <li><strong>Web Collab Fix</strong> — Fixed collaboration sessions not working when using the web frontend served by FastAPI.</li>
                 <li><strong>Demo Server Notices</strong> — Clear messaging that the demo collab server resets hourly, with distinct error handling for expired accounts.</li>
                 <li><strong>Release Process</strong> — Web frontend build now included in the release pipeline.</li>
