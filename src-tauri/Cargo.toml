@@ -1,6 +1,6 @@
 [package]
 name = "opendraft"
-version = "0.9.0"
+version = "0.10.0"
 description = "OpenDraft - Professional Screenwriting Application"
 authors = ["OpenDraft"]
 edition = "2021"

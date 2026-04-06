@@ -795,11 +795,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.9.0</div>
+            <div className="about-version">Version 0.10.0</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.9.0</div>
+              <div className="about-section-title">What's New in 0.10.0</div>
               <ul className="about-list">
                 <li><strong>Formatting Templates</strong> — Industry-standard screenplay formatting with customizable element rules and override/enforce modes.</li>
                 <li><strong>Responsive Toolbar</strong> — Toolbar buttons progressively collapse into a 3-dot overflow menu as the window narrows, like Google Docs.</li>
