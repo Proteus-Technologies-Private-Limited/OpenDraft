@@ -4,11 +4,12 @@ set -e
 # ── OpenDraft Release Script ─────────────────────────────────────────────────
 # Handles the full release process:
 #   1. Updates version in all source files
-#   2. Commits and pushes
-#   3. Creates git tag (triggers CI for Windows + Linux)
+#   2. Builds web frontend for FastAPI (backend/static)
+#   3. Commits and pushes
 #   4. Builds macOS .dmg locally
-#   5. Waits for GitHub Release to be created by CI
-#   6. Uploads .dmg to the GitHub Release
+#   5. Creates git tag (triggers CI for Windows + Linux)
+#   6. Waits for GitHub Release to be created by CI
+#   7. Uploads .dmg to the GitHub Release
 
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 REPO="Proteus-Technologies-Private-Limited/OpenDraft"
@@ -55,7 +56,7 @@ echo "New version:     ${NEW_VERSION}"
 echo ""
 
 # ── Step 1: Update version in all files ──────────────────────────────────────
-echo "=== Step 1/6: Updating version numbers ==="
+echo "=== Step 1/7: Updating version numbers ==="
 
 # src-tauri/tauri.conf.json
 sed -i '' "s/\"version\": \"${OLD_VERSION}\"/\"version\": \"${NEW_VERSION}\"/" \
@@ -110,16 +111,22 @@ cd "$PROJECT_ROOT"
 
 echo ""
 
-# ── Step 2: Commit version bump ─────────────────────────────────────────────
-echo "=== Step 2/6: Committing version bump ==="
+# ── Step 2: Build web frontend for FastAPI ─────────────────────────────────
+echo "=== Step 2/7: Building web frontend ==="
+"$PROJECT_ROOT/build.sh"
+echo "  ✓ Web frontend built and deployed to backend/static/"
+echo ""
+
+# ── Step 3: Commit version bump ─────────────────────────────────────────────
+echo "=== Step 3/7: Committing version bump ==="
 git add -A
 git commit -m "Bump version to ${NEW_VERSION}"
 git push origin main
 echo "  ✓ Committed and pushed"
 echo ""
 
-# ── Step 3: Build macOS .dmg locally ────────────────────────────────────────
-echo "=== Step 3/6: Building macOS desktop app ==="
+# ── Step 4: Build macOS .dmg locally ────────────────────────────────────────
+echo "=== Step 4/7: Building macOS desktop app ==="
 "$PROJECT_ROOT/build-desktop.sh"
 
 # Find the .dmg file
@@ -133,15 +140,15 @@ echo ""
 echo "  ✓ Built: $(basename "$DMG_FILE")"
 echo ""
 
-# ── Step 4: Create and push tag ─────────────────────────────────────────────
-echo "=== Step 4/6: Creating tag ${TAG} ==="
+# ── Step 5: Create and push tag ─────────────────────────────────────────────
+echo "=== Step 5/7: Creating tag ${TAG} ==="
 git tag "$TAG"
 git push origin "$TAG"
 echo "  ✓ Tag ${TAG} pushed (CI building Windows + Linux)"
 echo ""
 
-# ── Step 5: Wait for GitHub Release to be created by CI ─────────────────────
-echo "=== Step 5/6: Waiting for GitHub Release to be created by CI ==="
+# ── Step 6: Wait for GitHub Release to be created by CI ─────────────────────
+echo "=== Step 6/7: Waiting for GitHub Release to be created by CI ==="
 echo "  This may take several minutes..."
 
 MAX_WAIT=600  # 10 minutes
@@ -167,8 +174,8 @@ if [ $ELAPSED -ge $MAX_WAIT ]; then
 fi
 echo ""
 
-# ── Step 6: Upload macOS .dmg to the release ────────────────────────────────
-echo "=== Step 6/6: Uploading macOS .dmg to release ==="
+# ── Step 7: Upload macOS .dmg to the release ────────────────────────────────
+echo "=== Step 7/7: Uploading macOS .dmg to release ==="
 gh release upload "$TAG" "$DMG_FILE" --repo "$REPO"
 echo "  ✓ Uploaded $(basename "$DMG_FILE")"
 echo ""
