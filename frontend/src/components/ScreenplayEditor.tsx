@@ -781,44 +781,9 @@ const ScreenplayEditor: React.FC = () => {
       // Determine the collab server to use: prefer URL extracted from invite link,
       // fall back to local setting.
       const collabWs = collabServerUrl || getCollabWsUrl();
-      const collabHttp = collabWs.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
-      const collabHost = (() => { try { return new URL(collabHttp).hostname; } catch { return 'localhost'; } })();
 
-      // Try to load script content to seed the Yjs doc.
-      // On desktop (no sidecar) this may fail — Yjs will sync from the host.
-      const backends = [
-        API_BASE,
-        `http://${collabHost}:8000/api`,
-        `http://${collabHost}:18321/api`,
-      ].filter((v, i, a) => a.indexOf(v) === i); // deduplicate
-
-      let project: Record<string, unknown> | null = null;
-      let scriptResp: { content: unknown; meta: { title: string } } | null = null;
-
-      for (const base of backends) {
-        try {
-          const pRes = await platformFetch(`${base}/projects/${session.project_id}`);
-          if (!pRes.ok) continue;
-          project = await pRes.json();
-          const sRes = await platformFetch(`${base}/projects/${session.project_id}/scripts/${session.script_id}`);
-          if (!sRes.ok) continue;
-          scriptResp = await sRes.json();
-          break;
-        } catch {
-          // This backend unreachable — try next
-        }
-      }
-
-      if (scriptResp) {
-        const content = scriptResp.content as Record<string, unknown> | null;
-        if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _templateId, ...pmDoc } = content as Record<string, unknown>;
-          collabInitialContent.current = pmDoc;
-        } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
-          collabInitialContent.current = content as Record<string, unknown>;
-        }
-      }
-
+      // Connect to the collab WebSocket immediately — Yjs will sync content from the host.
+      // Do NOT wait for backend content loading (which may hang on unreachable ports).
       const nonce = session.session_nonce || '';
       const docName = `${session.project_id}/${session.script_id}${nonce ? `/${nonce}` : ''}`;
       setupCollab(docName, token, session.collaborator_name, false, collabWs);
@@ -829,15 +794,32 @@ const ScreenplayEditor: React.FC = () => {
       setJoinCollabOpen(false);
       setEditorKey((k) => k + 1);
 
-      // Use fetched project or create a minimal placeholder — Yjs will sync the content
-      setCurrentProject((project || { id: session.project_id, name: 'Collaboration' }) as any);
+      // Set a placeholder project — Yjs will sync the actual content from the host
+      setCurrentProject({ id: session.project_id, name: 'Collaboration' } as any);
       setCurrentScriptId(session.script_id);
-      setDocumentTitle(scriptResp?.meta?.title || 'Untitled');
+      setDocumentTitle('Untitled');
 
       if (session.role === 'viewer') {
         showToast('Connected as viewer (read-only)', 'info');
       } else {
         showToast(`Joined collaboration as ${session.collaborator_name}`, 'success');
+      }
+
+      // Try to load project metadata in the background (non-blocking).
+      // This fills in the title and project name if reachable, but is not required.
+      try {
+        const pRes = await platformFetch(`${API_BASE}/projects/${session.project_id}`);
+        if (pRes.ok) {
+          const project = await pRes.json();
+          setCurrentProject(project as any);
+          const sRes = await platformFetch(`${API_BASE}/projects/${session.project_id}/scripts/${session.script_id}`);
+          if (sRes.ok) {
+            const scriptResp = await sRes.json();
+            setDocumentTitle(scriptResp?.meta?.title || 'Untitled');
+          }
+        }
+      } catch {
+        // Backend unreachable — fine, Yjs handles content sync
       }
     } catch (err) {
       console.error('[Collab] handleJoinCollab failed:', err);
