@@ -3,6 +3,8 @@ import type { Editor } from '@tiptap/react';
 import FontPicker from './FontPicker';
 import { FONT_REGISTRY, loadFont } from '../utils/fonts';
 import { useEditorStore } from '../stores/editorStore';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
 
@@ -14,15 +16,21 @@ interface FormatPanelProps {
 const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
   const { fontFamily: pageFont, fontSize: pageFontSize } = useEditorStore();
 
+  // Per-attribute locking from active template
+  const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
+  const isEnforceMode = activeTemplate.mode === 'enforce';
+  const rule = getCurrentElementRule(editor, activeTemplate);
+  const locked = getLockedFormatting(rule, isEnforceMode);
+
   // Snapshot the current state so we can restore on Cancel
   const snapshotRef = useRef<string | null>(null);
   const selectionRef = useRef({ from: editor.state.selection.from, to: editor.state.selection.to });
 
   // Detect current formatting at cursor
   const attrs = editor.getAttributes('textStyle');
-  const initialFont = (attrs.fontFamily as string) || pageFont;
+  const initialFont = (attrs.fontFamily as string) || rule?.fontFamily || pageFont;
   const initialSizeStr = (attrs.fontSize as string) || '';
-  const initialSize = initialSizeStr ? parseInt(initialSizeStr, 10) || pageFontSize : pageFontSize;
+  const initialSize = initialSizeStr ? parseInt(initialSizeStr, 10) || (rule?.fontSize ?? pageFontSize) : (rule?.fontSize ?? pageFontSize);
   const initialBold = editor.isActive('bold');
   const initialItalic = editor.isActive('italic');
   const initialUnderline = editor.isActive('underline');
@@ -230,7 +238,7 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
 
         <div className="format-panel-body">
           {/* Font family */}
-          <div className="format-row">
+          <div className="format-row" style={locked.fontFamily ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
             <label className="format-label">Font</label>
             <FontPicker value={font} extraFonts={extraFonts} onChange={handleFontChange} />
           </div>
@@ -241,6 +249,7 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
             <select
               className="format-size-select"
               value={size}
+              disabled={locked.fontSize}
               onChange={(e) => handleSizeChange(Number(e.target.value))}
               aria-label="Font size"
             >
@@ -254,17 +263,17 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
           <div className="format-row">
             <label className="format-label">Style</label>
             <div className="format-style-btns">
-              <button className={`format-style-btn${bold ? ' active' : ''}`} onClick={handleBoldToggle} title="Bold"><strong>B</strong></button>
-              <button className={`format-style-btn${italic ? ' active' : ''}`} onClick={handleItalicToggle} title="Italic"><em>I</em></button>
-              <button className={`format-style-btn${underline ? ' active' : ''}`} onClick={handleUnderlineToggle} title="Underline"><u>U</u></button>
-              <button className={`format-style-btn${strike ? ' active' : ''}`} onClick={handleStrikeToggle} title="Strikethrough"><s>S</s></button>
-              <button className={`format-style-btn${subscript ? ' active' : ''}`} onClick={handleSubscriptToggle} title="Subscript" style={{ fontSize: '0.75em' }}>X<sub>2</sub></button>
-              <button className={`format-style-btn${superscript ? ' active' : ''}`} onClick={handleSuperscriptToggle} title="Superscript" style={{ fontSize: '0.75em' }}>X<sup>2</sup></button>
+              <button className={`format-style-btn${bold ? ' active' : ''}`} onClick={handleBoldToggle} disabled={locked.bold} title="Bold"><strong>B</strong></button>
+              <button className={`format-style-btn${italic ? ' active' : ''}`} onClick={handleItalicToggle} disabled={locked.italic} title="Italic"><em>I</em></button>
+              <button className={`format-style-btn${underline ? ' active' : ''}`} onClick={handleUnderlineToggle} disabled={locked.underline} title="Underline"><u>U</u></button>
+              <button className={`format-style-btn${strike ? ' active' : ''}`} onClick={handleStrikeToggle} disabled={locked.strikethrough} title="Strikethrough"><s>S</s></button>
+              <button className={`format-style-btn${subscript ? ' active' : ''}`} onClick={handleSubscriptToggle} disabled={locked.subscript} title="Subscript" style={{ fontSize: '0.75em' }}>X<sub>2</sub></button>
+              <button className={`format-style-btn${superscript ? ' active' : ''}`} onClick={handleSuperscriptToggle} disabled={locked.superscript} title="Superscript" style={{ fontSize: '0.75em' }}>X<sup>2</sup></button>
             </div>
           </div>
 
           {/* Text color */}
-          <div className="format-row">
+          <div className="format-row" style={locked.textColor ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
             <label className="format-label">Color</label>
             <div className="format-color-row">
               <input
@@ -280,7 +289,7 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
           </div>
 
           {/* Highlight color */}
-          <div className="format-row">
+          <div className="format-row" style={locked.backgroundColor ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
             <label className="format-label">Highlight</label>
             <div className="format-color-row">
               <input

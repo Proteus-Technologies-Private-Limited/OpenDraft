@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { ELEMENT_LABELS, type ElementType } from '../stores/editorStore';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 
 // Context-aware element ordering: most likely choices first per current type
 const ELEMENT_ORDER: Record<string, ElementType[]> = {
@@ -33,9 +34,16 @@ interface ElementPickerProps {
 const ElementPicker: React.FC<ElementPickerProps> = ({
   position, defaultType, onSelect, onDismiss,
 }) => {
+  const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
   const orderedTypes = useMemo(
-    () => ELEMENT_ORDER[defaultType] || DEFAULT_ORDER,
-    [defaultType],
+    () => {
+      const enabled = new Set(
+        Object.values(activeTemplate.rules).filter((r) => r.enabled).map((r) => r.id),
+      );
+      return (ELEMENT_ORDER[defaultType] || DEFAULT_ORDER)
+        .filter((t) => enabled.has(t));
+    },
+    [defaultType, activeTemplate],
   );
   const [selectedIndex, setSelectedIndex] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);

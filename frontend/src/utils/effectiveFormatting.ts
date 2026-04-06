@@ -16,6 +16,54 @@ export interface EffectiveFormatting {
   textAlign: string;
 }
 
+/** Which formatting attributes are locked (non-editable) for the current element. */
+export interface LockedFormatting {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  strikethrough: boolean;
+  textAlign: boolean;
+  textColor: boolean;
+  backgroundColor: boolean;
+  textTransform: boolean;
+  fontFamily: boolean;
+  fontSize: boolean;
+  subscript: boolean;
+  superscript: boolean;
+}
+
+const NO_LOCK: LockedFormatting = {
+  bold: false, italic: false, underline: false, strikethrough: false,
+  textAlign: false, textColor: false, backgroundColor: false, textTransform: false,
+  fontFamily: false, fontSize: false, subscript: false, superscript: false,
+};
+
+const ALL_LOCKED: LockedFormatting = {
+  bold: true, italic: true, underline: true, strikethrough: true,
+  textAlign: true, textColor: true, backgroundColor: true, textTransform: true,
+  fontFamily: true, fontSize: true, subscript: true, superscript: true,
+};
+
+/**
+ * Determine which formatting attributes are locked for the current element.
+ *
+ * - If template mode is not 'enforce', nothing is locked.
+ * - If allowFormatOverride is false, everything is locked.
+ * - If allowFormatOverride is true, only attributes that differ from defaults are locked.
+ */
+export function getLockedFormatting(
+  rule: FormattingElementRule | null,
+  isEnforce: boolean,
+): LockedFormatting {
+  if (!isEnforce || !rule) return NO_LOCK;
+
+  // Element-level override: when allowed, nothing is locked for this element
+  if (rule.allowFormatOverride) return NO_LOCK;
+
+  // All formatting locked for this element
+  return ALL_LOCKED;
+}
+
 /**
  * Get the formatting rule for the current element under the cursor.
  */
@@ -66,13 +114,14 @@ export function getEffectiveFormatting(
   const templateAlign = rule?.textAlign ?? 'left';
 
   if (!isOverride) {
-    // Enforce mode: template + additive marks
+    // Enforce mode: locked attributes show template value, unlocked show inline mark state
+    const locked = getLockedFormatting(rule, true);
     return {
-      isBold: templateBold || editor.isActive('bold'),
-      isItalic: templateItalic || editor.isActive('italic'),
-      isUnderline: templateUnderline || editor.isActive('underline'),
-      isStrikethrough: templateStrike || editor.isActive('strike'),
-      textAlign: templateAlign,
+      isBold: locked.bold ? templateBold : (templateBold || editor.isActive('bold')),
+      isItalic: locked.italic ? templateItalic : (templateItalic || editor.isActive('italic')),
+      isUnderline: locked.underline ? templateUnderline : (templateUnderline || editor.isActive('underline')),
+      isStrikethrough: locked.strikethrough ? templateStrike : (templateStrike || editor.isActive('strike')),
+      textAlign: locked.textAlign ? templateAlign : (editor.getAttributes('textAlign')?.textAlign || templateAlign),
     };
   }
 

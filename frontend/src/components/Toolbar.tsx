@@ -28,10 +28,12 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { BUILT_IN_ELEMENT_IDS } from '../stores/formattingTypes';
 import {
   getCurrentElementRule,
+  getLockedFormatting,
   toggleBoldOverride,
   toggleItalicOverride,
   toggleUnderlineOverride,
 } from '../utils/effectiveFormatting';
+import type { LockedFormatting } from '../utils/effectiveFormatting';
 import FontPicker from './FontPicker';
 import ColorPicker from './ColorPicker';
 import LanguageSelector from './LanguageSelector';
@@ -74,8 +76,15 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   } = useEditorStore();
 
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
-  const formattingMode = useFormattingTemplateStore((s) => s.formattingMode);
-  const isOverrideMode = activeTemplate.mode === 'override' && formattingMode === 'custom';
+  const isEnforceMode = activeTemplate.mode === 'enforce';
+  const isOverrideMode = activeTemplate.mode === 'override';
+
+  // Per-attribute locking state — updates reactively when cursor moves between elements
+  const [locked, setLocked] = useState<LockedFormatting>({
+    bold: false, italic: false, underline: false, strikethrough: false,
+    textAlign: false, textColor: false, backgroundColor: false, textTransform: false,
+    fontFamily: false, fontSize: false, subscript: false, superscript: false,
+  });
 
   // Color picker state
   const [textColorOpen, setTextColorOpen] = useState(false);
@@ -91,12 +100,17 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
   const detectFormatting = useCallback(() => {
     if (!editor) return;
+
+    // Update locked formatting for current element
+    const rule = getCurrentElementRule(editor, activeTemplate);
+    setLocked(getLockedFormatting(rule, isEnforceMode));
+
     const attrs = editor.getAttributes('textStyle');
     const detectedFont = (attrs.fontFamily as string | undefined) || '';
     const detectedSize = (attrs.fontSize as string | undefined) || '';
 
-    // Font: use detected mark value, or fall back to page-level font
-    const effectiveFont = detectedFont || fontFamily;
+    // Font: use detected mark value, or template rule, or page-level font
+    const effectiveFont = detectedFont || rule?.fontFamily || fontFamily;
     setCursorFont(effectiveFont);
 
     // If this font isn't in the registry, add it to extras so the dropdown shows it
@@ -104,14 +118,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       setExtraFonts(prev => prev.includes(effectiveFont) ? prev : [...prev, effectiveFont]);
     }
 
-    // Size: parse "14pt" -> 14, or fall back to page-level size
+    // Size: parse "14pt" -> 14, or use template rule, or page-level size
     if (detectedSize) {
       const parsed = parseInt(detectedSize, 10);
-      setCursorSize(!isNaN(parsed) ? parsed : fontSize);
+      setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? fontSize));
     } else {
-      setCursorSize(fontSize);
+      setCursorSize(rule?.fontSize ?? fontSize);
     }
-  }, [editor, fontFamily, fontSize]);
+  }, [editor, fontFamily, fontSize, activeTemplate, isEnforceMode]);
 
   useEffect(() => {
     if (!editor) return;
@@ -409,11 +423,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
   const renderFontFaceSize = useCallback((inOverflow = false) => (
     <React.Fragment key="font-face-size">
-      <div className="toolbar-group">
+      <div className="toolbar-group" style={locked.fontFamily ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
         <FontPicker
           value={cursorFont}
           extraFonts={extraFonts}
           onChange={(val) => {
+            if (locked.fontFamily) return;
             setFontFamily(val);
             const entry = FONT_REGISTRY.find(f => f.name === val);
             if (entry) loadFont(entry);
@@ -431,7 +446,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <select
           className="font-size-selector"
           value={cursorSize}
+          disabled={locked.fontSize}
           onChange={(e) => {
+            if (locked.fontSize) return;
             const val = Number(e.target.value);
             setFontSize(val);
             if (val === 12) {
@@ -451,7 +468,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         </select>
       </div>
     </React.Fragment>
-  ), [cursorFont, cursorSize, extraFonts, editor, setFontFamily, setFontSize]);
+  ), [cursorFont, cursorSize, extraFonts, editor, setFontFamily, setFontSize, locked]);
 
   // showPopups: when false, only render buttons (no ColorPicker popups).
   // This prevents the hidden inline copy from stealing popup state from the overflow copy.
@@ -461,8 +478,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <button
           className={`toolbar-btn ${isActive('bold') ? 'active' : ''}`}
           title="Bold (⌘B)"
+          disabled={locked.bold}
           onClick={() => {
-            if (!editor) return;
+            if (!editor || locked.bold) return;
             if (isOverrideMode) {
               toggleBoldOverride(editor, getCurrentElementRule(editor, activeTemplate));
             } else {
@@ -475,8 +493,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <button
           className={`toolbar-btn ${isActive('italic') ? 'active' : ''}`}
           title="Italic (⌘I)"
+          disabled={locked.italic}
           onClick={() => {
-            if (!editor) return;
+            if (!editor || locked.italic) return;
             if (isOverrideMode) {
               toggleItalicOverride(editor, getCurrentElementRule(editor, activeTemplate));
             } else {
@@ -489,8 +508,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <button
           className={`toolbar-btn ${isActive('underline') ? 'active' : ''}`}
           title="Underline (⌘U)"
+          disabled={locked.underline}
           onClick={() => {
-            if (!editor) return;
+            if (!editor || locked.underline) return;
             if (isOverrideMode) {
               toggleUnderlineOverride(editor, getCurrentElementRule(editor, activeTemplate));
             } else {
@@ -503,21 +523,24 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <button
           className={`toolbar-btn ${isActive('strike') ? 'active' : ''}`}
           title="Strikethrough"
-          onClick={() => editor?.chain().focus().toggleStrike().run()}
+          disabled={locked.strikethrough}
+          onClick={() => { if (!locked.strikethrough) editor?.chain().focus().toggleStrike().run(); }}
         >
           <FaStrikethrough />
         </button>
         <button
           className={`toolbar-btn ${isActive('subscript') ? 'active' : ''}`}
           title="Subscript"
-          onClick={() => editor?.chain().focus().toggleSubscript().run()}
+          disabled={locked.subscript}
+          onClick={() => { if (!locked.subscript) editor?.chain().focus().toggleSubscript().run(); }}
         >
           <FaSubscript />
         </button>
         <button
           className={`toolbar-btn ${isActive('superscript') ? 'active' : ''}`}
           title="Superscript"
-          onClick={() => editor?.chain().focus().toggleSuperscript().run()}
+          disabled={locked.superscript}
+          onClick={() => { if (!locked.superscript) editor?.chain().focus().toggleSuperscript().run(); }}
         >
           <FaSuperscript />
         </button>
@@ -529,7 +552,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <button
           className="toolbar-btn"
           title="Text Color"
-          onClick={() => { setTextColorOpen(!textColorOpen); setBgColorOpen(false); }}
+          disabled={locked.textColor}
+          onClick={() => { if (!locked.textColor) { setTextColorOpen(!textColorOpen); setBgColorOpen(false); } }}
         >
           <FaPaintBrush style={{ color: currentTextColor }} />
         </button>
@@ -552,7 +576,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <button
           className="toolbar-btn"
           title="Highlight Color"
-          onClick={() => { setBgColorOpen(!bgColorOpen); setTextColorOpen(false); }}
+          disabled={locked.backgroundColor}
+          onClick={() => { if (!locked.backgroundColor) { setBgColorOpen(!bgColorOpen); setTextColorOpen(false); } }}
         >
           <FaHighlighter style={{ color: currentBgColor }} />
         </button>
@@ -577,7 +602,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
       <LanguageSelector editor={editor} activeElement={activeElement} />
     </React.Fragment>
-  ), [editor, isOverrideMode, activeTemplate, activeElement, textColorOpen, bgColorOpen, currentTextColor, currentBgColor]);
+  ), [editor, isOverrideMode, activeTemplate, activeElement, textColorOpen, bgColorOpen, currentTextColor, currentBgColor, locked]);
 
   const renderAlignment = useCallback((_inOverflow = false) => (
     <div className="toolbar-group" key="alignment">
@@ -585,7 +610,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         className={`toolbar-btn ${editor?.isActive({ textAlign: 'left' }) ? 'active' : ''}`}
         title="Align Left"
         onClick={() => editor?.chain().focus().setTextAlign('left').run()}
-        disabled={formattingMode === 'custom' && activeTemplate.mode === 'enforce'}
+        disabled={locked.textAlign}
       >
         <FaAlignLeft />
       </button>
@@ -593,7 +618,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         className={`toolbar-btn ${editor?.isActive({ textAlign: 'center' }) ? 'active' : ''}`}
         title="Align Center"
         onClick={() => editor?.chain().focus().setTextAlign('center').run()}
-        disabled={formattingMode === 'custom' && activeTemplate.mode === 'enforce'}
+        disabled={locked.textAlign}
       >
         <FaAlignCenter />
       </button>
@@ -601,7 +626,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         className={`toolbar-btn ${editor?.isActive({ textAlign: 'right' }) ? 'active' : ''}`}
         title="Align Right"
         onClick={() => editor?.chain().focus().setTextAlign('right').run()}
-        disabled={formattingMode === 'custom' && activeTemplate.mode === 'enforce'}
+        disabled={locked.textAlign}
       >
         <FaAlignRight />
       </button>
@@ -609,12 +634,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         className={`toolbar-btn ${editor?.isActive({ textAlign: 'justify' }) ? 'active' : ''}`}
         title="Justify"
         onClick={() => editor?.chain().focus().setTextAlign('justify').run()}
-        disabled={formattingMode === 'custom' && activeTemplate.mode === 'enforce'}
+        disabled={locked.textAlign}
       >
         <FaAlignJustify />
       </button>
     </div>
-  ), [editor, formattingMode, activeTemplate]);
+  ), [editor, locked]);
 
   const renderSearchGoto = useCallback((inOverflow = false) => (
     <div className="toolbar-group" key="search-goto">

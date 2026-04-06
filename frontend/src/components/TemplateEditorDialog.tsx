@@ -14,6 +14,10 @@ import {
 } from 'react-icons/fa';
 import type { FormattingTemplate, FormattingElementRule } from '../stores/formattingTypes';
 import { createDefaultRule } from '../stores/formattingTypes';
+import { FONT_CATEGORIES, getFontsByCategory } from '../utils/fonts';
+import type { FontEntry } from '../utils/fonts';
+
+const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48];
 
 interface TemplateEditorDialogProps {
   template: FormattingTemplate;
@@ -204,6 +208,44 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     disabled={selectedRule.isBuiltIn}
                     placeholder="Element name"
                   />
+                </div>
+
+                {/* Font family & size */}
+                <div className="template-editor-field-row">
+                  <div className="template-editor-field">
+                    <label>Font Family</label>
+                    <select
+                      className="dialog-input"
+                      value={selectedRule.fontFamily || ''}
+                      onChange={(e) => updateRule(selectedId!, { fontFamily: e.target.value || null })}
+                    >
+                      <option value="">Default</option>
+                      {FONT_CATEGORIES.map((category) => {
+                        const fonts = getFontsByCategory()[category];
+                        if (!fonts || fonts.length === 0) return null;
+                        return (
+                          <optgroup key={category} label={category}>
+                            {fonts.map((font: FontEntry) => (
+                              <option key={font.name} value={font.name}>{font.name}</option>
+                            ))}
+                          </optgroup>
+                        );
+                      })}
+                    </select>
+                  </div>
+                  <div className="template-editor-field">
+                    <label>Font Size</label>
+                    <select
+                      className="dialog-input"
+                      value={selectedRule.fontSize ?? ''}
+                      onChange={(e) => updateRule(selectedId!, { fontSize: e.target.value ? Number(e.target.value) : null })}
+                    >
+                      <option value="">Default</option>
+                      {FONT_SIZES.map((s) => (
+                        <option key={s} value={s}>{s}pt</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {/* Text style toggles */}
@@ -397,12 +439,33 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                   />
                 </div>
 
+                {/* Format override */}
+                {mode === 'enforce' && (
+                  <div className="template-editor-field">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedRule.allowFormatOverride !== false}
+                        onChange={(e) => updateRule(selectedId!, { allowFormatOverride: e.target.checked })}
+                      />
+                      Allow format override
+                    </label>
+                    <span className="template-editor-hint">
+                      {selectedRule.allowFormatOverride !== false
+                        ? 'Users can override formatting for this element type.'
+                        : 'All formatting is locked — users cannot change any styling for this element.'}
+                    </span>
+                  </div>
+                )}
+
                 {/* Preview */}
                 <div className="template-editor-field">
                   <label>Preview</label>
                   <div
                     className="template-editor-preview"
                     style={{
+                      fontFamily: selectedRule.fontFamily || undefined,
+                      fontSize: selectedRule.fontSize ? `${selectedRule.fontSize}pt` : undefined,
                       fontWeight: selectedRule.bold ? 'bold' : 'normal',
                       fontStyle: selectedRule.italic ? 'italic' : 'normal',
                       textDecoration: [

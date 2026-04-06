@@ -165,7 +165,8 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     return { doc: { type: 'doc', content: [{ type: 'action', content: [] }] }, pageLayout, castList: [], characterHighlighting: [], tagCategories: [], tagItems: [], beats: [], beatColumns: [] };
   }
 
-  const paragraphs = contentEl.querySelectorAll(':scope > Paragraph');
+  // Iterate direct children (Paragraph and DualDialogue elements)
+  const contentChildren = contentEl.children;
 
   // --- Extract beats from Outline paragraph types ---
   // Create columns dynamically as acts are encountered
@@ -188,7 +189,8 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
   let beatPosition = 0;
   let currentBeat: FDXBeat | null = null;
 
-  paragraphs.forEach((para) => {
+  // Helper: parse a single FDX Paragraph element into a TipTap node
+  const parseParagraph = (para: Element): TipTapNode | null => {
     const fdxType = para.getAttribute('Type') || 'General';
 
     // Track act boundaries
@@ -237,13 +239,10 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
         };
         beats.push(currentBeat);
       }
-      // Skip outline paragraphs from script content — they go to the beat board
-      return;
+      return null; // outline paragraphs go to beat board, not script
     }
 
     const nodeType = FDX_TYPE_MAP[fdxType] || 'general';
-
-    // --- Paragraph-level attributes ---
     const attrs: Record<string, unknown> = {};
 
     const sceneNumber = para.getAttribute('Number');
@@ -254,17 +253,12 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
       attrs.textAlign = FDX_ALIGNMENT_MAP[alignment];
     }
 
-    // StartsNewPage on individual paragraph (forced page break)
     const startsNewPage = para.getAttribute('StartsNewPage');
-    if (startsNewPage === 'Yes') {
-      attrs.startsNewPage = true;
-    }
+    if (startsNewPage === 'Yes') attrs.startsNewPage = true;
 
-    // Per-paragraph spacing override
     const spaceBefore = para.getAttribute('SpaceBefore');
     if (spaceBefore) attrs.spaceBefore = parseInt(spaceBefore, 10);
 
-    // --- Text runs with formatting ---
     const textElements = para.querySelectorAll(':scope > Text');
     const textNodes: TipTapNode[] = [];
     let hasContent = false;
@@ -276,7 +270,6 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
 
       const marks: TipTapMark[] = [];
 
-      // Style: Bold+Italic+Underline+AllCaps+Strikeout
       const style = textEl.getAttribute('Style') || '';
       if (style) {
         const parts = style.split('+').map((s) => s.trim());
@@ -284,12 +277,9 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
           if (part === 'Bold') marks.push({ type: 'bold' });
           if (part === 'Italic') marks.push({ type: 'italic' });
           if (part === 'Underline') marks.push({ type: 'underline' });
-          // AllCaps handled by CSS text-transform on the element type
         }
       }
 
-      // Font attributes → textStyle mark
-      // Skip default screenplay fonts/sizes to avoid unnecessary inline styles
       const fontName = textEl.getAttribute('Font');
       const fontSizeVal = textEl.getAttribute('Size');
       const fontColor = textEl.getAttribute('Color');
@@ -317,8 +307,51 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     const node: TipTapNode = { type: nodeType };
     if (Object.keys(attrs).length > 0) node.attrs = attrs;
     node.content = hasContent ? textNodes : [];
-    nodes.push(node);
-  });
+    return node;
+  };
+
+  // Iterate direct children of Content (handles both Paragraph and DualDialogue)
+  for (let ci = 0; ci < contentChildren.length; ci++) {
+    const child = contentChildren[ci];
+
+    if (child.tagName === 'DualDialogue') {
+      // Parse paragraphs inside DualDialogue and split into two columns
+      const dualParas = child.querySelectorAll(':scope > Paragraph');
+      const col1: TipTapNode[] = [];
+      const col2: TipTapNode[] = [];
+      let currentCol = col1;
+      let foundFirstChar = false;
+
+      dualParas.forEach((para) => {
+        const parsed = parseParagraph(para);
+        if (!parsed) return;
+        // Split at the second character element
+        if (parsed.type === 'character') {
+          if (foundFirstChar) {
+            currentCol = col2;
+          }
+          foundFirstChar = true;
+        }
+        currentCol.push(parsed);
+      });
+
+      if (col1.length > 0 && col2.length > 0) {
+        nodes.push({
+          type: 'dualDialogue',
+          content: [
+            { type: 'dualDialogueColumn', content: col1 },
+            { type: 'dualDialogueColumn', content: col2 },
+          ],
+        });
+      } else {
+        // Fallback: if split failed, add all as regular nodes
+        nodes.push(...col1, ...col2);
+      }
+    } else if (child.tagName === 'Paragraph') {
+      const parsed = parseParagraph(child);
+      if (parsed) nodes.push(parsed);
+    }
+  }
 
   // --- Parse CastList ---
   const castList: FDXCastMember[] = [];

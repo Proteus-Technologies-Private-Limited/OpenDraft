@@ -4,6 +4,8 @@ import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorS
 import { useEditorStore } from '../stores/editorStore';
 import { spellChecker } from '../editor/spellchecker';
 import { spellCheckPluginKey } from '../editor/extensions/SpellCheck';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -69,6 +71,12 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
     toggleCharacterProfiles, characterProfilesOpen,
     deleteTag, tagsPanelOpen, toggleTagsPanel, setPendingTagSelection, setEditingTagId,
   } = useEditorStore();
+
+  // Per-attribute locking for the current element
+  const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
+  const isEnforceMode = activeTemplate.mode === 'enforce';
+  const rule = getCurrentElementRule(editor, activeTemplate);
+  const locked = getLockedFormatting(rule, isEnforceMode);
 
   // Use overrideSelection (from long-press on touch) if available,
   // otherwise capture from editor state (desktop right-click).
@@ -538,7 +546,12 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
         </div>
         {elementSubOpen && (
           <div className="ctx-submenu">
-            {ELEMENT_MENU_ITEMS.map(({ type, shortcut }) => (
+            {ELEMENT_MENU_ITEMS
+              .filter(({ type }) => {
+                const rule = activeTemplate.rules[type];
+                return !rule || rule.enabled;
+              })
+              .map(({ type, shortcut }) => (
               <div
                 key={type}
                 className={`ctx-item${currentNodeType === type ? ' ctx-active' : ''}`}
@@ -564,30 +577,30 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
         </div>
         {styleSubOpen && (
           <div className="ctx-submenu">
-            <div className={`ctx-item${editor.isActive('bold') ? ' ctx-active' : ''}`} onClick={handleBold}>
+            <div className={`ctx-item${locked.bold ? ' ctx-disabled' : ''}${editor.isActive('bold') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.bold) handleBold(); }}>
               <span>Bold</span>
               <span className="ctx-shortcut">{mod}B</span>
             </div>
-            <div className={`ctx-item${editor.isActive('italic') ? ' ctx-active' : ''}`} onClick={handleItalic}>
+            <div className={`ctx-item${locked.italic ? ' ctx-disabled' : ''}${editor.isActive('italic') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.italic) handleItalic(); }}>
               <span>Italic</span>
               <span className="ctx-shortcut">{mod}I</span>
             </div>
-            <div className={`ctx-item${editor.isActive('underline') ? ' ctx-active' : ''}`} onClick={handleUnderline}>
+            <div className={`ctx-item${locked.underline ? ' ctx-disabled' : ''}${editor.isActive('underline') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.underline) handleUnderline(); }}>
               <span>Underline</span>
               <span className="ctx-shortcut">{mod}U</span>
             </div>
-            <div className={`ctx-item${editor.isActive('strike') ? ' ctx-active' : ''}`} onClick={handleStrike}>
+            <div className={`ctx-item${locked.strikethrough ? ' ctx-disabled' : ''}${editor.isActive('strike') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.strikethrough) handleStrike(); }}>
               <span>Strikethrough</span>
             </div>
             <div className="ctx-separator" />
-            <div className={`ctx-item${editor.isActive('subscript') ? ' ctx-active' : ''}`} onClick={handleSubscript}>
+            <div className={`ctx-item${locked.subscript ? ' ctx-disabled' : ''}${editor.isActive('subscript') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.subscript) handleSubscript(); }}>
               <span>Subscript</span>
             </div>
-            <div className={`ctx-item${editor.isActive('superscript') ? ' ctx-active' : ''}`} onClick={handleSuperscript}>
+            <div className={`ctx-item${locked.superscript ? ' ctx-disabled' : ''}${editor.isActive('superscript') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.superscript) handleSuperscript(); }}>
               <span>Superscript</span>
             </div>
             <div className="ctx-separator" />
-            <div className="ctx-item" onClick={handleAllCaps}>
+            <div className={`ctx-item${locked.textTransform ? ' ctx-disabled' : ''}`} onClick={() => { if (!locked.textTransform) handleAllCaps(); }}>
               <span>ALL CAPS</span>
             </div>
           </div>
@@ -595,7 +608,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       </div>
 
       {/* Font & Formatting */}
-      <div className="ctx-item" onClick={() => { onOpenFormatPanel(); onClose(); }}>
+      <div className={`ctx-item${locked.fontFamily ? ' ctx-disabled' : ''}`} onClick={() => { if (!locked.fontFamily) { onOpenFormatPanel(); onClose(); } }}>
         <span>Font...</span>
       </div>
       <div className="ctx-separator" />
@@ -615,7 +628,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
         </div>
       )}
       {showDualDialogue && (
-        <div className="ctx-item ctx-disabled">
+        <div className="ctx-item" onClick={() => { console.log('[CtxMenu] Dual Dialogue clicked, commands:', Object.keys(editor.commands).filter(k => k.includes('dual') || k.includes('Dual'))); const result = (editor as any).commands.toggleDualDialogue(); console.log('[CtxMenu] result:', result); onClose(); }}>
           <span>Dual Dialogue</span>
           <span className="ctx-shortcut">{mod}D</span>
         </div>

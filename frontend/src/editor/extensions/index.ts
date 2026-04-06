@@ -11,7 +11,7 @@ export { EndOfAct } from './EndOfAct';
 export { Lyrics } from './Lyrics';
 export { ShowEpisode } from './ShowEpisode';
 export { CastList } from './CastList';
-export { DualDialogue } from './DualDialogue';
+export { DualDialogue, DualDialogueColumn } from './DualDialogue';
 export { TitlePage } from './TitlePage';
 export { FontSize } from './FontSize';
 export { ScriptNoteMark } from './ScriptNoteMark';
