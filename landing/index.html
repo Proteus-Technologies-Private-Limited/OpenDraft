@@ -25,20 +25,17 @@
       --color-text: #e4edf8;
       --color-text-secondary: #8da4c2;
 
-      /* Purple-to-orange — from the logo pen feathers where violet meets amber */
-      --color-purple: #8b5cf6;
-      --color-orange: #e88a3a;
-      --color-accent: #8b5cf6;
-      --color-accent-light: #a78bfa;
-      --color-accent-glow: rgba(139, 92, 246, 0.15);
-      --color-orange-glow: rgba(232, 138, 58, 0.15);
+      /* Vibrant purple primary */
+      --color-purple: #a855f7;
+      --color-purple-light: #c084fc;
+      --color-accent: #a855f7;
+      --color-accent-light: #c084fc;
+      --color-accent-glow: rgba(168, 85, 247, 0.18);
 
-      /* Teal secondary accent — from the logo swirls */
-      --color-teal: #3ab8c4;
-      --color-teal-glow: rgba(58, 184, 196, 0.12);
-
-      /* Utility */
-      --color-green: #4ade80;
+      /* Green secondary */
+      --color-green: #22c55e;
+      --color-green-light: #4ade80;
+      --color-green-glow: rgba(34, 197, 94, 0.15);
 
       --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       --font-mono: 'Courier Prime', 'Courier New', monospace;
@@ -96,14 +93,14 @@
     }
     .nav-links a:hover { color: var(--color-text); }
     .nav-cta {
-      background: linear-gradient(135deg, var(--color-purple), var(--color-orange)) !important;
+      background: var(--color-purple) !important;
       color: #fff !important;
       padding: 8px 20px;
       border-radius: 8px;
       font-weight: 600 !important;
-      transition: opacity 0.2s, transform 0.15s !important;
+      transition: background 0.2s, transform 0.15s !important;
     }
-    .nav-cta:hover { opacity: 0.9 !important; transform: translateY(-1px); }
+    .nav-cta:hover { background: var(--color-purple-light) !important; transform: translateY(-1px); }
     .nav-menu-btn {
       display: none;
       background: none;
@@ -120,7 +117,7 @@
       position: relative;
       overflow: hidden;
     }
-    /* Ambient glow — purple top-left, orange bottom-right like the logo feathers */
+    /* Ambient glow — purple top-left, green bottom-right */
     .hero::before {
       content: '';
       position: absolute;
@@ -128,7 +125,7 @@
       left: -100px;
       width: 900px;
       height: 900px;
-      background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 65%);
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.14) 0%, transparent 65%);
       pointer-events: none;
     }
     .hero::after {
@@ -138,7 +135,7 @@
       right: -100px;
       width: 700px;
       height: 700px;
-      background: radial-gradient(circle, rgba(232, 138, 58, 0.10) 0%, transparent 65%);
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.10) 0%, transparent 65%);
       pointer-events: none;
     }
     .hero-badge {
@@ -174,7 +171,7 @@
       position: relative;
     }
     .hero h1 .gradient {
-      background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-accent-light) 30%, var(--color-orange) 100%);
+      background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-purple-light) 50%, var(--color-green-light) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -207,23 +204,23 @@
       border: none;
     }
     .btn-primary {
-      background: linear-gradient(135deg, var(--color-purple), var(--color-orange));
+      background: var(--color-purple);
       color: #fff;
       box-shadow: 0 0 30px var(--color-accent-glow), 0 4px 16px rgba(0,0,0,0.3);
     }
     .btn-primary:hover {
-      background: linear-gradient(135deg, var(--color-accent-light), #f0a254);
+      background: var(--color-purple-light);
       transform: translateY(-2px);
-      box-shadow: 0 0 40px rgba(139,92,246,0.25), 0 8px 24px rgba(0,0,0,0.3);
+      box-shadow: 0 0 40px rgba(168,85,247,0.3), 0 8px 24px rgba(0,0,0,0.3);
     }
     .btn-secondary {
       background: var(--color-surface-2);
-      color: var(--color-text);
-      border: 1px solid var(--color-border);
+      color: var(--color-green-light);
+      border: 1px solid rgba(34, 197, 94, 0.3);
     }
     .btn-secondary:hover {
-      background: var(--color-surface-3);
-      border-color: var(--color-border-hover);
+      background: rgba(34, 197, 94, 0.1);
+      border-color: var(--color-green);
       transform: translateY(-2px);
     }
     .hero-image {
@@ -279,7 +276,7 @@
       left: 0;
       right: 0;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(139,92,246,0.25), rgba(232,138,58,0.25), transparent);
+      background: linear-gradient(90deg, transparent, rgba(168,85,247,0.3), rgba(34,197,94,0.25), transparent);
     }
     .features-header { text-align: center; margin-bottom: 72px; }
     .features-header .section-desc { margin: 0 auto; }
@@ -303,7 +300,7 @@
     .feature-icon {
       width: 48px;
       height: 48px;
-      background: linear-gradient(135deg, var(--color-accent-glow), var(--color-orange-glow));
+      background: linear-gradient(135deg, var(--color-accent-glow), var(--color-green-glow));
       border: 1px solid var(--color-border);
       border-radius: 12px;
       display: flex;
@@ -335,7 +332,7 @@
       right: -150px;
       width: 600px;
       height: 600px;
-      background: radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 65%);
+      background: radial-gradient(circle, rgba(168,85,247,0.10) 0%, transparent 65%);
       pointer-events: none;
     }
     .privacy-header { text-align: center; margin-bottom: 64px; }
@@ -356,7 +353,7 @@
       transition: border-color 0.3s, transform 0.2s;
     }
     .privacy-card:hover {
-      border-color: rgba(139,92,246,0.3);
+      border-color: rgba(168,85,247,0.35);
       transform: translateY(-3px);
     }
     .privacy-card .card-icon {
@@ -380,8 +377,8 @@
     }
     .privacy-banner {
       margin-top: 48px;
-      background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(232,138,58,0.06));
-      border: 1px solid rgba(139,92,246,0.15);
+      background: linear-gradient(135deg, rgba(168,85,247,0.08), rgba(34,197,94,0.06));
+      border: 1px solid rgba(168,85,247,0.15);
       border-radius: var(--radius);
       padding: 36px 48px;
       text-align: center;
@@ -439,7 +436,7 @@
       left: 0;
       right: 0;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(232,138,58,0.25), rgba(139,92,246,0.25), transparent);
+      background: linear-gradient(90deg, transparent, rgba(34,197,94,0.25), rgba(168,85,247,0.3), transparent);
     }
     .comparison-header { text-align: center; margin-bottom: 56px; }
     .comparison-header .section-desc { margin: 0 auto; }
@@ -500,9 +497,9 @@
       color: var(--color-text);
     }
     .download-card:hover {
-      border-color: var(--color-purple);
+      border-color: var(--color-green);
       transform: translateY(-4px);
-      box-shadow: 0 12px 32px rgba(0,0,0,0.2), 0 0 20px var(--color-accent-glow);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.2), 0 0 20px var(--color-green-glow);
     }
     .download-card .platform-icon {
       font-size: 36px;
@@ -563,7 +560,7 @@
       color: var(--color-text-secondary);
     }
     footer a {
-      color: var(--color-teal);
+      color: var(--color-green-light);
       text-decoration: none;
     }
     footer a:hover { text-decoration: underline; }
@@ -842,7 +839,7 @@
         </a>
       </div>
       <p style="text-align:center; margin-top:24px; color:var(--color-text-secondary); font-size:14px;">
-        All versions available on the <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" style="color:var(--color-teal); text-decoration:none;">Releases page</a>
+        All versions available on the <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" style="color:var(--color-green-light); text-decoration:none;">Releases page</a>
       </p>
     </div>
   </section>
