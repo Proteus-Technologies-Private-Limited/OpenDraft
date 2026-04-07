@@ -29,42 +29,73 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Dragging state
-  const [position, setPosition] = useState({ x: -1, y: -1 });
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [positioned, setPositioned] = useState(false);
   const dragRef = useRef<{ dragging: boolean; offsetX: number; offsetY: number }>({
     dragging: false, offsetX: 0, offsetY: 0,
   });
 
-  // Initialize position to top-right
-  useEffect(() => {
-    setPosition({ x: window.innerWidth - 560, y: 80 });
+  /** Clamp position so the modal stays within the viewport */
+  const clampPosition = useCallback((x: number, y: number) => {
+    const modalW = modalRef.current?.offsetWidth || 490;
+    const modalH = modalRef.current?.offsetHeight || 400;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    return {
+      x: Math.max(0, Math.min(x, vw - Math.min(modalW, vw))),
+      y: Math.max(0, Math.min(y, vh - Math.min(modalH, vh))),
+    };
   }, []);
 
-  // Drag handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  // Initialize position to top-right, clamped to viewport
+  useEffect(() => {
+    const preferred = { x: window.innerWidth - 560, y: 80 };
+    setPosition(clampPosition(preferred.x, preferred.y));
+    setPositioned(true);
+  }, [clampPosition]);
+
+  // Re-clamp on window resize so modal never goes off-screen
+  useEffect(() => {
+    const handleResize = () => {
+      if (dragRef.current.dragging) return;
+      setPosition(prev => clampPosition(prev.x, prev.y));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [clampPosition]);
+
+  // Drag handlers (mouse + touch)
+  const handlePointerDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     dragRef.current = {
       dragging: true,
-      offsetX: e.clientX - position.x,
-      offsetY: e.clientY - position.y,
+      offsetX: clientX - position.x,
+      offsetY: clientY - position.y,
     };
     e.preventDefault();
   }, [position]);
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
       if (!dragRef.current.dragging) return;
-      setPosition({
-        x: e.clientX - dragRef.current.offsetX,
-        y: e.clientY - dragRef.current.offsetY,
-      });
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+      const raw = { x: clientX - dragRef.current.offsetX, y: clientY - dragRef.current.offsetY };
+      setPosition(clampPosition(raw.x, raw.y));
     };
-    const handleMouseUp = () => { dragRef.current.dragging = false; };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    const handlePointerUp = () => { dragRef.current.dragging = false; };
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mouseup', handlePointerUp);
+    window.addEventListener('touchmove', handlePointerMove, { passive: false });
+    window.addEventListener('touchend', handlePointerUp);
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mouseup', handlePointerUp);
+      window.removeEventListener('touchmove', handlePointerMove);
+      window.removeEventListener('touchend', handlePointerUp);
     };
-  }, []);
+  }, [clampPosition]);
 
   // Clear the active highlight in the editor when the modal closes
   useEffect(() => {
@@ -204,7 +235,7 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
     setReplacementText(suggestions[idx]);
   }, [suggestions]);
 
-  if (position.x < 0) return null;
+  if (!positioned) return null;
 
   if (dictError) {
     return (
@@ -213,7 +244,7 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
         className="spell-modal spell-modal-floating"
         style={{ left: position.x, top: position.y }}
       >
-        <div className="spell-modal-header" onMouseDown={handleMouseDown}>
+        <div className="spell-modal-header" onMouseDown={handlePointerDown} onTouchStart={handlePointerDown}>
           <span>Spelling</span>
         </div>
         <div style={{ textAlign: 'center', padding: '32px 24px' }}>
@@ -240,7 +271,7 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
         className="spell-modal spell-modal-floating"
         style={{ left: position.x, top: position.y }}
       >
-        <div className="spell-modal-header" onMouseDown={handleMouseDown}>
+        <div className="spell-modal-header" onMouseDown={handlePointerDown} onTouchStart={handlePointerDown}>
           <span>Spelling</span>
         </div>
         <div style={{ textAlign: 'center', padding: '32px 24px' }}>
@@ -266,7 +297,7 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
       className="spell-modal spell-modal-floating"
       style={{ left: position.x, top: position.y }}
     >
-      <div className="spell-modal-header" onMouseDown={handleMouseDown}>
+      <div className="spell-modal-header" onMouseDown={handlePointerDown} onTouchStart={handlePointerDown}>
         <span>Spelling: {errors.length} issue{errors.length !== 1 ? 's' : ''}</span>
         <span style={{ fontSize: 11, color: 'var(--fd-text-muted)' }}>{currentIndex + 1} / {errors.length}</span>
       </div>

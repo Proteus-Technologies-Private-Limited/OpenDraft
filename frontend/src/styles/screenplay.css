@@ -6997,11 +6997,16 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
     border-radius: 12px 12px 0 0;
   }
 
-  /* Spell modal: full-width */
+  /* Spell modal: full-width bottom sheet */
   .spell-modal {
     width: calc(100vw - 16px) !important;
     left: 8px !important;
     right: 8px !important;
+    top: auto !important;
+    bottom: 8px !important;
+    max-height: 85vh;
+    overflow-y: auto;
+    border-radius: 12px;
   }
 
   /* Search/Replace: full-width */

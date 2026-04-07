@@ -1544,9 +1544,11 @@ const ScreenplayEditor: React.FC = () => {
     const { tr } = editor.state;
     tr.setMeta(spellCheckPluginKey, { toggle: spellCheckEnabled });
     editor.view.dispatch(tr);
-    // Open the spell check modal when enabled
+    // Sync spell check modal visibility with enabled state
     if (spellCheckEnabled) {
       setTimeout(() => setSpellModalOpen(true), 300);
+    } else {
+      setSpellModalOpen(false);
     }
   }, [editor, spellCheckEnabled]);
 
