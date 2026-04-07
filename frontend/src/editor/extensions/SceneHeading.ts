@@ -17,13 +17,17 @@ export const SceneHeading = Node.create({
     return [{ tag: 'div[data-type="scene-heading"]' }];
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({ HTMLAttributes, node }) {
+    const attrs: Record<string, string> = {
+      'data-type': 'scene-heading',
+      class: 'screenplay-element scene-heading',
+    };
+    if (node.attrs.sceneNumber != null) {
+      attrs['data-scene-number'] = String(node.attrs.sceneNumber);
+    }
     return [
       'div',
-      mergeAttributes(HTMLAttributes, {
-        'data-type': 'scene-heading',
-        class: 'screenplay-element scene-heading',
-      }),
+      mergeAttributes(HTMLAttributes, attrs),
       0,
     ];
   },

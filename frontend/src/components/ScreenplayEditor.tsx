@@ -34,8 +34,8 @@ import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { createPaginationPlugin, getPageMetrics } from '../editor/pagination';
 
-import { useEditorStore } from '../stores/editorStore';
-import type { ElementType } from '../stores/editorStore';
+import { useEditorStore, DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT } from '../stores/editorStore';
+import type { ElementType, HeaderFooterContent } from '../stores/editorStore';
 import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
@@ -190,6 +190,23 @@ interface OverlayInfo {
   characterName: string;
 }
 
+/** Resolve dynamic field placeholders in header/footer text */
+function resolveHFFields(
+  text: string,
+  pageNum: number,
+  totalPages: number,
+  title: string,
+  revisionColor: string,
+): string {
+  if (!text) return '';
+  return text
+    .replace(/\{page\}/gi, String(pageNum))
+    .replace(/\{pages\}/gi, String(totalPages))
+    .replace(/\{title\}/gi, title)
+    .replace(/\{date\}/gi, new Date().toLocaleDateString())
+    .replace(/\{revision\}/gi, revisionColor);
+}
+
 const ScreenplayEditor: React.FC = () => {
   const { projectId: urlProjectId, scriptId: urlScriptId, commitHash: urlCommitHash, collabToken: urlCollabToken } = useParams<{ projectId?: string; scriptId?: string; commitHash?: string; collabToken?: string }>();
   const navigate = useNavigate();
@@ -202,6 +219,7 @@ const ScreenplayEditor: React.FC = () => {
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen,
     spellCheckEnabled, toggleSpellCheck, setDocumentTitle,
+    sceneNumbersVisible, sceneNumbersLocked,
   } = useEditorStore();
 
   const { currentProject, currentScriptId, setCurrentProject, setCurrentScriptId, scriptReloadKey } = useProjectStore();
@@ -1321,18 +1339,49 @@ const ScreenplayEditor: React.FC = () => {
     }
   }, [editor]);
 
-  // --- Scene navigator ---
+  // --- Scene navigator + scene number assignment ---
   const updateScenes = useCallback(() => {
     if (!editor) return;
     const list: { id: string; heading: string; sceneNumber: number | null; color: string; synopsis: string }[] = [];
+    const locked = useEditorStore.getState().sceneNumbersLocked;
+    const visible = useEditorStore.getState().sceneNumbersVisible;
     let idx = 0;
-    editor.state.doc.descendants((node) => {
+    // Collect scene positions for attribute updates
+    const attrUpdates: { pos: number; number: string }[] = [];
+    editor.state.doc.descendants((node, pos) => {
       if (node.type.name === 'sceneHeading') {
-        list.push({ id: `scene-${idx}`, heading: node.textContent || 'Untitled Scene', sceneNumber: idx + 1, color: '#4a9eff', synopsis: '' });
         idx++;
+        let num: string;
+        if (locked && node.attrs.sceneNumber != null) {
+          // Keep the locked number
+          num = String(node.attrs.sceneNumber);
+        } else {
+          num = String(idx);
+        }
+        list.push({ id: `scene-${idx}`, heading: node.textContent || 'Untitled Scene', sceneNumber: parseInt(num, 10), color: '#4a9eff', synopsis: '' });
+        // Update node attrs if scene numbers are visible and the number changed
+        if (visible && String(node.attrs.sceneNumber) !== num) {
+          attrUpdates.push({ pos, number: num });
+        }
+        // Clear scene number attr if not visible and it was set
+        if (!visible && node.attrs.sceneNumber != null) {
+          attrUpdates.push({ pos, number: '' });
+        }
       }
       return true;
     });
+    // Batch attribute updates in a single transaction
+    if (attrUpdates.length > 0) {
+      const { tr } = editor.state;
+      for (const { pos, number } of attrUpdates) {
+        tr.setNodeMarkup(pos, undefined, {
+          ...editor.state.doc.nodeAt(pos)?.attrs,
+          sceneNumber: number || null,
+        });
+      }
+      tr.setMeta('addToHistory', false);
+      editor.view.dispatch(tr);
+    }
     setScenes(list);
   }, [editor, setScenes]);
 
@@ -1342,6 +1391,11 @@ const ScreenplayEditor: React.FC = () => {
     editor.on('update', updateScenes);
     return () => { editor.off('update', updateScenes); };
   }, [editor, updateScenes]);
+
+  // Re-run when scene numbering visibility or lock state changes
+  useEffect(() => {
+    if (editor) updateScenes();
+  }, [editor, sceneNumbersVisible, sceneNumbersLocked, updateScenes]);
 
   // --- Collect character names from document (strip extensions like CONT'D, V.O., O.S.) ---
   const stripCharacterExtension = useCallback((raw: string): string => {
@@ -1571,6 +1625,8 @@ const ScreenplayEditor: React.FC = () => {
       _templateId: tplStore.activeTemplateId,
       _ignoredWords: spellChecker.getIgnoredWords(),
       _ignoredOnce: spellChecker.getIgnoredOnce(),
+      _sceneNumbersVisible: store.sceneNumbersVisible,
+      _sceneNumbersLocked: store.sceneNumbersLocked,
     };
   }, [editor]);
 
@@ -1674,7 +1730,7 @@ const ScreenplayEditor: React.FC = () => {
         // Strip app metadata keys before feeding to ProseMirror
         let pmDoc: Record<string, unknown> | null = null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, ...rest } = content as any;
+          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, _sceneNumbersVisible: _snv, _sceneNumbersLocked: _snl, ...rest } = content as any;
           pmDoc = rest;
         }
 
@@ -1742,6 +1798,13 @@ const ScreenplayEditor: React.FC = () => {
             store.setBeatColumns(beatColsArr as import('../stores/editorStore').BeatColumn[]);
             if (c._beatArrangeMode === 'auto' || c._beatArrangeMode === 'custom') {
               store.setBeatArrangeMode(c._beatArrangeMode);
+            }
+            // Restore scene numbering state
+            if (typeof c._sceneNumbersVisible === 'boolean') {
+              store.setSceneNumbersVisible(c._sceneNumbersVisible);
+            }
+            if (typeof c._sceneNumbersLocked === 'boolean') {
+              store.setSceneNumbersLocked(c._sceneNumbersLocked);
             }
             // Restore per-document formatting template
             if (c._templateId && typeof c._templateId === 'string') {
@@ -1913,7 +1976,7 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, ...pmDoc } = content as any;
+            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, _sceneNumbersVisible: _snv2, _sceneNumbersLocked: _snl2, ...pmDoc } = content as any;
             editor.commands.setContent(pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             editor.commands.setContent(content);
@@ -2673,7 +2736,7 @@ const ScreenplayEditor: React.FC = () => {
                 }}
               >
                 <div
-                  className={`page${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}`}
+                  className={`page${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}`}
                   ref={pageRef}
                   style={{
                     fontFamily: `'${fontFamily}', 'Courier New', Courier, monospace`,
@@ -2691,7 +2754,18 @@ const ScreenplayEditor: React.FC = () => {
                   }}
                 >
                   {/* Page break separators — absolutely positioned, full page width */}
-                  {overlays.map((ov) => (
+                  {overlays.map((ov) => {
+                    const hContent = pageLayout.headerContent || DEFAULT_HEADER_CONTENT;
+                    const fContent = pageLayout.footerContent || DEFAULT_FOOTER_CONTENT;
+                    const hStart = pageLayout.headerStartPage ?? 2;
+                    const fStart = pageLayout.footerStartPage ?? 1;
+                    const { documentTitle: docTitle, revisionColor: revColor, pageCount: totalPages } = useEditorStore.getState();
+                    const showHeader = ov.pageNumber >= hStart;
+                    const showFooter = ov.pageNumber >= fStart;
+                    // The footer belongs to the page BEFORE this break (ov.pageNumber - 1)
+                    const footerPage = ov.pageNumber - 1;
+                    const showFooterForPrev = footerPage >= fStart;
+                    return (
                     <div
                       key={ov.pageNumber}
                       className="page-sep"
@@ -2701,10 +2775,23 @@ const ScreenplayEditor: React.FC = () => {
                         {ov.isDialogueSplit && (
                           <div className="page-sep-more">(MORE)</div>
                         )}
+                        {showFooterForPrev && (fContent.left || fContent.center || fContent.right) && (
+                          <div className="page-sep-footer">
+                            <span className="page-sep-hf-left">{resolveHFFields(fContent.left, footerPage, totalPages, docTitle, revColor)}</span>
+                            <span className="page-sep-hf-center">{resolveHFFields(fContent.center, footerPage, totalPages, docTitle, revColor)}</span>
+                            <span className="page-sep-hf-right">{resolveHFFields(fContent.right, footerPage, totalPages, docTitle, revColor)}</span>
+                          </div>
+                        )}
                       </div>
                       <div className="page-sep-gap" />
                       <div className="page-sep-top" style={{ height: `${pageLayout.topMargin}pt` }}>
-                        <span className="page-sep-number" style={{ right: `${(pageLayout.pageWidth - 7.25)}in` }}>{ov.pageNumber}.</span>
+                        {showHeader && (
+                          <div className="page-sep-header">
+                            <span className="page-sep-hf-left">{resolveHFFields(hContent.left, ov.pageNumber, totalPages, docTitle, revColor)}</span>
+                            <span className="page-sep-hf-center">{resolveHFFields(hContent.center, ov.pageNumber, totalPages, docTitle, revColor)}</span>
+                            <span className="page-sep-hf-right">{resolveHFFields(hContent.right, ov.pageNumber, totalPages, docTitle, revColor)}</span>
+                          </div>
+                        )}
                       </div>
                       {ov.isDialogueSplit && ov.characterName && (
                         <div className="page-sep-contd">
@@ -2713,7 +2800,8 @@ const ScreenplayEditor: React.FC = () => {
                       )}
 
                     </div>
-                  ))}
+                    );
+                  })}
 
                   <EditorContent editor={editor} />
                 </div>
