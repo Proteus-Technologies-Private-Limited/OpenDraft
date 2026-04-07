@@ -80,6 +80,10 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     setTrackChangesEnabled,
     setTrackChangesLabel,
     setCompareVersionOpen,
+    sceneNumbersVisible,
+    setSceneNumbersVisible,
+    sceneNumbersLocked,
+    setSceneNumbersLocked,
   } = useEditorStore();
 
   const {
@@ -106,6 +110,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       _beats: store.beats,
       _beatColumns: store.beatColumns,
       _beatArrangeMode: store.beatArrangeMode,
+      _sceneNumbersVisible: store.sceneNumbersVisible,
+      _sceneNumbersLocked: store.sceneNumbersLocked,
     };
   }, [editor]);
 
@@ -457,7 +463,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
 
   const handleExportPDF = useCallback(async () => {
     if (!editor) return;
-    await exportPDF(editor.getJSON(), documentTitle, pageLayout);
+    const store = useEditorStore.getState();
+    await exportPDF(editor.getJSON(), documentTitle, pageLayout, {
+      sceneNumbersVisible: store.sceneNumbersVisible,
+      documentTitle: store.documentTitle,
+      revisionColor: store.revisionMode ? store.revisionColor : '',
+    });
   }, [editor, documentTitle, pageLayout]);
 
   const handleMenuClick = (label: string) => {
@@ -646,7 +657,20 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       label: 'Production',
       items: [
         { label: revisionMode ? '\u2713 Revision Mode' : 'Revision Mode', action: () => setRevisionMode(!revisionMode) },
-        { label: 'Scene Numbers...', disabled: true },
+        {
+          label: 'Scene Numbers',
+          children: [
+            {
+              label: sceneNumbersVisible ? '\u2713 Show Scene Numbers' : 'Show Scene Numbers',
+              action: () => setSceneNumbersVisible(!sceneNumbersVisible),
+            },
+            {
+              label: sceneNumbersLocked ? '\u2713 Lock Scene Numbers' : 'Lock Scene Numbers',
+              action: () => setSceneNumbersLocked(!sceneNumbersLocked),
+              disabled: !sceneNumbersVisible,
+            },
+          ],
+        },
         { label: 'Lock Pages', disabled: true },
         { separator: true, label: '' },
         { label: 'Asset Manager', action: () => useAssetStore.getState().toggleAssetManager() },
