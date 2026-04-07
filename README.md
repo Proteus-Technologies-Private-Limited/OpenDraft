@@ -23,10 +23,15 @@
   <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions">
     <img src="https://img.shields.io/github/discussions/Proteus-Technologies-Private-Limited/OpenDraft?style=for-the-badge" alt="Discussions">
   </a>
+  <a href="https://proteus-technologies-private-limited.github.io/OpenDraft/">
+    <img src="https://img.shields.io/badge/Website-Landing%20Page-6366f1?style=for-the-badge" alt="Website">
+  </a>
 </p>
 
 <p align="center">
-  <a href="#download-desktop-app">Desktop App</a> &bull;
+  <a href="https://proteus-technologies-private-limited.github.io/OpenDraft/">Website</a> &bull;
+  <a href="#download">Download</a> &bull;
+  <a href="#features">Features</a> &bull;
   <a href="#features">Features</a> &bull;
   <a href="#screenshots">Screenshots</a> &bull;
   <a href="#comparison">Compare</a> &bull;
