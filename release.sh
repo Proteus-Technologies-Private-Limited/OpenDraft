@@ -6,10 +6,7 @@ set -e
 #   1. Updates version in all source files
 #   2. Builds web frontend for FastAPI (backend/static)
 #   3. Commits and pushes
-#   4. Builds macOS .dmg locally
-#   5. Creates git tag (triggers CI for Windows + Linux)
-#   6. Waits for GitHub Release to be created by CI
-#   7. Uploads .dmg to the GitHub Release
+#   4. Creates git tag (triggers CI for all platforms: macOS, Windows, Linux, Android)
 
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 REPO="Proteus-Technologies-Private-Limited/OpenDraft"
@@ -56,7 +53,7 @@ echo "New version:     ${NEW_VERSION}"
 echo ""
 
 # ── Step 1: Update version in all files ──────────────────────────────────────
-echo "=== Step 1/7: Updating version numbers ==="
+echo "=== Step 1/4: Updating version numbers ==="
 
 # src-tauri/tauri.conf.json
 sed -i '' "s/\"version\": \"${OLD_VERSION}\"/\"version\": \"${NEW_VERSION}\"/" \
@@ -112,80 +109,34 @@ cd "$PROJECT_ROOT"
 echo ""
 
 # ── Step 2: Build web frontend for FastAPI ─────────────────────────────────
-echo "=== Step 2/7: Building web frontend ==="
+echo "=== Step 2/4: Building web frontend ==="
 "$PROJECT_ROOT/build.sh"
 echo "  ✓ Web frontend built and deployed to backend/static/"
 echo ""
 
 # ── Step 3: Commit version bump ─────────────────────────────────────────────
-echo "=== Step 3/7: Committing version bump ==="
+echo "=== Step 3/4: Committing version bump ==="
 git add -A
 git commit -m "Bump version to ${NEW_VERSION}"
 git push origin main
 echo "  ✓ Committed and pushed"
 echo ""
 
-# ── Step 4: Build macOS .dmg locally ────────────────────────────────────────
-echo "=== Step 4/7: Building macOS desktop app ==="
-"$PROJECT_ROOT/build-desktop.sh"
-
-# Find the .dmg file
-DMG_FILE=$(find "$PROJECT_ROOT/src-tauri/target/release/bundle/dmg" -name "*.dmg" 2>/dev/null | head -1)
-if [ -z "$DMG_FILE" ]; then
-  echo "Error: No .dmg file found in src-tauri/target/release/bundle/dmg/"
-  echo "Build may have failed. Check output above."
-  exit 1
-fi
-echo ""
-echo "  ✓ Built: $(basename "$DMG_FILE")"
-echo ""
-
-# ── Step 5: Create and push tag ─────────────────────────────────────────────
-echo "=== Step 5/7: Creating tag ${TAG} ==="
+# ── Step 4: Create and push tag ─────────────────────────────────────────────
+echo "=== Step 4/4: Creating tag ${TAG} ==="
 git tag "$TAG"
 git push origin "$TAG"
-echo "  ✓ Tag ${TAG} pushed (CI building Windows + Linux)"
-echo ""
-
-# ── Step 6: Wait for GitHub Release to be created by CI ─────────────────────
-echo "=== Step 6/7: Waiting for GitHub Release to be created by CI ==="
-echo "  This may take several minutes..."
-
-MAX_WAIT=600  # 10 minutes
-ELAPSED=0
-INTERVAL=15
-
-while [ $ELAPSED -lt $MAX_WAIT ]; do
-  if gh release view "$TAG" --repo "$REPO" &> /dev/null 2>&1; then
-    echo "  ✓ Release ${TAG} found"
-    break
-  fi
-  sleep $INTERVAL
-  ELAPSED=$((ELAPSED + INTERVAL))
-  echo "  Waiting... (${ELAPSED}s)"
-done
-
-if [ $ELAPSED -ge $MAX_WAIT ]; then
-  echo ""
-  echo "  Timed out waiting for CI to create the release."
-  echo "  You can upload the .dmg manually once the release exists:"
-  echo "    gh release upload ${TAG} \"${DMG_FILE}\" --repo ${REPO}"
-  exit 1
-fi
-echo ""
-
-# ── Step 7: Upload macOS .dmg to the release ────────────────────────────────
-echo "=== Step 7/7: Uploading macOS .dmg to release ==="
-gh release upload "$TAG" "$DMG_FILE" --repo "$REPO"
-echo "  ✓ Uploaded $(basename "$DMG_FILE")"
+echo "  ✓ Tag ${TAG} pushed"
 echo ""
 
 echo "============================================="
-echo "  Release ${TAG} complete!"
-echo "  https://github.com/${REPO}/releases/tag/${TAG}"
+echo "  Release ${TAG} tag pushed!"
+echo "  CI is now building all platforms (macOS, Windows, Linux, Android)."
+echo "  https://github.com/${REPO}/actions"
 echo "============================================="
 echo ""
 echo "Post-release checklist:"
+echo "  - [ ] Wait for CI to complete and verify all assets are on the release"
 echo "  - [ ] Verify download links in README work"
 echo "  - [ ] Update What's New in About dialog and user manual if not done"
 echo "  - [ ] Test downloads for each platform"

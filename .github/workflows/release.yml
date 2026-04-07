@@ -20,6 +20,9 @@ jobs:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             label: Windows-x64
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            label: macOS-arm64
 
     runs-on: ${{ matrix.platform }}
     name: Build (${{ matrix.label }})
@@ -36,6 +39,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Setup Python 3.12
+        if: runner.os != 'macOS'
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -68,25 +72,28 @@ jobs:
           VITE_API_BASE: http://localhost:18321/api
 
       - name: Deploy frontend to backend static
+        if: runner.os != 'macOS'
         run: |
           rm -rf backend/static
           cp -r frontend/dist backend/static
         shell: bash
 
       - name: Install Python dependencies
+        if: runner.os != 'macOS'
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
           pip install pyinstaller
 
       - name: Build backend sidecar
+        if: runner.os != 'macOS'
         run: |
           cd backend
           pyinstaller --noconfirm --clean opendraft-api.spec
         shell: bash
 
       - name: Install sidecar binary (Unix)
-        if: matrix.platform != 'windows-latest'
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           mkdir -p src-tauri/binaries
           cp backend/dist/opendraft-api "src-tauri/binaries/opendraft-api-${{ matrix.target }}"
@@ -128,11 +135,31 @@ jobs:
           "CERTIFICATE_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Remove-Item $certPath -Force
 
+      - name: Import Apple Developer certificate
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "No Apple certificate configured — build will be unsigned"
+            exit 0
+          fi
+          echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import $RUNNER_TEMP/certificate.p12 -k build.keychain \
+            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+          rm $RUNNER_TEMP/certificate.p12
+          echo "Apple Developer certificate imported"
+
       - name: Patch tauri.conf.json for CI
         shell: bash
         run: |
           cd src-tauri
-          python -c "
+          python3 -c "
           import json, sys, os
           with open('tauri.conf.json') as f:
               cfg = json.load(f)
@@ -160,6 +187,11 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS code signing & notarization (ignored on other platforms)
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
         with:
           tauriScript: npx --prefix frontend tauri
           tagName: ${{ github.ref_name }}
