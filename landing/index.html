@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OpenDraft — Free Screenwriting Software</title>
   <meta name="description" content="Free, open-source screenwriting software. A modern alternative to Final Draft with real-time collaboration, beat boards, and version control. No subscription. No tracking.">
-  <meta name="keywords" content="screenwriting software, screenplay editor, final draft alternative, free screenwriting, open source screenwriting">
   <meta property="og:title" content="OpenDraft — Free Screenwriting Software">
   <meta property="og:description" content="Professional screenplay formatting, real-time collaboration, beat boards, and version control. Free forever.">
   <meta property="og:image" content="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/editor.png">
@@ -13,34 +12,16 @@
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png">
   <style>
     :root {
-      /* Deep blue/teal base — from the logo background */
-      --color-bg: #0b1628;
-      --color-surface: #0f1d35;
-      --color-surface-2: #142642;
-      --color-surface-3: #1a3052;
-      --color-border: rgba(100, 180, 255, 0.12);
-      --color-border-hover: rgba(100, 180, 255, 0.3);
-
-      /* Text */
-      --color-text: #e4edf8;
-      --color-text-secondary: #8da4c2;
-
-      /* Orchid purple primary — from brand color */
-      --color-purple: #b5548e;
-      --color-purple-light: #c872a6;
-      --color-accent: #b5548e;
-      --color-accent-light: #c872a6;
-      --color-accent-glow: rgba(181, 84, 142, 0.18);
-
-      /* Green secondary */
-      --color-green: #22c55e;
-      --color-green-light: #4ade80;
-      --color-green-glow: rgba(34, 197, 94, 0.15);
-
+      --color-bg: #0e0e12;
+      --color-surface: #16161d;
+      --color-border: #2a2a35;
+      --color-text: #ececf0;
+      --color-text-secondary: #8a8a9a;
+      --color-accent: #c455ce;
+      --color-accent-hover: #d470dd;
       --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      --font-mono: 'Courier Prime', 'Courier New', monospace;
-      --max-width: 1200px;
-      --radius: 14px;
+      --max-width: 1100px;
+      --radius: 10px;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -60,15 +41,15 @@
       top: 0;
       width: 100%;
       z-index: 100;
-      background: rgba(11, 22, 40, 0.88);
-      backdrop-filter: blur(24px);
+      background: rgba(14,14,18,0.92);
+      backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--color-border);
     }
     .nav-inner {
       max-width: var(--max-width);
       margin: 0 auto;
       padding: 0 24px;
-      height: 64px;
+      height: 56px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -76,494 +57,327 @@
     .nav-brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       text-decoration: none;
       color: var(--color-text);
-      font-weight: 700;
-      font-size: 18px;
+      font-weight: 600;
+      font-size: 16px;
     }
-    .nav-brand img { width: 34px; height: 34px; border-radius: 9px; }
-    .nav-links { display: flex; align-items: center; gap: 32px; }
+    .nav-brand img { width: 28px; height: 28px; border-radius: 6px; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
     .nav-links a {
       color: var(--color-text-secondary);
       text-decoration: none;
       font-size: 14px;
       font-weight: 500;
-      transition: color 0.2s;
+      transition: color 0.15s;
     }
     .nav-links a:hover { color: var(--color-text); }
     .nav-cta {
-      background: var(--color-purple) !important;
+      background: var(--color-accent) !important;
       color: #fff !important;
-      padding: 8px 20px;
-      border-radius: 8px;
-      font-weight: 600 !important;
-      transition: background 0.2s, transform 0.15s !important;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-weight: 500 !important;
+      font-size: 13px !important;
+      transition: opacity 0.15s !important;
     }
-    .nav-cta:hover { background: var(--color-purple-light) !important; transform: translateY(-1px); }
+    .nav-cta:hover { opacity: 0.8 !important; }
     .nav-menu-btn {
       display: none;
       background: none;
       border: none;
       color: var(--color-text);
-      font-size: 24px;
+      font-size: 22px;
       cursor: pointer;
     }
 
     /* ── HERO ── */
     .hero {
-      padding: 150px 24px 100px;
+      padding: 140px 24px 80px;
       text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-    /* Ambient glow — purple top-left, green bottom-right */
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: -300px;
-      left: -100px;
-      width: 900px;
-      height: 900px;
-      background: radial-gradient(circle, rgba(181, 84, 142, 0.14) 0%, transparent 65%);
-      pointer-events: none;
-    }
-    .hero::after {
-      content: '';
-      position: absolute;
-      bottom: -200px;
-      right: -100px;
-      width: 700px;
-      height: 700px;
-      background: radial-gradient(circle, rgba(34, 197, 94, 0.10) 0%, transparent 65%);
-      pointer-events: none;
-    }
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 18px;
-      background: var(--color-surface-2);
-      border: 1px solid var(--color-border);
-      border-radius: 100px;
-      font-size: 13px;
-      color: var(--color-text-secondary);
-      margin-bottom: 32px;
-      position: relative;
-    }
-    .hero-badge .dot {
-      width: 8px;
-      height: 8px;
-      background: var(--color-green);
-      border-radius: 50%;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
     }
     .hero h1 {
-      font-size: clamp(40px, 6vw, 72px);
-      font-weight: 800;
-      line-height: 1.08;
+      font-size: clamp(36px, 5.5vw, 64px);
+      font-weight: 700;
+      line-height: 1.1;
       letter-spacing: -0.03em;
-      margin-bottom: 24px;
-      position: relative;
+      margin-bottom: 20px;
     }
-    .hero h1 .gradient {
-      background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-purple-light) 50%, var(--color-green-light) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
+    .hero h1 .accent { color: var(--color-accent); }
     .hero p {
-      font-size: clamp(16px, 2vw, 20px);
+      font-size: 17px;
       color: var(--color-text-secondary);
-      max-width: 600px;
-      margin: 0 auto 48px;
-      line-height: 1.7;
+      max-width: 520px;
+      margin: 0 auto 40px;
+      line-height: 1.6;
     }
     .hero-buttons {
       display: flex;
-      gap: 16px;
+      gap: 12px;
       justify-content: center;
       flex-wrap: wrap;
-      margin-bottom: 72px;
+      margin-bottom: 64px;
     }
     .btn {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 14px 28px;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 600;
+      gap: 6px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 500;
       text-decoration: none;
-      transition: all 0.2s;
+      transition: all 0.15s;
       cursor: pointer;
       border: none;
     }
     .btn-primary {
-      background: var(--color-purple);
+      background: var(--color-accent);
       color: #fff;
-      box-shadow: 0 0 30px var(--color-accent-glow), 0 4px 16px rgba(0,0,0,0.3);
     }
     .btn-primary:hover {
-      background: var(--color-purple-light);
-      transform: translateY(-2px);
-      box-shadow: 0 0 40px rgba(181,84,142,0.3), 0 8px 24px rgba(0,0,0,0.3);
+      background: var(--color-accent-hover);
+      transform: translateY(-1px);
     }
     .btn-secondary {
-      background: var(--color-surface-2);
-      color: var(--color-green-light);
-      border: 1px solid rgba(34, 197, 94, 0.3);
+      background: transparent;
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
     }
     .btn-secondary:hover {
-      background: rgba(34, 197, 94, 0.1);
-      border-color: var(--color-green);
-      transform: translateY(-2px);
+      border-color: var(--color-accent);
+      transform: translateY(-1px);
     }
     .hero-image {
-      max-width: 1000px;
+      max-width: 960px;
       margin: 0 auto;
-      border-radius: 16px;
+      border-radius: 12px;
       overflow: hidden;
       border: 1px solid var(--color-border);
-      box-shadow:
-        0 24px 80px rgba(0, 0, 0, 0.5),
-        0 0 0 1px rgba(100, 180, 255, 0.06),
-        0 0 60px rgba(58, 184, 196, 0.06);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
     }
     .hero-image img { width: 100%; display: block; }
 
     /* ── SECTION SHARED ── */
-    section { padding: 120px 24px; }
+    section { padding: 100px 24px; }
     .section-inner {
       max-width: var(--max-width);
       margin: 0 auto;
     }
     .section-label {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.08em;
       color: var(--color-accent);
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
     .section-title {
-      font-size: clamp(28px, 4vw, 44px);
-      font-weight: 800;
+      font-size: clamp(26px, 3.5vw, 38px);
+      font-weight: 700;
       letter-spacing: -0.02em;
       line-height: 1.2;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
     .section-desc {
-      font-size: 18px;
+      font-size: 16px;
       color: var(--color-text-secondary);
-      max-width: 600px;
-      line-height: 1.7;
+      max-width: 520px;
+      line-height: 1.6;
     }
 
     /* ── FEATURES ── */
-    .features {
-      background: var(--color-surface);
-      position: relative;
-    }
-    .features::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(181,84,142,0.3), rgba(34,197,94,0.25), transparent);
-    }
-    .features-header { text-align: center; margin-bottom: 72px; }
+    .features { background: var(--color-surface); }
+    .features-header { text-align: center; margin-bottom: 60px; }
     .features-header .section-desc { margin: 0 auto; }
     .features-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
-    }
-    .feature-card {
-      background: var(--color-surface-2);
+      gap: 1px;
+      background: var(--color-border);
       border: 1px solid var(--color-border);
       border-radius: var(--radius);
-      padding: 32px;
-      transition: border-color 0.3s, transform 0.2s, box-shadow 0.3s;
-    }
-    .feature-card:hover {
-      border-color: var(--color-border-hover);
-      transform: translateY(-4px);
-      box-shadow: 0 12px 32px rgba(0,0,0,0.2);
-    }
-    .feature-icon {
-      width: 48px;
-      height: 48px;
-      background: linear-gradient(135deg, var(--color-accent-glow), var(--color-green-glow));
-      border: 1px solid var(--color-border);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      margin-bottom: 20px;
-    }
-    .feature-card h3 {
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-    .feature-card p {
-      font-size: 14px;
-      color: var(--color-text-secondary);
-      line-height: 1.65;
-    }
-
-    /* ── PRIVACY / IP PROTECTION ── */
-    .privacy {
-      position: relative;
       overflow: hidden;
     }
-    .privacy::before {
-      content: '';
-      position: absolute;
-      top: -200px;
-      right: -150px;
-      width: 600px;
-      height: 600px;
-      background: radial-gradient(circle, rgba(181,84,142,0.10) 0%, transparent 65%);
-      pointer-events: none;
+    .feature-card {
+      background: var(--color-surface);
+      padding: 32px;
     }
-    .privacy-header { text-align: center; margin-bottom: 64px; }
+    .feature-card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .feature-card p {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      line-height: 1.55;
+    }
+
+    /* ── PRIVACY ── */
+    .privacy-header { text-align: center; margin-bottom: 48px; }
     .privacy-header .section-desc { margin: 0 auto; }
     .privacy-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      max-width: 900px;
+      gap: 16px;
+      max-width: 800px;
       margin: 0 auto;
     }
     .privacy-card {
-      background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius);
-      padding: 36px;
-      position: relative;
-      transition: border-color 0.3s, transform 0.2s;
-    }
-    .privacy-card:hover {
-      border-color: rgba(181,84,142,0.35);
-      transform: translateY(-3px);
-    }
-    .privacy-card .card-icon {
-      font-size: 28px;
-      margin-bottom: 16px;
-      display: block;
+      padding: 28px;
     }
     .privacy-card h3 {
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
     }
     .privacy-card p {
-      font-size: 14px;
+      font-size: 13px;
       color: var(--color-text-secondary);
-      line-height: 1.65;
+      line-height: 1.55;
     }
-    .privacy-card .highlight-text {
-      color: var(--color-accent-light);
-      font-weight: 600;
-    }
+    .privacy-card strong { color: var(--color-accent); font-weight: 600; }
     .privacy-banner {
-      margin-top: 48px;
-      background: linear-gradient(135deg, rgba(181,84,142,0.08), rgba(34,197,94,0.06));
-      border: 1px solid rgba(181,84,142,0.15);
-      border-radius: var(--radius);
-      padding: 36px 48px;
-      text-align: center;
-      max-width: 900px;
+      margin-top: 32px;
+      max-width: 800px;
       margin-left: auto;
       margin-right: auto;
+      border-left: 3px solid var(--color-accent);
+      padding: 20px 24px;
+      background: var(--color-surface);
+      border-radius: 0 var(--radius) var(--radius) 0;
     }
     .privacy-banner p {
-      font-size: 17px;
-      color: var(--color-text);
-      line-height: 1.7;
-    }
-    .privacy-banner strong {
-      color: var(--color-accent-light);
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.6;
     }
 
-    /* ── SHOWCASE (screenshots) ── */
+    /* ── SHOWCASE ── */
     .showcase-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 48px;
       align-items: center;
-      margin-top: 80px;
+      margin-top: 64px;
     }
     .showcase-grid.reverse { direction: rtl; }
     .showcase-grid.reverse > * { direction: ltr; }
-    .showcase-text { padding: 20px 0; }
     .showcase-text h3 {
-      font-size: 28px;
-      font-weight: 700;
-      margin-bottom: 12px;
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 8px;
     }
     .showcase-text p {
       color: var(--color-text-secondary);
-      font-size: 16px;
-      line-height: 1.7;
+      font-size: 15px;
+      line-height: 1.6;
     }
     .showcase-img {
       border-radius: var(--radius);
       overflow: hidden;
       border: 1px solid var(--color-border);
-      box-shadow: 0 16px 48px rgba(0,0,0,0.35), 0 0 40px rgba(58,184,196,0.04);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
     }
     .showcase-img img { width: 100%; display: block; }
 
     /* ── COMPARISON ── */
-    .comparison {
-      background: var(--color-surface);
-      position: relative;
-    }
-    .comparison::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(34,197,94,0.25), rgba(181,84,142,0.3), transparent);
-    }
-    .comparison-header { text-align: center; margin-bottom: 56px; }
+    .comparison { background: var(--color-surface); }
+    .comparison-header { text-align: center; margin-bottom: 40px; }
     .comparison-header .section-desc { margin: 0 auto; }
     .comparison-table {
       width: 100%;
       border-collapse: collapse;
-      background: var(--color-surface-2);
+      background: var(--color-bg);
       border-radius: var(--radius);
       overflow: hidden;
       border: 1px solid var(--color-border);
+      font-size: 14px;
     }
     .comparison-table th,
     .comparison-table td {
-      padding: 16px 20px;
+      padding: 12px 16px;
       text-align: center;
-      font-size: 14px;
       border-bottom: 1px solid var(--color-border);
     }
     .comparison-table th {
-      background: rgba(0,0,0,0.2);
-      font-weight: 700;
-      font-size: 13px;
+      background: var(--color-bg);
+      font-weight: 600;
+      font-size: 12px;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       color: var(--color-text-secondary);
     }
     .comparison-table th:first-child,
     .comparison-table td:first-child {
       text-align: left;
-      font-weight: 600;
+      font-weight: 500;
     }
-    .comparison-table th.highlight {
-      color: var(--color-accent);
-    }
+    .comparison-table th.highlight { color: var(--color-accent); }
     .comparison-table tr:last-child td { border-bottom: none; }
-    .comparison-table tr:hover td { background: rgba(100, 180, 255, 0.03); }
-    .check { color: var(--color-green); font-size: 18px; }
-    .cross { color: #556; font-size: 18px; }
+    .check { color: var(--color-accent); }
+    .cross { color: #444; }
 
     /* ── DOWNLOAD ── */
-    .download-header { text-align: center; margin-bottom: 56px; }
+    .download-header { text-align: center; margin-bottom: 40px; }
     .download-header .section-desc { margin: 0 auto; }
     .download-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-      max-width: 900px;
+      gap: 16px;
+      max-width: 800px;
       margin: 0 auto;
     }
     .download-card {
-      background: var(--color-surface-2);
       border: 1px solid var(--color-border);
       border-radius: var(--radius);
-      padding: 32px 24px;
+      padding: 24px 16px;
       text-align: center;
-      transition: border-color 0.3s, transform 0.2s, box-shadow 0.3s;
+      transition: border-color 0.15s;
       text-decoration: none;
       color: var(--color-text);
     }
-    .download-card:hover {
-      border-color: var(--color-green);
-      transform: translateY(-4px);
-      box-shadow: 0 12px 32px rgba(0,0,0,0.2), 0 0 20px var(--color-green-glow);
-    }
+    .download-card:hover { border-color: var(--color-accent); }
     .download-card .platform-icon {
-      font-size: 36px;
-      margin-bottom: 16px;
+      font-size: 28px;
+      margin-bottom: 10px;
       display: block;
     }
-    .download-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-    .download-card p { font-size: 12px; color: var(--color-text-secondary); }
+    .download-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .download-card p { font-size: 11px; color: var(--color-text-secondary); }
 
-    /* ── OPEN SOURCE BANNER ── */
-    .oss-banner {
-      text-align: center;
-      background: var(--color-surface);
-    }
+    /* ── OSS BANNER ── */
+    .oss-banner { background: var(--color-surface); text-align: center; }
     .oss-inner {
-      max-width: 720px;
+      max-width: 600px;
       margin: 0 auto;
-      padding: 72px 40px;
-      border: 1px solid var(--color-border);
-      border-radius: 20px;
-      background: linear-gradient(145deg, var(--color-surface-2), var(--color-bg));
-      position: relative;
-      overflow: hidden;
-    }
-    .oss-inner::before {
-      content: '';
-      position: absolute;
-      top: -80px;
-      right: -80px;
-      width: 300px;
-      height: 300px;
-      background: radial-gradient(circle, var(--color-accent-glow) 0%, transparent 70%);
-      pointer-events: none;
     }
     .oss-inner h2 {
-      font-size: 32px;
-      font-weight: 800;
-      margin-bottom: 12px;
-      position: relative;
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 10px;
     }
     .oss-inner p {
       color: var(--color-text-secondary);
-      font-size: 16px;
-      margin-bottom: 32px;
-      line-height: 1.7;
-      position: relative;
+      font-size: 15px;
+      margin-bottom: 28px;
+      line-height: 1.6;
     }
-    .oss-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; position: relative; }
+    .oss-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
     /* ── FOOTER ── */
     footer {
-      padding: 48px 24px;
+      padding: 40px 24px;
       border-top: 1px solid var(--color-border);
       text-align: center;
     }
-    footer p {
-      font-size: 14px;
-      color: var(--color-text-secondary);
-    }
-    footer a {
-      color: var(--color-green-light);
-      text-decoration: none;
-    }
-    footer a:hover { text-decoration: underline; }
+    footer p { font-size: 13px; color: var(--color-text-secondary); }
+    footer a { color: var(--color-text-secondary); text-decoration: none; }
+    footer a:hover { color: var(--color-text); }
 
     /* ── MOBILE ── */
     @media (max-width: 900px) {
@@ -571,7 +385,6 @@
       .privacy-grid { grid-template-columns: 1fr; }
       .showcase-grid, .showcase-grid.reverse { grid-template-columns: 1fr; direction: ltr; }
       .download-grid { grid-template-columns: 1fr 1fr; }
-      .privacy-banner { padding: 28px 24px; }
     }
     @media (max-width: 640px) {
       .nav-links { display: none; }
@@ -579,30 +392,28 @@
         display: flex;
         flex-direction: column;
         position: absolute;
-        top: 64px;
+        top: 56px;
         left: 0;
         right: 0;
-        background: var(--color-bg);
+        background: var(--color-surface);
         border-bottom: 1px solid var(--color-border);
-        padding: 24px;
-        gap: 16px;
+        padding: 20px;
+        gap: 14px;
       }
       .nav-menu-btn { display: block; }
       .features-grid { grid-template-columns: 1fr; }
       .download-grid { grid-template-columns: 1fr; }
       .comparison-table { font-size: 12px; }
-      .comparison-table th, .comparison-table td { padding: 10px 8px; }
-      section { padding: 80px 20px; }
-      .oss-inner { padding: 48px 24px; }
+      .comparison-table th, .comparison-table td { padding: 8px 6px; }
+      section { padding: 64px 20px; }
     }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Courier+Prime&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-  <!-- NAV -->
   <nav>
     <div class="nav-inner">
       <a href="#" class="nav-brand">
@@ -621,13 +432,8 @@
     </div>
   </nav>
 
-  <!-- HERO -->
   <section class="hero">
-    <div class="hero-badge">
-      <span class="dot"></span>
-      Open Source &middot; MIT License &middot; Free Forever
-    </div>
-    <h1>Write screenplays<br><span class="gradient">without the price tag</span></h1>
+    <h1>Write screenplays<br><span class="accent">without any price tag</span></h1>
     <p>Industry-standard formatting. Professional-grade features. Use on any mobile, tablet, or desktop. Fully offline &mdash; your scripts stay on your machine, protecting your intellectual property.</p>
     <div class="hero-buttons">
       <a href="#download" class="btn btn-primary">Download Free</a>
@@ -638,7 +444,6 @@
     </div>
   </section>
 
-  <!-- FEATURES -->
   <section class="features" id="features">
     <div class="section-inner">
       <div class="features-header">
@@ -648,94 +453,79 @@
       </div>
       <div class="features-grid">
         <div class="feature-card">
-          <div class="feature-icon">&#9998;</div>
           <h3>Industry-Standard Editor</h3>
-          <p>Scene headings, action, character, dialogue, parenthetical, transitions, and shots with proper screenplay formatting.</p>
+          <p>Scene headings, action, character, dialogue, parenthetical, transitions, and shots with proper formatting.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">&#127916;</div>
           <h3>Beat Board & Index Cards</h3>
           <p>Visual story planning with drag-and-drop scene organization. Structure your story before you write.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">&#128101;</div>
           <h3>Real-Time Collaboration</h3>
-          <p>Write together with live cursors, presence indicators, and granular permissions. Invite co-writers with a link.</p>
+          <p>Write together with live cursors, presence indicators, and granular permissions.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">&#128196;</div>
           <h3>Version History</h3>
-          <p>Built-in version control with check-in, side-by-side diff, and instant restore of any previous draft.</p>
+          <p>Built-in version control with check-in, side-by-side diff, and instant restore of any draft.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">&#128100;</div>
           <h3>Character Profiles</h3>
-          <p>Track characters with descriptions, role types, images, and color-coded highlighting throughout your script.</p>
+          <p>Track characters with descriptions, role types, and color-coded highlighting throughout your script.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">&#128194;</div>
           <h3>Project Management</h3>
-          <p>Organize multiple screenplays with metadata, attached assets, reference documents, and research notes.</p>
+          <p>Organize multiple screenplays with metadata, assets, and research notes.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">&#128269;</div>
           <h3>Search & Replace</h3>
-          <p>Find and replace across your entire screenplay. Jump between scenes instantly with the scene navigator.</p>
+          <p>Find and replace across your screenplay. Jump between scenes with the navigator.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">&#128230;</div>
           <h3>Import & Export</h3>
-          <p>Work with standard formats including PDF, Final Draft FDX, and Fountain. Your scripts are never locked in.</p>
+          <p>Work with PDF, Final Draft FDX, and Fountain. Your scripts are never locked in.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">&#128274;</div>
           <h3>Privacy-First</h3>
-          <p>Zero tracking, zero analytics, zero data collection. Works 100% offline. Your scripts stay on your machine.</p>
+          <p>Zero tracking, zero analytics, zero data collection. Works 100% offline.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- PRIVACY / IP PROTECTION -->
   <section class="privacy" id="privacy">
     <div class="section-inner">
       <div class="privacy-header">
         <div class="section-label">Your Script. Your Machine. Your IP.</div>
         <h2 class="section-title">Your intellectual property stays yours</h2>
-        <p class="section-desc">Most screenwriting software sends your scripts to someone else's servers. OpenDraft doesn't. Your words never leave your machine.</p>
+        <p class="section-desc">Most screenwriting software sends your scripts to someone else's servers. OpenDraft doesn't.</p>
       </div>
       <div class="privacy-grid">
         <div class="privacy-card">
-          <span class="card-icon">&#128274;</span>
           <h3>100% Local Storage</h3>
-          <p>Every screenplay you write is stored in a <span class="highlight-text">local SQLite database on your own device</span>. No cloud sync. No vendor servers. No third-party access to your scripts, ever.</p>
+          <p>Every screenplay is stored in a <strong>local database on your device</strong>. No cloud sync. No vendor servers. No third-party access.</p>
         </div>
         <div class="privacy-card">
-          <span class="card-icon">&#128683;</span>
           <h3>No Data Mining</h3>
-          <p>Cloud-based tools can read, analyze, and train AI on your screenplays. OpenDraft has <span class="highlight-text">zero telemetry, zero analytics, zero data collection</span>. We can't read your work because we never see it.</p>
+          <p>Cloud tools can read and train AI on your work. OpenDraft has <strong>zero telemetry, zero analytics, zero collection</strong>.</p>
         </div>
         <div class="privacy-card">
-          <span class="card-icon">&#128737;</span>
           <h3>Protect Your IP</h3>
-          <p>Your screenplay is your intellectual property. When you write in OpenDraft, <span class="highlight-text">no corporation has access to mine, monetize, or train models</span> on your creative work.</p>
+          <p>Your screenplay is your intellectual property. <strong>No corporation can mine, monetize, or train models</strong> on your creative work.</p>
         </div>
         <div class="privacy-card">
-          <span class="card-icon">&#9989;</span>
           <h3>Open Source Guarantee</h3>
-          <p>Don't take our word for it &mdash; <span class="highlight-text">read the code yourself</span>. OpenDraft is MIT licensed. Every line is publicly auditable. There are no hidden network calls, no tracking pixels, no backdoors.</p>
+          <p>Don't take our word for it &mdash; <strong>read the code yourself</strong>. Every line is publicly auditable. No hidden calls, no backdoors.</p>
         </div>
       </div>
       <div class="privacy-banner">
-        <p><strong>Other tools store your scripts on their servers.</strong> They can change their terms of service at any time. They can scan your work for AI training. They can shut down and take your data with them. With OpenDraft, your screenplay exists only where you put it &mdash; on your computer, under your control.</p>
+        <p>Other tools store your scripts on their servers. They can change terms, scan for AI training, or shut down. With OpenDraft, your screenplay exists only on your computer, under your control.</p>
       </div>
     </div>
   </section>
 
-  <!-- SCREENSHOTS -->
   <section id="screenshots">
     <div class="section-inner">
-      <div style="text-align: center; margin-bottom: 24px;">
+      <div style="text-align: center;">
         <div class="section-label">In Action</div>
         <h2 class="section-title">See it for yourself</h2>
       </div>
@@ -743,7 +533,7 @@
       <div class="showcase-grid">
         <div class="showcase-text">
           <h3>Visual Story Planning</h3>
-          <p>Organize your narrative with the Beat Board. Drag and drop scenes, color-code story beats, and see the big picture before you write a single line of dialogue.</p>
+          <p>Organize your narrative with the Beat Board. Drag and drop scenes, color-code story beats, and see the big picture.</p>
         </div>
         <div class="showcase-img">
           <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/beatboard.png" alt="Beat Board" loading="lazy">
@@ -753,7 +543,7 @@
       <div class="showcase-grid reverse">
         <div class="showcase-text">
           <h3>Write Together, Live</h3>
-          <p>Invite co-writers with a single link. See their cursors in real-time, choose edit or view-only permissions, and collaborate seamlessly across any distance.</p>
+          <p>Invite co-writers with a link. See their cursors in real-time, choose edit or view-only permissions.</p>
         </div>
         <div class="showcase-img">
           <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/collaboration_1.png" alt="Real-time Collaboration" loading="lazy">
@@ -763,7 +553,7 @@
       <div class="showcase-grid">
         <div class="showcase-text">
           <h3>Never Lose a Draft</h3>
-          <p>Check in versions as you write. Compare any two drafts side by side, see exactly what changed, and restore previous versions instantly.</p>
+          <p>Check in versions as you write. Compare drafts side by side and restore previous versions instantly.</p>
         </div>
         <div class="showcase-img">
           <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/version_history.png" alt="Version History" loading="lazy">
@@ -772,7 +562,6 @@
     </div>
   </section>
 
-  <!-- COMPARISON -->
   <section class="comparison" id="comparison">
     <div class="section-inner">
       <div class="comparison-header">
@@ -791,7 +580,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr><td>Price</td><td><strong style="color:var(--color-green)">Free</strong></td><td>$250</td><td>$12/mo</td><td>$80</td></tr>
+          <tr><td>Price</td><td><strong style="color:var(--color-accent)">Free</strong></td><td>$250</td><td>$12/mo</td><td>$80</td></tr>
           <tr><td>Open Source</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td></tr>
           <tr><td>Offline Desktop App</td><td><span class="check">&#10003;</span></td><td><span class="check">&#10003;</span></td><td><span class="cross">limited</span></td><td><span class="check">&#10003;</span></td></tr>
           <tr><td>Real-Time Collaboration</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td></tr>
@@ -802,13 +591,11 @@
           <tr><td>Android App</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td></tr>
           <tr><td>No Account Required</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td></tr>
           <tr><td>No Tracking</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td></tr>
-          <tr><td>Plugin Architecture</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
-  <!-- DOWNLOAD -->
   <section id="download">
     <div class="section-inner">
       <div class="download-header">
@@ -838,18 +625,17 @@
           <p>Google Play Store</p>
         </a>
       </div>
-      <p style="text-align:center; margin-top:24px; color:var(--color-text-secondary); font-size:14px;">
-        All versions available on the <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" style="color:var(--color-green-light); text-decoration:none;">Releases page</a>
+      <p style="text-align:center; margin-top:20px; color:var(--color-text-secondary); font-size:13px;">
+        All versions on the <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" style="color:var(--color-text-secondary); text-decoration:underline;">Releases page</a>
       </p>
     </div>
   </section>
 
-  <!-- OPEN SOURCE BANNER -->
   <section class="oss-banner">
     <div class="section-inner">
       <div class="oss-inner">
         <h2>Open Source, Open Future</h2>
-        <p>OpenDraft is MIT licensed. Fork it, extend it, build on it. Your screenwriting tool should belong to you, not a corporation.</p>
+        <p>MIT licensed. Fork it, extend it, build on it. Your screenwriting tool should belong to you.</p>
         <div class="oss-buttons">
           <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" class="btn btn-primary">Star on GitHub</a>
           <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions" class="btn btn-secondary">Join the Community</a>
@@ -858,7 +644,6 @@
     </div>
   </section>
 
-  <!-- FOOTER -->
   <footer>
     <p>Made by <a href="https://github.com/Proteus-Technologies-Private-Limited">Proteus Technologies</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/LICENSE">MIT License</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft">GitHub</a></p>
   </footer>
