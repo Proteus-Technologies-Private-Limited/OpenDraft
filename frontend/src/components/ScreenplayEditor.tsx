@@ -34,8 +34,8 @@ import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { createPaginationPlugin, getPageMetrics } from '../editor/pagination';
 
-import { useEditorStore, DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT } from '../stores/editorStore';
-import type { ElementType, HeaderFooterContent } from '../stores/editorStore';
+import { useEditorStore, DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT, DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
+import type { ElementType } from '../stores/editorStore';
 import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
@@ -471,7 +471,7 @@ const ScreenplayEditor: React.FC = () => {
 
       const content = scriptResp.content as Record<string, unknown> | null;
       if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _templateId, ...pmDoc } = content as Record<string, unknown>;
+        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _templateId, _pageLayout: _plCollab, ...pmDoc } = content as Record<string, unknown>;
         collabInitialContent.current = pmDoc;
       } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
         collabInitialContent.current = content;
@@ -631,7 +631,7 @@ const ScreenplayEditor: React.FC = () => {
         if (scriptResp) {
           const content = scriptResp.content as Record<string, unknown> | null;
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _templateId, ...pmDoc } = content as Record<string, unknown>;
+            const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _templateId, _pageLayout: _plGuest, ...pmDoc } = content as Record<string, unknown>;
             collabInitialContent.current = pmDoc;
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             collabInitialContent.current = content;
@@ -1295,7 +1295,7 @@ const ScreenplayEditor: React.FC = () => {
 
     // Save current editor content so it can seed the Yjs doc
     const doc = editor.getJSON();
-    const { _notes, _generalNotes: _gn3, _tags, _tagCategories, _characterProfiles, _templateId: _tpl3, ...pmDoc } = doc as Record<string, unknown>;
+    const { _notes, _generalNotes: _gn3, _tags, _tagCategories, _characterProfiles, _templateId: _tpl3, _pageLayout: _pl3, ...pmDoc } = doc as Record<string, unknown>;
     collabInitialContent.current = pmDoc;
 
     // The guest invite carries a session_nonce that makes the Yjs room unique
@@ -1627,6 +1627,7 @@ const ScreenplayEditor: React.FC = () => {
       _ignoredOnce: spellChecker.getIgnoredOnce(),
       _sceneNumbersVisible: store.sceneNumbersVisible,
       _sceneNumbersLocked: store.sceneNumbersLocked,
+      _pageLayout: store.pageLayout,
     };
   }, [editor]);
 
@@ -1730,7 +1731,7 @@ const ScreenplayEditor: React.FC = () => {
         // Strip app metadata keys before feeding to ProseMirror
         let pmDoc: Record<string, unknown> | null = null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, _sceneNumbersVisible: _snv, _sceneNumbersLocked: _snl, ...rest } = content as any;
+          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, _sceneNumbersVisible: _snv, _sceneNumbersLocked: _snl, _pageLayout: _pl, ...rest } = content as any;
           pmDoc = rest;
         }
 
@@ -1760,6 +1761,7 @@ const ScreenplayEditor: React.FC = () => {
           store.setTagCategories([]);
           store.setBeats([]);
           store.setBeatColumns([]);
+          store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
           const parseAttr = (val: unknown): unknown[] => {
             if (typeof val === 'string') { try { const p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch { return []; } }
             if (Array.isArray(val)) return val;
@@ -1817,6 +1819,10 @@ const ScreenplayEditor: React.FC = () => {
             spellChecker.setIgnoredWords(ignoredArr as string[]);
             const ignoredOnceArr = parseAttr(c._ignoredOnce);
             spellChecker.setIgnoredOnce(ignoredOnceArr as string[]);
+            // Restore per-document page layout (header/footer, margins)
+            if (c._pageLayout && typeof c._pageLayout === 'object') {
+              store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT, ...(c._pageLayout as Record<string, unknown>) });
+            }
           }
         }
 
@@ -1976,7 +1982,7 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, _sceneNumbersVisible: _snv2, _sceneNumbersLocked: _snl2, ...pmDoc } = content as any;
+            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, _sceneNumbersVisible: _snv2, _sceneNumbersLocked: _snl2, _pageLayout: _pl2, ...pmDoc } = content as any;
             editor.commands.setContent(pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             editor.commands.setContent(content);
@@ -2000,6 +2006,7 @@ const ScreenplayEditor: React.FC = () => {
         store.setTagCategories([]);
         store.setBeats([]);
         store.setBeatColumns([]);
+        store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
         const parseAttr2 = (val: unknown): unknown[] => {
           if (typeof val === 'string') { try { const p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch { return []; } }
           if (Array.isArray(val)) return val;
@@ -2039,6 +2046,10 @@ const ScreenplayEditor: React.FC = () => {
           } else {
             useFormattingTemplateStore.getState().setActiveTemplateId(null);
           }
+          // Restore per-document page layout (header/footer, margins)
+          if (c._pageLayout && typeof c._pageLayout === 'object') {
+            store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT, ...(c._pageLayout as Record<string, unknown>) });
+          }
         }
         setCurrentProject(project);
         setCurrentScriptId(scriptId);
@@ -2075,14 +2086,8 @@ const ScreenplayEditor: React.FC = () => {
         doc = parsed.doc;
         if (parsed.pageLayout) {
           useEditorStore.getState().setPageLayout({
-            pageWidth: parsed.pageLayout.pageWidth,
-            pageHeight: parsed.pageLayout.pageHeight,
-            topMargin: parsed.pageLayout.topMargin,
-            bottomMargin: parsed.pageLayout.bottomMargin,
-            headerMargin: parsed.pageLayout.headerMargin,
-            footerMargin: parsed.pageLayout.footerMargin,
-            leftMargin: parsed.pageLayout.leftMargin,
-            rightMargin: parsed.pageLayout.rightMargin,
+            ...useEditorStore.getState().pageLayout,
+            ...parsed.pageLayout,
           });
         }
         if (parsed.beats.length > 0) {
@@ -2139,14 +2144,8 @@ const ScreenplayEditor: React.FC = () => {
         doc = parsed.doc;
         if (parsed.pageLayout) {
           useEditorStore.getState().setPageLayout({
-            pageWidth: parsed.pageLayout.pageWidth,
-            pageHeight: parsed.pageLayout.pageHeight,
-            topMargin: parsed.pageLayout.topMargin,
-            bottomMargin: parsed.pageLayout.bottomMargin,
-            headerMargin: parsed.pageLayout.headerMargin,
-            footerMargin: parsed.pageLayout.footerMargin,
-            leftMargin: parsed.pageLayout.leftMargin,
-            rightMargin: parsed.pageLayout.rightMargin,
+            ...useEditorStore.getState().pageLayout,
+            ...parsed.pageLayout,
           });
         }
         if (parsed.beats.length > 0) {
@@ -2267,14 +2266,8 @@ const ScreenplayEditor: React.FC = () => {
         doc = parsed.doc;
         if (parsed.pageLayout) {
           useEditorStore.getState().setPageLayout({
-            pageWidth: parsed.pageLayout.pageWidth,
-            pageHeight: parsed.pageLayout.pageHeight,
-            topMargin: parsed.pageLayout.topMargin,
-            bottomMargin: parsed.pageLayout.bottomMargin,
-            headerMargin: parsed.pageLayout.headerMargin,
-            footerMargin: parsed.pageLayout.footerMargin,
-            leftMargin: parsed.pageLayout.leftMargin,
-            rightMargin: parsed.pageLayout.rightMargin,
+            ...useEditorStore.getState().pageLayout,
+            ...parsed.pageLayout,
           });
         }
         if (parsed.beats.length > 0) {
@@ -2611,6 +2604,18 @@ const ScreenplayEditor: React.FC = () => {
 
   const zoomScale = zoomLevel / 100;
 
+  // Compute last-page footer position so the last page shows its full extent
+  const lastPageEnd = useMemo(() => {
+    const m = getPageMetrics(pageLayout);
+    if (overlays.length > 0) {
+      const lastOverlay = overlays[overlays.length - 1];
+      return lastOverlay.top + m.sepHeightPx + m.pageContentPx;
+    }
+    // Single page: content starts after top padding
+    const topMarginPx = (pageLayout.topMargin / 72) * 96;
+    return topMarginPx + m.pageContentPx;
+  }, [overlays, pageLayout]);
+
   // Show loading screen while collab session is being set up
   if (collabLoading) {
     return (
@@ -2742,7 +2747,7 @@ const ScreenplayEditor: React.FC = () => {
                     fontFamily: `'${fontFamily}', 'Courier New', Courier, monospace`,
                     fontSize: `${fontSize}pt`,
                     width: `${pageLayout.pageWidth}in`,
-                    minHeight: `${pageLayout.pageHeight}in`,
+                    minHeight: `${lastPageEnd + (pageLayout.bottomMargin / 72) * 96}px`,
                     paddingTop: `${pageLayout.topMargin}pt`,
                     paddingBottom: `${pageLayout.bottomMargin}pt`,
                     paddingLeft: `${pageLayout.leftMargin}in`,
@@ -2761,7 +2766,6 @@ const ScreenplayEditor: React.FC = () => {
                     const fStart = pageLayout.footerStartPage ?? 1;
                     const { documentTitle: docTitle, revisionColor: revColor, pageCount: totalPages } = useEditorStore.getState();
                     const showHeader = ov.pageNumber >= hStart;
-                    const showFooter = ov.pageNumber >= fStart;
                     // The footer belongs to the page BEFORE this break (ov.pageNumber - 1)
                     const footerPage = ov.pageNumber - 1;
                     const showFooterForPrev = footerPage >= fStart;
@@ -2802,6 +2806,32 @@ const ScreenplayEditor: React.FC = () => {
                     </div>
                     );
                   })}
+
+                  {/* Last page footer — no page break follows the last page, so render its footer separately */}
+                  {(() => {
+                    const fContent = pageLayout.footerContent || DEFAULT_FOOTER_CONTENT;
+                    const fStart = pageLayout.footerStartPage ?? 1;
+                    const { documentTitle: docTitle, revisionColor: revColor, pageCount: totalPages } = useEditorStore.getState();
+                    const lastPage = overlays.length > 0
+                      ? overlays[overlays.length - 1].pageNumber
+                      : 1;
+                    const showFooter = lastPage >= fStart && (fContent.left || fContent.center || fContent.right);
+                    if (!showFooter) return null;
+                    return (
+                      <div
+                        className="page-sep"
+                        style={{ top: `${lastPageEnd}px` }}
+                      >
+                        <div className="page-sep-bottom" style={{ height: `${pageLayout.bottomMargin}pt`, position: 'relative' }}>
+                          <div className="page-sep-footer">
+                            <span className="page-sep-hf-left">{resolveHFFields(fContent.left, lastPage, totalPages, docTitle, revColor)}</span>
+                            <span className="page-sep-hf-center">{resolveHFFields(fContent.center, lastPage, totalPages, docTitle, revColor)}</span>
+                            <span className="page-sep-hf-right">{resolveHFFields(fContent.right, lastPage, totalPages, docTitle, revColor)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   <EditorContent editor={editor} />
                 </div>

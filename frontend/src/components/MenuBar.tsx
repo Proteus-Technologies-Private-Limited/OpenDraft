@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
-import { useEditorStore } from '../stores/editorStore';
+import { useEditorStore, DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
@@ -112,6 +112,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       _beatArrangeMode: store.beatArrangeMode,
       _sceneNumbersVisible: store.sceneNumbersVisible,
       _sceneNumbersLocked: store.sceneNumbersLocked,
+      _pageLayout: store.pageLayout,
     };
   }, [editor]);
 
@@ -402,14 +403,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       doc = parsed.doc;
       if (parsed.pageLayout) {
         store.setPageLayout({
-          pageWidth: parsed.pageLayout.pageWidth,
-          pageHeight: parsed.pageLayout.pageHeight,
-          topMargin: parsed.pageLayout.topMargin,
-          bottomMargin: parsed.pageLayout.bottomMargin,
-          headerMargin: parsed.pageLayout.headerMargin,
-          footerMargin: parsed.pageLayout.footerMargin,
-          leftMargin: parsed.pageLayout.leftMargin,
-          rightMargin: parsed.pageLayout.rightMargin,
+          ...store.pageLayout,
+          ...parsed.pageLayout,
         });
       }
       // Import beats from Outline elements
@@ -529,6 +524,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
               store.setTagCategories([]);
               store.setCharacterProfiles([]);
               store.setScenes([]);
+              store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
               // Navigate to root so URL doesn't trigger stale project loading
               if (window.location.pathname !== '/') {
                 window.history.replaceState(null, '', '/');
