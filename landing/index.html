@@ -204,6 +204,12 @@
       background: var(--color-surface);
       padding: 32px;
     }
+    .card-icon {
+      width: 20px;
+      height: 20px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
     .feature-card h3 {
       font-size: 15px;
       font-weight: 600;
@@ -230,6 +236,7 @@
       border-radius: var(--radius);
       padding: 28px;
     }
+    .privacy-card .card-icon { opacity: 0.5; }
     .privacy-card h3 {
       font-size: 15px;
       font-weight: 600;
@@ -343,9 +350,10 @@
     }
     .download-card:hover { border-color: var(--color-accent); }
     .download-card .platform-icon {
-      font-size: 28px;
-      margin-bottom: 10px;
-      display: block;
+      width: 28px;
+      height: 28px;
+      margin: 0 auto 10px;
+      opacity: 0.6;
     }
     .download-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
     .download-card p { font-size: 11px; color: var(--color-text-secondary); }
@@ -436,8 +444,8 @@
     <h1>Write screenplays<br><span class="accent">without any price tag</span></h1>
     <p>Industry-standard formatting. Professional-grade features. Use on any mobile, tablet, or desktop. Fully offline &mdash; your scripts stay on your machine, protecting your intellectual property.</p>
     <div class="hero-buttons">
-      <a href="#download" class="btn btn-primary">Download Free</a>
-      <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" class="btn btn-secondary">View Source</a>
+      <a href="#download" class="btn btn-primary"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Free</a>
+      <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" class="btn btn-secondary"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg> View Source</a>
     </div>
     <div class="hero-image">
       <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/editor.png" alt="OpenDraft Screenplay Editor" loading="eager">
@@ -453,38 +461,47 @@
       </div>
       <div class="features-grid">
         <div class="feature-card">
+          <svg class="card-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
           <h3>Industry-Standard Editor</h3>
           <p>Scene headings, action, character, dialogue, parenthetical, transitions, and shots with proper formatting.</p>
         </div>
         <div class="feature-card">
+          <svg class="card-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="6" height="8" rx="1"/><rect x="9" y="3" width="6" height="8" rx="1"/><rect x="16" y="3" width="6" height="8" rx="1"/><rect x="2" y="13" width="6" height="8" rx="1"/><rect x="9" y="13" width="6" height="8" rx="1"/><rect x="16" y="13" width="6" height="8" rx="1"/></svg>
           <h3>Beat Board & Index Cards</h3>
           <p>Visual story planning with drag-and-drop scene organization. Structure your story before you write.</p>
         </div>
         <div class="feature-card">
+          <svg class="card-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <h3>Real-Time Collaboration</h3>
           <p>Write together with live cursors, presence indicators, and granular permissions.</p>
         </div>
         <div class="feature-card">
+          <svg class="card-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <h3>Version History</h3>
           <p>Built-in version control with check-in, side-by-side diff, and instant restore of any draft.</p>
         </div>
         <div class="feature-card">
+          <svg class="card-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <h3>Character Profiles</h3>
           <p>Track characters with descriptions, role types, and color-coded highlighting throughout your script.</p>
         </div>
         <div class="feature-card">
+          <svg class="card-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           <h3>Project Management</h3>
           <p>Organize multiple screenplays with metadata, assets, and research notes.</p>
         </div>
         <div class="feature-card">
+          <svg class="card-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           <h3>Search & Replace</h3>
           <p>Find and replace across your screenplay. Jump between scenes with the navigator.</p>
         </div>
         <div class="feature-card">
+          <svg class="card-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <h3>Import & Export</h3>
           <p>Work with PDF, Final Draft FDX, and Fountain. Your scripts are never locked in.</p>
         </div>
         <div class="feature-card">
+          <svg class="card-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <h3>Privacy-First</h3>
           <p>Zero tracking, zero analytics, zero data collection. Works 100% offline.</p>
         </div>
@@ -501,18 +518,22 @@
       </div>
       <div class="privacy-grid">
         <div class="privacy-card">
+          <svg class="card-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/></svg>
           <h3>100% Local Storage</h3>
           <p>Every screenplay is stored in a <strong>local database on your device</strong>. No cloud sync. No vendor servers. No third-party access.</p>
         </div>
         <div class="privacy-card">
+          <svg class="card-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
           <h3>No Data Mining</h3>
           <p>Cloud tools can read and train AI on your work. OpenDraft has <strong>zero telemetry, zero analytics, zero collection</strong>.</p>
         </div>
         <div class="privacy-card">
+          <svg class="card-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <h3>Protect Your IP</h3>
           <p>Your screenplay is your intellectual property. <strong>No corporation can mine, monetize, or train models</strong> on your creative work.</p>
         </div>
         <div class="privacy-card">
+          <svg class="card-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
           <h3>Open Source Guarantee</h3>
           <p>Don't take our word for it &mdash; <strong>read the code yourself</strong>. Every line is publicly auditable. No hidden calls, no backdoors.</p>
         </div>
@@ -605,22 +626,22 @@
       </div>
       <div class="download-grid">
         <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.12.0_aarch64.dmg" class="download-card">
-          <span class="platform-icon">&#63743;</span>
+          <svg class="platform-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           <h3>macOS</h3>
           <p>Apple Silicon .dmg</p>
         </a>
         <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.12.0_x64-setup.exe" class="download-card">
-          <span class="platform-icon">&#128187;</span>
+          <svg class="platform-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           <h3>Windows</h3>
           <p>64-bit installer</p>
         </a>
         <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.12.0_amd64.deb" class="download-card">
-          <span class="platform-icon">&#128039;</span>
+          <svg class="platform-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
           <h3>Linux</h3>
           <p>.deb / .AppImage / .rpm</p>
         </a>
         <a href="https://play.google.com/store/apps/details?id=com.proteus.opendraft" class="download-card">
-          <span class="platform-icon">&#9654;</span>
+          <svg class="platform-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
           <h3>Android</h3>
           <p>Google Play Store</p>
         </a>
