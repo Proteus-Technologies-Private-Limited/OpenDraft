@@ -1065,8 +1065,31 @@ body {
   text-transform: uppercase;
   font-weight: bold;
   margin-top: 12pt;
+  position: relative;
 }
 .scene-heading:first-child { margin-top: 0; }
+
+/* Scene numbers — shown on both sides of the heading when .show-scene-numbers is active */
+.show-scene-numbers .scene-heading[data-scene-number]::before,
+.show-scene-numbers .scene-heading[data-scene-number]::after {
+  content: attr(data-scene-number);
+  position: absolute;
+  top: 0;
+  font-weight: bold;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  text-transform: none;
+  pointer-events: none;
+}
+.show-scene-numbers .scene-heading[data-scene-number]::before {
+  right: calc(100% + 0.15in);
+  text-align: right;
+}
+.show-scene-numbers .scene-heading[data-scene-number]::after {
+  left: calc(100% + 0.15in);
+  text-align: left;
+}
 
 /* Action */
 .action { margin-top: 12pt; }
@@ -1260,7 +1283,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   position: relative;
 }
 
-/* Page number */
+/* Page number (legacy, kept for compatibility) */
 .page-sep-number {
   position: absolute;
   top: 0.25in;
@@ -1269,6 +1292,38 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   font-size: 12pt;
   color: #000;
   line-height: 1;
+}
+
+/* Header/Footer containers */
+.page-sep-header,
+.page-sep-footer {
+  position: absolute;
+  left: var(--page-margin-left, 1.5in);
+  right: var(--page-margin-right, 0.76in);
+  display: flex;
+  align-items: baseline;
+  font-family: var(--screenplay-font);
+  font-size: 12pt;
+  color: #000;
+  line-height: 1;
+}
+.page-sep-header {
+  top: 0.25in;
+}
+.page-sep-footer {
+  bottom: 0.1in;
+}
+.page-sep-hf-left {
+  flex: 1;
+  text-align: left;
+}
+.page-sep-hf-center {
+  flex: 1;
+  text-align: center;
+}
+.page-sep-hf-right {
+  flex: 1;
+  text-align: right;
 }
 
 /* (MORE) marker — positioned inside the bottom margin area of the page */
@@ -1545,6 +1600,43 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 }
 .page-setup-spacer {
   flex: 1;
+}
+/* Header/Footer content rows */
+.page-setup-hf-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fd-text);
+  margin-top: 8px;
+  margin-bottom: 2px;
+}
+.page-setup-hf-hint {
+  font-size: 10px;
+  color: var(--fd-text-muted);
+  margin-bottom: 6px;
+}
+.page-setup-hf-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.page-setup-hf-row input {
+  flex: 1;
+  height: 28px;
+  padding: 0 8px;
+  background: var(--fd-input-bg);
+  color: var(--fd-text);
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  min-width: 0;
+}
+.page-setup-hf-row input:focus {
+  border-color: var(--fd-accent);
+}
+.page-setup-hf-row input::placeholder {
+  color: var(--fd-text-muted);
+  opacity: 0.6;
 }
 
 /* ============ SCROLLBAR ============ */

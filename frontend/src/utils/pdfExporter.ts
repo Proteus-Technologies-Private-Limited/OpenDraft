@@ -2,7 +2,8 @@
 // All constants match pagination.ts and screenplay.css for exact visual parity
 import jsPDF from 'jspdf';
 import type { JSONContent } from '@tiptap/react';
-import type { PageLayout } from '../stores/editorStore';
+import { DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT } from '../stores/editorStore';
+import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
 
 // --- Constants matching pagination.ts ---
 
@@ -223,7 +224,32 @@ function renderLine(
 
 // --- Main export function ---
 
-export async function exportPDF(doc: JSONContent, title: string, layout: PageLayout): Promise<void> {
+export interface PDFExportOptions {
+  sceneNumbersVisible?: boolean;
+  /** Document title for header/footer {title} field */
+  documentTitle?: string;
+  /** Current revision color for {revision} field */
+  revisionColor?: string;
+}
+
+/** Resolve dynamic field placeholders in header/footer text */
+function resolveFields(
+  text: string,
+  pageNum: number,
+  totalPages: number,
+  title: string,
+  revisionColor: string,
+): string {
+  if (!text) return '';
+  return text
+    .replace(/\{page\}/gi, String(pageNum))
+    .replace(/\{pages\}/gi, String(totalPages))
+    .replace(/\{title\}/gi, title)
+    .replace(/\{date\}/gi, new Date().toLocaleDateString())
+    .replace(/\{revision\}/gi, revisionColor);
+}
+
+export async function exportPDF(doc: JSONContent, title: string, layout: PageLayout, options?: PDFExportOptions): Promise<void> {
   const { saveFile } = await import('./fileOps');
   const filename = `${sanitizeFilename(title)}.pdf`;
 
@@ -276,11 +302,6 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     pdf.addPage([pageWidthPt, pageHeightPt]);
     pageNumber++;
     currentY = topMarginPt;
-
-    // Page number in header margin (does NOT consume content space)
-    if (pageNumber >= 2) {
-      renderPageNumber(pdf, pageNumber, layout, charSpace);
-    }
   }
 
   // Process each node
@@ -449,6 +470,22 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
 
     // Render the element
     renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, charSpace);
+
+    // Render scene numbers on both sides if enabled
+    if (typeName === 'sceneHeading' && options?.sceneNumbersVisible && node.attrs?.sceneNumber) {
+      const sceneNum = String(node.attrs.sceneNumber);
+      const y = currentY + LINE_HEIGHT_PT; // baseline of first line
+      setFontStyle(pdf, true, false); // bold like scene heading
+      pdf.setFontSize(12);
+      // Left side: just inside left margin
+      const leftNumX = 1.0 * PTS_PER_INCH;
+      pdf.text(sceneNum, leftNumX, y, { charSpace });
+      // Right side: near right margin, right-aligned
+      const numWidth = sceneNum.length * FD_CHAR_WIDTH_PT;
+      const rightNumX = 7.75 * PTS_PER_INCH - numWidth;
+      pdf.text(sceneNum, rightNumX, y, { charSpace });
+    }
+
     currentY += elementHeightPt;
     isFirstElement = false;
 
@@ -475,10 +512,73 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     i++;
   }
 
+  // Final pass: render headers and footers on all pages (now that totalPages is known)
+  const totalPages = pageNumber;
+  const hContent = layout.headerContent || DEFAULT_HEADER_CONTENT;
+  const fContent = layout.footerContent || DEFAULT_FOOTER_CONTENT;
+  const hStart = layout.headerStartPage ?? 2;
+  const fStart = layout.footerStartPage ?? 1;
+  const docTitle = options?.documentTitle || title;
+  const revColor = options?.revisionColor || '';
+
+  for (let p = 1; p <= totalPages; p++) {
+    pdf.setPage(p);
+    // Header
+    if (p >= hStart && (hContent.left || hContent.center || hContent.right)) {
+      const headerY = layout.headerMargin + 12;
+      renderHFLine(pdf, hContent, p, totalPages, docTitle, revColor, headerY, layout, charSpace);
+    }
+    // Footer
+    if (p >= fStart && (fContent.left || fContent.center || fContent.right)) {
+      const footerY = pageHeightPt - layout.footerMargin;
+      renderHFLine(pdf, fContent, p, totalPages, docTitle, revColor, footerY, layout, charSpace);
+    }
+  }
+
   await saveFile(new Uint8Array(pdf.output('arraybuffer')), filename, [{ name: 'PDF', extensions: ['pdf'] }]);
 }
 
 // --- Render helpers ---
+
+/** Render a three-part header or footer line (left, center, right) */
+function renderHFLine(
+  pdf: jsPDF,
+  content: HeaderFooterContent,
+  pageNum: number,
+  totalPages: number,
+  title: string,
+  revisionColor: string,
+  y: number,
+  layout: PageLayout,
+  charSpace: number,
+): void {
+  const leftMarginPt = layout.leftMargin * PTS_PER_INCH;
+  const rightMarginPt = (layout.pageWidth - layout.rightMargin) * PTS_PER_INCH;
+  const centerPt = (leftMarginPt + rightMarginPt) / 2;
+
+  setFontStyle(pdf, false, false);
+  pdf.setFontSize(12);
+
+  // Left
+  const leftText = resolveFields(content.left, pageNum, totalPages, title, revisionColor);
+  if (leftText) {
+    pdf.text(leftText, leftMarginPt, y, { charSpace });
+  }
+
+  // Center
+  const centerText = resolveFields(content.center, pageNum, totalPages, title, revisionColor);
+  if (centerText) {
+    const cWidth = centerText.length * FD_CHAR_WIDTH_PT;
+    pdf.text(centerText, centerPt - cWidth / 2, y, { charSpace });
+  }
+
+  // Right
+  const rightText = resolveFields(content.right, pageNum, totalPages, title, revisionColor);
+  if (rightText) {
+    const rWidth = rightText.length * FD_CHAR_WIDTH_PT;
+    pdf.text(rightText, rightMarginPt - rWidth, y, { charSpace });
+  }
+}
 
 function renderPageNumber(pdf: jsPDF, pageNum: number, layout: PageLayout, charSpace: number): void {
   const headerY = layout.headerMargin + 12; // header margin from top + font baseline
@@ -529,6 +629,6 @@ function sanitizeFilename(name: string): string {
 }
 
 // Convenience download function matching the pattern of other exporters
-export async function downloadPDF(doc: JSONContent, title: string, layout: PageLayout): Promise<void> {
-  await exportPDF(doc, title, layout);
+export async function downloadPDF(doc: JSONContent, title: string, layout: PageLayout, options?: PDFExportOptions): Promise<void> {
+  await exportPDF(doc, title, layout, options);
 }
