@@ -13,25 +13,37 @@
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png">
   <style>
     :root {
-      --color-bg: #0a0a0f;
-      --color-surface: #12121a;
-      --color-surface-2: #1a1a26;
-      --color-border: #2a2a3a;
-      --color-text: #e8e8ef;
-      --color-text-secondary: #9090a8;
-      --color-accent: #6366f1;
-      --color-accent-light: #818cf8;
-      --color-accent-glow: rgba(99, 102, 241, 0.15);
-      --color-green: #22c55e;
-      --color-amber: #f59e0b;
+      /* Deep blue/teal base — from the logo background */
+      --color-bg: #0b1628;
+      --color-surface: #0f1d35;
+      --color-surface-2: #142642;
+      --color-surface-3: #1a3052;
+      --color-border: rgba(100, 180, 255, 0.12);
+      --color-border-hover: rgba(100, 180, 255, 0.3);
+
+      /* Text */
+      --color-text: #e4edf8;
+      --color-text-secondary: #8da4c2;
+
+      /* Orange/amber accent — from the logo birds and pen feathers */
+      --color-accent: #e88a3a;
+      --color-accent-light: #f0a254;
+      --color-accent-glow: rgba(232, 138, 58, 0.15);
+
+      /* Teal secondary accent — from the logo swirls */
+      --color-teal: #3ab8c4;
+      --color-teal-glow: rgba(58, 184, 196, 0.12);
+
+      /* Utility */
+      --color-green: #4ade80;
+
       --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       --font-mono: 'Courier Prime', 'Courier New', monospace;
       --max-width: 1200px;
-      --radius: 12px;
+      --radius: 14px;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     html { scroll-behavior: smooth; }
 
     body {
@@ -48,8 +60,8 @@
       top: 0;
       width: 100%;
       z-index: 100;
-      background: rgba(10, 10, 15, 0.85);
-      backdrop-filter: blur(20px);
+      background: rgba(11, 22, 40, 0.88);
+      backdrop-filter: blur(24px);
       border-bottom: 1px solid var(--color-border);
     }
     .nav-inner {
@@ -70,7 +82,7 @@
       font-weight: 700;
       font-size: 18px;
     }
-    .nav-brand img { width: 32px; height: 32px; border-radius: 8px; }
+    .nav-brand img { width: 34px; height: 34px; border-radius: 9px; }
     .nav-links { display: flex; align-items: center; gap: 32px; }
     .nav-links a {
       color: var(--color-text-secondary);
@@ -86,7 +98,7 @@
       padding: 8px 20px;
       border-radius: 8px;
       font-weight: 600 !important;
-      transition: background 0.2s, transform 0.1s !important;
+      transition: background 0.2s, transform 0.15s !important;
     }
     .nav-cta:hover { background: var(--color-accent-light) !important; transform: translateY(-1px); }
     .nav-menu-btn {
@@ -100,33 +112,44 @@
 
     /* ── HERO ── */
     .hero {
-      padding: 160px 24px 100px;
+      padding: 150px 24px 100px;
       text-align: center;
       position: relative;
       overflow: hidden;
     }
+    /* Ambient glow — warm orange top-left, teal bottom-right like the logo */
     .hero::before {
       content: '';
       position: absolute;
-      top: -200px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 800px;
-      height: 800px;
-      background: radial-gradient(circle, var(--color-accent-glow) 0%, transparent 70%);
+      top: -300px;
+      left: -100px;
+      width: 900px;
+      height: 900px;
+      background: radial-gradient(circle, rgba(232, 138, 58, 0.10) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: -200px;
+      right: -100px;
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(58, 184, 196, 0.08) 0%, transparent 65%);
       pointer-events: none;
     }
     .hero-badge {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 16px;
+      padding: 6px 18px;
       background: var(--color-surface-2);
       border: 1px solid var(--color-border);
       border-radius: 100px;
       font-size: 13px;
       color: var(--color-text-secondary);
       margin-bottom: 32px;
+      position: relative;
     }
     .hero-badge .dot {
       width: 8px;
@@ -142,13 +165,13 @@
     .hero h1 {
       font-size: clamp(40px, 6vw, 72px);
       font-weight: 800;
-      line-height: 1.1;
+      line-height: 1.08;
       letter-spacing: -0.03em;
       margin-bottom: 24px;
       position: relative;
     }
     .hero h1 .gradient {
-      background: linear-gradient(135deg, var(--color-accent-light), #a78bfa, #f472b6);
+      background: linear-gradient(135deg, var(--color-accent) 0%, #f0a254 40%, var(--color-teal) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -165,7 +188,7 @@
       gap: 16px;
       justify-content: center;
       flex-wrap: wrap;
-      margin-bottom: 64px;
+      margin-bottom: 72px;
     }
     .btn {
       display: inline-flex;
@@ -181,14 +204,14 @@
       border: none;
     }
     .btn-primary {
-      background: var(--color-accent);
+      background: linear-gradient(135deg, var(--color-accent), #d47520);
       color: #fff;
-      box-shadow: 0 0 24px var(--color-accent-glow), 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow: 0 0 30px var(--color-accent-glow), 0 4px 16px rgba(0,0,0,0.3);
     }
     .btn-primary:hover {
-      background: var(--color-accent-light);
+      background: linear-gradient(135deg, var(--color-accent-light), var(--color-accent));
       transform: translateY(-2px);
-      box-shadow: 0 0 32px rgba(99,102,241,0.25), 0 8px 24px rgba(0,0,0,0.3);
+      box-shadow: 0 0 40px rgba(232,138,58,0.25), 0 8px 24px rgba(0,0,0,0.3);
     }
     .btn-secondary {
       background: var(--color-surface-2);
@@ -196,8 +219,8 @@
       border: 1px solid var(--color-border);
     }
     .btn-secondary:hover {
-      background: var(--color-surface);
-      border-color: var(--color-accent);
+      background: var(--color-surface-3);
+      border-color: var(--color-border-hover);
       transform: translateY(-2px);
     }
     .hero-image {
@@ -206,7 +229,10 @@
       border-radius: 16px;
       overflow: hidden;
       border: 1px solid var(--color-border);
-      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.05);
+      box-shadow:
+        0 24px 80px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(100, 180, 255, 0.06),
+        0 0 60px rgba(58, 184, 196, 0.06);
     }
     .hero-image img { width: 100%; display: block; }
 
@@ -221,7 +247,7 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.1em;
-      color: var(--color-accent-light);
+      color: var(--color-accent);
       margin-bottom: 12px;
     }
     .section-title {
@@ -239,7 +265,19 @@
     }
 
     /* ── FEATURES ── */
-    .features { background: var(--color-surface); }
+    .features {
+      background: var(--color-surface);
+      position: relative;
+    }
+    .features::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(232,138,58,0.2), rgba(58,184,196,0.2), transparent);
+    }
     .features-header { text-align: center; margin-bottom: 72px; }
     .features-header .section-desc { margin: 0 auto; }
     .features-grid {
@@ -252,16 +290,18 @@
       border: 1px solid var(--color-border);
       border-radius: var(--radius);
       padding: 32px;
-      transition: border-color 0.3s, transform 0.2s;
+      transition: border-color 0.3s, transform 0.2s, box-shadow 0.3s;
     }
     .feature-card:hover {
-      border-color: var(--color-accent);
+      border-color: var(--color-border-hover);
       transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.2);
     }
     .feature-icon {
       width: 48px;
       height: 48px;
-      background: var(--color-accent-glow);
+      background: linear-gradient(135deg, var(--color-accent-glow), var(--color-teal-glow));
+      border: 1px solid var(--color-border);
       border-radius: 12px;
       display: flex;
       align-items: center;
@@ -277,14 +317,14 @@
     .feature-card p {
       font-size: 14px;
       color: var(--color-text-secondary);
-      line-height: 1.6;
+      line-height: 1.65;
     }
 
     /* ── SHOWCASE (screenshots) ── */
     .showcase-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 40px;
+      gap: 48px;
       align-items: center;
       margin-top: 80px;
     }
@@ -305,12 +345,24 @@
       border-radius: var(--radius);
       overflow: hidden;
       border: 1px solid var(--color-border);
-      box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.35), 0 0 40px rgba(58,184,196,0.04);
     }
     .showcase-img img { width: 100%; display: block; }
 
     /* ── COMPARISON ── */
-    .comparison { background: var(--color-surface); }
+    .comparison {
+      background: var(--color-surface);
+      position: relative;
+    }
+    .comparison::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(58,184,196,0.2), rgba(232,138,58,0.2), transparent);
+    }
     .comparison-header { text-align: center; margin-bottom: 56px; }
     .comparison-header .section-desc { margin: 0 auto; }
     .comparison-table {
@@ -329,9 +381,9 @@
       border-bottom: 1px solid var(--color-border);
     }
     .comparison-table th {
-      background: var(--color-bg);
+      background: rgba(0,0,0,0.2);
       font-weight: 700;
-      font-size: 14px;
+      font-size: 13px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--color-text-secondary);
@@ -342,11 +394,12 @@
       font-weight: 600;
     }
     .comparison-table th.highlight {
-      color: var(--color-accent-light);
+      color: var(--color-accent);
     }
     .comparison-table tr:last-child td { border-bottom: none; }
+    .comparison-table tr:hover td { background: rgba(100, 180, 255, 0.03); }
     .check { color: var(--color-green); font-size: 18px; }
-    .cross { color: #666; font-size: 18px; }
+    .cross { color: #556; font-size: 18px; }
 
     /* ── DOWNLOAD ── */
     .download-header { text-align: center; margin-bottom: 56px; }
@@ -364,13 +417,14 @@
       border-radius: var(--radius);
       padding: 32px 24px;
       text-align: center;
-      transition: border-color 0.3s, transform 0.2s;
+      transition: border-color 0.3s, transform 0.2s, box-shadow 0.3s;
       text-decoration: none;
       color: var(--color-text);
     }
     .download-card:hover {
       border-color: var(--color-accent);
       transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.2), 0 0 20px var(--color-accent-glow);
     }
     .download-card .platform-icon {
       font-size: 36px;
@@ -386,25 +440,39 @@
       background: var(--color-surface);
     }
     .oss-inner {
-      max-width: 700px;
+      max-width: 720px;
       margin: 0 auto;
-      padding: 72px 24px;
+      padding: 72px 40px;
       border: 1px solid var(--color-border);
       border-radius: 20px;
-      background: linear-gradient(135deg, var(--color-surface-2), var(--color-bg));
+      background: linear-gradient(145deg, var(--color-surface-2), var(--color-bg));
+      position: relative;
+      overflow: hidden;
+    }
+    .oss-inner::before {
+      content: '';
+      position: absolute;
+      top: -80px;
+      right: -80px;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, var(--color-accent-glow) 0%, transparent 70%);
+      pointer-events: none;
     }
     .oss-inner h2 {
       font-size: 32px;
       font-weight: 800;
       margin-bottom: 12px;
+      position: relative;
     }
     .oss-inner p {
       color: var(--color-text-secondary);
       font-size: 16px;
       margin-bottom: 32px;
       line-height: 1.7;
+      position: relative;
     }
-    .oss-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .oss-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; position: relative; }
 
     /* ── FOOTER ── */
     footer {
@@ -417,7 +485,7 @@
       color: var(--color-text-secondary);
     }
     footer a {
-      color: var(--color-accent-light);
+      color: var(--color-teal);
       text-decoration: none;
     }
     footer a:hover { text-decoration: underline; }
@@ -448,37 +516,7 @@
       .comparison-table { font-size: 12px; }
       .comparison-table th, .comparison-table td { padding: 10px 8px; }
       section { padding: 80px 20px; }
-    }
-
-    /* ── SCREENPLAY QUOTE ── */
-    .screenplay-quote {
-      font-family: var(--font-mono);
-      background: var(--color-surface-2);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius);
-      padding: 32px 40px;
-      max-width: 500px;
-      margin: 0 auto;
-      text-align: left;
-      font-size: 13px;
-      line-height: 2;
-      color: var(--color-text-secondary);
-    }
-    .screenplay-quote .scene {
-      text-transform: uppercase;
-      font-weight: 700;
-      color: var(--color-text);
-    }
-    .screenplay-quote .character {
-      text-align: center;
-      text-transform: uppercase;
-      font-weight: 700;
-      color: var(--color-text);
-    }
-    .screenplay-quote .dialogue {
-      text-align: center;
-      max-width: 280px;
-      margin: 0 auto;
+      .oss-inner { padding: 48px 24px; }
     }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -687,7 +725,7 @@
         </a>
       </div>
       <p style="text-align:center; margin-top:24px; color:var(--color-text-secondary); font-size:14px;">
-        All versions available on the <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" style="color:var(--color-accent-light); text-decoration:none;">Releases page</a>
+        All versions available on the <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" style="color:var(--color-teal); text-decoration:none;">Releases page</a>
       </p>
     </div>
   </section>
