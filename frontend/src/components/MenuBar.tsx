@@ -831,14 +831,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.11.0</div>
+              <div className="about-section-title">What's New in 0.12.0</div>
               <ul className="about-list">
-                <li><strong>Per-Document Templates</strong> — Templates are now per-document instead of global. System Standard (read-only) and User Defined categories with full CRUD management.</li>
-                <li><strong>Formatting Enforcement</strong> — Lock formatting per element with allowFormatOverride. Template-defined fonts and sizes enforced across toolbar, shortcuts, context menu, and format panel.</li>
-                <li><strong>Template Conflict Resolution</strong> — Detects and resolves conflicts when applying templates — disabled elements and formatting violations are flagged automatically.</li>
-                <li><strong>Dual Dialogue</strong> — Two-column side-by-side dialogue layout. Toggle with Cmd+D, Format menu, or right-click. Full Fountain (^ caret) and FDX import/export support.</li>
-                <li><strong>Format Menu Overhaul</strong> — Restructured Format menu with Element, Style, and Alignment submenus. Disabled template elements now synced across all menus and the element picker.</li>
-                <li><strong>Bug Fixes</strong> — Fixed context menu submenu hover disappearing and save-then-new-document flow.</li>
+                <li><strong>Spell Check Improvements</strong> — Fixed spell check across web and mobile platforms. Per-document ignore list persistence so your ignored words are remembered per screenplay.</li>
+                <li><strong>Mobile & Responsive Support</strong> — Spell check modal now adapts to narrow screens. Improved responsive layout for mobile devices.</li>
+                <li><strong>Undo History Fix</strong> — Undo history now resets correctly when switching documents, preventing cross-document undo issues.</li>
+                <li><strong>CI Build for All Platforms</strong> — macOS builds are now automated via GitHub Actions with full code signing and Apple notarization, alongside Windows, Linux, and Android.</li>
               </ul>
             </div>
           </div>

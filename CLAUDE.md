@@ -31,38 +31,35 @@ OpenDraft-Pro (private, proprietary)   ← imports this as git submodule at core
 
 ## macOS Desktop Build — Code Signing & Notarization
 
-The macOS `.dmg` is built **locally** — never via GitHub Actions. It must be properly signed and notarized or macOS Gatekeeper will reject it as "damaged".
+The macOS `.dmg` is built via **GitHub Actions** (in `.github/workflows/release.yml`), same as Windows, Linux, and Android. It is signed and notarized automatically when the correct GitHub secrets are configured.
 
-### Build command
+### GitHub Secrets for macOS
 
-```bash
-./build-desktop.sh
-```
+| Secret | Description |
+|--------|-------------|
+| `APPLE_CERTIFICATE` | Base64-encoded `.p12` file containing the Developer ID Application certificate + private key |
+| `APPLE_CERTIFICATE_PASSWORD` | Password for the `.p12` file |
+| `APPLE_SIGNING_IDENTITY` | `Developer ID Application: Base Information Management Pvt. Ltd. (335RGMFDB6)` |
+| `APPLE_ID` | Apple ID email for notarization |
+| `APPLE_TEAM_ID` | `335RGMFDB6` |
+| `APPLE_PASSWORD` | App-specific password from appleid.apple.com |
 
-### What the build does
+### How to export the certificate as `.p12`
 
-1. Loads Apple credentials from `.env` in project root
-2. Builds frontend, backend sidecar, and Tauri app
-3. Signs with **Developer ID Application** certificate (not "3rd Party Mac Developer" — that's for App Store only)
-4. Submits to Apple for **notarization** via `notarytool`
-5. **Staples** the notarization ticket to the `.dmg`
+1. Open Keychain Access, find `Developer ID Application: Base Information Management Pvt. Ltd.`
+2. Right-click → Export Items → save as `.p12` with a password
+3. Base64-encode: `base64 -i certificate.p12 | pbcopy`
+4. Paste into the `APPLE_CERTIFICATE` GitHub secret
 
-### Requirements
+### Local build (optional)
 
-- **Developer ID Application** certificate in keychain: `Developer ID Application: Base Information Management Pvt. Ltd. (335RGMFDB6)`
-- **`.env` file** in project root with Apple credentials (gitignored):
-  ```
-  APPLE_ID=kandarp.baghar@proteustech.co
-  APPLE_TEAM_ID=335RGMFDB6
-  APPLE_PASSWORD=<app-specific-password from appleid.apple.com>
-  ```
+`./build-desktop.sh` can still build a signed `.dmg` locally if you have Apple credentials in `.env`.
 
 ### Common mistakes to avoid
 
 - **Never skip signing/notarization** — unsigned `.dmg` files trigger "damaged and can't be opened" on user machines
-- **Never use `APPLE_SIGNING_IDENTITY="-"` for the final build** — that produces an unsigned app. It's only used as an intermediate step before re-signing
-- **Sign deepest binaries first** — sidecar before main binary before app bundle
-- The App Store build (`build-appstore.sh`) uses different certificates ("3rd Party Mac Developer"). Don't mix them up.
+- Use **Developer ID Application** certificate for direct distribution (not "3rd Party Mac Developer" — that's for App Store only)
+- The App Store build (`build-appstore.sh`) uses different certificates. Don't mix them up.
 
 ## Promotion & Articles
 
@@ -74,8 +71,8 @@ Promotion materials (blog posts, articles, social media content) go in `Promotio
 
 See `docs/RELEASE.md` for the full checklist. Key points:
 - Use `./release.sh X.Y.Z` to automate the full release
-- macOS `.dmg` is built locally with signing + notarization, then uploaded to GitHub Release via `gh`
-- GitHub Actions builds Windows, Linux, **and Android** (APK + AAB)
+- GitHub Actions builds **all platforms**: macOS (.dmg), Windows (.exe/.msi), Linux (.deb/.AppImage), Android (.apk/.aab)
+- macOS builds are signed and notarized via Apple secrets in GitHub
 - Update "What's New" content in MenuBar.tsx and user-manual before releasing
 
 ---

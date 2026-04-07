@@ -6,7 +6,7 @@ Step-by-step guide for publishing a new OpenDraft release.
 
 ## Automated release (recommended)
 
-The `release.sh` script handles the entire process — version bumps, commit, local macOS build, tag push (triggers CI for Windows + Linux), and uploads the `.dmg` to the GitHub Release.
+The `release.sh` script handles the entire process — version bumps, commit, and tag push (triggers CI for all platforms: macOS, Windows, Linux, Android).
 
 ```bash
 ./release.sh 0.4.0
@@ -18,17 +18,24 @@ The `release.sh` script handles the entire process — version bumps, commit, lo
 1. Updates version in all source files (tauri.conf.json, Cargo.toml, main.py, MenuBar.tsx, README, workflow, user manual)
 2. Updates Cargo.lock
 3. Commits and pushes to main
-4. Builds macOS `.dmg` locally (uses Apple Developer certificates on your machine)
-5. Creates and pushes the git tag (triggers GitHub Actions for Windows + Linux builds)
-6. Waits for CI to create the GitHub Release
-7. Uploads the `.dmg` to the release via `gh release upload`
+4. Creates and pushes the git tag (triggers GitHub Actions for all platform builds)
 
 **Prerequisites:**
 - GitHub CLI (`gh`) installed and authenticated
-- Rust, Node.js, Python 3.12 in your environment
-- Apple Developer certificates configured for code signing
-- Windows code signing certificate configured in GitHub secrets (optional, see [WINDOWS_SIGNING.md](WINDOWS_SIGNING.md))
+- Node.js in your environment (for frontend build)
+- Apple signing secrets configured in GitHub (see below)
 - No uncommitted changes in the working tree
+
+**GitHub Secrets for macOS signing & notarization:**
+
+| Secret | Description |
+|--------|-------------|
+| `APPLE_CERTIFICATE` | Base64-encoded `.p12` file (`base64 -i certificate.p12 \| pbcopy`) |
+| `APPLE_CERTIFICATE_PASSWORD` | Password for the `.p12` file |
+| `APPLE_SIGNING_IDENTITY` | `Developer ID Application: Base Information Management Pvt. Ltd. (335RGMFDB6)` |
+| `APPLE_ID` | Apple ID email for notarization |
+| `APPLE_TEAM_ID` | `335RGMFDB6` |
+| `APPLE_PASSWORD` | App-specific password from appleid.apple.com |
 
 ---
 
@@ -83,22 +90,7 @@ git commit -m "Bump version to X.Y.Z"
 git push origin main
 ```
 
-### 6. Build macOS desktop app locally
-
-The macOS `.dmg` is built **locally** (not in GitHub Actions) because it requires Apple Developer certificates for signing and notarization.
-
-```bash
-./build-desktop.sh
-```
-
-The output `.dmg` will be in `src-tauri/target/release/bundle/dmg/`.
-
-Verify the build:
-- Open the `.dmg` and install the app
-- Launch it and confirm the About dialog shows the correct version
-- Test basic functionality (create project, write, save)
-
-### 7. Create the GitHub release
+### 6. Create the GitHub release
 
 Tag and push:
 
@@ -107,27 +99,15 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-This triggers the GitHub Actions workflow (`.github/workflows/release.yml`) which:
-- Builds **Windows** (.exe, .msi) and **Linux** (.deb, .AppImage) installers
-- Creates a GitHub Release with those assets attached
+This triggers the GitHub Actions workflow (`.github/workflows/release.yml`) which builds all platforms:
+- **macOS** (.dmg) — signed and notarized with Apple Developer certificate
+- **Windows** (.exe, .msi) — optionally signed
+- **Linux** (.deb, .AppImage)
+- **Android** (.apk, .aab)
 
-Wait for the workflow to complete successfully.
+Wait for the workflow to complete successfully. Verify all platform assets are present on the release.
 
-### 8. Upload macOS build to the release
-
-```bash
-gh release upload vX.Y.Z src-tauri/target/release/bundle/dmg/OpenDraft_X.Y.Z_aarch64.dmg \
-  --repo Proteus-Technologies-Private-Limited/OpenDraft
-```
-
-Verify all platform assets are present on the release:
-- `OpenDraft_X.Y.Z_aarch64.dmg` (macOS — manually uploaded)
-- `OpenDraft_X.Y.Z_x64-setup.exe` (Windows)
-- `OpenDraft_X.Y.Z_x64_en-US.msi` (Windows)
-- `OpenDraft_X.Y.Z_amd64.deb` (Linux)
-- `OpenDraft_X.Y.Z_amd64.AppImage` (Linux)
-
-### 9. Post-release verification
+### 7. Post-release verification
 
 - [ ] Download link from README works for each platform
 - [ ] User manual "Download" header link goes to the release page
