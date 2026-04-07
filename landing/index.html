@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenDraft — Free Screenwriting Software</title>
+  <meta name="description" content="Free, open-source screenwriting software. A modern alternative to Final Draft with real-time collaboration, beat boards, and version control. No subscription. No tracking.">
+  <meta name="keywords" content="screenwriting software, screenplay editor, final draft alternative, free screenwriting, open source screenwriting">
+  <meta property="og:title" content="OpenDraft — Free Screenwriting Software">
+  <meta property="og:description" content="Professional screenplay formatting, real-time collaboration, beat boards, and version control. Free forever.">
+  <meta property="og:image" content="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/editor.png">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png">
+  <style>
+    :root {
+      --color-bg: #0a0a0f;
+      --color-surface: #12121a;
+      --color-surface-2: #1a1a26;
+      --color-border: #2a2a3a;
+      --color-text: #e8e8ef;
+      --color-text-secondary: #9090a8;
+      --color-accent: #6366f1;
+      --color-accent-light: #818cf8;
+      --color-accent-glow: rgba(99, 102, 241, 0.15);
+      --color-green: #22c55e;
+      --color-amber: #f59e0b;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'Courier Prime', 'Courier New', monospace;
+      --max-width: 1200px;
+      --radius: 12px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 100;
+      background: rgba(10, 10, 15, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .nav-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--color-text);
+      font-weight: 700;
+      font-size: 18px;
+    }
+    .nav-brand img { width: 32px; height: 32px; border-radius: 8px; }
+    .nav-links { display: flex; align-items: center; gap: 32px; }
+    .nav-links a {
+      color: var(--color-text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--color-text); }
+    .nav-cta {
+      background: var(--color-accent) !important;
+      color: #fff !important;
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-weight: 600 !important;
+      transition: background 0.2s, transform 0.1s !important;
+    }
+    .nav-cta:hover { background: var(--color-accent-light) !important; transform: translateY(-1px); }
+    .nav-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--color-text);
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 160px 24px 100px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, var(--color-accent-glow) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: 100px;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      margin-bottom: 32px;
+    }
+    .hero-badge .dot {
+      width: 8px;
+      height: 8px;
+      background: var(--color-green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .hero h1 {
+      font-size: clamp(40px, 6vw, 72px);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-bottom: 24px;
+      position: relative;
+    }
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, var(--color-accent-light), #a78bfa, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: clamp(16px, 2vw, 20px);
+      color: var(--color-text-secondary);
+      max-width: 600px;
+      margin: 0 auto 48px;
+      line-height: 1.7;
+    }
+    .hero-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 64px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-primary {
+      background: var(--color-accent);
+      color: #fff;
+      box-shadow: 0 0 24px var(--color-accent-glow), 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .btn-primary:hover {
+      background: var(--color-accent-light);
+      transform: translateY(-2px);
+      box-shadow: 0 0 32px rgba(99,102,241,0.25), 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .btn-secondary {
+      background: var(--color-surface-2);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+    }
+    .btn-secondary:hover {
+      background: var(--color-surface);
+      border-color: var(--color-accent);
+      transform: translateY(-2px);
+    }
+    .hero-image {
+      max-width: 1000px;
+      margin: 0 auto;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.05);
+    }
+    .hero-image img { width: 100%; display: block; }
+
+    /* ── SECTION SHARED ── */
+    section { padding: 120px 24px; }
+    .section-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+    }
+    .section-label {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-accent-light);
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+    .section-desc {
+      font-size: 18px;
+      color: var(--color-text-secondary);
+      max-width: 600px;
+      line-height: 1.7;
+    }
+
+    /* ── FEATURES ── */
+    .features { background: var(--color-surface); }
+    .features-header { text-align: center; margin-bottom: 72px; }
+    .features-header .section-desc { margin: 0 auto; }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .feature-card {
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 32px;
+      transition: border-color 0.3s, transform 0.2s;
+    }
+    .feature-card:hover {
+      border-color: var(--color-accent);
+      transform: translateY(-4px);
+    }
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--color-accent-glow);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 20px;
+    }
+    .feature-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ── SHOWCASE (screenshots) ── */
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: center;
+      margin-top: 80px;
+    }
+    .showcase-grid.reverse { direction: rtl; }
+    .showcase-grid.reverse > * { direction: ltr; }
+    .showcase-text { padding: 20px 0; }
+    .showcase-text h3 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .showcase-text p {
+      color: var(--color-text-secondary);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+    .showcase-img {
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+    }
+    .showcase-img img { width: 100%; display: block; }
+
+    /* ── COMPARISON ── */
+    .comparison { background: var(--color-surface); }
+    .comparison-header { text-align: center; margin-bottom: 56px; }
+    .comparison-header .section-desc { margin: 0 auto; }
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--color-surface-2);
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+    }
+    .comparison-table th,
+    .comparison-table td {
+      padding: 16px 20px;
+      text-align: center;
+      font-size: 14px;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .comparison-table th {
+      background: var(--color-bg);
+      font-weight: 700;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--color-text-secondary);
+    }
+    .comparison-table th:first-child,
+    .comparison-table td:first-child {
+      text-align: left;
+      font-weight: 600;
+    }
+    .comparison-table th.highlight {
+      color: var(--color-accent-light);
+    }
+    .comparison-table tr:last-child td { border-bottom: none; }
+    .check { color: var(--color-green); font-size: 18px; }
+    .cross { color: #666; font-size: 18px; }
+
+    /* ── DOWNLOAD ── */
+    .download-header { text-align: center; margin-bottom: 56px; }
+    .download-header .section-desc { margin: 0 auto; }
+    .download-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .download-card {
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 32px 24px;
+      text-align: center;
+      transition: border-color 0.3s, transform 0.2s;
+      text-decoration: none;
+      color: var(--color-text);
+    }
+    .download-card:hover {
+      border-color: var(--color-accent);
+      transform: translateY(-4px);
+    }
+    .download-card .platform-icon {
+      font-size: 36px;
+      margin-bottom: 16px;
+      display: block;
+    }
+    .download-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .download-card p { font-size: 12px; color: var(--color-text-secondary); }
+
+    /* ── OPEN SOURCE BANNER ── */
+    .oss-banner {
+      text-align: center;
+      background: var(--color-surface);
+    }
+    .oss-inner {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 72px 24px;
+      border: 1px solid var(--color-border);
+      border-radius: 20px;
+      background: linear-gradient(135deg, var(--color-surface-2), var(--color-bg));
+    }
+    .oss-inner h2 {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+    .oss-inner p {
+      color: var(--color-text-secondary);
+      font-size: 16px;
+      margin-bottom: 32px;
+      line-height: 1.7;
+    }
+    .oss-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 48px 24px;
+      border-top: 1px solid var(--color-border);
+      text-align: center;
+    }
+    footer p {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+    }
+    footer a {
+      color: var(--color-accent-light);
+      text-decoration: none;
+    }
+    footer a:hover { text-decoration: underline; }
+
+    /* ── MOBILE ── */
+    @media (max-width: 900px) {
+      .features-grid { grid-template-columns: 1fr 1fr; }
+      .showcase-grid, .showcase-grid.reverse { grid-template-columns: 1fr; direction: ltr; }
+      .download-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .nav-links.open {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 64px;
+        left: 0;
+        right: 0;
+        background: var(--color-bg);
+        border-bottom: 1px solid var(--color-border);
+        padding: 24px;
+        gap: 16px;
+      }
+      .nav-menu-btn { display: block; }
+      .features-grid { grid-template-columns: 1fr; }
+      .download-grid { grid-template-columns: 1fr; }
+      .comparison-table { font-size: 12px; }
+      .comparison-table th, .comparison-table td { padding: 10px 8px; }
+      section { padding: 80px 20px; }
+    }
+
+    /* ── SCREENPLAY QUOTE ── */
+    .screenplay-quote {
+      font-family: var(--font-mono);
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 32px 40px;
+      max-width: 500px;
+      margin: 0 auto;
+      text-align: left;
+      font-size: 13px;
+      line-height: 2;
+      color: var(--color-text-secondary);
+    }
+    .screenplay-quote .scene {
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+    .screenplay-quote .character {
+      text-align: center;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+    .screenplay-quote .dialogue {
+      text-align: center;
+      max-width: 280px;
+      margin: 0 auto;
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Courier+Prime&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-inner">
+      <a href="#" class="nav-brand">
+        <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png" alt="OpenDraft">
+        OpenDraft
+      </a>
+      <button class="nav-menu-btn" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="#comparison">Compare</a>
+        <a href="#download">Download</a>
+        <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" class="nav-cta">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Open Source &middot; MIT License &middot; Free Forever
+    </div>
+    <h1>Write screenplays<br><span class="gradient">without the price tag</span></h1>
+    <p>Professional screenplay formatting, real-time collaboration, beat boards, and version control. No subscription. No cloud lock-in. No tracking.</p>
+    <div class="hero-buttons">
+      <a href="#download" class="btn btn-primary">Download Free</a>
+      <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" class="btn btn-secondary">View Source</a>
+    </div>
+    <div class="hero-image">
+      <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/editor.png" alt="OpenDraft Screenplay Editor" loading="eager">
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <div class="section-inner">
+      <div class="features-header">
+        <div class="section-label">Features</div>
+        <h2 class="section-title">Everything you need to write</h2>
+        <p class="section-desc">All the tools professional screenwriters expect, built into one free application.</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">&#9998;</div>
+          <h3>Industry-Standard Editor</h3>
+          <p>Scene headings, action, character, dialogue, parenthetical, transitions, and shots with proper screenplay formatting.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#127916;</div>
+          <h3>Beat Board & Index Cards</h3>
+          <p>Visual story planning with drag-and-drop scene organization. Structure your story before you write.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128101;</div>
+          <h3>Real-Time Collaboration</h3>
+          <p>Write together with live cursors, presence indicators, and granular permissions. Invite co-writers with a link.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128196;</div>
+          <h3>Version History</h3>
+          <p>Built-in version control with check-in, side-by-side diff, and instant restore of any previous draft.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128100;</div>
+          <h3>Character Profiles</h3>
+          <p>Track characters with descriptions, role types, images, and color-coded highlighting throughout your script.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128194;</div>
+          <h3>Project Management</h3>
+          <p>Organize multiple screenplays with metadata, attached assets, reference documents, and research notes.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128269;</div>
+          <h3>Search & Replace</h3>
+          <p>Find and replace across your entire screenplay. Jump between scenes instantly with the scene navigator.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128230;</div>
+          <h3>Import & Export</h3>
+          <p>Work with standard formats including PDF, Final Draft FDX, and Fountain. Your scripts are never locked in.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128274;</div>
+          <h3>Privacy-First</h3>
+          <p>Zero tracking, zero analytics, zero data collection. Works 100% offline. Your scripts stay on your machine.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREENSHOTS -->
+  <section id="screenshots">
+    <div class="section-inner">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div class="section-label">In Action</div>
+        <h2 class="section-title">See it for yourself</h2>
+      </div>
+
+      <div class="showcase-grid">
+        <div class="showcase-text">
+          <h3>Visual Story Planning</h3>
+          <p>Organize your narrative with the Beat Board. Drag and drop scenes, color-code story beats, and see the big picture before you write a single line of dialogue.</p>
+        </div>
+        <div class="showcase-img">
+          <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/beatboard.png" alt="Beat Board" loading="lazy">
+        </div>
+      </div>
+
+      <div class="showcase-grid reverse">
+        <div class="showcase-text">
+          <h3>Write Together, Live</h3>
+          <p>Invite co-writers with a single link. See their cursors in real-time, choose edit or view-only permissions, and collaborate seamlessly across any distance.</p>
+        </div>
+        <div class="showcase-img">
+          <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/collaboration_1.png" alt="Real-time Collaboration" loading="lazy">
+        </div>
+      </div>
+
+      <div class="showcase-grid">
+        <div class="showcase-text">
+          <h3>Never Lose a Draft</h3>
+          <p>Check in versions as you write. Compare any two drafts side by side, see exactly what changed, and restore previous versions instantly.</p>
+        </div>
+        <div class="showcase-img">
+          <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/version_history.png" alt="Version History" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPARISON -->
+  <section class="comparison" id="comparison">
+    <div class="section-inner">
+      <div class="comparison-header">
+        <div class="section-label">Compare</div>
+        <h2 class="section-title">How OpenDraft stacks up</h2>
+        <p class="section-desc">Everything the paid tools offer, without the price tag.</p>
+      </div>
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th class="highlight">OpenDraft</th>
+            <th>Final Draft</th>
+            <th>WriterDuet</th>
+            <th>Fade In</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Price</td><td><strong style="color:var(--color-green)">Free</strong></td><td>$250</td><td>$12/mo</td><td>$80</td></tr>
+          <tr><td>Open Source</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td></tr>
+          <tr><td>Offline Desktop App</td><td><span class="check">&#10003;</span></td><td><span class="check">&#10003;</span></td><td><span class="cross">limited</span></td><td><span class="check">&#10003;</span></td></tr>
+          <tr><td>Real-Time Collaboration</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td></tr>
+          <tr><td>Beat Board / Index Cards</td><td><span class="check">&#10003;</span></td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td></tr>
+          <tr><td>Version History with Diff</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td></tr>
+          <tr><td>Self-Hostable</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td></tr>
+          <tr><td>Linux Support</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td>browser</td><td><span class="check">&#10003;</span></td></tr>
+          <tr><td>Android App</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td></tr>
+          <tr><td>No Account Required</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td></tr>
+          <tr><td>No Tracking</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td></tr>
+          <tr><td>Plugin Architecture</td><td><span class="check">&#10003;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td><td><span class="cross">&#10005;</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- DOWNLOAD -->
+  <section id="download">
+    <div class="section-inner">
+      <div class="download-header">
+        <div class="section-label">Download</div>
+        <h2 class="section-title">Get OpenDraft</h2>
+        <p class="section-desc">Available on every major platform. Free, no account needed.</p>
+      </div>
+      <div class="download-grid">
+        <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.12.0_aarch64.dmg" class="download-card">
+          <span class="platform-icon">&#63743;</span>
+          <h3>macOS</h3>
+          <p>Apple Silicon .dmg</p>
+        </a>
+        <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.12.0_x64-setup.exe" class="download-card">
+          <span class="platform-icon">&#128187;</span>
+          <h3>Windows</h3>
+          <p>64-bit installer</p>
+        </a>
+        <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.12.0_amd64.deb" class="download-card">
+          <span class="platform-icon">&#128039;</span>
+          <h3>Linux</h3>
+          <p>.deb / .AppImage / .rpm</p>
+        </a>
+        <a href="https://play.google.com/store/apps/details?id=com.proteus.opendraft" class="download-card">
+          <span class="platform-icon">&#9654;</span>
+          <h3>Android</h3>
+          <p>Google Play Store</p>
+        </a>
+      </div>
+      <p style="text-align:center; margin-top:24px; color:var(--color-text-secondary); font-size:14px;">
+        All versions available on the <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" style="color:var(--color-accent-light); text-decoration:none;">Releases page</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- OPEN SOURCE BANNER -->
+  <section class="oss-banner">
+    <div class="section-inner">
+      <div class="oss-inner">
+        <h2>Open Source, Open Future</h2>
+        <p>OpenDraft is MIT licensed. Fork it, extend it, build on it. Your screenwriting tool should belong to you, not a corporation.</p>
+        <div class="oss-buttons">
+          <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" class="btn btn-primary">Star on GitHub</a>
+          <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions" class="btn btn-secondary">Join the Community</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>Made by <a href="https://github.com/Proteus-Technologies-Private-Limited">Proteus Technologies</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/LICENSE">MIT License</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft">GitHub</a></p>
+  </footer>
+
+</body>
+</html>
