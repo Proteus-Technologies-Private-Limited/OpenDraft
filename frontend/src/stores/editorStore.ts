@@ -62,6 +62,27 @@ export const ELEMENT_LABELS: Record<ElementType, string> = {
   titlePage: 'Title Page',
 };
 
+/** Header/footer content for left, center, right positions.
+ *  Dynamic fields: {page} = page number, {pages} = total pages,
+ *  {title} = document title, {date} = current date, {revision} = revision color. */
+export interface HeaderFooterContent {
+  left: string;
+  center: string;
+  right: string;
+}
+
+export const DEFAULT_HEADER_CONTENT: HeaderFooterContent = {
+  left: '',
+  center: '',
+  right: '{page}.',
+};
+
+export const DEFAULT_FOOTER_CONTENT: HeaderFooterContent = {
+  left: '',
+  center: '',
+  right: '',
+};
+
 export interface PageLayout {
   pageWidth: number;     // inches
   pageHeight: number;    // inches
@@ -71,6 +92,11 @@ export interface PageLayout {
   footerMargin: number;  // points
   leftMargin: number;    // inches (from page edge to content start)
   rightMargin: number;   // inches (from content end to page edge)
+  headerContent: HeaderFooterContent;
+  footerContent: HeaderFooterContent;
+  /** Show header/footer starting from this page number (default 2 = skip first page) */
+  headerStartPage: number;
+  footerStartPage: number;
 }
 
 export const DEFAULT_PAGE_LAYOUT: PageLayout = {
@@ -82,6 +108,10 @@ export const DEFAULT_PAGE_LAYOUT: PageLayout = {
   footerMargin: 36,
   leftMargin: 1.50,       // Final Draft default LeftIndent for Action
   rightMargin: 0.76,      // 8.26 - 7.50 (default RightIndent)
+  headerContent: { ...DEFAULT_HEADER_CONTENT },
+  footerContent: { ...DEFAULT_FOOTER_CONTENT },
+  headerStartPage: 2,
+  footerStartPage: 1,
 };
 
 export interface SceneInfo {
@@ -308,6 +338,12 @@ interface EditorState {
   _beatRedoStack: { beats: BeatInfo[]; beatColumns: BeatColumn[] }[];
   _beatSnapshotTime: number;
   _beatIsUndoing: boolean;
+
+  // Scene numbering
+  sceneNumbersVisible: boolean;
+  setSceneNumbersVisible: (v: boolean) => void;
+  sceneNumbersLocked: boolean;
+  setSceneNumbersLocked: (v: boolean) => void;
 
   // Revision
   revisionMode: boolean;
@@ -620,6 +656,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     _pushBeatSnapshot(get, true);
     set((s) => ({ beats: s.beats.filter((b) => b.id !== id) }));
   },
+
+  // Scene numbering
+  sceneNumbersVisible: false,
+  setSceneNumbersVisible: (v) => set({ sceneNumbersVisible: v }),
+  sceneNumbersLocked: false,
+  setSceneNumbersLocked: (v) => set({ sceneNumbersLocked: v }),
 
   revisionMode: false,
   revisionColor: 'White',
