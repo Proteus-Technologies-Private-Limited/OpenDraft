@@ -205,11 +205,11 @@ jobs:
 
             | Platform | File |
             |----------|------|
-            | **macOS** (Apple Silicon) | `OpenDraft_0.11.0_aarch64.dmg` |
-            | **Windows** (64-bit) | `OpenDraft_0.11.0_x64-setup.exe` or `.msi` |
-            | **Linux** (Debian/Ubuntu) | `OpenDraft_0.11.0_amd64.deb` |
-            | **Linux** (AppImage) | `OpenDraft_0.11.0_amd64.AppImage` |
-            | **Android** (APK) | `OpenDraft_0.11.0_android.apk` |
+            | **macOS** (Apple Silicon) | `OpenDraft_0.12.0_aarch64.dmg` |
+            | **Windows** (64-bit) | `OpenDraft_0.12.0_x64-setup.exe` or `.msi` |
+            | **Linux** (Debian/Ubuntu) | `OpenDraft_0.12.0_amd64.deb` |
+            | **Linux** (AppImage) | `OpenDraft_0.12.0_amd64.AppImage` |
+            | **Android** (APK) | `OpenDraft_0.12.0_android.apk` |
 
             ### Installation
 
