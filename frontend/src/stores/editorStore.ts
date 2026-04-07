@@ -14,6 +14,7 @@ interface ViewState {
   tagsVisible?: boolean;
   notesActiveTab?: 'script' | 'general';
   zoomLevel?: number;
+  toolbarMode?: 'compact' | 'comfortable' | 'hidden';
 }
 function loadViewState(): ViewState {
   try {
@@ -405,6 +406,14 @@ interface EditorState {
   theme: 'dark' | 'light';
   setTheme: (t: 'dark' | 'light') => void;
 
+  // Toolbar display mode
+  toolbarMode: 'compact' | 'comfortable' | 'hidden';
+  setToolbarMode: (mode: 'compact' | 'comfortable' | 'hidden') => void;
+
+  // Navigator panel width (for floating menu positioning)
+  navPanelWidth: number;
+  setNavPanelWidth: (w: number) => void;
+
   // Spell check
   spellCheckEnabled: boolean;
   toggleSpellCheck: () => void;
@@ -783,6 +792,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     document.documentElement.setAttribute('data-theme', t);
     set({ theme: t });
   },
+
+  toolbarMode: (_vs.toolbarMode as 'compact' | 'comfortable' | 'hidden') ?? 'compact',
+  setToolbarMode: (mode) => { set({ toolbarMode: mode }); saveViewState({ toolbarMode: mode }); },
+
+  navPanelWidth: 0,
+  setNavPanelWidth: (w) => set({ navPanelWidth: w }),
 
   spellCheckEnabled: false,
   toggleSpellCheck: () => set((s) => ({ spellCheckEnabled: !s.spellCheckEnabled })),
