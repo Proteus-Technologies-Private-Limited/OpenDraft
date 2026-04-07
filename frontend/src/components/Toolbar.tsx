@@ -21,6 +21,7 @@ import {
   FaPaintBrush,
   FaHighlighter,
   FaEllipsisV,
+  FaHashtag,
 } from 'react-icons/fa';
 import { useEditorStore, NOTE_COLORS } from '../stores/editorStore';
 import type { ElementType } from '../stores/editorStore';
@@ -73,6 +74,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     toggleTagsPanel,
     setPendingTagSelection,
     setEditingTagId,
+    toolbarMode,
   } = useEditorStore();
 
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
@@ -651,11 +653,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <FaSearch />
       </button>
       <button
-        className="toolbar-btn toolbar-btn-text"
+        className="toolbar-btn"
         title="Go to Page (⌘G)"
         onClick={() => { setGoToPageOpen(true); if (inOverflow) setOverflowOpen(false); }}
       >
-        Go to
+        <FaHashtag />
       </button>
     </div>
   ), [setSearchOpen, setGoToPageOpen]);
@@ -739,8 +741,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     return items;
   }, [hiddenPriorities, isHidden, renderZoomMin, renderZoom, renderSearchGoto, renderAlignment, renderFontStyleColors, renderFontFaceSize]);
 
+  if (toolbarMode === 'hidden') return null;
+
   return (
-    <div className="toolbar" ref={toolbarRef}>
+    <div className={`toolbar${toolbarMode === 'comfortable' ? ' toolbar-comfortable' : ''}`} ref={toolbarRef}>
       {/* Undo / Redo — always visible */}
       <div className="toolbar-group">
         <button

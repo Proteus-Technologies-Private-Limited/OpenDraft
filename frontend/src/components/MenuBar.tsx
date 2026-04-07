@@ -19,6 +19,54 @@ import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFo
 import { pluginRegistry } from '../plugins/registry';
 import { clearEditorHistory } from '../editor/clearHistory';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
+import {
+  FaFile,
+  FaPencilAlt,
+  FaPalette,
+  FaEye,
+  FaWrench,
+  FaEllipsisH,
+  FaFileImport,
+  FaFolderOpen,
+  FaSave,
+  FaFileExport,
+  FaCodeBranch,
+  FaCog,
+  FaPrint,
+  FaUndo,
+  FaRedo,
+  FaCut,
+  FaCopy,
+  FaPaste,
+  FaMousePointer,
+  FaSearch,
+  FaHashtag,
+  FaSpellCheck,
+  FaListOl,
+  FaBold,
+  FaAlignLeft,
+  FaColumns,
+  FaFileAlt,
+  FaCompass,
+  FaTh,
+  FaStream,
+  FaStickyNote,
+  FaUsers,
+  FaTags,
+  FaHighlighter,
+  FaAdjust,
+  FaToolbox,
+  FaUserFriends,
+  FaSignInAlt,
+  FaProjectDiagram,
+  FaFilm,
+  FaBoxes,
+  FaBars,
+  FaInfoCircle,
+  FaKeyboard,
+  FaSearchPlus,
+  FaSearchMinus,
+} from 'react-icons/fa';
 
 interface MenuBarProps {
   editor: Editor | null;
@@ -35,6 +83,7 @@ interface MenuItem {
   separator?: boolean;
   disabled?: boolean;
   children?: MenuItem[];
+  icon?: React.ReactNode;
 }
 
 interface MenuSection {
@@ -76,6 +125,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     setSaveAsOpen,
     theme,
     setTheme,
+    toolbarMode,
+    setToolbarMode,
+    zoomLevel,
+    setZoomLevel,
+    navPanelWidth,
     trackChangesEnabled,
     setTrackChangesEnabled,
     setTrackChangesLabel,
@@ -533,12 +587,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           },
         },
         { separator: true, label: '' },
-        { label: 'Import...', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
-        { label: 'Open from Project...', action: () => confirmOrRun(() => setOpenFromProjectOpen(true)), disabled: isCollabGuest },
-        { label: 'Save', shortcut: '\u2318S', action: handleSave, disabled: isCollabGuest },
+        { icon: <FaFileImport />, label: 'Import...', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
+        { icon: <FaFolderOpen />, label: 'Open from Project...', action: () => confirmOrRun(() => setOpenFromProjectOpen(true)), disabled: isCollabGuest },
+        { icon: <FaSave />, label: 'Save', shortcut: '\u2318S', action: handleSave, disabled: isCollabGuest },
         { separator: true, label: '' },
         {
-          label: 'Export',
+          icon: <FaFileExport />, label: 'Export',
           children: [
             { label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
             { label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
@@ -547,7 +601,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         },
         { separator: true, label: '' },
         {
-          label: 'Versions',
+          icon: <FaCodeBranch />, label: 'Versions',
           disabled: isCollabGuest,
           children: [
             { label: 'Check In...', action: handleCheckinOpen, disabled: isCollabGuest },
@@ -563,31 +617,31 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           ],
         },
         { separator: true, label: '' },
-        { label: 'Page Setup...', action: () => setPageSetupOpen(true) },
-        { label: 'Print...', shortcut: '\u2318P', action: () => window.print() },
+        { icon: <FaCog />, label: 'Page Setup...', action: () => setPageSetupOpen(true) },
+        { icon: <FaPrint />, label: 'Print...', shortcut: '\u2318P', action: () => window.print() },
       ],
     },
     {
       label: 'Edit',
       items: [
-        { label: 'Undo', shortcut: '⌘Z', action: () => { try { editor?.chain().focus().undo().run(); } catch {} } },
-        { label: 'Redo', shortcut: '⇧⌘Z', action: () => { try { editor?.chain().focus().redo().run(); } catch {} } },
+        { icon: <FaUndo />, label: 'Undo', shortcut: '⌘Z', action: () => { try { editor?.chain().focus().undo().run(); } catch {} } },
+        { icon: <FaRedo />, label: 'Redo', shortcut: '⇧⌘Z', action: () => { try { editor?.chain().focus().redo().run(); } catch {} } },
         { separator: true, label: '' },
-        { label: 'Cut', shortcut: '⌘X', action: () => document.execCommand('cut') },
-        { label: 'Copy', shortcut: '⌘C', action: () => document.execCommand('copy') },
-        { label: 'Paste', shortcut: '⌘V', action: () => document.execCommand('paste') },
-        { label: 'Select All', shortcut: '⌘A', action: () => editor?.chain().focus().selectAll().run() },
+        { icon: <FaCut />, label: 'Cut', shortcut: '⌘X', action: () => document.execCommand('cut') },
+        { icon: <FaCopy />, label: 'Copy', shortcut: '⌘C', action: () => document.execCommand('copy') },
+        { icon: <FaPaste />, label: 'Paste', shortcut: '⌘V', action: () => document.execCommand('paste') },
+        { icon: <FaMousePointer />, label: 'Select All', shortcut: '⌘A', action: () => editor?.chain().focus().selectAll().run() },
         { separator: true, label: '' },
-        { label: 'Find & Replace...', shortcut: '⌘F', action: () => setSearchOpen(true) },
-        { label: 'Go to Page...', shortcut: '⌘G', action: () => setGoToPageOpen(true) },
-        { label: spellCheckEnabled ? '\u2713 Spell Check' : 'Spell Check', action: toggleSpellCheck },
+        { icon: <FaSearch />, label: 'Find & Replace...', shortcut: '⌘F', action: () => setSearchOpen(true) },
+        { icon: <FaHashtag />, label: 'Go to Page...', shortcut: '⌘G', action: () => setGoToPageOpen(true) },
+        { icon: <FaSpellCheck />, label: spellCheckEnabled ? '\u2713 Spell Check' : 'Spell Check', action: toggleSpellCheck },
       ],
     },
     {
       label: 'Format',
       items: [
         {
-          label: 'Element',
+          icon: <FaListOl />, label: 'Element',
           children: [
             ...Object.values(activeTemplate.rules).filter((r) => r.enabled).map((r) => {
               const shortcuts: Record<string, string> = {
@@ -600,7 +654,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         },
         { separator: true, label: '' },
         {
-          label: 'Style',
+          icon: <FaBold />, label: 'Style',
           children: [
             { label: 'Bold', shortcut: '⌘B', action: () => editor?.chain().focus().toggleBold().run(), disabled: locked.bold },
             { label: 'Italic', shortcut: '⌘I', action: () => editor?.chain().focus().toggleItalic().run(), disabled: locked.italic },
@@ -612,7 +666,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           ],
         },
         {
-          label: 'Alignment',
+          icon: <FaAlignLeft />, label: 'Alignment',
           children: [
             { label: 'Align Left', action: () => editor?.chain().focus().setTextAlign('left').run(), disabled: locked.textAlign },
             { label: 'Align Center', action: () => editor?.chain().focus().setTextAlign('center').run(), disabled: locked.textAlign },
@@ -621,41 +675,73 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           ],
         },
         { separator: true, label: '' },
-        { label: 'Dual Dialogue', shortcut: '⌘D', action: () => (editor as any)?.commands?.toggleDualDialogue() },
+        { icon: <FaColumns />, label: 'Dual Dialogue', shortcut: '⌘D', action: () => (editor as any)?.commands?.toggleDualDialogue() },
         { separator: true, label: '' },
-        { label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true) },
+        { icon: <FaFileAlt />, label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true) },
       ],
     },
     {
       label: 'View',
       items: [
-        { label: navigatorOpen ? '\u2713 Navigator' : 'Navigator', action: toggleNavigator },
-        { label: indexCardsOpen ? '\u2713 Index Cards' : 'Index Cards', action: toggleIndexCards },
-        { label: beatBoardOpen ? '\u2713 Beat Board' : 'Beat Board', action: toggleBeatBoard },
-        { label: scriptNotesOpen ? '\u2713 Notes Panel' : 'Notes Panel', action: () => {
+        { icon: <FaCompass />, label: navigatorOpen ? '\u2713 Navigator' : 'Navigator', action: toggleNavigator },
+        { icon: <FaTh />, label: indexCardsOpen ? '\u2713 Index Cards' : 'Index Cards', action: toggleIndexCards },
+        { icon: <FaStream />, label: beatBoardOpen ? '\u2713 Beat Board' : 'Beat Board', action: toggleBeatBoard },
+        { icon: <FaStickyNote />, label: scriptNotesOpen ? '\u2713 Notes Panel' : 'Notes Panel', action: () => {
           const hasSelection = editor && !editor.state.selection.empty;
           useEditorStore.getState().setNotesActiveTab(hasSelection ? 'script' : 'general');
           toggleScriptNotes();
         } },
-        { label: characterProfilesOpen ? '\u2713 Characters' : 'Characters', action: toggleCharacterProfiles },
-        { label: tagsPanelOpen ? '\u2713 Tags' : 'Tags', action: toggleTagsPanel },
+        { icon: <FaUsers />, label: characterProfilesOpen ? '\u2713 Characters' : 'Characters', action: toggleCharacterProfiles },
+        { icon: <FaTags />, label: tagsPanelOpen ? '\u2713 Tags' : 'Tags', action: toggleTagsPanel },
         { separator: true, label: '' },
-        { label: notesVisible ? '\u2713 Note Highlights' : 'Note Highlights', action: () => setNotesVisible(!notesVisible) },
-        { label: tagsVisible ? '\u2713 Tag Highlights' : 'Tag Highlights', action: () => setTagsVisible(!tagsVisible) },
+        { icon: <FaHighlighter />, label: notesVisible ? '\u2713 Note Highlights' : 'Note Highlights', action: () => setNotesVisible(!notesVisible) },
+        { icon: <FaHighlighter />, label: tagsVisible ? '\u2713 Tag Highlights' : 'Tag Highlights', action: () => setTagsVisible(!tagsVisible) },
         { separator: true, label: '' },
         {
+          icon: <FaAdjust />,
           label: theme === 'light' ? '\u2713 Light Theme' : 'Light Theme',
           action: () => setTheme(theme === 'light' ? 'dark' : 'light'),
+        },
+        { separator: true, label: '' },
+        {
+          icon: <FaToolbox />, label: 'Menu & Toolbar',
+          children: [
+            { label: toolbarMode === 'compact' ? '\u2713 Compact' : 'Compact', action: () => setToolbarMode('compact') },
+            { label: toolbarMode === 'comfortable' ? '\u2713 Comfortable' : 'Comfortable', action: () => setToolbarMode('comfortable') },
+            { label: toolbarMode === 'hidden' ? '\u2713 Hidden' : 'Hidden', action: () => setToolbarMode('hidden') },
+          ],
+        },
+        {
+          icon: <FaSearchPlus />, label: `Zoom (${zoomLevel}%)`,
+          children: [
+            { icon: <FaSearchPlus />, label: 'Zoom In', shortcut: '⌘+', action: () => setZoomLevel(Math.min(200, zoomLevel + 10)) },
+            { icon: <FaSearchMinus />, label: 'Zoom Out', shortcut: '⌘−', action: () => setZoomLevel(Math.max(50, zoomLevel - 10)) },
+            { separator: true, label: '' },
+            { label: zoomLevel === 50 ? '\u2713 50%' : '50%', action: () => setZoomLevel(50) },
+            { label: zoomLevel === 75 ? '\u2713 75%' : '75%', action: () => setZoomLevel(75) },
+            { label: zoomLevel === 100 ? '\u2713 100%' : '100%', action: () => setZoomLevel(100) },
+            { label: zoomLevel === 125 ? '\u2713 125%' : '125%', action: () => setZoomLevel(125) },
+            { label: zoomLevel === 150 ? '\u2713 150%' : '150%', action: () => setZoomLevel(150) },
+            { label: zoomLevel === 200 ? '\u2713 200%' : '200%', action: () => setZoomLevel(200) },
+          ],
         },
       ],
     },
     {
-      label: 'Production',
+      label: 'Tools',
       items: [
-        { label: revisionMode ? '\u2713 Revision Mode' : 'Revision Mode', action: () => setRevisionMode(!revisionMode) },
+        { icon: <FaUserFriends />, label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate, disabled: isCollabGuest },
+        { icon: <FaSignInAlt />, label: 'Join Collaboration...', action: onJoinCollab, disabled: isCollabGuest },
+        { separator: true, label: '' },
+        { icon: <FaProjectDiagram />, label: 'Manage Projects...', action: () => { window.location.href = '/projects'; }, disabled: isCollabGuest },
+        { icon: <FaBoxes />, label: 'Asset Manager', action: () => useAssetStore.getState().toggleAssetManager() },
+        { icon: <FaCog />, label: 'System Settings...', action: () => { window.location.href = '/settings'; } },
+        { separator: true, label: '' },
         {
-          label: 'Scene Numbers',
+          icon: <FaFilm />, label: 'Production',
           children: [
+            { label: revisionMode ? '\u2713 Revision Mode' : 'Revision Mode', action: () => setRevisionMode(!revisionMode) },
+            { separator: true, label: '' },
             {
               label: sceneNumbersVisible ? '\u2713 Show Scene Numbers' : 'Show Scene Numbers',
               action: () => setSceneNumbersVisible(!sceneNumbersVisible),
@@ -665,38 +751,31 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
               action: () => setSceneNumbersLocked(!sceneNumbersLocked),
               disabled: !sceneNumbersVisible,
             },
+            { separator: true, label: '' },
+            { label: 'Lock Pages', disabled: true },
           ],
-        },
-        { label: 'Lock Pages', disabled: true },
-        { separator: true, label: '' },
-        { label: 'Asset Manager', action: () => useAssetStore.getState().toggleAssetManager() },
-      ],
-    },
-    {
-      label: 'Tools',
-      items: [
-        { label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate, disabled: isCollabGuest },
-        { label: 'Join Collaboration...', action: onJoinCollab, disabled: isCollabGuest },
-        { separator: true, label: '' },
-        { label: 'Manage Projects...', action: () => { window.location.href = '/projects'; }, disabled: isCollabGuest },
-        { label: 'System Settings...', action: () => { window.location.href = '/settings'; } },
-      ],
-    },
-    {
-      label: 'Help',
-      items: [
-        {
-          label: 'About Open Draft',
-          action: () => setAboutOpen(true),
-        },
-        {
-          label: 'Keyboard Shortcuts',
-          action: () =>
-            showToast('⌘1-8: Elements | Tab: Next | ⌘B/I/U: Format | ⌘Z: Undo | ⌘F: Find | ⌘G: Go to Page', 'success'),
         },
       ],
     },
   ];
+
+  // Help menu rendered separately as a 3-dot overflow on the right
+  const helpMenu: MenuSection = {
+    label: 'Help',
+    items: [
+      {
+        icon: <FaInfoCircle />,
+        label: 'About Open Draft',
+        action: () => setAboutOpen(true),
+      },
+      {
+        icon: <FaKeyboard />,
+        label: 'Keyboard Shortcuts',
+        action: () =>
+          showToast('⌘1-8: Elements | Tab: Next | ⌘B/I/U: Format | ⌘Z: Undo | ⌘F: Find | ⌘G: Go to Page', 'success'),
+      },
+    ],
+  };
 
   // Append plugin menu items to each section
   const pluginCtx = { editor };
@@ -724,16 +803,45 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     const el = menuItemRefs.current[activeMenu];
     if (el) {
       const rect = el.getBoundingClientRect();
-      setDropdownPos({ top: rect.bottom, left: rect.left });
+      const dropdownWidth = 260; // min-width of .menu-dropdown
+      const left = Math.min(rect.left, window.innerWidth - dropdownWidth - 8);
+      setDropdownPos({ top: rect.bottom, left });
     }
   }, [activeMenu]);
 
-  // Find the active menu's items
-  const activeMenuData = activeMenu ? menus.find(m => m.label === activeMenu) : null;
+  // Floating menu toggle (hidden mode)
+  const [floatingMenuOpen, setFloatingMenuOpen] = useState(false);
 
-  return (
+  // Icon map for menu labels
+  const menuIcons: Record<string, React.ReactNode> = {
+    File: <FaFile />,
+    Edit: <FaPencilAlt />,
+    Format: <FaPalette />,
+    View: <FaEye />,
+    Tools: <FaWrench />,
+  };
+
+  // Find the active menu's items (search both main menus and help)
+  const activeMenuData = activeMenu
+    ? menus.find(m => m.label === activeMenu) || (activeMenu === 'Help' ? helpMenu : null)
+    : null;
+
+  // Close floating menu when clicking outside
+  useEffect(() => {
+    if (!floatingMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setFloatingMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [floatingMenuOpen]);
+
+  const menuBarClass = toolbarMode === 'comfortable' ? 'menu-bar chrome-comfortable' : 'menu-bar';
+
+  const renderMenuItems = () => (
     <>
-    <div className="menu-bar" ref={menuRef}>
       {menus.map((menu) => (
         <div
           key={menu.label}
@@ -744,10 +852,51 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             if (activeMenu) setActiveMenu(menu.label);
           }}
         >
+          {menuIcons[menu.label] && <span className="menu-icon">{menuIcons[menu.label]}</span>}
           <span className="menu-label">{menu.label}</span>
         </div>
       ))}
-    </div>
+      <div className="menu-spacer" />
+      <div
+        ref={(el) => { menuItemRefs.current['Help'] = el; }}
+        className={`menu-item menu-item--more ${activeMenu === 'Help' ? 'active' : ''}`}
+        onClick={() => handleMenuClick('Help')}
+        onMouseEnter={() => {
+          if (activeMenu) setActiveMenu('Help');
+        }}
+        title="Help & About"
+      >
+        <FaEllipsisH />
+      </div>
+    </>
+  );
+
+  return (
+    <>
+    {toolbarMode === 'hidden' ? (
+      createPortal(
+        <>
+          <div
+            className={`menu-fab ${floatingMenuOpen ? 'menu-fab--open' : ''}`}
+            style={{ left: navPanelWidth + 14 }}
+            onClick={() => setFloatingMenuOpen(!floatingMenuOpen)}
+            title="Menu"
+          >
+            <FaBars />
+          </div>
+          {floatingMenuOpen && (
+            <div className="menu-bar chrome-comfortable menu-bar--floating" style={{ left: navPanelWidth + 14 }} ref={menuRef}>
+              {renderMenuItems()}
+            </div>
+          )}
+        </>,
+        document.body,
+      )
+    ) : (
+      <div className={menuBarClass} ref={menuRef}>
+        {renderMenuItems()}
+      </div>
+    )}
     {activeMenuData && createPortal(
       <div
         className="menu-dropdown"
@@ -763,9 +912,22 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
               onPointerEnter={(e) => handleSubmenuPointerEnter(item.label!, e)}
               onTouchEnd={(e) => handleSubmenuTouchEnd(item.label!, e)}
             >
+              {item.icon && <span className="menu-dropdown-icon">{item.icon}</span>}
               <span>{item.label}</span>
               <span className="menu-submenu-arrow">{openSubmenu === item.label ? '\u25BE' : '\u25B8'}</span>
-              <div className={`menu-submenu ${openSubmenu === item.label ? 'submenu-visible' : ''}`}>
+              <div
+                className={`menu-submenu ${openSubmenu === item.label ? 'submenu-visible' : ''}`}
+                ref={(el) => {
+                  if (el && openSubmenu === item.label) {
+                    const rect = el.getBoundingClientRect();
+                    if (rect.right > window.innerWidth) {
+                      el.classList.add('submenu-flip');
+                    } else {
+                      el.classList.remove('submenu-flip');
+                    }
+                  }
+                }}
+              >
                 {item.children.map((child, j) =>
                   child.separator ? (
                     <div key={j} className="menu-separator" />
@@ -776,6 +938,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
                       onTouchEnd={(e) => e.stopPropagation()}
                       onClick={(e) => handleItemClick(child, e)}
                     >
+                      {child.icon && <span className="menu-dropdown-icon">{child.icon}</span>}
                       <span>{child.label}</span>
                       {child.shortcut && (
                         <span className="menu-shortcut">{child.shortcut}</span>
@@ -792,6 +955,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
               onPointerEnter={handleItemPointerEnter}
               onClick={(e) => handleItemClick(item, e)}
             >
+              {item.icon && <span className="menu-dropdown-icon">{item.icon}</span>}
               <span>{item.label}</span>
               {item.shortcut && (
                 <span className="menu-shortcut">{item.shortcut}</span>

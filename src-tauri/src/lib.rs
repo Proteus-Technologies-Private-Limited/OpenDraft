@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
+use tauri::menu::{Menu, Submenu, PredefinedMenuItem};
 
 // ── Pending file state ────────────────────────────────────────────────────
 // Stores the file path when the OS opens a screenplay file with OpenDraft.
@@ -249,6 +250,47 @@ pub fn run() {
             fetch_link_preview,
             get_opened_file,
         ])
+        // ── Minimal native menu ──────────────────────────────────────────
+        // macOS: keep only App menu (About/Hide/Quit) + Window menu
+        //        (Minimize/Maximize/Close) so Cmd+Q/H/M keep working.
+        // Windows/Linux: empty menu — no native menu bar shown.
+        .menu(|app_handle| {
+            #[cfg(target_os = "macos")]
+            {
+                let app_submenu = Submenu::with_items(
+                    app_handle,
+                    "OpenDraft",
+                    true,
+                    &[
+                        &PredefinedMenuItem::about(app_handle, Some("About OpenDraft"), None)?,
+                        &PredefinedMenuItem::separator(app_handle)?,
+                        &PredefinedMenuItem::services(app_handle, None)?,
+                        &PredefinedMenuItem::separator(app_handle)?,
+                        &PredefinedMenuItem::hide(app_handle, None)?,
+                        &PredefinedMenuItem::hide_others(app_handle, None)?,
+                        &PredefinedMenuItem::show_all(app_handle, None)?,
+                        &PredefinedMenuItem::separator(app_handle)?,
+                        &PredefinedMenuItem::quit(app_handle, None)?,
+                    ],
+                )?;
+                let window_submenu = Submenu::with_items(
+                    app_handle,
+                    "Window",
+                    true,
+                    &[
+                        &PredefinedMenuItem::minimize(app_handle, None)?,
+                        &PredefinedMenuItem::maximize(app_handle, None)?,
+                        &PredefinedMenuItem::separator(app_handle)?,
+                        &PredefinedMenuItem::close_window(app_handle, None)?,
+                    ],
+                )?;
+                Menu::with_items(app_handle, &[&app_submenu, &window_submenu])
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                Menu::new(app_handle)
+            }
+        })
         .setup(|app| {
             // Ensure user data directory exists
             let app_data_dir = app

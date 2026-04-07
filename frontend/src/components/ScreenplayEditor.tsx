@@ -238,6 +238,11 @@ const ScreenplayEditor: React.FC = () => {
   // ── Panel resize state ──
   const [navWidth, setNavWidth] = useState(240);
   const [rightPanelWidth, setRightPanelWidth] = useState(300);
+
+  // Sync nav width to store for floating menu positioning
+  useEffect(() => {
+    useEditorStore.getState().setNavPanelWidth(navigatorOpen ? navWidth : 0);
+  }, [navWidth, navigatorOpen]);
   const resizingRef = useRef<'left' | 'right' | null>(null);
   const resizeStartXRef = useRef(0);
   const resizeStartWidthRef = useRef(0);
