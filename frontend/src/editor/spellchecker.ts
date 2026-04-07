@@ -4,7 +4,8 @@ import Typo from 'typo-js';
 class SpellChecker {
   private typo: Typo | null = null;
   private customWords: Set<string> = new Set();
-  private ignoreWords: Set<string> = new Set(); // session-only
+  private ignoreWords: Set<string> = new Set(); // ignore all occurrences (per-document)
+  private ignoredOnce: Set<string> = new Set(); // ignore specific occurrences (per-document)
   private ready = false;
   private initPromise: Promise<void> | null = null;
 
@@ -17,13 +18,6 @@ class SpellChecker {
 
   private async _doInit(): Promise<void> {
     try {
-      // On mobile Tauri, dictionaries are not served — skip spell check
-      const { isMobileTauri } = await import('../services/platform');
-      if (isMobileTauri()) {
-        console.log('SpellChecker: skipped on mobile (no dictionary server)');
-        return;
-      }
-
       const [affResponse, dicResponse] = await Promise.all([
         fetch('/dictionaries/en_US.aff'),
         fetch('/dictionaries/en_US.dic'),
@@ -84,6 +78,11 @@ class SpellChecker {
     return this.typo.check(word) as boolean;
   }
 
+  /** Check if a specific occurrence is ignored via "Ignore Once". */
+  isIgnoredOnce(word: string, contextKey: string): boolean {
+    return this.ignoredOnce.has(`${word.toLowerCase()}|${contextKey}`);
+  }
+
   suggest(word: string): string[] {
     if (!this.typo) return [];
     return this.typo.suggest(word, 5) as string[];
@@ -97,13 +96,56 @@ class SpellChecker {
     );
   }
 
+  /** Ignore all occurrences of a word in this document. */
   ignoreWord(word: string): void {
     this.ignoreWords.add(word.toLowerCase());
   }
 
+  /** Ignore a specific occurrence of a word (identified by surrounding context). */
+  ignoreOnce(word: string, contextKey: string): void {
+    this.ignoredOnce.add(`${word.toLowerCase()}|${contextKey}`);
+  }
+
+  /** Return all ignored words (for persisting with the document). */
+  getIgnoredWords(): string[] {
+    return [...this.ignoreWords];
+  }
+
+  /** Bulk-load ignored words (when opening a document). */
+  setIgnoredWords(words: string[]): void {
+    this.ignoreWords.clear();
+    for (const w of words) {
+      this.ignoreWords.add(w.toLowerCase());
+    }
+  }
+
+  /** Return all ignored-once entries (for persisting with the document). */
+  getIgnoredOnce(): string[] {
+    return [...this.ignoredOnce];
+  }
+
+  /** Bulk-load ignored-once entries (when opening a document). */
+  setIgnoredOnce(entries: string[]): void {
+    this.ignoredOnce.clear();
+    for (const e of entries) {
+      this.ignoredOnce.add(e);
+    }
+  }
+
+  /**
+   * Build a context key for a word occurrence.
+   * Uses up to 20 chars before + 20 chars after the word within the text node.
+   * This fingerprint identifies a specific location and survives paragraph reordering.
+   */
+  static buildContextKey(text: string, matchIndex: number, wordLength: number): string {
+    const before = text.slice(Math.max(0, matchIndex - 20), matchIndex);
+    const after = text.slice(matchIndex + wordLength, matchIndex + wordLength + 20);
+    return `${before}>><<${after}`;
+  }
+
   /** Collect all misspelled words with their positions from a ProseMirror doc. */
-  findAllErrors(doc: import('@tiptap/pm/state').EditorState['doc']): { word: string; from: number; to: number; context: string }[] {
-    const errors: { word: string; from: number; to: number; context: string }[] = [];
+  findAllErrors(doc: import('@tiptap/pm/state').EditorState['doc']): { word: string; from: number; to: number; context: string; contextKey: string }[] {
+    const errors: { word: string; from: number; to: number; context: string; contextKey: string }[] = [];
     doc.descendants((node, pos) => {
       if (!node.isText) return;
       const text = node.text || '';
@@ -114,13 +156,16 @@ class SpellChecker {
         if (word.length < 2) continue;
         if (word === word.toUpperCase() && word.length > 1) continue;
         if (!this.check(word)) {
+          const contextKey = SpellChecker.buildContextKey(text, match.index, word.length);
+          // Skip if this specific occurrence was ignored via "Ignore Once"
+          if (this.isIgnoredOnce(word, contextKey)) continue;
           const from = pos + match.index;
           const to = from + word.length;
           // Build context: up to 30 chars around the word
           const ctxStart = Math.max(0, match.index - 15);
           const ctxEnd = Math.min(text.length, match.index + word.length + 15);
           const context = (ctxStart > 0 ? '...' : '') + text.slice(ctxStart, ctxEnd) + (ctxEnd < text.length ? '...' : '');
-          errors.push({ word, from, to, context });
+          errors.push({ word, from, to, context, contextKey });
         }
       }
     });

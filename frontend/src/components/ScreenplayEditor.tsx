@@ -55,6 +55,7 @@ import SpellCheckModal from './SpellCheckModal';
 import ScriptContextMenu from './ScriptContextMenu';
 import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { spellChecker } from '../editor/spellchecker';
+import { clearEditorHistory } from '../editor/clearHistory';
 import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
 import { API_BASE, getCollabWsUrl } from '../config';
@@ -200,7 +201,7 @@ const ScreenplayEditor: React.FC = () => {
     beatBoardOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen,
-    spellCheckEnabled, setDocumentTitle,
+    spellCheckEnabled, toggleSpellCheck, setDocumentTitle,
   } = useEditorStore();
 
   const { currentProject, currentScriptId, setCurrentProject, setCurrentScriptId, scriptReloadKey } = useProjectStore();
@@ -1177,7 +1178,7 @@ const ScreenplayEditor: React.FC = () => {
       TextStyle, Color, FontFamily, FontSize,
       FormatOverride, CustomElement,
       // Use History in normal mode, Collaboration in collab mode
-      ...(collabMode ? collabExtensions : [History]),
+      ...(collabMode ? collabExtensions : [History.configure({ newGroupDelay: 150 })]),
       TextAlign.configure({ types: [...ALL_ELEMENT_TYPES, 'customElement'] }),
       Placeholder.configure({
         placeholder: ({ node }) => {
@@ -1566,6 +1567,8 @@ const ScreenplayEditor: React.FC = () => {
       _beatColumns: store.beatColumns,
       _beatArrangeMode: store.beatArrangeMode,
       _templateId: tplStore.activeTemplateId,
+      _ignoredWords: spellChecker.getIgnoredWords(),
+      _ignoredOnce: spellChecker.getIgnoredOnce(),
     };
   }, [editor]);
 
@@ -1669,7 +1672,7 @@ const ScreenplayEditor: React.FC = () => {
         // Strip app metadata keys before feeding to ProseMirror
         let pmDoc: Record<string, unknown> | null = null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, ...rest } = content as any;
+          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, ...rest } = content as any;
           pmDoc = rest;
         }
 
@@ -1686,6 +1689,7 @@ const ScreenplayEditor: React.FC = () => {
           showToast(`Failed to render content: ${setErr instanceof Error ? setErr.message : String(setErr)}`, 'error');
           editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
         }
+        clearEditorHistory(editor);
 
         // Restore metadata from top-level content keys (skip in history mode)
         if (!isHistoryMode) {
@@ -1743,6 +1747,11 @@ const ScreenplayEditor: React.FC = () => {
             } else {
               useFormattingTemplateStore.getState().setActiveTemplateId(null);
             }
+            // Restore per-document ignored words for spell check
+            const ignoredArr = parseAttr(c._ignoredWords);
+            spellChecker.setIgnoredWords(ignoredArr as string[]);
+            const ignoredOnceArr = parseAttr(c._ignoredOnce);
+            spellChecker.setIgnoredOnce(ignoredOnceArr as string[]);
           }
         }
 
@@ -1914,6 +1923,7 @@ const ScreenplayEditor: React.FC = () => {
           showToast(`Failed to render content: ${setErr instanceof Error ? setErr.message : String(setErr)}`, 'error');
           editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
         }
+        clearEditorHistory(editor);
 
         // Restore metadata from top-level content keys
         const store = useEditorStore.getState();
@@ -1983,6 +1993,7 @@ const ScreenplayEditor: React.FC = () => {
 
     if (choice === 'sample') {
       editor?.commands.setContent(SAMPLE_CONTENT, true);
+      if (editor) clearEditorHistory(editor);
     } else if (choice === 'import') {
       if (!editor) return;
       const { openTextFile } = await import('../utils/fileOps');
@@ -2039,6 +2050,7 @@ const ScreenplayEditor: React.FC = () => {
         doc = parseFountain(text);
       }
       editor.commands.setContent(doc, true);
+      clearEditorHistory(editor);
       const scriptTitle = name.replace(/\.\w+$/, '') || 'Untitled';
       useEditorStore.getState().setDocumentTitle(scriptTitle);
     }
@@ -2102,6 +2114,7 @@ const ScreenplayEditor: React.FC = () => {
           setCurrentProject(null);
           setCurrentScriptId(null);
           editor.commands.setContent(doc, true);
+          clearEditorHistory(editor);
           return;
         }
       } else {
@@ -2110,6 +2123,7 @@ const ScreenplayEditor: React.FC = () => {
       }
 
       editor.commands.setContent(doc, true);
+      clearEditorHistory(editor);
       setDocumentTitle(title);
       setShowWelcome(false);
       // Clear project context — this is a standalone opened file
@@ -2227,6 +2241,7 @@ const ScreenplayEditor: React.FC = () => {
           setCurrentProject(null);
           setCurrentScriptId(null);
           editor.commands.setContent(doc, true);
+          clearEditorHistory(editor);
           setShowWelcome(false);
           return;
         }
@@ -2235,6 +2250,7 @@ const ScreenplayEditor: React.FC = () => {
       }
 
       editor.commands.setContent(doc, true);
+      clearEditorHistory(editor);
       setDocumentTitle(title);
       setCurrentProject(null);
       setCurrentScriptId(null);
@@ -2761,7 +2777,10 @@ const ScreenplayEditor: React.FC = () => {
       {!isHistoryMode && spellModalOpen && editor && (
         <SpellCheckModal
           editor={editor}
-          onClose={() => setSpellModalOpen(false)}
+          onClose={() => {
+            setSpellModalOpen(false);
+            if (spellCheckEnabled) toggleSpellCheck();
+          }}
         />
       )}
       {!isHistoryMode && <VersionHistory />}

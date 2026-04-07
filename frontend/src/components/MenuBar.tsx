@@ -17,6 +17,7 @@ import TemplateSelectDialog from './TemplateSelectDialog';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { pluginRegistry } from '../plugins/registry';
+import { clearEditorHistory } from '../editor/clearHistory';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
 
 interface MenuBarProps {
@@ -433,6 +434,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       doc = parseFountain(text);
     }
     editor.commands.setContent(doc, true);
+    clearEditorHistory(editor);
 
     // Open as unsaved document — user can save later via Cmd+S
     const scriptTitle = name.replace(/\.\w+$/, '') || 'Untitled';
@@ -502,6 +504,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
                 type: 'doc',
                 content: [{ type: 'sceneHeading', content: [] }],
               }, true);
+              clearEditorHistory(editor);
               setCurrentProject(null);
               setCurrentScriptId(null);
               setScripts([]);
