@@ -580,16 +580,6 @@ function renderHFLine(
   }
 }
 
-function renderPageNumber(pdf: jsPDF, pageNum: number, layout: PageLayout, charSpace: number): void {
-  const headerY = layout.headerMargin + 12; // header margin from top + font baseline
-  // Match editor: page-sep-number { right: ${pageWidth - 7.25}in }
-  const rightEdgePt = 7.25 * PTS_PER_INCH;
-  setFontStyle(pdf, false, false);
-  pdf.setFontSize(12);
-  const numText = `${pageNum}.`;
-  const textWidth = numText.length * FD_CHAR_WIDTH_PT;
-  pdf.text(numText, rightEdgePt - textWidth, headerY, { charSpace });
-}
 
 function renderElement(
   pdf: jsPDF,
