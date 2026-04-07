@@ -828,13 +828,14 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.10.2</div>
+              <div className="about-section-title">What's New in 0.11.0</div>
               <ul className="about-list">
-                <li><strong>Cloud Collab Server</strong> — Default collaboration server now hosted on Google Cloud Run with automatic HTTPS/WSS.</li>
-                <li><strong>Cross-Device Collab Fix</strong> — Fixed joining collab sessions from browser when host is on desktop — WebSocket now connects immediately without waiting for backend.</li>
-                <li><strong>Web Collab Fix</strong> — Fixed collaboration sessions not working when using the web frontend served by FastAPI.</li>
-                <li><strong>Demo Server Notices</strong> — Clear messaging that the demo collab server resets hourly, with distinct error handling for expired accounts.</li>
-                <li><strong>Release Process</strong> — Web frontend build now included in the release pipeline.</li>
+                <li><strong>Per-Document Templates</strong> — Templates are now per-document instead of global. System Standard (read-only) and User Defined categories with full CRUD management.</li>
+                <li><strong>Formatting Enforcement</strong> — Lock formatting per element with allowFormatOverride. Template-defined fonts and sizes enforced across toolbar, shortcuts, context menu, and format panel.</li>
+                <li><strong>Template Conflict Resolution</strong> — Detects and resolves conflicts when applying templates — disabled elements and formatting violations are flagged automatically.</li>
+                <li><strong>Dual Dialogue</strong> — Two-column side-by-side dialogue layout. Toggle with Cmd+D, Format menu, or right-click. Full Fountain (^ caret) and FDX import/export support.</li>
+                <li><strong>Format Menu Overhaul</strong> — Restructured Format menu with Element, Style, and Alignment submenus. Disabled template elements now synced across all menus and the element picker.</li>
+                <li><strong>Bug Fixes</strong> — Fixed context menu submenu hover disappearing and save-then-new-document flow.</li>
               </ul>
             </div>
           </div>
