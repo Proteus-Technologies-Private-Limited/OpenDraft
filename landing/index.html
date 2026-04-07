@@ -25,10 +25,13 @@
       --color-text: #e4edf8;
       --color-text-secondary: #8da4c2;
 
-      /* Orange/amber accent — from the logo birds and pen feathers */
-      --color-accent: #e88a3a;
-      --color-accent-light: #f0a254;
-      --color-accent-glow: rgba(232, 138, 58, 0.15);
+      /* Purple-to-orange — from the logo pen feathers where violet meets amber */
+      --color-purple: #8b5cf6;
+      --color-orange: #e88a3a;
+      --color-accent: #8b5cf6;
+      --color-accent-light: #a78bfa;
+      --color-accent-glow: rgba(139, 92, 246, 0.15);
+      --color-orange-glow: rgba(232, 138, 58, 0.15);
 
       /* Teal secondary accent — from the logo swirls */
       --color-teal: #3ab8c4;
@@ -93,14 +96,14 @@
     }
     .nav-links a:hover { color: var(--color-text); }
     .nav-cta {
-      background: #2563eb !important;
+      background: linear-gradient(135deg, var(--color-purple), var(--color-orange)) !important;
       color: #fff !important;
       padding: 8px 20px;
       border-radius: 8px;
       font-weight: 600 !important;
-      transition: background 0.2s, transform 0.15s !important;
+      transition: opacity 0.2s, transform 0.15s !important;
     }
-    .nav-cta:hover { background: #3b82f6 !important; transform: translateY(-1px); }
+    .nav-cta:hover { opacity: 0.9 !important; transform: translateY(-1px); }
     .nav-menu-btn {
       display: none;
       background: none;
@@ -117,7 +120,7 @@
       position: relative;
       overflow: hidden;
     }
-    /* Ambient glow — warm orange top-left, teal bottom-right like the logo */
+    /* Ambient glow — purple top-left, orange bottom-right like the logo feathers */
     .hero::before {
       content: '';
       position: absolute;
@@ -125,7 +128,7 @@
       left: -100px;
       width: 900px;
       height: 900px;
-      background: radial-gradient(circle, rgba(232, 138, 58, 0.10) 0%, transparent 65%);
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 65%);
       pointer-events: none;
     }
     .hero::after {
@@ -135,7 +138,7 @@
       right: -100px;
       width: 700px;
       height: 700px;
-      background: radial-gradient(circle, rgba(58, 184, 196, 0.08) 0%, transparent 65%);
+      background: radial-gradient(circle, rgba(232, 138, 58, 0.10) 0%, transparent 65%);
       pointer-events: none;
     }
     .hero-badge {
@@ -171,7 +174,7 @@
       position: relative;
     }
     .hero h1 .gradient {
-      background: linear-gradient(135deg, var(--color-accent) 0%, #f0a254 40%, var(--color-teal) 100%);
+      background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-accent-light) 30%, var(--color-orange) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -204,14 +207,14 @@
       border: none;
     }
     .btn-primary {
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      background: linear-gradient(135deg, var(--color-purple), var(--color-orange));
       color: #fff;
-      box-shadow: 0 0 30px rgba(37, 99, 235, 0.2), 0 4px 16px rgba(0,0,0,0.3);
+      box-shadow: 0 0 30px var(--color-accent-glow), 0 4px 16px rgba(0,0,0,0.3);
     }
     .btn-primary:hover {
-      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      background: linear-gradient(135deg, var(--color-accent-light), #f0a254);
       transform: translateY(-2px);
-      box-shadow: 0 0 40px rgba(37, 99, 235, 0.3), 0 8px 24px rgba(0,0,0,0.3);
+      box-shadow: 0 0 40px rgba(139,92,246,0.25), 0 8px 24px rgba(0,0,0,0.3);
     }
     .btn-secondary {
       background: var(--color-surface-2);
@@ -276,7 +279,7 @@
       left: 0;
       right: 0;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(232,138,58,0.2), rgba(58,184,196,0.2), transparent);
+      background: linear-gradient(90deg, transparent, rgba(139,92,246,0.25), rgba(232,138,58,0.25), transparent);
     }
     .features-header { text-align: center; margin-bottom: 72px; }
     .features-header .section-desc { margin: 0 auto; }
@@ -300,7 +303,7 @@
     .feature-icon {
       width: 48px;
       height: 48px;
-      background: linear-gradient(135deg, var(--color-accent-glow), var(--color-teal-glow));
+      background: linear-gradient(135deg, var(--color-accent-glow), var(--color-orange-glow));
       border: 1px solid var(--color-border);
       border-radius: 12px;
       display: flex;
@@ -318,6 +321,81 @@
       font-size: 14px;
       color: var(--color-text-secondary);
       line-height: 1.65;
+    }
+
+    /* ── PRIVACY / IP PROTECTION ── */
+    .privacy {
+      position: relative;
+      overflow: hidden;
+    }
+    .privacy::before {
+      content: '';
+      position: absolute;
+      top: -200px;
+      right: -150px;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .privacy-header { text-align: center; margin-bottom: 64px; }
+    .privacy-header .section-desc { margin: 0 auto; }
+    .privacy-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .privacy-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 36px;
+      position: relative;
+      transition: border-color 0.3s, transform 0.2s;
+    }
+    .privacy-card:hover {
+      border-color: rgba(139,92,246,0.3);
+      transform: translateY(-3px);
+    }
+    .privacy-card .card-icon {
+      font-size: 28px;
+      margin-bottom: 16px;
+      display: block;
+    }
+    .privacy-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .privacy-card p {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.65;
+    }
+    .privacy-card .highlight-text {
+      color: var(--color-accent-light);
+      font-weight: 600;
+    }
+    .privacy-banner {
+      margin-top: 48px;
+      background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(232,138,58,0.06));
+      border: 1px solid rgba(139,92,246,0.15);
+      border-radius: var(--radius);
+      padding: 36px 48px;
+      text-align: center;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .privacy-banner p {
+      font-size: 17px;
+      color: var(--color-text);
+      line-height: 1.7;
+    }
+    .privacy-banner strong {
+      color: var(--color-accent-light);
     }
 
     /* ── SHOWCASE (screenshots) ── */
@@ -361,7 +439,7 @@
       left: 0;
       right: 0;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(58,184,196,0.2), rgba(232,138,58,0.2), transparent);
+      background: linear-gradient(90deg, transparent, rgba(232,138,58,0.25), rgba(139,92,246,0.25), transparent);
     }
     .comparison-header { text-align: center; margin-bottom: 56px; }
     .comparison-header .section-desc { margin: 0 auto; }
@@ -422,7 +500,7 @@
       color: var(--color-text);
     }
     .download-card:hover {
-      border-color: var(--color-accent);
+      border-color: var(--color-purple);
       transform: translateY(-4px);
       box-shadow: 0 12px 32px rgba(0,0,0,0.2), 0 0 20px var(--color-accent-glow);
     }
@@ -493,8 +571,10 @@
     /* ── MOBILE ── */
     @media (max-width: 900px) {
       .features-grid { grid-template-columns: 1fr 1fr; }
+      .privacy-grid { grid-template-columns: 1fr; }
       .showcase-grid, .showcase-grid.reverse { grid-template-columns: 1fr; direction: ltr; }
       .download-grid { grid-template-columns: 1fr 1fr; }
+      .privacy-banner { padding: 28px 24px; }
     }
     @media (max-width: 640px) {
       .nav-links { display: none; }
@@ -535,6 +615,7 @@
       <button class="nav-menu-btn" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">&#9776;</button>
       <div class="nav-links">
         <a href="#features">Features</a>
+        <a href="#privacy">Privacy</a>
         <a href="#screenshots">Screenshots</a>
         <a href="#comparison">Compare</a>
         <a href="#download">Download</a>
@@ -550,7 +631,7 @@
       Open Source &middot; MIT License &middot; Free Forever
     </div>
     <h1>Write screenplays<br><span class="gradient">without the price tag</span></h1>
-    <p>Professional screenplay formatting, real-time collaboration, beat boards, and version control. No subscription. No cloud lock-in. No tracking.</p>
+    <p>Professional screenplay formatting, real-time collaboration, beat boards, and version control. Your scripts stay on your machine &mdash; no vendor can mine your intellectual property. No subscription. No tracking.</p>
     <div class="hero-buttons">
       <a href="#download" class="btn btn-primary">Download Free</a>
       <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" class="btn btn-secondary">View Source</a>
@@ -614,6 +695,42 @@
           <h3>Privacy-First</h3>
           <p>Zero tracking, zero analytics, zero data collection. Works 100% offline. Your scripts stay on your machine.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRIVACY / IP PROTECTION -->
+  <section class="privacy" id="privacy">
+    <div class="section-inner">
+      <div class="privacy-header">
+        <div class="section-label">Your Script. Your Machine. Your IP.</div>
+        <h2 class="section-title">Your intellectual property stays yours</h2>
+        <p class="section-desc">Most screenwriting software sends your scripts to someone else's servers. OpenDraft doesn't. Your words never leave your machine.</p>
+      </div>
+      <div class="privacy-grid">
+        <div class="privacy-card">
+          <span class="card-icon">&#128274;</span>
+          <h3>100% Local Storage</h3>
+          <p>Every screenplay you write is stored in a <span class="highlight-text">local SQLite database on your own device</span>. No cloud sync. No vendor servers. No third-party access to your scripts, ever.</p>
+        </div>
+        <div class="privacy-card">
+          <span class="card-icon">&#128683;</span>
+          <h3>No Data Mining</h3>
+          <p>Cloud-based tools can read, analyze, and train AI on your screenplays. OpenDraft has <span class="highlight-text">zero telemetry, zero analytics, zero data collection</span>. We can't read your work because we never see it.</p>
+        </div>
+        <div class="privacy-card">
+          <span class="card-icon">&#128737;</span>
+          <h3>Protect Your IP</h3>
+          <p>Your screenplay is your intellectual property. When you write in OpenDraft, <span class="highlight-text">no corporation has access to mine, monetize, or train models</span> on your creative work.</p>
+        </div>
+        <div class="privacy-card">
+          <span class="card-icon">&#9989;</span>
+          <h3>Open Source Guarantee</h3>
+          <p>Don't take our word for it &mdash; <span class="highlight-text">read the code yourself</span>. OpenDraft is MIT licensed. Every line is publicly auditable. There are no hidden network calls, no tracking pixels, no backdoors.</p>
+        </div>
+      </div>
+      <div class="privacy-banner">
+        <p><strong>Other tools store your scripts on their servers.</strong> They can change their terms of service at any time. They can scan your work for AI training. They can shut down and take your data with them. With OpenDraft, your screenplay exists only where you put it &mdash; on your computer, under your control.</p>
       </div>
     </div>
   </section>
