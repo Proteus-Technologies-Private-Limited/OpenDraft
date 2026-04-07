@@ -68,6 +68,11 @@ if STATIC_DIR.is_dir():
     # Serve JS/CSS/assets from /assets
     app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
 
+    # Serve dictionary files for spell check
+    dictionaries_dir = STATIC_DIR / "dictionaries"
+    if dictionaries_dir.is_dir():
+        app.mount("/dictionaries", StaticFiles(directory=dictionaries_dir), name="dictionaries")
+
     # Catch-all: serve index.html for any non-API route (SPA routing)
     @app.get("/{full_path:path}")
     async def serve_spa(request: Request, full_path: str):

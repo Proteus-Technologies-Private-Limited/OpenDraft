@@ -10,6 +10,49 @@ export const spellCheckPluginKey = new PluginKey('spellCheck');
 interface SpellCheckPluginState {
   decorations: DecorationSet;
   enabled: boolean;
+  activeFrom: number;
+  activeTo: number;
+}
+
+/** Shared scan logic: find misspelled words in a doc and build decorations. */
+function buildSpellDecorations(
+  doc: EditorState['doc'],
+  activeFrom?: number,
+  activeTo?: number,
+): Decoration[] {
+  const decorations: Decoration[] = [];
+  doc.descendants((node, pos) => {
+    if (!node.isText) return;
+    const text = node.text || '';
+    const wordRegex = /[a-zA-Z\u00C0-\u024F']+/g;
+    let match: RegExpExecArray | null;
+    while ((match = wordRegex.exec(text)) !== null) {
+      const word = match[0];
+      if (word.length < 2) continue;
+      if (word === word.toUpperCase() && word.length > 1) continue;
+      if (!spellChecker.check(word)) {
+        // Build the same context key used by findAllErrors / ignoreOnce
+        const contextKey = buildContextKey(text, match.index, word.length);
+        if (spellChecker.isIgnoredOnce(word, contextKey)) continue;
+        const from = pos + match.index;
+        const to = from + word.length;
+        const isActive = activeFrom !== undefined && from === activeFrom && to === activeTo;
+        decorations.push(
+          Decoration.inline(from, to, {
+            class: isActive ? 'spell-error spell-active' : 'spell-error',
+          }),
+        );
+      }
+    }
+  });
+  return decorations;
+}
+
+/** Context key builder — must match SpellChecker.buildContextKey */
+function buildContextKey(text: string, matchIndex: number, wordLength: number): string {
+  const before = text.slice(Math.max(0, matchIndex - 20), matchIndex);
+  const after = text.slice(matchIndex + wordLength, matchIndex + wordLength + 20);
+  return `${before}>><<${after}`;
 }
 
 export const SpellCheck = Extension.create({
@@ -23,23 +66,46 @@ export const SpellCheck = Extension.create({
         key: spellCheckPluginKey,
         state: {
           init(): SpellCheckPluginState {
-            return { decorations: DecorationSet.empty, enabled: false };
+            return { decorations: DecorationSet.empty, enabled: false, activeFrom: 0, activeTo: 0 };
           },
           apply(
             tr: Transaction,
             value: SpellCheckPluginState,
             _oldState: EditorState,
-            _newState: EditorState,
+            newState: EditorState,
           ): SpellCheckPluginState {
             const meta = tr.getMeta(spellCheckPluginKey) as
-              | { toggle?: boolean; decorations?: DecorationSet }
+              | { toggle?: boolean; decorations?: DecorationSet; activeRange?: { from: number; to: number } | null }
               | undefined;
             if (meta?.toggle !== undefined) {
               const enabled = meta.toggle;
               if (!enabled) {
-                return { decorations: DecorationSet.empty, enabled: false };
+                return { decorations: DecorationSet.empty, enabled: false, activeFrom: 0, activeTo: 0 };
               }
               return { ...value, enabled };
+            }
+            if (meta?.activeRange !== undefined) {
+              if (meta.activeRange === null) {
+                const decos = value.enabled
+                  ? buildSpellDecorations(newState.doc)
+                  : [];
+                return {
+                  ...value,
+                  activeFrom: 0,
+                  activeTo: 0,
+                  decorations: DecorationSet.create(newState.doc, decos),
+                };
+              }
+              const { from, to } = meta.activeRange;
+              const decos = value.enabled
+                ? buildSpellDecorations(newState.doc, from, to)
+                : [];
+              return {
+                ...value,
+                activeFrom: from,
+                activeTo: to,
+                decorations: DecorationSet.create(newState.doc, decos),
+              };
             }
             if (meta?.decorations !== undefined) {
               return { ...value, decorations: meta.decorations };
@@ -72,39 +138,14 @@ export const SpellCheck = Extension.create({
             if (!spellChecker.isReady()) {
               const ok = await spellChecker.whenReady();
               if (!ok) return;
-              // Re-check enabled state — it may have been toggled off while we waited
               const ps = spellCheckPluginKey.getState(editorView.state) as
                 | SpellCheckPluginState
                 | undefined;
               if (!ps?.enabled) return;
             }
 
-            const decorations: Decoration[] = [];
             const { doc } = editorView.state;
-
-            doc.descendants((node, pos) => {
-              if (!node.isText) return;
-              const text = node.text || '';
-              // Match words (letters including accented, plus apostrophes)
-              const wordRegex = /[a-zA-Z\u00C0-\u024F']+/g;
-              let match: RegExpExecArray | null;
-              while ((match = wordRegex.exec(text)) !== null) {
-                const word = match[0];
-                // Skip very short words
-                if (word.length < 2) continue;
-                // Skip ALL CAPS words (character names in screenplays)
-                if (word === word.toUpperCase() && word.length > 1) continue;
-
-                if (!spellChecker.check(word)) {
-                  const from = pos + match.index;
-                  const to = from + word.length;
-                  decorations.push(
-                    Decoration.inline(from, to, { class: 'spell-error' }),
-                  );
-                }
-              }
-            });
-
+            const decorations = buildSpellDecorations(doc);
             const decorationSet = DecorationSet.create(doc, decorations);
             const tr = editorView.state.tr.setMeta(spellCheckPluginKey, {
               decorations: decorationSet,
@@ -119,7 +160,6 @@ export const SpellCheck = Extension.create({
                 | undefined;
               if (!pluginState?.enabled) return;
 
-              // Run check when toggled on (decorations empty) or doc changed
               const prevPluginState = spellCheckPluginKey.getState(
                 prevState,
               ) as SpellCheckPluginState | undefined;

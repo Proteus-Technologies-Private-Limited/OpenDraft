@@ -261,6 +261,10 @@
 [data-theme="light"] .spell-modal {
   background: var(--fd-dropdown-bg);
 }
+[data-theme="light"] .spell-active {
+  background: rgba(255, 193, 7, 0.35);
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.45);
+}
 /* Light theme: format panel */
 [data-theme="light"] .format-panel {
   background: var(--fd-dropdown-bg);
@@ -4019,6 +4023,12 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   text-decoration-skip-ink: none;
   text-underline-offset: 2px;
 }
+/* Highlight the word currently being checked in the spell check modal */
+.spell-active {
+  background: rgba(255, 213, 79, 0.45);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px rgba(255, 213, 79, 0.5);
+}
 
 /* MS Word-style spell check modal — floating, draggable, non-blocking */
 .spell-modal {
@@ -4026,19 +4036,12 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   border: 1px solid var(--fd-border);
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0,0,0,.6);
-  min-width: 460px;
-  max-width: 520px;
+  width: 490px;
   font-size: 13px;
-  transition: opacity 0.15s, box-shadow 0.15s;
 }
 .spell-modal-floating {
   position: fixed;
   z-index: 2000;
-}
-.spell-modal-inactive {
-  opacity: 0.35;
-  box-shadow: 0 4px 12px rgba(0,0,0,.3);
-  pointer-events: auto;
 }
 .spell-modal-header {
   display: flex;
@@ -4072,7 +4075,10 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   font-size: 13px;
   color: var(--fd-text);
   line-height: 1.5;
-  min-height: 36px;
+  height: 42px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .spell-modal-error-word {
   color: #e74c3c;
@@ -4090,13 +4096,14 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   font-size: 14px;
   font-family: var(--screenplay-font);
   outline: none;
+  box-sizing: border-box;
 }
 .spell-modal-input:focus { border-color: var(--fd-accent); }
 .spell-modal-suggestions {
   background: var(--fd-input-bg);
   border: 1px solid var(--fd-border);
   border-radius: 4px;
-  max-height: 130px;
+  height: 130px;
   overflow-y: auto;
 }
 .spell-modal-suggestion {
