@@ -135,6 +135,12 @@ export async function createLocalStorage() {
   // Resolve the app data dir once for asset URLs
   const baseDir = await appDataDir();
 
+  // In-memory cache of asset ID → filename so getAssetUrl (sync) can resolve
+  // the correct filename (with extension) even when only an asset ID is passed.
+  const assetFilenameCache: Record<string, string> = {};
+  const rows = await db.select<{ id: string; filename: string }[]>('SELECT id, filename FROM assets');
+  for (const r of rows) assetFilenameCache[r.id] = r.filename;
+
   const storage = {
     // ── Projects ───────────────────────────────────────────────────────────
 
@@ -706,6 +712,8 @@ export async function createLocalStorage() {
         [id, projectId, filename, file.name, file.type || 'application/octet-stream', file.size, JSON.stringify(tags), ts],
       );
 
+      assetFilenameCache[id] = filename;
+
       return {
         id,
         filename,
@@ -740,7 +748,8 @@ export async function createLocalStorage() {
     },
 
     getAssetUrl: (projectId: string, assetId: string, filename?: string): string => {
-      const filePath = `${baseDir}/assets/${projectId}/${filename || assetId}`;
+      const fn = filename || assetFilenameCache[assetId] || assetId;
+      const filePath = `${baseDir}/assets/${projectId}/${fn}`;
       return convertFileSrc(filePath);
     },
 
@@ -759,6 +768,7 @@ export async function createLocalStorage() {
         'DELETE FROM assets WHERE id = $1 AND project_id = $2',
         [assetId, projectId],
       );
+      delete assetFilenameCache[assetId];
     },
 
     // ── Link preview (via Tauri command) ──────────────────────────────────

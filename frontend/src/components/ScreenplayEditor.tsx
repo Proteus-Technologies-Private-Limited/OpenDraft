@@ -34,7 +34,7 @@ import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { createPaginationPlugin, getPageMetrics } from '../editor/pagination';
 
-import { useEditorStore, DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT, DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
+import { useEditorStore, DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT, DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
 import type { ElementType } from '../stores/editorStore';
 import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
@@ -1763,7 +1763,7 @@ const ScreenplayEditor: React.FC = () => {
           store.setNotes([]);
           store.setGeneralNotes([]);
           store.setTags([]);
-          store.setTagCategories([]);
+          store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
           store.setBeats([]);
           store.setBeatColumns([]);
           store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
@@ -2008,7 +2008,7 @@ const ScreenplayEditor: React.FC = () => {
         store.setNotes([]);
         store.setGeneralNotes([]);
         store.setTags([]);
-        store.setTagCategories([]);
+        store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
         store.setBeats([]);
         store.setBeatColumns([]);
         store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
@@ -2037,6 +2037,9 @@ const ScreenplayEditor: React.FC = () => {
                   highlighted: (prof.highlighted as boolean) || false,
                   gender: (prof.gender as string) || '',
                   age: (prof.age as string) || '',
+                  role: (prof.role as string) || '',
+                  backstory: (prof.backstory as string) || '',
+                  images: Array.isArray(prof.images) ? (prof.images as string[]) : [],
                 });
               }
             }
