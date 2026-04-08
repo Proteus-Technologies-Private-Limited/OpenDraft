@@ -423,6 +423,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           files: android-artifacts/*
+          draft: true
 
   build-ios:
     runs-on: macos-latest
@@ -640,6 +641,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           files: ios-artifacts/*
+          draft: true
 
   build-mac-appstore:
     runs-on: macos-latest
