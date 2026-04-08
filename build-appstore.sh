@@ -31,10 +31,10 @@ APPLE_SIGNING_IDENTITY="-" "$FRONTEND_DIR/node_modules/.bin/tauri" build --bundl
 
 APP_PATH="$TAURI_DIR/target/release/bundle/macos/OpenDraft.app"
 
-# Patch bundle ID to match App Store registration and provisioning profile
-/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.proteus.opendraft.desktop" \
+# Ensure bundle ID matches App Store registration and provisioning profile
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.proteus.opendraft" \
     "$APP_PATH/Contents/Info.plist"
-echo "  Bundle ID set to com.proteus.opendraft.desktop"
+echo "  Bundle ID set to com.proteus.opendraft"
 
 # Step 3: Sign with App Store identity and entitlements
 echo ""

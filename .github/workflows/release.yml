@@ -210,6 +210,7 @@ jobs:
             | **Linux** (Debian/Ubuntu) | `OpenDraft_0.12.0_amd64.deb` |
             | **Linux** (AppImage) | `OpenDraft_0.12.0_amd64.AppImage` |
             | **Android** (APK) | `OpenDraft_0.12.0_android.apk` |
+            | **iOS** (IPA) | `OpenDraft_0.12.0_ios.ipa` |
 
             ### Installation
 
@@ -220,6 +221,7 @@ jobs:
             **Windows:** Run the `.msi` or `.exe` installer, follow the prompts.
             **Linux:** Install the `.deb` with `sudo dpkg -i OpenDraft_*.deb` or run the `.AppImage` directly.
             **Android:** Download the `.apk` file on your device, enable "Install from unknown sources" if prompted, and install.
+            **iOS:** Available on the App Store (search "OpenDraft"), or sideload the `.ipa` via Finder/iTunes.
 
             > The desktop app is fully standalone — no Python, Node.js, or internet connection required after installation.
 
@@ -416,3 +418,132 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           files: android-artifacts/*
+
+  build-ios:
+    runs-on: macos-latest
+    name: Build & Submit (iOS)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+
+      - name: Initialize iOS project
+        run: npx --prefix frontend tauri ios init
+
+      - name: Import Apple Distribution certificate
+        env:
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$IOS_CERTIFICATE" ]; then
+            echo "::error::IOS_CERTIFICATE secret is required for iOS builds"
+            exit 1
+          fi
+          echo "$IOS_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import $RUNNER_TEMP/certificate.p12 -k build.keychain \
+            -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+          rm $RUNNER_TEMP/certificate.p12
+          echo "Apple Distribution certificate imported"
+
+      - name: Install provisioning profile
+        env:
+          IOS_PROVISION_PROFILE: ${{ secrets.IOS_PROVISION_PROFILE }}
+        run: |
+          if [ -z "$IOS_PROVISION_PROFILE" ]; then
+            echo "::error::IOS_PROVISION_PROFILE secret is required for iOS builds"
+            exit 1
+          fi
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$IOS_PROVISION_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/opendraft.mobileprovision
+          echo "Provisioning profile installed"
+
+      - name: Patch tauri.conf.json for iOS CI
+        run: |
+          cd src-tauri
+          python3 -c "
+          import json
+          with open('tauri.conf.json') as f:
+              cfg = json.load(f)
+          cfg['build']['beforeBuildCommand'] = ''
+          cfg['build']['beforeDevCommand'] = ''
+          cfg['bundle'].pop('externalBin', None)
+          with open('tauri.conf.json', 'w') as f:
+              json.dump(cfg, f, indent=2)
+          "
+
+      - name: Build iOS app
+        run: npx --prefix frontend tauri ios build --export-method app-store-connect
+
+      - name: Upload to App Store Connect
+        env:
+          APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+        run: |
+          if [ -z "$APPSTORE_API_KEY" ]; then
+            echo "::warning::APPSTORE_API_KEY not configured — skipping upload to App Store Connect"
+            exit 0
+          fi
+
+          # Save API key for authentication
+          mkdir -p ~/.private_keys
+          echo "$APPSTORE_API_KEY" | base64 --decode > ~/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8
+
+          # Find the IPA
+          IPA=$(find src-tauri/gen/apple/build -name "*.ipa" | head -1)
+          if [ -z "$IPA" ]; then
+            echo "::error::No IPA file found after build"
+            exit 1
+          fi
+
+          echo "Uploading $IPA to App Store Connect..."
+          xcrun altool --upload-app \
+            --file "$IPA" \
+            --type ios \
+            --apiKey "$APPSTORE_API_KEY_ID" \
+            --apiIssuer "$APPSTORE_API_ISSUER_ID"
+          echo "Upload complete — check App Store Connect for processing status"
+
+      - name: Prepare artifact
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p ios-artifacts
+          IPA=$(find src-tauri/gen/apple/build -name "*.ipa" | head -1)
+          if [ -n "$IPA" ]; then
+            cp "$IPA" "ios-artifacts/OpenDraft_${VERSION}_ios.ipa"
+            echo "IPA: $IPA -> OpenDraft_${VERSION}_ios.ipa"
+          fi
+          ls -la ios-artifacts/
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: ios-artifacts/*

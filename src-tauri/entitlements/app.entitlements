@@ -8,7 +8,7 @@
 
     <!-- Team and app identifier -->
     <key>com.apple.application-identifier</key>
-    <string>335RGMFDB6.com.proteus.opendraft.desktop</string>
+    <string>335RGMFDB6.com.proteus.opendraft</string>
 
     <key>com.apple.developer.team-identifier</key>
     <string>335RGMFDB6</string>
