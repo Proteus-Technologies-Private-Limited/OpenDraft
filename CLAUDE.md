@@ -59,7 +59,33 @@ The macOS `.dmg` is built via **GitHub Actions** (in `.github/workflows/release.
 
 - **Never skip signing/notarization** — unsigned `.dmg` files trigger "damaged and can't be opened" on user machines
 - Use **Developer ID Application** certificate for direct distribution (not "3rd Party Mac Developer" — that's for App Store only)
-- The App Store build (`build-appstore.sh`) uses different certificates. Don't mix them up.
+- The App Store build (`build-appstore.sh` locally, or `build-mac-appstore` CI job) uses different certificates. Don't mix them up.
+
+## macOS App Store Build (CI)
+
+The macOS `.pkg` for the Mac App Store is built via **GitHub Actions** (in `.github/workflows/release.yml`, the `build-mac-appstore` job). This runs **in addition to** the direct distribution `.dmg` build — both are produced on every release.
+
+### How it works
+
+1. Builds the Tauri app unsigned (`APPLE_SIGNING_IDENTITY="-"`)
+2. Re-signs with Apple Distribution certificate and App Store entitlements
+3. Embeds the macOS provisioning profile
+4. Packages as `.pkg` with the Mac Installer certificate
+5. Uploads to App Store Connect via API key
+
+### GitHub Secrets for macOS App Store
+
+Reuses `IOS_CERTIFICATE` (Apple Distribution) and `APPSTORE_API_KEY*` secrets. Additional secrets:
+
+| Secret | Description |
+|--------|-------------|
+| `MAC_INSTALLER_CERTIFICATE` | Base64-encoded `.p12` of "3rd Party Mac Developer Installer" or "Mac Installer Distribution" certificate |
+| `MAC_INSTALLER_CERTIFICATE_PASSWORD` | Password for the `.p12` file |
+| `MAC_APPSTORE_PROVISION_PROFILE` | Base64-encoded `.provisionprofile` for macOS App Store |
+
+### Local build (optional)
+
+`./build-appstore.sh` can still build locally if you have Apple credentials in Keychain.
 
 ## Promotion & Articles
 

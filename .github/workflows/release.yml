@@ -547,3 +547,175 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           files: ios-artifacts/*
+
+  build-mac-appstore:
+    runs-on: macos-latest
+    name: Build & Submit (macOS App Store)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+
+      - name: Import Apple Distribution certificate
+        env:
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$IOS_CERTIFICATE" ]; then
+            echo "::error::IOS_CERTIFICATE (Apple Distribution) secret is required for Mac App Store builds"
+            exit 1
+          fi
+          echo "$IOS_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/distribution.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import $RUNNER_TEMP/distribution.p12 -k build.keychain \
+            -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild
+          security set-key-partition-list -S apple-tool:,apple:,codesign:,productbuild: -s -k "" build.keychain
+          rm $RUNNER_TEMP/distribution.p12
+          echo "Apple Distribution certificate imported"
+
+      - name: Import Mac Installer certificate
+        env:
+          MAC_INSTALLER_CERTIFICATE: ${{ secrets.MAC_INSTALLER_CERTIFICATE }}
+          MAC_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.MAC_INSTALLER_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$MAC_INSTALLER_CERTIFICATE" ]; then
+            echo "::error::MAC_INSTALLER_CERTIFICATE secret is required for Mac App Store builds"
+            exit 1
+          fi
+          echo "$MAC_INSTALLER_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/installer.p12
+          security import $RUNNER_TEMP/installer.p12 -k build.keychain \
+            -P "$MAC_INSTALLER_CERTIFICATE_PASSWORD" -T /usr/bin/productbuild
+          security set-key-partition-list -S apple-tool:,apple:,codesign:,productbuild: -s -k "" build.keychain
+          rm $RUNNER_TEMP/installer.p12
+          echo "Mac Installer certificate imported"
+
+      - name: Install provisioning profile
+        env:
+          MAC_APPSTORE_PROVISION_PROFILE: ${{ secrets.MAC_APPSTORE_PROVISION_PROFILE }}
+        run: |
+          if [ -z "$MAC_APPSTORE_PROVISION_PROFILE" ]; then
+            echo "::error::MAC_APPSTORE_PROVISION_PROFILE secret is required"
+            exit 1
+          fi
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$MAC_APPSTORE_PROVISION_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/opendraft-macos.provisionprofile
+          echo "macOS provisioning profile installed"
+
+      - name: Patch tauri.conf.json for Mac App Store CI
+        run: |
+          cd src-tauri
+          python3 -c "
+          import json
+          with open('tauri.conf.json') as f:
+              cfg = json.load(f)
+          cfg['build']['beforeBuildCommand'] = ''
+          cfg['build']['beforeDevCommand'] = ''
+          cfg['bundle'].pop('externalBin', None)
+          with open('tauri.conf.json', 'w') as f:
+              json.dump(cfg, f, indent=2)
+          "
+
+      - name: Build Tauri app (unsigned)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: APPLE_SIGNING_IDENTITY="-" npx --prefix frontend tauri build --bundles app
+
+      - name: Sign and package for App Store
+        run: |
+          APP_PATH="src-tauri/target/release/bundle/macos/OpenDraft.app"
+          ENTITLEMENTS="src-tauri/entitlements/app.entitlements"
+
+          # Find signing identities from keychain
+          APP_SIGN_ID=$(security find-identity -v -p codesigning build.keychain | grep "Apple Distribution\|3rd Party Mac Developer Application" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          INSTALLER_SIGN_ID=$(security find-identity -v build.keychain | grep "Mac Installer Distribution\|3rd Party Mac Developer Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+
+          echo "App signing identity: $APP_SIGN_ID"
+          echo "Installer signing identity: $INSTALLER_SIGN_ID"
+
+          if [ -z "$APP_SIGN_ID" ]; then
+            echo "::error::No app signing identity found in keychain"
+            exit 1
+          fi
+          if [ -z "$INSTALLER_SIGN_ID" ]; then
+            echo "::error::No installer signing identity found in keychain"
+            exit 1
+          fi
+
+          # Sign main binary
+          codesign --force --options runtime \
+            --entitlements "$ENTITLEMENTS" \
+            --sign "$APP_SIGN_ID" \
+            "$APP_PATH/Contents/MacOS/opendraft"
+
+          # Sign the entire .app bundle
+          codesign --force --deep --options runtime \
+            --entitlements "$ENTITLEMENTS" \
+            --sign "$APP_SIGN_ID" \
+            "$APP_PATH"
+
+          # Verify signature
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+          # Embed provisioning profile
+          cp ~/Library/MobileDevice/Provisioning\ Profiles/opendraft-macos.provisionprofile \
+            "$APP_PATH/Contents/embedded.provisionprofile"
+
+          # Re-sign after embedding profile
+          codesign --force --deep --options runtime \
+            --entitlements "$ENTITLEMENTS" \
+            --sign "$APP_SIGN_ID" \
+            "$APP_PATH"
+
+          # Build .pkg installer
+          productbuild --component "$APP_PATH" /Applications \
+            --sign "$INSTALLER_SIGN_ID" \
+            "OpenDraft.pkg"
+
+          echo "App Store package built: OpenDraft.pkg"
+
+      - name: Upload to App Store Connect
+        env:
+          APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+        run: |
+          if [ -z "$APPSTORE_API_KEY" ]; then
+            echo "::warning::APPSTORE_API_KEY not configured — skipping upload to App Store Connect"
+            exit 0
+          fi
+
+          mkdir -p ~/.private_keys
+          echo "$APPSTORE_API_KEY" | base64 --decode > ~/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8
+
+          echo "Uploading OpenDraft.pkg to App Store Connect..."
+          xcrun altool --upload-app \
+            --file "OpenDraft.pkg" \
+            --type macos \
+            --apiKey "$APPSTORE_API_KEY_ID" \
+            --apiIssuer "$APPSTORE_API_ISSUER_ID"
+          echo "Upload complete — check App Store Connect for processing status"
