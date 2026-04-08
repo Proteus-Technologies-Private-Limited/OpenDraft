@@ -453,6 +453,45 @@ jobs:
       - name: Initialize iOS project
         run: npx --prefix frontend tauri ios init
 
+      - name: Configure iOS signing
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Set development team and signing style in the Xcode project
+          PBXPROJ="src-tauri/gen/apple/opendraft.xcodeproj/project.pbxproj"
+          if [ -f "$PBXPROJ" ]; then
+            sed -i '' "s/DEVELOPMENT_TEAM = \"\"/DEVELOPMENT_TEAM = \"$APPLE_TEAM_ID\"/g" "$PBXPROJ"
+            sed -i '' "s/CODE_SIGN_IDENTITY = \"\"/CODE_SIGN_IDENTITY = \"Apple Distribution\"/g" "$PBXPROJ"
+            # Add team ID if not present
+            if ! grep -q "DEVELOPMENT_TEAM" "$PBXPROJ"; then
+              sed -i '' "s/buildSettings = {/buildSettings = {\n\t\t\t\tDEVELOPMENT_TEAM = \"$APPLE_TEAM_ID\";/g" "$PBXPROJ"
+            fi
+            echo "iOS signing configured with team $APPLE_TEAM_ID"
+          fi
+
+          # Update ExportOptions.plist for App Store
+          cat > src-tauri/gen/apple/ExportOptions.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store-connect</string>
+              <key>teamID</key>
+              <string>${APPLE_TEAM_ID}</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.proteus.opendraft</key>
+                  <string>opendraft.mobileprovision</string>
+              </dict>
+          </dict>
+          </plist>
+          PLIST
+          # Replace env var in the plist
+          sed -i '' "s/\${APPLE_TEAM_ID}/$APPLE_TEAM_ID/g" src-tauri/gen/apple/ExportOptions.plist
+
       - name: Import Apple Distribution certificate
         env:
           IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
