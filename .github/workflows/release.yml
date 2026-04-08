@@ -500,6 +500,11 @@ jobs:
               json.dump(cfg, f, indent=2)
           "
 
+      - name: Setup root package.json for Xcode build
+        run: |
+          echo '{"private":true,"scripts":{"tauri":"tauri"}}' > package.json
+          ln -sf frontend/node_modules node_modules
+
       - name: Initialize iOS project
         env:
           APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
