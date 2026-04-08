@@ -533,25 +533,30 @@ jobs:
           echo "Xcode project configured for manual signing"
 
           # Update ExportOptions.plist for App Store Connect
-          cat > src-tauri/gen/apple/ExportOptions.plist << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>method</key>
-    <string>app-store-connect</string>
-    <key>teamID</key>
-    <string>$APPLE_TEAM_ID</string>
-    <key>signingStyle</key>
-    <string>manual</string>
-    <key>provisioningProfiles</key>
-    <dict>
-        <key>com.proteus.opendraft</key>
-        <string>$PROFILE_NAME</string>
-    </dict>
-</dict>
-</plist>
-EOF
+          python3 -c "
+          team_id = '$APPLE_TEAM_ID'
+          profile_name = '$PROFILE_NAME'
+          plist = '''<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+          <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+          <plist version=\"1.0\">
+          <dict>
+              <key>method</key>
+              <string>app-store-connect</string>
+              <key>teamID</key>
+              <string>{team}</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.proteus.opendraft</key>
+                  <string>{profile}</string>
+              </dict>
+          </dict>
+          </plist>'''.format(team=team_id, profile=profile_name)
+          import textwrap
+          with open('src-tauri/gen/apple/ExportOptions.plist', 'w') as f:
+              f.write(textwrap.dedent(plist))
+          "
 
       - name: Build iOS app
         env:
