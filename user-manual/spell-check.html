@@ -68,6 +68,10 @@
     <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
   </div>
   <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
     <div class="sidebar-section-title">Customization</div>
     <a href="themes.html" class="sidebar-link">Themes</a>
     <a href="page-setup.html" class="sidebar-link">Page Setup</a>
@@ -87,7 +91,7 @@
 
     <h2 id="enable">Enabling Spell Check</h2>
 
-    <p>Toggle spell check on or off via <strong>Tools &gt; Spell Check</strong>.</p>
+    <p>Toggle spell check on or off via <strong>Edit &gt; Spell Check</strong>.</p>
 
     <p>When enabled, misspelled words are underlined with a red squiggly line in the editor.</p>
 
@@ -105,8 +109,15 @@
 
     <ul>
       <li><strong>Add to Dictionary</strong> &mdash; Right-click the word and select <strong>Add to Dictionary</strong>. The word will never be flagged again across all your projects.</li>
-      <li><strong>Ignore</strong> &mdash; Right-click and select <strong>Ignore</strong> to skip this instance without adding it permanently.</li>
+      <li><strong>Ignore</strong> &mdash; Right-click and select <strong>Ignore</strong> to skip this word for the current screenplay only. Ignored words are saved <strong>per document</strong> &mdash; they persist between sessions, so you won't be asked about the same word again in this screenplay.</li>
     </ul>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Per-document vs. global:</strong> <em>Add to Dictionary</em> adds the word globally (applies to all scripts). <em>Ignore</em> adds the word to the current screenplay's ignore list only. This is useful when a word is correct in one script (e.g., a character name) but shouldn't be whitelisted everywhere.</p>
+      </div>
+    </div>
 
     <div class="callout callout-tip">
       <span class="callout-icon">&#128161;</span>
@@ -137,7 +148,7 @@
 
   </div>
   <footer class="footer">
-    OpenDraft User Manual &middot; v0.12.0 &middot; Made by Proteus Technologies
+    OpenDraft User Manual &middot; v0.12.1 &middot; Made by Proteus Technologies
   </footer>
 </main>
 

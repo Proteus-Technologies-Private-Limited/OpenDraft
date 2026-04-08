@@ -68,6 +68,10 @@
     <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
   </div>
   <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
     <div class="sidebar-section-title">Customization</div>
     <a href="themes.html" class="sidebar-link">Themes</a>
     <a href="page-setup.html" class="sidebar-link active">Page Setup</a>
@@ -146,6 +150,34 @@
       </div>
     </div>
 
+    <h2 id="headers-footers">Headers &amp; Footers</h2>
+
+    <p>Configure what appears at the top and bottom of each page. Go to <strong>File &gt; Page Setup</strong> and find the <strong>Header</strong> and <strong>Footer</strong> sections.</p>
+
+    <p>Each header/footer has three zones: <strong>left</strong>, <strong>center</strong>, and <strong>right</strong>. You can enter plain text or use dynamic fields that are automatically replaced when the page renders:</p>
+
+    <table>
+      <thead>
+        <tr><th>Field</th><th>Renders as</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>{page}</code></td><td>Current page number</td></tr>
+        <tr><td><code>{pages}</code></td><td>Total page count</td></tr>
+        <tr><td><code>{title}</code></td><td>The screenplay title</td></tr>
+        <tr><td><code>{date}</code></td><td>Current date</td></tr>
+        <tr><td><code>{revision}</code></td><td>Current revision label</td></tr>
+      </tbody>
+    </table>
+
+    <p>You can also set which page the header and footer start appearing on. For example, set <strong>Header starts on page</strong> to 2 to keep the first page (title page) clean.</p>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>Tip:</strong> A common setup is to put the page number in the top-right corner of the header, starting from page 2. Use <code>{page}.</code> in the right header field.</p>
+      </div>
+    </div>
+
     <h2 id="reset">Resetting to Defaults</h2>
 
     <p>Click <strong>Reset to Default</strong> in the Page Setup dialog to restore standard screenplay page dimensions and margins.</p>
@@ -163,7 +195,7 @@
 
   </div>
   <footer class="footer">
-    OpenDraft User Manual &middot; v0.12.0 &middot; Made by Proteus Technologies
+    OpenDraft User Manual &middot; v0.12.1 &middot; Made by Proteus Technologies
   </footer>
 </main>
 

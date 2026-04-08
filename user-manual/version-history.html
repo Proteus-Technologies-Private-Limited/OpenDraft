@@ -68,6 +68,10 @@
     <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
   </div>
   <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
     <div class="sidebar-section-title">Customization</div>
     <a href="themes.html" class="sidebar-link">Themes</a>
     <a href="page-setup.html" class="sidebar-link">Page Setup</a>
@@ -94,7 +98,7 @@
     <h2 id="check-in">Checking In</h2>
 
     <ol class="steps">
-      <li>Go to <strong>File &gt; Check In</strong> (or use the keyboard shortcut).</li>
+      <li>Go to <strong>File &gt; Versions &gt; Check In</strong> (or use the keyboard shortcut).</li>
       <li>Enter a brief message describing what you changed (e.g., "Finished scene 5 rewrite" or "Added new character Maria").</li>
       <li>Click <strong>Check In</strong>.</li>
     </ol>
@@ -116,7 +120,7 @@
 
     <h2 id="view-history">Viewing History</h2>
 
-    <p>Access version history from <strong>File &gt; Version History</strong> or from the <strong>Versions</strong> tab in the project view.</p>
+    <p>Access version history from <strong>File &gt; Versions &gt; Version History</strong> or from the <strong>Versions</strong> tab in the project view.</p>
 
     <p>The version list shows:</p>
     <ul>
@@ -130,14 +134,20 @@
     <p>Click <strong>View</strong> on any version to open it in a read-only editor. This shows exactly what your script looked like at that point in time.</p>
 
     <div class="screenshot">
-      <img src="screenshots/version-history.png" alt="Version History panel showing saved versions with View and Restore buttons">
+      <img src="../images/macos/version_history_appstore.png" alt="Version History panel showing saved versions with View and Restore buttons">
+    </div>
+
+    <p>When viewing a past version, a gold banner at the top indicates you are in read-only mode, showing the version hash and a <strong>Back to Current Version</strong> button.</p>
+
+    <div class="screenshot">
+      <img src="../images/macos/version_history_view_appstore.png" alt="Viewing a past version in read-only mode with gold banner showing version hash">
     </div>
 
     <h2 id="compare">Comparing Versions</h2>
 
     <p>Compare your current script against any previous version using Track Changes:</p>
     <ol>
-      <li>Go to <strong>View &gt; Compare with Version</strong></li>
+      <li>Go to <strong>File &gt; Versions &gt; Compare with Version</strong></li>
       <li>Select the version to compare against</li>
       <li>The editor shows inline diffs &mdash; green for additions, red strikethrough for deletions</li>
     </ol>
@@ -195,7 +205,7 @@
 
   </div>
   <footer class="footer">
-    OpenDraft User Manual &middot; v0.12.0 &middot; Made by Proteus Technologies
+    OpenDraft User Manual &middot; v0.12.1 &middot; Made by Proteus Technologies
   </footer>
 </main>
 
