@@ -125,22 +125,22 @@ That's it. The script installs dependencies, builds the app, and opens it in you
 ## Screenshots
 
 <p align="center">
-  <img src="images/editor.png" alt="Screenplay Editor" width="80%"><br>
+  <img src="images/macos/editor.png" alt="Screenplay Editor" width="80%"><br>
   <em>Industry-standard screenplay formatting with scene navigator</em>
 </p>
 
 <p align="center">
-  <img src="images/beatboard.png" alt="Beat Board" width="80%"><br>
+  <img src="images/macos/beatboard.png" alt="Beat Board" width="80%"><br>
   <em>Visual story planning with Beat Board</em>
 </p>
 
 <p align="center">
-  <img src="images/collaboration_1.png" alt="Real-time Collaboration" width="80%"><br>
+  <img src="images/macos/collaboration_1.png" alt="Real-time Collaboration" width="80%"><br>
   <em>Real-time collaboration — multiple users editing simultaneously</em>
 </p>
 
 <p align="center">
-  <img src="images/collaboration.png" alt="Collaboration Invite Dialog" width="80%"><br>
+  <img src="images/macos/collaboration.png" alt="Collaboration Invite Dialog" width="80%"><br>
   <em>Invite collaborators with granular permissions (Co-Edit / Read Only)</em>
 </p>
 
