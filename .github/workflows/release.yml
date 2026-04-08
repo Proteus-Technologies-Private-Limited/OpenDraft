@@ -516,6 +516,12 @@ jobs:
           APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: npx --prefix frontend tauri ios init
 
+      - name: Copy iOS icons
+        run: |
+          ICON_DIR="src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset"
+          cp images/ios-icons/* "$ICON_DIR/"
+          echo "iOS icons copied to $ICON_DIR"
+
       - name: Configure iOS manual signing
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
