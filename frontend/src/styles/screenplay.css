@@ -6963,8 +6963,10 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   .element-selector, .font-selector, .font-size-selector { height: 32px; }
 
   /* Menu bar: touch-friendly */
-  .menu-item { padding: 6px 10px; }
-  .menu-label { font-size: 12px; }
+  .menu-bar { height: 40px; gap: 2px; }
+  .menu-item { padding: 8px 12px; min-height: 40px; gap: 6px; }
+  .menu-label { font-size: 13px; }
+  .menu-icon { font-size: 14px; }
 
   /* Status bar: simplified */
   .status-project, .status-sep { display: none; }
@@ -7005,7 +7007,11 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   .menu-bar {
     overflow: visible;
     flex-wrap: nowrap;
+    height: 40px;
   }
+  .menu-item { padding: 8px 12px; min-height: 40px; gap: 6px; }
+  .menu-label { font-size: 13px; }
+  .menu-icon { font-size: 14px; }
 
   /* Menu dropdown: full-width on mobile */
   .menu-dropdown {
@@ -7142,11 +7148,11 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   .status-right .status-page { font-size: 11px !important; color: var(--fd-text-muted) !important; }
   .status-revision { display: none !important; }
 
-  /* Menu bar: compact for phone — hide labels, show icons only */
-  .menu-bar { height: 34px; }
-  .menu-item { padding: 6px 8px; }
-  .menu-label { display: none; }
-  .menu-icon { font-size: 14px; color: var(--fd-text); }
+  /* Menu bar: compact but keep labels visible for touch */
+  .menu-bar { height: 38px; gap: 0; }
+  .menu-item { padding: 8px 10px; min-height: 38px; gap: 5px; }
+  .menu-label { font-size: 12px; }
+  .menu-icon { font-size: 13px; color: var(--fd-text); }
 
   /* Toolbar: compact, scrollable */
   .toolbar { min-height: 38px; padding: 2px 6px; }
