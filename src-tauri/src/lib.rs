@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
+#[cfg(not(target_os = "ios"))]
 use tauri::menu::{Menu, Submenu, PredefinedMenuItem};
 
 // ── Pending file state ────────────────────────────────────────────────────
@@ -249,12 +250,15 @@ pub fn run() {
             http_fetch,
             fetch_link_preview,
             get_opened_file,
-        ])
-        // ── Minimal native menu ──────────────────────────────────────────
+        ]);
+
+        // ── Minimal native menu (desktop only) ─────────────────────────
         // macOS: keep only App menu (About/Hide/Quit) + Window menu
         //        (Minimize/Maximize/Close) so Cmd+Q/H/M keep working.
         // Windows/Linux: empty menu — no native menu bar shown.
-        .menu(|app_handle| {
+        // iOS: no menu support — .menu() is not available.
+        #[cfg(not(target_os = "ios"))]
+        let builder = builder.menu(|app_handle| {
             #[cfg(target_os = "macos")]
             {
                 let app_submenu = Submenu::with_items(
@@ -290,8 +294,9 @@ pub fn run() {
             {
                 Menu::new(app_handle)
             }
-        })
-        .setup(|app| {
+        });
+
+    let builder = builder.setup(|app| {
             // Ensure user data directory exists
             let app_data_dir = app
                 .path()
