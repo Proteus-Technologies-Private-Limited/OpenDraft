@@ -264,6 +264,16 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
 
     if (node.content && node.content.length > 0) {
       lines.push(`${indent}<Paragraph ${attrStr}>`);
+      // Scene heading synopsis → SceneProperties/Summary (Final Draft format)
+      if (node.type === 'sceneHeading' && node.attrs?.synopsis) {
+        lines.push(`${indent}  <SceneProperties>`);
+        lines.push(`${indent}    <Summary>`);
+        lines.push(`${indent}      <Paragraph>`);
+        lines.push(`${indent}        <Text>${esc(String(node.attrs.synopsis))}</Text>`);
+        lines.push(`${indent}      </Paragraph>`);
+        lines.push(`${indent}    </Summary>`);
+        lines.push(`${indent}  </SceneProperties>`);
+      }
       for (const child of node.content) {
         if (child.type === 'text' && child.text) {
           const ta = getTextAttributes(child.marks as MarkInfo[] | undefined);

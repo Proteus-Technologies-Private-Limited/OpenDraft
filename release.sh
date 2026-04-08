@@ -77,15 +77,9 @@ sed -i '' "s/What's New in ${OLD_VERSION}/What's New in ${NEW_VERSION}/g" \
   "$PROJECT_ROOT/frontend/src/components/MenuBar.tsx"
 echo "  ✓ frontend/src/components/MenuBar.tsx"
 
-# README.md - download link filenames
-sed -i '' "s/${OLD_VERSION}/${NEW_VERSION}/g" \
-  "$PROJECT_ROOT/README.md"
-echo "  ✓ README.md"
-
-# .github/workflows/release.yml - release body filenames
-sed -i '' "s/${OLD_VERSION}/${NEW_VERSION}/g" \
-  "$PROJECT_ROOT/.github/workflows/release.yml"
-echo "  ✓ .github/workflows/release.yml"
+# README.md download links and landing/index.html are updated automatically
+# by the publish-release CI job after builds complete and assets are verified.
+# Do NOT update them here — see .github/workflows/release.yml publish-release job.
 
 # user-manual - footer version in all HTML files
 for f in "$PROJECT_ROOT"/user-manual/*.html; do

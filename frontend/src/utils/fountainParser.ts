@@ -23,6 +23,15 @@ export function parseFountain(text: string): TipTapNode {
       continue;
     }
 
+    // Synopsis line: starts with = (must follow a scene heading)
+    if (trimmed.startsWith('= ') && nodes.length > 0 && nodes[nodes.length - 1].type === 'sceneHeading') {
+      const prev = nodes[nodes.length - 1];
+      if (!prev.attrs) prev.attrs = {};
+      prev.attrs.synopsis = trimmed.substring(2).trim();
+      i++;
+      continue;
+    }
+
     // Forced scene heading: line starts with .
     if (trimmed.startsWith('.') && trimmed.length > 1 && trimmed[1] !== '.') {
       nodes.push(makeNode('sceneHeading', trimmed.substring(1).trim()));

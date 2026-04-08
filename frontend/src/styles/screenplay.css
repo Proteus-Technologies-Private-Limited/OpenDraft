@@ -131,15 +131,18 @@
   background: #f2f2f2;
   box-shadow: -2px 0 8px #c0c0c0;
 }
-/* Light theme: mobile overlay panels */
+/* Light theme: navigator overlay (matches ≤1100px overlay breakpoint) */
+@media (max-width: 1100px) {
+  [data-theme="light"] .scene-navigator {
+    box-shadow: 4px 0 20px #999;
+  }
+}
+/* Light theme: side panel overlays */
 @media (max-width: 900px) {
   [data-theme="light"] .tags-panel,
   [data-theme="light"] .script-notes-panel,
   [data-theme="light"] .char-profiles-panel {
     box-shadow: -4px 0 20px #999;
-  }
-  [data-theme="light"] .scene-navigator {
-    box-shadow: 4px 0 20px #999;
   }
 }
 [data-theme="light"] .tags-pending {
@@ -1900,6 +1903,10 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 }
 .ic-action-btn:hover { border-color: #555; color: var(--fd-text); }
 .ic-action-btn.active { background: var(--fd-accent); border-color: var(--fd-accent); color: #fff; }
+.ic-action-btn:disabled { opacity: 0.4; cursor: default; }
+.ic-action-btn:disabled:hover { border-color: var(--fd-border); color: var(--fd-text-muted); }
+.ic-apply-btn.active { background: #2d8a4e; border-color: #2d8a4e; }
+.ic-undo-redo-btn { display: flex; align-items: center; justify-content: center; padding: 3px 6px; }
 .ic-fullscreen-btn { display: flex; align-items: center; justify-content: center; padding: 3px 6px; }
 .index-cards-grid {
   display: grid;
@@ -1917,6 +1924,10 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .ic-draggable { cursor: grab; }
 .ic-draggable:active { cursor: grabbing; }
 .ic-dragging { opacity: .25; }
+.ic-moved-up { border-color: #2d8a4e; box-shadow: 0 0 0 1px #2d8a4e; }
+.ic-moved-down { border-color: #d97706; box-shadow: 0 0 0 1px #d97706; }
+.ic-moved-up .index-card-badge { background: #2d8a4e; }
+.ic-moved-down .index-card-badge { background: #d97706; }
 /* Floating drag overlay — exact clone of the card */
 .ic-drag-overlay {
   position: fixed;
@@ -1997,7 +2008,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
+  min-width: 24px;
   height: 24px;
   background: var(--fd-accent);
   color: #fff;
@@ -2005,6 +2016,13 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   font-weight: 700;
   border-radius: 4px;
   flex-shrink: 0;
+  padding: 0 4px;
+  gap: 2px;
+  white-space: nowrap;
+}
+.ic-orig-num {
+  text-decoration: line-through;
+  opacity: 0.6;
 }
 .index-card-heading {
   flex: 1;
@@ -6857,21 +6875,9 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   }
 }
 
-/* Medium screens (≤1100px): hide navigator, narrow panels further */
+/* Medium screens (≤1100px): navigator as overlay, narrow panels further */
 @media (max-width: 1100px) {
-  .scene-navigator {
-    display: none !important;
-  }
-  .script-notes-panel, .char-profiles-panel, .tags-panel {
-    width: 240px;
-    min-width: 240px;
-  }
-  .editor-main { padding: 20px 0 40px; }
-}
-
-/* ── Small screens (≤900px): panels as overlays ── */
-@media (max-width: 900px) {
-  /* Scene navigator: mobile overlay from left (hidden by default, swipe to open) */
+  /* Scene navigator: overlay from left (same as small-screen behavior) */
   .scene-navigator {
     display: flex !important;
     position: fixed;
@@ -6884,10 +6890,10 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
     box-shadow: 4px 0 20px rgba(0,0,0,.4);
     transition: transform 0.25s ease;
     transform: translateX(-100%);
+    overflow: visible;
   }
   .scene-navigator.panel-open { transform: translateX(0); }
   .scene-navigator.panel-closing { transform: translateX(-100%); }
-  .scene-navigator { overflow: visible; }
   .scene-navigator::before {
     content: '';
     position: absolute;
@@ -6901,6 +6907,17 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
     transition: opacity 0.25s ease;
   }
   .scene-navigator.panel-open::before { opacity: 1; pointer-events: auto; }
+
+  .script-notes-panel, .char-profiles-panel, .tags-panel {
+    width: 240px;
+    min-width: 240px;
+  }
+  .editor-main { padding: 20px 0 40px; }
+}
+
+/* ── Small screens (≤900px): panels as overlays ── */
+@media (max-width: 900px) {
+  /* Scene navigator overlay styles already applied at ≤1100px */
 
   /* Side panels: slide-in overlay from right */
   .script-notes-panel, .char-profiles-panel, .tags-panel {
@@ -8095,6 +8112,32 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 
 /* ── Google sign-in ── */
 
+.collab-remember-section {
+  margin-top: 12px;
+}
+.collab-remember-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--fd-text);
+  cursor: pointer;
+}
+.collab-remember-label input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+.collab-remember-warning {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.1);
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  border-radius: 4px;
+  line-height: 1.4;
+}
 .settings-google-section {
   margin-top: 20px;
 }

@@ -9,22 +9,44 @@ interface CollabLoginDialogProps {
   onSuccess: () => void;
 }
 
+const SAVED_CREDS_KEY = 'opendraft:collabSavedCreds';
+
+function loadSavedCreds(): { email: string; password: string } | null {
+  try {
+    const raw = localStorage.getItem(SAVED_CREDS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveCreds(email: string, password: string) {
+  localStorage.setItem(SAVED_CREDS_KEY, JSON.stringify({ email, password }));
+}
+
+function clearSavedCreds() {
+  localStorage.removeItem(SAVED_CREDS_KEY);
+}
+
 const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSuccess }) => {
+  const saved = loadSavedCreds();
+
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [loading, setLoading] = useState(false);
   const [serverConfig, setServerConfig] = useState<CollabServerConfig | null>(null);
   const collabServerUrl = useSettingsStore((s) => s.collabServerUrl);
   const isDemoServer = collabServerUrl.includes('opendraft-collab-267958344432.us-central1.run.app');
 
-  // Login fields
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
+  // Login fields — pre-fill from saved credentials
+  const [loginEmail, setLoginEmail] = useState(saved?.email ?? '');
+  const [loginPassword, setLoginPassword] = useState(saved?.password ?? '');
 
-  // Register fields
+  // Register fields — pre-fill email/password from saved credentials
   const [regName, setRegName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
+  const [regEmail, setRegEmail] = useState(saved?.email ?? '');
+  const [regPassword, setRegPassword] = useState(saved?.password ?? '');
   const [regConfirm, setRegConfirm] = useState('');
+
+  // Remember credentials
+  const [rememberCreds, setRememberCreds] = useState(!!saved);
 
   useEffect(() => {
     collabAuthApi.getServerConfig().then(setServerConfig).catch(() => {});
@@ -36,6 +58,8 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
     try {
       const response = await collabAuthApi.login(loginEmail, loginPassword);
       handleAuthResponse(response);
+      if (rememberCreds) saveCreds(loginEmail, loginPassword);
+      else clearSavedCreds();
       showToast('Signed in', 'success');
       onSuccess();
     } catch (err: any) {
@@ -65,6 +89,8 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
     try {
       const response = await collabAuthApi.register(regEmail, regPassword, regName);
       handleAuthResponse(response);
+      if (rememberCreds) saveCreds(regEmail, regPassword);
+      else clearSavedCreds();
       showToast('Account created!', 'success');
       onSuccess();
     } catch (err: any) {
@@ -222,6 +248,26 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
               </button>
             </div>
           )}
+
+          <div className="collab-remember-section">
+            <label className="collab-remember-label">
+              <input
+                type="checkbox"
+                checked={rememberCreds}
+                onChange={(e) => {
+                  setRememberCreds(e.target.checked);
+                  if (!e.target.checked) clearSavedCreds();
+                }}
+              />
+              Remember credentials
+            </label>
+            {rememberCreds && (
+              <p className="collab-remember-warning">
+                Your password will be stored in plain text on this device. This is not
+                recommended on shared or public computers.
+              </p>
+            )}
+          </div>
 
           {serverConfig?.googleEnabled && (
             <div className="settings-google-section">

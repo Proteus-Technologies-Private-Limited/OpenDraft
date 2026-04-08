@@ -47,7 +47,8 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
   const [expandedChar, setExpandedChar] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showReferred, setShowReferred] = useState(false);
-  const [sortBy, setSortBy] = useState<'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance'>('name');
+  const sortBy = useEditorStore((s) => s.characterSortBy);
+  const setSortBy = useEditorStore((s) => s.setCharacterSortBy);
   const [pendingRemoveChar, setPendingRemoveChar] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fsViewMode, setFsViewMode] = useState<'cards' | 'list'>('cards');
