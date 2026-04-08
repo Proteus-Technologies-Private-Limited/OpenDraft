@@ -10,9 +10,9 @@ PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 FRONTEND_DIR="$PROJECT_ROOT/frontend"
 TAURI_DIR="$PROJECT_ROOT/src-tauri"
 ENTITLEMENTS_DIR="$TAURI_DIR/entitlements"
-PROVISION_PROFILE="$PROJECT_ROOT/certificates/OpenDraft_App_Store.provisionprofile"
+PROVISION_PROFILE="$PROJECT_ROOT/certificates/OpenDraft_macOS_App_Store.provisionprofile"
 
-APP_SIGN_ID="3rd Party Mac Developer Application: Base Information Management Pvt. Ltd. (335RGMFDB6)"
+APP_SIGN_ID="Apple Distribution: Base Information Management Pvt. Ltd. (335RGMFDB6)"
 INSTALLER_SIGN_ID="3rd Party Mac Developer Installer: Base Information Management Pvt. Ltd. (335RGMFDB6)"
 
 echo "=== OpenDraft App Store Build ==="
