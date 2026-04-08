@@ -71,7 +71,7 @@ Promotion materials (blog posts, articles, social media content) go in `Promotio
 
 See `docs/RELEASE.md` for the full checklist. Key points:
 - Use `./release.sh X.Y.Z` to automate the full release
-- GitHub Actions builds **all platforms**: macOS (.dmg), Windows (.exe/.msi), Linux (.deb/.AppImage), Android (.apk/.aab)
+- GitHub Actions builds **all platforms**: macOS (.dmg), Windows (.exe/.msi), Linux (.deb/.AppImage), Android (.apk/.aab), iOS (.ipa)
 - macOS builds are signed and notarized via Apple secrets in GitHub
 - Update "What's New" content in MenuBar.tsx and user-manual before releasing
 
@@ -116,3 +116,59 @@ Requires Android Studio (or SDK command-line tools), NDK 27, and Rust Android ta
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 cd frontend && npx tauri android init && npx tauri android build --apk
 ```
+
+---
+
+## iOS Build
+
+The iOS `.ipa` is built via **GitHub Actions** (in `.github/workflows/release.yml`, the `build-ios` job). It runs on a macOS runner, builds the Tauri iOS app, and uploads to both the GitHub Release and App Store Connect.
+
+### How it works
+
+1. CI runs `tauri ios init` to generate the Xcode project (since `src-tauri/gen/` is gitignored)
+2. Imports the Apple Distribution certificate and provisioning profile from GitHub secrets
+3. Patches `tauri.conf.json` to remove `externalBin` (no Python sidecar on iOS — the app uses local SQLite)
+4. Builds with `tauri ios build --export-method app-store-connect`
+5. If App Store Connect API key is configured, uploads the IPA directly to App Store Connect
+6. Uploads renamed artifact (`OpenDraft_X.Y.Z_ios.ipa`) to the GitHub Release
+
+### GitHub Secrets for iOS
+
+All secrets are required for the build to succeed:
+
+| Secret | Description |
+|--------|-------------|
+| `IOS_CERTIFICATE` | Base64-encoded `.p12` containing the Apple Distribution certificate + private key |
+| `IOS_CERTIFICATE_PASSWORD` | Password for the `.p12` file |
+| `IOS_PROVISION_PROFILE` | Base64-encoded `.mobileprovision` file for the app |
+
+For automatic App Store Connect upload (optional):
+
+| Secret | Description |
+|--------|-------------|
+| `APPSTORE_API_KEY` | Base64-encoded App Store Connect API key (`.p8` file) |
+| `APPSTORE_API_KEY_ID` | Key ID from App Store Connect (e.g., `XXXXXXXXXX`) |
+| `APPSTORE_API_ISSUER_ID` | Issuer ID from App Store Connect |
+
+### How to export the iOS certificate as `.p12`
+
+1. Open Keychain Access, find `Apple Distribution: Base Information Management Pvt. Ltd. (335RGMFDB6)`
+2. Right-click → Export Items → save as `.p12` with a password
+3. Base64-encode: `base64 -i distribution.p12 | pbcopy`
+4. Paste into the `IOS_CERTIFICATE` GitHub secret
+
+### How to get the provisioning profile
+
+1. Go to developer.apple.com → Certificates, Identifiers & Profiles → Profiles
+2. Create or download an App Store provisioning profile for `com.proteus.opendraft`
+3. Base64-encode: `base64 -i OpenDraft_AppStore.mobileprovision | pbcopy`
+4. Paste into the `IOS_PROVISION_PROFILE` GitHub secret
+
+### How to create an App Store Connect API key
+
+1. Go to appstoreconnect.apple.com → Users and Access → Integrations → App Store Connect API
+2. Click "+" to generate a new key with "App Manager" role
+3. Download the `.p8` file (only available once!)
+4. Base64-encode: `base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy`
+5. Note the Key ID and Issuer ID shown on the page
+6. Add all three values to GitHub secrets
