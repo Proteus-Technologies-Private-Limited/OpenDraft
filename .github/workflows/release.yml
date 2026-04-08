@@ -511,34 +511,54 @@ jobs:
         run: |
           # Extract provisioning profile UUID
           PROFILE_PATH=~/Library/MobileDevice/Provisioning\ Profiles/opendraft.mobileprovision
-          PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
-          PROFILE_NAME=$(security cms -D -i "$PROFILE_PATH" | plutil -extract Name raw -)
+          export PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
+          export PROFILE_NAME=$(security cms -D -i "$PROFILE_PATH" | plutil -extract Name raw -)
           echo "Profile UUID: $PROFILE_UUID"
           echo "Profile Name: $PROFILE_NAME"
 
-          PBXPROJ="src-tauri/gen/apple/opendraft.xcodeproj/project.pbxproj"
+          export PBXPROJ="src-tauri/gen/apple/opendraft.xcodeproj/project.pbxproj"
 
-          # Set signing identity and team
-          sed -i '' "s/CODE_SIGN_IDENTITY = \"iPhone Developer\"/CODE_SIGN_IDENTITY = \"Apple Distribution\"/g" "$PBXPROJ"
-          sed -i '' "s/CODE_SIGN_IDENTITY = \"\"/CODE_SIGN_IDENTITY = \"Apple Distribution\"/g" "$PBXPROJ"
-          sed -i '' "s/DEVELOPMENT_TEAM = \"\"/DEVELOPMENT_TEAM = \"$APPLE_TEAM_ID\"/g" "$PBXPROJ"
+          # Patch pbxproj with Python for reliable multiline edits
+          python3 - "$PBXPROJ" << 'PYEOF'
+          import os, sys
 
-          # Add manual signing and provisioning profile after each CODE_SIGN_IDENTITY line
-          sed -i '' "/CODE_SIGN_IDENTITY = \"Apple Distribution\";/a\\
-          \\t\\t\\t\\tCODE_SIGN_STYLE = Manual;\\
-          \\t\\t\\t\\tPROVISIONING_PROFILE = \"$PROFILE_UUID\";\\
-          \\t\\t\\t\\tPROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_NAME\";
-          " "$PBXPROJ"
+          team_id = os.environ['APPLE_TEAM_ID']
+          profile_uuid = os.environ['PROFILE_UUID']
+          profile_name = os.environ['PROFILE_NAME']
+          pbxproj = sys.argv[1]
 
-          echo "Xcode project configured for manual signing"
+          with open(pbxproj) as f:
+              lines = f.readlines()
 
-          # Update ExportOptions.plist for App Store Connect
-          python3 -c "
-          team_id = '$APPLE_TEAM_ID'
-          profile_name = '$PROFILE_NAME'
-          plist = '''<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-          <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
-          <plist version=\"1.0\">
+          out = []
+          for line in lines:
+              line = line.replace('CODE_SIGN_IDENTITY = "iPhone Developer"', 'CODE_SIGN_IDENTITY = "Apple Distribution"')
+              line = line.replace('CODE_SIGN_IDENTITY = ""', 'CODE_SIGN_IDENTITY = "Apple Distribution"')
+              line = line.replace('DEVELOPMENT_TEAM = ""', f'DEVELOPMENT_TEAM = "{team_id}"')
+              out.append(line)
+              stripped = line.strip()
+              if stripped == 'CODE_SIGN_IDENTITY = "Apple Distribution";':
+                  indent = line[:len(line) - len(line.lstrip())]
+                  out.append(f'{indent}CODE_SIGN_STYLE = Manual;\n')
+                  out.append(f'{indent}PROVISIONING_PROFILE = "{profile_uuid}";\n')
+                  out.append(f'{indent}PROVISIONING_PROFILE_SPECIFIER = "{profile_name}";\n')
+              if 'DevelopmentTeam' in stripped and '=' in stripped and 'TargetAttributes' not in stripped:
+                  indent = line[:len(line) - len(line.lstrip())]
+                  out.append(f'{indent}ProvisioningStyle = Manual;\n')
+
+          with open(pbxproj, 'w') as f:
+              f.writelines(out)
+          print(f'Configured: team={team_id}, profile={profile_name} ({profile_uuid})')
+          PYEOF
+
+          # Write ExportOptions.plist
+          python3 - << 'PYEOF'
+          import os
+          team = os.environ['APPLE_TEAM_ID']
+          name = os.environ['PROFILE_NAME']
+          plist = f"""<?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
           <dict>
               <key>method</key>
               <string>app-store-connect</string>
@@ -549,14 +569,15 @@ jobs:
               <key>provisioningProfiles</key>
               <dict>
                   <key>com.proteus.opendraft</key>
-                  <string>{profile}</string>
+                  <string>{name}</string>
               </dict>
           </dict>
-          </plist>'''.format(team=team_id, profile=profile_name)
+          </plist>"""
           import textwrap
           with open('src-tauri/gen/apple/ExportOptions.plist', 'w') as f:
-              f.write(textwrap.dedent(plist))
-          "
+              f.write(textwrap.dedent(plist).lstrip())
+          PYEOF
+          echo "iOS signing configured for manual distribution"
 
       - name: Build iOS app
         env:
