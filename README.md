@@ -172,17 +172,17 @@ How does OpenDraft stack up against commercial screenwriting software?
 
 | Feature | OpenDraft | Final Draft | WriterDuet | Fade In |
 |---------|:---------:|:-----------:|:----------:|:-------:|
-| **Price** | Free | $250 | $12/mo | $80 |
+| **Price** | Free | $250 | Free / $12/mo | $80 |
 | **Open Source** | Yes (MIT) | No | No | No |
 | **Offline Desktop App** | Yes | Yes | Limited | Yes |
-| **Real-time Collaboration** | Yes | No | Yes | No |
-| **Beat Board / Index Cards** | Yes | Yes | No | No |
-| **Version History with Diff** | Yes | No | Yes | No |
+| **Real-time Collaboration** | Yes | Yes | Yes | Yes |
+| **Beat Board / Index Cards** | Yes | Yes | Yes | Yes |
+| **Version History with Diff** | Yes | Limited | Limited | Limited |
 | **Self-Hostable** | Yes | No | No | No |
-| **Linux Support** | Yes | No | Browser only | Yes |
-| **No Account Required** | Yes | No | No | No |
+| **Linux Support** | Yes | No | Yes (paid) | Yes |
+| **No Account Required** | Yes | No | No | Yes |
 | **Privacy-First (No Tracking)** | Yes | No | No | No |
-| **Character Profiles** | Yes | No | No | No |
+| **Character Profiles** | Yes | Limited | No | No |
 | **Plugin Architecture** | Yes | No | No | No |
 
 ---
