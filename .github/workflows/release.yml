@@ -509,11 +509,20 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          # Extract provisioning profile UUID and name
+          PROFILE_PATH=~/Library/MobileDevice/Provisioning\ Profiles/opendraft.mobileprovision
+          PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
+          PROFILE_NAME=$(security cms -D -i "$PROFILE_PATH" | plutil -extract Name raw -)
+          echo "Profile UUID: $PROFILE_UUID"
+          echo "Profile Name: $PROFILE_NAME"
+
           PBXPROJ="src-tauri/gen/apple/opendraft.xcodeproj/project.pbxproj"
           python3 << PYEOF
-          import os
+          import os, re
 
           team_id = os.environ['APPLE_TEAM_ID']
+          profile_uuid = '$PROFILE_UUID'
+          profile_name = '$PROFILE_NAME'
 
           with open('$PBXPROJ') as f:
               content = f.read()
@@ -532,18 +541,17 @@ jobs:
               f'DEVELOPMENT_TEAM = "{team_id}"'
           )
 
-          # Add CODE_SIGN_STYLE = Manual to all build settings that have CODE_SIGN_IDENTITY
-          import re
+          # Add CODE_SIGN_STYLE, provisioning profile to build settings with CODE_SIGN_IDENTITY
           content = re.sub(
               r'(CODE_SIGN_IDENTITY = "Apple Distribution";)',
-              r'CODE_SIGN_STYLE = Manual;\n\t\t\t\t\1',
+              f'CODE_SIGN_STYLE = Manual;\n\t\t\t\t\\1\n\t\t\t\tPROVISIONING_PROFILE = "{profile_uuid}";\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "{profile_name}";',
               content
           )
 
           with open('$PBXPROJ', 'w') as f:
               f.write(content)
 
-          print(f'Xcode project configured for manual signing with team {team_id}')
+          print(f'Xcode project configured: team={team_id}, profile={profile_name} ({profile_uuid})')
           PYEOF
 
           # Update ExportOptions.plist for App Store Connect
