@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-Time Collaboration - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="../">Home</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link active">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Real-Time Collaboration
+    </div>
+
+    <h1>Real-Time Collaboration</h1>
+    <p class="page-subtitle">Write together in real time with co-writers, editors, and collaborators.</p>
+
+    <h2 id="overview">Overview</h2>
+
+    <p>OpenDraft supports <strong>real-time collaboration</strong> &mdash; multiple people can edit the same screenplay simultaneously, with changes syncing instantly. You can see each collaborator's cursor position and edits as they happen.</p>
+
+    <div class="screenshot">
+      <img src="../images/macos/collaboration_1.png" alt="Live collaboration session with two users connected, showing colored cursors and the collaboration bar">
+    </div>
+
+    <p>Collaboration syncs everything in real time: screenplay text, character profiles, script notes, tags, beats, and scene synopses.</p>
+
+    <h2 id="setup">Setting Up Collaboration</h2>
+
+    <p>Before you can collaborate, you need to configure a collaboration server and create an account.</p>
+
+    <h3 id="configure-server">Configure the Collaboration Server</h3>
+
+    <ol class="steps">
+      <li>Open <strong>System Settings</strong> (from the app menu or gear icon).</li>
+      <li>Find the <strong>Collaboration Server</strong> section.</li>
+      <li>Enter the server URL. Use <code>wss://</code> for encrypted connections (recommended) or <code>ws://</code> for local networks.</li>
+      <li>Click <strong>Test Connection</strong> to verify the server is reachable.</li>
+    </ol>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Default server:</strong> OpenDraft includes a demo collaboration server URL out of the box. For production use, you can deploy your own collaboration server for full control and privacy.</p>
+      </div>
+    </div>
+
+    <h3 id="create-account">Create an Account</h3>
+
+    <ol class="steps">
+      <li>In System Settings, find the <strong>Collaboration Account</strong> section.</li>
+      <li>Click <strong>Register</strong> to create a new account with your email and password.</li>
+      <li>If email verification is enabled on the server, enter the 6-digit code sent to your email.</li>
+      <li>Alternatively, use <strong>Sign in with Google</strong> if the server supports it.</li>
+    </ol>
+
+    <h2 id="start-session">Starting a Collaboration Session</h2>
+
+    <p>As the host, you invite others to your screenplay by creating invite links.</p>
+
+    <ol class="steps">
+      <li>Open the screenplay you want to share.</li>
+      <li>Go to <strong>Tools &gt; Collaborate...</strong> to open the Share dialog.</li>
+      <li>Enter the collaborator's name (for your reference).</li>
+      <li>Choose a <strong>permission level</strong>:
+        <ul>
+          <li><strong>Co-Edit</strong> &mdash; Full read-write access. The collaborator can modify the screenplay.</li>
+          <li><strong>Read Only</strong> &mdash; View-only access. The collaborator can see the screenplay and follow edits in real time but cannot make changes.</li>
+        </ul>
+      </li>
+      <li>Set the <strong>Token Valid For</strong> duration (how long the invite link stays active). Options range from 30 minutes to 30 days.</li>
+      <li>Click <strong>Invite</strong> to generate the link.</li>
+      <li>Click <strong>Copy Link</strong> to copy the invite URL and share it with your collaborator.</li>
+    </ol>
+
+    <div class="screenshot">
+      <img src="../images/macos/collaboration.png" alt="Collaboration Share dialog showing invite creation with permission and token validity options">
+    </div>
+
+    <h2 id="join-session">Joining a Collaboration Session</h2>
+
+    <ol class="steps">
+      <li>Go to <strong>Tools &gt; Join Collaboration...</strong></li>
+      <li>Paste the invite link or token you received.</li>
+      <li>Click <strong>Join</strong>.</li>
+      <li>The shared screenplay opens in your editor with the permissions assigned by the host.</li>
+    </ol>
+
+    <h2 id="during-session">During a Collaboration Session</h2>
+
+    <p>While collaborating, a green <strong>Live Collaboration</strong> bar appears at the top of the editor showing the session status and connected users.</p>
+
+    <ul>
+      <li><strong>Colored cursors</strong> &mdash; Each collaborator has a unique color. Their cursor position and name tag are visible in real time.</li>
+      <li><strong>Instant sync</strong> &mdash; All changes (text edits, formatting, metadata) sync automatically.</li>
+      <li><strong>No conflicts</strong> &mdash; OpenDraft uses CRDT technology (Yjs) to merge concurrent edits without conflicts.</li>
+    </ul>
+
+    <h3 id="what-syncs">What Gets Synced</h3>
+
+    <p>Everything syncs in real time between all connected collaborators:</p>
+
+    <ul>
+      <li>Screenplay text and formatting</li>
+      <li>Character profiles</li>
+      <li>Script notes and general notes</li>
+      <li>Tags and tag categories</li>
+      <li>Beats and beat board structure</li>
+      <li>Scene synopses</li>
+    </ul>
+
+    <h2 id="manage-invites">Managing Invites</h2>
+
+    <p>The Share dialog (<strong>Tools &gt; Collaborate...</strong>) shows all active invites for the current screenplay.</p>
+
+    <p>For each invite, you can see:</p>
+    <ul>
+      <li>The collaborator's name and role (Co-Edit or Read Only)</li>
+      <li>When the invite was created and when it expires</li>
+    </ul>
+
+    <p>You can:</p>
+    <ul>
+      <li><strong>Copy Link</strong> &mdash; Re-copy the invite URL</li>
+      <li><strong>Revoke</strong> &mdash; Cancel a specific invite, disconnecting that collaborator</li>
+    </ul>
+
+    <h2 id="end-session">Ending a Session</h2>
+
+    <p>To end a collaboration session:</p>
+    <ul>
+      <li><strong>As host:</strong> Click <strong>End Session</strong> in the collaboration bar, or revoke all invites from the Share dialog. All collaborators are disconnected.</li>
+      <li><strong>As guest:</strong> Close the editor tab or navigate away. Your connection ends but the session continues for others.</li>
+    </ul>
+
+    <h2 id="invite-defaults">Invite Defaults</h2>
+
+    <p>In <strong>System Settings &gt; Invite Defaults</strong>, you can set the default token expiry time for new invites. This saves you from changing it every time you create an invite. The default is 1 hour.</p>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>Tip:</strong> For quick review sessions, use a short expiry (30 minutes to 1 hour). For ongoing writing partnerships, use longer durations (7 or 30 days).</p>
+      </div>
+    </div>
+
+    <div class="callout callout-danger">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Security:</strong> Anyone with an active invite link can join your session with the assigned permissions. Share links only with people you trust, and revoke invites when they are no longer needed.</p>
+      </div>
+    </div>
+
+    <div class="page-nav">
+      <a href="import-export.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Import &amp; Export</span>
+      </a>
+      <a href="themes.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Themes</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.12.1 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>
