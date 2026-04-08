@@ -1011,11 +1011,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.12.0</div>
+            <div className="about-version">Version 0.12.1</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.12.0</div>
+              <div className="about-section-title">What's New in 0.12.1</div>
               <ul className="about-list">
                 <li><strong>Spell Check Improvements</strong> — Fixed spell check across web and mobile platforms. Per-document ignore list persistence so your ignored words are remembered per screenplay.</li>
                 <li><strong>Mobile & Responsive Support</strong> — Spell check modal now adapts to narrow screens. Improved responsive layout for mobile devices.</li>

@@ -183,6 +183,10 @@ jobs:
               json.dump(cfg, f, indent=2)
           "
 
+      - name: Get version number
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -205,12 +209,12 @@ jobs:
 
             | Platform | File |
             |----------|------|
-            | **macOS** (Apple Silicon) | `OpenDraft_0.12.0_aarch64.dmg` |
-            | **Windows** (64-bit) | `OpenDraft_0.12.0_x64-setup.exe` or `.msi` |
-            | **Linux** (Debian/Ubuntu) | `OpenDraft_0.12.0_amd64.deb` |
-            | **Linux** (AppImage) | `OpenDraft_0.12.0_amd64.AppImage` |
-            | **Android** (APK) | `OpenDraft_0.12.0_android.apk` |
-            | **iOS** (IPA) | `OpenDraft_0.12.0_ios.ipa` |
+            | **macOS** (Apple Silicon) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_aarch64.dmg` |
+            | **Windows** (64-bit) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_x64-setup.exe` or `.msi` |
+            | **Linux** (Debian/Ubuntu) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_amd64.deb` |
+            | **Linux** (AppImage) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_amd64.AppImage` |
+            | **Android** (APK) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_android.apk` |
+            | **iOS** (IPA) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_ios.ipa` |
 
             ### Installation
 
