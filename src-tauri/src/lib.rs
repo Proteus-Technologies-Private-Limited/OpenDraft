@@ -1,4 +1,5 @@
 use std::sync::Mutex;
+use percent_encoding::percent_decode_str;
 use tauri::{Emitter, Manager};
 #[cfg(not(target_os = "ios"))]
 use tauri::menu::{Menu, Submenu, PredefinedMenuItem};
@@ -232,6 +233,28 @@ fn decode_html_entities(s: &str) -> String {
         .replace("&apos;", "'")
 }
 
+/// Guess MIME type from file extension.
+fn guess_mime(path: &std::path::Path) -> &'static str {
+    match path.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase()).as_deref() {
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("png") => "image/png",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        Some("svg") => "image/svg+xml",
+        Some("bmp") => "image/bmp",
+        Some("ico") => "image/x-icon",
+        Some("pdf") => "application/pdf",
+        Some("mp4") => "video/mp4",
+        Some("webm") => "video/webm",
+        Some("mp3") => "audio/mpeg",
+        Some("wav") => "audio/wav",
+        Some("ogg") => "audio/ogg",
+        Some("json") => "application/json",
+        Some("txt") => "text/plain",
+        _ => "application/octet-stream",
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -242,6 +265,34 @@ pub fn run() {
         )
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        // ── Asset protocol: serve local files for convertFileSrc() URLs ──
+        .register_uri_scheme_protocol("asset", |_app, request| {
+            let uri = request.uri();
+            let raw_path = uri.path();
+            // Decode percent-encoded path and strip leading slash
+            let decoded = percent_decode_str(raw_path).decode_utf8_lossy();
+            let file_path_str = decoded.trim_start_matches('/');
+            let file_path = std::path::Path::new(file_path_str);
+
+            match std::fs::read(file_path) {
+                Ok(data) => {
+                    let mime = guess_mime(file_path);
+                    tauri::http::Response::builder()
+                        .status(200)
+                        .header("Content-Type", mime)
+                        .header("Access-Control-Allow-Origin", "*")
+                        .body(data)
+                        .unwrap()
+                }
+                Err(e) => {
+                    eprintln!("[asset] Failed to read {}: {}", file_path_str, e);
+                    tauri::http::Response::builder()
+                        .status(404)
+                        .body(Vec::new())
+                        .unwrap()
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             save_text_to_path,
             save_binary_to_path,

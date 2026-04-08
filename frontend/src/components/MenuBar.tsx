@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
-import { useEditorStore, DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
+import { useEditorStore, DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
@@ -447,7 +447,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     store.setBeatArrangeMode('auto');
     store.setNotes([]);
     store.setTags([]);
-    store.setTagCategories([]);
+    store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
     store.setCharacterProfiles([]);
     store.setScenes([]);
 
