@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use percent_encoding::percent_decode_str;
 use tauri::{Emitter, Manager};
-#[cfg(not(target_os = "ios"))]
+#[cfg(desktop)]
 use tauri::menu::{Menu, Submenu, PredefinedMenuItem};
 
 // ── Pending file state ────────────────────────────────────────────────────
@@ -308,8 +308,8 @@ pub fn run() {
         //        The Edit menu is required for clipboard & undo shortcuts
         //        to reach the webview on macOS.
         // Windows/Linux: empty menu — no native menu bar shown.
-        // iOS: no menu support — .menu() is not available.
-        #[cfg(not(target_os = "ios"))]
+        // Mobile (iOS/Android): no menu support — .menu() is not available.
+        #[cfg(desktop)]
         let builder = builder.menu(|app_handle| {
             #[cfg(target_os = "macos")]
             {
