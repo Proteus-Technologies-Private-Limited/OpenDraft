@@ -509,7 +509,7 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          # Extract provisioning profile UUID and name
+          # Extract provisioning profile UUID
           PROFILE_PATH=~/Library/MobileDevice/Provisioning\ Profiles/opendraft.mobileprovision
           PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
           PROFILE_NAME=$(security cms -D -i "$PROFILE_PATH" | plutil -extract Name raw -)
@@ -517,63 +517,41 @@ jobs:
           echo "Profile Name: $PROFILE_NAME"
 
           PBXPROJ="src-tauri/gen/apple/opendraft.xcodeproj/project.pbxproj"
-          python3 << PYEOF
-          import os, re
 
-          team_id = os.environ['APPLE_TEAM_ID']
-          profile_uuid = '$PROFILE_UUID'
-          profile_name = '$PROFILE_NAME'
+          # Set signing identity and team
+          sed -i '' "s/CODE_SIGN_IDENTITY = \"iPhone Developer\"/CODE_SIGN_IDENTITY = \"Apple Distribution\"/g" "$PBXPROJ"
+          sed -i '' "s/CODE_SIGN_IDENTITY = \"\"/CODE_SIGN_IDENTITY = \"Apple Distribution\"/g" "$PBXPROJ"
+          sed -i '' "s/DEVELOPMENT_TEAM = \"\"/DEVELOPMENT_TEAM = \"$APPLE_TEAM_ID\"/g" "$PBXPROJ"
 
-          with open('$PBXPROJ') as f:
-              content = f.read()
+          # Add manual signing and provisioning profile after each CODE_SIGN_IDENTITY line
+          sed -i '' "/CODE_SIGN_IDENTITY = \"Apple Distribution\";/a\\
+          \\t\\t\\t\\tCODE_SIGN_STYLE = Manual;\\
+          \\t\\t\\t\\tPROVISIONING_PROFILE = \"$PROFILE_UUID\";\\
+          \\t\\t\\t\\tPROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_NAME\";
+          " "$PBXPROJ"
 
-          # Set manual signing, team ID, and distribution identity
-          content = content.replace(
-              'CODE_SIGN_IDENTITY = "iPhone Developer"',
-              'CODE_SIGN_IDENTITY = "Apple Distribution"'
-          )
-          content = content.replace(
-              'CODE_SIGN_IDENTITY = ""',
-              'CODE_SIGN_IDENTITY = "Apple Distribution"'
-          )
-          content = content.replace(
-              'DEVELOPMENT_TEAM = ""',
-              f'DEVELOPMENT_TEAM = "{team_id}"'
-          )
-
-          # Add CODE_SIGN_STYLE, provisioning profile to build settings with CODE_SIGN_IDENTITY
-          content = re.sub(
-              r'(CODE_SIGN_IDENTITY = "Apple Distribution";)',
-              f'CODE_SIGN_STYLE = Manual;\n\t\t\t\t\\1\n\t\t\t\tPROVISIONING_PROFILE = "{profile_uuid}";\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "{profile_name}";',
-              content
-          )
-
-          with open('$PBXPROJ', 'w') as f:
-              f.write(content)
-
-          print(f'Xcode project configured: team={team_id}, profile={profile_name} ({profile_uuid})')
-          PYEOF
+          echo "Xcode project configured for manual signing"
 
           # Update ExportOptions.plist for App Store Connect
-          cat > src-tauri/gen/apple/ExportOptions.plist << PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>app-store-connect</string>
-              <key>teamID</key>
-              <string>$APPLE_TEAM_ID</string>
-              <key>signingStyle</key>
-              <string>manual</string>
-              <key>provisioningProfiles</key>
-              <dict>
-                  <key>com.proteus.opendraft</key>
-                  <string>opendraft.mobileprovision</string>
-              </dict>
-          </dict>
-          </plist>
-          PLIST
+          cat > src-tauri/gen/apple/ExportOptions.plist << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>app-store-connect</string>
+    <key>teamID</key>
+    <string>$APPLE_TEAM_ID</string>
+    <key>signingStyle</key>
+    <string>manual</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.proteus.opendraft</key>
+        <string>$PROFILE_NAME</string>
+    </dict>
+</dict>
+</plist>
+EOF
 
       - name: Build iOS app
         env:
