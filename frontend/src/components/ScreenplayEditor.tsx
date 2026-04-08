@@ -516,7 +516,7 @@ const ScreenplayEditor: React.FC = () => {
   useSwipeEdge({
     edge: 'left',
     onSwipe: toggleNavigator,
-    enabled: isTouch && !navigatorOpen && typeof window !== 'undefined' && window.innerWidth <= 900,
+    enabled: isTouch && !navigatorOpen && typeof window !== 'undefined' && window.innerWidth <= 1100,
   });
   useSwipeEdge({
     edge: 'right',
@@ -1271,6 +1271,23 @@ const ScreenplayEditor: React.FC = () => {
   // Keep editor ref updated for onSynced callback
   collabEditorRef.current = editor;
 
+  // Route native undo/redo (e.g. iOS shake-to-undo) to the editor
+  useEffect(() => {
+    if (!editor) return;
+    const handleBeforeInput = (e: Event) => {
+      const ie = e as InputEvent;
+      if (ie.inputType === 'historyUndo') {
+        e.preventDefault();
+        try { editor.chain().undo().run(); } catch {}
+      } else if (ie.inputType === 'historyRedo') {
+        e.preventDefault();
+        try { editor.chain().redo().run(); } catch {}
+      }
+    };
+    document.addEventListener('beforeinput', handleBeforeInput);
+    return () => document.removeEventListener('beforeinput', handleBeforeInput);
+  }, [editor]);
+
   // ── Dynamic CSS injection for custom formatting templates ──
   const activeTemplateId = useFormattingTemplateStore((s) => s.activeTemplateId);
   const templatesLoaded = useFormattingTemplateStore((s) => s.loaded);
@@ -1363,7 +1380,8 @@ const ScreenplayEditor: React.FC = () => {
         } else {
           num = String(idx);
         }
-        list.push({ id: `scene-${idx}`, heading: node.textContent || 'Untitled Scene', sceneNumber: parseInt(num, 10), color: '#4a9eff', synopsis: '' });
+        const sceneId = `scene-${idx}`;
+        list.push({ id: sceneId, heading: node.textContent || 'Untitled Scene', sceneNumber: parseInt(num, 10), color: '#4a9eff', synopsis: node.attrs.synopsis || '' });
         // Update node attrs if scene numbers are visible and the number changed
         if (visible && String(node.attrs.sceneNumber) !== num) {
           attrUpdates.push({ pos, number: num });

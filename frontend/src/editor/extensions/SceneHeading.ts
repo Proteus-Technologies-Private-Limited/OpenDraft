@@ -10,11 +10,20 @@ export const SceneHeading = Node.create({
     return {
       sceneNumber: { default: null },
       locked: { default: false },
+      synopsis: { default: '' },
     };
   },
 
   parseHTML() {
-    return [{ tag: 'div[data-type="scene-heading"]' }];
+    return [{
+      tag: 'div[data-type="scene-heading"]',
+      getAttrs: (el) => {
+        const dom = el as HTMLElement;
+        return {
+          synopsis: dom.getAttribute('data-synopsis') || '',
+        };
+      },
+    }];
   },
 
   renderHTML({ HTMLAttributes, node }) {
@@ -24,6 +33,9 @@ export const SceneHeading = Node.create({
     };
     if (node.attrs.sceneNumber != null) {
       attrs['data-scene-number'] = String(node.attrs.sceneNumber);
+    }
+    if (node.attrs.synopsis) {
+      attrs['data-synopsis'] = node.attrs.synopsis;
     }
     return [
       'div',

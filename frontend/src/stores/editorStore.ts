@@ -15,6 +15,7 @@ interface ViewState {
   notesActiveTab?: 'script' | 'general';
   zoomLevel?: number;
   toolbarMode?: 'compact' | 'comfortable' | 'hidden';
+  characterSortBy?: 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance';
 }
 function loadViewState(): ViewState {
   try {
@@ -410,6 +411,10 @@ interface EditorState {
   toolbarMode: 'compact' | 'comfortable' | 'hidden';
   setToolbarMode: (mode: 'compact' | 'comfortable' | 'hidden') => void;
 
+  // Character sort preference
+  characterSortBy: 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance';
+  setCharacterSortBy: (sort: 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance') => void;
+
   // Navigator panel width (for floating menu positioning)
   navPanelWidth: number;
   setNavPanelWidth: (w: number) => void;
@@ -795,6 +800,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   toolbarMode: (_vs.toolbarMode as 'compact' | 'comfortable' | 'hidden') ?? 'compact',
   setToolbarMode: (mode) => { set({ toolbarMode: mode }); saveViewState({ toolbarMode: mode }); },
+
+  characterSortBy: (_vs.characterSortBy as 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance') ?? 'importance',
+  setCharacterSortBy: (sort) => { set({ characterSortBy: sort }); saveViewState({ characterSortBy: sort }); },
 
   navPanelWidth: 0,
   setNavPanelWidth: (w) => set({ navPanelWidth: w }),

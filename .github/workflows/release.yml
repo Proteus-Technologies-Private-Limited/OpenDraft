@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   build-desktop:
@@ -240,7 +241,7 @@ jobs:
             ```
 
             See [INSTALLATION.md](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/docs/INSTALLATION.md) for details.
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
           includeUpdaterJson: false
 
@@ -811,3 +812,106 @@ jobs:
             --apiKey "$APPSTORE_API_KEY_ID" \
             --apiIssuer "$APPSTORE_API_ISSUER_ID"
           echo "Upload complete — check App Store Connect for processing status"
+
+  # ── Publish release & update download links ─────────────────────────────
+  # Runs only after ALL build jobs succeed. Verifies assets exist on the
+  # draft release, publishes it, then updates download links in README.md
+  # and landing/index.html so they always point to verified files.
+  publish-release:
+    needs: [build-desktop, build-android, build-ios, build-mac-appstore]
+    runs-on: ubuntu-latest
+    name: Publish Release & Update Links
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Verify release assets exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          TAG="${{ github.ref_name }}"
+          REPO="${{ github.repository }}"
+
+          EXPECTED_ASSETS=(
+            "OpenDraft_${VERSION}_aarch64.dmg"
+            "OpenDraft_${VERSION}_x64-setup.exe"
+            "OpenDraft_${VERSION}_x64_en-US.msi"
+            "OpenDraft_${VERSION}_amd64.deb"
+            "OpenDraft_${VERSION}_amd64.AppImage"
+            "OpenDraft_${VERSION}_android.apk"
+            "OpenDraft_${VERSION}_ios.ipa"
+          )
+
+          echo "Checking release assets for ${TAG}..."
+          ASSETS=$(gh release view "$TAG" --repo "$REPO" --json assets -q '.assets[].name')
+
+          MISSING=0
+          for expected in "${EXPECTED_ASSETS[@]}"; do
+            if echo "$ASSETS" | grep -q "^${expected}$"; then
+              echo "  [OK] ${expected}"
+            else
+              echo "  [MISSING] ${expected}"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+
+          if [ $MISSING -gt 0 ]; then
+            echo "::error::${MISSING} expected assets are missing from the release"
+            exit 1
+          fi
+
+          echo "All expected assets verified."
+
+      - name: Publish release (remove draft status)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --draft=false
+          echo "Release ${{ github.ref_name }} published"
+
+      - name: Update download links in README.md
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          sed -i "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_aarch64\.dmg/OpenDraft_${VERSION}_aarch64.dmg/g" README.md
+          sed -i "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64-setup\.exe/OpenDraft_${VERSION}_x64-setup.exe/g" README.md
+          sed -i "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64_en-US\.msi/OpenDraft_${VERSION}_x64_en-US.msi/g" README.md
+          sed -i "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.deb/OpenDraft_${VERSION}_amd64.deb/g" README.md
+          sed -i "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.AppImage/OpenDraft_${VERSION}_amd64.AppImage/g" README.md
+          sed -i "s/OpenDraft-[0-9]*\.[0-9]*\.[0-9]*-1\.x86_64\.rpm/OpenDraft-${VERSION}-1.x86_64.rpm/g" README.md
+          echo "README.md download links updated to ${VERSION}"
+
+      - name: Update download links in landing/index.html
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          sed -i "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_aarch64\.dmg/OpenDraft_${VERSION}_aarch64.dmg/g" landing/index.html
+          sed -i "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64-setup\.exe/OpenDraft_${VERSION}_x64-setup.exe/g" landing/index.html
+          sed -i "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.deb/OpenDraft_${VERSION}_amd64.deb/g" landing/index.html
+          echo "landing/index.html download links updated to ${VERSION}"
+
+      - name: Commit and push updated links
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md landing/index.html
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "Update download links to v${{ steps.version.outputs.VERSION }}
+
+          Automated update after release assets verified."
+          git push origin main
+
+      - name: Trigger landing page deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run deploy-manual.yml --repo "${{ github.repository }}"
+          echo "Landing page deployment triggered"

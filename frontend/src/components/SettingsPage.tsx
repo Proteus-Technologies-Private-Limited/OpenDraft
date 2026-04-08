@@ -27,15 +27,22 @@ const SettingsPage: React.FC = () => {
   const [urlInput, setUrlInput] = useState(collabServerUrl);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
 
-  // Auth forms
+  // Auth forms — pre-fill from saved credentials
+  const savedCreds = (() => {
+    try {
+      const raw = localStorage.getItem('opendraft:collabSavedCreds');
+      return raw ? JSON.parse(raw) as { email: string; password: string } : null;
+    } catch { return null; }
+  })();
   const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
+  const [loginEmail, setLoginEmail] = useState(savedCreds?.email ?? '');
+  const [loginPassword, setLoginPassword] = useState(savedCreds?.password ?? '');
+  const [regEmail, setRegEmail] = useState(savedCreds?.email ?? '');
+  const [regPassword, setRegPassword] = useState(savedCreds?.password ?? '');
   const [regConfirm, setRegConfirm] = useState('');
   const [regName, setRegName] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [rememberCreds, setRememberCreds] = useState(!!savedCreds);
 
   // Email verification
   const [verifyCode, setVerifyCode] = useState('');
@@ -89,6 +96,8 @@ const SettingsPage: React.FC = () => {
     try {
       const response = await collabAuthApi.login(loginEmail, loginPassword);
       handleAuthResponse(response);
+      if (rememberCreds) localStorage.setItem('opendraft:collabSavedCreds', JSON.stringify({ email: loginEmail, password: loginPassword }));
+      else localStorage.removeItem('opendraft:collabSavedCreds');
       showToast('Logged in successfully', 'success');
       setLoginEmail('');
       setLoginPassword('');
@@ -119,6 +128,8 @@ const SettingsPage: React.FC = () => {
     try {
       const response = await collabAuthApi.register(regEmail, regPassword, regName);
       handleAuthResponse(response);
+      if (rememberCreds) localStorage.setItem('opendraft:collabSavedCreds', JSON.stringify({ email: regEmail, password: regPassword }));
+      else localStorage.removeItem('opendraft:collabSavedCreds');
       showToast(
         response.user.emailVerified
           ? 'Account created successfully!'
@@ -410,6 +421,26 @@ const SettingsPage: React.FC = () => {
                   </button>
                 </div>
               )}
+
+              <div className="collab-remember-section">
+                <label className="collab-remember-label">
+                  <input
+                    type="checkbox"
+                    checked={rememberCreds}
+                    onChange={(e) => {
+                      setRememberCreds(e.target.checked);
+                      if (!e.target.checked) localStorage.removeItem('opendraft:collabSavedCreds');
+                    }}
+                  />
+                  Remember credentials
+                </label>
+                {rememberCreds && (
+                  <p className="collab-remember-warning">
+                    Your password will be stored in plain text on this device. This is not
+                    recommended on shared or public computers.
+                  </p>
+                )}
+              </div>
 
               {/* Google sign-in */}
               {serverConfig?.googleEnabled && (

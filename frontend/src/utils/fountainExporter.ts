@@ -31,6 +31,9 @@ export function exportFountain(doc: JSONContent): string {
       case 'sceneHeading':
         lines.push('');
         lines.push(text.toUpperCase());
+        if (node.attrs?.synopsis) {
+          lines.push(`= ${node.attrs.synopsis}`);
+        }
         lines.push('');
         break;
       case 'action':

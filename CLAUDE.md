@@ -198,3 +198,44 @@ For automatic App Store Connect upload (optional):
 4. Base64-encode: `base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy`
 5. Note the Key ID and Issuer ID shown on the page
 6. Add all three values to GitHub secrets
+
+---
+
+## Local iOS Simulator Build
+
+Building and running on the iOS simulator requires specific steps. **Do NOT use `tauri ios dev`** — it tries to start a new Vite dev server which fails if one is already running (the user runs the dev server in a separate terminal).
+
+### Steps to build and run on iPad simulator
+
+```bash
+# 1. Build the frontend first
+cd frontend && npm run build && cd ..
+
+# 2. Build the iOS app for the simulator (debug, unsigned)
+APPLE_SIGNING_IDENTITY="-" frontend/node_modules/.bin/tauri ios build --target aarch64-sim --debug
+
+# 3. Boot the simulator (pick an iPad device)
+xcrun simctl boot "iPad Air 11-inch (M3)"
+
+# 4. Install and launch
+xcrun simctl install "iPad Air 11-inch (M3)" src-tauri/gen/apple/build/arm64-sim/OpenDraft.app
+xcrun simctl launch "iPad Air 11-inch (M3)" com.proteus.opendraft
+
+# 5. Bring Simulator app to front
+open -a Simulator
+```
+
+### Common issues
+
+- **"Port 5173 is already in use"** — The user's dev server is running. Never use `tauri ios dev`; always use `tauri ios build` + `simctl install`.
+- **"Couldn't recognize the current folder as a Tauri project"** — Run from the project root (`/Users/kandarpbaghar/ai-projects/OpenDraft/`), not from `src-tauri/` or `frontend/`.
+- **PhaseScriptExecution failed** — Same root cause as above. Use the CLI build, not Xcode's Run button directly.
+- **If `src-tauri/gen/apple` doesn't exist** — Run `frontend/node_modules/.bin/tauri ios init` first.
+
+### macOS desktop (local testing)
+
+```bash
+# Unsigned build for local testing (no Apple credentials needed):
+APPLE_SIGNING_IDENTITY="-" frontend/node_modules/.bin/tauri build
+# Output: src-tauri/target/release/bundle/macos/OpenDraft.app
+```

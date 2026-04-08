@@ -248,6 +248,15 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     const sceneNumber = para.getAttribute('Number');
     if (sceneNumber) attrs.sceneNumber = sceneNumber;
 
+    // Scene heading synopsis from SceneProperties/Summary
+    if (nodeType === 'sceneHeading') {
+      const summaryEl = para.querySelector(':scope > SceneProperties > Summary');
+      if (summaryEl) {
+        const synopsisText = summaryEl.textContent?.trim() || '';
+        if (synopsisText) attrs.synopsis = synopsisText;
+      }
+    }
+
     const alignment = para.getAttribute('Alignment');
     if (alignment && FDX_ALIGNMENT_MAP[alignment]) {
       attrs.textAlign = FDX_ALIGNMENT_MAP[alignment];

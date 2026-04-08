@@ -303,9 +303,10 @@ pub fn run() {
             get_opened_file,
         ]);
 
-        // ── Minimal native menu (desktop only) ─────────────────────────
-        // macOS: keep only App menu (About/Hide/Quit) + Window menu
-        //        (Minimize/Maximize/Close) so Cmd+Q/H/M keep working.
+        // ── Native menu (desktop only) ────────────────────────────────
+        // macOS: App menu + Edit menu (Cmd+C/V/X/A/Z) + Window menu.
+        //        The Edit menu is required for clipboard & undo shortcuts
+        //        to reach the webview on macOS.
         // Windows/Linux: empty menu — no native menu bar shown.
         // iOS: no menu support — .menu() is not available.
         #[cfg(not(target_os = "ios"))]
@@ -328,6 +329,20 @@ pub fn run() {
                         &PredefinedMenuItem::quit(app_handle, None)?,
                     ],
                 )?;
+                let edit_submenu = Submenu::with_items(
+                    app_handle,
+                    "Edit",
+                    true,
+                    &[
+                        &PredefinedMenuItem::undo(app_handle, None)?,
+                        &PredefinedMenuItem::redo(app_handle, None)?,
+                        &PredefinedMenuItem::separator(app_handle)?,
+                        &PredefinedMenuItem::cut(app_handle, None)?,
+                        &PredefinedMenuItem::copy(app_handle, None)?,
+                        &PredefinedMenuItem::paste(app_handle, None)?,
+                        &PredefinedMenuItem::select_all(app_handle, None)?,
+                    ],
+                )?;
                 let window_submenu = Submenu::with_items(
                     app_handle,
                     "Window",
@@ -339,7 +354,7 @@ pub fn run() {
                         &PredefinedMenuItem::close_window(app_handle, None)?,
                     ],
                 )?;
-                Menu::with_items(app_handle, &[&app_submenu, &window_submenu])
+                Menu::with_items(app_handle, &[&app_submenu, &edit_submenu, &window_submenu])
             }
             #[cfg(not(target_os = "macos"))]
             {
