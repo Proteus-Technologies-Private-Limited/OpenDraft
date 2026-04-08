@@ -1,9 +1,10 @@
-name: Deploy User Manual to GitHub Pages
+name: Deploy Landing Page & User Manual
 
 on:
   push:
     branches: [main]
     paths:
+      - 'landing/**'
       - 'user-manual/**'
       - 'images/**'
       - '.github/workflows/deploy-manual.yml'
@@ -31,15 +32,9 @@ jobs:
       - name: Build site
         run: |
           mkdir -p _site
+          cp -r landing/* _site/
           cp -r user-manual _site/user-manual
           cp -r images _site/images
-          cat > _site/index.html << 'REDIRECT'
-          <!DOCTYPE html>
-          <html>
-          <head><meta http-equiv="refresh" content="0; url=user-manual/"></head>
-          <body><a href="user-manual/">OpenDraft User Manual</a></body>
-          </html>
-          REDIRECT
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
