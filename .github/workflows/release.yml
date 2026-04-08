@@ -426,7 +426,7 @@ jobs:
           draft: true
 
   build-ios:
-    runs-on: macos-26
+    runs-on: macos-latest
     name: Build & Submit (iOS)
 
     steps:
