@@ -166,6 +166,193 @@
       <li>Margins and spacing</li>
     </ul>
 
+    <h2 id="formatting-templates">Formatting Templates</h2>
+
+    <p>A <strong>formatting template</strong> defines the formatting rules for every screenplay element type &mdash; fonts, sizes, margins, indentation, alignment, text styles, and more. Templates let you enforce consistent formatting across your screenplay or customize it to your needs.</p>
+
+    <p>Open the template manager via <strong>Format &gt; Formatting Template</strong>.</p>
+
+    <h3 id="industry-standard">Industry Standard Template</h3>
+
+    <p>OpenDraft ships with a built-in <strong>Industry Standard</strong> template that follows Final Draft's formatting conventions. This is the default template for all new screenplays. It is read-only &mdash; you cannot edit it directly, but you can <strong>duplicate</strong> it to create an editable copy.</p>
+
+    <p>The Industry Standard template defines:</p>
+    <ul>
+      <li><strong>Scene Heading</strong> &mdash; Bold, UPPERCASE, 12pt top margin</li>
+      <li><strong>Character</strong> &mdash; UPPERCASE, indented to 3.5&quot;</li>
+      <li><strong>Dialogue</strong> &mdash; Indented 2.5&quot; left, 6.0&quot; right</li>
+      <li><strong>Parenthetical</strong> &mdash; Indented 3.0&quot; left, 5.5&quot; right</li>
+      <li><strong>Transition</strong> &mdash; UPPERCASE, right-aligned, indented to 5.5&quot;</li>
+      <li>And standard rules for Action, Shot, Lyrics, Act breaks, and more.</li>
+    </ul>
+
+    <h3 id="create-template">Creating a Custom Template</h3>
+
+    <ol class="steps">
+      <li>Open <strong>Format &gt; Formatting Template</strong>.</li>
+      <li>Click <strong>+ Create Template</strong>.</li>
+      <li>Enter a name and description for your template.</li>
+      <li>Choose a mode: <strong>Enforce</strong> or <strong>Override</strong> (see below).</li>
+      <li>Configure formatting for each element type in the editor.</li>
+      <li>Click <strong>Save</strong>.</li>
+    </ol>
+
+    <p>New templates start as a copy of the Industry Standard, so you only need to change what's different.</p>
+
+    <h3 id="element-attributes">Configurable Attributes</h3>
+
+    <p>For each element type, you can configure:</p>
+
+    <table>
+      <thead>
+        <tr><th>Category</th><th>Attributes</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Font</strong></td>
+          <td>Font family (serif, sans-serif, monospace, display, handwriting) and font size (8&ndash;48pt)</td>
+        </tr>
+        <tr>
+          <td><strong>Text Style</strong></td>
+          <td>Bold, italic, underline, strikethrough (toggles)</td>
+        </tr>
+        <tr>
+          <td><strong>Text Transform</strong></td>
+          <td>None, UPPERCASE, or lowercase</td>
+        </tr>
+        <tr>
+          <td><strong>Alignment</strong></td>
+          <td>Left, center, right, or justify</td>
+        </tr>
+        <tr>
+          <td><strong>Colors</strong></td>
+          <td>Text color and background color</td>
+        </tr>
+        <tr>
+          <td><strong>Layout</strong></td>
+          <td>Top margin, left indent, and right indent (in inches)</td>
+        </tr>
+        <tr>
+          <td><strong>Element Flow</strong></td>
+          <td>Which element type to switch to on <kbd>Enter</kbd> or <kbd>Tab</kbd></td>
+        </tr>
+        <tr>
+          <td><strong>Placeholder</strong></td>
+          <td>Custom placeholder text shown when the element is empty</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>The template editor shows a <strong>live preview</strong> of each element's formatting as you adjust settings.</p>
+
+    <h3 id="enforce-override">Enforce vs. Override Mode</h3>
+
+    <p>Every template operates in one of two modes:</p>
+
+    <table>
+      <thead>
+        <tr><th>Mode</th><th>Behavior</th><th>Best for</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Enforce</strong></td>
+          <td>Formatting is <strong>locked</strong>. Users cannot change element-level styling. The template's rules are applied as non-negotiable defaults.</td>
+          <td>Production scripts, studio-mandated formats, team consistency</td>
+        </tr>
+        <tr>
+          <td><strong>Override</strong></td>
+          <td>Formatting sets <strong>defaults</strong>. Users can override any attribute on a per-instance basis using the toolbar or keyboard shortcuts.</td>
+          <td>Development drafts, flexible personal workflows</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h4 id="allow-format-override">Allow Format Override (Enforce Mode)</h4>
+
+    <p>In <strong>Enforce</strong> mode, each element type has an <strong>Allow Format Override</strong> checkbox:</p>
+
+    <ul>
+      <li><strong>Checked (default)</strong> &mdash; Users can apply inline formatting (bold, italic, etc.) that overrides the template defaults for specific text selections. The template still controls the base styling.</li>
+      <li><strong>Unchecked</strong> &mdash; <strong>All formatting is locked</strong> for this element type. Users cannot apply any inline marks. Every instance of this element uses exactly the template's formatting with no exceptions.</li>
+    </ul>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>Example:</strong> In a production script, you might enforce formatting on Dialogue and Character elements (no overrides allowed), but allow overrides on Action lines so writers can still bold or italicize specific words for emphasis.</p>
+      </div>
+    </div>
+
+    <h3 id="include-exclude">Including and Excluding Elements</h3>
+
+    <p>Each element type in the template editor has an <strong>enable/disable checkbox</strong>:</p>
+
+    <ul>
+      <li><strong>Enabled (checked)</strong> &mdash; The element type is available in the editor. Writers can insert it using the Element menu or keyboard shortcuts.</li>
+      <li><strong>Disabled (unchecked)</strong> &mdash; The element type is <strong>removed</strong> from the Element menu and cannot be inserted. Existing instances in the document will need to be converted.</li>
+    </ul>
+
+    <p>This is useful when your project doesn't need certain element types. For example, a feature film script might disable <strong>Show/Episode</strong> and <strong>Cast List</strong> elements, while a TV script might keep them enabled.</p>
+
+    <h4 id="disabled-elements-conflict">What Happens to Existing Content</h4>
+
+    <p>If you apply a template that disables an element type already present in your document, OpenDraft shows a <strong>conflict resolution dialog</strong>:</p>
+
+    <ol class="steps">
+      <li>The dialog lists each disabled element type and how many instances exist in your document.</li>
+      <li>For each disabled type, choose a <strong>replacement element type</strong> from the dropdown (only enabled types are shown).</li>
+      <li>Click <strong>Resolve &amp; Apply</strong> to convert all instances and apply the template.</li>
+    </ol>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Default replacements:</strong> OpenDraft suggests sensible defaults &mdash; e.g., Lyrics convert to Dialogue, Shot converts to Action, Act breaks convert to Scene Headings. You can change these before applying.</p>
+      </div>
+    </div>
+
+    <h3 id="conflict-resolution">Conflict Resolution</h3>
+
+    <p>When applying a template to a document that already has content, OpenDraft checks for two types of conflicts:</p>
+
+    <ol>
+      <li><strong>Disabled element types</strong> &mdash; Elements in the document that the template disables (see above).</li>
+      <li><strong>Formatting conflicts</strong> (Enforce mode only) &mdash; Elements with inline formatting that conflicts with the template's locked rules. For example, if the template enforces bold on Scene Headings and a heading has additional italic markup, that's a conflict.</li>
+    </ol>
+
+    <p>The conflict dialog gives you three options:</p>
+
+    <ul>
+      <li><strong>Cancel</strong> &mdash; Don't apply the template. Your document stays unchanged.</li>
+      <li><strong>Apply Without Resolving</strong> &mdash; Apply the template but keep conflicting formatting and element types as-is.</li>
+      <li><strong>Resolve &amp; Apply</strong> &mdash; Convert disabled elements and strip conflicting inline marks, then apply the template.</li>
+    </ul>
+
+    <h3 id="custom-elements">Custom Elements</h3>
+
+    <p>In addition to the 13 built-in element types, you can create <strong>custom elements</strong> within a template:</p>
+
+    <ol class="steps">
+      <li>In the template editor, click <strong>+ Add Custom Element</strong>.</li>
+      <li>Give it a label (e.g., &ldquo;V.O. Insert&rdquo; or &ldquo;Flashback&rdquo;).</li>
+      <li>Configure its formatting attributes like any other element.</li>
+    </ol>
+
+    <p>Custom elements appear in the Element menu alongside built-in types and can be assigned their own keyboard shortcut flow via the <strong>Next on Enter</strong> and <strong>Next on Tab</strong> settings.</p>
+
+    <h3 id="manage-templates">Managing Templates</h3>
+
+    <p>In the template manager (<strong>Format &gt; Formatting Template</strong>), each template supports these actions:</p>
+
+    <ul>
+      <li><strong>Apply</strong> &mdash; Set this template as the active template for the current document.</li>
+      <li><strong>Edit</strong> &mdash; Open the template editor to modify settings (user templates only).</li>
+      <li><strong>Duplicate</strong> &mdash; Create an editable copy. This is how you customize the read-only Industry Standard template.</li>
+      <li><strong>Delete</strong> &mdash; Remove the template from your library (user templates only).</li>
+    </ul>
+
+    <p>Templates are applied per document. Different screenplays in the same project can use different templates.</p>
+
     <h2 id="zoom">Zoom</h2>
 
     <p>Adjust the editor zoom level using the zoom control in the toolbar. The range is <strong>50% to 200%</strong>. This affects only the on-screen display, not print output.</p>
