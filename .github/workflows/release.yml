@@ -522,6 +522,13 @@ jobs:
           cp images/ios-icons/* "$ICON_DIR/"
           echo "iOS icons copied to $ICON_DIR"
 
+      - name: Set export compliance (no custom encryption)
+        run: |
+          PLIST="src-tauri/gen/apple/opendraft_iOS/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST"
+          echo "Export compliance flag set in Info.plist"
+
       - name: Configure iOS manual signing
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -741,10 +748,29 @@ jobs:
               json.dump(cfg, f, indent=2)
           "
 
+      - name: Set export compliance (no custom encryption)
+        run: |
+          PLIST="src-tauri/Info.plist"
+          if [ -f "$PLIST" ]; then
+            /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST"
+            echo "Export compliance flag set in $PLIST"
+          fi
+          # Also set in the macOS Info.plist template if it exists
+          MAC_PLIST="src-tauri/Info.plist"
+          echo "Export compliance configured for macOS App Store"
+
       - name: Build Tauri app (unsigned)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: APPLE_SIGNING_IDENTITY="-" npx --prefix frontend tauri build --bundles app
+
+      - name: Inject export compliance into built app
+        run: |
+          APP_PLIST="src-tauri/target/release/bundle/macos/OpenDraft.app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$APP_PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$APP_PLIST"
+          echo "Export compliance flag set in built app"
 
       - name: Sign and package for App Store
         run: |
