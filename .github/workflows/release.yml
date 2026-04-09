@@ -454,7 +454,7 @@ jobs:
 
   build-ios:
     runs-on: macos-26
-    name: Build & Submit (iOS)
+    name: Build (iOS)
 
     steps:
       - name: Checkout
@@ -734,7 +734,7 @@ jobs:
 
   build-mac-appstore:
     runs-on: macos-26
-    name: Build & Submit (macOS App Store)
+    name: Build (macOS App Store)
 
     steps:
       - name: Checkout
