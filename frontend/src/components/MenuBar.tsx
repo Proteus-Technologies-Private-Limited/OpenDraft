@@ -18,6 +18,7 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { pluginRegistry } from '../plugins/registry';
 import { clearEditorHistory } from '../editor/clearHistory';
+import { openTextFile } from '../utils/fileOps';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
 import {
   FaFile,
@@ -430,94 +431,113 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
 
   const handleImport = useCallback(async () => {
     if (!editor) return;
-    const { openTextFile } = await import('../utils/fileOps');
-    const result = await openTextFile([
-      { name: 'Screenplay', extensions: ['fountain', 'fdx', 'txt'] },
-    ]);
-    if (!result) return;
+    try {
+      const result = await openTextFile([
+        { name: 'Screenplay', extensions: ['fountain', 'fdx', 'txt'] },
+      ]);
+      if (!result) return;
 
-    const { name, content: text } = result;
-    const ext = name.split('.').pop()?.toLowerCase();
+      const { name, content: text } = result;
+      const ext = name.split('.').pop()?.toLowerCase();
 
-    // Clear previous document state before importing
-    clearTrackChanges();
-    const store = useEditorStore.getState();
-    store.setBeats([]);
-    store.setBeatColumns([]);
-    store.setBeatArrangeMode('auto');
-    store.setNotes([]);
-    store.setTags([]);
-    store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
-    store.setCharacterProfiles([]);
-    store.setScenes([]);
+      // Clear previous document state before importing
+      clearTrackChanges();
+      const store = useEditorStore.getState();
+      store.setBeats([]);
+      store.setBeatColumns([]);
+      store.setBeatArrangeMode('auto');
+      store.setNotes([]);
+      store.setTags([]);
+      store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
+      store.setCharacterProfiles([]);
+      store.setScenes([]);
 
-    let doc;
-    if (ext === 'fdx') {
-      const parsed = parseFDXFull(text);
-      doc = parsed.doc;
-      if (parsed.pageLayout) {
-        store.setPageLayout({
-          ...store.pageLayout,
-          ...parsed.pageLayout,
-        });
-      }
-      // Import beats from Outline elements
-      if (parsed.beats.length > 0) {
-        store.setBeats(parsed.beats);
-        if (parsed.beatColumns.length > 0) {
-          store.setBeatColumns(parsed.beatColumns);
-        }
-      }
-      // Import character profiles from CastList + CharacterHighlighting
-      if (parsed.castList.length > 0 || parsed.characterHighlighting.length > 0) {
-        const highlightMap = new Map(parsed.characterHighlighting.map((h) => [h.name.toUpperCase(), h]));
-        for (const member of parsed.castList) {
-          const hl = highlightMap.get(member.name.toUpperCase());
-          store.upsertCharacterProfile(member.name, {
-            description: member.description,
-            color: hl?.color || '',
-            highlighted: hl?.highlighted || false,
+      let doc;
+      if (ext === 'fdx') {
+        const parsed = parseFDXFull(text);
+        doc = parsed.doc;
+        if (parsed.pageLayout) {
+          store.setPageLayout({
+            ...store.pageLayout,
+            ...parsed.pageLayout,
           });
-          highlightMap.delete(member.name.toUpperCase());
         }
-        // Remaining highlights without cast entries
-        for (const [, hl] of highlightMap) {
-          store.upsertCharacterProfile(hl.name, { color: hl.color, highlighted: hl.highlighted });
+        // Import beats from Outline elements
+        if (parsed.beats.length > 0) {
+          store.setBeats(parsed.beats);
+          if (parsed.beatColumns.length > 0) {
+            store.setBeatColumns(parsed.beatColumns);
+          }
         }
+        // Import character profiles from CastList + CharacterHighlighting
+        if (parsed.castList.length > 0 || parsed.characterHighlighting.length > 0) {
+          const highlightMap = new Map(parsed.characterHighlighting.map((h) => [h.name.toUpperCase(), h]));
+          for (const member of parsed.castList) {
+            const hl = highlightMap.get(member.name.toUpperCase());
+            store.upsertCharacterProfile(member.name, {
+              description: member.description,
+              color: hl?.color || '',
+              highlighted: hl?.highlighted || false,
+            });
+            highlightMap.delete(member.name.toUpperCase());
+          }
+          // Remaining highlights without cast entries
+          for (const [, hl] of highlightMap) {
+            store.upsertCharacterProfile(hl.name, { color: hl.color, highlighted: hl.highlighted });
+          }
+        }
+      } else {
+        doc = parseFountain(text);
       }
-    } else {
-      doc = parseFountain(text);
-    }
-    editor.commands.setContent(doc, true);
-    clearEditorHistory(editor);
+      editor.commands.setContent(doc, true);
+      clearEditorHistory(editor);
 
-    // Open as unsaved document — user can save later via Cmd+S
-    const scriptTitle = name.replace(/\.\w+$/, '') || 'Untitled';
-    store.setDocumentTitle(scriptTitle);
-    setCurrentProject(null);
-    setCurrentScriptId(null);
-    setScripts([]);
+      // Open as unsaved document — user can save later via Cmd+S
+      const scriptTitle = name.replace(/\.\w+$/, '') || 'Untitled';
+      store.setDocumentTitle(scriptTitle);
+      setCurrentProject(null);
+      setCurrentScriptId(null);
+      setScripts([]);
+    } catch (err) {
+      console.error('Import failed:', err);
+      showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
   }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
 
   const handleExportFDX = useCallback(async () => {
     if (!editor) return;
-    const s = useEditorStore.getState();
-    await downloadFDX(editor.getJSON(), documentTitle, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns, s.pageLayout);
+    try {
+      const s = useEditorStore.getState();
+      await downloadFDX(editor.getJSON(), documentTitle, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns, s.pageLayout);
+    } catch (err) {
+      console.error('FDX export failed:', err);
+      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
   }, [editor, documentTitle]);
 
   const handleExportFountain = useCallback(async () => {
     if (!editor) return;
-    await downloadFountain(editor.getJSON(), documentTitle);
+    try {
+      await downloadFountain(editor.getJSON(), documentTitle);
+    } catch (err) {
+      console.error('Fountain export failed:', err);
+      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
   }, [editor, documentTitle]);
 
   const handleExportPDF = useCallback(async () => {
     if (!editor) return;
-    const store = useEditorStore.getState();
-    await exportPDF(editor.getJSON(), documentTitle, pageLayout, {
-      sceneNumbersVisible: store.sceneNumbersVisible,
-      documentTitle: store.documentTitle,
-      revisionColor: store.revisionMode ? store.revisionColor : '',
-    });
+    try {
+      const store = useEditorStore.getState();
+      await exportPDF(editor.getJSON(), documentTitle, pageLayout, {
+        sceneNumbersVisible: store.sceneNumbersVisible,
+        documentTitle: store.documentTitle,
+        revisionColor: store.revisionMode ? store.revisionColor : '',
+      });
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
   }, [editor, documentTitle, pageLayout]);
 
   const handleMenuClick = (label: string) => {
@@ -1015,11 +1035,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.13.7</div>
+              <div className="about-section-title">What's New in 0.14.0</div>
               <ul className="about-list">
-                <li><strong>Android File Associations</strong> — Open .fdx, .fountain, and .odraft files directly from any Android file manager. Content URIs are read via ContentResolver so all file managers work correctly.</li>
-                <li><strong>Android Status Bar Fix</strong> — The app menu bar no longer overlaps with the Android system status bar on any device.</li>
-                <li><strong>Smaller Desktop Installers</strong> — Removed the legacy Python sidecar from Windows and Linux builds, resulting in faster installs and smaller download sizes.</li>
+                <li><strong>Mobile Export &amp; Import</strong> — Export (FDX, Fountain, PDF) and import now work reliably on both iOS and Android using native share sheets and file pickers.</li>
+                <li><strong>iOS File Associations</strong> — Open .fdx, .fountain, and .odraft files directly from the iOS Files app or any app via "Open With". Security-scoped file access is handled automatically.</li>
+                <li><strong>Error Notifications</strong> — Export and import operations now show clear error messages via toast notifications instead of failing silently.</li>
+                <li><strong>Android Share Intent</strong> — Android exports use the native share chooser, letting you save to Files, Drive, or share via any installed app.</li>
               </ul>
             </div>
           </div>
