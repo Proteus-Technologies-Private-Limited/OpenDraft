@@ -585,19 +585,30 @@ jobs:
           PYEOF
           echo "iOS signing configured for manual distribution"
 
-      - name: Fix swiftCompatibility56 for Xcode 26
+      - name: Fix Swift compatibility libs for Xcode 26
         run: |
-          # Xcode 26.2 removed libswiftCompatibility56.a but Tauri's Swift bridge
-          # still references it. Create an empty stub so the linker succeeds.
+          # Xcode 26.2 ships swiftCompatibility56 and swiftCompatibilityPacks libs
+          # but they lack the FORCE_LOAD symbols that Tauri's Swift bridge references.
+          # Create stub libraries with the actual symbols the linker needs.
           SWIFT_LIB="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos"
-          if [ ! -f "$SWIFT_LIB/libswiftCompatibility56.a" ]; then
-            echo "Creating empty libswiftCompatibility56.a stub"
-            sudo touch /tmp/empty.c
-            sudo xcrun clang -arch arm64 -c /tmp/empty.c -o /tmp/empty.o
-            sudo xcrun ar rcs "$SWIFT_LIB/libswiftCompatibility56.a" /tmp/empty.o
-          else
-            echo "libswiftCompatibility56.a already exists — no stub needed"
-          fi
+
+          cat > /tmp/swift_compat_stub.s << 'ASM'
+          .section __DATA,__common
+          .globl ___swift_FORCE_LOAD_$_swiftCompatibility56
+          ___swift_FORCE_LOAD_$_swiftCompatibility56:
+          .space 1
+
+          .globl ___swift_FORCE_LOAD_$_swiftCompatibilityPacks
+          ___swift_FORCE_LOAD_$_swiftCompatibilityPacks:
+          .space 1
+          ASM
+
+          xcrun clang -arch arm64 -c /tmp/swift_compat_stub.s -o /tmp/swift_compat_stub.o -isysroot $(xcrun --sdk iphoneos --show-sdk-path)
+
+          # Replace or create the libraries
+          sudo xcrun ar rcs "$SWIFT_LIB/libswiftCompatibility56.a" /tmp/swift_compat_stub.o
+          sudo xcrun ar rcs "$SWIFT_LIB/libswiftCompatibilityPacks.a" /tmp/swift_compat_stub.o
+          echo "Created stub libraries with FORCE_LOAD symbols"
 
       - name: Build iOS app
         env:
