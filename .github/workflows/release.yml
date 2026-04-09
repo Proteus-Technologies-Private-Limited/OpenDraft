@@ -585,6 +585,20 @@ jobs:
           PYEOF
           echo "iOS signing configured for manual distribution"
 
+      - name: Fix swiftCompatibility56 for Xcode 26
+        run: |
+          # Xcode 26.2 removed libswiftCompatibility56.a but Tauri's Swift bridge
+          # still references it. Create an empty stub so the linker succeeds.
+          SWIFT_LIB="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos"
+          if [ ! -f "$SWIFT_LIB/libswiftCompatibility56.a" ]; then
+            echo "Creating empty libswiftCompatibility56.a stub"
+            sudo touch /tmp/empty.c
+            sudo xcrun clang -arch arm64 -c /tmp/empty.c -o /tmp/empty.o
+            sudo xcrun ar rcs "$SWIFT_LIB/libswiftCompatibility56.a" /tmp/empty.o
+          else
+            echo "libswiftCompatibility56.a already exists — no stub needed"
+          fi
+
       - name: Build iOS app
         env:
           APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
