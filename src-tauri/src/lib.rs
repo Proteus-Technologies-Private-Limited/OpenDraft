@@ -209,6 +209,63 @@ fn extract_filename_from_uri(uri: &str) -> String {
     "Untitled.fdx".to_string()
 }
 
+// ── iOS file helpers (Objective-C FFI) ────────────────────────────────────
+// On iOS, files from the Files app or document picker require security-scoped
+// URL access. These functions are defined in FileHelpers.m and linked into
+// the iOS binary automatically via XcodeGen.
+
+#[cfg(target_os = "ios")]
+extern "C" {
+    fn ios_present_share_sheet(file_path: *const std::ffi::c_char);
+    fn ios_read_text_file(path: *const std::ffi::c_char) -> *mut std::ffi::c_char;
+    fn ios_free_string(ptr: *mut std::ffi::c_char);
+}
+
+// ── iOS export commands ──────────────────────────────────────────────────
+// On iOS, the native save dialog doesn't work reliably (files end up 0 bytes).
+// Instead, we write to a temp file and present the iOS share sheet so the user
+// can save to Files, AirDrop, etc.
+
+#[tauri::command]
+fn ios_save_and_share(filename: String, contents: String) -> Result<(), String> {
+    #[cfg(target_os = "ios")]
+    {
+        let temp_dir = std::env::temp_dir();
+        let path = temp_dir.join(&filename);
+        std::fs::write(&path, &contents)
+            .map_err(|e| format!("Failed to write temp file: {}", e))?;
+        let c_path = std::ffi::CString::new(path.to_string_lossy().as_bytes())
+            .map_err(|e| format!("Invalid path: {}", e))?;
+        unsafe { ios_present_share_sheet(c_path.as_ptr()); }
+        Ok(())
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = (filename, contents);
+        Err("This command is only available on iOS".to_string())
+    }
+}
+
+#[tauri::command]
+fn ios_save_and_share_binary(filename: String, contents: Vec<u8>) -> Result<(), String> {
+    #[cfg(target_os = "ios")]
+    {
+        let temp_dir = std::env::temp_dir();
+        let path = temp_dir.join(&filename);
+        std::fs::write(&path, &contents)
+            .map_err(|e| format!("Failed to write temp file: {}", e))?;
+        let c_path = std::ffi::CString::new(path.to_string_lossy().as_bytes())
+            .map_err(|e| format!("Invalid path: {}", e))?;
+        unsafe { ios_present_share_sheet(c_path.as_ptr()); }
+        Ok(())
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = (filename, contents);
+        Err("This command is only available on iOS".to_string())
+    }
+}
+
 // ── Pending file state ────────────────────────────────────────────────────
 // Stores the file path when the OS opens a screenplay file with OpenDraft.
 // The frontend retrieves it on startup via the get_opened_file command.
@@ -243,7 +300,30 @@ fn save_binary_to_path(path: String, contents: Vec<u8>) -> Result<(), String> {
 
 #[tauri::command]
 fn read_text_file(path: String) -> Result<String, String> {
-    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
+    #[cfg(not(target_os = "ios"))]
+    {
+        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
+    }
+    #[cfg(target_os = "ios")]
+    {
+        // Try standard read first (works for files already in the sandbox)
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            return Ok(content);
+        }
+        // Fallback: try reading via Foundation APIs with security-scoped access
+        eprintln!("[read_text_file] std::fs failed, trying iOS security-scoped read: {}", path);
+        let c_path = std::ffi::CString::new(path.as_bytes())
+            .map_err(|_| format!("Invalid path: {}", path))?;
+        let result = unsafe { ios_read_text_file(c_path.as_ptr()) };
+        if result.is_null() {
+            return Err(format!("Failed to read {}: Operation not permitted", path));
+        }
+        let content = unsafe { std::ffi::CStr::from_ptr(result) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { ios_free_string(result); }
+        Ok(content)
+    }
 }
 
 #[tauri::command]
@@ -507,6 +587,8 @@ pub fn run() {
             fetch_link_preview,
             get_opened_file,
             read_content_uri,
+            ios_save_and_share,
+            ios_save_and_share_binary,
         ]);
 
         // ── Native menu (desktop only) ────────────────────────────────
@@ -666,10 +748,32 @@ pub fn run() {
         if let tauri::RunEvent::Opened { urls } = &_event {
             for url in urls {
                 if let Ok(path) = url.to_file_path() {
-                    let path_str = path.to_string_lossy().to_string();
+                    let mut path_str = path.to_string_lossy().to_string();
                     if !is_openable_file(&path_str) {
                         continue;
                     }
+
+                    // On iOS, copy the file to the app's temp directory while we
+                    // still have security-scoped access from the OS callback.
+                    // With LSSupportsOpeningDocumentsInPlace=false, iOS usually
+                    // copies files to Documents/Inbox first, but as a safety net
+                    // we also copy to temp in case the original is outside the sandbox.
+                    #[cfg(target_os = "ios")]
+                    {
+                        let temp_dir = std::env::temp_dir();
+                        let fname = path.file_name().unwrap_or_default();
+                        let temp_path = temp_dir.join(fname);
+                        match std::fs::copy(&path, &temp_path) {
+                            Ok(_) => {
+                                eprintln!("[file-assoc] iOS: copied to sandbox temp: {}", temp_path.display());
+                                path_str = temp_path.to_string_lossy().to_string();
+                            }
+                            Err(e) => {
+                                eprintln!("[file-assoc] iOS: copy to temp failed ({}), using original", e);
+                            }
+                        }
+                    }
+
                     eprintln!("[file-assoc] RunEvent::Opened: {}", path_str);
 
                     // Store in pending state so frontend can retrieve it
