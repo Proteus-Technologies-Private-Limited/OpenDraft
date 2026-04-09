@@ -154,6 +154,30 @@ while true; do
   sleep 30
 done
 
+# ── Step 3.5: Upload old-version binaries for backward compatibility ───────
+# Download links on main still reference the OLD version filenames.
+# Until the PR merges, we need the old binaries available in the new release
+# so that /releases/latest/download/OpenDraft_OLD_... doesn't 404.
+echo "  Uploading old-version binaries for backward-compatible downloads..."
+OLD_TAG="v${OLD_VERSION}"
+TMPDIR=$(mktemp -d)
+
+EXTENSIONS=("aarch64.dmg" "x64-setup.exe" "x64_en-US.msi" "amd64.deb" "amd64.AppImage" "android.apk" "ios.ipa")
+for ext in "${EXTENSIONS[@]}"; do
+  OLD_NAME="OpenDraft_${OLD_VERSION}_${ext}"
+  if gh release download "$OLD_TAG" --repo "$REPO" -p "$OLD_NAME" -D "$TMPDIR" 2>/dev/null; then
+    gh release upload "$TAG" "$TMPDIR/$OLD_NAME" --repo "$REPO" --clobber 2>/dev/null
+    echo "    ✓ ${OLD_NAME}"
+  fi
+done
+# RPM uses different naming: OpenDraft-VERSION-1.x86_64.rpm
+OLD_RPM="OpenDraft-${OLD_VERSION}-1.x86_64.rpm"
+if gh release download "$OLD_TAG" --repo "$REPO" -p "$OLD_RPM" -D "$TMPDIR" 2>/dev/null; then
+  gh release upload "$TAG" "$TMPDIR/$OLD_RPM" --repo "$REPO" --clobber 2>/dev/null
+  echo "    ✓ ${OLD_RPM}"
+fi
+rm -rf "$TMPDIR"
+
 echo ""
 
 # ── Step 4: Create PR to merge into main ────────────────────────────────────
@@ -198,6 +222,14 @@ while true; do
   fi
   sleep 10
 done
+
+# Remove old-version binaries now that links on main point to new version
+echo "  Cleaning up old-version binaries from release..."
+for ext in "${EXTENSIONS[@]}"; do
+  gh release delete-asset "$TAG" "OpenDraft_${OLD_VERSION}_${ext}" --repo "$REPO" -y 2>/dev/null
+done
+gh release delete-asset "$TAG" "OpenDraft-${OLD_VERSION}-1.x86_64.rpm" --repo "$REPO" -y 2>/dev/null
+echo "  ✓ Old-version binaries removed"
 
 # Switch back to main
 git checkout main
