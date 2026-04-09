@@ -751,35 +751,11 @@ jobs:
           files: ios-artifacts/*
           draft: true
 
-      - name: Upload to App Store Connect
-        env:
-          APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
-          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
-          APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
-        run: |
-          if [ -z "$APPSTORE_API_KEY" ]; then
-            echo "::warning::APPSTORE_API_KEY not configured — skipping upload to App Store Connect"
-            exit 0
-          fi
-
-          # Save API key for authentication
-          mkdir -p ~/.private_keys
-          echo "$APPSTORE_API_KEY" | base64 --decode > ~/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8
-
-          # Find the IPA
-          IPA=$(find src-tauri/gen/apple/build -name "*.ipa" ! -path "*/patched-export/*" | head -1)
-          if [ -z "$IPA" ]; then
-            echo "::warning::No IPA file found — skipping App Store upload"
-            exit 0
-          fi
-
-          echo "Uploading $IPA to App Store Connect..."
-          xcrun altool --upload-app \
-            --file "$IPA" \
-            --type ios \
-            --apiKey "$APPSTORE_API_KEY_ID" \
-            --apiIssuer "$APPSTORE_API_ISSUER_ID"
-          echo "Upload complete — check App Store Connect for processing status"
+      - name: Upload IPA artifact for store submission
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: ios-artifacts/*.ipa
 
   build-mac-appstore:
     runs-on: macos-26
@@ -950,34 +926,95 @@ jobs:
 
           echo "App Store package built: OpenDraft.pkg"
 
-      - name: Upload to App Store Connect
+      - name: Upload pkg artifact for store submission
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-pkg
+          path: OpenDraft.pkg
+
+  # ── Submit to App Stores ────────────────────────────────────────────────
+  # Runs only after ALL build jobs succeed. Downloads built artifacts and
+  # submits them to the iOS and macOS App Stores.
+  submit-stores:
+    needs: [build-desktop, build-android, build-ios, build-mac-appstore]
+    runs-on: macos-latest
+    name: Submit to App Stores
+
+    steps:
+      - name: Download iOS IPA artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-ipa
+          path: ios-artifacts
+
+      - name: Download macOS pkg artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-pkg
+          path: macos-artifacts
+
+      - name: Upload iOS IPA to App Store Connect
         env:
           APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
           APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
           APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
         run: |
           if [ -z "$APPSTORE_API_KEY" ]; then
-            echo "::warning::APPSTORE_API_KEY not configured — skipping upload to App Store Connect"
+            echo "::warning::APPSTORE_API_KEY not configured — skipping iOS App Store upload"
             exit 0
           fi
 
           mkdir -p ~/.private_keys
           echo "$APPSTORE_API_KEY" | base64 --decode > ~/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8
 
-          echo "Uploading OpenDraft.pkg to App Store Connect..."
+          IPA=$(find ios-artifacts -name "*.ipa" | head -1)
+          if [ -z "$IPA" ]; then
+            echo "::error::No IPA file found in artifacts"
+            exit 1
+          fi
+
+          echo "Uploading $IPA to App Store Connect..."
           xcrun altool --upload-app \
-            --file "OpenDraft.pkg" \
+            --file "$IPA" \
+            --type ios \
+            --apiKey "$APPSTORE_API_KEY_ID" \
+            --apiIssuer "$APPSTORE_API_ISSUER_ID"
+          echo "iOS upload complete"
+
+      - name: Upload macOS pkg to App Store Connect
+        env:
+          APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+        run: |
+          if [ -z "$APPSTORE_API_KEY" ]; then
+            echo "::warning::APPSTORE_API_KEY not configured — skipping macOS App Store upload"
+            exit 0
+          fi
+
+          mkdir -p ~/.private_keys
+          echo "$APPSTORE_API_KEY" | base64 --decode > ~/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8
+
+          PKG=$(find macos-artifacts -name "*.pkg" | head -1)
+          if [ -z "$PKG" ]; then
+            echo "::error::No pkg file found in artifacts"
+            exit 1
+          fi
+
+          echo "Uploading $PKG to App Store Connect..."
+          xcrun altool --upload-app \
+            --file "$PKG" \
             --type macos \
             --apiKey "$APPSTORE_API_KEY_ID" \
             --apiIssuer "$APPSTORE_API_ISSUER_ID"
-          echo "Upload complete — check App Store Connect for processing status"
+          echo "macOS upload complete"
 
   # ── Publish release & update download links ─────────────────────────────
   # Runs only after ALL build jobs succeed. Verifies assets exist on the
   # draft release, publishes it, then updates download links in README.md
   # and landing/index.html so they always point to verified files.
   publish-release:
-    needs: [build-desktop, build-android, build-ios, build-mac-appstore]
+    needs: [submit-stores]
     runs-on: ubuntu-latest
     name: Publish Release & Update Links
 
