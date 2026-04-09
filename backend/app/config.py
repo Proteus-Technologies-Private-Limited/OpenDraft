@@ -28,3 +28,6 @@ def _get_data_dir() -> Path:
 BASE_DIR = _get_base_dir()
 PROJECTS_DIR = _get_data_dir()
 DEFAULT_PROJECT = "Default Project"
+
+# Demo mode — when True, the server shows a warning banner to users
+DEMO_MODE = os.environ.get("DEMO_MODE", "").lower() in ("1", "true", "yes")

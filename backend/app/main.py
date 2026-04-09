@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.api import scripts, auth, export, projects, versions, assets, collab, link_preview, formatting_templates
-from app.config import PROJECTS_DIR, BASE_DIR
+from app.config import PROJECTS_DIR, BASE_DIR, DEMO_MODE
 from app.plugins import get_plugin_routers
 
 STATIC_DIR = BASE_DIR / "static"
@@ -29,11 +29,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Build allowed origins list — always include Tauri + localhost patterns.
+# In demo/cloud mode, CORS_ORIGINS env var adds the Cloud Run URL etc.
+_cors_origins = ["tauri://localhost"]
+_extra_origins = os.environ.get("CORS_ORIGINS", "")
+if _extra_origins:
+    _cors_origins.extend([o.strip() for o in _extra_origins.split(",") if o.strip()])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "tauri://localhost",           # Tauri desktop (macOS/Linux)
-    ],
+    allow_origins=_cors_origins,
     # Allow localhost and *.localhost (Tauri Windows) only.
     # The web backend is no longer used by Tauri desktop/mobile (they use
     # local SQLite), so we don't need to allow arbitrary local-network IPs.
@@ -63,6 +68,21 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/api/demo-info")
+async def demo_info():
+    return {
+        "demo": DEMO_MODE,
+        "message": (
+            "This is a shared demo instance of OpenDraft. "
+            "All files are public — other users trying the demo can see and edit them. "
+            "Do not store any confidential information. "
+            "The demo server resets every hour — all data will be lost. "
+            "For production use, download the app for your platform and use it on your own machine securely. "
+            "For team use, try the Cloud edition of OpenDraft."
+        ) if DEMO_MODE else None,
+    }
+
+
 # Serve the built frontend as static files
 if STATIC_DIR.is_dir():
     # Serve JS/CSS/assets from /assets
@@ -73,12 +93,16 @@ if STATIC_DIR.is_dir():
     if dictionaries_dir.is_dir():
         app.mount("/dictionaries", StaticFiles(directory=dictionaries_dir), name="dictionaries")
 
-    # Catch-all: serve index.html for any non-API route (SPA routing)
+    # Catch-all: serve static files or index.html for SPA routing
     @app.get("/{full_path:path}")
     async def serve_spa(request: Request, full_path: str):
         # Don't intercept /api or /health
         if full_path.startswith("api/") or full_path == "health":
             return {"detail": "Not found"}
+        # Serve static files (favicon.svg, fonts, etc.) if they exist
+        static_file = STATIC_DIR / full_path
+        if full_path and static_file.is_file() and STATIC_DIR in static_file.resolve().parents:
+            return FileResponse(static_file)
         index = STATIC_DIR / "index.html"
         if index.exists():
             return FileResponse(index)
