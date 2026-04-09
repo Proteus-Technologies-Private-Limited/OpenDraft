@@ -169,7 +169,7 @@
 			path = opendraft_iOS;
 			sourceTree = "<group>";
 		};
-		"TEMP_E841EFBA-27E2-4363-AACD-783E8C63B476" /* x86_64 */ = {
+		"TEMP_4709CF4E-F7DF-44BC-9D46-0844B6F3677B" /* x86_64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -263,7 +263,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "node \"$SRCROOT/../../frontend/node_modules/@tauri-apps/cli/tauri.js\" ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
+			shellScript = "node \"$SRCROOT/../../../frontend/node_modules/@tauri-apps/cli/tauri.js\" ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
 		};
 /* End PBXShellScriptBuildPhase section */
 
