@@ -2249,12 +2249,14 @@ const ScreenplayEditor: React.FC = () => {
     let unlistenFn: (() => void) | null = null;
     let handledPath: string | null = null;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    let invokeRef: ((cmd: string) => Promise<string | null>) | null = null;
 
     (async () => {
       const { isTauri } = await import('../services/platform');
       if (!isTauri() || cancelled) return;
 
       const { invoke } = await import('@tauri-apps/api/core');
+      invokeRef = (cmd: string) => invoke<string | null>(cmd);
 
       // Set up event listener FIRST to catch re-emitted events from Rust
       try {
@@ -2298,10 +2300,27 @@ const ScreenplayEditor: React.FC = () => {
       pollPending(1);
     })();
 
+    // On iOS/Android warm start, RunEvent::Opened fires in Rust but the
+    // Tauri JS event may not reach the listener reliably. When the app
+    // returns to foreground, re-check the pending file state.
+    const onVisibilityChange = async () => {
+      if (document.visibilityState !== 'visible' || cancelled || !invokeRef) return;
+      try {
+        const pending = await invokeRef('get_opened_file');
+        if (pending && pending !== handledPath) {
+          console.log('[file-assoc] foreground check found pending file:', pending);
+          handledPath = pending;
+          handleExternalFile(pending);
+        }
+      } catch (_) { /* ignore */ }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
     return () => {
       cancelled = true;
       unlistenFn?.();
       if (pollTimer) clearTimeout(pollTimer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [editor, handleExternalFile]);
 
