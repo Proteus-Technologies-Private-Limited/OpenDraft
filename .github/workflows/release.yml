@@ -587,9 +587,9 @@ jobs:
 
       - name: Fix Swift compatibility libs for Xcode 26
         run: |
-          # Xcode 26.2 ships swiftCompatibility56 and swiftCompatibilityPacks libs
-          # but they lack the FORCE_LOAD symbols that Tauri's Swift bridge references.
-          # Create stub libraries with the actual symbols the linker needs.
+          # Xcode 26.2 ships swiftCompatibility56/Packs as fat archives but they
+          # lack the FORCE_LOAD symbols Tauri's Swift bridge needs. Replace them
+          # with stubs that provide the symbols.
           SWIFT_LIB="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos"
 
           cat > /tmp/swift_compat_stub.s << 'ASM'
@@ -603,11 +603,13 @@ jobs:
           .space 1
           ASM
 
-          xcrun clang -arch arm64 -c /tmp/swift_compat_stub.s -o /tmp/swift_compat_stub.o -isysroot $(xcrun --sdk iphoneos --show-sdk-path)
+          xcrun clang -arch arm64 -c /tmp/swift_compat_stub.s -o /tmp/swift_compat_stub.o \
+            -isysroot $(xcrun --sdk iphoneos --show-sdk-path)
 
-          # Replace or create the libraries
-          sudo xcrun ar rcs "$SWIFT_LIB/libswiftCompatibility56.a" /tmp/swift_compat_stub.o
-          sudo xcrun ar rcs "$SWIFT_LIB/libswiftCompatibilityPacks.a" /tmp/swift_compat_stub.o
+          # Remove existing fat archives and create thin arm64 stubs
+          sudo rm -f "$SWIFT_LIB/libswiftCompatibility56.a" "$SWIFT_LIB/libswiftCompatibilityPacks.a"
+          sudo ar rcs "$SWIFT_LIB/libswiftCompatibility56.a" /tmp/swift_compat_stub.o
+          sudo ar rcs "$SWIFT_LIB/libswiftCompatibilityPacks.a" /tmp/swift_compat_stub.o
           echo "Created stub libraries with FORCE_LOAD symbols"
 
       - name: Build iOS app
