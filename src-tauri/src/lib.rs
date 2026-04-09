@@ -57,8 +57,17 @@ fn android_read_content_uri(uri_str: &str) -> Result<ContentUriResult, String> {
      .l().map_err(|e| format!("resolver cast: {}", e))?;
 
     // ── Query display name via Cursor ────────────────────────────────
-    let filename = android_query_display_name(&mut env, &resolver, &uri_obj)
+    let mut filename = android_query_display_name(&mut env, &resolver, &uri_obj)
         .unwrap_or_else(|| extract_filename_from_uri(uri_str));
+
+    // If display name has no file extension, query MIME type and append one.
+    // Some Android content providers return display names without extensions.
+    if !filename.contains('.') {
+        if let Some(ext) = android_query_mime_extension(&mut env, &resolver, &uri_obj) {
+            filename = format!("{}.{}", filename, ext);
+            eprintln!("[content-uri] Added extension from MIME: {}", filename);
+        }
+    }
 
     // ── Read content via InputStream + Scanner ───────────────────────
     let input_stream = env.call_method(
@@ -158,6 +167,43 @@ fn android_query_display_name(
     if result.is_empty() { None } else { Some(result) }
 }
 
+/// Query the MIME type from ContentResolver and map it to a file extension.
+/// Returns None if the MIME type can't be determined or doesn't map to a known extension.
+#[cfg(target_os = "android")]
+fn android_query_mime_extension(
+    env: &mut jni::JNIEnv,
+    resolver: &jni::objects::JObject,
+    uri: &jni::objects::JObject,
+) -> Option<String> {
+    use jni::objects::{JObject, JValue};
+
+    // resolver.getType(uri) → String (MIME type)
+    let mime_obj = env.call_method(
+        resolver, "getType",
+        "(Landroid/net/Uri;)Ljava/lang/String;",
+        &[JValue::Object(uri)],
+    ).ok()?.l().ok()?;
+
+    if mime_obj.is_null() { return None; }
+
+    let jstr: jni::objects::JString = mime_obj.into();
+    let mime = env.get_string(&jstr).ok()?.to_string_lossy().into_owned();
+    eprintln!("[content-uri] MIME type: {}", mime);
+
+    // Map common MIME types to file extensions
+    match mime.as_str() {
+        "application/xml" | "text/xml" => Some("fdx".to_string()),
+        "application/json" => Some("odraft".to_string()),
+        "text/plain" => Some("txt".to_string()),
+        "text/fountain" => Some("fountain".to_string()),
+        "application/pdf" => Some("pdf".to_string()),
+        _ => {
+            // Try the sub-type as extension (e.g. "application/fdx" → "fdx")
+            mime.rsplit('/').next().map(|s| s.to_string())
+        }
+    }
+}
+
 /// Read the data URI from the Android Activity's launching intent.
 /// Called during setup to detect file-association cold starts on Android.
 #[cfg(target_os = "android")]
@@ -214,6 +260,12 @@ fn extract_filename_from_uri(uri: &str) -> String {
 // Instead, we write to the cache directory and present an Android share
 // intent so the user can save to Files, share via any app, etc.
 
+/// Android export: write file to cache, then present a "Save As" document picker
+/// via ACTION_CREATE_DOCUMENT.  The user picks a location and Android copies the
+/// content from our temp file to the chosen URI via ContentResolver.
+///
+/// Falls back to ACTION_SEND share sheet if CREATE_DOCUMENT fails (e.g. no
+/// document provider is available on the device).
 #[cfg(target_os = "android")]
 fn android_share_file(file_path: &str, mime_type: &str) -> Result<(), String> {
     use jni::objects::{JObject, JValue};
@@ -226,84 +278,62 @@ fn android_share_file(file_path: &str, mime_type: &str) -> Result<(), String> {
         .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
     let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
 
-    // Create File object for the temp file
-    let path_str = env.new_string(file_path)
+    // Store the temp file path so onActivityResult can copy it to the user's chosen location
+    let path_jstr = env.new_string(file_path)
         .map_err(|e| format!("JNI new_string: {}", e))?;
-    let file_obj = env.new_object("java/io/File", "(Ljava/lang/String;)V",
-        &[JValue::Object(&JObject::from(path_str))])
-        .map_err(|e| format!("new File: {}", e))?;
+    env.call_static_method(
+        "com/proteus/opendraft/MainActivity",
+        "setExportSourcePath",
+        "(Ljava/lang/String;)V",
+        &[JValue::Object(&JObject::from(path_jstr))],
+    ).map_err(|e| format!("setExportSourcePath: {}", e))?;
 
-    // Get authority dynamically: {packageName}.fileprovider
-    let pkg_name_obj = env.call_method(&activity, "getPackageName", "()Ljava/lang/String;", &[])
-        .map_err(|e| format!("getPackageName: {}", e))?
-        .l().map_err(|e| format!("getPackageName cast: {}", e))?;
-    let pkg_jstr: jni::objects::JString = pkg_name_obj.into();
-    let pkg_name = env.get_string(&pkg_jstr)
-        .map_err(|e| format!("get_string: {}", e))?
-        .to_string_lossy().into_owned();
-    let authority = env.new_string(format!("{}.fileprovider", pkg_name))
-        .map_err(|e| format!("JNI new_string: {}", e))?;
+    // Extract filename from path
+    let filename = file_path.rsplit('/').next().unwrap_or("export");
 
-    // FileProvider.getUriForFile(context, authority, file)
-    let content_uri = env.call_static_method(
-        "androidx/core/content/FileProvider",
-        "getUriForFile",
-        "(Landroid/content/Context;Ljava/lang/String;Ljava/io/File;)Landroid/net/Uri;",
-        &[
-            JValue::Object(&activity),
-            JValue::Object(&JObject::from(authority)),
-            JValue::Object(&file_obj),
-        ],
-    ).map_err(|e| format!("getUriForFile: {}", e))?
-     .l().map_err(|e| format!("getUriForFile cast: {}", e))?;
-
-    // Create Intent(ACTION_SEND)
-    let action_send = env.new_string("android.intent.action.SEND")
+    // Create Intent(ACTION_CREATE_DOCUMENT) — Android's native "Save As" dialog
+    let action_str = env.new_string("android.intent.action.CREATE_DOCUMENT")
         .map_err(|e| format!("JNI new_string: {}", e))?;
     let intent = env.new_object("android/content/Intent", "(Ljava/lang/String;)V",
-        &[JValue::Object(&JObject::from(action_send))])
+        &[JValue::Object(&JObject::from(action_str))])
         .map_err(|e| format!("new Intent: {}", e))?;
+
+    // intent.addCategory(CATEGORY_OPENABLE)
+    let cat_str = env.new_string("android.intent.category.OPENABLE")
+        .map_err(|e| format!("JNI new_string: {}", e))?;
+    let _ = env.call_method(&intent, "addCategory",
+        "(Ljava/lang/String;)Landroid/content/Intent;",
+        &[JValue::Object(&JObject::from(cat_str))])
+        .map_err(|e| format!("addCategory: {}", e))?;
 
     // intent.setType(mimeType)
     let mime = env.new_string(mime_type)
         .map_err(|e| format!("JNI new_string: {}", e))?;
-    let _ = env.call_method(&intent, "setType", "(Ljava/lang/String;)Landroid/content/Intent;",
+    let _ = env.call_method(&intent, "setType",
+        "(Ljava/lang/String;)Landroid/content/Intent;",
         &[JValue::Object(&JObject::from(mime))])
         .map_err(|e| format!("setType: {}", e))?;
 
-    // intent.putExtra(EXTRA_STREAM, contentUri)
-    let extra_stream = env.new_string("android.intent.extra.STREAM")
+    // intent.putExtra(EXTRA_TITLE, filename) — suggested filename
+    let extra_title = env.new_string("android.intent.extra.TITLE")
+        .map_err(|e| format!("JNI new_string: {}", e))?;
+    let filename_jstr = env.new_string(filename)
         .map_err(|e| format!("JNI new_string: {}", e))?;
     let _ = env.call_method(&intent, "putExtra",
-        "(Ljava/lang/String;Landroid/os/Parcelable;)Landroid/content/Intent;",
+        "(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;",
         &[
-            JValue::Object(&JObject::from(extra_stream)),
-            JValue::Object(&content_uri),
+            JValue::Object(&JObject::from(extra_title)),
+            JValue::Object(&JObject::from(filename_jstr)),
         ])
-        .map_err(|e| format!("putExtra: {}", e))?;
+        .map_err(|e| format!("putExtra TITLE: {}", e))?;
 
-    // intent.addFlags(FLAG_GRANT_READ_URI_PERMISSION = 1)
-    let _ = env.call_method(&intent, "addFlags", "(I)Landroid/content/Intent;",
-        &[JValue::Int(1)])
-        .map_err(|e| format!("addFlags: {}", e))?;
+    // activity.startActivityForResult(intent, EXPORT_FILE_REQUEST=43)
+    env.call_method(&activity, "startActivityForResult",
+        "(Landroid/content/Intent;I)V",
+        &[JValue::Object(&intent), JValue::Int(43)])
+        .map_err(|e| format!("startActivityForResult: {}", e))?;
 
-    // Intent.createChooser(intent, "Share")
-    let chooser_title = env.new_string("Save or share")
-        .map_err(|e| format!("JNI new_string: {}", e))?;
-    let chooser = env.call_static_method("android/content/Intent", "createChooser",
-        "(Landroid/content/Intent;Ljava/lang/CharSequence;)Landroid/content/Intent;",
-        &[
-            JValue::Object(&intent),
-            JValue::Object(&JObject::from(chooser_title)),
-        ])
-        .map_err(|e| format!("createChooser: {}", e))?
-        .l().map_err(|e| format!("createChooser cast: {}", e))?;
-
-    // activity.startActivity(chooser)
-    env.call_method(&activity, "startActivity", "(Landroid/content/Intent;)V",
-        &[JValue::Object(&chooser)])
-        .map_err(|e| format!("startActivity: {}", e))?;
-
+    eprintln!("[export] Launched save-as picker for {}", filename);
     Ok(())
 }
 
@@ -315,7 +345,9 @@ fn android_save_and_share(filename: String, contents: String) -> Result<(), Stri
         let path = cache_dir.join(&filename);
         std::fs::write(&path, &contents)
             .map_err(|e| format!("Failed to write temp file: {}", e))?;
-        android_share_file(&path.to_string_lossy(), "text/plain")
+        // Use application/octet-stream so Android's save-as dialog
+        // preserves the exact filename without appending an extension
+        android_share_file(&path.to_string_lossy(), "application/octet-stream")
     }
     #[cfg(not(target_os = "android"))]
     {
@@ -340,6 +372,151 @@ fn android_save_and_share_binary(filename: String, contents: Vec<u8>) -> Result<
         let _ = (filename, contents);
         Err("This command is only available on Android".to_string())
     }
+}
+
+// ── Android native file picker ──────────────────────────────────────────
+// Launches ACTION_OPEN_DOCUMENT intent so the user can pick a file.
+// The result is captured by MainActivity.onActivityResult() and stored in
+// a static companion field, then retrieved by android_get_picked_file().
+
+#[tauri::command]
+fn android_pick_file() -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    {
+        use jni::objects::{JObject, JValue};
+        use jni::JavaVM;
+
+        let ctx = ndk_context::android_context();
+        let vm = unsafe { JavaVM::from_raw(ctx.vm().cast()) }
+            .map_err(|e| format!("Failed to get JVM: {}", e))?;
+        let mut env = vm.attach_current_thread()
+            .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+        let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
+
+        // Clear any previous picked file URI
+        let null_obj = JObject::null();
+        let _ = env.call_static_method(
+            "com/proteus/opendraft/MainActivity",
+            "setPickedFileUri",
+            "(Ljava/lang/String;)V",
+            &[JValue::Object(&null_obj)],
+        );
+
+        // Create Intent(ACTION_OPEN_DOCUMENT)
+        let action_str = env.new_string("android.intent.action.OPEN_DOCUMENT")
+            .map_err(|e| format!("JNI new_string: {}", e))?;
+        let intent = env.new_object(
+            "android/content/Intent",
+            "(Ljava/lang/String;)V",
+            &[JValue::Object(&JObject::from(action_str))],
+        ).map_err(|e| format!("new Intent: {}", e))?;
+
+        // intent.addCategory(CATEGORY_OPENABLE)
+        let cat_str = env.new_string("android.intent.category.OPENABLE")
+            .map_err(|e| format!("JNI new_string: {}", e))?;
+        let _ = env.call_method(
+            &intent, "addCategory",
+            "(Ljava/lang/String;)Landroid/content/Intent;",
+            &[JValue::Object(&JObject::from(cat_str))],
+        ).map_err(|e| format!("addCategory: {}", e))?;
+
+        // intent.setType("*/*") — accept all file types
+        let mime_str = env.new_string("*/*")
+            .map_err(|e| format!("JNI new_string: {}", e))?;
+        let _ = env.call_method(
+            &intent, "setType",
+            "(Ljava/lang/String;)Landroid/content/Intent;",
+            &[JValue::Object(&JObject::from(mime_str))],
+        ).map_err(|e| format!("setType: {}", e))?;
+
+        // activity.startActivityForResult(intent, PICK_FILE_REQUEST=42)
+        env.call_method(
+            &activity, "startActivityForResult",
+            "(Landroid/content/Intent;I)V",
+            &[JValue::Object(&intent), JValue::Int(42)],
+        ).map_err(|e| format!("startActivityForResult: {}", e))?;
+
+        eprintln!("[file-picker] Launched document picker");
+        Ok(())
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        Err("This command is only available on Android".to_string())
+    }
+}
+
+/// Read and clear the picked file URI from the Activity's companion object.
+/// Returns the content URI string, empty string if cancelled, or None if
+/// the picker hasn't returned yet.
+#[tauri::command]
+fn android_get_picked_file() -> Option<String> {
+    #[cfg(target_os = "android")]
+    {
+        android_read_and_clear_companion_field("getPickedFileUri", "setPickedFileUri")
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        None
+    }
+}
+
+/// Check for a new intent URI from a warm-start "Open with" action.
+/// Reads and clears newIntentUri from the Activity companion object,
+/// and updates the PendingFile state so get_opened_file stays in sync.
+#[tauri::command]
+fn android_check_new_intent(state: tauri::State<PendingFile>) -> Option<String> {
+    #[cfg(target_os = "android")]
+    {
+        let uri = android_read_and_clear_companion_field("getNewIntentUri", "setNewIntentUri");
+        if let Some(ref u) = uri {
+            eprintln!("[file-assoc] New intent detected: {}", u);
+            // Update PendingFile so get_opened_file returns this URI
+            *state.0.lock().unwrap() = Some(u.clone());
+        }
+        uri
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = state;
+        None
+    }
+}
+
+/// Helper: read a String? from a static getter on MainActivity and clear it via the setter.
+#[cfg(target_os = "android")]
+fn android_read_and_clear_companion_field(getter: &str, setter: &str) -> Option<String> {
+    use jni::objects::{JObject, JString, JValue};
+    use jni::JavaVM;
+
+    let ctx = ndk_context::android_context();
+    let vm = unsafe { JavaVM::from_raw(ctx.vm().cast()) }.ok()?;
+    let mut env = vm.attach_current_thread().ok()?;
+
+    let result = env.call_static_method(
+        "com/proteus/opendraft/MainActivity",
+        getter,
+        "()Ljava/lang/String;",
+        &[],
+    ).ok()?.l().ok()?;
+
+    if result.is_null() {
+        return None;
+    }
+
+    let jstr: JString = result.into();
+    let value = env.get_string(&jstr).ok()?.to_string_lossy().into_owned();
+
+    // Clear the field
+    let null_obj = JObject::null();
+    let _ = env.call_static_method(
+        "com/proteus/opendraft/MainActivity",
+        setter,
+        "(Ljava/lang/String;)V",
+        &[JValue::Object(&null_obj)],
+    );
+
+    // Return Some even for empty string (signals cancellation for file picker)
+    Some(value)
 }
 
 // ── iOS file helpers (Objective-C FFI) ────────────────────────────────────
@@ -725,6 +902,9 @@ pub fn run() {
             ios_save_and_share_binary,
             android_save_and_share,
             android_save_and_share_binary,
+            android_pick_file,
+            android_get_picked_file,
+            android_check_new_intent,
         ]);
 
         // ── Native menu (desktop only) ────────────────────────────────

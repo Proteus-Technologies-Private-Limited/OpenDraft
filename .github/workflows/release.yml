@@ -271,17 +271,32 @@ jobs:
             cp images/android-icons/mipmap-$density/* "$RES_DIR/mipmap-$density/"
           done
 
+      - name: Copy custom Android sources
+        run: |
+          # Replace the generated MainActivity with our custom one (adds onNewIntent + onActivityResult)
+          MAIN_ACT="src-tauri/gen/android/app/src/main/java/com/proteus/opendraft/MainActivity.kt"
+          cp src-tauri/android-src/MainActivity.kt "$MAIN_ACT"
+          echo "Custom MainActivity.kt copied"
+
+          # Create file_paths.xml for FileProvider (needed for export share intent)
+          XML_DIR="src-tauri/gen/android/app/src/main/res/xml"
+          mkdir -p "$XML_DIR"
+          cp src-tauri/android-src/file_paths.xml "$XML_DIR/file_paths.xml"
+          echo "file_paths.xml copied to $XML_DIR"
+
+          # ProGuard keep rules for JNI-called classes (R8 can't trace JNI reflection)
+          cp src-tauri/android-src/jni-keep-rules.pro src-tauri/gen/android/app/jni-keep-rules.pro
+          echo "JNI ProGuard rules copied"
+
       - name: Add file association intent-filters to AndroidManifest.xml
         run: |
-          MANIFEST="src-tauri/gen/android/app/src/main/AndroidManifest.xml"
           python3 << 'PYEOF'
-          import sys
-
+          # Tauri already generates launchMode="singleTask" and FileProvider.
+          # We only need to add intent-filters for file association.
           manifest_path = "src-tauri/gen/android/app/src/main/AndroidManifest.xml"
           with open(manifest_path) as f:
               content = f.read()
 
-          # Intent filters for opening screenplay files
           intent_filters = """
                   <intent-filter>
                       <action android:name="android.intent.action.VIEW" />
@@ -313,7 +328,6 @@ jobs:
                       <data android:host="*" />
                   </intent-filter>"""
 
-          # Insert before the closing </activity> tag
           if "</activity>" in content:
               content = content.replace("</activity>", intent_filters + "\n            </activity>", 1)
               with open(manifest_path, "w") as f:
