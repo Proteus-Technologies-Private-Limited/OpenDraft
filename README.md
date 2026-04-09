@@ -26,10 +26,14 @@
   <a href="https://proteus-technologies-private-limited.github.io/OpenDraft/">
     <img src="https://img.shields.io/badge/Website-Landing%20Page-6366f1?style=for-the-badge" alt="Website">
   </a>
+  <a href="https://opendraft-demo-267958344432.us-central1.run.app">
+    <img src="https://img.shields.io/badge/Try%20Online-Live%20Demo-c455ce?style=for-the-badge" alt="Try Online Demo">
+  </a>
 </p>
 
 <p align="center">
   <a href="https://proteus-technologies-private-limited.github.io/OpenDraft/">Website</a> &bull;
+  <a href="https://opendraft-demo-267958344432.us-central1.run.app">Try Online</a> &bull;
   <a href="#download">Download</a> &bull;
   <a href="#features">Features</a> &bull;
   <a href="#features">Features</a> &bull;
