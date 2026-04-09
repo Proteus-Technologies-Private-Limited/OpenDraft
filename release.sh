@@ -3,10 +3,9 @@ set -e
 
 # ── OpenDraft Release Script ─────────────────────────────────────────────────
 # Handles the full release process:
-#   1. Updates version in all source files
-#   2. Builds web frontend for FastAPI (backend/static)
-#   3. Commits and pushes
-#   4. Creates git tag (triggers CI for all platforms: macOS, Windows, Linux, Android)
+#   1. Updates version in all source files (on a release branch)
+#   2. Creates a PR for the version bump
+#   3. After PR is merged, creates git tag (triggers CI for all platforms)
 
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 REPO="Proteus-Technologies-Private-Limited/OpenDraft"
@@ -20,6 +19,7 @@ fi
 
 NEW_VERSION="$1"
 TAG="v${NEW_VERSION}"
+BRANCH="release/v${NEW_VERSION}"
 
 echo ""
 echo "=== OpenDraft Release ${TAG} ==="
@@ -47,13 +47,19 @@ if ! git diff --quiet HEAD 2>/dev/null; then
   exit 1
 fi
 
+# Ensure we're on main and up to date
+git checkout main
+git pull origin main
+
 OLD_VERSION=$(grep '"version"' "$PROJECT_ROOT/src-tauri/tauri.conf.json" | head -1 | sed 's/.*"\([0-9]*\.[0-9]*\.[0-9]*\)".*/\1/')
 echo "Current version: ${OLD_VERSION}"
 echo "New version:     ${NEW_VERSION}"
 echo ""
 
-# ── Step 1: Update version in all files ──────────────────────────────────────
-echo "=== Step 1/4: Updating version numbers ==="
+# ── Step 1: Create release branch and update versions ───────────────────────
+echo "=== Step 1/3: Updating version numbers ==="
+
+git checkout -b "$BRANCH"
 
 # src-tauri/tauri.conf.json
 sed -i '' "s/\"version\": \"${OLD_VERSION}\"/\"version\": \"${NEW_VERSION}\"/" \
@@ -113,30 +119,65 @@ cd "$PROJECT_ROOT"
 
 echo ""
 
-# ── Step 2: Build web frontend for FastAPI ─────────────────────────────────
-echo "=== Step 2/4: Building web frontend ==="
-"$PROJECT_ROOT/build.sh"
-echo "  ✓ Web frontend built and deployed to backend/static/"
-echo ""
-
-# ── Step 3: Commit version bump ─────────────────────────────────────────────
-echo "=== Step 3/4: Committing version bump ==="
+# ── Step 2: Commit, push branch, create PR ──────────────────────────────────
+echo "=== Step 2/3: Creating pull request ==="
 git add -A
 git commit -m "Bump version to ${NEW_VERSION}"
-git push origin main
-echo "  ✓ Committed and pushed"
+git push origin "$BRANCH"
+
+PR_URL=$(gh pr create \
+  --title "Release v${NEW_VERSION}" \
+  --body "$(cat <<PREOF
+## Version bump to ${NEW_VERSION}
+
+Updates version numbers and download links across all source files.
+
+**After merging**, the release tag will be created automatically — do not create it manually.
+PREOF
+)" \
+  --base main \
+  --head "$BRANCH" \
+  --repo "$REPO")
+
+echo "  ✓ PR created: $PR_URL"
 echo ""
 
-# ── Step 4: Create and push tag ─────────────────────────────────────────────
-echo "=== Step 4/4: Creating tag ${TAG} ==="
+# ── Step 3: Wait for merge, then tag ────────────────────────────────────────
+echo "=== Step 3/3: Waiting for PR to be merged ==="
+echo "  Merge the PR at: $PR_URL"
+echo "  (or press Enter here after merging to create the tag)"
+echo ""
+
+while true; do
+  PR_STATE=$(gh pr view "$PR_URL" --repo "$REPO" --json state -q '.state')
+  if [ "$PR_STATE" = "MERGED" ]; then
+    echo "  ✓ PR merged!"
+    break
+  elif [ "$PR_STATE" = "CLOSED" ]; then
+    echo "  ✗ PR was closed without merging. Aborting."
+    exit 1
+  fi
+  echo "  Waiting for PR to be merged... (checking every 10s)"
+  sleep 10
+done
+
+# Switch back to main and pull the merge
+git checkout main
+git pull origin main
+
+# Create and push the tag
 git tag "$TAG"
 git push origin "$TAG"
 echo "  ✓ Tag ${TAG} pushed"
 echo ""
 
+# Clean up the release branch
+git branch -d "$BRANCH" 2>/dev/null || true
+git push origin --delete "$BRANCH" 2>/dev/null || true
+
 echo "============================================="
 echo "  Release ${TAG} tag pushed!"
-echo "  CI is now building all platforms (macOS, Windows, Linux, Android)."
+echo "  CI is now building all platforms."
 echo "  https://github.com/${REPO}/actions"
 echo "============================================="
 echo ""
