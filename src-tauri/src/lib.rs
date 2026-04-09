@@ -19,7 +19,7 @@ fn is_openable_file(path: &str) -> bool {
 
 #[tauri::command]
 fn get_opened_file(state: tauri::State<PendingFile>) -> Option<String> {
-    state.0.lock().unwrap().take()
+    state.0.lock().unwrap().clone()
 }
 
 // ── File I/O commands ──────────────────────────────────────────────────────
@@ -419,8 +419,8 @@ pub fn run() {
         });
 
     app.run(|_app_handle, _event| {
-        // ── Handle file association open events (macOS only) ──────
-        #[cfg(target_os = "macos")]
+        // ── Handle file association open events (macOS + iOS) ──────
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
         if let tauri::RunEvent::Opened { urls } = &_event {
             for url in urls {
                 if let Ok(path) = url.to_file_path() {
@@ -428,17 +428,27 @@ pub fn run() {
                     if !is_openable_file(&path_str) {
                         continue;
                     }
-                    eprintln!("RunEvent::Opened file: {}", path_str);
+                    eprintln!("[file-assoc] RunEvent::Opened: {}", path_str);
 
-                    // Emit to frontend (works if window is already loaded)
-                    if let Some(window) = _app_handle.get_webview_window("main") {
-                        let _ = window.emit("open-file", &path_str);
-                    }
-
-                    // Also store in pending state (for startup timing edge case)
+                    // Store in pending state so frontend can retrieve it
                     if let Some(state) = _app_handle.try_state::<PendingFile>() {
-                        *state.0.lock().unwrap() = Some(path_str);
+                        *state.0.lock().unwrap() = Some(path_str.clone());
                     }
+
+                    // Emit immediately (may be lost if WebView not ready)
+                    let _ = _app_handle.emit("open-file", &path_str);
+
+                    // Re-emit after delays to handle cold-start timing
+                    // The WebView may not have loaded JS listeners yet
+                    let handle = _app_handle.clone();
+                    let path_for_retry = path_str.clone();
+                    std::thread::spawn(move || {
+                        for delay_ms in [500, 1500, 3000] {
+                            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                            eprintln!("[file-assoc] re-emit open-file after {}ms", delay_ms);
+                            let _ = handle.emit("open-file", &path_for_retry);
+                        }
+                    });
                 }
             }
         }

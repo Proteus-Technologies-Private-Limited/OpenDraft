@@ -563,87 +563,6 @@ jobs:
           echo '{"private":true,"scripts":{"tauri":"tauri"}}' > package.json
           ln -sf frontend/node_modules node_modules
 
-      - name: Initialize iOS project
-        run: npx --prefix frontend tauri ios init
-
-      - name: Add file association declarations to iOS Info.plist
-        run: |
-          PLIST="src-tauri/gen/apple/opendraft_iOS/Info.plist"
-          python3 << 'PYEOF'
-          import plistlib, sys
-
-          plist_path = "src-tauri/gen/apple/opendraft_iOS/Info.plist"
-          with open(plist_path, "rb") as f:
-              plist = plistlib.load(f)
-
-          # Allow opening documents in place and document browser support
-          plist["LSSupportsOpeningDocumentsInPlace"] = True
-          plist["UISupportsDocumentBrowser"] = True
-
-          # Declare supported document types
-          plist["CFBundleDocumentTypes"] = [
-              {
-                  "CFBundleTypeName": "Final Draft Screenplay",
-                  "CFBundleTypeRole": "Editor",
-                  "LSHandlerRank": "Default",
-                  "LSItemContentTypes": ["com.finaldraft.fdx"],
-              },
-              {
-                  "CFBundleTypeName": "Fountain Screenplay",
-                  "CFBundleTypeRole": "Editor",
-                  "LSHandlerRank": "Default",
-                  "LSItemContentTypes": ["com.proteus.opendraft.fountain"],
-              },
-              {
-                  "CFBundleTypeName": "OpenDraft Screenplay",
-                  "CFBundleTypeRole": "Editor",
-                  "LSHandlerRank": "Owner",
-                  "LSItemContentTypes": ["com.proteus.opendraft.document"],
-              },
-              {
-                  "CFBundleTypeName": "Text File",
-                  "CFBundleTypeRole": "Editor",
-                  "LSHandlerRank": "Alternate",
-                  "LSItemContentTypes": ["public.plain-text"],
-              },
-          ]
-
-          # Declare custom UTIs so iOS recognises the file extensions
-          plist["UTImportedTypeDeclarations"] = [
-              {
-                  "UTTypeIdentifier": "com.finaldraft.fdx",
-                  "UTTypeDescription": "Final Draft Screenplay",
-                  "UTTypeConformsTo": ["public.xml"],
-                  "UTTypeTagSpecification": {
-                      "public.filename-extension": ["fdx"],
-                      "public.mime-type": "application/xml",
-                  },
-              },
-              {
-                  "UTTypeIdentifier": "com.proteus.opendraft.fountain",
-                  "UTTypeDescription": "Fountain Screenplay",
-                  "UTTypeConformsTo": ["public.plain-text"],
-                  "UTTypeTagSpecification": {
-                      "public.filename-extension": ["fountain"],
-                      "public.mime-type": "text/plain",
-                  },
-              },
-              {
-                  "UTTypeIdentifier": "com.proteus.opendraft.document",
-                  "UTTypeDescription": "OpenDraft Screenplay",
-                  "UTTypeConformsTo": ["public.json"],
-                  "UTTypeTagSpecification": {
-                      "public.filename-extension": ["odraft"],
-                      "public.mime-type": "application/json",
-                  },
-              },
-          ]
-
-          with open(plist_path, "wb") as f:
-              plistlib.dump(plist, f)
-          print("iOS Info.plist patched with file association declarations")
-          PYEOF
-
       - name: Configure iOS manual signing
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -723,11 +642,102 @@ jobs:
           APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: npx --prefix frontend tauri ios build --export-method app-store-connect
 
+      - name: Patch Info.plist with file association declarations
+        run: |
+          # Tauri regenerates Info.plist from its own template on every build,
+          # and XcodeGen cannot inject complex nested structures like
+          # CFBundleDocumentTypes. Patch the built .app, re-sign, and re-export.
+          ARCHIVE=$(find src-tauri/gen/apple/build -name "*.xcarchive" | head -1)
+          if [ -z "$ARCHIVE" ]; then
+            echo "::error::No .xcarchive found"
+            exit 1
+          fi
+          APP_PATH="$ARCHIVE/Products/Applications/OpenDraft.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "::error::No .app found in xcarchive"
+            exit 1
+          fi
+
+          # Save original entitlements for re-signing
+          codesign -d --entitlements /tmp/orig_ent.plist "$APP_PATH" 2>/dev/null
+
+          # Patch Info.plist
+          python3 << 'PYEOF'
+          import plistlib, glob, os
+
+          archive = glob.glob("src-tauri/gen/apple/build/*.xcarchive")[0]
+          plist_path = os.path.join(archive, "Products/Applications/OpenDraft.app/Info.plist")
+
+          with open(plist_path, "rb") as f:
+              plist = plistlib.load(f)
+
+          plist["LSSupportsOpeningDocumentsInPlace"] = True
+          plist["UISupportsDocumentBrowser"] = True
+
+          plist["CFBundleDocumentTypes"] = [
+              {"CFBundleTypeName": "Final Draft Screenplay", "CFBundleTypeRole": "Editor",
+               "LSHandlerRank": "Default", "LSItemContentTypes": ["com.finaldraft.fdx"]},
+              {"CFBundleTypeName": "Fountain Screenplay", "CFBundleTypeRole": "Editor",
+               "LSHandlerRank": "Default", "LSItemContentTypes": ["com.proteus.opendraft.fountain"]},
+              {"CFBundleTypeName": "OpenDraft Screenplay", "CFBundleTypeRole": "Editor",
+               "LSHandlerRank": "Owner", "LSItemContentTypes": ["com.proteus.opendraft.document"]},
+              {"CFBundleTypeName": "Text File", "CFBundleTypeRole": "Editor",
+               "LSHandlerRank": "Alternate", "LSItemContentTypes": ["public.plain-text"]},
+          ]
+
+          plist["UTImportedTypeDeclarations"] = [
+              {"UTTypeIdentifier": "com.finaldraft.fdx", "UTTypeDescription": "Final Draft Screenplay",
+               "UTTypeConformsTo": ["public.xml"],
+               "UTTypeTagSpecification": {"public.filename-extension": ["fdx"], "public.mime-type": "application/xml"}},
+              {"UTTypeIdentifier": "com.proteus.opendraft.fountain", "UTTypeDescription": "Fountain Screenplay",
+               "UTTypeConformsTo": ["public.plain-text"],
+               "UTTypeTagSpecification": {"public.filename-extension": ["fountain"], "public.mime-type": "text/plain"}},
+              {"UTTypeIdentifier": "com.proteus.opendraft.document", "UTTypeDescription": "OpenDraft Screenplay",
+               "UTTypeConformsTo": ["public.json"],
+               "UTTypeTagSpecification": {"public.filename-extension": ["odraft"], "public.mime-type": "application/json"}},
+          ]
+
+          with open(plist_path, "wb") as f:
+              plistlib.dump(plist, f)
+          print(f"Patched {plist_path} with file association declarations")
+          PYEOF
+
+          # Re-sign the .app
+          SIGN_ID=$(security find-identity -v -p codesigning | grep "Apple Distribution" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          if [ -z "$SIGN_ID" ]; then
+            echo "::error::No Apple Distribution signing identity found"
+            exit 1
+          fi
+          codesign --force --sign "$SIGN_ID" --entitlements /tmp/orig_ent.plist "$APP_PATH"
+          echo "Re-signed .app with: $SIGN_ID"
+
+          # Re-export IPA from the patched archive
+          EXPORT_DIR="src-tauri/gen/apple/build/patched-export"
+          EXPORT_OPTIONS=$(find src-tauri/gen/apple -name "ExportOptions.plist" | head -1)
+          if [ -z "$EXPORT_OPTIONS" ]; then
+            echo "::error::No ExportOptions.plist found"
+            exit 1
+          fi
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE" \
+            -exportPath "$EXPORT_DIR" \
+            -exportOptionsPlist "$EXPORT_OPTIONS"
+
+          # Replace original IPA with patched version
+          NEW_IPA=$(find "$EXPORT_DIR" -name "*.ipa" | head -1)
+          if [ -z "$NEW_IPA" ]; then
+            echo "::error::Re-export did not produce an IPA"
+            exit 1
+          fi
+          OLD_IPA=$(find src-tauri/gen/apple/build -maxdepth 2 -name "*.ipa" ! -path "*/patched-export/*" | head -1)
+          cp "$NEW_IPA" "$OLD_IPA"
+          echo "Replaced IPA with patched version containing file associations"
+
       - name: Prepare artifact
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p ios-artifacts
-          IPA=$(find src-tauri/gen/apple/build -name "*.ipa" | head -1)
+          IPA=$(find src-tauri/gen/apple/build -name "*.ipa" ! -path "*/patched-export/*" | head -1)
           if [ -n "$IPA" ]; then
             cp "$IPA" "ios-artifacts/OpenDraft_${VERSION}_ios.ipa"
             echo "IPA: $IPA -> OpenDraft_${VERSION}_ios.ipa"
@@ -742,7 +752,6 @@ jobs:
           draft: true
 
       - name: Upload to App Store Connect
-        continue-on-error: true
         env:
           APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
           APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
@@ -758,7 +767,7 @@ jobs:
           echo "$APPSTORE_API_KEY" | base64 --decode > ~/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8
 
           # Find the IPA
-          IPA=$(find src-tauri/gen/apple/build -name "*.ipa" | head -1)
+          IPA=$(find src-tauri/gen/apple/build -name "*.ipa" ! -path "*/patched-export/*" | head -1)
           if [ -z "$IPA" ]; then
             echo "::warning::No IPA file found — skipping App Store upload"
             exit 0
@@ -942,7 +951,6 @@ jobs:
           echo "App Store package built: OpenDraft.pkg"
 
       - name: Upload to App Store Connect
-        continue-on-error: true
         env:
           APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
           APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}

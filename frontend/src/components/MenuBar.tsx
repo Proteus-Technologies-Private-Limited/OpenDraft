@@ -1011,16 +1011,15 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.12.1</div>
+            <div className="about-version">Version 0.13.3</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.12.1</div>
+              <div className="about-section-title">What's New in 0.13.3</div>
               <ul className="about-list">
-                <li><strong>Spell Check Improvements</strong> — Fixed spell check across web and mobile platforms. Per-document ignore list persistence so your ignored words are remembered per screenplay.</li>
-                <li><strong>Mobile & Responsive Support</strong> — Spell check modal now adapts to narrow screens. Improved responsive layout for mobile devices.</li>
-                <li><strong>Undo History Fix</strong> — Undo history now resets correctly when switching documents, preventing cross-document undo issues.</li>
-                <li><strong>CI Build for All Platforms</strong> — macOS builds are now automated via GitHub Actions with full code signing and Apple notarization, alongside Windows, Linux, and Android.</li>
+                <li><strong>iOS File Associations</strong> — Open .fdx, .fountain, and .odraft files directly from the iOS Files app. Post-build plist patching ensures file type declarations survive the Tauri build.</li>
+                <li><strong>Improved File Open Handling</strong> — Robust cold-start file opening with polling and deduplication, so files opened via OS file association reliably load on first launch.</li>
+                <li><strong>iOS & macOS Build Fixes</strong> — Removed continue-on-error from App Store uploads, fixed XcodeGen config for Externals build phase.</li>
               </ul>
             </div>
           </div>

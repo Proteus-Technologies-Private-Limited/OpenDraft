@@ -2155,10 +2155,15 @@ const ScreenplayEditor: React.FC = () => {
 
   // ── File association: open files passed by the OS ──────────────────────
   const handleExternalFile = useCallback(async (filePath: string) => {
-    if (!editor) return;
+    if (!editor) {
+      console.warn('[file-assoc] editor not ready, ignoring:', filePath);
+      return;
+    }
+    console.log('[file-assoc] opening:', filePath);
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       const text = await invoke<string>('read_text_file', { path: filePath });
+      console.log('[file-assoc] read', text.length, 'chars from', filePath);
 
       const ext = filePath.split('.').pop()?.toLowerCase();
       const filename = filePath.replace(/^.*[\\/]/, '') || 'Untitled';
@@ -2230,27 +2235,24 @@ const ScreenplayEditor: React.FC = () => {
 
     let cancelled = false;
     let unlistenFn: (() => void) | null = null;
+    let handledPath: string | null = null;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
     (async () => {
       const { isTauri } = await import('../services/platform');
       if (!isTauri() || cancelled) return;
 
-      // Check for a file passed at launch (CLI args or early RunEvent::Opened)
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        const pending = await invoke<string | null>('get_opened_file');
-        if (pending && !cancelled) {
-          handleExternalFile(pending);
-        }
-      } catch (err) {
-        console.error('get_opened_file failed:', err);
-      }
+      const { invoke } = await import('@tauri-apps/api/core');
 
-      // Listen for files opened while the app is already running
+      // Set up event listener FIRST to catch re-emitted events from Rust
       try {
         const { listen } = await import('@tauri-apps/api/event');
         const unlisten = await listen<string>('open-file', (event) => {
-          if (!cancelled) handleExternalFile(event.payload);
+          if (!cancelled && event.payload !== handledPath) {
+            console.log('[file-assoc] open-file event:', event.payload);
+            handledPath = event.payload;
+            handleExternalFile(event.payload);
+          }
         });
         if (cancelled) {
           unlisten();
@@ -2260,11 +2262,34 @@ const ScreenplayEditor: React.FC = () => {
       } catch (err) {
         console.error('Failed to listen for open-file events:', err);
       }
+
+      // Check for a file passed at launch — poll a few times because
+      // on cold start RunEvent::Opened may fire after the WebView loads
+      const pollPending = async (attempt: number) => {
+        if (cancelled || handledPath) return;
+        try {
+          const pending = await invoke<string | null>('get_opened_file');
+          if (pending && !cancelled && pending !== handledPath) {
+            console.log(`[file-assoc] pending file (attempt ${attempt}):`, pending);
+            handledPath = pending;
+            handleExternalFile(pending);
+            return;
+          }
+        } catch (err) {
+          console.error('get_opened_file failed:', err);
+        }
+        // Retry up to 5 times over ~3 seconds for cold-start timing
+        if (attempt < 5 && !cancelled && !handledPath) {
+          pollTimer = setTimeout(() => pollPending(attempt + 1), 600);
+        }
+      };
+      pollPending(1);
     })();
 
     return () => {
       cancelled = true;
       unlistenFn?.();
+      if (pollTimer) clearTimeout(pollTimer);
     };
   }, [editor, handleExternalFile]);
 
