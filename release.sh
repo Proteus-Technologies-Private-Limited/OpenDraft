@@ -2,10 +2,12 @@
 set -e
 
 # ── OpenDraft Release Script ─────────────────────────────────────────────────
-# Handles the full release process:
-#   1. Updates version in all source files (on a release branch)
-#   2. Creates a PR for the version bump
-#   3. After PR is merged, creates git tag (triggers CI for all platforms)
+# Release process (no downtime for download links):
+#   1. Creates release branch with version bump (code + download links)
+#   2. Tags the branch and pushes tag → triggers CI builds
+#   3. CI builds all platforms, submits to stores, publishes release
+#   4. Creates PR to merge version bump + updated links into main
+#   5. Waits for PR merge → links go live only after release is published
 
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 REPO="Proteus-Technologies-Private-Limited/OpenDraft"
@@ -41,7 +43,7 @@ if git rev-parse "$TAG" &> /dev/null 2>&1; then
   exit 1
 fi
 
-# Check for uncommitted changes (other than what this script will make)
+# Check for uncommitted changes
 if ! git diff --quiet HEAD 2>/dev/null; then
   echo "Error: You have uncommitted changes. Commit or stash them first."
   exit 1
@@ -57,7 +59,7 @@ echo "New version:     ${NEW_VERSION}"
 echo ""
 
 # ── Step 1: Create release branch and update versions ───────────────────────
-echo "=== Step 1/3: Updating version numbers ==="
+echo "=== Step 1/4: Updating version numbers ==="
 
 git checkout -b "$BRANCH"
 
@@ -119,20 +121,52 @@ cd "$PROJECT_ROOT"
 
 echo ""
 
-# ── Step 2: Commit, push branch, create PR ──────────────────────────────────
-echo "=== Step 2/3: Creating pull request ==="
+# ── Step 2: Commit, push branch, create tag ──────────────────────────────────
+echo "=== Step 2/4: Pushing release branch and tag ==="
 git add -A
 git commit -m "Bump version to ${NEW_VERSION}"
 git push origin "$BRANCH"
+echo "  ✓ Branch ${BRANCH} pushed"
+
+# Tag the release branch — this triggers CI
+git tag "$TAG"
+git push origin "$TAG"
+echo "  ✓ Tag ${TAG} pushed — CI is now building all platforms"
+echo "  https://github.com/${REPO}/actions"
+echo ""
+
+# ── Step 3: Wait for CI to publish the release ──────────────────────────────
+echo "=== Step 3/4: Waiting for CI to publish release ==="
+echo "  Monitoring build progress..."
+echo ""
+
+while true; do
+  # Check if the release exists and is not a draft
+  DRAFT=$(gh release view "$TAG" --repo "$REPO" --json isDraft -q '.isDraft' 2>/dev/null || echo "none")
+  if [ "$DRAFT" = "false" ]; then
+    echo "  ✓ Release ${TAG} is published!"
+    break
+  elif [ "$DRAFT" = "true" ]; then
+    echo "  Release exists (draft) — builds still in progress..."
+  else
+    echo "  Release not created yet — waiting for first build to complete..."
+  fi
+  sleep 30
+done
+
+echo ""
+
+# ── Step 4: Create PR to merge into main ────────────────────────────────────
+echo "=== Step 4/4: Creating PR to update main ==="
 
 PR_URL=$(gh pr create \
   --title "Release v${NEW_VERSION}" \
   --body "$(cat <<PREOF
-## Version bump to ${NEW_VERSION}
+## Release v${NEW_VERSION}
 
-Updates version numbers and download links across all source files.
+Version bump and download link updates. The release is already published and all builds are live.
 
-**After merging**, the release tag will be created automatically — do not create it manually.
+**Safe to merge** — download links will start pointing to the new version after merge.
 PREOF
 )" \
   --base main \
@@ -141,48 +175,35 @@ PREOF
 
 echo "  ✓ PR created: $PR_URL"
 echo ""
-
-# ── Step 3: Wait for merge, then tag ────────────────────────────────────────
-echo "=== Step 3/3: Waiting for PR to be merged ==="
-echo "  Merge the PR at: $PR_URL"
-echo "  (or press Enter here after merging to create the tag)"
+echo "============================================="
+echo "  Release ${TAG} is LIVE!"
+echo ""
+echo "  Merge the PR to update download links:"
+echo "  $PR_URL"
+echo ""
+echo "  Old download links still work until you merge."
+echo "============================================="
 echo ""
 
+# Wait for merge and clean up
+echo "Waiting for PR merge to clean up..."
 while true; do
   PR_STATE=$(gh pr view "$PR_URL" --repo "$REPO" --json state -q '.state')
   if [ "$PR_STATE" = "MERGED" ]; then
-    echo "  ✓ PR merged!"
+    echo "  ✓ PR merged! Download links are now live."
     break
   elif [ "$PR_STATE" = "CLOSED" ]; then
-    echo "  ✗ PR was closed without merging. Aborting."
-    exit 1
+    echo "  PR closed — you can merge it later manually."
+    break
   fi
-  echo "  Waiting for PR to be merged... (checking every 10s)"
   sleep 10
 done
 
-# Switch back to main and pull the merge
+# Switch back to main
 git checkout main
 git pull origin main
 
-# Create and push the tag
-git tag "$TAG"
-git push origin "$TAG"
-echo "  ✓ Tag ${TAG} pushed"
-echo ""
-
-# Clean up the release branch
+# Clean up release branch
 git branch -d "$BRANCH" 2>/dev/null || true
 git push origin --delete "$BRANCH" 2>/dev/null || true
-
-echo "============================================="
-echo "  Release ${TAG} tag pushed!"
-echo "  CI is now building all platforms."
-echo "  https://github.com/${REPO}/actions"
-echo "============================================="
-echo ""
-echo "Post-release checklist:"
-echo "  - [ ] Wait for CI to complete and verify all assets are on the release"
-echo "  - [ ] Verify download links in README work"
-echo "  - [ ] Update What's New in About dialog and user manual if not done"
-echo "  - [ ] Test downloads for each platform"
+echo "  ✓ Cleaned up release branch"
