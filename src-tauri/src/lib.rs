@@ -4,6 +4,176 @@ use tauri::{Emitter, Manager};
 #[cfg(desktop)]
 use tauri::menu::{Menu, Submenu, PredefinedMenuItem};
 
+// ── Android content URI reading (JNI) ────────────────────────────────────
+// On Android, files opened via intents use content:// URIs. These cannot be
+// read with std::fs — we must go through Android's ContentResolver via JNI.
+
+#[derive(serde::Serialize)]
+struct ContentUriResult {
+    content: String,
+    filename: String,
+}
+
+#[tauri::command]
+fn read_content_uri(uri: String) -> Result<ContentUriResult, String> {
+    #[cfg(target_os = "android")]
+    {
+        android_read_content_uri(&uri)
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = uri;
+        Err("Content URI reading is only supported on Android".to_string())
+    }
+}
+
+#[cfg(target_os = "android")]
+fn android_read_content_uri(uri_str: &str) -> Result<ContentUriResult, String> {
+    use jni::objects::{JObject, JString, JValue};
+    use jni::JavaVM;
+
+    let ctx = ndk_context::android_context();
+    let vm = unsafe { JavaVM::from_raw(ctx.vm().cast()) }
+        .map_err(|e| format!("Failed to get JVM: {}", e))?;
+    let mut env = vm.attach_current_thread()
+        .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+    let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
+
+    // Parse URI string → android.net.Uri
+    let uri_jstr = env.new_string(uri_str)
+        .map_err(|e| format!("JNI new_string: {}", e))?;
+    let uri_obj = env.call_static_method(
+        "android/net/Uri", "parse",
+        "(Ljava/lang/String;)Landroid/net/Uri;",
+        &[JValue::Object(&JObject::from(uri_jstr))],
+    ).map_err(|e| format!("Uri.parse: {}", e))?
+     .l().map_err(|e| format!("Uri.parse cast: {}", e))?;
+
+    // Get ContentResolver
+    let resolver = env.call_method(
+        &activity, "getContentResolver",
+        "()Landroid/content/ContentResolver;", &[],
+    ).map_err(|e| format!("getContentResolver: {}", e))?
+     .l().map_err(|e| format!("resolver cast: {}", e))?;
+
+    // ── Query display name via Cursor ────────────────────────────────
+    let filename = android_query_display_name(&mut env, &resolver, &uri_obj)
+        .unwrap_or_else(|| extract_filename_from_uri(uri_str));
+
+    // ── Read content via InputStream + Scanner ───────────────────────
+    let input_stream = env.call_method(
+        &resolver, "openInputStream",
+        "(Landroid/net/Uri;)Ljava/io/InputStream;",
+        &[JValue::Object(&uri_obj)],
+    ).map_err(|e| format!("openInputStream: {}", e))?
+     .l().map_err(|e| format!("openInputStream cast: {}", e))?;
+
+    if input_stream.is_null() {
+        return Err("ContentResolver.openInputStream returned null".to_string());
+    }
+
+    // Scanner(inputStream).useDelimiter("\\A").next() reads the entire stream
+    let scanner = env.new_object(
+        "java/util/Scanner",
+        "(Ljava/io/InputStream;)V",
+        &[JValue::Object(&input_stream)],
+    ).map_err(|e| format!("new Scanner: {}", e))?;
+
+    let delim = env.new_string("\\A")
+        .map_err(|e| format!("delim string: {}", e))?;
+    let _ = env.call_method(
+        &scanner, "useDelimiter",
+        "(Ljava/lang/String;)Ljava/util/Scanner;",
+        &[JValue::Object(&JObject::from(delim))],
+    ).map_err(|e| format!("useDelimiter: {}", e))?;
+
+    let has_next = env.call_method(&scanner, "hasNext", "()Z", &[])
+        .map_err(|e| format!("hasNext: {}", e))?
+        .z().map_err(|e| format!("hasNext cast: {}", e))?;
+
+    let content = if has_next {
+        let result_obj = env.call_method(&scanner, "next", "()Ljava/lang/String;", &[])
+            .map_err(|e| format!("next: {}", e))?
+            .l().map_err(|e| format!("next cast: {}", e))?;
+        let jstr: JString = result_obj.into();
+        env.get_string(&jstr)
+            .map_err(|e| format!("get_string: {}", e))?
+            .to_string_lossy()
+            .into_owned()
+    } else {
+        String::new()
+    };
+
+    let _ = env.call_method(&scanner, "close", "()V", &[]);
+
+    eprintln!("[content-uri] Read {} chars, filename: {}", content.len(), filename);
+    Ok(ContentUriResult { content, filename })
+}
+
+#[cfg(target_os = "android")]
+fn android_query_display_name(
+    env: &mut jni::JNIEnv,
+    resolver: &jni::objects::JObject,
+    uri: &jni::objects::JObject,
+) -> Option<String> {
+    use jni::objects::{JObject, JValue};
+
+    // Create projection array: ["_display_name"]
+    let col_name = env.new_string("_display_name").ok()?;
+    let string_class = env.find_class("java/lang/String").ok()?;
+    let projection = env.new_object_array(1, &string_class, &JObject::from(col_name)).ok()?;
+
+    // query(uri, projection, null, null, null)
+    let cursor = env.call_method(
+        resolver, "query",
+        "(Landroid/net/Uri;[Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;)Landroid/database/Cursor;",
+        &[
+            JValue::Object(uri),
+            JValue::Object(&JObject::from(projection)),
+            JValue::Object(&JObject::null()),
+            JValue::Object(&JObject::null()),
+            JValue::Object(&JObject::null()),
+        ],
+    ).ok()?.l().ok()?;
+
+    if cursor.is_null() { return None; }
+
+    let has_first = env.call_method(&cursor, "moveToFirst", "()Z", &[])
+        .ok()?.z().ok()?;
+    if !has_first {
+        let _ = env.call_method(&cursor, "close", "()V", &[]);
+        return None;
+    }
+
+    let name_obj = env.call_method(
+        &cursor, "getString", "(I)Ljava/lang/String;",
+        &[JValue::Int(0)],
+    ).ok()?.l().ok()?;
+    let _ = env.call_method(&cursor, "close", "()V", &[]);
+
+    if name_obj.is_null() { return None; }
+
+    let name_jstr: jni::objects::JString = name_obj.into();
+    let name = env.get_string(&name_jstr).ok()?;
+    let result = name.to_string_lossy().into_owned();
+    if result.is_empty() { None } else { Some(result) }
+}
+
+/// Extract a filename from a content:// URI string as fallback.
+#[cfg(target_os = "android")]
+fn extract_filename_from_uri(uri: &str) -> String {
+    // Try to get the last path segment that looks like a filename
+    if let Some(path) = uri.split('?').next() {
+        if let Some(segment) = path.rsplit('/').next() {
+            let decoded = percent_decode_str(segment).decode_utf8_lossy().to_string();
+            if decoded.contains('.') {
+                return decoded;
+            }
+        }
+    }
+    "Untitled.fdx".to_string()
+}
+
 // ── Pending file state ────────────────────────────────────────────────────
 // Stores the file path when the OS opens a screenplay file with OpenDraft.
 // The frontend retrieves it on startup via the get_opened_file command.
@@ -301,6 +471,7 @@ pub fn run() {
             http_fetch,
             fetch_link_preview,
             get_opened_file,
+            read_content_uri,
         ]);
 
         // ── Native menu (desktop only) ────────────────────────────────
@@ -419,37 +590,56 @@ pub fn run() {
         });
 
     app.run(|_app_handle, _event| {
-        // ── Handle file association open events (macOS + iOS) ──────
-        #[cfg(any(target_os = "macos", target_os = "ios"))]
+        // ── Handle file association open events (macOS, iOS, Android) ──
+        #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
         if let tauri::RunEvent::Opened { urls } = &_event {
             for url in urls {
-                if let Ok(path) = url.to_file_path() {
-                    let path_str = path.to_string_lossy().to_string();
-                    if !is_openable_file(&path_str) {
+                // Try converting to a file path (works for file:// URIs)
+                let path_str = if let Ok(path) = url.to_file_path() {
+                    let p = path.to_string_lossy().to_string();
+                    if !is_openable_file(&p) {
                         continue;
                     }
-                    eprintln!("[file-assoc] RunEvent::Opened: {}", path_str);
-
-                    // Store in pending state so frontend can retrieve it
-                    if let Some(state) = _app_handle.try_state::<PendingFile>() {
-                        *state.0.lock().unwrap() = Some(path_str.clone());
-                    }
-
-                    // Emit immediately (may be lost if WebView not ready)
-                    let _ = _app_handle.emit("open-file", &path_str);
-
-                    // Re-emit after delays to handle cold-start timing
-                    // The WebView may not have loaded JS listeners yet
-                    let handle = _app_handle.clone();
-                    let path_for_retry = path_str.clone();
-                    std::thread::spawn(move || {
-                        for delay_ms in [500, 1500, 3000] {
-                            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-                            eprintln!("[file-assoc] re-emit open-file after {}ms", delay_ms);
-                            let _ = handle.emit("open-file", &path_for_retry);
+                    p
+                } else {
+                    // On Android, intents often use content:// URIs which
+                    // can't be converted to file paths. Pass the raw URI —
+                    // the frontend will read it via the read_content_uri command.
+                    #[cfg(target_os = "android")]
+                    {
+                        let uri = url.to_string();
+                        if uri.starts_with("content://") {
+                            eprintln!("[file-assoc] Android content URI: {}", uri);
+                            uri
+                        } else {
+                            continue;
                         }
-                    });
+                    }
+                    #[cfg(not(target_os = "android"))]
+                    continue
+                };
+
+                eprintln!("[file-assoc] RunEvent::Opened: {}", path_str);
+
+                // Store in pending state so frontend can retrieve it
+                if let Some(state) = _app_handle.try_state::<PendingFile>() {
+                    *state.0.lock().unwrap() = Some(path_str.clone());
                 }
+
+                // Emit immediately (may be lost if WebView not ready)
+                let _ = _app_handle.emit("open-file", &path_str);
+
+                // Re-emit after delays to handle cold-start timing
+                // The WebView may not have loaded JS listeners yet
+                let handle = _app_handle.clone();
+                let path_for_retry = path_str.clone();
+                std::thread::spawn(move || {
+                    for delay_ms in [500, 1500, 3000] {
+                        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                        eprintln!("[file-assoc] re-emit open-file after {}ms", delay_ms);
+                        let _ = handle.emit("open-file", &path_for_retry);
+                    }
+                });
             }
         }
     });
