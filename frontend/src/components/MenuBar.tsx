@@ -1015,11 +1015,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.13.6</div>
+              <div className="about-section-title">What's New in 0.13.7</div>
               <ul className="about-list">
-                <li><strong>iOS File Associations</strong> — Open .fdx, .fountain, and .odraft files directly from the iOS Files app. Post-build plist patching ensures file type declarations survive the Tauri build.</li>
-                <li><strong>Improved File Open Handling</strong> — Robust cold-start file opening with polling and deduplication, so files opened via OS file association reliably load on first launch.</li>
-                <li><strong>iOS & macOS Build Fixes</strong> — Removed continue-on-error from App Store uploads, fixed XcodeGen config for Externals build phase.</li>
+                <li><strong>Android File Associations</strong> — Open .fdx, .fountain, and .odraft files directly from any Android file manager. Content URIs are read via ContentResolver so all file managers work correctly.</li>
+                <li><strong>Android Status Bar Fix</strong> — The app menu bar no longer overlaps with the Android system status bar on any device.</li>
+                <li><strong>Smaller Desktop Installers</strong> — Removed the legacy Python sidecar from Windows and Linux builds, resulting in faster installs and smaller download sizes.</li>
               </ul>
             </div>
           </div>
