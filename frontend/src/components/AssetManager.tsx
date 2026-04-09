@@ -3,6 +3,7 @@ import { useAssetStore } from '../stores/assetStore';
 import type { Asset } from '../stores/assetStore';
 import AssetViewer from './AssetViewer';
 import { api } from '../services/api';
+import { showToast } from './Toast';
 
 interface AssetManagerProps {
   projectId: string;
@@ -19,6 +20,8 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
   const [editingTagsId, setEditingTagsId] = useState<string | null>(null);
   const [editTagsValue, setEditTagsValue] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [savingTagsId, setSavingTagsId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchAssets = useCallback(async () => {
@@ -39,25 +42,36 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
   const handleUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploading(true);
-    for (const file of Array.from(files)) {
+    let failed = 0;
+    const fileArray = Array.from(files);
+    for (const file of fileArray) {
       const tags = tagInput.trim() ? tagInput.trim().split(',').map((t) => t.trim()).filter(Boolean) : [];
       try {
         await api.uploadAsset(projectId, file, tags);
-      } catch {
-        // silently fail
+      } catch (err) {
+        failed++;
+        showToast(`Failed to upload "${file.name}": ${err instanceof Error ? err.message : 'unknown error'}`, 'error');
       }
     }
     setTagInput('');
     await fetchAssets();
     setUploading(false);
+    const succeeded = fileArray.length - failed;
+    if (succeeded > 0) {
+      showToast(`Uploaded ${succeeded} file${succeeded !== 1 ? 's' : ''} successfully`, 'success');
+    }
   };
 
   const handleDelete = async (assetId: string) => {
+    setDeletingId(assetId);
     try {
       await api.deleteAsset(projectId, assetId);
       await fetchAssets();
-    } catch {
-      // silently fail
+      showToast('Asset deleted', 'success');
+    } catch (err) {
+      showToast(`Failed to delete asset: ${err instanceof Error ? err.message : 'unknown error'}`, 'error');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -71,13 +85,17 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
 
   const handleSaveTags = async (assetId: string) => {
     const tags = editTagsValue.split(',').map((t) => t.trim()).filter(Boolean);
+    setSavingTagsId(assetId);
     try {
       await api.updateAssetTags(projectId, assetId, tags);
       await fetchAssets();
-    } catch {
-      // silently fail
+      showToast('Tags updated', 'success');
+    } catch (err) {
+      showToast(`Failed to update tags: ${err instanceof Error ? err.message : 'unknown error'}`, 'error');
+    } finally {
+      setSavingTagsId(null);
+      setEditingTagsId(null);
     }
-    setEditingTagsId(null);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -206,16 +224,18 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
                           onChange={(e) => setEditTagsValue(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleSaveTags(asset.id);
-                            if (e.key === 'Escape') setEditingTagsId(null);
+                            if (e.key === 'Escape' && !savingTagsId) setEditingTagsId(null);
                           }}
                           className="asset-tags-edit-input"
+                          disabled={savingTagsId === asset.id}
                           autoFocus
                         />
                         <button
                           className="asset-tags-save-btn"
                           onClick={() => handleSaveTags(asset.id)}
+                          disabled={savingTagsId === asset.id}
                         >
-                          Save
+                          {savingTagsId === asset.id ? 'Saving...' : 'Save'}
                         </button>
                       </div>
                     ) : (
@@ -241,6 +261,7 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
                       className="asset-action-btn"
                       onClick={() => handleDownload(asset)}
                       title="Download"
+                      disabled={deletingId === asset.id}
                     >
                       &#x2B07;
                     </button>
@@ -248,8 +269,9 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
                       className="asset-action-btn asset-action-delete"
                       onClick={() => handleDelete(asset.id)}
                       title="Delete"
+                      disabled={deletingId === asset.id}
                     >
-                      &#x2715;
+                      {deletingId === asset.id ? '\u23f3' : '\u2715'}
                     </button>
                   </td>
                 </tr>
