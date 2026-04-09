@@ -426,7 +426,7 @@ jobs:
           draft: true
 
   build-ios:
-    runs-on: macos-latest
+    runs-on: macos-26
     name: Build & Submit (iOS)
 
     steps:
@@ -590,36 +590,6 @@ jobs:
           APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: npx --prefix frontend tauri ios build --export-method app-store-connect
 
-      - name: Upload to App Store Connect
-        env:
-          APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
-          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
-          APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
-        run: |
-          if [ -z "$APPSTORE_API_KEY" ]; then
-            echo "::warning::APPSTORE_API_KEY not configured — skipping upload to App Store Connect"
-            exit 0
-          fi
-
-          # Save API key for authentication
-          mkdir -p ~/.private_keys
-          echo "$APPSTORE_API_KEY" | base64 --decode > ~/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8
-
-          # Find the IPA
-          IPA=$(find src-tauri/gen/apple/build -name "*.ipa" | head -1)
-          if [ -z "$IPA" ]; then
-            echo "::error::No IPA file found after build"
-            exit 1
-          fi
-
-          echo "Uploading $IPA to App Store Connect..."
-          xcrun altool --upload-app \
-            --file "$IPA" \
-            --type ios \
-            --apiKey "$APPSTORE_API_KEY_ID" \
-            --apiIssuer "$APPSTORE_API_ISSUER_ID"
-          echo "Upload complete — check App Store Connect for processing status"
-
       - name: Prepare artifact
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -637,6 +607,37 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: ios-artifacts/*
           draft: true
+
+      - name: Upload to App Store Connect
+        continue-on-error: true
+        env:
+          APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+        run: |
+          if [ -z "$APPSTORE_API_KEY" ]; then
+            echo "::warning::APPSTORE_API_KEY not configured — skipping upload to App Store Connect"
+            exit 0
+          fi
+
+          # Save API key for authentication
+          mkdir -p ~/.private_keys
+          echo "$APPSTORE_API_KEY" | base64 --decode > ~/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8
+
+          # Find the IPA
+          IPA=$(find src-tauri/gen/apple/build -name "*.ipa" | head -1)
+          if [ -z "$IPA" ]; then
+            echo "::warning::No IPA file found — skipping App Store upload"
+            exit 0
+          fi
+
+          echo "Uploading $IPA to App Store Connect..."
+          xcrun altool --upload-app \
+            --file "$IPA" \
+            --type ios \
+            --apiKey "$APPSTORE_API_KEY_ID" \
+            --apiIssuer "$APPSTORE_API_ISSUER_ID"
+          echo "Upload complete — check App Store Connect for processing status"
 
   build-mac-appstore:
     runs-on: macos-26
@@ -808,6 +809,7 @@ jobs:
           echo "App Store package built: OpenDraft.pkg"
 
       - name: Upload to App Store Connect
+        continue-on-error: true
         env:
           APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
           APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
