@@ -190,6 +190,9 @@ jobs:
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
 
       - name: Build Tauri app
+        id: tauri_build
+        timeout-minutes: 20
+        continue-on-error: true
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -242,6 +245,25 @@ jobs:
             ```
 
             See [INSTALLATION.md](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/docs/INSTALLATION.md) for details.
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: false
+
+      - name: Build Tauri app (retry)
+        if: steps.tauri_build.outcome == 'failure'
+        timeout-minutes: 20
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+        with:
+          tauriScript: npx --prefix frontend tauri
+          tagName: ${{ github.ref_name }}
+          releaseName: 'OpenDraft ${{ github.ref_name }}'
+          releaseBody: ''
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: false
