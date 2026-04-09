@@ -2162,11 +2162,23 @@ const ScreenplayEditor: React.FC = () => {
     console.log('[file-assoc] opening:', filePath);
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      const text = await invoke<string>('read_text_file', { path: filePath });
-      console.log('[file-assoc] read', text.length, 'chars from', filePath);
 
-      const ext = filePath.split('.').pop()?.toLowerCase();
-      const filename = filePath.replace(/^.*[\\/]/, '') || 'Untitled';
+      let text: string;
+      let filename: string;
+
+      if (filePath.startsWith('content://')) {
+        // Android content URI — read via ContentResolver (JNI)
+        const result = await invoke<{ content: string; filename: string }>('read_content_uri', { uri: filePath });
+        text = result.content;
+        filename = result.filename;
+        console.log('[file-assoc] content URI read', text.length, 'chars, filename:', filename);
+      } else {
+        text = await invoke<string>('read_text_file', { path: filePath });
+        filename = filePath.replace(/^.*[\\/]/, '') || 'Untitled';
+        console.log('[file-assoc] read', text.length, 'chars from', filePath);
+      }
+
+      const ext = filename.split('.').pop()?.toLowerCase();
       const title = filename.replace(/\.\w+$/, '');
 
       let doc: any;
