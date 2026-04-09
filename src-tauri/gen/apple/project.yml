@@ -55,8 +55,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        LSSupportsOpeningDocumentsInPlace: true
-        UISupportsDocumentBrowser: true
+        LSSupportsOpeningDocumentsInPlace: false
+        UISupportsDocumentBrowser: false
         CFBundleDocumentTypes:
           - CFBundleTypeName: Final Draft Screenplay
             CFBundleTypeRole: Editor
