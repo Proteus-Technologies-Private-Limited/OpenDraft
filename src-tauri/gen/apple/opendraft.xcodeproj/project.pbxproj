@@ -14,7 +14,6 @@
 		3CE62A7856D8E58C03E251D5 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EFF9E32714B0BEEB54BFB31D /* QuartzCore.framework */; };
 		427BA8F213022615F7AC77F7 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 46A8E1F9048F6FB56AFE4862 /* libapp.a */; };
 		4D1702A1574DEA8E47C71D9B /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 248661AF8D27448F3372ED79 /* assets */; };
-		58D3D41BEF0593772305E119 /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = B0F2E787EEF0370AFCDBBA57 /* libapp.a */; };
 		885C1419106B947B6FFA0A8E /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 716C069012B8F1B2970B30ED /* CoreGraphics.framework */; };
 		A1C9122B1F65788BDD929F26 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0364694D9B8DB91B112265FD /* Security.framework */; };
 		C4F440040A8416019A7010A9 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0854948C3ABFAA90D73DFE6D /* MetalKit.framework */; };
@@ -169,7 +168,7 @@
 			path = opendraft_iOS;
 			sourceTree = "<group>";
 		};
-		"TEMP_BDF0704C-77F6-43A5-BE6D-2647B2A01989" /* x86_64 */ = {
+		"TEMP_2DDE4C43-D030-4200-ABF9-62CEECC1C2C4" /* x86_64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -237,7 +236,6 @@
 				1AAE50FCACBF20E02FF90000 /* Assets.xcassets in Resources */,
 				0254065F3755EF453A6A26A6 /* LaunchScreen.storyboard in Resources */,
 				4D1702A1574DEA8E47C71D9B /* assets in Resources */,
-				58D3D41BEF0593772305E119 /* libapp.a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -422,9 +420,10 @@
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				OTHER_LDFLAGS = "$(inherited) -Wl,-U,__swift_FORCE_LOAD_$$_swiftCompatibility56 -Wl,-U,__swift_FORCE_LOAD_$$_swiftCompatibilityPacks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.proteus.opendraft;
-				PRODUCT_NAME = OpenDraft;
+				PRODUCT_NAME = "OpenDraft";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				DEVELOPMENT_TEAM = "335RGMFDB6";
 			};
 			name = release;
 		};
@@ -452,9 +451,10 @@
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				OTHER_LDFLAGS = "$(inherited) -Wl,-U,__swift_FORCE_LOAD_$$_swiftCompatibility56 -Wl,-U,__swift_FORCE_LOAD_$$_swiftCompatibilityPacks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.proteus.opendraft;
-				PRODUCT_NAME = OpenDraft;
+				PRODUCT_NAME = "OpenDraft";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				DEVELOPMENT_TEAM = "335RGMFDB6";
 			};
 			name = debug;
 		};
