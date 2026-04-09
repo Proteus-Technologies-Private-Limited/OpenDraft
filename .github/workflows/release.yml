@@ -1167,25 +1167,13 @@ jobs:
           sed -i "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.deb/OpenDraft_${VERSION}_amd64.deb/g" landing/index.html
           echo "landing/index.html download links updated to ${VERSION}"
 
-      - name: Create PR with updated links
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit and push updated links
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
-          BRANCH="auto/update-links-v${VERSION}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add README.md landing/index.html
           git diff --cached --quiet && echo "No changes to commit" && exit 0
-          git checkout -b "$BRANCH"
           git commit -m "Update download links to v${VERSION}"
-          git push origin "$BRANCH"
-          PR_URL=$(gh pr create \
-            --title "Update download links to v${VERSION}" \
-            --body "Automated update after v${VERSION} release assets verified." \
-            --base main \
-            --head "$BRANCH" \
-            --repo "${{ github.repository }}")
-          echo "Created PR: $PR_URL"
-          gh pr merge "$PR_URL" --merge --repo "${{ github.repository }}"
-          echo "PR merged — landing page deploy will trigger automatically"
+          git push origin main
+          echo "Download links updated and pushed to main"
