@@ -12,13 +12,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies for PyMuPDF, lxml, etc.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ libffi-dev && \
-    rm -rf /var/lib/apt/lists/*
-
+# Install only pyinstaller-excluded deps (pyinstaller is for desktop builds only)
 COPY backend/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN grep -v pyinstaller requirements.txt > requirements-docker.txt && \
+    pip install --no-cache-dir -r requirements-docker.txt && \
+    rm requirements-docker.txt
 
 # Copy backend source
 COPY backend/app ./app
