@@ -64,11 +64,11 @@ Get the latest version for your platform — no account required, just install a
 
 <p>
   <a href="https://apps.apple.com/us/app/open-draft-screenwriting/id6761807809">
-    <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" height="50">
+    <img src="images/badges/app-store-badge.svg" alt="Download on the App Store" height="40">
   </a>
-  &nbsp;&nbsp;
+  &nbsp;&nbsp;&nbsp;
   <a href="https://play.google.com/store/apps/details?id=com.proteus.opendraft">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Get it on Google Play" height="50">
+    <img src="images/badges/google-play-badge.png" alt="Get it on Google Play" height="53">
   </a>
 </p>
 
