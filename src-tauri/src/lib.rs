@@ -209,6 +209,139 @@ fn extract_filename_from_uri(uri: &str) -> String {
     "Untitled.fdx".to_string()
 }
 
+// ── Android share sheet ──────────────────────────────────────────────────
+// On Android, the Tauri save dialog doesn't work reliably (similar to iOS).
+// Instead, we write to the cache directory and present an Android share
+// intent so the user can save to Files, share via any app, etc.
+
+#[cfg(target_os = "android")]
+fn android_share_file(file_path: &str, mime_type: &str) -> Result<(), String> {
+    use jni::objects::{JObject, JValue};
+    use jni::JavaVM;
+
+    let ctx = ndk_context::android_context();
+    let vm = unsafe { JavaVM::from_raw(ctx.vm().cast()) }
+        .map_err(|e| format!("Failed to get JVM: {}", e))?;
+    let mut env = vm.attach_current_thread()
+        .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+    let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
+
+    // Create File object for the temp file
+    let path_str = env.new_string(file_path)
+        .map_err(|e| format!("JNI new_string: {}", e))?;
+    let file_obj = env.new_object("java/io/File", "(Ljava/lang/String;)V",
+        &[JValue::Object(&JObject::from(path_str))])
+        .map_err(|e| format!("new File: {}", e))?;
+
+    // Get authority dynamically: {packageName}.fileprovider
+    let pkg_name_obj = env.call_method(&activity, "getPackageName", "()Ljava/lang/String;", &[])
+        .map_err(|e| format!("getPackageName: {}", e))?
+        .l().map_err(|e| format!("getPackageName cast: {}", e))?;
+    let pkg_jstr: jni::objects::JString = pkg_name_obj.into();
+    let pkg_name = env.get_string(&pkg_jstr)
+        .map_err(|e| format!("get_string: {}", e))?
+        .to_string_lossy().into_owned();
+    let authority = env.new_string(format!("{}.fileprovider", pkg_name))
+        .map_err(|e| format!("JNI new_string: {}", e))?;
+
+    // FileProvider.getUriForFile(context, authority, file)
+    let content_uri = env.call_static_method(
+        "androidx/core/content/FileProvider",
+        "getUriForFile",
+        "(Landroid/content/Context;Ljava/lang/String;Ljava/io/File;)Landroid/net/Uri;",
+        &[
+            JValue::Object(&activity),
+            JValue::Object(&JObject::from(authority)),
+            JValue::Object(&file_obj),
+        ],
+    ).map_err(|e| format!("getUriForFile: {}", e))?
+     .l().map_err(|e| format!("getUriForFile cast: {}", e))?;
+
+    // Create Intent(ACTION_SEND)
+    let action_send = env.new_string("android.intent.action.SEND")
+        .map_err(|e| format!("JNI new_string: {}", e))?;
+    let intent = env.new_object("android/content/Intent", "(Ljava/lang/String;)V",
+        &[JValue::Object(&JObject::from(action_send))])
+        .map_err(|e| format!("new Intent: {}", e))?;
+
+    // intent.setType(mimeType)
+    let mime = env.new_string(mime_type)
+        .map_err(|e| format!("JNI new_string: {}", e))?;
+    let _ = env.call_method(&intent, "setType", "(Ljava/lang/String;)Landroid/content/Intent;",
+        &[JValue::Object(&JObject::from(mime))])
+        .map_err(|e| format!("setType: {}", e))?;
+
+    // intent.putExtra(EXTRA_STREAM, contentUri)
+    let extra_stream = env.new_string("android.intent.extra.STREAM")
+        .map_err(|e| format!("JNI new_string: {}", e))?;
+    let _ = env.call_method(&intent, "putExtra",
+        "(Ljava/lang/String;Landroid/os/Parcelable;)Landroid/content/Intent;",
+        &[
+            JValue::Object(&JObject::from(extra_stream)),
+            JValue::Object(&content_uri),
+        ])
+        .map_err(|e| format!("putExtra: {}", e))?;
+
+    // intent.addFlags(FLAG_GRANT_READ_URI_PERMISSION = 1)
+    let _ = env.call_method(&intent, "addFlags", "(I)Landroid/content/Intent;",
+        &[JValue::Int(1)])
+        .map_err(|e| format!("addFlags: {}", e))?;
+
+    // Intent.createChooser(intent, "Share")
+    let chooser_title = env.new_string("Save or share")
+        .map_err(|e| format!("JNI new_string: {}", e))?;
+    let chooser = env.call_static_method("android/content/Intent", "createChooser",
+        "(Landroid/content/Intent;Ljava/lang/CharSequence;)Landroid/content/Intent;",
+        &[
+            JValue::Object(&intent),
+            JValue::Object(&JObject::from(chooser_title)),
+        ])
+        .map_err(|e| format!("createChooser: {}", e))?
+        .l().map_err(|e| format!("createChooser cast: {}", e))?;
+
+    // activity.startActivity(chooser)
+    env.call_method(&activity, "startActivity", "(Landroid/content/Intent;)V",
+        &[JValue::Object(&chooser)])
+        .map_err(|e| format!("startActivity: {}", e))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn android_save_and_share(filename: String, contents: String) -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    {
+        let cache_dir = std::env::temp_dir();
+        let path = cache_dir.join(&filename);
+        std::fs::write(&path, &contents)
+            .map_err(|e| format!("Failed to write temp file: {}", e))?;
+        android_share_file(&path.to_string_lossy(), "text/plain")
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (filename, contents);
+        Err("This command is only available on Android".to_string())
+    }
+}
+
+#[tauri::command]
+fn android_save_and_share_binary(filename: String, contents: Vec<u8>) -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    {
+        let cache_dir = std::env::temp_dir();
+        let path = cache_dir.join(&filename);
+        std::fs::write(&path, &contents)
+            .map_err(|e| format!("Failed to write temp file: {}", e))?;
+        let mime = if filename.ends_with(".pdf") { "application/pdf" } else { "application/octet-stream" };
+        android_share_file(&path.to_string_lossy(), mime)
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (filename, contents);
+        Err("This command is only available on Android".to_string())
+    }
+}
+
 // ── iOS file helpers (Objective-C FFI) ────────────────────────────────────
 // On iOS, files from the Files app or document picker require security-scoped
 // URL access. These functions are defined in FileHelpers.m and linked into
@@ -219,6 +352,7 @@ extern "C" {
     fn ios_present_share_sheet(file_path: *const std::ffi::c_char);
     fn ios_read_text_file(path: *const std::ffi::c_char) -> *mut std::ffi::c_char;
     fn ios_free_string(ptr: *mut std::ffi::c_char);
+    fn ios_copy_file_scoped(src: *const std::ffi::c_char, dst: *const std::ffi::c_char) -> i32;
 }
 
 // ── iOS export commands ──────────────────────────────────────────────────
@@ -589,6 +723,8 @@ pub fn run() {
             read_content_uri,
             ios_save_and_share,
             ios_save_and_share_binary,
+            android_save_and_share,
+            android_save_and_share_binary,
         ]);
 
         // ── Native menu (desktop only) ────────────────────────────────
@@ -753,23 +889,37 @@ pub fn run() {
                         continue;
                     }
 
-                    // On iOS, copy the file to the app's temp directory while we
-                    // still have security-scoped access from the OS callback.
-                    // With LSSupportsOpeningDocumentsInPlace=false, iOS usually
-                    // copies files to Documents/Inbox first, but as a safety net
-                    // we also copy to temp in case the original is outside the sandbox.
+                    // On iOS, copy the file to the app's temp directory using
+                    // security-scoped access. Files from the Files app require
+                    // startAccessingSecurityScopedResource before reading/copying.
+                    // Files from WhatsApp etc. land in Documents/Inbox (already
+                    // in sandbox) so the copy succeeds either way.
                     #[cfg(target_os = "ios")]
                     {
                         let temp_dir = std::env::temp_dir();
                         let fname = path.file_name().unwrap_or_default();
                         let temp_path = temp_dir.join(fname);
-                        match std::fs::copy(&path, &temp_path) {
-                            Ok(_) => {
-                                eprintln!("[file-assoc] iOS: copied to sandbox temp: {}", temp_path.display());
-                                path_str = temp_path.to_string_lossy().to_string();
-                            }
-                            Err(e) => {
-                                eprintln!("[file-assoc] iOS: copy to temp failed ({}), using original", e);
+                        let c_src = std::ffi::CString::new(path_str.as_bytes()).ok();
+                        let c_dst = std::ffi::CString::new(temp_path.to_string_lossy().as_bytes()).ok();
+                        let copied = match (c_src, c_dst) {
+                            (Some(src), Some(dst)) => unsafe {
+                                ios_copy_file_scoped(src.as_ptr(), dst.as_ptr()) == 1
+                            },
+                            _ => false,
+                        };
+                        if copied {
+                            eprintln!("[file-assoc] iOS: copied to sandbox temp: {}", temp_path.display());
+                            path_str = temp_path.to_string_lossy().to_string();
+                        } else {
+                            eprintln!("[file-assoc] iOS: scoped copy failed, trying std::fs::copy");
+                            match std::fs::copy(&path, &temp_path) {
+                                Ok(_) => {
+                                    eprintln!("[file-assoc] iOS: std::fs::copy succeeded: {}", temp_path.display());
+                                    path_str = temp_path.to_string_lossy().to_string();
+                                }
+                                Err(e) => {
+                                    eprintln!("[file-assoc] iOS: all copy attempts failed ({}), using original", e);
+                                }
                             }
                         }
                     }

@@ -95,3 +95,42 @@ char* ios_read_text_file(const char* path_cstr) {
 void ios_free_string(char* ptr) {
     free(ptr);
 }
+
+// ── Security-Scoped File Copy ──────────────────────────────────────────────
+// Copy a file using Foundation APIs with security-scoped URL access.
+// This is needed when the OS passes a security-scoped URL via "Open With"
+// (e.g., from the Files app). Returns 1 on success, 0 on failure.
+
+int ios_copy_file_scoped(const char* src_cstr, const char* dst_cstr) {
+    if (!src_cstr || !dst_cstr) return 0;
+
+    @autoreleasepool {
+        NSString *srcPath = @(src_cstr);
+        NSString *dstPath = @(dst_cstr);
+        NSURL *srcURL = [NSURL fileURLWithPath:srcPath];
+        NSURL *dstURL = [NSURL fileURLWithPath:dstPath];
+
+        BOOL accessing = [srcURL startAccessingSecurityScopedResource];
+        if (accessing) {
+            NSLog(@"[FileHelpers] started security-scoped access for copy: %@", srcPath);
+        }
+
+        NSFileManager *fm = [NSFileManager defaultManager];
+
+        // Remove destination if it exists (overwrite)
+        [fm removeItemAtURL:dstURL error:nil];
+
+        NSError *error = nil;
+        BOOL ok = [fm copyItemAtURL:srcURL toURL:dstURL error:&error];
+
+        if (accessing) {
+            [srcURL stopAccessingSecurityScopedResource];
+        }
+
+        if (!ok) {
+            NSLog(@"[FileHelpers] copy failed from %@ to %@: %@", srcPath, dstPath, error);
+            return 0;
+        }
+        return 1;
+    }
+}

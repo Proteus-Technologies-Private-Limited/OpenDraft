@@ -5,8 +5,10 @@
  * and custom Tauri commands for reading/writing outside the fs scope.
  *
  * On iOS Tauri: uses the native share sheet for export (save dialog doesn't
- * work reliably on iOS), and Tauri dialog for import with security-scoped
- * fallback in the Rust backend.
+ * work reliably on iOS), and browser-style file input for import.
+ *
+ * On Android Tauri: uses the native share intent for export, and
+ * browser-style file input for import.
  *
  * On web / mobile browser: falls back to standard browser APIs
  * (anchor download for save, <input type="file"> for open).
@@ -23,11 +25,23 @@ function isIOSTauri(): boolean {
   return isTauri() && getOS() === 'ios';
 }
 
+/** True when running inside Tauri on Android. */
+function isAndroidTauri(): boolean {
+  return isTauri() && getOS() === 'android';
+}
+
+/** True when running on a mobile Tauri platform (iOS or Android). */
+function isMobileTauri(): boolean {
+  return isIOSTauri() || isAndroidTauri();
+}
+
 // ── Save ────────────────────────────────────────────────────────────────────
 
 /**
  * Save data to a file.
  * Desktop Tauri → native "Save As" dialog.
+ * iOS Tauri → share sheet (write to temp + present share).
+ * Android Tauri → share intent (write to cache + present chooser).
  * Web → browser download to Downloads folder.
  * Returns true if saved, false if user cancelled.
  */
@@ -38,6 +52,9 @@ export async function saveFile(
 ): Promise<boolean> {
   if (isIOSTauri()) {
     return saveFileIOS(data, defaultFilename);
+  }
+  if (isAndroidTauri()) {
+    return saveFileAndroid(data, defaultFilename);
   }
   if (isTauri()) {
     return saveFileTauri(data, defaultFilename, filters);
@@ -85,6 +102,27 @@ async function saveFileIOS(
   return true;
 }
 
+/**
+ * Android Tauri: write to cache + present native share intent.
+ * The Tauri save dialog doesn't work reliably on Android — the share chooser
+ * lets the user save to Files, Drive, or share via any installed app.
+ */
+async function saveFileAndroid(
+  data: Uint8Array | string,
+  defaultFilename: string,
+): Promise<boolean> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  if (typeof data === 'string') {
+    await invoke('android_save_and_share', { filename: defaultFilename, contents: data });
+  } else {
+    await invoke('android_save_and_share_binary', {
+      filename: defaultFilename,
+      contents: Array.from(data),
+    });
+  }
+  return true;
+}
+
 function saveFileBrowser(
   data: Uint8Array | string,
   defaultFilename: string,
@@ -110,12 +148,21 @@ function saveFileBrowser(
 /**
  * Open a text file.
  * Desktop Tauri → native "Open" dialog.
+ * Mobile Tauri (iOS/Android) → browser-style file input (no filters).
  * Web → <input type="file"> picker.
  * Returns { name, content } or null if user cancelled.
  */
 export async function openTextFile(
   filters?: FileFilter[],
 ): Promise<{ name: string; content: string } | null> {
+  // Mobile Tauri: use browser-style file input — the Tauri dialog plugin's
+  // open() doesn't reliably present the document picker on iOS/Android, but
+  // the WebView's <input type="file"> works and gives us a readable copy.
+  // Don't pass filters — mobile document pickers only understand MIME types
+  // and would hide .fdx/.fountain files.
+  if (isMobileTauri()) {
+    return openTextFileBrowser();
+  }
   if (isTauri()) {
     return openTextFileTauri(filters);
   }
@@ -169,12 +216,16 @@ function openTextFileBrowser(
 /**
  * Open a binary file.
  * Desktop Tauri → native "Open" dialog.
+ * Mobile Tauri (iOS/Android) → browser-style file input (no filters).
  * Web → <input type="file"> picker.
  * Returns { name, content: ArrayBuffer } or null if user cancelled.
  */
 export async function openBinaryFile(
   filters?: FileFilter[],
 ): Promise<{ name: string; content: ArrayBuffer } | null> {
+  if (isMobileTauri()) {
+    return openBinaryFileBrowser();
+  }
   if (isTauri()) {
     return openBinaryFileTauri(filters);
   }

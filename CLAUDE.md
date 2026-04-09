@@ -201,6 +201,19 @@ For automatic App Store Connect upload (optional):
 
 ---
 
+## Local iOS Device Build
+
+**Always use `./build-ios-device.sh` to build and deploy to a physical iOS device.** Do NOT run `tauri ios build` directly — Tauri overwrites Info.plist on every build, stripping file association declarations (CFBundleDocumentTypes, UTImportedTypeDeclarations). The script handles building, patching Info.plist, re-signing, re-exporting the IPA, and installing on the connected device.
+
+```bash
+./build-ios-device.sh              # build + patch + install on device
+./build-ios-device.sh --no-install # build + patch only (IPA in build/patched-export/)
+```
+
+**Always build for physical device in release mode** (the script does this by default).
+
+---
+
 ## Local iOS Simulator Build
 
 Building and running on the iOS simulator requires specific steps. **Do NOT use `tauri ios dev`** — it tries to start a new Vite dev server which fails if one is already running (the user runs the dev server in a separate terminal).
