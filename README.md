@@ -62,9 +62,15 @@ Get the latest version for your platform — no account required, just install a
 
 ### Mobile
 
-| Platform | Download |
-|----------|----------|
-| **Android** | [Get it on Google Play](https://play.google.com/store/apps/details?id=com.proteus.opendraft) |
+<p>
+  <a href="https://apps.apple.com/us/app/open-draft-screenwriting/id6761807809">
+    <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" height="50">
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://play.google.com/store/apps/details?id=com.proteus.opendraft">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Get it on Google Play" height="50">
+  </a>
+</p>
 
 > After downloading, open the installer and follow the prompts. The app is fully standalone — everything you need is bundled inside.
 
@@ -188,6 +194,7 @@ How does OpenDraft stack up against commercial screenwriting software?
 | **Privacy-First (No Tracking)** | Yes | No | No | No |
 | **Character Profiles** | Yes | Limited | No | No |
 | **Casting / Reference Images** | Yes | No | No | No |
+| **iOS App** | Yes | No | Yes | No |
 | **Production Tags** | Yes | Limited | Yes | Yes |
 | **Fountain Import/Export** | Yes | No | Yes | Yes |
 | **Web Browser Access** | Yes | No | Yes | Limited |
