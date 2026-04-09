@@ -1062,9 +1062,12 @@ jobs:
           git checkout -b "$BRANCH"
           git commit -m "Update download links to v${VERSION}"
           git push origin "$BRANCH"
-          gh pr create \
+          PR_URL=$(gh pr create \
             --title "Update download links to v${VERSION}" \
-            --body "Automated update after v${VERSION} release assets verified. Merge to update landing page." \
+            --body "Automated update after v${VERSION} release assets verified." \
             --base main \
             --head "$BRANCH" \
-            --repo "${{ github.repository }}"
+            --repo "${{ github.repository }}")
+          echo "Created PR: $PR_URL"
+          gh pr merge "$PR_URL" --merge --repo "${{ github.repository }}"
+          echo "PR merged — landing page deploy will trigger automatically"
