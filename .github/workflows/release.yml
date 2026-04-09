@@ -658,8 +658,8 @@ jobs:
             exit 1
           fi
 
-          # Save original entitlements for re-signing
-          codesign -d --entitlements /tmp/orig_ent.plist "$APP_PATH" 2>/dev/null
+          # Save original entitlements for re-signing (:-  outputs XML format)
+          codesign -d --entitlements :- "$APP_PATH" > /tmp/orig_ent.plist 2>/dev/null
 
           # Patch Info.plist
           python3 << 'PYEOF'
