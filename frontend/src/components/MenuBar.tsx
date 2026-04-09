@@ -1031,11 +1031,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.14.0</div>
+            <div className="about-version">Version 0.14.1</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.14.0</div>
+              <div className="about-section-title">What's New in 0.14.1</div>
               <ul className="about-list">
                 <li><strong>Mobile Export &amp; Import</strong> — Export (FDX, Fountain, PDF) and import now work reliably on both iOS and Android using native share sheets and file pickers.</li>
                 <li><strong>iOS File Associations</strong> — Open .fdx, .fountain, and .odraft files directly from the iOS Files app or any app via "Open With". Security-scoped file access is handled automatically.</li>
