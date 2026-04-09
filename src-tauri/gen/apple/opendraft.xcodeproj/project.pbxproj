@@ -14,6 +14,7 @@
 		3CE62A7856D8E58C03E251D5 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EFF9E32714B0BEEB54BFB31D /* QuartzCore.framework */; };
 		427BA8F213022615F7AC77F7 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 46A8E1F9048F6FB56AFE4862 /* libapp.a */; };
 		4D1702A1574DEA8E47C71D9B /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 248661AF8D27448F3372ED79 /* assets */; };
+		58D3D41BEF0593772305E119 /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = B0F2E787EEF0370AFCDBBA57 /* libapp.a */; };
 		885C1419106B947B6FFA0A8E /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 716C069012B8F1B2970B30ED /* CoreGraphics.framework */; };
 		A1C9122B1F65788BDD929F26 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0364694D9B8DB91B112265FD /* Security.framework */; };
 		C4F440040A8416019A7010A9 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0854948C3ABFAA90D73DFE6D /* MetalKit.framework */; };
@@ -36,6 +37,7 @@
 		99C9A8353124C89440993839 /* opendraft_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = opendraft_iOS.entitlements; sourceTree = "<group>"; };
 		9F12C46C2A49D29336D952CE /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		A8A9CEA433DA04771C0991D2 /* opendraft_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = opendraft_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B0F2E787EEF0370AFCDBBA57 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		B45581133489B87393B52C32 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
 		EFF9E32714B0BEEB54BFB31D /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		F6B974123F3BA6C09DAC6709 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
@@ -105,6 +107,7 @@
 		5E5E84A94C6E48D8190132B9 /* Externals */ = {
 			isa = PBXGroup;
 			children = (
+				B98B1AF99FABB9859C2F4394 /* arm64 */,
 			);
 			path = Externals;
 			sourceTree = "<group>";
@@ -133,6 +136,22 @@
 			path = opendraft;
 			sourceTree = "<group>";
 		};
+		B98B1AF99FABB9859C2F4394 /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+				CF3C9CED7FBB878B604EB8E4 /* release */,
+			);
+			path = arm64;
+			sourceTree = "<group>";
+		};
+		CF3C9CED7FBB878B604EB8E4 /* release */ = {
+			isa = PBXGroup;
+			children = (
+				B0F2E787EEF0370AFCDBBA57 /* libapp.a */,
+			);
+			path = release;
+			sourceTree = "<group>";
+		};
 		DEEA793E63E72ADC01BE70C8 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -150,14 +169,7 @@
 			path = opendraft_iOS;
 			sourceTree = "<group>";
 		};
-		"TEMP_68E5CC30-8165-4AC8-BFF7-F2F3BC7D5480" /* arm64 */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = arm64;
-			sourceTree = "<group>";
-		};
-		"TEMP_F32A63F0-7612-465F-A020-81CC4FCF5B7B" /* x86_64 */ = {
+		"TEMP_E841EFBA-27E2-4363-AACD-783E8C63B476" /* x86_64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -196,9 +208,6 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
-					8162A6755DDAFD3AF86ABE1D = {
-						DevelopmentTeam = 335RGMFDB6;
-					};
 				};
 			};
 			buildConfigurationList = 410BF51EF372224B2CEB3884 /* Build configuration list for PBXProject "opendraft" */;
@@ -228,6 +237,7 @@
 				1AAE50FCACBF20E02FF90000 /* Assets.xcassets in Resources */,
 				0254065F3755EF453A6A26A6 /* LaunchScreen.storyboard in Resources */,
 				4D1702A1574DEA8E47C71D9B /* assets in Resources */,
+				58D3D41BEF0593772305E119 /* libapp.a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -253,7 +263,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "node /Users/kandarpbaghar/ai-projects/OpenDraft/frontend/node_modules/@tauri-apps/cli/tauri.js ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
+			shellScript = "node \"$SRCROOT/../../frontend/node_modules/@tauri-apps/cli/tauri.js\" ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -398,8 +408,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = opendraft_iOS/opendraft_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 335RGMFDB6;
-				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -413,10 +421,9 @@
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.proteus.opendraft;
-				PRODUCT_NAME = "OpenDraft";
+				PRODUCT_NAME = OpenDraft;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				VALID_ARCHS = arm64;
 			};
 			name = release;
 		};
@@ -430,8 +437,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = opendraft_iOS/opendraft_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 335RGMFDB6;
-				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -445,10 +450,9 @@
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.proteus.opendraft;
-				PRODUCT_NAME = "OpenDraft";
+				PRODUCT_NAME = OpenDraft;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				VALID_ARCHS = arm64;
 			};
 			name = debug;
 		};
