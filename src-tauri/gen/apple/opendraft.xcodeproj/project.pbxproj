@@ -18,6 +18,7 @@
 		A1C9122B1F65788BDD929F26 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0364694D9B8DB91B112265FD /* Security.framework */; };
 		C4F440040A8416019A7010A9 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0854948C3ABFAA90D73DFE6D /* MetalKit.framework */; };
 		D626DE9AA79BB61DF4687334 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 9F12C46C2A49D29336D952CE /* main.mm */; };
+		E1A2B3C4D5E6F708A9B0C1D2 /* FileHelpers.m in Sources */ = {isa = PBXBuildFile; fileRef = F3B4C5D6E7F80912A3B4C5D6 /* FileHelpers.m */; };
 		F2C80451C06D6C77F2C38E95 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23190DB29802596A247A202D /* Metal.framework */; };
 /* End PBXBuildFile section */
 
@@ -35,6 +36,7 @@
 		716C069012B8F1B2970B30ED /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		99C9A8353124C89440993839 /* opendraft_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = opendraft_iOS.entitlements; sourceTree = "<group>"; };
 		9F12C46C2A49D29336D952CE /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		F3B4C5D6E7F80912A3B4C5D6 /* FileHelpers.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FileHelpers.m; sourceTree = "<group>"; };
 		A8A9CEA433DA04771C0991D2 /* opendraft_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = opendraft_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B0F2E787EEF0370AFCDBBA57 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		B45581133489B87393B52C32 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
@@ -130,6 +132,7 @@
 			isa = PBXGroup;
 			children = (
 				9F12C46C2A49D29336D952CE /* main.mm */,
+				F3B4C5D6E7F80912A3B4C5D6 /* FileHelpers.m */,
 				59F885513ACD5EF54F9F4253 /* bindings */,
 			);
 			path = opendraft;
@@ -271,6 +274,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D626DE9AA79BB61DF4687334 /* main.mm in Sources */,
+				E1A2B3C4D5E6F708A9B0C1D2 /* FileHelpers.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
