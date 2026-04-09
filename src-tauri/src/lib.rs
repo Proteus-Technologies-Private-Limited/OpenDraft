@@ -96,10 +96,9 @@ fn android_read_content_uri(uri_str: &str) -> Result<ContentUriResult, String> {
             .map_err(|e| format!("next: {}", e))?
             .l().map_err(|e| format!("next cast: {}", e))?;
         let jstr: JString = result_obj.into();
-        env.get_string(&jstr)
-            .map_err(|e| format!("get_string: {}", e))?
-            .to_string_lossy()
-            .into_owned()
+        let java_str = env.get_string(&jstr)
+            .map_err(|e| format!("get_string: {}", e))?;
+        java_str.to_string_lossy().into_owned()
     } else {
         String::new()
     };
@@ -154,9 +153,45 @@ fn android_query_display_name(
     if name_obj.is_null() { return None; }
 
     let name_jstr: jni::objects::JString = name_obj.into();
-    let name = env.get_string(&name_jstr).ok()?;
-    let result = name.to_string_lossy().into_owned();
+    let java_str = env.get_string(&name_jstr).ok()?;
+    let result = java_str.to_string_lossy().into_owned();
     if result.is_empty() { None } else { Some(result) }
+}
+
+/// Read the data URI from the Android Activity's launching intent.
+/// Called during setup to detect file-association cold starts on Android.
+#[cfg(target_os = "android")]
+fn android_get_intent_data() -> Option<String> {
+    use jni::objects::JObject;
+    use jni::JavaVM;
+
+    let ctx = ndk_context::android_context();
+    let vm = unsafe { JavaVM::from_raw(ctx.vm().cast()) }.ok()?;
+    let mut env = vm.attach_current_thread().ok()?;
+    let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
+
+    // activity.getIntent()
+    let intent = env.call_method(&activity, "getIntent", "()Landroid/content/Intent;", &[])
+        .ok()?.l().ok()?;
+    if intent.is_null() { return None; }
+
+    // intent.getData()
+    let data = env.call_method(&intent, "getData", "()Landroid/net/Uri;", &[])
+        .ok()?.l().ok()?;
+    if data.is_null() { return None; }
+
+    // uri.toString()
+    let uri_obj = env.call_method(&data, "toString", "()Ljava/lang/String;", &[])
+        .ok()?.l().ok()?;
+    if uri_obj.is_null() { return None; }
+
+    let jstr: jni::objects::JString = uri_obj.into();
+    let java_str = env.get_string(&jstr).ok()?;
+    let uri_string = java_str.to_string_lossy().into_owned();
+
+    if uri_string.is_empty() { return None; }
+    eprintln!("[file-assoc] Android intent data URI: {}", uri_string);
+    Some(uri_string)
 }
 
 /// Extract a filename from a content:// URI string as fallback.
@@ -544,17 +579,51 @@ pub fn run() {
             eprintln!("OpenDraft starting — local SQLite storage");
             eprintln!("Data dir: {}", app_data_dir.display());
 
-            // ── Check CLI args for file association launch (Windows/Linux) ──
+            // ── Check for file association launch ──────────────────────────
             let mut pending: Option<String> = None;
-            let args: Vec<String> = std::env::args().collect();
-            if args.len() > 1 {
-                let path = &args[1];
-                if is_openable_file(path) && std::path::Path::new(path).is_file() {
-                    eprintln!("File association launch: {}", path);
-                    pending = Some(path.clone());
+
+            // Windows/Linux: check CLI args
+            #[cfg(not(any(target_os = "ios", target_os = "android")))]
+            {
+                let args: Vec<String> = std::env::args().collect();
+                if args.len() > 1 {
+                    let path = &args[1];
+                    if is_openable_file(path) && std::path::Path::new(path).is_file() {
+                        eprintln!("File association launch: {}", path);
+                        pending = Some(path.clone());
+                    }
                 }
             }
+
+            // Android: check the launching intent for a data URI
+            #[cfg(target_os = "android")]
+            if pending.is_none() {
+                if let Some(uri) = android_get_intent_data() {
+                    pending = Some(uri);
+                }
+            }
+
+            // Clone before moving into managed state (needed for Android re-emit)
+            #[cfg(target_os = "android")]
+            let android_pending = pending.clone();
+
             app.manage(PendingFile(Mutex::new(pending)));
+
+            // Android: emit open-file events with delays for the JS listener
+            // (RunEvent::Opened is not available on Android)
+            #[cfg(target_os = "android")]
+            {
+                if let Some(uri) = android_pending {
+                    let handle = app.handle().clone();
+                    std::thread::spawn(move || {
+                        for delay_ms in [500, 1500, 3000] {
+                            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                            eprintln!("[file-assoc] Android re-emit open-file after {}ms", delay_ms);
+                            let _ = handle.emit("open-file", &uri);
+                        }
+                    });
+                }
+            }
 
             // ── Desktop: show splash then transition to main window ───
             #[cfg(not(target_os = "ios"))]
@@ -590,56 +659,39 @@ pub fn run() {
         });
 
     app.run(|_app_handle, _event| {
-        // ── Handle file association open events (macOS, iOS, Android) ──
-        #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+        // ── Handle file association open events (macOS + iOS) ──────
+        // Note: Android does NOT support RunEvent::Opened — intent data is
+        // handled in setup() via android_get_intent_data() instead.
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
         if let tauri::RunEvent::Opened { urls } = &_event {
             for url in urls {
-                // Try converting to a file path (works for file:// URIs)
-                let path_str = if let Ok(path) = url.to_file_path() {
-                    let p = path.to_string_lossy().to_string();
-                    if !is_openable_file(&p) {
+                if let Ok(path) = url.to_file_path() {
+                    let path_str = path.to_string_lossy().to_string();
+                    if !is_openable_file(&path_str) {
                         continue;
                     }
-                    p
-                } else {
-                    // On Android, intents often use content:// URIs which
-                    // can't be converted to file paths. Pass the raw URI —
-                    // the frontend will read it via the read_content_uri command.
-                    #[cfg(target_os = "android")]
-                    {
-                        let uri = url.to_string();
-                        if uri.starts_with("content://") {
-                            eprintln!("[file-assoc] Android content URI: {}", uri);
-                            uri
-                        } else {
-                            continue;
+                    eprintln!("[file-assoc] RunEvent::Opened: {}", path_str);
+
+                    // Store in pending state so frontend can retrieve it
+                    if let Some(state) = _app_handle.try_state::<PendingFile>() {
+                        *state.0.lock().unwrap() = Some(path_str.clone());
+                    }
+
+                    // Emit immediately (may be lost if WebView not ready)
+                    let _ = _app_handle.emit("open-file", &path_str);
+
+                    // Re-emit after delays to handle cold-start timing
+                    // The WebView may not have loaded JS listeners yet
+                    let handle = _app_handle.clone();
+                    let path_for_retry = path_str.clone();
+                    std::thread::spawn(move || {
+                        for delay_ms in [500, 1500, 3000] {
+                            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                            eprintln!("[file-assoc] re-emit open-file after {}ms", delay_ms);
+                            let _ = handle.emit("open-file", &path_for_retry);
                         }
-                    }
-                    #[cfg(not(target_os = "android"))]
-                    continue
-                };
-
-                eprintln!("[file-assoc] RunEvent::Opened: {}", path_str);
-
-                // Store in pending state so frontend can retrieve it
-                if let Some(state) = _app_handle.try_state::<PendingFile>() {
-                    *state.0.lock().unwrap() = Some(path_str.clone());
+                    });
                 }
-
-                // Emit immediately (may be lost if WebView not ready)
-                let _ = _app_handle.emit("open-file", &path_str);
-
-                // Re-emit after delays to handle cold-start timing
-                // The WebView may not have loaded JS listeners yet
-                let handle = _app_handle.clone();
-                let path_for_retry = path_str.clone();
-                std::thread::spawn(move || {
-                    for delay_ms in [500, 1500, 3000] {
-                        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-                        eprintln!("[file-assoc] re-emit open-file after {}ms", delay_ms);
-                        let _ = handle.emit("open-file", &path_for_retry);
-                    }
-                });
             }
         }
     });
