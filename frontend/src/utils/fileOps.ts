@@ -155,12 +155,17 @@ function saveFileBrowser(
 export async function openTextFile(
   filters?: FileFilter[],
 ): Promise<{ name: string; content: string } | null> {
-  // Mobile Tauri: use browser-style file input — the Tauri dialog plugin's
-  // open() doesn't reliably present the document picker on iOS/Android, but
+  // Android Tauri: use native file picker via JNI (ACTION_OPEN_DOCUMENT).
+  // The WebView's <input type="file"> doesn't work reliably on Android.
+  if (isAndroidTauri()) {
+    return openTextFileAndroid();
+  }
+  // iOS Tauri: use browser-style file input — the Tauri dialog plugin's
+  // open() doesn't reliably present the document picker on iOS, but
   // the WebView's <input type="file"> works and gives us a readable copy.
   // Don't pass filters — mobile document pickers only understand MIME types
   // and would hide .fdx/.fountain files.
-  if (isMobileTauri()) {
+  if (isIOSTauri()) {
     return openTextFileBrowser();
   }
   if (isTauri()) {
@@ -211,6 +216,80 @@ function openTextFileBrowser(
   });
 }
 
+/**
+ * Android Tauri: launch native document picker via JNI, then read the
+ * selected file through ContentResolver.  The picker result is delivered
+ * asynchronously via MainActivity.onActivityResult(), so we poll for it.
+ */
+async function openTextFileAndroid(): Promise<{ name: string; content: string } | null> {
+  const { invoke } = await import('@tauri-apps/api/core');
+
+  // Launch the native file picker
+  await invoke('android_pick_file');
+
+  // Wait for the result — the picker runs as a separate Activity
+  const uri = await waitForAndroidPickResult(invoke);
+  if (!uri) return null;
+
+  // Read the file via ContentResolver
+  const result = await invoke<{ content: string; filename: string }>('read_content_uri', { uri });
+  return { name: result.filename, content: result.content };
+}
+
+/**
+ * Poll for the file picker result.  MainActivity.onActivityResult() stores
+ * the chosen URI in a companion-object field; an empty string means the
+ * user cancelled; null means the picker hasn't returned yet.
+ */
+function waitForAndroidPickResult(
+  invoke: (cmd: string) => Promise<string | null>,
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    let resolved = false;
+
+    const finish = (uri: string | null) => {
+      if (resolved) return;
+      resolved = true;
+      cleanup();
+      resolve(uri);
+    };
+
+    const check = async () => {
+      if (resolved) return;
+      try {
+        const uri = await invoke('android_get_picked_file');
+        if (uri !== null && uri !== undefined) {
+          // Empty string = user cancelled, non-empty = valid URI
+          finish(uri || null);
+        }
+      } catch (_) { /* picker hasn't returned yet */ }
+    };
+
+    // When app returns to foreground after the picker closes
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        setTimeout(check, 200);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    // Poll as fallback (some devices don't fully background the app)
+    const timer = setInterval(() => {
+      if (resolved) return;
+      check();
+    }, 400);
+
+    // Timeout after 2 minutes
+    const timeout = setTimeout(() => finish(null), 120_000);
+
+    const cleanup = () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(timer);
+      clearTimeout(timeout);
+    };
+  });
+}
+
 // ── Open (binary) ───────────────────────────────────────────────────────────
 
 /**
@@ -223,6 +302,8 @@ function openTextFileBrowser(
 export async function openBinaryFile(
   filters?: FileFilter[],
 ): Promise<{ name: string; content: ArrayBuffer } | null> {
+  // Android: native picker doesn't support binary reads yet — fall through
+  // to browser-style input which handles ArrayBuffer natively.
   if (isMobileTauri()) {
     return openBinaryFileBrowser();
   }

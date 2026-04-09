@@ -2157,6 +2157,7 @@ const ScreenplayEditor: React.FC = () => {
   const handleExternalFile = useCallback(async (filePath: string) => {
     if (!editor) {
       console.warn('[file-assoc] editor not ready, ignoring:', filePath);
+      showToast('Editor not ready — please try again', 'error');
       return;
     }
     console.log('[file-assoc] opening:', filePath);
@@ -2168,11 +2169,16 @@ const ScreenplayEditor: React.FC = () => {
 
       if (filePath.startsWith('content://')) {
         // Android content URI — read via ContentResolver (JNI)
+        console.log('[file-assoc] reading content URI via JNI...');
         const result = await invoke<{ content: string; filename: string }>('read_content_uri', { uri: filePath });
         text = result.content;
         filename = result.filename;
+        if (!text && text !== '') {
+          throw new Error(`ContentResolver returned empty content for ${filename}`);
+        }
         console.log('[file-assoc] content URI read', text.length, 'chars, filename:', filename);
       } else {
+        console.log('[file-assoc] reading file path via read_text_file...');
         text = await invoke<string>('read_text_file', { path: filePath });
         filename = filePath.replace(/^.*[\\/]/, '') || 'Untitled';
         console.log('[file-assoc] read', text.length, 'chars from', filePath);
@@ -2237,8 +2243,9 @@ const ScreenplayEditor: React.FC = () => {
       setCurrentProject(null);
       setCurrentScriptId(null);
     } catch (err) {
-      console.error('Failed to open external file:', err);
-      showToast(`Failed to open file: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error('Failed to open external file:', filePath, detail, err);
+      showToast(`Failed to open file: ${detail}`, 'error');
     }
   }, [editor, setDocumentTitle, setCurrentProject, setCurrentScriptId]);
 
@@ -2306,13 +2313,33 @@ const ScreenplayEditor: React.FC = () => {
     const onVisibilityChange = async () => {
       if (document.visibilityState !== 'visible' || cancelled || !invokeRef) return;
       try {
+        // On Android, check for warm-start "Open with" intents first.
+        // onNewIntent() stores the URI in a companion-object field.
+        const { getOS } = await import('../services/platform');
+        if (getOS() === 'android') {
+          try {
+            const newIntent = await invokeRef('android_check_new_intent');
+            if (newIntent && newIntent !== handledPath) {
+              console.log('[file-assoc] Android new intent:', newIntent);
+              handledPath = newIntent;
+              handleExternalFile(newIntent);
+              return;
+            }
+          } catch (err) {
+            console.error('[file-assoc] android_check_new_intent failed:', err);
+            showToast(`Open with failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+          }
+        }
+        // Fallback: check pending file state (works on all platforms)
         const pending = await invokeRef('get_opened_file');
         if (pending && pending !== handledPath) {
           console.log('[file-assoc] foreground check found pending file:', pending);
           handledPath = pending;
           handleExternalFile(pending);
         }
-      } catch (_) { /* ignore */ }
+      } catch (err) {
+        console.error('[file-assoc] foreground check failed:', err);
+      }
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
 
