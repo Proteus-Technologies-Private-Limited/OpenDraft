@@ -194,7 +194,8 @@ How does OpenDraft stack up against commercial screenwriting software?
 | **Privacy-First (No Tracking)** | Yes | No | No | No |
 | **Character Profiles** | Yes | Limited | No | No |
 | **Casting / Reference Images** | Yes | No | No | No |
-| **iOS App** | Yes | No | Yes | No |
+| **iOS App** | Yes | Yes | Yes | Yes |
+| **Android App** | Yes | No | Yes | Yes |
 | **Production Tags** | Yes | Limited | Yes | Yes |
 | **Fountain Import/Export** | Yes | No | Yes | Yes |
 | **Web Browser Access** | Yes | No | Yes | Limited |
