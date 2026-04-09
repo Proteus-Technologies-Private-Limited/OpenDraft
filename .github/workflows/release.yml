@@ -305,6 +305,58 @@ jobs:
             cp images/android-icons/mipmap-$density/* "$RES_DIR/mipmap-$density/"
           done
 
+      - name: Add file association intent-filters to AndroidManifest.xml
+        run: |
+          MANIFEST="src-tauri/gen/android/app/src/main/AndroidManifest.xml"
+          python3 << 'PYEOF'
+          import sys
+
+          manifest_path = "src-tauri/gen/android/app/src/main/AndroidManifest.xml"
+          with open(manifest_path) as f:
+              content = f.read()
+
+          # Intent filters for opening screenplay files
+          intent_filters = """
+                  <intent-filter>
+                      <action android:name="android.intent.action.VIEW" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                      <category android:name="android.intent.category.BROWSABLE" />
+                      <data android:scheme="file" />
+                      <data android:scheme="content" />
+                      <data android:mimeType="*/*" />
+                      <data android:pathPattern=".*\\\\.fdx" />
+                      <data android:pathPattern=".*\\\\.fountain" />
+                      <data android:pathPattern=".*\\\\.odraft" />
+                  </intent-filter>
+                  <intent-filter>
+                      <action android:name="android.intent.action.VIEW" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                      <category android:name="android.intent.category.BROWSABLE" />
+                      <data android:scheme="file" />
+                      <data android:scheme="content" />
+                      <data android:mimeType="application/xml" />
+                      <data android:host="*" />
+                  </intent-filter>
+                  <intent-filter>
+                      <action android:name="android.intent.action.VIEW" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                      <category android:name="android.intent.category.BROWSABLE" />
+                      <data android:scheme="file" />
+                      <data android:scheme="content" />
+                      <data android:mimeType="text/plain" />
+                      <data android:host="*" />
+                  </intent-filter>"""
+
+          # Insert before the closing </activity> tag
+          if "</activity>" in content:
+              content = content.replace("</activity>", intent_filters + "\n            </activity>", 1)
+              with open(manifest_path, "w") as f:
+                  f.write(content)
+              print("Android manifest patched with file association intent-filters")
+          else:
+              print("WARNING: Could not find </activity> in manifest — skipping")
+          PYEOF
+
       - name: Patch tauri.conf.json for Android CI
         run: |
           cd src-tauri
@@ -510,6 +562,87 @@ jobs:
         run: |
           echo '{"private":true,"scripts":{"tauri":"tauri"}}' > package.json
           ln -sf frontend/node_modules node_modules
+
+      - name: Initialize iOS project
+        run: npx --prefix frontend tauri ios init
+
+      - name: Add file association declarations to iOS Info.plist
+        run: |
+          PLIST="src-tauri/gen/apple/opendraft_iOS/Info.plist"
+          python3 << 'PYEOF'
+          import plistlib, sys
+
+          plist_path = "src-tauri/gen/apple/opendraft_iOS/Info.plist"
+          with open(plist_path, "rb") as f:
+              plist = plistlib.load(f)
+
+          # Allow opening documents in place and document browser support
+          plist["LSSupportsOpeningDocumentsInPlace"] = True
+          plist["UISupportsDocumentBrowser"] = True
+
+          # Declare supported document types
+          plist["CFBundleDocumentTypes"] = [
+              {
+                  "CFBundleTypeName": "Final Draft Screenplay",
+                  "CFBundleTypeRole": "Editor",
+                  "LSHandlerRank": "Default",
+                  "LSItemContentTypes": ["com.finaldraft.fdx"],
+              },
+              {
+                  "CFBundleTypeName": "Fountain Screenplay",
+                  "CFBundleTypeRole": "Editor",
+                  "LSHandlerRank": "Default",
+                  "LSItemContentTypes": ["com.proteus.opendraft.fountain"],
+              },
+              {
+                  "CFBundleTypeName": "OpenDraft Screenplay",
+                  "CFBundleTypeRole": "Editor",
+                  "LSHandlerRank": "Owner",
+                  "LSItemContentTypes": ["com.proteus.opendraft.document"],
+              },
+              {
+                  "CFBundleTypeName": "Text File",
+                  "CFBundleTypeRole": "Editor",
+                  "LSHandlerRank": "Alternate",
+                  "LSItemContentTypes": ["public.plain-text"],
+              },
+          ]
+
+          # Declare custom UTIs so iOS recognises the file extensions
+          plist["UTImportedTypeDeclarations"] = [
+              {
+                  "UTTypeIdentifier": "com.finaldraft.fdx",
+                  "UTTypeDescription": "Final Draft Screenplay",
+                  "UTTypeConformsTo": ["public.xml"],
+                  "UTTypeTagSpecification": {
+                      "public.filename-extension": ["fdx"],
+                      "public.mime-type": "application/xml",
+                  },
+              },
+              {
+                  "UTTypeIdentifier": "com.proteus.opendraft.fountain",
+                  "UTTypeDescription": "Fountain Screenplay",
+                  "UTTypeConformsTo": ["public.plain-text"],
+                  "UTTypeTagSpecification": {
+                      "public.filename-extension": ["fountain"],
+                      "public.mime-type": "text/plain",
+                  },
+              },
+              {
+                  "UTTypeIdentifier": "com.proteus.opendraft.document",
+                  "UTTypeDescription": "OpenDraft Screenplay",
+                  "UTTypeConformsTo": ["public.json"],
+                  "UTTypeTagSpecification": {
+                      "public.filename-extension": ["odraft"],
+                      "public.mime-type": "application/json",
+                  },
+              },
+          ]
+
+          with open(plist_path, "wb") as f:
+              plistlib.dump(plist, f)
+          print("iOS Info.plist patched with file association declarations")
+          PYEOF
 
       - name: Configure iOS manual signing
         env:
@@ -917,6 +1050,7 @@ jobs:
           echo "landing/index.html download links updated to ${VERSION}"
 
       - name: Commit and push updated links
+        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -928,6 +1062,7 @@ jobs:
           git push origin main
 
       - name: Trigger landing page deployment
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
