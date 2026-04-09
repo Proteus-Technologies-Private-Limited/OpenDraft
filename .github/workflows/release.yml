@@ -1025,7 +1025,7 @@ jobs:
             --apiIssuer "$APPSTORE_API_ISSUER_ID"
           echo "macOS upload complete"
 
-      - name: Upload Android AAB to Google Play (closed testing)
+      - name: Upload Android AAB to Google Play (production)
         env:
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
         run: |
@@ -1045,10 +1045,10 @@ jobs:
           # Install fastlane
           gem install fastlane --no-document
 
-          echo "Uploading $AAB to Google Play closed testing track..."
+          echo "Uploading $AAB to Google Play production track..."
           fastlane supply \
             --aab "$AAB" \
-            --track alpha \
+            --track production \
             --package_name com.proteus.opendraft \
             --json_key /tmp/play-service-account.json \
             --skip_upload_metadata \
