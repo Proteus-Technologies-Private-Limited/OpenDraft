@@ -1168,6 +1168,7 @@ jobs:
           echo "landing/index.html download links updated to ${VERSION}"
 
       - name: Commit and push updated links
+        continue-on-error: true
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
           git config user.name "github-actions[bot]"
@@ -1175,5 +1176,8 @@ jobs:
           git add README.md landing/index.html
           git diff --cached --quiet && echo "No changes to commit" && exit 0
           git commit -m "Update download links to v${VERSION}"
-          git push origin main
-          echo "Download links updated and pushed to main"
+          if git push origin main; then
+            echo "Download links updated and pushed to main"
+          else
+            echo "::warning::Could not push to main (branch protection). Run: git pull origin main to get updated links."
+          fi
