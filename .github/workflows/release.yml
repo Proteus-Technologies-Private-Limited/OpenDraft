@@ -511,19 +511,6 @@ jobs:
           echo '{"private":true,"scripts":{"tauri":"tauri"}}' > package.json
           ln -sf frontend/node_modules node_modules
 
-      - name: Initialize iOS project
-        env:
-          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
-        run: npx --prefix frontend tauri ios init
-
-      - name: Apply clean iOS project config and icons
-        run: |
-          # Use tracked project.yml (no deprecated settings, no hardcoded paths)
-          cp images/ios-config/project.yml src-tauri/gen/apple/project.yml
-          # Copy custom app icons
-          cp images/ios-icons/* src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset/
-          echo "iOS project config and icons applied"
-
       - name: Configure iOS manual signing
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
