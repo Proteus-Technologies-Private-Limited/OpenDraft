@@ -4,14 +4,23 @@
  * On desktop Tauri: uses native OS dialogs (via @tauri-apps/plugin-dialog)
  * and custom Tauri commands for reading/writing outside the fs scope.
  *
+ * On iOS Tauri: uses the native share sheet for export (save dialog doesn't
+ * work reliably on iOS), and Tauri dialog for import with security-scoped
+ * fallback in the Rust backend.
+ *
  * On web / mobile browser: falls back to standard browser APIs
  * (anchor download for save, <input type="file"> for open).
  */
-import { isTauri } from '../services/platform';
+import { isTauri, getOS } from '../services/platform';
 
 interface FileFilter {
   name: string;
   extensions: string[];
+}
+
+/** True when running inside Tauri on iOS. */
+function isIOSTauri(): boolean {
+  return isTauri() && getOS() === 'ios';
 }
 
 // ── Save ────────────────────────────────────────────────────────────────────
@@ -27,6 +36,9 @@ export async function saveFile(
   defaultFilename: string,
   filters?: FileFilter[],
 ): Promise<boolean> {
+  if (isIOSTauri()) {
+    return saveFileIOS(data, defaultFilename);
+  }
   if (isTauri()) {
     return saveFileTauri(data, defaultFilename, filters);
   }
@@ -48,6 +60,27 @@ async function saveFileTauri(
     await invoke('save_text_to_path', { path, contents: data });
   } else {
     await invoke('save_binary_to_path', { path, contents: Array.from(data) });
+  }
+  return true;
+}
+
+/**
+ * iOS Tauri: write to temp + present native share sheet.
+ * The iOS save dialog doesn't work reliably — the share sheet lets the user
+ * save to Files, AirDrop, or share via any installed app.
+ */
+async function saveFileIOS(
+  data: Uint8Array | string,
+  defaultFilename: string,
+): Promise<boolean> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  if (typeof data === 'string') {
+    await invoke('ios_save_and_share', { filename: defaultFilename, contents: data });
+  } else {
+    await invoke('ios_save_and_share_binary', {
+      filename: defaultFilename,
+      contents: Array.from(data),
+    });
   }
   return true;
 }
