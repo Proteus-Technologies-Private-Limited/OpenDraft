@@ -1049,22 +1049,22 @@ jobs:
           sed -i "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.deb/OpenDraft_${VERSION}_amd64.deb/g" landing/index.html
           echo "landing/index.html download links updated to ${VERSION}"
 
-      - name: Commit and push updated links
-        continue-on-error: true
+      - name: Create PR with updated links
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          BRANCH="auto/update-links-v${VERSION}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add README.md landing/index.html
           git diff --cached --quiet && echo "No changes to commit" && exit 0
-          git commit -m "Update download links to v${{ steps.version.outputs.VERSION }}
-
-          Automated update after release assets verified."
-          git push origin main
-
-      - name: Trigger landing page deployment
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh workflow run deploy-manual.yml --repo "${{ github.repository }}"
-          echo "Landing page deployment triggered"
+          git checkout -b "$BRANCH"
+          git commit -m "Update download links to v${VERSION}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "Update download links to v${VERSION}" \
+            --body "Automated update after v${VERSION} release assets verified. Merge to update landing page." \
+            --base main \
+            --head "$BRANCH" \
+            --repo "${{ github.repository }}"
