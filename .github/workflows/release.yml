@@ -481,6 +481,12 @@ jobs:
           files: android-artifacts/*
           draft: true
 
+      - name: Upload AAB artifact for store submission
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-aab
+          path: android-artifacts/*.aab
+
   build-ios:
     runs-on: macos-26
     name: Build & Submit (iOS)
@@ -938,7 +944,7 @@ jobs:
 
   # ── Submit to App Stores ────────────────────────────────────────────────
   # Runs only after ALL build jobs succeed. Downloads built artifacts and
-  # submits them to the iOS and macOS App Stores.
+  # submits them to the iOS App Store, macOS App Store, and Google Play Store.
   submit-stores:
     needs: [build-desktop, build-android, build-ios, build-mac-appstore]
     runs-on: macos-latest
@@ -956,6 +962,12 @@ jobs:
         with:
           name: macos-pkg
           path: macos-artifacts
+
+      - name: Download Android AAB artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-aab
+          path: android-artifacts
 
       - name: Upload iOS IPA to App Store Connect
         env:
@@ -1012,6 +1024,41 @@ jobs:
             --apiKey "$APPSTORE_API_KEY_ID" \
             --apiIssuer "$APPSTORE_API_ISSUER_ID"
           echo "macOS upload complete"
+
+      - name: Upload Android AAB to Google Play (closed testing)
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
+        run: |
+          if [ -z "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64" ]; then
+            echo "::warning::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 not configured — skipping Play Store upload"
+            exit 0
+          fi
+
+          AAB=$(find android-artifacts -name "*.aab" | head -1)
+          if [ -z "$AAB" ]; then
+            echo "::error::No AAB file found in artifacts"
+            exit 1
+          fi
+
+          echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64" | base64 --decode > /tmp/play-service-account.json
+
+          # Install fastlane
+          gem install fastlane --no-document
+
+          echo "Uploading $AAB to Google Play closed testing track..."
+          fastlane supply \
+            --aab "$AAB" \
+            --track alpha \
+            --package_name com.proteus.opendraft \
+            --json_key /tmp/play-service-account.json \
+            --skip_upload_metadata \
+            --skip_upload_images \
+            --skip_upload_screenshots \
+            --skip_upload_changelogs \
+            --skip_upload_apk
+
+          rm /tmp/play-service-account.json
+          echo "Google Play upload complete — check Play Console for review status"
 
   # ── Publish release & update download links ─────────────────────────────
   # Runs only after ALL build jobs succeed. Verifies assets exist on the
