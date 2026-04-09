@@ -169,7 +169,7 @@
 			path = opendraft_iOS;
 			sourceTree = "<group>";
 		};
-		"TEMP_4709CF4E-F7DF-44BC-9D46-0844B6F3677B" /* x86_64 */ = {
+		"TEMP_47873337-3726-45EA-9D73-9C4BB74B8A83" /* x86_64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -420,6 +420,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				OTHER_LDFLAGS = "$(inherited) -Wl,-U,___swift_FORCE_LOAD_$$_swiftCompatibility56 -Wl,-U,___swift_FORCE_LOAD_$$_swiftCompatibilityPacks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.proteus.opendraft;
 				PRODUCT_NAME = OpenDraft;
 				SDKROOT = iphoneos;
@@ -449,6 +450,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				OTHER_LDFLAGS = "$(inherited) -Wl,-U,___swift_FORCE_LOAD_$$_swiftCompatibility56 -Wl,-U,___swift_FORCE_LOAD_$$_swiftCompatibilityPacks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.proteus.opendraft;
 				PRODUCT_NAME = OpenDraft;
 				SDKROOT = iphoneos;
