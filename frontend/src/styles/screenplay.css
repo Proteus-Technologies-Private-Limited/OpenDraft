@@ -5605,8 +5605,11 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   border-radius: 3px;
   transition: all 0.15s;
 }
-.asset-action-btn:hover { color: var(--fd-accent); background: rgba(74, 158, 255, 0.1); }
-.asset-action-delete:hover { color: #ff6b6b; background: rgba(255, 107, 107, 0.1); }
+.asset-action-btn:hover:not(:disabled) { color: var(--fd-accent); background: rgba(74, 158, 255, 0.1); }
+.asset-action-delete:hover:not(:disabled) { color: #ff6b6b; background: rgba(255, 107, 107, 0.1); }
+.asset-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.asset-tags-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.asset-tags-edit-input:disabled { opacity: 0.5; }
 
 /* Asset list scrollbar */
 .asset-list::-webkit-scrollbar { width: 6px; }
