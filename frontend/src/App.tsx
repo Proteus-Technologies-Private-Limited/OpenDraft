@@ -4,6 +4,7 @@ import ProjectList from './components/ProjectList';
 import ProjectView from './components/ProjectView';
 import SettingsPage from './components/SettingsPage';
 import Toast from './components/Toast';
+import DemoBanner from './components/DemoBanner';
 import { pluginRegistry } from './plugins/registry';
 import './styles/screenplay.css';
 
@@ -12,6 +13,7 @@ function App() {
 
   return (
     <>
+      <DemoBanner />
       <Routes>
         <Route path="/" element={<ScreenplayEditor />} />
         <Route path="/projects" element={<ProjectList />} />

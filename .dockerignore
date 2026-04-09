@@ -1,0 +1,29 @@
+# Dependencies (rebuilt in container)
+frontend/node_modules
+collab-server/node_modules
+
+# Build artifacts
+frontend/dist
+backend/static
+src-tauri/target
+src-tauri/gen
+
+# Data & env
+backend/data
+collab-server/data
+.env
+*.env
+
+# Git & IDE
+.git
+.github
+.vscode
+
+# Misc
+*.md
+Promotion
+docs
+test-script
+*.dmg
+*.app
+*.pkg

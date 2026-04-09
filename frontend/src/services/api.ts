@@ -119,7 +119,15 @@ export interface CollabSession {
 
 // ── API methods ──────────────────────────────────────────────────────────────
 
+export interface DemoInfo {
+  demo: boolean;
+  message: string | null;
+}
+
 export const api = {
+  // Demo mode
+  getDemoInfo: () => request<DemoInfo>('/demo-info'),
+
   // Projects
   listProjects: () =>
     request<{ projects: ProjectInfo[] }>('/projects/').then((r) => r.projects),
