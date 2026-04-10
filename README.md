@@ -43,6 +43,11 @@
   <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions">Community</a>
 </p>
 
+<p align="center">
+  <video src="images/OpenDraft-intro.mp4" width="80%" controls autoplay loop muted playsinline>
+  </video>
+</p>
+
 ---
 
 ## Download
