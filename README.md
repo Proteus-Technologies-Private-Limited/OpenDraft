@@ -150,11 +150,11 @@ Get the latest version — no account required, just install and start writing.
 
 <p>
   <a href="https://apps.apple.com/us/app/open-draft-screenwriting/id6761807809">
-    <img src="images/badges/app-store-badge.svg" alt="Download on the App Store" height="50">
+    <img src="images/badges/app-store-badge.svg" alt="Download on the App Store" width="160">
   </a>
-  &nbsp;&nbsp;&nbsp;
+  &nbsp;&nbsp;
   <a href="https://play.google.com/store/apps/details?id=com.proteus.opendraft">
-    <img src="images/badges/google-play-badge.png" alt="Get it on Google Play" height="50">
+    <img src="images/badges/google-play-badge.png" alt="Get it on Google Play" width="180">
   </a>
 </p>
 
