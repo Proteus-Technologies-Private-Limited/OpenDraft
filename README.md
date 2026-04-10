@@ -5,52 +5,50 @@
 <h1 align="center">OpenDraft</h1>
 
 <p align="center">
-  <strong>The free alternative to Final Draft</strong><br>
+  <strong>Write professional screenplays for free</strong><br>
   No subscription. No cloud lock-in. Own your scripts forever.
 </p>
 
 <p align="center">
   <a href="https://opendraft-demo-267958344432.us-central1.run.app">
-    <img src="https://img.shields.io/badge/Try%20Live%20Demo-c455ce?style=for-the-badge" alt="Try Live Demo">
+    <img src="https://img.shields.io/badge/%E2%96%B6_Try_OpenDraft_Now-No_account_needed-c455ce?style=for-the-badge&labelColor=4a154b" alt="Try OpenDraft Now">
   </a>
+</p>
+
+<p align="center">
   <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Proteus-Technologies-Private-Limited/OpenDraft?label=Download&style=for-the-badge&color=blue" alt="Download">
+    <img src="https://img.shields.io/github/v/release/Proteus-Technologies-Private-Limited/OpenDraft?label=Download&style=flat-square&color=blue" alt="Download">
   </a>
   <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/stargazers">
-    <img src="https://img.shields.io/github/stars/Proteus-Technologies-Private-Limited/OpenDraft?style=for-the-badge" alt="GitHub Stars">
+    <img src="https://img.shields.io/github/stars/Proteus-Technologies-Private-Limited/OpenDraft?style=flat-square" alt="GitHub Stars">
   </a>
   <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/Proteus-Technologies-Private-Limited/OpenDraft?style=for-the-badge" alt="License: MIT">
+    <img src="https://img.shields.io/github/license/Proteus-Technologies-Private-Limited/OpenDraft?style=flat-square" alt="License: MIT">
   </a>
 </p>
 
 <p align="center">
   <a href="https://proteus-technologies-private-limited.github.io/OpenDraft/">Website</a> &bull;
-  <a href="https://opendraft-demo-267958344432.us-central1.run.app">Try Demo</a> &bull;
+  <a href="https://opendraft-demo-267958344432.us-central1.run.app"><strong>Try Demo</strong></a> &bull;
   <a href="#download">Download</a> &bull;
+  <a href="#comparison">Compare</a> &bull;
   <a href="#features">Features</a> &bull;
   <a href="#screenshots">Screenshots</a> &bull;
-  <a href="#comparison">Compare</a> &bull;
-  <a href="#contributing">Contributing</a> &bull;
+  <a href="#getting-started">Getting Started</a> &bull;
   <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions">Community</a>
 </p>
 
 <p align="center">
-  <img src="images/opendraft-demo.gif" alt="OpenDraft in action — writing a screenplay" width="80%">
+  <img src="images/opendraft-demo.gif" alt="OpenDraft in action — writing a screenplay" width="80%"><br>
+  <em>Professional screenplay formatting, planning, collaboration, and version history — all in one app.</em>
 </p>
 
 <p align="center">
-  <strong>Industry-standard screenplay formatting</strong> &bull;
+  <strong>Free forever</strong> &bull;
   <strong>Works 100% offline</strong> &bull;
-  <strong>Free forever, open-source (MIT)</strong>
+  <strong>Your scripts never leave your machine</strong> &bull;
+  <strong>Import from Final Draft in seconds</strong>
 </p>
-
-<p align="center">
-  <a href="https://opendraft-demo-267958344432.us-central1.run.app">
-    <img src="https://img.shields.io/badge/%E2%96%B6_Try_OpenDraft_in_Your_Browser-No_install_needed-c455ce?style=for-the-badge" alt="Try OpenDraft in Your Browser">
-  </a>
-</p>
-<p align="center"><em>No account. No install. Opens in seconds.</em></p>
 
 ---
 
@@ -65,16 +63,54 @@ Your script is your intellectual property. Cloud-based screenwriting tools store
 
 ---
 
+## Comparison
+
+How does OpenDraft stack up against commercial screenwriting software?
+
+| Feature | OpenDraft | Final Draft | WriterDuet | Fade In |
+|---------|:---------:|:-----------:|:----------:|:-------:|
+| **Price** | Free | $250 | Free / $12/mo | $80 |
+| **Open Source** | Yes (MIT) | No | No | No |
+| **Offline Desktop App** | Yes | Yes | Limited | Yes |
+| **Real-time Collaboration** | Yes | Yes | Yes | Yes |
+| **Beat Board / Index Cards** | Yes | Yes | Yes | Yes |
+| **Version History with Diff** | Yes | Limited | Limited | Limited |
+| **Self-Hostable** | Yes | No | No | No |
+| **Linux Support** | Yes | No | Yes (paid) | Yes |
+| **No Account Required** | Yes | No | No | Yes |
+| **Privacy-First (No Tracking)** | Yes | No | No | No |
+| **Character Profiles** | Yes | Limited | No | No |
+| **Casting / Reference Images** | Yes | No | No | No |
+| **iOS App** | Yes | Yes | Yes | Yes |
+| **Android App** | Yes | No | Yes | Yes |
+| **Production Tags** | Yes | Limited | Yes | Yes |
+| **Fountain Import/Export** | Yes | No | Yes | Yes |
+| **Web Browser Access** | Yes | No | Yes | Limited |
+| **Plugin Architecture** | Yes | No | No | No |
+
+<sub>Comparison based on publicly available product information as of April 2026. If you spot an inaccuracy, please <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/issues/new/choose">open an issue</a>.</sub>
+
+---
+
 ## Features
 
-| | |
-|---|---|
-| **Screenplay Editor** | Industry-standard formatting with autocomplete for character names, scene headings, and transitions |
-| **Beat Board** | Plan your story visually with drag-and-drop index cards before you write a single page |
-| **Real-Time Collaboration** | Write with your partner simultaneously — live cursors, presence, and edit/view permissions |
-| **Version History** | Check in drafts, compare versions side-by-side, and restore any previous draft instantly |
-| **Character Profiles** | Track characters with descriptions, role types, and color-coded highlighting in your script |
-| **Import & Export** | Move freely between Final Draft (.fdx), Fountain, and PDF — never locked into one tool |
+**Screenplay Editor**
+Industry-standard formatting with autocomplete for character names, scene headings, and transitions.
+
+**Beat Board**
+Plan your story visually with drag-and-drop index cards before you write a single page.
+
+**Real-Time Collaboration**
+Write with your partner simultaneously — live cursors, presence indicators, and edit/view permissions.
+
+**Version History**
+Check in drafts, compare versions side-by-side, and restore any previous draft instantly.
+
+**Character Profiles**
+Track characters with descriptions, role types, and color-coded highlighting in your script.
+
+**Import & Export**
+Move freely between Final Draft (.fdx), Fountain, and PDF — never locked into one tool.
 
 > See the [full feature list](docs/FEATURES.md) for scene navigator, spell check, search & replace, script notes, asset management, and more.
 
@@ -104,36 +140,9 @@ Your script is your intellectual property. Cloud-based screenwriting tools store
 
 ---
 
-## Comparison
-
-How does OpenDraft stack up against commercial screenwriting software?
-
-| Feature | OpenDraft | Final Draft | WriterDuet | Fade In |
-|---------|:---------:|:-----------:|:----------:|:-------:|
-| **Price** | Free | $250 | Free / $12/mo | $80 |
-| **Open Source** | Yes (MIT) | No | No | No |
-| **Offline Desktop App** | Yes | Yes | Limited | Yes |
-| **Real-time Collaboration** | Yes | Yes | Yes | Yes |
-| **Beat Board / Index Cards** | Yes | Yes | Yes | Yes |
-| **Version History with Diff** | Yes | Limited | Limited | Limited |
-| **Self-Hostable** | Yes | No | No | No |
-| **Linux Support** | Yes | No | Yes (paid) | Yes |
-| **No Account Required** | Yes | No | No | Yes |
-| **Privacy-First (No Tracking)** | Yes | No | No | No |
-| **Character Profiles** | Yes | Limited | No | No |
-| **Casting / Reference Images** | Yes | No | No | No |
-| **iOS App** | Yes | Yes | Yes | Yes |
-| **Android App** | Yes | No | Yes | Yes |
-| **Production Tags** | Yes | Limited | Yes | Yes |
-| **Fountain Import/Export** | Yes | No | Yes | Yes |
-| **Web Browser Access** | Yes | No | Yes | Limited |
-| **Plugin Architecture** | Yes | No | No | No |
-
----
-
 ## Download
 
-Get the latest version — no account required, just install and start writing.
+Get the latest version — no account required, just install and start writing. Most users are writing in under 2 minutes.
 
 ### Desktop
 
@@ -161,6 +170,18 @@ Get the latest version — no account required, just install and start writing.
 > The app is fully standalone — everything you need is bundled inside. No account, no setup.
 
 For all versions and platforms, visit the [Releases](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases) page.
+
+---
+
+## Getting Started
+
+New to OpenDraft? Here's everything you need:
+
+- **Just want to try it?** [Open the demo](https://opendraft-demo-267958344432.us-central1.run.app) — no account, no install, opens in seconds.
+- **Ready to install?** Grab the [latest download](#download) for your platform.
+- **Need a walkthrough?** Read the [User Manual](https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/).
+- **Want to learn more?** Visit the [OpenDraft website](https://proteus-technologies-private-limited.github.io/OpenDraft/).
+- **Have a question?** Start a [Discussion](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions) — the community is happy to help.
 
 ---
 
@@ -235,7 +256,7 @@ cd frontend && npm install && cd ..
 
 See [docs/desktop-build.md](docs/desktop-build.md) for detailed desktop build instructions.
 
-### Run in Browser (Self-Hosted)
+### Run in Browser (Self-Hosted) — For Developers / Advanced Users
 
 To run your own instance of OpenDraft in a browser:
 
@@ -248,6 +269,8 @@ cd OpenDraft
 Installs dependencies, builds the app, and opens it at **http://localhost:8000**.
 
 Requires Python 3.12+, Node.js 18+, and Git. See [docs/INSTALLATION.md](docs/INSTALLATION.md) for details.
+
+> **Note:** This is for developers who want to self-host or contribute. If you just want to use OpenDraft, [download the desktop app](#download) or [try the demo](https://opendraft-demo-267958344432.us-central1.run.app).
 
 </details>
 
