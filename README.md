@@ -44,8 +44,11 @@
 </p>
 
 <p align="center">
-  <video src="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/raw/main/images/OpenDraft-intro.mp4" controls width="80%">
-  </video>
+  <a href="https://proteus-technologies-private-limited.github.io/OpenDraft/images/OpenDraft-intro.mp4">
+    <img src="images/macos/editor.png" alt="Watch OpenDraft Intro Video" width="80%">
+  </a>
+  <br>
+  <em>▶ Click the image above to watch the intro video</em>
 </p>
 
 ---
