@@ -154,7 +154,7 @@ Get the latest version — no account required, just install and start writing.
   </a>
   &nbsp;&nbsp;
   <a href="https://play.google.com/store/apps/details?id=com.proteus.opendraft">
-    <img src="images/badges/google-play-badge.png" alt="Get it on Google Play" width="180">
+    <img src="images/badges/google-play-badge.png" alt="Get it on Google Play" width="138">
   </a>
 </p>
 
