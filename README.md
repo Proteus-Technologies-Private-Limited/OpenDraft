@@ -58,10 +58,10 @@
 
 Your script is your intellectual property. Cloud-based screenwriting tools store your work on corporate servers — where it can be mined, leaked, or used to train AI. OpenDraft keeps every word on your machine.
 
-- **Write anywhere, even offline** — Desktop apps for Mac, Windows, and Linux. Mobile apps for iOS and Android. No internet required.
-- **Collaborate when you want to** — Invite co-writers with a link. Real-time cursors and permissions. When the session ends, nothing stays on any server.
 - **Never pay for your own words** — Free forever under the MIT license. No trial, no subscription, no feature gating.
 - **Switch without starting over** — Import from Final Draft (.fdx), Fountain, or PDF. Export anytime. Your scripts are never locked in.
+- **Write anywhere, even offline** — Desktop apps for Mac, Windows, and Linux. Mobile apps for iOS and Android. No internet required.
+- **Collaborate when you want to** — Invite co-writers with a link. Real-time cursors and permissions. When the session ends, nothing stays on any server.
 
 ---
 
