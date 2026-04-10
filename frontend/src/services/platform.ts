@@ -19,7 +19,9 @@ export function isTauri(): boolean {
 export function isMobileTauri(): boolean {
   if (!isTauri()) return false;
   const ua = navigator.userAgent || '';
-  return /android/i.test(ua) || /iphone|ipad|ipod/i.test(ua);
+  // iPadOS 13+ sends a desktop-class UA ("Macintosh") so also check touch
+  return /android/i.test(ua) || /iphone|ipad|ipod/i.test(ua) ||
+    (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
 }
 
 /** True when running as a Tauri desktop app (has sidecar backend). */
@@ -37,6 +39,9 @@ export function getOS(): 'macos' | 'windows' | 'linux' | 'android' | 'ios' | 'un
   const ua = navigator.userAgent || '';
   if (/android/i.test(ua)) return 'android';
   if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
+  // iPadOS 13+ uses a desktop-class user agent containing "Macintosh".
+  // Detect it via touch support — real Macs have maxTouchPoints === 0.
+  if (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return 'ios';
   if (/macintosh|mac os x/i.test(ua)) return 'macos';
   if (/windows/i.test(ua)) return 'windows';
   if (/linux/i.test(ua)) return 'linux';

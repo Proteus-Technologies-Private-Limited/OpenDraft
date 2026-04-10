@@ -168,7 +168,15 @@ echo ""
 
 echo "Updating CORS to include Cloud Run URL..."
 
+# Include the demo frontend origin so browsers on the demo site can reach this collab server
+DEMO_URL=$(gcloud run services describe opendraft-demo \
+  --region="$REGION" --project="$PROJECT_ID" \
+  --format="value(status.url)" 2>/dev/null || true)
+
 CORS_ORIGINS="$SERVICE_URL,http://localhost:5173,http://localhost:3000,tauri://localhost,https://tauri.localhost"
+if [ -n "$DEMO_URL" ]; then
+  CORS_ORIGINS="$CORS_ORIGINS,$DEMO_URL"
+fi
 
 gcloud run services update "$SERVICE_NAME" \
   --region="$REGION" \

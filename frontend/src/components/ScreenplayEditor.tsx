@@ -1128,6 +1128,26 @@ const ScreenplayEditor: React.FC = () => {
     })
   );
 
+  // Element shortcuts: Mod-1 through Mod-8 to set element type
+  const [ElementShortcutExtension] = React.useState(() =>
+    Extension.create({
+      name: 'elementShortcuts',
+      priority: 999,
+      addKeyboardShortcuts() {
+        const types = ['sceneHeading', 'action', 'character', 'dialogue', 'parenthetical', 'transition', 'general', 'shot'];
+        const shortcuts: Record<string, any> = {};
+        types.forEach((type, i) => {
+          shortcuts[`Mod-${i + 1}`] = ({ editor }: { editor: any }) => {
+            if (!editor.schema.nodes[type]) return false;
+            editor.chain().focus().setNode(type).run();
+            return true;
+          };
+        });
+        return shortcuts;
+      },
+    })
+  );
+
   // Centralized Tab handler — reads nextOnTab from active template
   const [TabHandlerExtension] = React.useState(() =>
     Extension.create({
@@ -1239,7 +1259,7 @@ const ScreenplayEditor: React.FC = () => {
       PaginationExtension,
       SearchExtension,
       TrackChangesExtension,
-      ...(isHistoryMode ? [] : [EnforceGuardExtension, EnterHandlerExtension, TabHandlerExtension]),
+      ...(isHistoryMode ? [] : [EnforceGuardExtension, EnterHandlerExtension, TabHandlerExtension, ElementShortcutExtension]),
       SpellCheck,
       ...pluginRegistry.getEditorExtensions(),
     ],
@@ -2793,6 +2813,8 @@ const ScreenplayEditor: React.FC = () => {
           </div>
           {isCollabHost && (
             <button className="collab-banner-btn" onClick={() => {
+              // Close any stale login dialog before reopening share dialog
+              setCollabLoginOpen(false);
               if (!isCollabAuthenticated()) {
                 setCollabLoginOpen(true);
                 return;

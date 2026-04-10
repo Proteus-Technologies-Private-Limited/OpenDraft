@@ -55,6 +55,10 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
   const [generating, setGenerating] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Track whether pointerdown started on the overlay itself (not on the dialog box).
+  // On iPad, keyboard dismissal can shift the dialog, causing a synthetic click
+  // to land on the overlay even though the user tapped inside the dialog.
+  const overlayPointerDown = useRef(false);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -162,7 +166,11 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <div
+      className="dialog-overlay"
+      onPointerDown={(e) => { overlayPointerDown.current = e.target === e.currentTarget; }}
+      onClick={(e) => { if (e.target === e.currentTarget && overlayPointerDown.current) onClose(); overlayPointerDown.current = false; }}
+    >
       <div
         className="dialog-box"
         style={{ maxWidth: 560 }}

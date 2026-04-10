@@ -3,6 +3,7 @@ import { collabAuthApi, handleAuthResponse } from '../services/collabAuth';
 import type { CollabServerConfig } from '../services/collabAuth';
 import { useSettingsStore } from '../stores/settingsStore';
 import { showToast } from './Toast';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 interface CollabLoginDialogProps {
   onClose: () => void;
@@ -11,15 +12,17 @@ interface CollabLoginDialogProps {
 
 const SAVED_CREDS_KEY = 'opendraft:collabSavedCreds';
 
-function loadSavedCreds(): { email: string; password: string } | null {
+interface SavedCreds { email: string; password: string; displayName?: string }
+
+function loadSavedCreds(): SavedCreds | null {
   try {
     const raw = localStorage.getItem(SAVED_CREDS_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
 
-function saveCreds(email: string, password: string) {
-  localStorage.setItem(SAVED_CREDS_KEY, JSON.stringify({ email, password }));
+function saveCreds(email: string, password: string, displayName?: string) {
+  localStorage.setItem(SAVED_CREDS_KEY, JSON.stringify({ email, password, displayName }));
 }
 
 function clearSavedCreds() {
@@ -39,14 +42,19 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
   const [loginEmail, setLoginEmail] = useState(saved?.email ?? '');
   const [loginPassword, setLoginPassword] = useState(saved?.password ?? '');
 
-  // Register fields — pre-fill email/password from saved credentials
-  const [regName, setRegName] = useState('');
+  // Register fields — pre-fill all fields from saved credentials
+  const [regName, setRegName] = useState(saved?.displayName ?? '');
   const [regEmail, setRegEmail] = useState(saved?.email ?? '');
   const [regPassword, setRegPassword] = useState(saved?.password ?? '');
-  const [regConfirm, setRegConfirm] = useState('');
+  const [regConfirm, setRegConfirm] = useState(saved?.password ?? '');
 
   // Remember credentials
   const [rememberCreds, setRememberCreds] = useState(!!saved);
+
+  // Password visibility toggles
+  const [showLoginPw, setShowLoginPw] = useState(false);
+  const [showRegPw, setShowRegPw] = useState(false);
+  const [showRegConfirm, setShowRegConfirm] = useState(false);
 
   useEffect(() => {
     collabAuthApi.getServerConfig().then(setServerConfig).catch(() => {});
@@ -58,7 +66,7 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
     try {
       const response = await collabAuthApi.login(loginEmail, loginPassword);
       handleAuthResponse(response);
-      if (rememberCreds) saveCreds(loginEmail, loginPassword);
+      if (rememberCreds) saveCreds(loginEmail, loginPassword, saved?.displayName);
       else clearSavedCreds();
       showToast('Signed in', 'success');
       onSuccess();
@@ -89,7 +97,7 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
     try {
       const response = await collabAuthApi.register(regEmail, regPassword, regName);
       handleAuthResponse(response);
-      if (rememberCreds) saveCreds(regEmail, regPassword);
+      if (rememberCreds) saveCreds(regEmail, regPassword, regName);
       else clearSavedCreds();
       showToast('Account created!', 'success');
       onSuccess();
@@ -181,13 +189,24 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
               </div>
               <div className="settings-field">
                 <label>Password</label>
-                <input
-                  className="dialog-input"
-                  type="password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="Password"
-                />
+                <div className="password-input-wrapper">
+                  <input
+                    className="dialog-input"
+                    type={showLoginPw ? 'text' : 'password'}
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="Password"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowLoginPw(!showLoginPw)}
+                    tabIndex={-1}
+                    aria-label={showLoginPw ? 'Hide password' : 'Show password'}
+                  >
+                    {showLoginPw ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
               </div>
               <button
                 className="dialog-btn dialog-btn-primary settings-auth-submit"
@@ -221,23 +240,45 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
               </div>
               <div className="settings-field">
                 <label>Password</label>
-                <input
-                  className="dialog-input"
-                  type="password"
-                  value={regPassword}
-                  onChange={(e) => setRegPassword(e.target.value)}
-                  placeholder="At least 8 characters"
-                />
+                <div className="password-input-wrapper">
+                  <input
+                    className="dialog-input"
+                    type={showRegPw ? 'text' : 'password'}
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowRegPw(!showRegPw)}
+                    tabIndex={-1}
+                    aria-label={showRegPw ? 'Hide password' : 'Show password'}
+                  >
+                    {showRegPw ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
               </div>
               <div className="settings-field">
                 <label>Confirm Password</label>
-                <input
-                  className="dialog-input"
-                  type="password"
-                  value={regConfirm}
-                  onChange={(e) => setRegConfirm(e.target.value)}
-                  placeholder="Confirm password"
-                />
+                <div className="password-input-wrapper">
+                  <input
+                    className="dialog-input"
+                    type={showRegConfirm ? 'text' : 'password'}
+                    value={regConfirm}
+                    onChange={(e) => setRegConfirm(e.target.value)}
+                    placeholder="Confirm password"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowRegConfirm(!showRegConfirm)}
+                    tabIndex={-1}
+                    aria-label={showRegConfirm ? 'Hide password' : 'Show password'}
+                  >
+                    {showRegConfirm ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
               </div>
               <button
                 className="dialog-btn dialog-btn-primary settings-auth-submit"

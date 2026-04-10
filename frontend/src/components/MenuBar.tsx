@@ -22,6 +22,7 @@ import { openTextFile } from '../utils/fileOps';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
 import {
   FaFile,
+  FaPlus,
   FaPencilAlt,
   FaPalette,
   FaEye,
@@ -31,6 +32,8 @@ import {
   FaFolderOpen,
   FaSave,
   FaFileExport,
+  FaFileCode,
+  FaFilePdf,
   FaCodeBranch,
   FaCog,
   FaPrint,
@@ -45,7 +48,15 @@ import {
   FaSpellCheck,
   FaListOl,
   FaBold,
+  FaItalic,
+  FaUnderline,
+  FaStrikethrough,
+  FaSubscript,
+  FaSuperscript,
   FaAlignLeft,
+  FaAlignCenter,
+  FaAlignRight,
+  FaAlignJustify,
   FaColumns,
   FaFileAlt,
   FaCompass,
@@ -67,6 +78,16 @@ import {
   FaKeyboard,
   FaSearchPlus,
   FaSearchMinus,
+  FaUpload,
+  FaHistory,
+  FaExchangeAlt,
+  FaCompressArrowsAlt,
+  FaExpandArrowsAlt,
+  FaEyeSlash,
+  FaListUl,
+  FaToggleOn,
+  FaLock,
+  FaFileSignature,
 } from 'react-icons/fa';
 
 interface MenuBarProps {
@@ -96,6 +117,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  // Platform-aware modifier key symbol for shortcut labels
+  const mod = /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl+';
   const {
     navigatorOpen,
     toggleNavigator,
@@ -369,18 +392,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     setTrackChangesLabel,
   ]);
 
-  // ── Keyboard shortcut: Cmd+S ──
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault();
-        if (!isCollabGuest) handleSave();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [handleSave, isCollabGuest]);
-
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   // Capture the portal dropdown element via a callback ref on the portal
@@ -504,6 +515,76 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     }
   }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
 
+  const handleNewScreenplay = useCallback(() => {
+    confirmOrRun(() => {
+      if (!editor) return;
+      clearTrackChanges();
+      editor.commands.setContent({
+        type: 'doc',
+        content: [{ type: 'sceneHeading', content: [] }],
+      }, true);
+      clearEditorHistory(editor);
+      setCurrentProject(null);
+      setCurrentScriptId(null);
+      setScripts([]);
+      const store = useEditorStore.getState();
+      store.setDocumentTitle('Untitled Screenplay');
+      store.setBeats([]);
+      store.setBeatColumns([]);
+      store.setBeatArrangeMode('auto');
+      store.setNotes([]);
+      store.setTags([]);
+      store.setTagCategories([]);
+      store.setCharacterProfiles([]);
+      store.setScenes([]);
+      store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
+      if (window.location.pathname !== '/') {
+        window.history.replaceState(null, '', '/');
+      }
+    });
+  }, [editor, confirmOrRun, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
+
+  // ── Global keyboard shortcuts ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const m = e.metaKey || e.ctrlKey;
+      if (!m) return;
+      switch (e.key) {
+        case 'n':
+          e.preventDefault();
+          if (!isCollabGuest) handleNewScreenplay();
+          break;
+        case 's':
+          e.preventDefault();
+          if (!isCollabGuest) handleSave();
+          break;
+        case 'p':
+          e.preventDefault();
+          window.print();
+          break;
+        case 'f':
+          e.preventDefault();
+          setSearchOpen(true);
+          break;
+        case 'g':
+          e.preventDefault();
+          setGoToPageOpen(true);
+          break;
+        case '=': // Cmd+= is Cmd++ on most keyboards
+        case '+':
+          e.preventDefault();
+          setZoomLevel(Math.min(200, useEditorStore.getState().zoomLevel + 10));
+          break;
+        case '-':
+          e.preventDefault();
+          setZoomLevel(Math.max(50, useEditorStore.getState().zoomLevel - 10));
+          break;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [handleSave, handleNewScreenplay, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel]);
+
   const handleExportFDX = useCallback(async () => {
     if (!editor) return;
     try {
@@ -573,50 +654,23 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       label: 'File',
       items: [
         {
+          icon: <FaPlus />,
           label: 'New Screenplay',
-          shortcut: '⌘N',
+          shortcut: `${mod}N`,
           disabled: isCollabGuest,
-          action: () => {
-            confirmOrRun(() => {
-              if (!editor) return;
-              clearTrackChanges();
-              editor.commands.setContent({
-                type: 'doc',
-                content: [{ type: 'sceneHeading', content: [] }],
-              }, true);
-              clearEditorHistory(editor);
-              setCurrentProject(null);
-              setCurrentScriptId(null);
-              setScripts([]);
-              const store = useEditorStore.getState();
-              store.setDocumentTitle('Untitled Screenplay');
-              store.setBeats([]);
-              store.setBeatColumns([]);
-              store.setBeatArrangeMode('auto');
-              store.setNotes([]);
-              store.setTags([]);
-              store.setTagCategories([]);
-              store.setCharacterProfiles([]);
-              store.setScenes([]);
-              store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
-              // Navigate to root so URL doesn't trigger stale project loading
-              if (window.location.pathname !== '/') {
-                window.history.replaceState(null, '', '/');
-              }
-            });
-          },
+          action: handleNewScreenplay,
         },
         { separator: true, label: '' },
         { icon: <FaFileImport />, label: 'Import...', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
         { icon: <FaFolderOpen />, label: 'Open from Project...', action: () => confirmOrRun(() => setOpenFromProjectOpen(true)), disabled: isCollabGuest },
-        { icon: <FaSave />, label: 'Save', shortcut: '\u2318S', action: handleSave, disabled: isCollabGuest },
+        { icon: <FaSave />, label: 'Save', shortcut: `${mod}S`, action: handleSave, disabled: isCollabGuest },
         { separator: true, label: '' },
         {
           icon: <FaFileExport />, label: 'Export',
           children: [
-            { label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
-            { label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
-            { label: 'PDF', action: handleExportPDF },
+            { icon: <FaFileCode />, label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
+            { icon: <FaFileAlt />, label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
+            { icon: <FaFilePdf />, label: 'PDF', action: handleExportPDF },
           ],
         },
         { separator: true, label: '' },
@@ -624,36 +678,37 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           icon: <FaCodeBranch />, label: 'Versions',
           disabled: isCollabGuest,
           children: [
-            { label: 'Check In...', action: handleCheckinOpen, disabled: isCollabGuest },
-            { label: 'Version History', action: () => setVersionHistoryOpen(true), disabled: isCollabGuest },
+            { icon: <FaUpload />, label: 'Check In...', action: handleCheckinOpen, disabled: isCollabGuest },
+            { icon: <FaHistory />, label: 'Version History', action: () => setVersionHistoryOpen(true), disabled: isCollabGuest },
             { separator: true, label: '' },
             {
+              icon: <FaExchangeAlt />,
               label: trackChangesEnabled
                 ? '\u2713 Track Changes'
                 : 'Track Changes Since Last Check-In',
               action: handleTrackChangesToggle,
             },
-            { label: 'Compare with Version\u2026', action: () => setCompareVersionOpen(true) },
+            { icon: <FaFileSignature />, label: 'Compare with Version\u2026', action: () => setCompareVersionOpen(true) },
           ],
         },
         { separator: true, label: '' },
         { icon: <FaCog />, label: 'Page Setup...', action: () => setPageSetupOpen(true) },
-        { icon: <FaPrint />, label: 'Print...', shortcut: '\u2318P', action: () => window.print() },
+        { icon: <FaPrint />, label: 'Print...', shortcut: `${mod}P`, action: () => window.print() },
       ],
     },
     {
       label: 'Edit',
       items: [
-        { icon: <FaUndo />, label: 'Undo', shortcut: '⌘Z', action: () => { try { editor?.chain().focus().undo().run(); } catch {} } },
-        { icon: <FaRedo />, label: 'Redo', shortcut: '⇧⌘Z', action: () => { try { editor?.chain().focus().redo().run(); } catch {} } },
+        { icon: <FaUndo />, label: 'Undo', shortcut: `${mod}Z`, action: () => { try { editor?.chain().focus().undo().run(); } catch {} } },
+        { icon: <FaRedo />, label: 'Redo', shortcut: `⇧${mod}Z`, action: () => { try { editor?.chain().focus().redo().run(); } catch {} } },
         { separator: true, label: '' },
-        { icon: <FaCut />, label: 'Cut', shortcut: '⌘X', action: () => document.execCommand('cut') },
-        { icon: <FaCopy />, label: 'Copy', shortcut: '⌘C', action: () => document.execCommand('copy') },
-        { icon: <FaPaste />, label: 'Paste', shortcut: '⌘V', action: () => document.execCommand('paste') },
-        { icon: <FaMousePointer />, label: 'Select All', shortcut: '⌘A', action: () => editor?.chain().focus().selectAll().run() },
+        { icon: <FaCut />, label: 'Cut', shortcut: `${mod}X`, action: () => document.execCommand('cut') },
+        { icon: <FaCopy />, label: 'Copy', shortcut: `${mod}C`, action: () => document.execCommand('copy') },
+        { icon: <FaPaste />, label: 'Paste', shortcut: `${mod}V`, action: () => document.execCommand('paste') },
+        { icon: <FaMousePointer />, label: 'Select All', shortcut: `${mod}A`, action: () => editor?.chain().focus().selectAll().run() },
         { separator: true, label: '' },
-        { icon: <FaSearch />, label: 'Find & Replace...', shortcut: '⌘F', action: () => setSearchOpen(true) },
-        { icon: <FaHashtag />, label: 'Go to Page...', shortcut: '⌘G', action: () => setGoToPageOpen(true) },
+        { icon: <FaSearch />, label: 'Find & Replace...', shortcut: `${mod}F`, action: () => setSearchOpen(true) },
+        { icon: <FaHashtag />, label: 'Go to Page...', shortcut: `${mod}G`, action: () => setGoToPageOpen(true) },
         { icon: <FaSpellCheck />, label: spellCheckEnabled ? '\u2713 Spell Check' : 'Spell Check', action: toggleSpellCheck },
       ],
     },
@@ -665,8 +720,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           children: [
             ...Object.values(activeTemplate.rules).filter((r) => r.enabled).map((r) => {
               const shortcuts: Record<string, string> = {
-                sceneHeading: '⌘1', action: '⌘2', character: '⌘3', dialogue: '⌘4',
-                parenthetical: '⌘5', transition: '⌘6', general: '⌘7', shot: '⌘8',
+                sceneHeading: `${mod}1`, action: `${mod}2`, character: `${mod}3`, dialogue: `${mod}4`,
+                parenthetical: `${mod}5`, transition: `${mod}6`, general: `${mod}7`, shot: `${mod}8`,
               };
               return { label: r.label, shortcut: shortcuts[r.id], action: () => setElement(r.id as any) };
             }),
@@ -676,26 +731,26 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         {
           icon: <FaBold />, label: 'Style',
           children: [
-            { label: 'Bold', shortcut: '⌘B', action: () => editor?.chain().focus().toggleBold().run(), disabled: locked.bold },
-            { label: 'Italic', shortcut: '⌘I', action: () => editor?.chain().focus().toggleItalic().run(), disabled: locked.italic },
-            { label: 'Underline', shortcut: '⌘U', action: () => editor?.chain().focus().toggleUnderline().run(), disabled: locked.underline },
-            { label: 'Strikethrough', action: () => editor?.chain().focus().toggleStrike().run(), disabled: locked.strikethrough },
+            { icon: <FaBold />, label: 'Bold', shortcut: `${mod}B`, action: () => editor?.chain().focus().toggleBold().run(), disabled: locked.bold },
+            { icon: <FaItalic />, label: 'Italic', shortcut: `${mod}I`, action: () => editor?.chain().focus().toggleItalic().run(), disabled: locked.italic },
+            { icon: <FaUnderline />, label: 'Underline', shortcut: `${mod}U`, action: () => editor?.chain().focus().toggleUnderline().run(), disabled: locked.underline },
+            { icon: <FaStrikethrough />, label: 'Strikethrough', action: () => editor?.chain().focus().toggleStrike().run(), disabled: locked.strikethrough },
             { separator: true, label: '' },
-            { label: 'Subscript', action: () => editor?.chain().focus().toggleSubscript().run(), disabled: locked.subscript },
-            { label: 'Superscript', action: () => editor?.chain().focus().toggleSuperscript().run(), disabled: locked.superscript },
+            { icon: <FaSubscript />, label: 'Subscript', action: () => editor?.chain().focus().toggleSubscript().run(), disabled: locked.subscript },
+            { icon: <FaSuperscript />, label: 'Superscript', action: () => editor?.chain().focus().toggleSuperscript().run(), disabled: locked.superscript },
           ],
         },
         {
           icon: <FaAlignLeft />, label: 'Alignment',
           children: [
-            { label: 'Align Left', action: () => editor?.chain().focus().setTextAlign('left').run(), disabled: locked.textAlign },
-            { label: 'Align Center', action: () => editor?.chain().focus().setTextAlign('center').run(), disabled: locked.textAlign },
-            { label: 'Align Right', action: () => editor?.chain().focus().setTextAlign('right').run(), disabled: locked.textAlign },
-            { label: 'Justify', action: () => editor?.chain().focus().setTextAlign('justify').run(), disabled: locked.textAlign },
+            { icon: <FaAlignLeft />, label: 'Align Left', action: () => editor?.chain().focus().setTextAlign('left').run(), disabled: locked.textAlign },
+            { icon: <FaAlignCenter />, label: 'Align Center', action: () => editor?.chain().focus().setTextAlign('center').run(), disabled: locked.textAlign },
+            { icon: <FaAlignRight />, label: 'Align Right', action: () => editor?.chain().focus().setTextAlign('right').run(), disabled: locked.textAlign },
+            { icon: <FaAlignJustify />, label: 'Justify', action: () => editor?.chain().focus().setTextAlign('justify').run(), disabled: locked.textAlign },
           ],
         },
         { separator: true, label: '' },
-        { icon: <FaColumns />, label: 'Dual Dialogue', shortcut: '⌘D', action: () => (editor as any)?.commands?.toggleDualDialogue() },
+        { icon: <FaColumns />, label: 'Dual Dialogue', shortcut: `${mod}D`, action: () => (editor as any)?.commands?.toggleDualDialogue() },
         { separator: true, label: '' },
         { icon: <FaFileAlt />, label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true) },
       ],
@@ -726,16 +781,16 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         {
           icon: <FaToolbox />, label: 'Menu & Toolbar',
           children: [
-            { label: toolbarMode === 'compact' ? '\u2713 Compact' : 'Compact', action: () => setToolbarMode('compact') },
-            { label: toolbarMode === 'comfortable' ? '\u2713 Comfortable' : 'Comfortable', action: () => setToolbarMode('comfortable') },
-            { label: toolbarMode === 'hidden' ? '\u2713 Hidden' : 'Hidden', action: () => setToolbarMode('hidden') },
+            { icon: <FaCompressArrowsAlt />, label: toolbarMode === 'compact' ? '\u2713 Compact' : 'Compact', action: () => setToolbarMode('compact') },
+            { icon: <FaExpandArrowsAlt />, label: toolbarMode === 'comfortable' ? '\u2713 Comfortable' : 'Comfortable', action: () => setToolbarMode('comfortable') },
+            { icon: <FaEyeSlash />, label: toolbarMode === 'hidden' ? '\u2713 Hidden' : 'Hidden', action: () => setToolbarMode('hidden') },
           ],
         },
         {
           icon: <FaSearchPlus />, label: `Zoom (${zoomLevel}%)`,
           children: [
-            { icon: <FaSearchPlus />, label: 'Zoom In', shortcut: '⌘+', action: () => setZoomLevel(Math.min(200, zoomLevel + 10)) },
-            { icon: <FaSearchMinus />, label: 'Zoom Out', shortcut: '⌘−', action: () => setZoomLevel(Math.max(50, zoomLevel - 10)) },
+            { icon: <FaSearchPlus />, label: 'Zoom In', shortcut: `${mod}+`, action: () => setZoomLevel(Math.min(200, zoomLevel + 10)) },
+            { icon: <FaSearchMinus />, label: 'Zoom Out', shortcut: `${mod}−`, action: () => setZoomLevel(Math.max(50, zoomLevel - 10)) },
             { separator: true, label: '' },
             { label: zoomLevel === 50 ? '\u2713 50%' : '50%', action: () => setZoomLevel(50) },
             { label: zoomLevel === 75 ? '\u2713 75%' : '75%', action: () => setZoomLevel(75) },
@@ -760,19 +815,21 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         {
           icon: <FaFilm />, label: 'Production',
           children: [
-            { label: revisionMode ? '\u2713 Revision Mode' : 'Revision Mode', action: () => setRevisionMode(!revisionMode) },
+            { icon: <FaToggleOn />, label: revisionMode ? '\u2713 Revision Mode' : 'Revision Mode', action: () => setRevisionMode(!revisionMode) },
             { separator: true, label: '' },
             {
+              icon: <FaListUl />,
               label: sceneNumbersVisible ? '\u2713 Show Scene Numbers' : 'Show Scene Numbers',
               action: () => setSceneNumbersVisible(!sceneNumbersVisible),
             },
             {
+              icon: <FaLock />,
               label: sceneNumbersLocked ? '\u2713 Lock Scene Numbers' : 'Lock Scene Numbers',
               action: () => setSceneNumbersLocked(!sceneNumbersLocked),
               disabled: !sceneNumbersVisible,
             },
             { separator: true, label: '' },
-            { label: 'Lock Pages', disabled: true },
+            { icon: <FaLock />, label: 'Lock Pages', disabled: true },
           ],
         },
       ],
@@ -792,7 +849,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         icon: <FaKeyboard />,
         label: 'Keyboard Shortcuts',
         action: () =>
-          showToast('⌘1-8: Elements | Tab: Next | ⌘B/I/U: Format | ⌘Z: Undo | ⌘F: Find | ⌘G: Go to Page', 'success'),
+          showToast(`${mod}1-8: Elements | Tab: Next | ${mod}B/I/U: Format | ${mod}Z: Undo | ${mod}F: Find | ${mod}G: Go to Page`, 'success'),
       },
     ],
   };
@@ -919,7 +976,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     )}
     {activeMenuData && createPortal(
       <div
-        className="menu-dropdown"
+        className={`menu-dropdown${toolbarMode === 'comfortable' ? ' menu-dropdown--comfortable' : ''}`}
         style={{ top: dropdownPos.top, left: dropdownPos.left }}
       >
         {activeMenuData.items.map((item, i) =>
