@@ -11,31 +11,16 @@
 
 <p align="center">
   <a href="https://opendraft-demo-267958344432.us-central1.run.app">
-    <img src="https://img.shields.io/badge/%E2%96%B6_Try_OpenDraft_Now-No_account_needed-c455ce?style=for-the-badge&labelColor=4a154b" alt="Try OpenDraft Now">
+    <img src="https://img.shields.io/badge/%E2%96%B6_Try_OpenDraft_Now-c455ce?style=for-the-badge&labelColor=4a154b" alt="Try OpenDraft Now">
   </a>
 </p>
+<p align="center"><em>No account needed. Opens in your browser in seconds.</em></p>
 
 <p align="center">
-  <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Proteus-Technologies-Private-Limited/OpenDraft?label=Download&style=flat-square&color=blue" alt="Download">
-  </a>
-  <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/stargazers">
-    <img src="https://img.shields.io/github/stars/Proteus-Technologies-Private-Limited/OpenDraft?style=flat-square" alt="GitHub Stars">
-  </a>
-  <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/Proteus-Technologies-Private-Limited/OpenDraft?style=flat-square" alt="License: MIT">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://proteus-technologies-private-limited.github.io/OpenDraft/">Website</a> &bull;
-  <a href="https://opendraft-demo-267958344432.us-central1.run.app"><strong>Try Demo</strong></a> &bull;
   <a href="#download">Download</a> &bull;
   <a href="#comparison">Compare</a> &bull;
-  <a href="#features">Features</a> &bull;
   <a href="#screenshots">Screenshots</a> &bull;
-  <a href="#getting-started">Getting Started</a> &bull;
-  <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions">Community</a>
+  <a href="#getting-started">Getting Started</a>
 </p>
 
 <p align="center">
@@ -48,6 +33,18 @@
   <strong>Works 100% offline</strong> &bull;
   <strong>Your scripts never leave your machine</strong> &bull;
   <strong>Import from Final Draft in seconds</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest">
+    <img src="https://img.shields.io/github/v/release/Proteus-Technologies-Private-Limited/OpenDraft?label=Download&style=flat-square&color=blue" alt="Download">
+  </a>
+  <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/stargazers">
+    <img src="https://img.shields.io/github/stars/Proteus-Technologies-Private-Limited/OpenDraft?style=flat-square" alt="GitHub Stars">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/github/license/Proteus-Technologies-Private-Limited/OpenDraft?style=flat-square" alt="License: MIT">
+  </a>
 </p>
 
 ---
