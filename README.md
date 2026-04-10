@@ -105,6 +105,9 @@ Track characters with descriptions, role types, and color-coded highlighting in 
 **Import & Export**
 Move freely between Final Draft (.fdx), Fountain, and PDF — never locked into one tool.
 
+**iOS & Android Apps**
+Full-featured mobile apps with 100% of the desktop functionality — write, edit, and manage scripts on the go.
+
 > See the [full feature list](docs/FEATURES.md) for scene navigator, spell check, search & replace, script notes, asset management, and more.
 
 ---
