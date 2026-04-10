@@ -18,9 +18,9 @@
 
 <p align="center">
   <a href="#download">Download</a> &bull;
-  <a href="#comparison">Compare</a> &bull;
   <a href="#screenshots">Screenshots</a> &bull;
-  <a href="#getting-started">Getting Started</a>
+  <a href="#features">Features</a> &bull;
+  <a href="#comparison">Compare</a>
 </p>
 
 <p align="center">
@@ -60,32 +60,27 @@ Your script is your intellectual property. Cloud-based screenwriting tools store
 
 ---
 
-## Comparison
+## Screenshots
 
-How does OpenDraft stack up against commercial screenwriting software?
+<p align="center">
+  <img src="images/macos/editor.png" alt="Screenplay Editor" width="80%"><br>
+  <em>Industry-standard screenplay formatting with scene navigator</em>
+</p>
 
-| Feature | OpenDraft | Final Draft | WriterDuet | Fade In |
-|---------|:---------:|:-----------:|:----------:|:-------:|
-| **Price** | Free | $250 | Free / $12/mo | $80 |
-| **Open Source** | Yes (MIT) | No | No | No |
-| **Offline Desktop App** | Yes | Yes | Limited | Yes |
-| **Real-time Collaboration** | Yes | Yes | Yes | Yes |
-| **Beat Board / Index Cards** | Yes | Yes | Yes | Yes |
-| **Version History with Diff** | Yes | Limited | Limited | Limited |
-| **Self-Hostable** | Yes | No | No | No |
-| **Linux Support** | Yes | No | Yes (paid) | Yes |
-| **No Account Required** | Yes | No | No | Yes |
-| **Privacy-First (No Tracking)** | Yes | No | No | No |
-| **Character Profiles** | Yes | Limited | No | No |
-| **Casting / Reference Images** | Yes | No | No | No |
-| **iOS App** | Yes | Yes | Yes | Yes |
-| **Android App** | Yes | No | Yes | Yes |
-| **Production Tags** | Yes | Limited | Yes | Yes |
-| **Fountain Import/Export** | Yes | No | Yes | Yes |
-| **Web Browser Access** | Yes | No | Yes | Limited |
-| **Plugin Architecture** | Yes | No | No | No |
+<p align="center">
+  <img src="images/macos/beatboard.png" alt="Beat Board" width="80%"><br>
+  <em>Visual story planning with drag-and-drop index cards</em>
+</p>
 
-<sub>Comparison based on publicly available product information as of April 2026. If you spot an inaccuracy, please <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/issues/new/choose">open an issue</a>.</sub>
+<p align="center">
+  <img src="images/macos/collaboration_1.png" alt="Real-time Collaboration" width="80%"><br>
+  <em>Real-time collaboration — multiple writers editing simultaneously</em>
+</p>
+
+<p align="center">
+  <img src="images/version_history.png" alt="Version History" width="80%"><br>
+  <em>Built-in version history with check-in, diff, and restore</em>
+</p>
 
 ---
 
@@ -113,27 +108,32 @@ Move freely between Final Draft (.fdx), Fountain, and PDF — never locked into 
 
 ---
 
-## Screenshots
+## Comparison
 
-<p align="center">
-  <img src="images/macos/editor.png" alt="Screenplay Editor" width="80%"><br>
-  <em>Industry-standard screenplay formatting with scene navigator</em>
-</p>
+How does OpenDraft stack up against commercial screenwriting software?
 
-<p align="center">
-  <img src="images/macos/beatboard.png" alt="Beat Board" width="80%"><br>
-  <em>Visual story planning with drag-and-drop index cards</em>
-</p>
+| Feature | OpenDraft | Final Draft | WriterDuet | Fade In |
+|---------|:---------:|:-----------:|:----------:|:-------:|
+| **Price** | Free | $250 | Free / $12/mo | $80 |
+| **Open Source** | Yes (MIT) | No | No | No |
+| **Offline Desktop App** | Yes | Yes | Limited | Yes |
+| **Real-time Collaboration** | Yes | Yes | Yes | Yes |
+| **Beat Board / Index Cards** | Yes | Yes | Yes | Yes |
+| **Version History with Diff** | Yes | Limited | Limited | Limited |
+| **Self-Hostable** | Yes | No | No | No |
+| **Linux Support** | Yes | No | Yes (paid) | Yes |
+| **No Account Required** | Yes | No | No | Yes |
+| **Privacy-First (No Tracking)** | Yes | No | No | No |
+| **Character Profiles** | Yes | Limited | No | No |
+| **Casting / Reference Images** | Yes | No | No | No |
+| **iOS App** | Yes | Yes | Yes | Yes |
+| **Android App** | Yes | No | Yes | Yes |
+| **Production Tags** | Yes | Limited | Yes | Yes |
+| **Fountain Import/Export** | Yes | No | Yes | Yes |
+| **Web Browser Access** | Yes | No | Yes | Limited |
+| **Plugin Architecture** | Yes | No | No | No |
 
-<p align="center">
-  <img src="images/macos/collaboration_1.png" alt="Real-time Collaboration" width="80%"><br>
-  <em>Real-time collaboration — multiple writers editing simultaneously</em>
-</p>
-
-<p align="center">
-  <img src="images/version_history.png" alt="Version History" width="80%"><br>
-  <em>Built-in version history with check-in, diff, and restore</em>
-</p>
+<sub>Comparison based on publicly available product information as of April 2026. If you spot an inaccuracy, please <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/issues/new/choose">open an issue</a>.</sub>
 
 ---
 
