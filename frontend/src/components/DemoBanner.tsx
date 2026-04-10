@@ -7,6 +7,13 @@ const DISMISSED_KEY = 'opendraft:demo-banner-dismissed';
 const DemoBanner: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 600);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     // Only applies to browser — never show on desktop or mobile apps
@@ -41,38 +48,42 @@ const DemoBanner: React.FC = () => {
       zIndex: 200000,
       background: 'rgba(0, 0, 0, 0.75)',
       display: 'flex',
-      alignItems: 'center',
+      alignItems: isMobile ? 'flex-start' : 'center',
       justifyContent: 'center',
+      overflowY: 'auto',
+      WebkitOverflowScrolling: 'touch',
+      padding: isMobile ? '24px 0' : 0,
     }}>
       <div style={{
         background: '#1a1a2e',
         border: '2px solid #e67e22',
-        borderRadius: 14,
-        padding: '44px 48px 40px',
+        borderRadius: isMobile ? 10 : 14,
+        padding: isMobile ? '28px 20px 24px' : '44px 48px 40px',
         maxWidth: 620,
-        width: '90%',
+        width: isMobile ? 'calc(100% - 32px)' : '90%',
         textAlign: 'center',
         boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        flexShrink: 0,
       }}>
         <div style={{
-          fontSize: 52,
-          marginBottom: 16,
+          fontSize: isMobile ? 36 : 52,
+          marginBottom: isMobile ? 10 : 16,
         }}>&#9888;</div>
         <h2 style={{
-          margin: '0 0 24px',
-          fontSize: 28,
+          margin: isMobile ? '0 0 16px' : '0 0 24px',
+          fontSize: isMobile ? 22 : 28,
           fontWeight: 700,
           color: '#e67e22',
         }}>Demo Server</h2>
         <div style={{
           textAlign: 'left',
-          marginBottom: 32,
+          marginBottom: isMobile ? 20 : 32,
         }}>
           {lines.map((line, i) => (
             <p key={i} style={{
-              fontSize: 18,
+              fontSize: isMobile ? 14 : 18,
               lineHeight: 1.6,
-              margin: '0 0 16px',
+              margin: isMobile ? '0 0 10px' : '0 0 16px',
               color: '#fff',
             }}>{line}</p>
           ))}
@@ -84,11 +95,12 @@ const DemoBanner: React.FC = () => {
             color: '#fff',
             border: 'none',
             borderRadius: 8,
-            padding: '14px 44px',
-            fontSize: 18,
+            padding: isMobile ? '12px 32px' : '14px 44px',
+            fontSize: isMobile ? 16 : 18,
             fontWeight: 600,
             cursor: 'pointer',
             letterSpacing: 0.3,
+            width: isMobile ? '100%' : 'auto',
           }}
         >
           I Understand
