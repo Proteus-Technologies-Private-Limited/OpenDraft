@@ -44,7 +44,7 @@
 </p>
 
 <p align="center">
-  <video src="images/OpenDraft-intro.mp4" width="80%" controls autoplay loop muted playsinline>
+  <video src="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/raw/main/images/OpenDraft-intro.mp4" controls width="80%">
   </video>
 </p>
 
