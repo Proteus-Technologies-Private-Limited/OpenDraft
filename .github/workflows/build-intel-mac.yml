@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-intel-mac:
-    runs-on: macos-13
+    runs-on: macos-26
     name: Build (macOS-Intel)
 
     steps:
@@ -83,6 +83,7 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
         with:
           tauriScript: npx --prefix frontend tauri
+          args: --target x86_64-apple-darwin
           tagName: ${{ github.ref_name }}
           releaseName: 'OpenDraft ${{ github.ref_name }}'
           releaseBody: ''
@@ -102,6 +103,7 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
         with:
           tauriScript: npx --prefix frontend tauri
+          args: --target x86_64-apple-darwin
           tagName: ${{ github.ref_name }}
           releaseName: 'OpenDraft ${{ github.ref_name }}'
           releaseBody: ''
@@ -118,11 +120,11 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-        run: npx --prefix frontend tauri build
+        run: npx --prefix frontend tauri build --target x86_64-apple-darwin
 
       - name: Upload build artifact
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@v5
         with:
           name: OpenDraft-intel-mac
-          path: src-tauri/target/release/bundle/dmg/*.dmg
+          path: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
