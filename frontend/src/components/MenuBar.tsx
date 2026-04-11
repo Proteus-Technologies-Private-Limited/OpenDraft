@@ -19,7 +19,7 @@ import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFo
 import { pluginRegistry } from '../plugins/registry';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { openTextFile } from '../utils/fileOps';
-import { isTauri } from '../services/platform';
+import { isDesktopTauri } from '../services/platform';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
 import {
   FaFile,
@@ -661,7 +661,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           disabled: isCollabGuest,
           action: handleNewScreenplay,
         },
-        ...(isTauri() ? [{
+        ...(isDesktopTauri() ? [{
           icon: <FaFile />,
           label: 'New Window',
           action: async () => {
