@@ -1318,11 +1318,13 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.15.0</div>
+              <div className="about-section-title">What's New in 0.15.1</div>
               <ul className="about-list">
-                <li><strong>iPad &amp; Touch UX</strong> — Touch-friendly comfortable mode with larger tap targets, proper iPadOS detection, and iPad keyboard dismissal fix.</li>
-                <li><strong>Element Type Shortcuts</strong> — Press Cmd/Ctrl-1 through 8 to quickly switch element types (Scene Heading, Action, Character, etc.) while writing.</li>
-                <li><strong>Collaboration UX</strong> — Password show/hide toggles in the collab login dialog and persistent display name across sessions.</li>
+                <li><strong>Synopsis Modal</strong> — View and edit scene synopsis from the scene navigator and index cards in a full modal editor.</li>
+                <li><strong>Draggable Menu Button</strong> — In hidden toolbar mode, the floating menu button can be dragged to any position on screen. Your placement is remembered.</li>
+                <li><strong>Index Cards</strong> — Close button, fullscreen scroll fix, and auto-scroll during drag-to-reorder.</li>
+                <li><strong>Smart Menu Positioning</strong> — Floating menu and submenus adapt when the button is placed at the bottom or right edge of the screen.</li>
+                <li><strong>Android Edge-to-Edge</strong> — Content no longer overlaps the status bar or navigation bar. Adaptive app icons for all launcher shapes.</li>
               </ul>
             </div>
           </div>
