@@ -939,7 +939,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   const fabX = fabPos?.x ?? (navPanelWidth + 14);
   const fabY = fabPos?.y ?? 10;
 
+  // Desktop: pointer events with capture for mouse drag
   const handleFabPointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return; // Touch handled separately below
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     fabDragRef.current = {
       startX: e.clientX, startY: e.clientY,
@@ -950,6 +952,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   }, [fabPos, navPanelWidth]);
 
   const handleFabPointerMove = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
     const d = fabDragRef.current;
     if (!d) return;
     const dx = e.clientX - d.startX;
@@ -967,10 +970,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   }, [FAB_SIZE]);
 
   const handleFabPointerUp = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
     const d = fabDragRef.current;
     fabDragRef.current = null;
     if (!d) return;
-    fabWasDragRef.current = true; // Prevent onClick from double-toggling
+    fabWasDragRef.current = true;
     if (d.isDrag) {
       const pos = {
         x: Math.max(0, Math.min(window.innerWidth - FAB_SIZE, d.originX + (e.clientX - d.startX))),
@@ -979,11 +983,81 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       setFabPos(pos);
       localStorage.setItem(FAB_POS_KEY, JSON.stringify(pos));
     } else {
-      setFloatingMenuOpen(prev => !prev); // Instant toggle on tap
+      setFloatingMenuOpen(prev => !prev);
     }
   }, [FAB_POS_KEY, FAB_SIZE]);
 
-  // Fallback: if pointerUp didn't fire (some Android WebViews), onClick handles it
+  // Touch: native listeners on the FAB element via ref (WKWebView + Android WebView)
+  const fabElRef = useRef<HTMLDivElement>(null);
+  const fabPosRef = useRef(fabPos);
+  fabPosRef.current = fabPos;
+  const navPanelWidthRef = useRef(navPanelWidth);
+  navPanelWidthRef.current = navPanelWidth;
+
+  useEffect(() => {
+    const el = fabElRef.current;
+    if (!el) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      e.stopPropagation(); // Prevent swipe handlers on parent elements
+      const t = e.touches[0];
+      const pos = fabPosRef.current;
+      fabDragRef.current = {
+        startX: t.clientX, startY: t.clientY,
+        originX: pos?.x ?? (navPanelWidthRef.current + 14),
+        originY: pos?.y ?? 10,
+        isDrag: false,
+      };
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const d = fabDragRef.current;
+      if (!d) return;
+      const t = e.touches[0];
+      const dx = t.clientX - d.startX;
+      const dy = t.clientY - d.startY;
+      if (!d.isDrag && Math.abs(dx) + Math.abs(dy) > 5) {
+        d.isDrag = true;
+        setFloatingMenuOpen(false);
+      }
+      if (d.isDrag) {
+        e.preventDefault();
+        e.stopPropagation();
+        setFabPos({
+          x: Math.max(0, Math.min(window.innerWidth - FAB_SIZE, d.originX + dx)),
+          y: Math.max(0, Math.min(window.innerHeight - FAB_SIZE, d.originY + dy)),
+        });
+      }
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const d = fabDragRef.current;
+      fabDragRef.current = null;
+      if (!d) return;
+      if (d.isDrag) {
+        fabWasDragRef.current = true;
+        // Reset after a short delay so the flag doesn't block future taps
+        // (onClick may not fire on mobile after a drag to reset it)
+        setTimeout(() => { fabWasDragRef.current = false; }, 400);
+        const t = e.changedTouches[0];
+        const pos = {
+          x: Math.max(0, Math.min(window.innerWidth - FAB_SIZE, d.originX + (t.clientX - d.startX))),
+          y: Math.max(0, Math.min(window.innerHeight - FAB_SIZE, d.originY + (t.clientY - d.startY))),
+        };
+        setFabPos(pos);
+        localStorage.setItem(FAB_POS_KEY, JSON.stringify(pos));
+      }
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [FAB_POS_KEY, FAB_SIZE, toolbarMode]);
+
+  // Click: fallback for tap (works everywhere)
   const handleFabClick = useCallback(() => {
     if (fabWasDragRef.current) {
       fabWasDragRef.current = false;
@@ -1057,6 +1131,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       createPortal(
         <>
           <div
+            ref={fabElRef}
             className={`menu-fab ${floatingMenuOpen ? 'menu-fab--open' : ''}`}
             style={{ left: fabX, top: fabY }}
             onPointerDown={handleFabPointerDown}

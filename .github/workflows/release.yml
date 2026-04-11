@@ -270,6 +270,11 @@ jobs:
             mkdir -p "$RES_DIR/mipmap-$density"
             cp images/android-icons/mipmap-$density/* "$RES_DIR/mipmap-$density/"
           done
+          # Adaptive icon XML (Android 8+)
+          mkdir -p "$RES_DIR/mipmap-anydpi-v26"
+          cp images/android-icons/mipmap-anydpi-v26/* "$RES_DIR/mipmap-anydpi-v26/"
+          # Background color for adaptive icon
+          cp images/android-icons/values/ic_launcher_background.xml "$RES_DIR/values/"
 
       - name: Copy custom Android sources
         run: |
