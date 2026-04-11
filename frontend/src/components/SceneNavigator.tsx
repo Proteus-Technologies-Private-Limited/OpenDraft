@@ -3,6 +3,7 @@ import { Editor } from '@tiptap/react';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore } from '../stores/editorStore';
 import { computeSceneLengths, computePageBlocks, type PageContentInfo } from '../editor/pagination';
+import SynopsisModal from './SynopsisModal';
 
 interface SceneNavigatorProps {
   editor: Editor | null;
@@ -170,7 +171,7 @@ const LINE_HEIGHT_PX = 12 * (96 / 72); // 16px — matches pagination LINE_HEIGH
 // ── Main component ──────────────────────────────────────────────────────
 
 const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style }) => {
-  const { scenes, navigatorOpen, toggleNavigator } = useEditorStore();
+  const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis } = useEditorStore();
   const pageLayout = useEditorStore((s) => s.pageLayout);
   const fontFamily = useEditorStore((s) => s.fontFamily);
   const fontSize = useEditorStore((s) => s.fontSize);
@@ -191,6 +192,36 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   const pageGridRef = useRef<HTMLDivElement>(null);
   const [thumbScale, setThumbScale] = useState(0.35);
   const [currentVisiblePage, setCurrentVisiblePage] = useState(1);
+
+  // Synopsis modal state
+  const [synopsisModal, setSynopsisModal] = useState<{ sceneIdx: number; id: string; heading: string; synopsis: string } | null>(null);
+
+  const handleSaveSynopsis = useCallback(
+    (synopsis: string) => {
+      if (!synopsisModal || !editor) return;
+      const { sceneIdx, id } = synopsisModal;
+      updateSceneSynopsis(id, synopsis);
+      let currentScene = -1;
+      let targetPos = -1;
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'sceneHeading') {
+          currentScene++;
+          if (currentScene === sceneIdx) { targetPos = pos; return false; }
+        }
+        return true;
+      });
+      if (targetPos >= 0) {
+        const node = editor.state.doc.nodeAt(targetPos);
+        if (node) {
+          const { tr } = editor.state;
+          tr.setNodeMarkup(targetPos, undefined, { ...node.attrs, synopsis });
+          tr.setMeta('addToHistory', false);
+          editor.view.dispatch(tr);
+        }
+      }
+    },
+    [synopsisModal, editor, updateSceneSynopsis],
+  );
 
   const locations = useMemo(() => groupByLocation(scenes), [scenes]);
 
@@ -600,9 +631,16 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                         )}
                         {scene.heading}
                       </div>
-                      {scene.synopsis && (
-                        <div className="scene-synopsis">{scene.synopsis}</div>
-                      )}
+                      <div
+                        className={`scene-synopsis-link${scene.synopsis ? '' : ' empty'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSynopsisModal({ sceneIdx, id: scene.id, heading: scene.heading, synopsis: scene.synopsis });
+                        }}
+                        title={scene.synopsis ? 'View/edit synopsis' : 'Add synopsis'}
+                      >
+                        {scene.synopsis || '+ Add Synopsis'}
+                      </div>
                     </div>
                     {detail && detail.pageLength > 0 && (
                       <div className="scene-length" data-tooltip={formatPageLength(detail.pageLength)}>
@@ -657,6 +695,16 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
             </div>
           )}
         </div>
+      )}
+
+      {/* Synopsis modal */}
+      {synopsisModal && (
+        <SynopsisModal
+          sceneHeading={synopsisModal.heading}
+          synopsis={synopsisModal.synopsis}
+          onSave={handleSaveSynopsis}
+          onClose={() => setSynopsisModal(null)}
+        />
       )}
 
       {/* ── Locations tab ────────────────────────────────────────────── */}

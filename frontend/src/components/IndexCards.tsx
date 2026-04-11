@@ -1,6 +1,7 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { Editor } from '@tiptap/react';
 import { useEditorStore, type SceneInfo } from '../stores/editorStore';
+import SynopsisModal from './SynopsisModal';
 
 interface IndexCardsProps {
   editor: Editor | null;
@@ -8,7 +9,7 @@ interface IndexCardsProps {
 }
 
 const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
-  const { scenes, indexCardsOpen, updateSceneSynopsis } = useEditorStore();
+  const { scenes, indexCardsOpen, updateSceneSynopsis, toggleIndexCards } = useEditorStore();
 
   const [fullscreen, setFullscreen] = useState(false);
   const [dragMode, setDragMode] = useState(false);
@@ -81,6 +82,42 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
   const [dragCardSize, setDragCardSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [dragCardHtml, setDragCardHtml] = useState<string>('');
   const gridRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll refs for drag
+  const scrollSpeedRef = useRef(0);
+  const scrollRafRef = useRef<number>(0);
+  const lastClientPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Synopsis modal state
+  const [synopsisModal, setSynopsisModal] = useState<{ sceneIdx: number; id: string; heading: string; synopsis: string } | null>(null);
+
+  const handleSaveSynopsis = useCallback(
+    (synopsis: string) => {
+      if (!synopsisModal || !editor) return;
+      const { sceneIdx, id } = synopsisModal;
+      updateSceneSynopsis(id, synopsis);
+      let currentScene = -1;
+      let targetPos = -1;
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'sceneHeading') {
+          currentScene++;
+          if (currentScene === sceneIdx) { targetPos = pos; return false; }
+        }
+        return true;
+      });
+      if (targetPos >= 0) {
+        const node = editor.state.doc.nodeAt(targetPos);
+        if (node) {
+          const { tr } = editor.state;
+          tr.setNodeMarkup(targetPos, undefined, { ...node.attrs, synopsis });
+          tr.setMeta('addToHistory', false);
+          editor.view.dispatch(tr);
+        }
+      }
+    },
+    [synopsisModal, editor, updateSceneSynopsis],
+  );
 
   // The cards to display: pending order during reorder mode, otherwise live scenes
   const displayScenes = pendingScenes ?? scenes;
@@ -360,12 +397,32 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
       setDragIdx(index);
       setDragPos({ x: e.clientX, y: e.clientY });
       setInsertIdx(null);
+      scrollSpeedRef.current = 0;
+      lastClientPosRef.current = { x: e.clientX, y: e.clientY };
+
+      // Auto-scroll loop: runs every frame while dragging, applies current speed
+      const scrollLoop = () => {
+        const container = containerRef.current;
+        if (container && scrollSpeedRef.current !== 0) {
+          container.scrollTop += scrollSpeedRef.current;
+          // Recalculate insert index since visible cards shifted
+          if (lastClientPosRef.current) {
+            const gap = calcInsertIndexRef.current(lastClientPosRef.current.x, lastClientPosRef.current.y);
+            setInsertIdx(gap);
+          }
+        }
+        scrollRafRef.current = requestAnimationFrame(scrollLoop);
+      };
+      scrollRafRef.current = requestAnimationFrame(scrollLoop);
 
       const cleanup = () => {
         handle.removeEventListener('pointermove', handleMove);
         handle.removeEventListener('pointerup', handleUp);
         handle.removeEventListener('pointercancel', handleUp);
         handle.releasePointerCapture(e.pointerId);
+        cancelAnimationFrame(scrollRafRef.current);
+        scrollSpeedRef.current = 0;
+        lastClientPosRef.current = null;
         document.body.style.cursor = '';
         setDragIdx(null);
         setInsertIdx(null);
@@ -375,8 +432,26 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
       const handleMove = (ev: PointerEvent) => {
         ev.preventDefault();
         setDragPos({ x: ev.clientX, y: ev.clientY });
+        lastClientPosRef.current = { x: ev.clientX, y: ev.clientY };
         const gap = calcInsertIndexRef.current(ev.clientX, ev.clientY);
         setInsertIdx(gap);
+
+        // Compute auto-scroll speed based on proximity to container edges
+        const container = containerRef.current;
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          const EDGE = 60; // px from edge to trigger
+          const MAX = 12;  // max px per frame
+          if (ev.clientY < rect.top + EDGE) {
+            const t = 1 - Math.max(0, ev.clientY - rect.top) / EDGE;
+            scrollSpeedRef.current = -(t * MAX);
+          } else if (ev.clientY > rect.bottom - EDGE) {
+            const t = 1 - Math.max(0, rect.bottom - ev.clientY) / EDGE;
+            scrollSpeedRef.current = t * MAX;
+          } else {
+            scrollSpeedRef.current = 0;
+          }
+        }
       };
 
       const handleUp = (ev: PointerEvent) => {
@@ -465,7 +540,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
   const indicatorStyle = getIndicatorStyle();
 
   return (
-    <div className={containerClass}>
+    <div className={containerClass} ref={containerRef}>
       <div className="index-cards-header">
         <span className="index-cards-title">Index Cards</span>
         <span className="index-cards-count">{scenes.length} scenes</span>
@@ -526,15 +601,25 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
           >
             {fullscreen ? (
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <polyline points="9,1 13,1 13,5" /><line x1="13" y1="1" x2="8" y2="6" />
-                <polyline points="5,13 1,13 1,9" /><line x1="1" y1="13" x2="6" y2="8" />
+                <polyline points="9,1 9,5 13,5" /><line x1="13" y1="1" x2="9" y2="5" />
+                <polyline points="5,13 5,9 1,9" /><line x1="1" y1="13" x2="5" y2="9" />
               </svg>
             ) : (
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <polyline points="1,5 1,1 5,1" /><line x1="1" y1="1" x2="6" y2="6" />
-                <polyline points="13,9 13,13 9,13" /><line x1="13" y1="13" x2="8" y2="8" />
+                <polyline points="9,1 13,1 13,5" /><line x1="8" y1="6" x2="13" y2="1" />
+                <polyline points="5,13 1,13 1,9" /><line x1="6" y1="8" x2="1" y2="13" />
               </svg>
             )}
+          </button>
+          <button
+            className="ic-action-btn ic-close-btn"
+            onClick={() => { if (fullscreen) setFullscreen(false); toggleIndexCards(); }}
+            title="Close Index Cards"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <line x1="2" y1="2" x2="12" y2="12" />
+              <line x1="12" y1="2" x2="2" y2="12" />
+            </svg>
           </button>
         </div>
       </div>
@@ -592,17 +677,32 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
                         {scene.heading}
                       </div>
                     </div>
-                    <textarea
-                      className="index-card-synopsis"
-                      placeholder="Add synopsis..."
-                      value={scene.synopsis}
-                      onChange={(e) => {
-                        updateSceneSynopsis(scene.id, e.target.value);
-                        updateSynopsisAttr(scene.id, e.target.value);
-                      }}
-                      rows={3}
-                      disabled={dragMode}
-                    />
+                    <div className="index-card-synopsis-wrap">
+                      <textarea
+                        className="index-card-synopsis"
+                        placeholder="Add synopsis..."
+                        value={scene.synopsis}
+                        onChange={(e) => {
+                          updateSceneSynopsis(scene.id, e.target.value);
+                          updateSynopsisAttr(scene.id, e.target.value);
+                        }}
+                        rows={3}
+                        disabled={dragMode}
+                      />
+                      <button
+                        className="ic-synopsis-expand"
+                        onClick={() => setSynopsisModal({ sceneIdx: index, id: scene.id, heading: scene.heading, synopsis: scene.synopsis })}
+                        title="Expand synopsis"
+                        disabled={dragMode}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3">
+                          <polyline points="7,1 11,1 11,5" />
+                          <line x1="11" y1="1" x2="6.5" y2="5.5" />
+                          <polyline points="5,11 1,11 1,7" />
+                          <line x1="1" y1="11" x2="5.5" y2="6.5" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -616,6 +716,16 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
           </>
         )}
       </div>
+
+      {/* Synopsis modal */}
+      {synopsisModal && (
+        <SynopsisModal
+          sceneHeading={synopsisModal.heading}
+          synopsis={synopsisModal.synopsis}
+          onSave={handleSaveSynopsis}
+          onClose={() => setSynopsisModal(null)}
+        />
+      )}
 
       {/* Floating drag overlay — exact clone of the dragged card */}
       {dragIdx !== null && dragPos && dragCardHtml && (

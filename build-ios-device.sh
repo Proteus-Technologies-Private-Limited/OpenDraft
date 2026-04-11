@@ -110,7 +110,7 @@ fi
 
 echo "==> Installing on connected device..."
 # Extract the UUID (8-4-4-4-12 hex pattern) from the first available device line
-DEVICE_ID=$(xcrun devicectl list devices 2>/dev/null | grep "available" | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' | head -1)
+DEVICE_ID=$(xcrun devicectl list devices 2>/dev/null | grep -v "unavailable" | grep "available" | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' | head -1)
 if [ -z "$DEVICE_ID" ]; then
   echo "Error: No available iOS device found. Connect a device and try again."
   echo "  IPA is at: $PATCHED_IPA"

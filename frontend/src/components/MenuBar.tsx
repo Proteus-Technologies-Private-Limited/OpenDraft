@@ -792,7 +792,14 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           children: [
             { icon: <FaCompressArrowsAlt />, label: toolbarMode === 'compact' ? '\u2713 Compact' : 'Compact', action: () => setToolbarMode('compact') },
             { icon: <FaExpandArrowsAlt />, label: toolbarMode === 'comfortable' ? '\u2713 Comfortable' : 'Comfortable', action: () => setToolbarMode('comfortable') },
-            { icon: <FaEyeSlash />, label: toolbarMode === 'hidden' ? '\u2713 Hidden' : 'Hidden', action: () => setToolbarMode('hidden') },
+            { icon: <FaEyeSlash />, label: toolbarMode === 'hidden' ? '\u2713 Hidden' : 'Hidden', action: () => {
+              const shown = localStorage.getItem('opendraft:hiddenModeIntroShown');
+              setToolbarMode('hidden');
+              if (!shown) {
+                setShowHiddenModeIntro(true);
+                localStorage.setItem('opendraft:hiddenModeIntroShown', '1');
+              }
+            }},
           ],
         },
         {
@@ -882,7 +889,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
 
   // Track the active menu item's position for the portal dropdown
   const menuItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; left: number }>({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!activeMenu) return;
@@ -891,12 +898,99 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       const rect = el.getBoundingClientRect();
       const dropdownWidth = 260; // min-width of .menu-dropdown
       const left = Math.min(rect.left, window.innerWidth - dropdownWidth - 8);
-      setDropdownPos({ top: rect.bottom, left });
+
+      // In floating mode, position relative to the panel edges (not individual items)
+      // so the dropdown clears the rounded, padded floating menu panel.
+      if (toolbarMode === 'hidden' && menuRef.current) {
+        const panelRect = menuRef.current.getBoundingClientRect();
+        if (panelRect.bottom > window.innerHeight * 0.55) {
+          setDropdownPos({ bottom: window.innerHeight - panelRect.top + 4, left, top: undefined });
+        } else {
+          setDropdownPos({ top: panelRect.bottom + 4, left, bottom: undefined });
+        }
+      } else {
+        setDropdownPos({ top: rect.bottom, left, bottom: undefined });
+      }
     }
-  }, [activeMenu]);
+  }, [activeMenu, toolbarMode]);
 
   // Floating menu toggle (hidden mode)
   const [floatingMenuOpen, setFloatingMenuOpen] = useState(false);
+  const [showHiddenModeIntro, setShowHiddenModeIntro] = useState(false);
+
+  // Draggable FAB position — persisted to localStorage
+  const FAB_POS_KEY = 'opendraft:fabPosition';
+  const FAB_SIZE = 36;
+  const [fabPos, setFabPos] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      const s = localStorage.getItem('opendraft:fabPosition');
+      if (s) {
+        const p = JSON.parse(s);
+        return {
+          x: Math.max(0, Math.min(p.x, window.innerWidth - 36)),
+          y: Math.max(0, Math.min(p.y, window.innerHeight - 36)),
+        };
+      }
+    } catch {}
+    return null;
+  });
+  const fabDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number; isDrag: boolean } | null>(null);
+  const fabWasDragRef = useRef(false);
+  const fabX = fabPos?.x ?? (navPanelWidth + 14);
+  const fabY = fabPos?.y ?? 10;
+
+  const handleFabPointerDown = useCallback((e: React.PointerEvent) => {
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    fabDragRef.current = {
+      startX: e.clientX, startY: e.clientY,
+      originX: fabPos?.x ?? (navPanelWidth + 14),
+      originY: fabPos?.y ?? 10,
+      isDrag: false,
+    };
+  }, [fabPos, navPanelWidth]);
+
+  const handleFabPointerMove = useCallback((e: React.PointerEvent) => {
+    const d = fabDragRef.current;
+    if (!d) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    if (!d.isDrag && Math.abs(dx) + Math.abs(dy) > 5) {
+      d.isDrag = true;
+      setFloatingMenuOpen(false);
+    }
+    if (d.isDrag) {
+      setFabPos({
+        x: Math.max(0, Math.min(window.innerWidth - FAB_SIZE, d.originX + dx)),
+        y: Math.max(0, Math.min(window.innerHeight - FAB_SIZE, d.originY + dy)),
+      });
+    }
+  }, [FAB_SIZE]);
+
+  const handleFabPointerUp = useCallback((e: React.PointerEvent) => {
+    const d = fabDragRef.current;
+    fabDragRef.current = null;
+    if (!d) return;
+    fabWasDragRef.current = true; // Prevent onClick from double-toggling
+    if (d.isDrag) {
+      const pos = {
+        x: Math.max(0, Math.min(window.innerWidth - FAB_SIZE, d.originX + (e.clientX - d.startX))),
+        y: Math.max(0, Math.min(window.innerHeight - FAB_SIZE, d.originY + (e.clientY - d.startY))),
+      };
+      setFabPos(pos);
+      localStorage.setItem(FAB_POS_KEY, JSON.stringify(pos));
+    } else {
+      setFloatingMenuOpen(prev => !prev); // Instant toggle on tap
+    }
+  }, [FAB_POS_KEY, FAB_SIZE]);
+
+  // Fallback: if pointerUp didn't fire (some Android WebViews), onClick handles it
+  const handleFabClick = useCallback(() => {
+    if (fabWasDragRef.current) {
+      fabWasDragRef.current = false;
+      return;
+    }
+    setFloatingMenuOpen(prev => !prev);
+  }, []);
 
   // Icon map for menu labels
   const menuIcons: Record<string, React.ReactNode> = {
@@ -964,17 +1058,36 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         <>
           <div
             className={`menu-fab ${floatingMenuOpen ? 'menu-fab--open' : ''}`}
-            style={{ left: navPanelWidth + 14 }}
-            onClick={() => setFloatingMenuOpen(!floatingMenuOpen)}
-            title="Menu"
+            style={{ left: fabX, top: fabY }}
+            onPointerDown={handleFabPointerDown}
+            onPointerMove={handleFabPointerMove}
+            onPointerUp={handleFabPointerUp}
+            onClick={handleFabClick}
+            onMouseDown={(e) => e.nativeEvent.stopImmediatePropagation()}
+            title="Menu (drag to reposition)"
           >
             <FaBars />
           </div>
-          {floatingMenuOpen && (
-            <div className="menu-bar chrome-comfortable menu-bar--floating" style={{ left: navPanelWidth + 14 }} ref={menuRef}>
-              {renderMenuItems()}
-            </div>
-          )}
+          {floatingMenuOpen && (() => {
+            const fabInBottom = fabY > window.innerHeight * 0.55;
+            const fabInRight = fabX > window.innerWidth * 0.5;
+            const mStyle: React.CSSProperties = {};
+            if (fabInBottom) {
+              mStyle.bottom = window.innerHeight - fabY + 8;
+            } else {
+              mStyle.top = fabY + FAB_SIZE + 8;
+            }
+            if (fabInRight) {
+              mStyle.right = window.innerWidth - fabX - FAB_SIZE;
+            } else {
+              mStyle.left = fabX;
+            }
+            return (
+              <div className="menu-bar chrome-comfortable menu-bar--floating" style={mStyle} ref={menuRef}>
+                {renderMenuItems()}
+              </div>
+            );
+          })()}
         </>,
         document.body,
       )
@@ -985,8 +1098,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     )}
     {activeMenuData && createPortal(
       <div
-        className={`menu-dropdown${toolbarMode === 'comfortable' ? ' menu-dropdown--comfortable' : ''}`}
-        style={{ top: dropdownPos.top, left: dropdownPos.left }}
+        className={`menu-dropdown${toolbarMode === 'comfortable' ? ' menu-dropdown--comfortable' : ''}${dropdownPos.bottom != null ? ' menu-dropdown--above' : ''}`}
+        style={{ top: dropdownPos.top, bottom: dropdownPos.bottom, left: dropdownPos.left }}
       >
         {activeMenuData.items.map((item, i) =>
           item.separator ? (
@@ -1010,6 +1123,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
                       el.classList.add('submenu-flip');
                     } else {
                       el.classList.remove('submenu-flip');
+                    }
+                    if (rect.bottom > window.innerHeight) {
+                      el.classList.add('submenu-flip-y');
+                    } else {
+                      el.classList.remove('submenu-flip-y');
                     }
                   }
                 }}
@@ -1049,6 +1167,30 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             </div>
           )
         )}
+      </div>,
+      document.body,
+    )}
+    {showHiddenModeIntro && createPortal(
+      <div className="dialog-overlay" onClick={() => setShowHiddenModeIntro(false)}>
+        <div className="hidden-mode-intro" onClick={(e) => e.stopPropagation()}>
+          <div className="dialog-header">Hidden Mode</div>
+          <div className="hidden-mode-intro-body">
+            <div className="hidden-mode-intro-icon">
+              <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="var(--fd-accent)" strokeWidth="1.5">
+                <circle cx="20" cy="20" r="18" fill="var(--fd-overlay-subtle)" />
+                <line x1="14" y1="14" x2="14" y2="26" strokeWidth="2.5" strokeLinecap="round" />
+                <line x1="20" y1="14" x2="20" y2="26" strokeWidth="2.5" strokeLinecap="round" />
+                <line x1="26" y1="14" x2="26" y2="26" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
+            </div>
+            <p>The menu bar is now hidden. A <strong>floating menu button</strong> has been placed on screen to access all menus.</p>
+            <p>You can <strong>drag the button</strong> to reposition it anywhere on screen. Your preferred position will be remembered.</p>
+            <p>To restore the menu bar, tap the button and go to <strong>View &gt; Menu &amp; Toolbar</strong>.</p>
+          </div>
+          <div className="dialog-footer">
+            <button className="dialog-btn dialog-btn-primary" onClick={() => setShowHiddenModeIntro(false)}>Got it</button>
+          </div>
+        </div>
       </div>,
       document.body,
     )}
