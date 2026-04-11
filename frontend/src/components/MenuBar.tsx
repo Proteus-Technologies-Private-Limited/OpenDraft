@@ -1092,12 +1092,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.14.1</div>
+              <div className="about-section-title">What's New in 0.15.0</div>
               <ul className="about-list">
-                <li><strong>Mobile Export &amp; Import</strong> — Export (FDX, Fountain, PDF) and import now work reliably on both iOS and Android using native share sheets and file pickers.</li>
-                <li><strong>iOS File Associations</strong> — Open .fdx, .fountain, and .odraft files directly from the iOS Files app or any app via "Open With". Security-scoped file access is handled automatically.</li>
-                <li><strong>Error Notifications</strong> — Export and import operations now show clear error messages via toast notifications instead of failing silently.</li>
-                <li><strong>Android Share Intent</strong> — Android exports use the native share chooser, letting you save to Files, Drive, or share via any installed app.</li>
+                <li><strong>iPad &amp; Touch UX</strong> — Touch-friendly comfortable mode with larger tap targets, proper iPadOS detection, and iPad keyboard dismissal fix.</li>
+                <li><strong>Element Type Shortcuts</strong> — Press Cmd/Ctrl-1 through 8 to quickly switch element types (Scene Heading, Action, Character, etc.) while writing.</li>
+                <li><strong>Collaboration UX</strong> — Password show/hide toggles in the collab login dialog and persistent display name across sessions.</li>
               </ul>
             </div>
           </div>

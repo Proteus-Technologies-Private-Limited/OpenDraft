@@ -70,3 +70,6 @@ dist/
 
 # Fastlane keys (service account, API keys)
 fastlane/keys/
+
+# Videos
+Videos/
