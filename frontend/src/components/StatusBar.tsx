@@ -2,6 +2,14 @@ import React from 'react';
 import { useEditorStore, ELEMENT_LABELS } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 
+const SAVE_STATUS_DISPLAY: Record<string, { label: string; className: string }> = {
+  idle: { label: '', className: '' },
+  unsaved: { label: 'Unsaved changes', className: 'status-save-unsaved' },
+  saving: { label: 'Saving\u2026', className: 'status-save-saving' },
+  saved: { label: 'Saved', className: 'status-save-saved' },
+  error: { label: 'Save failed', className: 'status-save-error' },
+};
+
 const StatusBar: React.FC = () => {
   const {
     activeElement,
@@ -10,9 +18,12 @@ const StatusBar: React.FC = () => {
     revisionMode,
     revisionColor,
     documentTitle,
+    saveStatus,
   } = useEditorStore();
 
   const { currentProject } = useProjectStore();
+
+  const saveDisplay = SAVE_STATUS_DISPLAY[saveStatus] || SAVE_STATUS_DISPLAY.idle;
 
   return (
     <div className="status-bar">
@@ -22,6 +33,12 @@ const StatusBar: React.FC = () => {
         )}
         {currentProject && <span className="status-sep">/</span>}
         <span className="status-item">{documentTitle}</span>
+        {saveDisplay.label && (
+          <>
+            <span className="status-sep">&middot;</span>
+            <span className={`status-item ${saveDisplay.className}`}>{saveDisplay.label}</span>
+          </>
+        )}
       </div>
       <div className="status-center">
         <span className="status-item status-element">

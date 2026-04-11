@@ -220,6 +220,7 @@ const ScreenplayEditor: React.FC = () => {
     characterProfilesOpen, tagsPanelOpen,
     spellCheckEnabled, toggleSpellCheck, setDocumentTitle,
     sceneNumbersVisible, sceneNumbersLocked,
+    saveStatus, saveError, setSaveStatus,
   } = useEditorStore();
 
   const { currentProject, currentScriptId, setCurrentProject, setCurrentScriptId, scriptReloadKey } = useProjectStore();
@@ -234,6 +235,13 @@ const ScreenplayEditor: React.FC = () => {
   const [joinCollabOpen, setJoinCollabOpen] = useState(false);
   const [collabUsers, setCollabUsers] = useState<{ name: string; color: string }[]>([]);
   const collabColor = useMemo(() => randomCollabColor(), []);
+  const [collabConnectionState, setCollabConnectionState] = useState<'connecting' | 'connected' | 'synced' | 'disconnected'>('connecting');
+  // ── Collaboration activity log ──
+  const [collabActivityLog, setCollabActivityLog] = useState<{ time: Date; message: string }[]>([]);
+  const [collabActivityOpen, setCollabActivityOpen] = useState(false);
+  const addCollabActivity = useCallback((message: string) => {
+    setCollabActivityLog((prev) => [...prev.slice(-49), { time: new Date(), message }]);
+  }, []);
 
   // ── Panel resize state ──
   const [navWidth, setNavWidth] = useState(240);
@@ -337,6 +345,9 @@ const ScreenplayEditor: React.FC = () => {
     destroyCollab();
     collabDocNameRef.current = docName;
     collabExitingRef.current = false;
+    setCollabConnectionState('connecting');
+    setCollabActivityLog([]);
+    addCollabActivity('Starting collaboration session');
     const ydoc = new Y.Doc();
 
     // Build compound token: "jwt:<access>|invite:<invite>" when auth is available and valid
@@ -370,12 +381,20 @@ const ScreenplayEditor: React.FC = () => {
       token,
       onConnect: () => {
         console.log(`[Collab] Connected to room "${docName}" (${isHost ? 'host' : 'guest'})`);
+        setCollabConnectionState('connected');
+        addCollabActivity('Connected to collaboration server');
       },
       onClose: ({ event }) => {
         console.log(`[Collab] Connection closed for "${docName}": code=${event.code}`);
+        setCollabConnectionState('disconnected');
+        addCollabActivity(`Connection lost (code ${event.code})`);
       },
       onSynced: ({ state }) => {
         console.log(`[Collab] Synced for "${docName}": state=${state}, isHost=${isHost}`);
+        if (state) {
+          setCollabConnectionState('synced');
+          addCollabActivity('Document synced');
+        }
         // After initial sync, if the Yjs doc is empty (fresh room) and we have
         // content to seed, force-set it via the editor.
         if (state && isHost && providerRef.current === provider) {
@@ -443,7 +462,18 @@ const ScreenplayEditor: React.FC = () => {
           }
           if (user?.name) users.push(user);
         });
-        setCollabUsers(users);
+        // Detect user join/leave for activity log
+        setCollabUsers((prev) => {
+          const prevNames = new Set(prev.map((u) => u.name));
+          const newNames = new Set(users.map((u) => u.name));
+          for (const u of users) {
+            if (!prevNames.has(u.name)) addCollabActivity(`${u.name} joined the session`);
+          }
+          for (const u of prev) {
+            if (!newNames.has(u.name)) addCollabActivity(`${u.name} left the session`);
+          }
+          return users;
+        });
         // Only guests react to sessionEnded / documentSwitch — the host
         // handles these itself via handleStopCollab / switchCollabDocument.
         // Without this guard the host processes its OWN awareness broadcast,
@@ -1681,20 +1711,40 @@ const ScreenplayEditor: React.FC = () => {
   const isCollabGuest = collabMode && !isCollabHost;
   useEffect(() => {
     if (!editor || !currentProject || !currentScriptId || isCollabGuest) return;
+    const { setSaveStatus } = useEditorStore.getState();
     const timer = setInterval(() => {
       const content = buildSaveContent();
       if (!content) return;
       const json = JSON.stringify(content);
       if (json !== lastSavedJsonRef.current) {
         lastSavedJsonRef.current = json;
-        api.saveScript(currentProject.id, currentScriptId, { content }).catch((err) => {
+        setSaveStatus('saving');
+        api.saveScript(currentProject.id, currentScriptId, { content }).then(() => {
+          setSaveStatus('saved');
+        }).catch((err) => {
           console.error('Auto-save failed:', err);
-          showToast(`Auto-save failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+          const msg = err instanceof Error ? err.message : String(err);
+          setSaveStatus('error', msg);
+          showToast(`Auto-save failed: ${msg}`, 'error');
         });
       }
     }, 30000);
     return () => clearInterval(timer);
   }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
+
+  // --- Track unsaved changes for status bar ---
+  useEffect(() => {
+    if (!editor || !currentProject || !currentScriptId || isCollabGuest) return;
+    const markUnsaved = () => {
+      const { saveStatus } = useEditorStore.getState();
+      // Only mark unsaved if we're in idle or saved state (not during saving or error)
+      if (saveStatus === 'idle' || saveStatus === 'saved') {
+        useEditorStore.getState().setSaveStatus('unsaved');
+      }
+    };
+    editor.on('update', markUnsaved);
+    return () => { editor.off('update', markUnsaved); };
+  }, [editor, currentProject, currentScriptId, isCollabGuest]);
 
   // --- Save on page unload (refresh / close) ---
   // Uses api.saveScript so it works on both web/desktop (HTTP) and mobile (SQLite).
@@ -1870,6 +1920,8 @@ const ScreenplayEditor: React.FC = () => {
         }
 
         setDocumentTitle(scriptResp.meta.title);
+        useEditorStore.getState().setSaveStatus('idle');
+        lastSavedJsonRef.current = '';
         requestAnimationFrame(() => updateScenes());
       } catch (err) {
         console.error('Failed to load script:', err);
@@ -2285,10 +2337,13 @@ const ScreenplayEditor: React.FC = () => {
       const { invoke } = await import('@tauri-apps/api/core');
       invokeRef = (cmd: string) => invoke<string | null>(cmd);
 
-      // Set up event listener FIRST to catch re-emitted events from Rust
+      // Set up event listener FIRST to catch re-emitted events from Rust.
+      // Use window-scoped listener so emit_to(label) only reaches THIS window
+      // and doesn't replace content in other open windows.
       try {
-        const { listen } = await import('@tauri-apps/api/event');
-        const unlisten = await listen<string>('open-file', (event) => {
+        const { getCurrentWebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+        const currentWindow = getCurrentWebviewWindow();
+        const unlisten = await currentWindow.listen<string>('open-file', (event) => {
           if (!cancelled && event.payload !== handledPath) {
             console.log('[file-assoc] open-file event:', event.payload);
             handledPath = event.payload;
@@ -2514,6 +2569,83 @@ const ScreenplayEditor: React.FC = () => {
     setDropConfirmOpen(false);
     setPendingDropFile(null);
   }, []);
+
+  // ── Tauri native drag-and-drop handler ──
+  // On desktop Tauri, the webview intercepts OS file drops at the native level,
+  // so the browser's drop event may not include the actual files. We listen for
+  // Tauri's onDragDropEvent which provides file paths directly.
+  const pendingDropPathRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!editor) return;
+    let cancelled = false;
+    let unlistenFn: (() => void) | null = null;
+
+    (async () => {
+      const { isTauri } = await import('../services/platform');
+      if (!isTauri() || cancelled) return;
+
+      try {
+        const { getCurrentWebview } = await import('@tauri-apps/api/webview');
+        const { invoke } = await import('@tauri-apps/api/core');
+        const webview = getCurrentWebview();
+
+        const unlisten = await webview.onDragDropEvent((event) => {
+          if (cancelled) return;
+          const payload = event.payload;
+
+          if (payload.type === 'enter' || payload.type === 'over') {
+            setDragOverEditor(true);
+          } else if (payload.type === 'leave') {
+            setDragOverEditor(false);
+          } else if (payload.type === 'drop') {
+            setDragOverEditor(false);
+            const paths = payload.paths;
+            if (!paths || paths.length === 0) return;
+            const filePath = paths[0];
+            const ext = filePath.split('.').pop()?.toLowerCase();
+            if (!ext || !IMPORTABLE_EXTENSIONS.includes(ext)) {
+              showToast('Unsupported file type. Drop a .fdx, .fountain, .odraft, or .txt file.', 'error');
+              return;
+            }
+
+            // Read the file using Tauri's read_text_file command and import it
+            const importTauriFile = async (path: string) => {
+              try {
+                const text = await invoke<string>('read_text_file', { path });
+                const filename = path.replace(/^.*[\\/]/, '') || 'Untitled';
+                const file = new File([text], filename, { type: 'text/plain' });
+
+                if (hasUnsavedChanges()) {
+                  pendingDropPathRef.current = path;
+                  setPendingDropFile(file);
+                  setDropConfirmOpen(true);
+                } else {
+                  importDroppedFile(file);
+                }
+              } catch (err) {
+                console.error('Failed to read dropped file:', err);
+                showToast(`Failed to read file: ${err instanceof Error ? err.message : String(err)}`, 'error');
+              }
+            };
+            importTauriFile(filePath);
+          }
+        });
+
+        if (cancelled) {
+          unlisten();
+        } else {
+          unlistenFn = unlisten;
+        }
+      } catch (err) {
+        console.error('Failed to set up Tauri drag-drop listener:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      unlistenFn?.();
+    };
+  }, [editor, hasUnsavedChanges, importDroppedFile]);
 
   const handleSaveAsComplete = useCallback(
     async (projectId: string, _projectName: string, scriptId: string, scriptTitle: string) => {
@@ -2781,10 +2913,11 @@ const ScreenplayEditor: React.FC = () => {
       )}
       {collabMode && (
         <div className="collab-banner">
-          <span className="collab-dot" />
+          <span className={`collab-dot${collabConnectionState === 'disconnected' ? ' collab-dot-disconnected' : collabConnectionState === 'connecting' || collabConnectionState === 'connected' ? ' collab-dot-connecting' : ''}`} />
           <span className="collab-banner-text">
-            Live Collaboration — {collabRole === 'viewer' ? 'Read Only' : 'Editing'} as <strong>{collabUserName}</strong>
-            {collabUsers.length > 0 && ` — ${collabUsers.length} user${collabUsers.length !== 1 ? 's' : ''} connected`}
+            Live Collaboration{collabConnectionState === 'synced' ? '' : collabConnectionState === 'disconnected' ? ' — Reconnecting\u2026' : ' — Connecting\u2026'}
+            {collabConnectionState === 'synced' && <> — {collabRole === 'viewer' ? 'Read Only' : 'Editing'} as <strong>{collabUserName}</strong></>}
+            {collabConnectionState === 'synced' && collabUsers.length > 0 && ` — ${collabUsers.length} user${collabUsers.length !== 1 ? 's' : ''} connected`}
           </span>
           <div className="collab-avatars">
             {collabUsers.map((u, i) => (
@@ -2824,8 +2957,76 @@ const ScreenplayEditor: React.FC = () => {
               Invite
             </button>
           )}
+          <div className="collab-activity-wrapper">
+            <button className="collab-banner-btn collab-activity-btn" onClick={() => setCollabActivityOpen((v) => !v)} title="Activity Log">
+              <span className="collab-activity-label">Activity</span>
+              <svg className="collab-activity-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </button>
+            {collabActivityOpen && (
+              <div className="collab-activity-dropdown">
+                <div className="collab-activity-header">
+                  <strong>Activity Log</strong>
+                  <button className="collab-activity-close" onClick={() => setCollabActivityOpen(false)}>&times;</button>
+                </div>
+                <div className="collab-activity-list">
+                  {collabActivityLog.length === 0 && <div className="collab-activity-empty">No events yet</div>}
+                  {[...collabActivityLog].reverse().map((entry, i) => (
+                    <div key={i} className="collab-activity-item">
+                      <span className="collab-activity-time">{entry.time.toLocaleTimeString()}</span>
+                      <span className="collab-activity-msg">{entry.message}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <button className="collab-banner-btn collab-banner-btn-stop" onClick={handleStopCollab}>
             {isCollabHost ? 'End Session' : 'Disconnect'}
+          </button>
+        </div>
+      )}
+      {saveStatus === 'error' && currentProject && currentScriptId && (
+        <div className="save-failure-banner">
+          <span className="save-failure-icon">&#9888;</span>
+          <span className="save-failure-text">
+            Auto-save failed{saveError ? `: ${saveError}` : ''}. Your changes may not be saved.
+          </span>
+          <button className="save-failure-btn" onClick={() => {
+            const content = buildSaveContent();
+            if (!content || !currentProject || !currentScriptId) return;
+            setSaveStatus('saving');
+            api.saveScript(currentProject.id, currentScriptId, { content }).then(() => {
+              lastSavedJsonRef.current = JSON.stringify(content);
+              setSaveStatus('saved');
+              showToast('Saved successfully', 'success');
+            }).catch((err) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              setSaveStatus('error', msg);
+            });
+          }}>
+            Retry
+          </button>
+          <button className="save-failure-btn" onClick={() => {
+            useEditorStore.getState().setSaveAsOpen(true);
+          }}>
+            Save As
+          </button>
+          <button className="save-failure-btn" onClick={() => {
+            const content = buildSaveContent();
+            if (!content) return;
+            const blob = new Blob([JSON.stringify(content, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${useEditorStore.getState().documentTitle || 'backup'}_backup.odraft`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Backup exported', 'success');
+          }}>
+            Export Backup
+          </button>
+          <button className="save-failure-dismiss" onClick={() => setSaveStatus('unsaved')}>
+            &times;
           </button>
         </div>
       )}

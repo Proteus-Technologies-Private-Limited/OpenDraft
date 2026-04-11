@@ -19,6 +19,7 @@ import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFo
 import { pluginRegistry } from '../plugins/registry';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { openTextFile } from '../utils/fileOps';
+import { isTauri } from '../services/platform';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
 import {
   FaFile,
@@ -660,6 +661,18 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           disabled: isCollabGuest,
           action: handleNewScreenplay,
         },
+        ...(isTauri() ? [{
+          icon: <FaFile />,
+          label: 'New Window',
+          action: async () => {
+            try {
+              const { invoke } = await import('@tauri-apps/api/core');
+              await invoke('open_new_window');
+            } catch (err) {
+              showToast(`Failed to open new window: ${err instanceof Error ? err.message : String(err)}`, 'error');
+            }
+          },
+        }] : []),
         { separator: true, label: '' },
         { icon: <FaFileImport />, label: 'Import...', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
         { icon: <FaFolderOpen />, label: 'Open from Project...', action: () => confirmOrRun(() => setOpenFromProjectOpen(true)), disabled: isCollabGuest },

@@ -1550,6 +1550,72 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .status-element { color: var(--fd-accent); font-weight: 500; }
 .status-revision { color: #f0ad4e; }
 .status-page { font-variant-numeric: tabular-nums; }
+/* Save failure recovery banner */
+.save-failure-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  background: linear-gradient(90deg, #3a1a1a 0%, #3a2a1a 100%);
+  border-bottom: 1px solid #7a3a3a;
+  font-size: 13px;
+  color: #e0a0a0;
+  min-height: 32px;
+  flex-shrink: 0;
+}
+.save-failure-icon {
+  font-size: 16px;
+  color: #ef4444;
+  flex-shrink: 0;
+}
+.save-failure-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.save-failure-btn {
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid #7a3a3a;
+  background: transparent;
+  color: #e0a0a0;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.save-failure-btn:hover {
+  background: #4a2a2a;
+}
+.save-failure-dismiss {
+  background: none;
+  border: none;
+  color: #e0a0a0;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+  line-height: 1;
+}
+[data-theme="light"] .save-failure-banner {
+  background: linear-gradient(90deg, #fde8e8 0%, #fef3e2 100%);
+  border-bottom-color: #ef9a9a;
+  color: #c62828;
+}
+[data-theme="light"] .save-failure-btn {
+  border-color: #ef9a9a;
+  color: #c62828;
+}
+[data-theme="light"] .save-failure-btn:hover {
+  background: #ffcdd2;
+}
+[data-theme="light"] .save-failure-dismiss {
+  color: #c62828;
+}
+
+.status-save-unsaved { color: #f0ad4e; }
+.status-save-saving { color: var(--fd-accent); }
+.status-save-saved { color: #4ade80; }
+.status-save-error { color: #ef4444; font-weight: 500; }
 
 /* ============ SEARCH & REPLACE PANEL ============ */
 .search-replace-panel {
@@ -7296,6 +7362,37 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
+  /* Activity: avatar-sized icon button on small screens */
+  .collab-activity-label { display: none !important; }
+  .collab-activity-icon { display: block !important; }
+  .collab-activity-btn {
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    min-height: unset;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    background: #3a7a5a;
+    border-color: transparent;
+    color: #fff;
+  }
+  .collab-activity-btn:hover {
+    background: #4a8a6a;
+  }
+  .collab-activity-dropdown {
+    width: calc(100vw - 24px);
+    max-width: 320px;
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    position: fixed;
+    top: auto;
+    margin-top: 6px;
+    max-height: 50vh;
+  }
 
   /* Beat board: narrower columns, touch-scroll */
   .beat-column { min-width: 240px; max-width: 320px; }
@@ -7502,6 +7599,33 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   input[type="text"], input[type="search"], input[type="number"],
   textarea, select {
     font-size: 16px;
+  }
+
+  /* Activity dropdown: full-width bottom sheet on phone */
+  .collab-activity-dropdown {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    transform: none !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    max-height: 60vh;
+    border-radius: 12px 12px 0 0;
+    margin-top: 0;
+  }
+  .collab-activity-header {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+  .collab-activity-item {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  .collab-activity-close {
+    font-size: 20px;
+    padding: 4px 8px;
   }
 
   /* Touch: improve tap targets globally */
@@ -7719,6 +7843,82 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   background: #3a2a2a;
 }
 
+/* Collab connection state dot variants */
+.collab-dot-disconnected {
+  background: #ef4444;
+  animation: none;
+}
+.collab-dot-connecting {
+  background: #f0ad4e;
+}
+
+/* Collab activity log */
+.collab-activity-label { display: inline; }
+.collab-activity-icon { display: none; flex-shrink: 0; }
+.collab-activity-wrapper {
+  position: relative;
+}
+.collab-activity-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  width: 300px;
+  max-height: 280px;
+  background: #1a2a2a;
+  border: 1px solid #2a5a3a;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+.collab-activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #2a5a3a;
+  font-size: 12px;
+  color: #a0d0b0;
+}
+.collab-activity-close {
+  background: none;
+  border: none;
+  color: #a0d0b0;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.collab-activity-list {
+  overflow-y: auto;
+  padding: 4px 0;
+  flex: 1;
+}
+.collab-activity-item {
+  padding: 4px 12px;
+  font-size: 11px;
+  color: #a0d0b0;
+  display: flex;
+  gap: 8px;
+}
+.collab-activity-time {
+  color: #6a9a7a;
+  flex-shrink: 0;
+}
+.collab-activity-msg {
+  flex: 1;
+}
+.collab-activity-empty {
+  padding: 12px;
+  text-align: center;
+  font-size: 11px;
+  color: #6a9a7a;
+}
+/* Activity button: text on desktop, icon on small screens.
+   IMPORTANT: these base rules must appear before @media overrides. */
+
 /* Share dialog */
 .collab-status-badge {
   display: flex;
@@ -7868,6 +8068,27 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 
 [data-theme="light"] .collab-banner-btn-stop:hover {
   background: #ffcdd2;
+}
+
+[data-theme="light"] .collab-activity-dropdown {
+  background: #f5f5f5;
+  border-color: #a5d6a7;
+}
+[data-theme="light"] .collab-activity-header {
+  border-bottom-color: #a5d6a7;
+  color: #2e7d32;
+}
+[data-theme="light"] .collab-activity-close {
+  color: #2e7d32;
+}
+[data-theme="light"] .collab-activity-item {
+  color: #333;
+}
+[data-theme="light"] .collab-activity-time {
+  color: #666;
+}
+[data-theme="light"] .collab-activity-empty {
+  color: #666;
 }
 
 [data-theme="light"] .collab-status-badge {

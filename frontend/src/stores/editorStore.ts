@@ -432,6 +432,11 @@ interface EditorState {
   compareVersionOpen: boolean;
   setCompareVersionOpen: (v: boolean) => void;
 
+  // Save status
+  saveStatus: 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
+  saveError: string | null;
+  setSaveStatus: (status: 'idle' | 'unsaved' | 'saving' | 'saved' | 'error', error?: string | null) => void;
+
   // Dialogs
   searchOpen: boolean;
   setSearchOpen: (open: boolean) => void;
@@ -822,6 +827,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setTrackChangesLabel: (v) => set({ trackChangesLabel: v }),
   compareVersionOpen: false,
   setCompareVersionOpen: (v) => set({ compareVersionOpen: v }),
+
+  saveStatus: 'idle',
+  saveError: null,
+  setSaveStatus: (status, error = null) => set({ saveStatus: status, saveError: error }),
 
   searchOpen: false,
   setSearchOpen: (open) => set({ searchOpen: open }),

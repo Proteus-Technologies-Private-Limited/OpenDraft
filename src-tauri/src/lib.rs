@@ -851,6 +851,31 @@ fn guess_mime(path: &std::path::Path) -> &'static str {
     }
 }
 
+// ── New window command (for multi-instance support) ──────────────────────
+// Each WebviewWindow gets its own JS context, so editor state is independent.
+use std::sync::atomic::{AtomicU32, AtomicBool, Ordering};
+static WINDOW_COUNTER: AtomicU32 = AtomicU32::new(1);
+/// Set to true once the main window has finished loading.
+/// Used to distinguish cold-start file opens (load into main window)
+/// from warm-start file opens (open in a new window).
+static APP_READY: AtomicBool = AtomicBool::new(false);
+
+#[tauri::command]
+async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
+    let count = WINDOW_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let label = format!("main-{}", count);
+    // Use "/" so BrowserRouter matches the root route (not "/index.html")
+    let url = tauri::WebviewUrl::App("/".into());
+    tauri::WebviewWindowBuilder::new(&app, &label, url)
+        .title("OpenDraft")
+        .inner_size(1280.0, 800.0)
+        .min_inner_size(800.0, 600.0)
+        .resizable(true)
+        .build()
+        .map_err(|e| format!("Failed to create window: {}", e))?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -905,6 +930,7 @@ pub fn run() {
             android_pick_file,
             android_get_picked_file,
             android_check_new_intent,
+            open_new_window,
         ]);
 
         // ── Native menu (desktop only) ────────────────────────────────
@@ -1017,7 +1043,7 @@ pub fn run() {
                         for delay_ms in [500, 1500, 3000] {
                             std::thread::sleep(std::time::Duration::from_millis(delay_ms));
                             eprintln!("[file-assoc] Android re-emit open-file after {}ms", delay_ms);
-                            let _ = handle.emit("open-file", &uri);
+                            let _ = handle.emit_to("main", "open-file", &uri);
                         }
                     });
                 }
@@ -1041,6 +1067,8 @@ pub fn run() {
                     if let Some(sp) = splash {
                         let _ = sp.close();
                     }
+                    // Mark app as ready — subsequent file opens go to new windows
+                    APP_READY.store(true, Ordering::Release);
                 });
             }
 
@@ -1106,13 +1134,49 @@ pub fn run() {
 
                     eprintln!("[file-assoc] RunEvent::Opened: {}", path_str);
 
+                    // Desktop warm start: open file in a new window
+                    #[cfg(desktop)]
+                    if APP_READY.load(Ordering::Acquire) {
+                        eprintln!("[file-assoc] App already running — opening in new window");
+                        let count = WINDOW_COUNTER.fetch_add(1, Ordering::Relaxed);
+                        let label = format!("main-{}", count);
+                        let url = tauri::WebviewUrl::App("/".into());
+                        match tauri::WebviewWindowBuilder::new(_app_handle, &label, url)
+                            .title("OpenDraft")
+                            .inner_size(1280.0, 800.0)
+                            .min_inner_size(800.0, 600.0)
+                            .resizable(true)
+                            .build()
+                        {
+                            Ok(_new_win) => {
+                                // Use emit_to with the label to target ONLY the new window.
+                                // WebviewWindow::emit() broadcasts to all windows.
+                                let handle = _app_handle.clone();
+                                let target_label = label.clone();
+                                let path_for_emit = path_str.clone();
+                                std::thread::spawn(move || {
+                                    for delay_ms in [500, 1500, 3000] {
+                                        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                                        let _ = handle.emit_to(&target_label, "open-file", &path_for_emit);
+                                    }
+                                });
+                                continue; // skip the old broadcast path
+                            }
+                            Err(e) => {
+                                eprintln!("[file-assoc] Failed to create new window: {}", e);
+                                // Fall through to old behavior
+                            }
+                        }
+                    }
+
+                    // Cold start / iOS / fallback: load into the main window
                     // Store in pending state so frontend can retrieve it
                     if let Some(state) = _app_handle.try_state::<PendingFile>() {
                         *state.0.lock().unwrap() = Some(path_str.clone());
                     }
 
-                    // Emit immediately (may be lost if WebView not ready)
-                    let _ = _app_handle.emit("open-file", &path_str);
+                    // Emit to the main window only (not all windows)
+                    let _ = _app_handle.emit_to("main", "open-file", &path_str);
 
                     // Re-emit after delays to handle cold-start timing
                     // The WebView may not have loaded JS listeners yet
@@ -1122,7 +1186,7 @@ pub fn run() {
                         for delay_ms in [500, 1500, 3000] {
                             std::thread::sleep(std::time::Duration::from_millis(delay_ms));
                             eprintln!("[file-assoc] re-emit open-file after {}ms", delay_ms);
-                            let _ = handle.emit("open-file", &path_for_retry);
+                            let _ = handle.emit_to("main", "open-file", &path_for_retry);
                         }
                     });
                 }
