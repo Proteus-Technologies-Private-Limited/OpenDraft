@@ -1,0 +1,138 @@
+name: Build Intel Mac (Legacy)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-intel-mac-legacy:
+    runs-on: macos-26
+    name: Build (macOS-Intel-Legacy)
+
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '10.13'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+        env:
+          VITE_API_BASE: http://localhost:18321/api
+
+      - name: Import Apple Developer certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "No Apple certificate configured — build will be unsigned"
+            exit 0
+          fi
+          echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import $RUNNER_TEMP/certificate.p12 -k build.keychain \
+            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+          rm $RUNNER_TEMP/certificate.p12
+          echo "Apple Developer certificate imported"
+
+      - name: Patch tauri.conf.json for legacy CI
+        run: |
+          cd src-tauri
+          node -e "
+          const fs = require('fs');
+          const cfg = JSON.parse(fs.readFileSync('tauri.conf.json', 'utf8'));
+          cfg.build.beforeBuildCommand = '';
+          cfg.build.beforeDevCommand = '';
+          cfg.bundle.macOS = cfg.bundle.macOS || {};
+          cfg.bundle.macOS.minimumSystemVersion = '10.13';
+          fs.writeFileSync('tauri.conf.json', JSON.stringify(cfg, null, 2));
+          "
+
+      # ── Tag push: build + upload to GitHub Release ──
+      - name: Build Tauri app (release)
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: tauri_build
+        timeout-minutes: 30
+        continue-on-error: true
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          MACOSX_DEPLOYMENT_TARGET: '10.13'
+        with:
+          tauriScript: npx --prefix frontend tauri
+          args: --target x86_64-apple-darwin
+          tagName: ${{ github.ref_name }}
+          releaseName: 'OpenDraft ${{ github.ref_name }}'
+          releaseBody: ''
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: false
+
+      - name: Build Tauri app (release retry)
+        if: startsWith(github.ref, 'refs/tags/v') && steps.tauri_build.outcome == 'failure'
+        timeout-minutes: 30
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          MACOSX_DEPLOYMENT_TARGET: '10.13'
+        with:
+          tauriScript: npx --prefix frontend tauri
+          args: --target x86_64-apple-darwin
+          tagName: ${{ github.ref_name }}
+          releaseName: 'OpenDraft ${{ github.ref_name }}'
+          releaseBody: ''
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: false
+
+      # ── Manual dispatch: build + upload as workflow artifact ──
+      - name: Build Tauri app (manual)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        timeout-minutes: 30
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          MACOSX_DEPLOYMENT_TARGET: '10.13'
+        run: npx --prefix frontend tauri build --target x86_64-apple-darwin
+
+      - name: Upload build artifact
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: OpenDraft-intel-mac-legacy
+          path: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
