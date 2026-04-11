@@ -866,12 +866,17 @@ async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
     let label = format!("main-{}", count);
     // Use "/" so BrowserRouter matches the root route (not "/index.html")
     let url = tauri::WebviewUrl::App("/".into());
-    tauri::WebviewWindowBuilder::new(&app, &label, url)
-        .title("OpenDraft")
-        .inner_size(1280.0, 800.0)
-        .min_inner_size(800.0, 600.0)
-        .resizable(true)
-        .build()
+    let mut builder = tauri::WebviewWindowBuilder::new(&app, &label, url);
+    // .title(), .inner_size(), .min_inner_size(), .resizable() are desktop-only
+    #[cfg(desktop)]
+    {
+        builder = builder
+            .title("OpenDraft")
+            .inner_size(1280.0, 800.0)
+            .min_inner_size(800.0, 600.0)
+            .resizable(true);
+    }
+    builder.build()
         .map_err(|e| format!("Failed to create window: {}", e))?;
     Ok(())
 }
