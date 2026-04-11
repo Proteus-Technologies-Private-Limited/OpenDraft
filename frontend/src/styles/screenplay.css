@@ -7033,16 +7033,49 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   /* Show mobile zoom button, hide desktop zoom group */
   .zoom-group { display: none !important; }
   .zoom-mobile-group { display: flex !important; }
+  /* Comfortable toolbar: bigger than compact */
+  .toolbar.toolbar-comfortable .toolbar-btn { width: 30px; height: 28px; font-size: 13px; }
 
-  /* Menu bar: no overflow clipping — dropdown must escape on mobile */
+  /* Menu bar: scroll horizontally if items exceed width */
   .menu-bar {
-    overflow: visible;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
     flex-wrap: nowrap;
     height: 40px;
   }
-  .menu-item { padding: 8px 12px; min-height: 40px; gap: 6px; }
+  .menu-bar::-webkit-scrollbar { display: none; }
+  .menu-item { padding: 8px 12px; min-height: 40px; gap: 6px; white-space: nowrap; flex-shrink: 0; }
   .menu-label { font-size: 13px; }
   .menu-icon { font-size: 14px; }
+  .menu-item--more { flex-shrink: 0; }
+  .menu-spacer { flex: 0 0 4px; }
+
+  /* Comfortable mode: bigger than compact, scroll if too wide */
+  .menu-bar.chrome-comfortable {
+    height: 44px; gap: 4px; padding: 0 8px;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .menu-bar.chrome-comfortable::-webkit-scrollbar { display: none; }
+  .menu-bar.chrome-comfortable .menu-item { padding: 10px 14px; min-height: 44px; gap: 7px; }
+  .menu-bar.chrome-comfortable .menu-label { font-size: 14px; }
+  .menu-bar.chrome-comfortable .menu-icon { font-size: 15px; }
+  .menu-bar.chrome-comfortable .menu-item--more { padding: 10px 12px; min-height: 44px; }
+  .menu-bar.chrome-comfortable .menu-spacer { flex: 0 0 auto; width: 0; }
+
+  /* Floating menu bar (hidden mode): constrain to viewport, scroll */
+  .menu-bar--floating {
+    max-width: calc(100vw - 28px);
+    flex-wrap: nowrap;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .menu-bar--floating::-webkit-scrollbar { display: none; }
+  .menu-bar--floating .menu-item { flex-shrink: 0; }
+  .menu-bar--floating .menu-spacer { flex: 0 0 4px; }
 
   /* Menu dropdown: full-width on mobile */
   .menu-dropdown {
@@ -7193,6 +7226,20 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   .menu-item { padding: 8px 10px; min-height: 38px; gap: 5px; }
   .menu-label { font-size: 12px; }
   .menu-icon { font-size: 13px; color: var(--fd-text); }
+
+  /* Comfortable mode: bigger than compact, scroll if too wide */
+  .menu-bar.chrome-comfortable { height: 42px; gap: 2px; padding: 0 6px; }
+  .menu-bar.chrome-comfortable .menu-item { padding: 10px 12px; min-height: 42px; gap: 6px; }
+  .menu-bar.chrome-comfortable .menu-label { font-size: 13px; }
+  .menu-bar.chrome-comfortable .menu-icon { font-size: 14px; }
+  .menu-bar.chrome-comfortable .menu-item--more { padding: 10px 10px; min-height: 42px; }
+
+  /* Floating menu bar (hidden mode): full-width on phone, scroll */
+  .menu-bar--floating {
+    left: 8px !important;
+    right: 8px;
+    max-width: calc(100vw - 16px);
+  }
 
   /* Toolbar: compact, scrollable */
   .toolbar { min-height: 38px; padding: 2px 6px; }
