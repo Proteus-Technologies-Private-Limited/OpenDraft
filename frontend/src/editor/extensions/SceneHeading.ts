@@ -11,6 +11,7 @@ export const SceneHeading = Node.create({
       sceneNumber: { default: null },
       locked: { default: false },
       synopsis: { default: '' },
+      sceneColor: { default: '' },
     };
   },
 
@@ -21,6 +22,7 @@ export const SceneHeading = Node.create({
         const dom = el as HTMLElement;
         return {
           synopsis: dom.getAttribute('data-synopsis') || '',
+          sceneColor: dom.getAttribute('data-scene-color') || '',
         };
       },
     }];
@@ -36,6 +38,9 @@ export const SceneHeading = Node.create({
     }
     if (node.attrs.synopsis) {
       attrs['data-synopsis'] = node.attrs.synopsis;
+    }
+    if (node.attrs.sceneColor) {
+      attrs['data-scene-color'] = node.attrs.sceneColor;
     }
     return [
       'div',

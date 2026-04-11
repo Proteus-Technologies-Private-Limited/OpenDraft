@@ -1401,7 +1401,7 @@ const ScreenplayEditor: React.FC = () => {
           num = String(idx);
         }
         const sceneId = `scene-${idx}`;
-        list.push({ id: sceneId, heading: node.textContent || 'Untitled Scene', sceneNumber: parseInt(num, 10), color: '#4a9eff', synopsis: node.attrs.synopsis || '' });
+        list.push({ id: sceneId, heading: node.textContent || 'Untitled Scene', sceneNumber: parseInt(num, 10), color: node.attrs.sceneColor || '', synopsis: node.attrs.synopsis || '' });
         // Update node attrs if scene numbers are visible and the number changed
         if (visible && String(node.attrs.sceneNumber) !== num) {
           attrUpdates.push({ pos, number: num });

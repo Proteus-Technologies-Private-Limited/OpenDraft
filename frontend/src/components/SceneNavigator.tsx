@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore } from '../stores/editorStore';
@@ -171,7 +172,7 @@ const LINE_HEIGHT_PX = 12 * (96 / 72); // 16px — matches pagination LINE_HEIGH
 // ── Main component ──────────────────────────────────────────────────────
 
 const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style }) => {
-  const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis } = useEditorStore();
+  const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis, updateSceneColor } = useEditorStore();
   const pageLayout = useEditorStore((s) => s.pageLayout);
   const fontFamily = useEditorStore((s) => s.fontFamily);
   const fontSize = useEditorStore((s) => s.fontSize);
@@ -181,12 +182,16 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   const [renameValue, setRenameValue] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
 
+  // Expanded scene (shows synopsis inline)
+  const [expandedSceneIdx, setExpandedSceneIdx] = useState<number | null>(null);
+
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
   const [filterCharacters, setFilterCharacters] = useState<string[]>([]);
   const [filterLocation, setFilterLocation] = useState('');
   const [filterPrefix, setFilterPrefix] = useState('');
   const [filterTime, setFilterTime] = useState('');
+  const [filterColor, setFilterColor] = useState('');
 
   // Page preview state
   const pageGridRef = useRef<HTMLDivElement>(null);
@@ -194,13 +199,14 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   const [currentVisiblePage, setCurrentVisiblePage] = useState(1);
 
   // Synopsis modal state
-  const [synopsisModal, setSynopsisModal] = useState<{ sceneIdx: number; id: string; heading: string; synopsis: string } | null>(null);
+  const [synopsisModal, setSynopsisModal] = useState<{ sceneIdx: number; id: string; heading: string; synopsis: string; color: string } | null>(null);
 
   const handleSaveSynopsis = useCallback(
-    (synopsis: string) => {
+    (synopsis: string, color: string) => {
       if (!synopsisModal || !editor) return;
       const { sceneIdx, id } = synopsisModal;
       updateSceneSynopsis(id, synopsis);
+      updateSceneColor(id, color);
       let currentScene = -1;
       let targetPos = -1;
       editor.state.doc.descendants((node, pos) => {
@@ -214,13 +220,13 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         const node = editor.state.doc.nodeAt(targetPos);
         if (node) {
           const { tr } = editor.state;
-          tr.setNodeMarkup(targetPos, undefined, { ...node.attrs, synopsis });
+          tr.setNodeMarkup(targetPos, undefined, { ...node.attrs, synopsis, sceneColor: color });
           tr.setMeta('addToHistory', false);
           editor.view.dispatch(tr);
         }
       }
     },
-    [synopsisModal, editor, updateSceneSynopsis],
+    [synopsisModal, editor, updateSceneSynopsis, updateSceneColor],
   );
 
   const locations = useMemo(() => groupByLocation(scenes), [scenes]);
@@ -396,17 +402,18 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
 
   // ── Filtered scene indices ──
 
-  const hasActiveFilter = filterCharacters.length > 0 || !!filterLocation || !!filterPrefix || !!filterTime;
+  const hasActiveFilter = filterCharacters.length > 0 || !!filterLocation || !!filterPrefix || !!filterTime || !!filterColor;
 
   const filteredIndices = useMemo(() => {
     if (!hasActiveFilter) return scenes.map((_, i) => i);
-    return scenes.reduce((acc, _, idx) => {
+    return scenes.reduce((acc, scene, idx) => {
       const detail = sceneDetails[idx];
       if (!detail) return acc;
       if (filterCharacters.length > 0 && !filterCharacters.every(c => detail.characters.includes(c))) return acc;
       if (filterLocation && detail.location.toUpperCase() !== filterLocation) return acc;
       if (filterPrefix && detail.prefix !== filterPrefix) return acc;
       if (filterTime && detail.timeOfDay !== filterTime) return acc;
+      if (filterColor && (scene.color || '') !== filterColor) return acc;
       acc.push(idx);
       return acc;
     }, [] as number[]);
@@ -527,6 +534,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     ? 'panel-open' : animationState === 'exiting' ? 'panel-closing' : '';
 
   return (
+    <>
     <div ref={navPanelRef} className={`scene-navigator ${panelClass}`} style={style}>
       {/* Tab bar */}
       <div className="navigator-tabs">
@@ -598,12 +606,26 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                   <option value="">Time of Day...</option>
                   {allTimes.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
+                <div className="scene-filter-colors">
+                  {['', '#8b5cf6', '#4f46e5', '#2563eb', '#059669', '#eab308', '#f97316', '#ef4444', '#000000', '#ffffff'].map(c => (
+                    <button
+                      key={c || 'all'}
+                      className={`scene-filter-color-dot${filterColor === c ? ' active' : ''}`}
+                      style={{ background: c || 'var(--fd-text)', opacity: c ? 1 : 0.25 }}
+                      onClick={() => setFilterColor(c)}
+                      title={c ? c : 'All colors'}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="scene-filter-row">
                 {hasActiveFilter && (
                   <button className="filter-clear-btn" onClick={() => {
                     setFilterCharacters([]);
                     setFilterLocation('');
                     setFilterPrefix('');
                     setFilterTime('');
+                    setFilterColor('');
                   }}>Clear All</button>
                 )}
               </div>
@@ -621,32 +643,42 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
               filteredIndices.map((sceneIdx) => {
                 const scene = scenes[sceneIdx];
                 const detail = sceneDetails[sceneIdx];
+                const isExpanded = expandedSceneIdx === sceneIdx;
                 return (
-                  <div key={scene.id} className="navigator-scene" onClick={() => goToScene(sceneIdx)}>
-                    <div className="scene-color-dot" style={{ backgroundColor: scene.color || '#4a9eff' }} />
-                    <div className="scene-info">
-                      <div className="scene-heading-text">
-                        {scene.sceneNumber != null && (
-                          <span className="scene-number">{scene.sceneNumber}. </span>
+                  <div key={scene.id} className={`navigator-scene${isExpanded ? ' expanded' : ''}`}>
+                    <div className="scene-info" onClick={() => { setExpandedSceneIdx(isExpanded ? null : sceneIdx); goToScene(sceneIdx); }}>
+                      <div className="scene-heading-row">
+                        <div className="scene-heading-text">
+                          {scene.sceneNumber != null && (
+                            <span className="scene-number-badge" style={scene.color ? { background: scene.color } : undefined}>{scene.sceneNumber}</span>
+                          )}
+                          <span className="scene-heading-label">{scene.heading}</span>
+                        </div>
+                        {detail && detail.pageLength > 0 && (
+                          <div className="scene-length" data-tooltip={formatPageLength(detail.pageLength)}>
+                            <SceneLengthIcon pages={detail.pageLength} />
+                          </div>
                         )}
-                        {scene.heading}
                       </div>
-                      <div
-                        className={`scene-synopsis-link${scene.synopsis ? '' : ' empty'}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSynopsisModal({ sceneIdx, id: scene.id, heading: scene.heading, synopsis: scene.synopsis });
-                        }}
-                        title={scene.synopsis ? 'View/edit synopsis' : 'Add synopsis'}
-                      >
-                        {scene.synopsis || '+ Add Synopsis'}
-                      </div>
+                      {isExpanded && (
+                        <div className="scene-synopsis-expanded">
+                          {scene.synopsis ? (
+                            <div className="scene-synopsis-text">{scene.synopsis}</div>
+                          ) : (
+                            <div className="scene-synopsis-empty">No synopsis for this scene available.</div>
+                          )}
+                          <button
+                            className="scene-synopsis-edit-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSynopsisModal({ sceneIdx, id: scene.id, heading: scene.heading, synopsis: scene.synopsis, color: scene.color });
+                            }}
+                          >
+                            {scene.synopsis ? 'Edit' : '+ Add'}
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    {detail && detail.pageLength > 0 && (
-                      <div className="scene-length" data-tooltip={formatPageLength(detail.pageLength)}>
-                        <SceneLengthIcon pages={detail.pageLength} />
-                      </div>
-                    )}
                   </div>
                 );
               })
@@ -695,16 +727,6 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
             </div>
           )}
         </div>
-      )}
-
-      {/* Synopsis modal */}
-      {synopsisModal && (
-        <SynopsisModal
-          sceneHeading={synopsisModal.heading}
-          synopsis={synopsisModal.synopsis}
-          onSave={handleSaveSynopsis}
-          onClose={() => setSynopsisModal(null)}
-        />
       )}
 
       {/* ── Locations tab ────────────────────────────────────────────── */}
@@ -774,6 +796,17 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         </>
       )}
     </div>
+    {synopsisModal && createPortal(
+      <SynopsisModal
+        sceneHeading={synopsisModal.heading}
+        synopsis={synopsisModal.synopsis}
+        sceneColor={synopsisModal.color}
+        onSave={handleSaveSynopsis}
+        onClose={() => setSynopsisModal(null)}
+      />,
+      document.body,
+    )}
+    </>
   );
 };
 

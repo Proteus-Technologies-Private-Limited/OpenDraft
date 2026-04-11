@@ -299,8 +299,9 @@ interface EditorState {
   notesVisible: boolean;
   setNotesVisible: (v: boolean) => void;
 
-  // Scene synopsis
+  // Scene synopsis & color
   updateSceneSynopsis: (id: string, synopsis: string) => void;
+  updateSceneColor: (id: string, color: string) => void;
 
   // Notes
   notes: NoteInfo[];
@@ -514,6 +515,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   updateSceneSynopsis: (id, synopsis) =>
     set((s) => ({
       scenes: s.scenes.map((sc) => (sc.id === id ? { ...sc, synopsis } : sc)),
+    })),
+
+  updateSceneColor: (id, color) =>
+    set((s) => ({
+      scenes: s.scenes.map((sc) => (sc.id === id ? { ...sc, color } : sc)),
     })),
 
   // Notes

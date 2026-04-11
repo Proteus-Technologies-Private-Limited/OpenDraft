@@ -1080,11 +1080,14 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     ? menus.find(m => m.label === activeMenu) || (activeMenu === 'Help' ? helpMenu : null)
     : null;
 
-  // Close floating menu when clicking outside
+  // Close floating menu when clicking outside (but not on the dropdown portal or FAB)
   useEffect(() => {
     if (!floatingMenuOpen) return;
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as HTMLElement;
+      if (menuRef.current && !menuRef.current.contains(target)) {
+        // Don't close if clicking inside the dropdown portal or a submenu
+        if (target.closest('.menu-dropdown') || target.closest('.menu-fab')) return;
         setFloatingMenuOpen(false);
       }
     };
@@ -1185,6 +1188,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
               className={`menu-dropdown-item has-children ${openSubmenu === item.label ? 'submenu-open' : ''}`}
               onPointerEnter={(e) => handleSubmenuPointerEnter(item.label!, e)}
               onTouchEnd={(e) => handleSubmenuTouchEnd(item.label!, e)}
+              onClick={(e) => { e.stopPropagation(); setOpenSubmenu((prev) => (prev === item.label ? null : item.label!)); }}
             >
               {item.icon && <span className="menu-dropdown-icon">{item.icon}</span>}
               <span>{item.label}</span>

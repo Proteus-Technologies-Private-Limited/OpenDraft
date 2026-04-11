@@ -6,11 +6,10 @@ import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
 import MiniRichText from './MiniRichText';
 
-// Default colors for auto-assignment (Final Draft typical palette)
+// Default colors for auto-assignment (VIBGYOR palette)
 const DEFAULT_HIGHLIGHT_COLORS = [
-  '#e06060', '#6fa8dc', '#6abf69', '#f4d35e', '#e89b4f',
-  '#b58ee0', '#e06c9f', '#5bb8a9', '#c4a35a', '#7a9fd4',
-  '#d47a7a', '#79c279',
+  '#8b5cf6', '#4f46e5', '#2563eb', '#059669', '#eab308',
+  '#f97316', '#ef4444', '#000000',
 ];
 
 // Character roles matching industry standard (Final Draft Character Navigator)
@@ -611,13 +610,15 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         <div className="char-profile-highlight-row">
           <div className="char-profile-color-row">
             <label className="char-profile-label">Color</label>
-            <input
-              type="color"
-              className="char-profile-color"
-              value={prof.color || '#999999'}
-              onChange={(e) => upsertCharacterProfile(charName, { color: e.target.value })}
-              title="Highlight color"
-            />
+            <div className="char-color-swatches">
+              {['#8b5cf6','#4f46e5','#2563eb','#059669','#eab308','#f97316','#ef4444','#000000','#ffffff'].map(c => (
+                <button key={c} className={`synopsis-color-swatch${(prof.color || '') === c ? ' active' : ''}`} style={{ background: c }} onClick={() => upsertCharacterProfile(charName, { color: c })} />
+              ))}
+              <label className="synopsis-color-custom" title="Custom color">
+                <input type="color" value={prof.color || '#999999'} onChange={(e) => upsertCharacterProfile(charName, { color: e.target.value })} />
+                <span>+</span>
+              </label>
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <label className="char-profile-label" style={{ marginBottom: 0 }}>Highlight</label>
@@ -949,13 +950,15 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                       <div className="char-profile-highlight-row">
                         <div className="char-profile-color-row">
                           <label className="char-profile-label">Color</label>
-                          <input
-                            type="color"
-                            className="char-profile-color"
-                            value={profile.color || '#999999'}
-                            onChange={(e) => upsertCharacterProfile(name, { color: e.target.value })}
-                            title="Highlight color"
-                          />
+                          <div className="char-color-swatches">
+                            {['#8b5cf6','#4f46e5','#2563eb','#059669','#eab308','#f97316','#ef4444','#000000','#ffffff'].map(c => (
+                              <button key={c} className={`synopsis-color-swatch${(profile.color || '') === c ? ' active' : ''}`} style={{ background: c }} onClick={() => upsertCharacterProfile(name, { color: c })} />
+                            ))}
+                            <label className="synopsis-color-custom" title="Custom color">
+                              <input type="color" value={profile.color || '#999999'} onChange={(e) => upsertCharacterProfile(name, { color: e.target.value })} />
+                              <span>+</span>
+                            </label>
+                          </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <label className="char-profile-label" style={{ marginBottom: 0 }}>Highlight</label>

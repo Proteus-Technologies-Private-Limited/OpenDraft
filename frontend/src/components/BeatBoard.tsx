@@ -26,8 +26,8 @@ import { useEditorStore, type BeatInfo, type BeatLinkPreview } from '../stores/e
 import { api } from '../services/api';
 
 const BEAT_COLORS = [
-  '', '#4a9eff', '#ff6b6b', '#51cf66', '#ffd43b',
-  '#cc5de8', '#ff922b', '#20c997', '#f06595',
+  '', '#8b5cf6', '#4f46e5', '#2563eb', '#059669',
+  '#eab308', '#f97316', '#ef4444', '#000000', '#ffffff',
 ];
 
 /* ─── URL detection ─── */

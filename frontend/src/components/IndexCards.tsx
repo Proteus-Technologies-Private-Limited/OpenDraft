@@ -9,7 +9,7 @@ interface IndexCardsProps {
 }
 
 const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
-  const { scenes, indexCardsOpen, updateSceneSynopsis, toggleIndexCards } = useEditorStore();
+  const { scenes, indexCardsOpen, updateSceneSynopsis, updateSceneColor, toggleIndexCards } = useEditorStore();
 
   const [fullscreen, setFullscreen] = useState(false);
   const [dragMode, setDragMode] = useState(false);
@@ -90,13 +90,14 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
   const lastClientPosRef = useRef<{ x: number; y: number } | null>(null);
 
   // Synopsis modal state
-  const [synopsisModal, setSynopsisModal] = useState<{ sceneIdx: number; id: string; heading: string; synopsis: string } | null>(null);
+  const [synopsisModal, setSynopsisModal] = useState<{ sceneIdx: number; id: string; heading: string; synopsis: string; color: string } | null>(null);
 
   const handleSaveSynopsis = useCallback(
-    (synopsis: string) => {
+    (synopsis: string, color: string) => {
       if (!synopsisModal || !editor) return;
       const { sceneIdx, id } = synopsisModal;
       updateSceneSynopsis(id, synopsis);
+      updateSceneColor(id, color);
       let currentScene = -1;
       let targetPos = -1;
       editor.state.doc.descendants((node, pos) => {
@@ -110,7 +111,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
         const node = editor.state.doc.nodeAt(targetPos);
         if (node) {
           const { tr } = editor.state;
-          tr.setNodeMarkup(targetPos, undefined, { ...node.attrs, synopsis });
+          tr.setNodeMarkup(targetPos, undefined, { ...node.attrs, synopsis, sceneColor: color });
           tr.setMeta('addToHistory', false);
           editor.view.dispatch(tr);
         }
@@ -658,11 +659,11 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
                   )}
                   <div
                     className="index-card-color-strip"
-                    style={{ backgroundColor: scene.color || '#4a9eff' }}
+                    style={{ backgroundColor: scene.color || 'var(--fd-text-muted)' }}
                   />
                   <div className="index-card-body">
                     <div className="index-card-top">
-                      <span className="index-card-badge">
+                      <span className="index-card-badge" style={scene.color ? { background: scene.color, borderColor: scene.color } : undefined}>
                         {(movedUp || movedDown) ? (
                           <><span className="ic-orig-num">{origNum}</span> → {newNum}</>
                         ) : (
@@ -691,7 +692,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
                       />
                       <button
                         className="ic-synopsis-expand"
-                        onClick={() => setSynopsisModal({ sceneIdx: index, id: scene.id, heading: scene.heading, synopsis: scene.synopsis })}
+                        onClick={() => setSynopsisModal({ sceneIdx: index, id: scene.id, heading: scene.heading, synopsis: scene.synopsis, color: scene.color })}
                         title="Expand synopsis"
                         disabled={dragMode}
                       >
@@ -722,6 +723,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
         <SynopsisModal
           sceneHeading={synopsisModal.heading}
           synopsis={synopsisModal.synopsis}
+          sceneColor={synopsisModal.color}
           onSave={handleSaveSynopsis}
           onClose={() => setSynopsisModal(null)}
         />
