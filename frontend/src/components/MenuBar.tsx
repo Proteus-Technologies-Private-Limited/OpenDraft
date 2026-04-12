@@ -1337,11 +1337,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.16.0</div>
+            <div className="about-version">Version 0.16.1</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.16.0</div>
+              <div className="about-section-title">What's New in 0.16.1</div>
               <ul className="about-list">
                 <li><strong>Multiple Windows</strong> — Open different files in separate windows via File &gt; New Window. Each window has independent editor state.</li>
                 <li><strong>Save Status Indicator</strong> — The status bar now shows Unsaved changes, Saving, Saved, or Save failed in real time.</li>
