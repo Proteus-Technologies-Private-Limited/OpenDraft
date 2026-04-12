@@ -3359,6 +3359,18 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   border: none;
   border-radius: 4px;
 }
+/* ── Inline links in notes ── */
+.note-video-link,
+.note-inline-link {
+  color: var(--fd-accent, #6ea0f7);
+  text-decoration: underline;
+  cursor: pointer;
+  word-break: break-all;
+}
+.note-video-link:hover,
+.note-inline-link:hover {
+  opacity: 0.8;
+}
 /* ── @asset references ── */
 .note-asset-ref {
   display: inline;

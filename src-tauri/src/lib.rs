@@ -879,6 +879,37 @@ async fn set_window_title(window: tauri::WebviewWindow, title: String) -> Result
     Ok(())
 }
 
+/// Open a URL in the user's default browser.
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    // Only allow http/https URLs
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("Only http and https URLs are allowed".to_string());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("Failed to open URL: {}", e))?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &url])
+            .spawn()
+            .map_err(|e| format!("Failed to open URL: {}", e))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("Failed to open URL: {}", e))?;
+    }
+    Ok(())
+}
+
 /// Rebuild the Window menu: standard items + list of all open windows.
 #[cfg(desktop)]
 fn rebuild_window_menu(app: &tauri::AppHandle, _menu: &Menu<tauri::Wry>) {
@@ -1020,6 +1051,7 @@ pub fn run() {
             android_check_new_intent,
             open_new_window,
             set_window_title,
+            open_url,
         ]);
 
         // ── Native menu (desktop only) ────────────────────────────────
