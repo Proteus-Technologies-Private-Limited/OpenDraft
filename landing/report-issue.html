@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report an Issue — OpenDraft</title>
+  <meta name="description" content="Report a bug or request a feature for OpenDraft. We value your feedback!">
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png">
+  <style>
+    :root {
+      --color-bg: #0e0e12;
+      --color-surface: #16161d;
+      --color-border: #2a2a35;
+      --color-text: #ececf0;
+      --color-text-secondary: #8a8a9a;
+      --color-accent: #c455ce;
+      --color-accent-hover: #d470dd;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --max-width: 1100px;
+      --radius: 10px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* -- NAV -- */
+    nav {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 100;
+      background: rgba(14,14,18,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .nav-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--color-text);
+      font-weight: 600;
+      font-size: 17px;
+    }
+    .nav-brand img { width: 28px; height: 28px; border-radius: 6px; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a {
+      color: var(--color-text-secondary);
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--color-text); }
+    .nav-cta {
+      background: var(--color-accent) !important;
+      color: #fff !important;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-weight: 500 !important;
+      font-size: 14px !important;
+      transition: opacity 0.15s !important;
+    }
+    .nav-cta:hover { opacity: 0.8 !important; }
+    .nav-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--color-text);
+      font-size: 22px;
+      cursor: pointer;
+    }
+
+    /* -- PAGE -- */
+    .page-header {
+      padding: 120px 24px 48px;
+      text-align: center;
+    }
+    .page-header h1 {
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    .page-header h1 .accent { color: var(--color-accent); }
+    .page-header p {
+      font-size: 17px;
+      color: var(--color-text-secondary);
+      max-width: 540px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* -- TYPE SELECTOR -- */
+    .type-selector {
+      display: flex;
+      gap: 16px;
+      max-width: 600px;
+      margin: 0 auto 40px;
+      padding: 0 24px;
+    }
+    .type-card {
+      flex: 1;
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--color-surface);
+    }
+    .type-card:hover { border-color: var(--color-accent); }
+    .type-card.active {
+      border-color: var(--color-accent);
+      background: rgba(196, 85, 206, 0.08);
+    }
+    .type-card .type-icon {
+      width: 32px;
+      height: 32px;
+      margin: 0 auto 10px;
+      opacity: 0.6;
+    }
+    .type-card.active .type-icon { opacity: 1; }
+    .type-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .type-card p {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+    }
+
+    /* -- FORM -- */
+    .form-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+    .form-group {
+      margin-bottom: 24px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .form-group .hint {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      margin-bottom: 8px;
+    }
+    .form-group input[type="text"],
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      color: var(--color-text);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.5;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+    .form-group input[type="text"]:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      border-color: var(--color-accent);
+    }
+    .form-group textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    .form-group select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238a8a9a' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+    .form-group select option {
+      background: var(--color-surface);
+      color: var(--color-text);
+    }
+    .required-mark { color: var(--color-accent); }
+
+    /* -- SUBMIT -- */
+    .submit-area {
+      text-align: center;
+      margin-top: 32px;
+    }
+    .btn-submit {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 32px;
+      background: var(--color-accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: var(--font-sans);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-submit:hover {
+      background: var(--color-accent-hover);
+      transform: translateY(-1px);
+    }
+    .btn-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .submit-note {
+      margin-top: 16px;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      line-height: 1.5;
+    }
+    .submit-note a {
+      color: var(--color-text-secondary);
+      text-decoration: underline;
+    }
+
+    /* -- INFO BANNER -- */
+    .info-banner {
+      max-width: 600px;
+      margin: 0 auto 32px;
+      padding: 16px 20px;
+      border-left: 3px solid var(--color-accent);
+      background: var(--color-surface);
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+    .info-banner p {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.5;
+    }
+    .info-banner a {
+      color: var(--color-accent);
+      text-decoration: none;
+    }
+    .info-banner a:hover { text-decoration: underline; }
+
+    /* -- FOOTER -- */
+    footer {
+      padding: 40px 24px;
+      border-top: 1px solid var(--color-border);
+      text-align: center;
+    }
+    footer p { font-size: 14px; color: var(--color-text-secondary); }
+    footer a { color: var(--color-text-secondary); text-decoration: none; }
+    footer a:hover { color: var(--color-text); }
+
+    /* -- MOBILE -- */
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .nav-links.open {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 56px;
+        left: 0;
+        right: 0;
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+        padding: 20px;
+        gap: 14px;
+      }
+      .nav-menu-btn { display: block; }
+      .type-selector { flex-direction: column; gap: 12px; }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <nav>
+    <div class="nav-inner">
+      <a href="./" class="nav-brand">
+        <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png" alt="OpenDraft">
+        OpenDraft
+      </a>
+      <button class="nav-menu-btn" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+      <div class="nav-links">
+        <a href="./">Home</a>
+        <a href="user-manual/">User Manual</a>
+        <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions">Community</a>
+        <a href="https://opendraft-demo-267958344432.us-central1.run.app" target="_blank" rel="noopener" class="nav-cta">Try Online</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page-header">
+    <h1>Help us make OpenDraft <span class="accent">better</span></h1>
+    <p>Found a problem or have an idea? Tell us below. It takes less than a minute.</p>
+  </div>
+
+  <!-- Type Selector -->
+  <div class="type-selector">
+    <div class="type-card active" onclick="switchType('bug')" id="type-bug">
+      <svg class="type-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 2a3 3 0 0 0-3 3v1H6a1 1 0 0 0 0 2h1.07A7 7 0 0 0 5 12H3a1 1 0 0 0 0 2h2a7 7 0 0 0 .93 3H5a1 1 0 0 0 0 2h2.18A7 7 0 0 0 12 22a7 7 0 0 0 4.82-3H19a1 1 0 0 0 0-2h-.93A7 7 0 0 0 19 14h2a1 1 0 0 0 0-2h-2a7 7 0 0 0-2.07-4H18a1 1 0 0 0 0-2h-3V5a3 3 0 0 0-3-3z"/>
+      </svg>
+      <h3>Report a Problem</h3>
+      <p>Something isn't working right</p>
+    </div>
+    <div class="type-card" onclick="switchType('feature')" id="type-feature">
+      <svg class="type-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+      </svg>
+      <h3>Suggest a Feature</h3>
+      <p>An idea to improve OpenDraft</p>
+    </div>
+  </div>
+
+  <!-- Info Banner -->
+  <div class="info-banner" style="margin-left:auto; margin-right:auto; max-width:552px; padding-left:24px; padding-right:24px;">
+    <p>This form will take you to GitHub to submit your report. You'll need a <a href="https://github.com/signup" target="_blank" rel="noopener">free GitHub account</a>. Prefer not to use GitHub? Post in our <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions" target="_blank" rel="noopener">Community forum</a> instead.</p>
+  </div>
+
+  <div class="form-container">
+
+    <!-- Bug Report Form -->
+    <form id="form-bug" onsubmit="submitBug(event)">
+      <div class="form-group">
+        <label>What went wrong? <span class="required-mark">*</span></label>
+        <div class="hint">Describe what happened. Be as specific as you can.</div>
+        <textarea id="bug-description" placeholder="Example: When I try to export my screenplay as PDF, the app freezes and I have to force-quit it." required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>How can we reproduce it? <span class="required-mark">*</span></label>
+        <div class="hint">What steps did you take before the problem appeared?</div>
+        <textarea id="bug-steps" placeholder="1. Open a screenplay&#10;2. Click File > Export as PDF&#10;3. The app freezes" required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Which version of OpenDraft?</label>
+        <div class="hint">You can find this in the menu: Help > About OpenDraft</div>
+        <input type="text" id="bug-version" placeholder="e.g. 0.16.1">
+      </div>
+
+      <div class="form-group">
+        <label>What device are you using? <span class="required-mark">*</span></label>
+        <select id="bug-platform" required>
+          <option value="">Choose your platform...</option>
+          <option value="Desktop — macOS">Mac (desktop app)</option>
+          <option value="Desktop — Windows">Windows (desktop app)</option>
+          <option value="Desktop — Linux">Linux (desktop app)</option>
+          <option value="iOS">iPhone / iPad</option>
+          <option value="Android">Android phone / tablet</option>
+          <option value="Browser (self-hosted)">Web browser</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Anything else?</label>
+        <div class="hint">Screenshots, error messages, or any other details that might help.</div>
+        <textarea id="bug-extra" placeholder="Optional — add any extra context here. You can also paste screenshots after the issue is created on GitHub." style="min-height:80px;"></textarea>
+      </div>
+
+      <div class="submit-area">
+        <button type="submit" class="btn-submit">
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Submit Report
+        </button>
+        <p class="submit-note">You'll be taken to GitHub to review and submit. You can add screenshots there too.</p>
+      </div>
+    </form>
+
+    <!-- Feature Request Form -->
+    <form id="form-feature" style="display:none;" onsubmit="submitFeature(event)">
+      <div class="form-group">
+        <label>What would you like OpenDraft to do? <span class="required-mark">*</span></label>
+        <div class="hint">Describe the feature or improvement you have in mind.</div>
+        <textarea id="feature-solution" placeholder="Example: I'd love a word count that shows in the status bar while I'm writing, so I can track my progress without opening a separate dialog." required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>What problem does this solve?</label>
+        <div class="hint">Help us understand why this matters to your workflow.</div>
+        <textarea id="feature-problem" placeholder="Example: I write to daily word-count targets, and right now I have to keep exporting to count words, which breaks my flow."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Which part of OpenDraft? <span class="required-mark">*</span></label>
+        <select id="feature-area" required>
+          <option value="">Choose an area...</option>
+          <option value="Screenplay Editor">Writing / Editor</option>
+          <option value="Beat Board / Index Cards">Beat Board / Index Cards</option>
+          <option value="Character Profiles">Characters</option>
+          <option value="Collaboration">Collaboration</option>
+          <option value="Version History">Version History</option>
+          <option value="Import / Export">Import / Export</option>
+          <option value="Project Management">Project Management</option>
+          <option value="Desktop App">Desktop App</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Anything else?</label>
+        <div class="hint">Links to similar features in other apps, mockups, or any other context.</div>
+        <textarea id="feature-extra" placeholder="Optional — screenshots, mockups, or references to how other tools handle this." style="min-height:80px;"></textarea>
+      </div>
+
+      <div class="submit-area">
+        <button type="submit" class="btn-submit">
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Submit Suggestion
+        </button>
+        <p class="submit-note">You'll be taken to GitHub to review and submit. You can add screenshots there too.</p>
+      </div>
+    </form>
+
+  </div>
+
+  <footer>
+    <p>Made by <a href="https://github.com/Proteus-Technologies-Private-Limited">Proteus Technologies</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/LICENSE">MIT License</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft">GitHub</a></p>
+  </footer>
+
+  <script>
+    const REPO = 'https://github.com/Proteus-Technologies-Private-Limited/OpenDraft';
+
+    function switchType(type) {
+      document.getElementById('type-bug').classList.toggle('active', type === 'bug');
+      document.getElementById('type-feature').classList.toggle('active', type === 'feature');
+      document.getElementById('form-bug').style.display = type === 'bug' ? 'block' : 'none';
+      document.getElementById('form-feature').style.display = type === 'feature' ? 'block' : 'none';
+    }
+
+    function submitBug(e) {
+      e.preventDefault();
+
+      var description = document.getElementById('bug-description').value.trim();
+      var steps = document.getElementById('bug-steps').value.trim();
+      var version = document.getElementById('bug-version').value.trim();
+      var platform = document.getElementById('bug-platform').value;
+      var extra = document.getElementById('bug-extra').value.trim();
+
+      var params = new URLSearchParams();
+      params.set('template', 'bug_report.yml');
+      params.set('title', '[Bug]: ');
+      if (version) params.set('version', version);
+      if (platform) params.set('platform', platform);
+      if (description) params.set('description', description);
+      if (steps) params.set('steps', steps);
+      if (extra) params.set('additional', extra);
+
+      window.open(REPO + '/issues/new?' + params.toString(), '_blank');
+    }
+
+    function submitFeature(e) {
+      e.preventDefault();
+
+      var solution = document.getElementById('feature-solution').value.trim();
+      var problem = document.getElementById('feature-problem').value.trim();
+      var area = document.getElementById('feature-area').value;
+      var extra = document.getElementById('feature-extra').value.trim();
+
+      var params = new URLSearchParams();
+      params.set('template', 'feature_request.yml');
+      params.set('title', '[Feature]: ');
+      if (problem) params.set('problem', problem);
+      if (solution) params.set('solution', solution);
+      if (area) params.set('area', area);
+      if (extra) params.set('additional', extra);
+
+      window.open(REPO + '/issues/new?' + params.toString(), '_blank');
+    }
+  </script>
+
+</body>
+</html>
