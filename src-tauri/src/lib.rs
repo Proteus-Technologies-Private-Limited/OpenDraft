@@ -2,7 +2,7 @@ use std::sync::Mutex;
 use percent_encoding::percent_decode_str;
 use tauri::{Emitter, Manager};
 #[cfg(desktop)]
-use tauri::menu::{Menu, Submenu, PredefinedMenuItem};
+use tauri::menu::{Menu, Submenu, PredefinedMenuItem, MenuItem};
 
 // ── Android content URI reading (JNI) ────────────────────────────────────
 // On Android, files opened via intents use content:// URIs. These cannot be
@@ -860,6 +860,84 @@ static WINDOW_COUNTER: AtomicU32 = AtomicU32::new(1);
 /// from warm-start file opens (open in a new window).
 static APP_READY: AtomicBool = AtomicBool::new(false);
 
+/// Update the native window title and refresh the Window menu list.
+/// Called from the frontend whenever the document title changes.
+#[tauri::command]
+async fn set_window_title(window: tauri::WebviewWindow, title: String) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        let display_title = if title.is_empty() { "OpenDraft".to_string() } else { format!("{} — OpenDraft", title) };
+        window.set_title(&display_title).map_err(|e| format!("{}", e))?;
+        // Rebuild the Window menu to reflect current window titles
+        let app = window.app_handle();
+        if let Some(menu) = app.menu() {
+            rebuild_window_menu(app, &menu);
+        }
+    }
+    #[cfg(not(desktop))]
+    { let _ = (window, title); }
+    Ok(())
+}
+
+/// Rebuild the Window menu: standard items + list of all open windows.
+#[cfg(desktop)]
+fn rebuild_window_menu(app: &tauri::AppHandle, _menu: &Menu<tauri::Wry>) {
+    #[cfg(not(target_os = "macos"))]
+    return;
+
+    #[cfg(target_os = "macos")]
+    {
+        // Build a fresh Window submenu with standard items + window list
+        let mut items: Vec<Box<dyn tauri::menu::IsMenuItem<tauri::Wry>>> = vec![
+            Box::new(PredefinedMenuItem::minimize(app, None).unwrap()),
+            Box::new(PredefinedMenuItem::maximize(app, None).unwrap()),
+            Box::new(PredefinedMenuItem::separator(app).unwrap()),
+            Box::new(PredefinedMenuItem::close_window(app, None).unwrap()),
+        ];
+
+        // Add all open windows
+        let windows = app.webview_windows();
+        let mut win_entries: Vec<_> = windows.iter()
+            .filter(|(label, _)| *label != "splashscreen")
+            .collect();
+        win_entries.sort_by_key(|(label, _)| label.clone());
+
+        if !win_entries.is_empty() {
+            items.push(Box::new(PredefinedMenuItem::separator(app).unwrap()));
+            for (label, win) in &win_entries {
+                let title = win.title().unwrap_or_else(|_| (*label).clone());
+                let item_id = format!("window-list-{}", label);
+                if let Ok(mi) = MenuItem::with_id(app, &item_id, &title, true, None::<&str>) {
+                    items.push(Box::new(mi));
+                }
+            }
+        }
+
+        // Convert to references for Submenu::with_items
+        let item_refs: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> = items.iter()
+            .map(|b| b.as_ref())
+            .collect();
+
+        if let Ok(new_window_sub) = Submenu::with_items(app, "Window", true, &item_refs) {
+            // Replace the Window submenu in the app menu
+            if let Some(menu) = app.menu() {
+                // Remove old Window submenu and append new one
+                if let Ok(menu_items) = menu.items() {
+                    for item in &menu_items {
+                        if let tauri::menu::MenuItemKind::Submenu(sub) = item {
+                            if sub.text().unwrap_or_default() == "Window" {
+                                let _ = menu.remove(item);
+                                break;
+                            }
+                        }
+                    }
+                }
+                let _ = menu.append(&new_window_sub);
+            }
+        }
+    }
+}
+
 #[tauri::command]
 async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
     let count = WINDOW_COUNTER.fetch_add(1, Ordering::Relaxed);
@@ -878,6 +956,11 @@ async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
     }
     builder.build()
         .map_err(|e| format!("Failed to create window: {}", e))?;
+    // Refresh window list in the Window menu
+    #[cfg(desktop)]
+    if let Some(menu) = app.menu() {
+        rebuild_window_menu(&app, &menu);
+    }
     Ok(())
 }
 
@@ -936,6 +1019,7 @@ pub fn run() {
             android_get_picked_file,
             android_check_new_intent,
             open_new_window,
+            set_window_title,
         ]);
 
         // ── Native menu (desktop only) ────────────────────────────────
@@ -1079,6 +1163,27 @@ pub fn run() {
 
             Ok(())
         });
+
+    // Handle Window menu clicks to focus the selected window
+    #[cfg(desktop)]
+    let builder = builder.on_menu_event(|app, event| {
+        let id = event.id().0.as_str();
+        if let Some(label) = id.strip_prefix("window-list-") {
+            if let Some(win) = app.get_webview_window(label) {
+                let _ = win.unminimize();
+                let _ = win.show();
+                let _ = win.set_focus();
+            }
+        }
+    })
+    .on_window_event(|window, event| {
+        if let tauri::WindowEvent::Destroyed = event {
+            let app = window.app_handle();
+            if let Some(menu) = app.menu() {
+                rebuild_window_menu(app, &menu);
+            }
+        }
+    });
 
     let app = builder
         .build(tauri::generate_context!())

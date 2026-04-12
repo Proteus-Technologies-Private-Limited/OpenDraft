@@ -20,6 +20,14 @@ async function init() {
   // On web it is a no-op — the Python backend is used as-is.
   await initStorage();
 
+  // Set initial native window title on desktop (for macOS Window menu)
+  import('./services/platform').then(({ isDesktopTauri }) => {
+    if (!isDesktopTauri()) return;
+    import('@tauri-apps/api/core').then(({ invoke }) => {
+      invoke('set_window_title', { title: 'Untitled Screenplay' }).catch(() => {});
+    });
+  });
+
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <BrowserRouter>

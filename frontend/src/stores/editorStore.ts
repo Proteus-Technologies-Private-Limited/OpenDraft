@@ -473,7 +473,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setActiveElement: (el) => set({ activeElement: el }),
 
   documentTitle: 'Untitled Screenplay',
-  setDocumentTitle: (title) => set({ documentTitle: title }),
+  setDocumentTitle: (title) => {
+    set({ documentTitle: title });
+    // Update native window title on desktop so macOS Window menu shows file names
+    import('../services/platform').then(({ isDesktopTauri }) => {
+      if (!isDesktopTauri()) return;
+      import('@tauri-apps/api/core').then(({ invoke }) => {
+        invoke('set_window_title', { title: title || '' }).catch(() => {});
+      }).catch(() => {});
+    });
+  },
   pageCount: 1,
   setPageCount: (count) => set({ pageCount: count }),
   currentPage: 1,

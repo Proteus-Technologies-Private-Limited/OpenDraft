@@ -548,6 +548,17 @@ jobs:
           cfg['bundle'].pop('externalBin', None)
           ios = cfg['bundle'].setdefault('iOS', {})
           ios['developmentTeam'] = team_id
+          # Use single visible window for iOS (no splashscreen on mobile)
+          cfg['app']['windows'] = [{
+              'label': 'main',
+              'url': 'index.html',
+              'title': 'OpenDraft',
+              'width': 1280,
+              'height': 800,
+              'resizable': True,
+              'fullscreen': False,
+              'visible': True
+          }]
           with open('tauri.conf.json', 'w') as f:
               json.dump(cfg, f, indent=2)
           "
@@ -666,7 +677,6 @@ jobs:
               plist = plistlib.load(f)
 
           plist["LSSupportsOpeningDocumentsInPlace"] = True
-          plist["UISupportsDocumentBrowser"] = True
 
           plist["CFBundleDocumentTypes"] = [
               {"CFBundleTypeName": "Final Draft Screenplay", "CFBundleTypeRole": "Editor",

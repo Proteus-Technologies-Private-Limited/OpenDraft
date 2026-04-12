@@ -806,11 +806,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             { icon: <FaCompressArrowsAlt />, label: toolbarMode === 'compact' ? '\u2713 Compact' : 'Compact', action: () => setToolbarMode('compact') },
             { icon: <FaExpandArrowsAlt />, label: toolbarMode === 'comfortable' ? '\u2713 Comfortable' : 'Comfortable', action: () => setToolbarMode('comfortable') },
             { icon: <FaEyeSlash />, label: toolbarMode === 'hidden' ? '\u2713 Hidden' : 'Hidden', action: () => {
-              const shown = localStorage.getItem('opendraft:hiddenModeIntroShown');
               setToolbarMode('hidden');
-              if (!shown) {
+              if (localStorage.getItem('opendraft:hiddenModeIntroShown') !== '1') {
                 setShowHiddenModeIntro(true);
-                localStorage.setItem('opendraft:hiddenModeIntroShown', '1');
               }
             }},
           ],
@@ -930,6 +928,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   // Floating menu toggle (hidden mode)
   const [floatingMenuOpen, setFloatingMenuOpen] = useState(false);
   const [showHiddenModeIntro, setShowHiddenModeIntro] = useState(false);
+  const [hiddenModeDontShow, setHiddenModeDontShow] = useState(true);
 
   // Draggable FAB position — persisted to localStorage
   const FAB_POS_KEY = 'opendraft:fabPosition';
@@ -1279,8 +1278,15 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <p>You can <strong>drag the button</strong> to reposition it anywhere on screen. Your preferred position will be remembered.</p>
             <p>To restore the menu bar, tap the button and go to <strong>View &gt; Menu &amp; Toolbar</strong>.</p>
           </div>
-          <div className="dialog-footer">
-            <button className="dialog-btn dialog-btn-primary" onClick={() => setShowHiddenModeIntro(false)}>Got it</button>
+          <div className="dialog-footer" style={{ flexDirection: 'column', gap: '12px', alignItems: 'stretch' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--fd-text-secondary)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={hiddenModeDontShow} onChange={(e) => setHiddenModeDontShow(e.target.checked)} />
+              Don't show this again
+            </label>
+            <button className="dialog-btn dialog-btn-primary" onClick={() => {
+              if (hiddenModeDontShow) localStorage.setItem('opendraft:hiddenModeIntroShown', '1');
+              setShowHiddenModeIntro(false);
+            }}>Got it</button>
           </div>
         </div>
       </div>,
