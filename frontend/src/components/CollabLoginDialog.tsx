@@ -93,6 +93,10 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
       showToast('Password must be at least 8 characters', 'error');
       return;
     }
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(regPassword)) {
+      showToast('Password must contain uppercase, lowercase, and a digit', 'error');
+      return;
+    }
     setLoading(true);
     try {
       const response = await collabAuthApi.register(regEmail, regPassword, regName);
@@ -246,7 +250,7 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
                     type={showRegPw ? 'text' : 'password'}
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="At least 8 characters"
+                    placeholder="Min 8 chars, upper + lower + digit"
                   />
                   <button
                     type="button"

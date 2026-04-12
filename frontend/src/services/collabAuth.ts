@@ -185,7 +185,7 @@ export function handleAuthResponse(response: AuthResponse): CollabAuth {
     refreshToken: response.refreshToken,
     user: response.user,
   };
-  console.log('[collabAuth] Storing auth token for', auth.user?.displayName, '- token:', auth.accessToken?.slice(0, 20) + '...');
+  console.log('[collabAuth] Authenticated as', auth.user?.displayName);
   useSettingsStore.getState().setCollabAuth(auth);
   return auth;
 }

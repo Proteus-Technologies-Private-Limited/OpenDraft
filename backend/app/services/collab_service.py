@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -11,10 +12,12 @@ logger = logging.getLogger(__name__)
 
 def _sessions_file() -> Path:
     """Return path to the collab sessions JSON file."""
-    path = PROJECTS_DIR.parent / "collab_sessions.json"
-    if not path.exists():
-        path.write_text("{}", encoding="utf-8")
-    return path
+    p = PROJECTS_DIR.parent / "collab_sessions.json"
+    if not p.exists():
+        fd = os.open(str(p), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write("{}")
+    return p
 
 
 def _read_sessions() -> dict:
@@ -22,7 +25,10 @@ def _read_sessions() -> dict:
 
 
 def _write_sessions(sessions: dict) -> None:
-    _sessions_file().write_text(json.dumps(sessions, indent=2), encoding="utf-8")
+    p = _sessions_file()
+    fd = os.open(str(p), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(sessions, f, indent=2)
 
 
 def create_session(

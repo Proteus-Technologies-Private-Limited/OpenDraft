@@ -15,7 +15,9 @@ TAURI_DIR="$PROJECT_ROOT/src-tauri"
 
 # Load credentials from .env
 if [ -f "$PROJECT_ROOT/.env" ]; then
-    export $(grep -v '^#' "$PROJECT_ROOT/.env" | xargs)
+    set -a
+    . "$PROJECT_ROOT/.env"
+    set +a
 fi
 
 if [ -z "$APPLE_PASSWORD" ] || [ "$APPLE_PASSWORD" = "REPLACE_WITH_APP_SPECIFIC_PASSWORD" ]; then

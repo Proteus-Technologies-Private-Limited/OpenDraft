@@ -73,7 +73,7 @@ const NoteContentDisplay: React.FC<{
       if (embedUrl) {
         elements.push(
           <div key={i} className="note-media-embed note-media-video">
-            <iframe src={embedUrl} allowFullScreen title="video" />
+            <iframe src={embedUrl} allowFullScreen title="video" sandbox="allow-scripts allow-same-origin allow-presentation" />
           </div>,
         );
       } else {

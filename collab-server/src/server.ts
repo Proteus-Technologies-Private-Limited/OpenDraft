@@ -32,8 +32,13 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 function docPath(documentName: string): string {
-  const safeName = documentName.replace(/\//g, '--');
-  return path.join(DATA_DIR, `${safeName}.yjs`);
+  const safeName = documentName.replace(/[/\\]/g, '--');
+  const basename = path.basename(safeName);
+  const resolved = path.resolve(DATA_DIR, `${basename}.yjs`);
+  if (!resolved.startsWith(path.resolve(DATA_DIR) + path.sep)) {
+    throw new Error('Invalid document name');
+  }
+  return resolved;
 }
 
 // ── Invite token validation ──

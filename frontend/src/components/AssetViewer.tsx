@@ -17,7 +17,7 @@ const AssetViewer: React.FC<AssetViewerProps> = ({ asset, projectId, onClose }) 
       return <img src={assetUrl} alt={asset.original_name} className="asset-viewer-image" />;
     }
     if (mime === 'application/pdf') {
-      return <iframe src={assetUrl} className="asset-viewer-iframe" title={asset.original_name} />;
+      return <iframe src={assetUrl} className="asset-viewer-iframe" title={asset.original_name} sandbox="allow-scripts allow-same-origin" />;
     }
     if (mime.startsWith('audio/')) {
       return (

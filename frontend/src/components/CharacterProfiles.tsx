@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
+import DOMPurify from 'dompurify';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore, type CharacterProfile } from '../stores/editorStore';
 import { useAssetStore } from '../stores/assetStore';
@@ -18,9 +19,7 @@ const CHARACTER_ROLES = ['', 'Lead', 'Supporting', 'Featured', 'Background', 'Da
 /** Strip HTML tags to get plain text (for collapsed preview and FDX export) */
 function stripHtml(html: string): string {
   if (!html) return '';
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  return tmp.textContent || tmp.innerText || '';
+  return DOMPurify.sanitize(html, { ALLOWED_TAGS: [] }).replace(/\s+/g, ' ').trim();
 }
 
 interface CharacterProfilesProps {
