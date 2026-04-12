@@ -1538,7 +1538,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   display: flex; align-items: center; justify-content: space-between;
   height: 24px; background: var(--fd-status-bg);
   border-top: 1px solid var(--fd-border); padding: 0 12px;
-  flex-shrink: 0; user-select: none;
+  flex: 1; flex-shrink: 0; user-select: none;
 }
 .status-left, .status-center, .status-right { display: flex; align-items: center; gap: 16px; }
 .status-left { flex: 1; }

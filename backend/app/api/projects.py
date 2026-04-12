@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectList, ReorderRequest
 from app.schemas.script import ScriptCreate, ScriptUpdate, ScriptMeta, ScriptResponse
+from app.plugins import run_hooks
 from app.services import project_service, script_service
 
 router = APIRouter()
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 async def create_project(body: ProjectCreate):
     try:
         data = project_service.create_project(body.name)
+        await run_hooks("project:created", project=data)
         return data
     except FileExistsError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
@@ -64,6 +66,7 @@ async def update_project(project_id: str, body: ProjectUpdate):
 async def delete_project(project_id: str):
     try:
         project_service.delete_project(project_id)
+        await run_hooks("project:deleted", project_id=project_id)
         return {"message": f"Project '{project_id}' deleted"}
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
@@ -123,10 +126,18 @@ async def reorder_scripts(project_id: str, body: ReorderRequest):
 @router.put("/{project_id}/scripts/{script_id}", response_model=ScriptResponse)
 async def update_script(project_id: str, script_id: str, body: ScriptUpdate):
     try:
-        return script_service.update_script(
+        is_content_save = body.content is not None
+        if is_content_save:
+            await run_hooks("script:before_save", project_id=project_id,
+                            script_id=script_id, content=body.content)
+        result = script_service.update_script(
             project_id, script_id, body.title, body.content,
             color=body.color, pinned=body.pinned, sort_order=body.sort_order,
         )
+        if is_content_save:
+            await run_hooks("script:after_save", project_id=project_id,
+                            script_id=script_id, content=body.content)
+        return result
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 

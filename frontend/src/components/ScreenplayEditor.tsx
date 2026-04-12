@@ -3194,7 +3194,14 @@ const ScreenplayEditor: React.FC = () => {
           <p.component key={p.id} editor={editor} />
         ))}
       </div>
-      {!isHistoryMode && <StatusBar />}
+      {!isHistoryMode && (
+        <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+          <StatusBar />
+          {pluginRegistry.getPanels('status-bar').map((p) => (
+            <p.component key={p.id} />
+          ))}
+        </div>
+      )}
       {!isHistoryMode && <SearchReplace editor={editor} />}
       {!isHistoryMode && <GoToPage onGoToPage={handleGoToPage} />}
       <ZoomPanel />
