@@ -1297,7 +1297,7 @@ jobs:
             "OpenDraft_${VERSION}_amd64.AppImage"
             "OpenDraft_${VERSION}_android.apk"
             "OpenDraft_${VERSION}_ios.ipa"
-            "OpenDraft_${VERSION}_x86_64.dmg"
+            "OpenDraft_${VERSION}_x64.dmg"
             "OpenDraft_${VERSION}_x86_64-legacy.dmg"
           )
 

@@ -1,9 +1,6 @@
 name: Build Intel Mac
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 permissions:

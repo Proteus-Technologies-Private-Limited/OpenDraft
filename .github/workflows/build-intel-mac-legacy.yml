@@ -1,9 +1,6 @@
 name: Build Intel Mac (Legacy)
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 permissions:
