@@ -100,6 +100,7 @@ sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_aarch64\.dmg/OpenDraft_${NEW_VERSI
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64-setup\.exe/OpenDraft_${NEW_VERSION}_x64-setup.exe/g" "$PROJECT_ROOT/landing/index.html"
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.deb/OpenDraft_${NEW_VERSION}_amd64.deb/g" "$PROJECT_ROOT/landing/index.html"
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x86_64\.dmg/OpenDraft_${NEW_VERSION}_x86_64.dmg/g" "$PROJECT_ROOT/landing/index.html"
+sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x86_64-legacy\.dmg/OpenDraft_${NEW_VERSION}_x86_64-legacy.dmg/g" "$PROJECT_ROOT/landing/index.html"
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64_en-US\.msi/OpenDraft_${NEW_VERSION}_x64_en-US.msi/g" "$PROJECT_ROOT/landing/index.html"
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.AppImage/OpenDraft_${NEW_VERSION}_amd64.AppImage/g" "$PROJECT_ROOT/landing/index.html"
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_android\.apk/OpenDraft_${NEW_VERSION}_android.apk/g" "$PROJECT_ROOT/landing/index.html"

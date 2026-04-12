@@ -645,44 +645,39 @@ jobs:
         id: tauri_build_legacy
         timeout-minutes: 30
         continue-on-error: true
-        uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           MACOSX_DEPLOYMENT_TARGET: '10.13'
-        with:
-          tauriScript: npx --prefix frontend tauri
-          args: --target x86_64-apple-darwin
-          tagName: ${{ github.ref_name }}
-          releaseName: 'OpenDraft ${{ github.ref_name }}'
-          releaseBody: ''
-          releaseDraft: true
-          prerelease: false
-          includeUpdaterJson: false
+        run: npx --prefix frontend tauri build --target x86_64-apple-darwin
 
       - name: Build Tauri app (retry)
         if: steps.tauri_build_legacy.outcome == 'failure'
         timeout-minutes: 30
-        uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           MACOSX_DEPLOYMENT_TARGET: '10.13'
-        with:
-          tauriScript: npx --prefix frontend tauri
-          args: --target x86_64-apple-darwin
-          tagName: ${{ github.ref_name }}
-          releaseName: 'OpenDraft ${{ github.ref_name }}'
-          releaseBody: ''
-          releaseDraft: true
-          prerelease: false
-          includeUpdaterJson: false
+        run: npx --prefix frontend tauri build --target x86_64-apple-darwin
+
+      - name: Upload legacy DMG to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          DMG=$(find src-tauri/target/x86_64-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
+          if [ -z "$DMG" ]; then
+            echo "::error::No DMG found for legacy Intel build"
+            exit 1
+          fi
+          DEST="OpenDraft_${VERSION}_x86_64-legacy.dmg"
+          cp "$DMG" "$DEST"
+          gh release upload "$GITHUB_REF_NAME" "$DEST" --clobber
+          echo "Uploaded $DEST to release"
 
   build-ios:
     runs-on: macos-26
@@ -1303,6 +1298,7 @@ jobs:
             "OpenDraft_${VERSION}_android.apk"
             "OpenDraft_${VERSION}_ios.ipa"
             "OpenDraft_${VERSION}_x86_64.dmg"
+            "OpenDraft_${VERSION}_x86_64-legacy.dmg"
           )
 
           echo "Checking release assets for ${TAG}..."
