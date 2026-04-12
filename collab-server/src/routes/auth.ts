@@ -16,7 +16,10 @@ const router = Router();
 
 const registerSchema = z.object({
   email: z.string().email().max(255),
-  password: z.string().min(8).max(128),
+  password: z.string().min(8).max(128).regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/,
+    'Password must contain at least one uppercase letter, one lowercase letter, and one digit'
+  ),
   displayName: z.string().min(1).max(100),
 });
 

@@ -36,7 +36,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' tauri://localhost asset://localhost https://asset.localhost; script-src 'self' tauri://localhost https://accounts.google.com; style-src 'self' tauri://localhost 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' tauri://localhost https://fonts.gstatic.com; img-src 'self' tauri://localhost asset://localhost https://asset.localhost https: data: blob:; connect-src 'self' tauri://localhost asset://localhost https://asset.localhost wss: ws: https:; frame-src https://www.youtube-nocookie.com https://player.vimeo.com https://accounts.google.com blob:; media-src 'self' tauri://localhost asset://localhost https://asset.localhost blob:"
     }
   },
   "bundle": {

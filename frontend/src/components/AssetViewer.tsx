@@ -17,7 +17,11 @@ const AssetViewer: React.FC<AssetViewerProps> = ({ asset, projectId, onClose }) 
       return <img src={assetUrl} alt={asset.original_name} className="asset-viewer-image" />;
     }
     if (mime === 'application/pdf') {
-      return <iframe src={assetUrl} className="asset-viewer-iframe" title={asset.original_name} />;
+      // Use ?disposition=inline for backend URLs; asset:// protocol serves inline by default
+      const pdfUrl = assetUrl.startsWith('asset://')
+        ? assetUrl
+        : assetUrl + (assetUrl.includes('?') ? '&' : '?') + 'disposition=inline';
+      return <embed src={pdfUrl} type="application/pdf" className="asset-viewer-iframe" title={asset.original_name} />;
     }
     if (mime.startsWith('audio/')) {
       return (

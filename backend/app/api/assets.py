@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
 from fastapi.responses import FileResponse
+from starlette.responses import Response
 
 from app.services import asset_service
 
@@ -40,16 +41,22 @@ async def list_assets(project_id: str):
 
 
 @router.get("/{project_id}/assets/{asset_id}")
-async def download_asset(project_id: str, asset_id: str):
-    """Download an asset file."""
+async def download_asset(
+    project_id: str,
+    asset_id: str,
+    disposition: str = Query("attachment", pattern="^(attachment|inline)$"),
+):
+    """Download or view an asset file. Use ?disposition=inline to display in browser."""
     try:
         entry = asset_service.get_asset_entry(project_id, asset_id)
         file_path = asset_service.get_asset_path(project_id, asset_id)
-        return FileResponse(
+        response = FileResponse(
             path=str(file_path),
-            filename=entry["original_name"],
             media_type=entry["mime_type"],
         )
+        fname = entry["original_name"]
+        response.headers["Content-Disposition"] = f'{disposition}; filename="{fname}"'
+        return response
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 

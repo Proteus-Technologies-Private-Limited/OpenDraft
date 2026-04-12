@@ -12,6 +12,18 @@ import {
 import { useAssetStore, type Asset } from '../stores/assetStore';
 import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
+import { isTauri } from '../services/platform';
+
+/** Open a URL in the default browser. Uses Tauri invoke on desktop, window.open on web. */
+const openInBrowser = (url: string) => {
+  if (isTauri()) {
+    import('@tauri-apps/api/core').then(({ invoke }) => {
+      invoke('open_url', { url }).catch((err: unknown) => console.error('Failed to open URL:', err));
+    });
+  } else {
+    window.open(url, '_blank');
+  }
+};
 
 interface ScriptNotesProps {
   editor: Editor | null;
@@ -37,6 +49,7 @@ const toEmbedUrl = (url: string): string | null => {
   if (m) return `https://player.vimeo.com/video/${m[1]}`;
   return null;
 };
+
 
 /**
  * Render note content with media embeds and @asset references.
@@ -71,11 +84,29 @@ const NoteContentDisplay: React.FC<{
     if (isVideoUrl(line) && /^https?:\/\//.test(line)) {
       const embedUrl = toEmbedUrl(line);
       if (embedUrl) {
-        elements.push(
-          <div key={i} className="note-media-embed note-media-video">
-            <iframe src={embedUrl} allowFullScreen title="video" />
-          </div>,
-        );
+        if (isTauri()) {
+          // In Tauri, YouTube/Vimeo iframes don't work (origin restriction).
+          // Show as a clickable link that opens in the default browser.
+          elements.push(
+            <div key={i} className="note-media-embed note-media-video">
+              <a
+                href={line}
+                target="_blank"
+                rel="noreferrer"
+                className="note-video-link"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); openInBrowser(line); }}
+              >
+                {line}
+              </a>
+            </div>,
+          );
+        } else {
+          elements.push(
+            <div key={i} className="note-media-embed note-media-video">
+              <iframe src={embedUrl} allowFullScreen title="video" />
+            </div>,
+          );
+        }
       } else {
         elements.push(
           <div key={i} className="note-media-embed">
@@ -122,7 +153,28 @@ const NoteContentDisplay: React.FC<{
           );
         }
       } else {
-        lineElements.push(<span key={j}>{part}</span>);
+        // Detect URLs in plain text and render as clickable links
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const textParts = part.split(urlRegex);
+        for (let k = 0; k < textParts.length; k++) {
+          const tp = textParts[k];
+          if (urlRegex.test(tp)) {
+            const handleClick = (e: React.MouseEvent) => {
+              e.stopPropagation();
+              e.preventDefault();
+              openInBrowser(tp);
+            };
+            lineElements.push(
+              <a key={`${j}-${k}`} href={tp} target="_blank" rel="noreferrer" className="note-inline-link" onClick={handleClick}>
+                {tp}
+              </a>,
+            );
+          } else if (tp) {
+            lineElements.push(<span key={`${j}-${k}`}>{tp}</span>);
+          }
+          // Reset regex lastIndex since we reuse it
+          urlRegex.lastIndex = 0;
+        }
       }
     }
 

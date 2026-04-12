@@ -124,6 +124,10 @@ const SettingsPage: React.FC = () => {
       showToast('Password must be at least 8 characters', 'error');
       return;
     }
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(regPassword)) {
+      showToast('Password must contain uppercase, lowercase, and a digit', 'error');
+      return;
+    }
     setAuthLoading(true);
     try {
       const response = await collabAuthApi.register(regEmail, regPassword, regName);

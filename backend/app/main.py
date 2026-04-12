@@ -42,7 +42,7 @@ app.add_middleware(
     # Allow localhost and *.localhost (Tauri Windows) only.
     # The web backend is no longer used by Tauri desktop/mobile (they use
     # local SQLite), so we don't need to allow arbitrary local-network IPs.
-    allow_origin_regex=r"^https?://(localhost|[\w.-]*\.localhost|127\.0\.0\.1|(\d{1,3}\.){3}\d{1,3})(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost|[\w.-]*\.localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

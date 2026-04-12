@@ -1,4 +1,5 @@
 import React, { useRef, useCallback, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 
 interface MiniRichTextProps {
   value: string;
@@ -7,6 +8,11 @@ interface MiniRichTextProps {
   /** Minimum height in px */
   minHeight?: number;
 }
+
+const PURIFY_CONFIG = {
+  ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'ul', 'li', 'br', 'div', 'span', 'p'],
+  ALLOWED_ATTR: ['style'],
+};
 
 /**
  * Lightweight rich text editor for character profile fields.
@@ -30,7 +36,7 @@ const MiniRichText: React.FC<MiniRichTextProps> = ({
     }
     const el = editorRef.current;
     if (el && el.innerHTML !== value) {
-      el.innerHTML = value;
+      el.innerHTML = DOMPurify.sanitize(value, PURIFY_CONFIG);
     }
   }, [value]);
 

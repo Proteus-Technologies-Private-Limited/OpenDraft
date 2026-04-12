@@ -2599,6 +2599,18 @@ const ScreenplayEditor: React.FC = () => {
             setDragOverEditor(false);
           } else if (payload.type === 'drop') {
             setDragOverEditor(false);
+            // If drop is over the asset manager, forward file paths for upload
+            const pos = payload.position;
+            if (pos) {
+              const el = document.elementFromPoint(pos.x, pos.y);
+              if (el?.closest('.asset-manager')) {
+                const paths = payload.paths;
+                if (paths && paths.length > 0) {
+                  window.dispatchEvent(new CustomEvent('tauri-asset-drop', { detail: { paths } }));
+                }
+                return;
+              }
+            }
             const paths = payload.paths;
             if (!paths || paths.length === 0) return;
             const filePath = paths[0];

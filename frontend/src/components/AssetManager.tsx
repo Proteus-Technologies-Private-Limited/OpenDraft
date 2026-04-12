@@ -39,6 +39,51 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
     }
   }, [embedded, assetManagerOpen, fetchAssets]);
 
+  // Handle Tauri native drag-and-drop forwarded from ScreenplayEditor
+  useEffect(() => {
+    if (!embedded && !assetManagerOpen) return;
+    const handler = async (e: Event) => {
+      const paths = (e as CustomEvent).detail?.paths as string[] | undefined;
+      if (!paths || paths.length === 0) return;
+      try {
+        const { readFile } = await import('@tauri-apps/plugin-fs');
+        setUploading(true);
+        let failed = 0;
+        for (const filePath of paths) {
+          const filename = filePath.replace(/^.*[\\/]/, '') || 'file';
+          try {
+            const data = await readFile(filePath);
+            const ext = filename.split('.').pop()?.toLowerCase() || '';
+            const mimeMap: Record<string, string> = {
+              png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+              webp: 'image/webp', svg: 'image/svg+xml', pdf: 'application/pdf',
+              mp3: 'audio/mpeg', wav: 'audio/wav', mp4: 'video/mp4', webm: 'video/webm',
+              txt: 'text/plain',
+            };
+            const mime = mimeMap[ext] || 'application/octet-stream';
+            const file = new File([data], filename, { type: mime });
+            const tags = tagInput.trim() ? tagInput.trim().split(',').map((t) => t.trim()).filter(Boolean) : [];
+            await api.uploadAsset(projectId, file, tags);
+          } catch {
+            failed++;
+            showToast(`Failed to upload "${filename}"`, 'error');
+          }
+        }
+        setTagInput('');
+        await fetchAssets();
+        setUploading(false);
+        const succeeded = paths.length - failed;
+        if (succeeded > 0) {
+          showToast(`Uploaded ${succeeded} file${succeeded !== 1 ? 's' : ''} successfully`, 'success');
+        }
+      } catch {
+        setUploading(false);
+      }
+    };
+    window.addEventListener('tauri-asset-drop', handler);
+    return () => window.removeEventListener('tauri-asset-drop', handler);
+  }, [embedded, assetManagerOpen, projectId, tagInput, fetchAssets]);
+
   const handleUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploading(true);
