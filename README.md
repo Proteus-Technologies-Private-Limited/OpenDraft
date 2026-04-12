@@ -150,7 +150,7 @@ Get the latest version — no account required, just install and start writing. 
 | Platform | Download |
 |----------|----------|
 | **macOS** (Apple Silicon) | [Download .dmg](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.16.0_aarch64.dmg) |
-| **macOS** (Intel) | [Download .dmg](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.16.0_x86_64.dmg) |
+| **macOS** (Intel) | [Download .dmg](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.16.0_x64.dmg) |
 | **Windows** (64-bit) | [Download .exe](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.16.0_x64-setup.exe) |
 | **Windows** (MSI) | [Download .msi](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.16.0_x64_en-US.msi) |
 | **Linux** (Debian/Ubuntu) | [Download .deb](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.16.0_amd64.deb) |
