@@ -87,6 +87,7 @@ echo "  ✓ frontend/src/components/MenuBar.tsx"
 
 # README.md download links
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_aarch64\.dmg/OpenDraft_${NEW_VERSION}_aarch64.dmg/g" "$PROJECT_ROOT/README.md"
+sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x86_64\.dmg/OpenDraft_${NEW_VERSION}_x86_64.dmg/g" "$PROJECT_ROOT/README.md"
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64-setup\.exe/OpenDraft_${NEW_VERSION}_x64-setup.exe/g" "$PROJECT_ROOT/README.md"
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64_en-US\.msi/OpenDraft_${NEW_VERSION}_x64_en-US.msi/g" "$PROJECT_ROOT/README.md"
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.deb/OpenDraft_${NEW_VERSION}_amd64.deb/g" "$PROJECT_ROOT/README.md"
@@ -98,6 +99,10 @@ echo "  ✓ README.md (download links)"
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_aarch64\.dmg/OpenDraft_${NEW_VERSION}_aarch64.dmg/g" "$PROJECT_ROOT/landing/index.html"
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64-setup\.exe/OpenDraft_${NEW_VERSION}_x64-setup.exe/g" "$PROJECT_ROOT/landing/index.html"
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.deb/OpenDraft_${NEW_VERSION}_amd64.deb/g" "$PROJECT_ROOT/landing/index.html"
+sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x86_64\.dmg/OpenDraft_${NEW_VERSION}_x86_64.dmg/g" "$PROJECT_ROOT/landing/index.html"
+sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64_en-US\.msi/OpenDraft_${NEW_VERSION}_x64_en-US.msi/g" "$PROJECT_ROOT/landing/index.html"
+sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.AppImage/OpenDraft_${NEW_VERSION}_amd64.AppImage/g" "$PROJECT_ROOT/landing/index.html"
+sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_android\.apk/OpenDraft_${NEW_VERSION}_android.apk/g" "$PROJECT_ROOT/landing/index.html"
 echo "  ✓ landing/index.html (download links)"
 
 # user-manual - footer version in all HTML files
