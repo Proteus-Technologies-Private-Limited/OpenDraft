@@ -212,13 +212,17 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       setSaveAsOpen(true);
       return;
     }
+    const { setSaveStatus } = useEditorStore.getState();
+    setSaveStatus('saving');
     try {
       const content = buildSaveContent();
       await api.saveScript(currentProject.id, currentScriptId, { content });
-      showToast('Saved', 'success');
+      setSaveStatus('saved');
     } catch (err) {
       console.error('Save failed:', err);
-      showToast(`Save failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      const msg = err instanceof Error ? err.message : String(err);
+      setSaveStatus('error', msg);
+      showToast(`Save failed: ${msg}`, 'error');
     }
   }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen]);
 
