@@ -415,7 +415,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     (name: string): CharacterProfile => {
       const existing = characterProfiles.find((p) => p.name === name);
       if (existing) return existing;
-      return { name, description: '', color: '', highlighted: false, gender: '', age: '', role: '', backstory: '', images: [] };
+      return { name, description: '', color: '', highlighted: false, gender: '', age: '', role: '', backstory: '', arc: '', images: [] };
     },
     [characterProfiles],
   );
@@ -603,6 +603,15 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
           onChange={(html) => upsertCharacterProfile(charName, { backstory: html })}
           placeholder="Character history, motivations, secrets..."
           minHeight={isModal ? 100 : 60}
+        />
+
+        {/* Character Arc */}
+        <label className="char-profile-label">Character Arc</label>
+        <MiniRichText
+          value={prof.arc || ''}
+          onChange={(html) => upsertCharacterProfile(charName, { arc: html })}
+          placeholder="How does this character change through the story..."
+          minHeight={isModal ? 80 : 50}
         />
 
         {/* Color + Highlight */}
@@ -936,7 +945,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                       </div>
                     </div>
 
-                    {/* Bottom section: Backstory, Color/Highlight, Scenes */}
+                    {/* Bottom section: Backstory, Arc, Color/Highlight, Scenes */}
                     <div className="char-profile-detail-bottom">
                       <label className="char-profile-label">Backstory</label>
                       <MiniRichText
@@ -944,6 +953,14 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                         onChange={(html) => upsertCharacterProfile(name, { backstory: html })}
                         placeholder="Character history, motivations, secrets..."
                         minHeight={60}
+                      />
+
+                      <label className="char-profile-label">Character Arc</label>
+                      <MiniRichText
+                        value={profile.arc || ''}
+                        onChange={(html) => upsertCharacterProfile(name, { arc: html })}
+                        placeholder="How does this character change through the story..."
+                        minHeight={50}
                       />
 
                       <div className="char-profile-highlight-row">

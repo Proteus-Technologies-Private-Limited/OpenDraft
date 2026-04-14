@@ -231,6 +231,8 @@ export interface CharacterProfile {
   role: string;
   /** Rich text backstory / character history (HTML string; OpenDraft-only, not in FDX) */
   backstory: string;
+  /** Character arc — how the character changes through the story (HTML string; OpenDraft-only) */
+  arc: string;
   /** Asset IDs of images associated with this character */
   images: string[];
 }
@@ -733,6 +735,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             age: '',
             role: '',
             backstory: '',
+            arc: '',
             images: [],
             ...updates,
           },

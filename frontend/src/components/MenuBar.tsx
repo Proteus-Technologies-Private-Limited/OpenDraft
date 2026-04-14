@@ -881,8 +881,17 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     ],
   };
 
-  // Append plugin menu items to each section
+  // Append plugin menu items to each section (supports nested submenus)
   const pluginCtx = { editor };
+  const mapPluginChildren = (children: any[]): MenuItem[] =>
+    children.map((c) => ({
+      label: c.label || '',
+      shortcut: c.shortcut,
+      action: c.action ? () => c.action!(pluginCtx) : undefined,
+      disabled: typeof c.disabled === 'function' ? c.disabled(pluginCtx) : c.disabled,
+      separator: c.separator,
+      children: c.children ? mapPluginChildren(c.children) : undefined,
+    }));
   for (const menu of menus) {
     const pluginItems = pluginRegistry.getMenuItems(menu.label as PluginMenuSection);
     if (pluginItems.length > 0) {
@@ -891,8 +900,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         menu.items.push({
           label: p.label,
           shortcut: p.shortcut,
-          action: () => p.action(pluginCtx),
+          action: p.action ? () => p.action!(pluginCtx) : undefined,
           disabled: typeof p.disabled === 'function' ? p.disabled(pluginCtx) : p.disabled,
+          children: p.children ? mapPluginChildren(p.children) : undefined,
         });
       }
     }

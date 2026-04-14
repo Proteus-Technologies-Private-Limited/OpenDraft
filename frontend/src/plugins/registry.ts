@@ -20,15 +20,27 @@ export interface PluginContext {
   editor: Editor | null;
 }
 
+export interface PluginMenuChildEntry {
+  id: string;
+  label: string;
+  action?: (ctx: PluginContext) => void;
+  shortcut?: string;
+  disabled?: boolean | ((ctx: PluginContext) => boolean);
+  separator?: boolean;
+  icon?: string;
+}
+
 export interface PluginMenuEntry {
   id: string;
   section: MenuSection;
   label: string;
-  action: (ctx: PluginContext) => void;
+  action?: (ctx: PluginContext) => void;
   shortcut?: string;
   order?: number;
   disabled?: boolean | ((ctx: PluginContext) => boolean);
   separator?: boolean;
+  children?: PluginMenuChildEntry[];
+  icon?: string;
 }
 
 export interface PluginPanelEntry {
