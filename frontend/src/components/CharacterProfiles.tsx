@@ -6,6 +6,7 @@ import { useEditorStore, type CharacterProfile, type CharacterRelationship } fro
 import { useProjectStore } from '../stores/projectStore';
 import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
+import { showToast } from './Toast';
 import MiniRichText from './MiniRichText';
 import { RelationshipMap } from './RelationshipMap';
 
@@ -125,6 +126,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
   const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadTargetRef = useRef<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   // Fetch project assets when image picker opens
   const fetchAssets = useCallback(async () => {
@@ -132,7 +134,9 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     try {
       const list = await api.listAssets(projectId);
       setAssets(list);
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.warn('Failed to fetch assets:', err);
+    }
   }, [projectId, setAssets]);
 
   useEffect(() => {
@@ -517,18 +521,22 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
 
   const handleUploadImage = useCallback(async (charName: string, file: File) => {
     if (!projectId) return;
+    setUploading(true);
     try {
       const data = await api.uploadAsset(projectId, file, [`character:${charName}`]);
-      {
-        const assetId = data.id || data.asset?.id;
-        if (assetId) {
-          const profile = characterProfiles.find((p) => p.name === charName);
-          const currentImages = profile?.images || [];
-          upsertCharacterProfile(charName, { images: [...currentImages, assetId] });
-        }
-        await fetchAssets();
+      const assetId = data.id || data.asset?.id;
+      if (assetId) {
+        const profile = characterProfiles.find((p) => p.name === charName);
+        const currentImages = profile?.images || [];
+        upsertCharacterProfile(charName, { images: [...currentImages, assetId] });
       }
-    } catch { /* ignore */ }
+      await fetchAssets();
+      showToast('Image uploaded', 'success');
+    } catch (err) {
+      showToast(`Image upload failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+    } finally {
+      setUploading(false);
+    }
   }, [projectId, characterProfiles, upsertCharacterProfile, fetchAssets]);
 
   const handleAssociateAsset = useCallback((charName: string, assetId: string) => {
@@ -668,9 +676,10 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
             <button
               className="char-profile-img-btn"
               onClick={() => triggerUpload(charName)}
+              disabled={uploading}
               title="Upload a new image for this character"
             >
-              Upload Image
+              {uploading ? 'Uploading...' : 'Upload Image'}
             </button>
             <button
               className="char-profile-img-btn"
@@ -1168,9 +1177,10 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                             <button
                               className="char-profile-img-btn"
                               onClick={() => triggerUpload(name)}
+                              disabled={uploading}
                               title="Upload a new image for this character"
                             >
-                              Upload Image
+                              {uploading ? 'Uploading...' : 'Upload Image'}
                             </button>
                             <button
                               className="char-profile-img-btn"

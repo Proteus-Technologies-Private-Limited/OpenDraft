@@ -328,7 +328,6 @@ export const RelationshipMap: React.FC<Props> = ({ scriptId, onSelectCharacter }
   // Pan & zoom state
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: 600, h: 400 });
   const [isPanning, setIsPanning] = useState(false);
-  const panStart = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
 
   // Measure container
   useEffect(() => {
