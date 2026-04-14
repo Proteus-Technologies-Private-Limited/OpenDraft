@@ -4271,7 +4271,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   border-color: var(--fd-accent, #8b5cf6);
   color: #fff;
 }
-.char-profile-rel-form-btn-primary:hover { opacity: 0.9; }
+.char-profile-rel-form-btn-primary:hover { background: var(--fd-accent, #8b5cf6); opacity: 0.9; }
 .char-profile-rel-form-btn-primary:disabled { opacity: 0.4; cursor: default; }
 /* === Relationship Map === */
 .rel-map-container {
@@ -4346,7 +4346,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   border-color: var(--fd-accent, #8b5cf6);
   color: #fff;
 }
-.rel-map-btn-primary:hover { opacity: 0.9; }
+.rel-map-btn-primary:hover { background: var(--fd-accent, #8b5cf6); opacity: 0.9; }
 .rel-map-btn-primary:disabled { opacity: 0.4; cursor: default; }
 .rel-map-btn-danger {
   color: #ef5350;
