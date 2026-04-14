@@ -20,6 +20,7 @@ import { pluginRegistry } from '../plugins/registry';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { openTextFile } from '../utils/fileOps';
 import { isDesktopTauri } from '../services/platform';
+import { getCompatEntries } from '../services/compat';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
 import {
   FaFile,
@@ -1360,6 +1361,43 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
                 <li><strong>File Drag-and-Drop Fix</strong> — Dragging .fdx, .fountain, .odraft, or .txt files from the OS into the editor now works on desktop.</li>
                 <li><strong>Open With in New Window</strong> — Double-clicking a screenplay file while the app is running opens it in a new window without disturbing your current work.</li>
               </ul>
+            </div>
+
+            <div className="about-whats-new">
+              <div className="about-section-title">Compatibility</div>
+              <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', marginTop: 8 }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', color: 'var(--fd-text-secondary)' }}>
+                    <th style={{ padding: '4px 8px', fontWeight: 500 }}>Subsystem</th>
+                    <th style={{ padding: '4px 8px', fontWeight: 500 }}>Status</th>
+                    <th style={{ padding: '4px 8px', fontWeight: 500 }}>Implementation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getCompatEntries().map((entry) => (
+                    <tr key={entry.label}>
+                      <td style={{ padding: '4px 8px', color: 'var(--fd-text)' }}>{entry.label}</td>
+                      <td style={{ padding: '4px 8px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          backgroundColor: entry.mode === 'primary' ? '#4caf50' : '#ff9800',
+                          marginRight: 6,
+                          verticalAlign: 'middle',
+                        }} />
+                        <span style={{ color: entry.mode === 'primary' ? '#4caf50' : '#ff9800', verticalAlign: 'middle' }}>
+                          {entry.mode === 'primary' ? 'Latest' : 'Fallback'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '4px 8px', color: 'var(--fd-text-secondary)', fontSize: 11 }}>
+                        {entry.using}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
           <div className="dialog-actions">

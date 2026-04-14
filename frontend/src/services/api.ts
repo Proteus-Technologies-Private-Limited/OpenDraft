@@ -301,13 +301,47 @@ export const api = {
 // Must be called once before the React tree renders (see main.tsx).
 
 export async function initStorage(): Promise<void> {
+  const { setCompat } = await import('./compat');
   // Dynamic imports keep the Tauri/SQLite code out of web bundles.
   const { isTauri } = await import('./platform');
-  if (!isTauri()) return;                             // ← web: nothing changes
+  if (!isTauri()) {
+    setCompat('storage', 'Storage', 'primary',
+      'HTTP API (Python backend)', 'localStorage (browser fallback)');
+    return;                                           // ← web: nothing changes
+  }
 
-  const { createLocalStorage } = await import('./local-storage');
-  const localApi = await createLocalStorage();
-  // Swap every method on the existing `api` object so all call-sites pick
-  // up the local implementation automatically.
-  Object.assign(api, localApi);
+  try {
+    // Race the SQLite init against a generous timeout.  The timeout only
+    // fires when Tauri IPC is fundamentally broken (e.g. older macOS
+    // WKWebView).  Normal first-run migrations finish well under 15 s.
+    // We clear the timer on success/failure to avoid an unhandled rejection.
+    const { createLocalStorage } = await import('./local-storage');
+    const localApi: Awaited<ReturnType<typeof createLocalStorage>> = await new Promise(
+      (resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error(
+            'Tauri SQLite init timed out (15 s) — IPC may not work on this macOS version'
+          )),
+          15_000,
+        );
+        createLocalStorage()
+          .then((api) => { clearTimeout(timer); resolve(api); })
+          .catch((err) => { clearTimeout(timer); reject(err); });
+      },
+    );
+    // Swap every method on the existing `api` object so all call-sites pick
+    // up the local implementation automatically.
+    Object.assign(api, localApi);
+    setCompat('storage', 'Storage', 'primary',
+      'Tauri SQLite (local database)', 'localStorage (browser fallback)');
+  } catch (err) {
+    // Tauri SQLite failed (e.g. older macOS with incompatible WKWebView APIs).
+    // Fall back to localStorage so the app still works.
+    console.error('Tauri SQLite init failed, falling back to localStorage:', err);
+    const { createFallbackStorage } = await import('./fallback-storage');
+    const fallbackApi = createFallbackStorage();
+    Object.assign(api, fallbackApi);
+    setCompat('storage', 'Storage', 'fallback',
+      'Tauri SQLite (local database)', 'localStorage (browser fallback)');
+  }
 }

@@ -609,7 +609,7 @@ jobs:
         run: cd frontend && npm run build
         env:
           VITE_API_BASE: http://localhost:18321/api
-          BUILD_TARGET: safari13
+          BUILD_TARGET: es2019
 
       - name: Import Apple Developer certificate
         env:

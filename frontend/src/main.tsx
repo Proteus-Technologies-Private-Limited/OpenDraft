@@ -18,6 +18,8 @@ async function init() {
 
   // On Tauri (desktop + mobile) this swaps the HTTP api with local SQLite.
   // On web it is a no-op — the Python backend is used as-is.
+  // initStorage() handles its own timeout and fallback internally —
+  // no additional wrapping needed here.
   await initStorage();
 
   // Set initial native window title on desktop (for macOS Window menu)
@@ -28,6 +30,11 @@ async function init() {
     });
   });
 
+  // Clear the loading-timeout diagnostic (and remove overlay if it fired early)
+  if ((window as any)._renderTimeout) clearTimeout((window as any)._renderTimeout);
+  const fatalOverlay = document.getElementById('_fatal');
+  if (fatalOverlay) fatalOverlay.remove();
+
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <BrowserRouter>
@@ -37,4 +44,10 @@ async function init() {
   );
 }
 
-init();
+init().catch((err) => {
+  console.error('Fatal init error:', err);
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;top:0;right:0;bottom:0;left:0;z-index:99999;background:#1a1a2e;color:#ff6b6b;font:14px/1.6 monospace;padding:40px;white-space:pre-wrap;';
+  d.textContent = 'OpenDraft failed to start:\n\n' + (err?.stack || err?.message || String(err));
+  document.body.appendChild(d);
+});
