@@ -233,8 +233,22 @@ export interface CharacterProfile {
   backstory: string;
   /** Character arc — how the character changes through the story (HTML string; OpenDraft-only) */
   arc: string;
+  /** Dialogue voice profile (OpenDraft-only) */
+  speechPattern: string;
+  vocabulary: string;
+  verbalTics: string;
+  sampleDialogue: string;
   /** Asset IDs of images associated with this character */
   images: string[];
+}
+
+export interface CharacterRelationship {
+  id: string;
+  characterA: string;
+  characterB: string;
+  type: string;
+  description: string;
+  dynamic: string;
 }
 
 export interface BeatColumn {
@@ -364,6 +378,10 @@ interface EditorState {
   setCharacterProfiles: (profiles: CharacterProfile[]) => void;
   upsertCharacterProfile: (name: string, updates: Partial<Omit<CharacterProfile, 'name'>>) => void;
   deleteCharacterProfile: (name: string) => void;
+  characterRelationships: CharacterRelationship[];
+  setCharacterRelationships: (rels: CharacterRelationship[]) => void;
+  upsertCharacterRelationship: (rel: CharacterRelationship) => void;
+  deleteCharacterRelationship: (id: string) => void;
   characterProfilesOpen: boolean;
   toggleCharacterProfiles: () => void;
   selectedCharacter: string | null;
@@ -736,6 +754,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             role: '',
             backstory: '',
             arc: '',
+            speechPattern: '',
+            vocabulary: '',
+            verbalTics: '',
+            sampleDialogue: '',
             images: [],
             ...updates,
           },
@@ -745,6 +767,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   deleteCharacterProfile: (name) =>
     set((s) => ({
       characterProfiles: s.characterProfiles.filter((p) => p.name !== name.toUpperCase()),
+    })),
+  characterRelationships: [],
+  setCharacterRelationships: (rels) => set({ characterRelationships: rels }),
+  upsertCharacterRelationship: (rel) =>
+    set((s) => {
+      const idx = s.characterRelationships.findIndex((r) => r.id === rel.id);
+      if (idx >= 0) {
+        const copy = [...s.characterRelationships];
+        copy[idx] = { ...copy[idx], ...rel };
+        return { characterRelationships: copy };
+      }
+      return { characterRelationships: [...s.characterRelationships, rel] };
+    }),
+  deleteCharacterRelationship: (id) =>
+    set((s) => ({
+      characterRelationships: s.characterRelationships.filter((r) => r.id !== id),
     })),
   characterProfilesOpen: _vs.characterProfilesOpen ?? false,
   toggleCharacterProfiles: () => set((s) => {

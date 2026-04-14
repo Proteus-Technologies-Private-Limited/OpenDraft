@@ -4047,6 +4047,31 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   align-items: center;
   justify-content: space-between;
 }
+.char-profile-voice-section {
+  margin: 4px 0;
+}
+.char-profile-voice-toggle {
+  cursor: pointer;
+  user-select: none;
+  color: var(--fd-text-muted, #888);
+}
+.char-profile-voice-toggle:hover {
+  color: var(--fd-text);
+}
+.char-profile-voice-fields {
+  padding-top: 4px;
+}
+.char-profile-color-highlight {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.char-profile-highlight-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
 .char-profile-highlight-btn {
   padding: 3px 12px;
   background: transparent;

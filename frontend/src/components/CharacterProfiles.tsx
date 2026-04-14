@@ -415,7 +415,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     (name: string): CharacterProfile => {
       const existing = characterProfiles.find((p) => p.name === name);
       if (existing) return existing;
-      return { name, description: '', color: '', highlighted: false, gender: '', age: '', role: '', backstory: '', arc: '', images: [] };
+      return { name, description: '', color: '', highlighted: false, gender: '', age: '', role: '', backstory: '', arc: '', speechPattern: '', vocabulary: '', verbalTics: '', sampleDialogue: '', images: [] };
     },
     [characterProfiles],
   );
@@ -614,21 +614,54 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
           minHeight={isModal ? 80 : 50}
         />
 
-        {/* Color + Highlight */}
-        <div className="char-profile-highlight-row">
-          <div className="char-profile-color-row">
-            <label className="char-profile-label">Color</label>
-            <div className="char-color-swatches">
-              {['#8b5cf6','#4f46e5','#2563eb','#059669','#eab308','#f97316','#ef4444','#000000','#ffffff'].map(c => (
-                <button key={c} className={`synopsis-color-swatch${(prof.color || '') === c ? ' active' : ''}`} style={{ background: c }} onClick={() => upsertCharacterProfile(charName, { color: c })} />
-              ))}
-              <label className="synopsis-color-custom" title="Custom color">
-                <input type="color" value={prof.color || '#999999'} onChange={(e) => upsertCharacterProfile(charName, { color: e.target.value })} />
-                <span>+</span>
-              </label>
-            </div>
+        {/* Voice Profile (collapsible) */}
+        <details className="char-profile-voice-section">
+          <summary className="char-profile-label char-profile-voice-toggle">Voice Profile</summary>
+          <div className="char-profile-voice-fields">
+            <label className="char-profile-label">Speech Pattern</label>
+            <MiniRichText
+              value={prof.speechPattern || ''}
+              onChange={(html) => upsertCharacterProfile(charName, { speechPattern: html })}
+              placeholder="Short sentences, formal tone, uses contractions..."
+              minHeight={40}
+            />
+            <label className="char-profile-label">Vocabulary</label>
+            <MiniRichText
+              value={prof.vocabulary || ''}
+              onChange={(html) => upsertCharacterProfile(charName, { vocabulary: html })}
+              placeholder="Educated, uses legal terms, street slang..."
+              minHeight={40}
+            />
+            <label className="char-profile-label">Verbal Tics</label>
+            <MiniRichText
+              value={prof.verbalTics || ''}
+              onChange={(html) => upsertCharacterProfile(charName, { verbalTics: html })}
+              placeholder="Says 'you see' often, clears throat before lying..."
+              minHeight={40}
+            />
+            <label className="char-profile-label">Sample Dialogue</label>
+            <MiniRichText
+              value={prof.sampleDialogue || ''}
+              onChange={(html) => upsertCharacterProfile(charName, { sampleDialogue: html })}
+              placeholder="3-5 representative lines from the script..."
+              minHeight={40}
+            />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        </details>
+
+        {/* Color + Highlight */}
+        <div className="char-profile-color-highlight">
+          <label className="char-profile-label">Color</label>
+          <div className="char-color-swatches">
+            {['#8b5cf6','#4f46e5','#2563eb','#059669','#eab308','#f97316','#ef4444','#000000','#ffffff'].map(c => (
+              <button key={c} className={`synopsis-color-swatch${(prof.color || '') === c ? ' active' : ''}`} style={{ background: c }} onClick={() => upsertCharacterProfile(charName, { color: c })} />
+            ))}
+            <label className="synopsis-color-custom" title="Custom color">
+              <input type="color" value={prof.color || '#999999'} onChange={(e) => upsertCharacterProfile(charName, { color: e.target.value })} />
+              <span>+</span>
+            </label>
+          </div>
+          <div className="char-profile-highlight-inline">
             <label className="char-profile-label" style={{ marginBottom: 0 }}>Highlight</label>
             <button
               className={`char-profile-highlight-btn${prof.highlighted ? ' active' : ''}`}
@@ -963,20 +996,53 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                         minHeight={50}
                       />
 
-                      <div className="char-profile-highlight-row">
-                        <div className="char-profile-color-row">
-                          <label className="char-profile-label">Color</label>
-                          <div className="char-color-swatches">
-                            {['#8b5cf6','#4f46e5','#2563eb','#059669','#eab308','#f97316','#ef4444','#000000','#ffffff'].map(c => (
-                              <button key={c} className={`synopsis-color-swatch${(profile.color || '') === c ? ' active' : ''}`} style={{ background: c }} onClick={() => upsertCharacterProfile(name, { color: c })} />
-                            ))}
-                            <label className="synopsis-color-custom" title="Custom color">
-                              <input type="color" value={profile.color || '#999999'} onChange={(e) => upsertCharacterProfile(name, { color: e.target.value })} />
-                              <span>+</span>
-                            </label>
-                          </div>
+                      {/* Voice Profile (collapsible) */}
+                      <details className="char-profile-voice-section">
+                        <summary className="char-profile-label char-profile-voice-toggle">Voice Profile</summary>
+                        <div className="char-profile-voice-fields">
+                          <label className="char-profile-label">Speech Pattern</label>
+                          <MiniRichText
+                            value={profile.speechPattern || ''}
+                            onChange={(html) => upsertCharacterProfile(name, { speechPattern: html })}
+                            placeholder="Short sentences, formal tone..."
+                            minHeight={40}
+                          />
+                          <label className="char-profile-label">Vocabulary</label>
+                          <MiniRichText
+                            value={profile.vocabulary || ''}
+                            onChange={(html) => upsertCharacterProfile(name, { vocabulary: html })}
+                            placeholder="Educated, uses legal terms..."
+                            minHeight={40}
+                          />
+                          <label className="char-profile-label">Verbal Tics</label>
+                          <MiniRichText
+                            value={profile.verbalTics || ''}
+                            onChange={(html) => upsertCharacterProfile(name, { verbalTics: html })}
+                            placeholder="Says 'you see' often..."
+                            minHeight={40}
+                          />
+                          <label className="char-profile-label">Sample Dialogue</label>
+                          <MiniRichText
+                            value={profile.sampleDialogue || ''}
+                            onChange={(html) => upsertCharacterProfile(name, { sampleDialogue: html })}
+                            placeholder="3-5 representative lines..."
+                            minHeight={40}
+                          />
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      </details>
+
+                      <div className="char-profile-color-highlight">
+                        <label className="char-profile-label">Color</label>
+                        <div className="char-color-swatches">
+                          {['#8b5cf6','#4f46e5','#2563eb','#059669','#eab308','#f97316','#ef4444','#000000','#ffffff'].map(c => (
+                            <button key={c} className={`synopsis-color-swatch${(profile.color || '') === c ? ' active' : ''}`} style={{ background: c }} onClick={() => upsertCharacterProfile(name, { color: c })} />
+                          ))}
+                          <label className="synopsis-color-custom" title="Custom color">
+                            <input type="color" value={profile.color || '#999999'} onChange={(e) => upsertCharacterProfile(name, { color: e.target.value })} />
+                            <span>+</span>
+                          </label>
+                        </div>
+                        <div className="char-profile-highlight-inline">
                           <label className="char-profile-label" style={{ marginBottom: 0 }}>Highlight</label>
                           <button
                             className={`char-profile-highlight-btn${profile.highlighted ? ' active' : ''}`}

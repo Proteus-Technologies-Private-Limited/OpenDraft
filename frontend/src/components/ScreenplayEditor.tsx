@@ -506,7 +506,7 @@ const ScreenplayEditor: React.FC = () => {
 
       const content = scriptResp.content as Record<string, unknown> | null;
       if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _templateId, _pageLayout: _plCollab, ...pmDoc } = content as Record<string, unknown>;
+        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _characterRelationships, _templateId, _pageLayout: _plCollab, ...pmDoc } = content as Record<string, unknown>;
         collabInitialContent.current = pmDoc;
       } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
         collabInitialContent.current = content;
@@ -666,7 +666,7 @@ const ScreenplayEditor: React.FC = () => {
         if (scriptResp) {
           const content = scriptResp.content as Record<string, unknown> | null;
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _templateId, _pageLayout: _plGuest, ...pmDoc } = content as Record<string, unknown>;
+            const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _characterRelationships, _templateId, _pageLayout: _plGuest, ...pmDoc } = content as Record<string, unknown>;
             collabInitialContent.current = pmDoc;
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             collabInitialContent.current = content;
@@ -717,6 +717,7 @@ const ScreenplayEditor: React.FC = () => {
         _tags: store.tags,
         _tagCategories: store.tagCategories,
         _characterProfiles: store.characterProfiles,
+        _characterRelationships: store.characterRelationships,
       };
       try {
         await api.saveScript(currentProject.id, currentScriptId, { content });
@@ -803,7 +804,7 @@ const ScreenplayEditor: React.FC = () => {
 
       const content = scriptResp.content as Record<string, unknown> | null;
       if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _templateId, ...pmDoc } = content as Record<string, unknown>;
+        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _characterRelationships, _templateId, ...pmDoc } = content as Record<string, unknown>;
         collabInitialContent.current = pmDoc;
       } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
         collabInitialContent.current = content;
@@ -1367,7 +1368,7 @@ const ScreenplayEditor: React.FC = () => {
 
     // Save current editor content so it can seed the Yjs doc
     const doc = editor.getJSON();
-    const { _notes, _generalNotes: _gn3, _tags, _tagCategories, _characterProfiles, _templateId: _tpl3, _pageLayout: _pl3, ...pmDoc } = doc as Record<string, unknown>;
+    const { _notes, _generalNotes: _gn3, _tags, _tagCategories, _characterProfiles, _characterRelationships, _templateId: _tpl3, _pageLayout: _pl3, ...pmDoc } = doc as Record<string, unknown>;
     collabInitialContent.current = pmDoc;
 
     // The guest invite carries a session_nonce that makes the Yjs room unique
@@ -1692,6 +1693,7 @@ const ScreenplayEditor: React.FC = () => {
       _tags: store.tags,
       _tagCategories: store.tagCategories,
       _characterProfiles: store.characterProfiles,
+        _characterRelationships: store.characterRelationships,
       _beats: store.beats,
       _beatColumns: store.beatColumns,
       _beatArrangeMode: store.beatArrangeMode,
@@ -1824,7 +1826,7 @@ const ScreenplayEditor: React.FC = () => {
         // Strip app metadata keys before feeding to ProseMirror
         let pmDoc: Record<string, unknown> | null = null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, _sceneNumbersVisible: _snv, _sceneNumbersLocked: _snl, _pageLayout: _pl, ...rest } = content as any;
+          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, _sceneNumbersVisible: _snv, _sceneNumbersLocked: _snl, _pageLayout: _pl, ...rest } = content as any;
           pmDoc = rest;
         }
 
@@ -1882,10 +1884,19 @@ const ScreenplayEditor: React.FC = () => {
                     age: (prof.age as string) || '',
                     role: (prof.role as string) || '',
                     backstory: (prof.backstory as string) || '',
+                    arc: (prof.arc as string) || '',
+                    speechPattern: (prof.speechPattern as string) || '',
+                    vocabulary: (prof.vocabulary as string) || '',
+                    verbalTics: (prof.verbalTics as string) || '',
+                    sampleDialogue: (prof.sampleDialogue as string) || '',
                     images: Array.isArray(prof.images) ? (prof.images as string[]) : [],
                   });
                 }
               }
+            }
+            const rels = parseAttr(c._characterRelationships);
+            if (rels.length > 0) {
+              store.setCharacterRelationships(rels as import('../stores/editorStore').CharacterRelationship[]);
             }
             const beatsArr = parseAttr(c._beats);
             store.setBeats(beatsArr as import('../stores/editorStore').BeatInfo[]);
@@ -2077,7 +2088,7 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, _sceneNumbersVisible: _snv2, _sceneNumbersLocked: _snl2, _pageLayout: _pl2, ...pmDoc } = content as any;
+            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, _sceneNumbersVisible: _snv2, _sceneNumbersLocked: _snl2, _pageLayout: _pl2, ...pmDoc } = content as any;
             editor.commands.setContent(pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             editor.commands.setContent(content);
@@ -2129,10 +2140,19 @@ const ScreenplayEditor: React.FC = () => {
                   age: (prof.age as string) || '',
                   role: (prof.role as string) || '',
                   backstory: (prof.backstory as string) || '',
+                  arc: (prof.arc as string) || '',
+                  speechPattern: (prof.speechPattern as string) || '',
+                  vocabulary: (prof.vocabulary as string) || '',
+                  verbalTics: (prof.verbalTics as string) || '',
+                  sampleDialogue: (prof.sampleDialogue as string) || '',
                   images: Array.isArray(prof.images) ? (prof.images as string[]) : [],
                 });
               }
             }
+          }
+          const rels2 = parseAttr2(c._characterRelationships);
+          if (rels2.length > 0) {
+            store.setCharacterRelationships(rels2 as import('../stores/editorStore').CharacterRelationship[]);
           }
           const beatsArr2 = parseAttr2(c._beats);
           store.setBeats(beatsArr2 as import('../stores/editorStore').BeatInfo[]);
