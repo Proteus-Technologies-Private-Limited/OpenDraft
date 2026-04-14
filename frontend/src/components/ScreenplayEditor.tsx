@@ -1754,6 +1754,56 @@ const ScreenplayEditor: React.FC = () => {
     return () => { editor.off('update', markUnsaved); };
   }, [editor, currentProject, currentScriptId, isCollabGuest]);
 
+  // --- Flush metadata-only changes to backend ---
+  // Store metadata (profiles, relationships, notes, etc.) can change without an
+  // editor document update.  The 30s auto-save would eventually persist them, but
+  // users expect "Save" to mean "saved" — a refresh within 30s would lose data.
+  // This effect watches key metadata fields and triggers a debounced save (2s).
+  useEffect(() => {
+    if (!editor || !currentProject || !currentScriptId || isCollabGuest) return;
+    const pid = currentProject.id;
+    const sid = currentScriptId;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const unsub = useEditorStore.subscribe((state, prev) => {
+      // Only react to metadata field changes
+      if (
+        state.characterRelationships === prev.characterRelationships &&
+        state.characterProfiles === prev.characterProfiles &&
+        state.notes === prev.notes &&
+        state.generalNotes === prev.generalNotes &&
+        state.tags === prev.tags &&
+        state.beats === prev.beats &&
+        state.beatColumns === prev.beatColumns
+      ) return;
+      if (scriptSwitchingRef.current) return;
+      // Mark unsaved immediately
+      const { saveStatus, setSaveStatus } = useEditorStore.getState();
+      if (saveStatus === 'idle' || saveStatus === 'saved') setSaveStatus('unsaved');
+      // Debounce the actual save (2s)
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (scriptSwitchingRef.current) return;
+        const content = buildSaveContent();
+        if (!content) return;
+        const json = JSON.stringify(content);
+        if (json !== lastSavedJsonRef.current) {
+          lastSavedJsonRef.current = json;
+          useEditorStore.getState().setSaveStatus('saving');
+          api.saveScript(pid, sid, { content }).then(() => {
+            useEditorStore.getState().setSaveStatus('saved');
+          }).catch((err) => {
+            console.error('Metadata save failed:', err);
+            const msg = err instanceof Error ? err.message : String(err);
+            useEditorStore.getState().setSaveStatus('error', msg);
+          });
+        }
+      }, 2000);
+    });
+
+    return () => { unsub(); if (timer) clearTimeout(timer); };
+  }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
+
   // --- Save on page unload (refresh / close) ---
   // Uses api.saveScript so it works on both web/desktop (HTTP) and mobile (SQLite).
   // NOTE: We intentionally do NOT save on component unmount because the
