@@ -1693,7 +1693,7 @@ const ScreenplayEditor: React.FC = () => {
       _tags: store.tags,
       _tagCategories: store.tagCategories,
       _characterProfiles: store.characterProfiles,
-        _characterRelationships: store.characterRelationships,
+      _characterRelationships: store.characterRelationships,
       _beats: store.beats,
       _beatColumns: store.beatColumns,
       _beatArrangeMode: store.beatArrangeMode,
@@ -1710,11 +1710,17 @@ const ScreenplayEditor: React.FC = () => {
   // Skip for collab guests — they don't own the document and the project may
   // not exist on their local backend.
   const lastSavedJsonRef = useRef<string>('');
+  // Guard: suppress auto-save while switching scripts.  During the switch the
+  // store metadata is cleared (0 relationships, 0 profiles, etc.) but the
+  // auto-save closure still holds the OLD project/script IDs.  Without this
+  // guard the auto-save would overwrite the old script with empty metadata.
+  const scriptSwitchingRef = useRef(false);
   const isCollabGuest = collabMode && !isCollabHost;
   useEffect(() => {
     if (!editor || !currentProject || !currentScriptId || isCollabGuest) return;
     const { setSaveStatus } = useEditorStore.getState();
     const timer = setInterval(() => {
+      if (scriptSwitchingRef.current) return;
       const content = buildSaveContent();
       if (!content) return;
       const json = JSON.stringify(content);
@@ -1808,8 +1814,22 @@ const ScreenplayEditor: React.FC = () => {
 
     loadedScriptRef.current = loadKey;
     clearTrackChanges();
+    scriptSwitchingRef.current = true;
     (async () => {
       try {
+        // Flush unsaved changes to the CURRENT script before switching so
+        // metadata (character profiles, relationships, etc.) is not lost.
+        if (currentProject && currentScriptId) {
+          const pendingContent = buildSaveContent();
+          if (pendingContent) {
+            const pendingJson = JSON.stringify(pendingContent);
+            if (pendingJson !== lastSavedJsonRef.current) {
+              lastSavedJsonRef.current = pendingJson;
+              try { await api.saveScript(currentProject.id, currentScriptId, { content: pendingContent }); } catch {}
+            }
+          }
+        }
+
         const project = await api.getProject(urlProjectId);
         setCurrentProject(project);
         setCurrentScriptId(isHistoryMode ? null : urlScriptId);
@@ -1850,6 +1870,7 @@ const ScreenplayEditor: React.FC = () => {
           const store = useEditorStore.getState();
           // Clear per-screenplay metadata so we don't carry over from a previously opened screenplay
           store.setCharacterProfiles([]);
+          store.setCharacterRelationships([]);
           store.setNotes([]);
           store.setGeneralNotes([]);
           store.setTags([]);
@@ -1944,9 +1965,11 @@ const ScreenplayEditor: React.FC = () => {
         } else {
           showToast(`Failed to load script: ${errMsg}`, 'error');
         }
+      } finally {
+        scriptSwitchingRef.current = false;
       }
     })();
-  }, [editor, urlProjectId, urlScriptId, urlCommitHash, isHistoryMode, collabMode, collabUserName, currentScriptId, switchCollabDocument, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes, scriptReloadKey, navigate]);
+  }, [editor, urlProjectId, urlScriptId, urlCommitHash, isHistoryMode, collabMode, collabUserName, currentScriptId, switchCollabDocument, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes, scriptReloadKey, navigate, buildSaveContent]);
 
   // --- Sync orphaned marks: runs ONCE after editor is ready, not on every doc change ---
   const orphanSyncDone = useRef(false);
@@ -2082,7 +2105,20 @@ const ScreenplayEditor: React.FC = () => {
       }
 
       clearTrackChanges();
+      scriptSwitchingRef.current = true;
       try {
+        // Flush unsaved changes to the CURRENT script before switching
+        if (currentProject && currentScriptId) {
+          const pendingContent = buildSaveContent();
+          if (pendingContent) {
+            const pendingJson = JSON.stringify(pendingContent);
+            if (pendingJson !== lastSavedJsonRef.current) {
+              lastSavedJsonRef.current = pendingJson;
+              try { await api.saveScript(currentProject.id, currentScriptId, { content: pendingContent }); } catch {}
+            }
+          }
+        }
+
         const scriptResp = await api.getScript(projectId, scriptId);
         const content = scriptResp.content as Record<string, unknown> | null;
 
@@ -2106,6 +2142,7 @@ const ScreenplayEditor: React.FC = () => {
         const store = useEditorStore.getState();
         // Clear all per-file metadata first
         store.setCharacterProfiles([]);
+        store.setCharacterRelationships([]);
         store.setNotes([]);
         store.setGeneralNotes([]);
         store.setTags([]);
@@ -2176,9 +2213,11 @@ const ScreenplayEditor: React.FC = () => {
       } catch (err) {
         console.error('Failed to open script:', err);
         showToast('Failed to open script. Make sure the backend server is running on port 8000.', 'error');
+      } finally {
+        scriptSwitchingRef.current = false;
       }
     },
-    [editor, collabMode, collabUserName, switchCollabDocument, setOpenFromProjectOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes],
+    [editor, collabMode, collabUserName, switchCollabDocument, setOpenFromProjectOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes, currentProject, currentScriptId, buildSaveContent],
   );
 
   const handleWelcomeChoice = useCallback(async (choice: WelcomeChoice) => {

@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { Editor } from '@tiptap/react';
 import DOMPurify from 'dompurify';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
-import { useEditorStore, type CharacterProfile } from '../stores/editorStore';
+import { useEditorStore, type CharacterProfile, type CharacterRelationship } from '../stores/editorStore';
+import { useProjectStore } from '../stores/projectStore';
 import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
 import MiniRichText from './MiniRichText';
+import { RelationshipMap } from './RelationshipMap';
 
 // Default colors for auto-assignment (VIBGYOR palette)
 const DEFAULT_HIGHLIGHT_COLORS = [
@@ -22,6 +24,65 @@ function stripHtml(html: string): string {
   return DOMPurify.sanitize(html, { ALLOWED_TAGS: [] }).replace(/\s+/g, ' ').trim();
 }
 
+const REL_TYPES = ['allies', 'rivals', 'family', 'romantic', 'mentor', 'antagonist', 'employer', 'friends'];
+const REL_DYNAMICS = ['Stable', 'Evolving', 'Tense', 'One-sided', 'Supportive', 'Adversarial', 'Complex'];
+
+/** Compact inline form for adding a relationship from within a character profile */
+const InlineRelForm: React.FC<{
+  characterName: string;
+  allCharacters: string[];
+  onSave: (rel: CharacterRelationship) => void;
+  onCancel: () => void;
+}> = ({ characterName, allCharacters, onSave, onCancel }) => {
+  const [otherChar, setOtherChar] = useState('');
+  const [relType, setRelType] = useState('allies');
+  const [dynamic, setDynamic] = useState('Stable');
+  const [desc, setDesc] = useState('');
+
+  const others = allCharacters.filter((c) => c !== characterName);
+
+  return (
+    <div className="char-profile-rel-form">
+      <div className="char-profile-rel-form-row">
+        <select value={otherChar} onChange={(e) => setOtherChar(e.target.value)}>
+          <option value="">Select character...</option>
+          {others.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={relType} onChange={(e) => setRelType(e.target.value)}>
+          {REL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <select value={dynamic} onChange={(e) => setDynamic(e.target.value)}>
+          {REL_DYNAMICS.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
+      </div>
+      <textarea
+        value={desc}
+        onChange={(e) => setDesc(e.target.value)}
+        placeholder="Describe the relationship..."
+        rows={2}
+        className="char-profile-rel-form-desc"
+      />
+      <div className="char-profile-rel-form-actions">
+        <button className="char-profile-rel-form-btn" onClick={onCancel}>Cancel</button>
+        <button
+          className="char-profile-rel-form-btn char-profile-rel-form-btn-primary"
+          disabled={!otherChar}
+          onClick={() => onSave({
+            id: crypto.randomUUID(),
+            characterA: characterName,
+            characterB: otherChar,
+            type: relType,
+            description: desc,
+            dynamic,
+          })}
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
+};
+
 interface CharacterProfilesProps {
   editor: Editor | null;
   projectId: string;
@@ -34,14 +95,20 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     characterProfiles,
     upsertCharacterProfile,
     deleteCharacterProfile,
+    characterRelationships,
+    upsertCharacterRelationship,
+    deleteCharacterRelationship,
     characterProfilesOpen,
     toggleCharacterProfiles,
     selectedCharacter,
     setSelectedCharacter,
   } = useEditorStore();
 
+  const currentScriptId = useProjectStore((s) => s.currentScriptId);
   const { assets, setAssets } = useAssetStore();
 
+  const [activeTab, setActiveTab] = useState<'profiles' | 'map'>('profiles');
+  const [addRelFor, setAddRelFor] = useState<string | null>(null); // character name to add rel for
   const [expandedChar, setExpandedChar] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showReferred, setShowReferred] = useState(false);
@@ -420,6 +487,25 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     [characterProfiles],
   );
 
+  /** Calculate profile completeness as percentage + field breakdown */
+  const getProfileCompleteness = useCallback((profile: CharacterProfile) => {
+    const fields: { label: string; filled: boolean }[] = [
+      { label: 'Description', filled: !!stripHtml(profile.description || '').trim() },
+      { label: 'Gender', filled: !!profile.gender },
+      { label: 'Age', filled: !!profile.age },
+      { label: 'Role', filled: !!profile.role },
+      { label: 'Backstory', filled: !!stripHtml(profile.backstory || '').trim() },
+      { label: 'Character Arc', filled: !!stripHtml(profile.arc || '').trim() },
+      { label: 'Speech Pattern', filled: !!stripHtml(profile.speechPattern || '').trim() },
+      { label: 'Vocabulary', filled: !!stripHtml(profile.vocabulary || '').trim() },
+      { label: 'Verbal Tics', filled: !!stripHtml(profile.verbalTics || '').trim() },
+      { label: 'Image', filled: (profile.images?.length || 0) > 0 },
+    ];
+    const filled = fields.filter((f) => f.filled).length;
+    const pct = Math.round((filled / fields.length) * 100);
+    return { pct, filled, total: fields.length, fields };
+  }, []);
+
   // Image helpers
   const getAssetUrl = useCallback((assetId: string) => {
     return api.getAssetUrl(projectId, assetId);
@@ -673,16 +759,69 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
           </div>
         </div>
 
-        {/* Scene appearances */}
+        {/* Relationships (before scenes) */}
+        {(() => {
+          const nameUpper = charName.toUpperCase();
+          const rels = characterRelationships.filter(
+            (r) => r.characterA === nameUpper || r.characterB === nameUpper
+          );
+          const isAdding = addRelFor === nameUpper;
+          return (
+            <div className="char-profile-relationships">
+              <div className="char-profile-rel-header-row">
+                <label className="char-profile-label" style={{ marginBottom: 0 }}>Relationships</label>
+                {!isAdding && (
+                  <button className="char-profile-rel-add-btn" onClick={() => setAddRelFor(nameUpper)}>+ Add</button>
+                )}
+              </div>
+              {rels.map((r) => {
+                const other = r.characterA === nameUpper ? r.characterB : r.characterA;
+                return (
+                  <div key={r.id} className="char-profile-rel-item">
+                    <div className="char-profile-rel-header">
+                      <span className="char-profile-rel-other">{other}</span>
+                      <span className="char-profile-rel-type">{r.type}</span>
+                      {r.dynamic && <span className="char-profile-rel-dynamic">{r.dynamic}</span>}
+                      <button
+                        className="char-profile-rel-remove"
+                        onClick={() => deleteCharacterRelationship(r.id)}
+                        title="Remove relationship"
+                      >&times;</button>
+                    </div>
+                    {r.description && <div className="char-profile-rel-desc">{r.description}</div>}
+                  </div>
+                );
+              })}
+              {rels.length === 0 && !isAdding && (
+                <div className="char-profile-rel-empty">No relationships defined yet</div>
+              )}
+              {isAdding && (
+                <InlineRelForm
+                  characterName={nameUpper}
+                  allCharacters={allCharacters}
+                  onSave={(rel) => {
+                    upsertCharacterRelationship(rel);
+                    setAddRelFor(null);
+                  }}
+                  onCancel={() => setAddRelFor(null)}
+                />
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Scene appearances (collapsed by default) */}
         {st && st.scenes.length > 0 && (
-          <div className="char-profile-scenes">
-            <label className="char-profile-label">Appears in</label>
+          <details className="char-profile-scenes-collapsible">
+            <summary className="char-profile-label char-profile-scenes-toggle">
+              Appears in ({st.scenes.length} scenes)
+            </summary>
             <div className="char-profile-scene-chips">
               {st.scenes.map((s, i) => (
                 <span key={i} className="char-profile-scene-chip" onClick={() => handleNavigateToScene(s)} title={`Go to: ${s}`}>{s}</span>
               ))}
             </div>
-          </div>
+          </details>
         )}
       </>
     );
@@ -738,6 +877,39 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
           &times;
         </button>
       </div>
+
+      {/* Tabs: Profiles / Relationship Map */}
+      <div className="char-profiles-tabs">
+        <button
+          className={`char-profiles-tab${activeTab === 'profiles' ? ' active' : ''}`}
+          onClick={() => setActiveTab('profiles')}
+        >
+          Profiles
+        </button>
+        <button
+          className={`char-profiles-tab${activeTab === 'map' ? ' active' : ''}`}
+          onClick={() => setActiveTab('map')}
+        >
+          Relationship Map
+        </button>
+      </div>
+
+      {/* Relationship Map tab */}
+      {activeTab === 'map' && (
+        <RelationshipMap
+          key={currentScriptId || 'no-script'}
+          scriptId={currentScriptId || undefined}
+          onSelectCharacter={(name) => {
+            setActiveTab('profiles');
+            setSelectedCharacter(name);
+            setExpandedChar(name);
+            setModalChar(name);
+          }}
+        />
+      )}
+
+      {/* Profiles tab content */}
+      {activeTab === 'profiles' && <>
 
       {/* Toolbar: Search + Build */}
       <div className="char-profiles-toolbar">
@@ -850,6 +1022,40 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                       </>
                     )}
                   </div>
+                  {/* Profile completeness indicator */}
+                  {(() => {
+                    const comp = getProfileCompleteness(profile);
+                    const color = comp.pct === 0 ? 'var(--fd-text-muted, #666)'
+                      : comp.pct < 40 ? '#f44336'
+                      : comp.pct < 70 ? '#ff9800'
+                      : comp.pct < 100 ? '#4caf50'
+                      : '#2e7d32';
+                    return (
+                      <div className="char-profile-completeness">
+                        <svg width="22" height="22" viewBox="0 0 22 22">
+                          <circle cx="11" cy="11" r="9" fill="none" stroke="var(--fd-border, #333)" strokeWidth="2" />
+                          <circle
+                            cx="11" cy="11" r="9" fill="none"
+                            stroke={color} strokeWidth="2"
+                            strokeDasharray={`${comp.pct * 0.5655} 56.55`}
+                            strokeLinecap="round"
+                            transform="rotate(-90 11 11)"
+                          />
+                        </svg>
+                        <span className="char-profile-completeness-label" style={{ color }}>
+                          {comp.pct}%
+                        </span>
+                        <div className="char-completeness-tooltip">
+                          <div className="char-completeness-tooltip-title">Profile: {comp.filled}/{comp.total}</div>
+                          {comp.fields.map((f) => (
+                            <div key={f.label} className={`char-completeness-tooltip-row${f.filled ? ' filled' : ''}`}>
+                              <span>{f.filled ? '\u2713' : '\u2717'}</span> {f.label}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <button
                     className="char-profile-enlarge-btn"
                     onClick={(e) => { e.stopPropagation(); setModalChar(name); }}
@@ -1054,15 +1260,68 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                         </div>
                       </div>
 
+                      {/* Relationships (before scenes) */}
+                      {(() => {
+                        const rels = characterRelationships.filter(
+                          (r) => r.characterA === name || r.characterB === name
+                        );
+                        const isAdding = addRelFor === name;
+                        return (
+                          <div className="char-profile-relationships">
+                            <div className="char-profile-rel-header-row">
+                              <label className="char-profile-label" style={{ marginBottom: 0 }}>Relationships</label>
+                              {!isAdding && (
+                                <button className="char-profile-rel-add-btn" onClick={() => setAddRelFor(name)}>+ Add</button>
+                              )}
+                            </div>
+                            {rels.map((r) => {
+                              const other = r.characterA === name ? r.characterB : r.characterA;
+                              return (
+                                <div key={r.id} className="char-profile-rel-item">
+                                  <div className="char-profile-rel-header">
+                                    <span className="char-profile-rel-other">{other}</span>
+                                    <span className="char-profile-rel-type">{r.type}</span>
+                                    {r.dynamic && <span className="char-profile-rel-dynamic">{r.dynamic}</span>}
+                                    <button
+                                      className="char-profile-rel-remove"
+                                      onClick={() => deleteCharacterRelationship(r.id)}
+                                      title="Remove relationship"
+                                    >&times;</button>
+                                  </div>
+                                  {r.description && <div className="char-profile-rel-desc">{r.description}</div>}
+                                </div>
+                              );
+                            })}
+                            {rels.length === 0 && !isAdding && (
+                              <div className="char-profile-rel-empty">No relationships defined yet</div>
+                            )}
+                            {isAdding && (
+                              <InlineRelForm
+                                characterName={name}
+                                allCharacters={allCharacters}
+                                onSave={(rel) => {
+                                  upsertCharacterRelationship(rel);
+                                  setAddRelFor(null);
+                                }}
+                                onCancel={() => setAddRelFor(null)}
+                              />
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Scene appearances (collapsed by default) */}
                       {stats && stats.scenes.length > 0 && (
-                        <div className="char-profile-scenes">
-                          <label className="char-profile-label">Appears in</label>
+                        <details className="char-profile-scenes-collapsible">
+                          <summary className="char-profile-label char-profile-scenes-toggle">
+                            Appears in ({stats.scenes.length} scenes)
+                          </summary>
                           <div className="char-profile-scene-chips">
                             {stats.scenes.map((s, i) => (
                               <span key={i} className="char-profile-scene-chip" onClick={() => handleNavigateToScene(s)} title={`Go to: ${s}`}>{s}</span>
                             ))}
                           </div>
-                        </div>
+                        </details>
                       )}
                     </div>
                   </div>
@@ -1112,6 +1371,9 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
           </div>
         </div>
       )}
+
+      </>}
+      {/* End of profiles tab */}
 
       {/* Image Picker Overlay */}
       {imagePickerFor && (
