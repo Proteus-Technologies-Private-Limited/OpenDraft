@@ -14,5 +14,7 @@ export default defineConfig({
   // Tauri expects a fixed output directory
   build: {
     outDir: 'dist',
+    // Legacy Intel builds set BUILD_TARGET=safari13 to support older macOS WebKit
+    ...(process.env.BUILD_TARGET ? { target: process.env.BUILD_TARGET } : {}),
   },
 })

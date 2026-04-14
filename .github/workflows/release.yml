@@ -605,10 +605,11 @@ jobs:
       - name: Install frontend dependencies
         run: cd frontend && npm ci
 
-      - name: Build frontend
+      - name: Build frontend (targeting Safari 13 for Catalina compatibility)
         run: cd frontend && npm run build
         env:
           VITE_API_BASE: http://localhost:18321/api
+          BUILD_TARGET: safari13
 
       - name: Import Apple Developer certificate
         env:
