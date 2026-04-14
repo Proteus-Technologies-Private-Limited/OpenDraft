@@ -18,6 +18,7 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { pluginRegistry } from '../plugins/registry';
 import { clearEditorHistory } from '../editor/clearHistory';
+import { spellChecker } from '../editor/spellchecker';
 import { openTextFile } from '../utils/fileOps';
 import { isDesktopTauri } from '../services/platform';
 import { getCompatEntries } from '../services/compat';
@@ -176,9 +177,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   } = useProjectStore();
 
   // Build a saveable content object: editor JSON + store metadata at top level
+  // IMPORTANT: keep in sync with ScreenplayEditor.buildSaveContent — both must
+  // serialize the same set of metadata fields or a manual save will strip data.
   const buildSaveContent = useCallback((): Record<string, unknown> | undefined => {
     if (!editor || editor.isDestroyed) return undefined;
     const store = useEditorStore.getState();
+    const tplStore = useFormattingTemplateStore.getState();
     const doc = editor.getJSON();
     return {
       ...doc,
@@ -187,9 +191,13 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       _tags: store.tags,
       _tagCategories: store.tagCategories,
       _characterProfiles: store.characterProfiles,
+      _characterRelationships: store.characterRelationships,
       _beats: store.beats,
       _beatColumns: store.beatColumns,
       _beatArrangeMode: store.beatArrangeMode,
+      _templateId: tplStore.activeTemplateId,
+      _ignoredWords: spellChecker.getIgnoredWords(),
+      _ignoredOnce: spellChecker.getIgnoredOnce(),
       _sceneNumbersVisible: store.sceneNumbersVisible,
       _sceneNumbersLocked: store.sceneNumbersLocked,
       _pageLayout: store.pageLayout,
