@@ -94,6 +94,23 @@ function groupByLocation(scenes: Array<{ heading: string }>): LocationGroup[] {
   return Array.from(map.values());
 }
 
+// ── Search highlight helper ─────────────────────────────────────────────
+
+function highlightText(text: string, query: string): React.ReactNode {
+  if (!query) return text;
+  const lower = text.toLowerCase();
+  const qLower = query.toLowerCase();
+  const idx = lower.indexOf(qLower);
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <span className="navigator-search-highlight">{text.slice(idx, idx + query.length)}</span>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
+
 // ── Scene detail helpers ────────────────────────────────────────────────
 
 interface SceneDetail {
@@ -185,6 +202,12 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   // Expanded scene (shows synopsis inline)
   const [expandedSceneIdx, setExpandedSceneIdx] = useState<number | null>(null);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [scrollingUp, setScrollingUp] = useState(true);
+  const listRef = useRef<HTMLDivElement>(null);
+  const lastScrollTop = useRef(0);
+
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
   const [filterCharacters, setFilterCharacters] = useState<string[]>([]);
@@ -192,6 +215,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   const [filterPrefix, setFilterPrefix] = useState('');
   const [filterTime, setFilterTime] = useState('');
   const [filterColor, setFilterColor] = useState('');
+  const [filterSynopsis, setFilterSynopsis] = useState('');
 
   // Page preview state
   const pageGridRef = useRef<HTMLDivElement>(null);
@@ -237,6 +261,23 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       renameInputRef.current.select();
     }
   }, [renamingLocation]);
+
+  // Detect scroll direction in the scene list — show search bar on scroll-up
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const top = el.scrollTop;
+      if (top < lastScrollTop.current) {
+        setScrollingUp(true);
+      } else if (top > lastScrollTop.current) {
+        setScrollingUp(false);
+      }
+      lastScrollTop.current = top;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
 
   // ── Compute scene details (characters, location, length) ──
 
@@ -402,22 +443,33 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
 
   // ── Filtered scene indices ──
 
-  const hasActiveFilter = filterCharacters.length > 0 || !!filterLocation || !!filterPrefix || !!filterTime || !!filterColor;
+  const hasActiveFilter = filterCharacters.length > 0 || !!filterLocation || !!filterPrefix || !!filterTime || !!filterColor || !!filterSynopsis;
 
   const filteredIndices = useMemo(() => {
-    if (!hasActiveFilter) return scenes.map((_, i) => i);
+    const query = searchQuery.trim().toLowerCase();
+    const synopsisPhrase = filterSynopsis.trim().toLowerCase();
+    const noFilters = !hasActiveFilter && !query;
+    if (noFilters) return scenes.map((_, i) => i);
     return scenes.reduce((acc, scene, idx) => {
       const detail = sceneDetails[idx];
       if (!detail) return acc;
+      // Search bar — matches heading or synopsis
+      if (query) {
+        const headingMatch = scene.heading.toLowerCase().includes(query);
+        const synopsisMatch = (scene.synopsis || '').toLowerCase().includes(query);
+        if (!headingMatch && !synopsisMatch) return acc;
+      }
+      // Filter panel filters
       if (filterCharacters.length > 0 && !filterCharacters.every(c => detail.characters.includes(c))) return acc;
       if (filterLocation && detail.location.toUpperCase() !== filterLocation) return acc;
       if (filterPrefix && detail.prefix !== filterPrefix) return acc;
       if (filterTime && detail.timeOfDay !== filterTime) return acc;
       if (filterColor && (scene.color || '') !== filterColor) return acc;
+      if (synopsisPhrase && !(scene.synopsis || '').toLowerCase().includes(synopsisPhrase)) return acc;
       acc.push(idx);
       return acc;
     }, [] as number[]);
-  }, [scenes, sceneDetails, filterCharacters, filterLocation, filterPrefix, filterTime, hasActiveFilter]);
+  }, [scenes, sceneDetails, searchQuery, filterCharacters, filterLocation, filterPrefix, filterTime, filterColor, filterSynopsis, hasActiveFilter]);
 
   // ── Navigate to a scene by index ──
 
@@ -550,7 +602,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
           <div className="navigator-header">
             <span className="navigator-title">Scenes</span>
             <span className="scene-count">
-              {hasActiveFilter ? `${filteredIndices.length}/` : ''}{scenes.length}
+              {(hasActiveFilter || searchQuery) ? `${filteredIndices.length}/` : ''}{scenes.length}
             </span>
             <button
               className={`scene-filter-btn${hasActiveFilter ? ' active' : ''}`}
@@ -619,6 +671,15 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                 </div>
               </div>
               <div className="scene-filter-row">
+                <input
+                  className="scene-filter-input"
+                  type="text"
+                  placeholder="Synopsis contains..."
+                  value={filterSynopsis}
+                  onChange={(e) => setFilterSynopsis(e.target.value)}
+                />
+              </div>
+              <div className="scene-filter-row">
                 {hasActiveFilter && (
                   <button className="filter-clear-btn" onClick={() => {
                     setFilterCharacters([]);
@@ -626,16 +687,33 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                     setFilterPrefix('');
                     setFilterTime('');
                     setFilterColor('');
+                    setFilterSynopsis('');
                   }}>Clear All</button>
                 )}
               </div>
             </div>
           )}
 
-          <div className="navigator-list">
+          <div className="navigator-list" ref={listRef}>
+            {/* Search bar — sticky on scroll-up, scrolls away on scroll-down */}
+            <div className={`navigator-search${scrollingUp ? ' navigator-search--pinned' : ''}`}>
+              <svg className="navigator-search-icon" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="6.5" cy="6.5" r="5" /><line x1="10" y1="10" x2="14.5" y2="14.5" />
+              </svg>
+              <input
+                className="navigator-search-input"
+                type="text"
+                placeholder="Search headings & synopses..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button className="navigator-search-clear" onClick={() => setSearchQuery('')}>×</button>
+              )}
+            </div>
             {filteredIndices.length === 0 ? (
               <div className="navigator-empty">
-                {hasActiveFilter
+                {(hasActiveFilter || searchQuery)
                   ? 'No scenes match the current filters.'
                   : 'No scenes yet. Start writing a scene heading (INT. or EXT.)'}
               </div>
@@ -652,7 +730,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                           {scene.sceneNumber != null && (
                             <span className="scene-number-badge" style={scene.color ? { background: scene.color } : undefined}>{scene.sceneNumber}</span>
                           )}
-                          <span className="scene-heading-label">{scene.heading}</span>
+                          <span className="scene-heading-label">{highlightText(scene.heading, searchQuery)}</span>
                         </div>
                         {detail && detail.pageLength > 0 && (
                           <div className="scene-length" data-tooltip={formatPageLength(detail.pageLength)}>
@@ -660,6 +738,9 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                           </div>
                         )}
                       </div>
+                      {!isExpanded && scene.synopsis && (
+                        <div className="scene-synopsis-preview">{highlightText(scene.synopsis.split('\n')[0], searchQuery)}</div>
+                      )}
                       {isExpanded && (
                         <div className="scene-synopsis-expanded">
                           {scene.synopsis ? (
