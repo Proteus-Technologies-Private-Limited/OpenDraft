@@ -819,6 +819,39 @@ body {
 .synopsis-color-custom span { font-size: 14px; font-weight: 700; color: var(--fd-text-muted); pointer-events: none; }
 .char-color-swatches { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
+/* Synopsis modal meta (page length + timing) */
+.synopsis-modal-meta {
+  display: flex; gap: 10px; font-size: 12px; color: var(--fd-text-muted);
+  font-variant-numeric: tabular-nums; margin-bottom: 2px;
+}
+.synopsis-meta-item { font-weight: 600; }
+
+/* Synopsis timing section */
+.synopsis-timing-section {
+  display: flex; flex-direction: column; gap: 6px; padding: 0;
+}
+.synopsis-timing-controls {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.synopsis-timing-radio {
+  display: flex; align-items: center; gap: 4px; font-size: 13px;
+  color: var(--fd-text); cursor: pointer;
+}
+.synopsis-timing-radio input { cursor: pointer; }
+.synopsis-timing-inputs {
+  display: flex; align-items: center; gap: 4px;
+}
+.synopsis-timing-input {
+  width: 48px; height: 28px; background: var(--fd-input-bg, #222);
+  color: var(--fd-text); border: 1px solid var(--fd-border); border-radius: 3px;
+  padding: 0 6px; font-size: 13px; text-align: center; outline: none;
+  font-variant-numeric: tabular-nums;
+}
+.synopsis-timing-input:focus { border-color: var(--fd-accent); }
+.synopsis-timing-sep {
+  font-size: 12px; color: var(--fd-text-muted); font-weight: 500;
+}
+
 /* Navigator tabs */
 .navigator-tabs {
   display: flex;
@@ -1143,6 +1176,25 @@ body {
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
 
+/* ── Scene detail meta (expanded view) ── */
+.scene-detail-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--fd-text-muted);
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.scene-meta-item {
+  font-weight: 600;
+}
+
+/* ── Status bar timing ── */
+.status-timing {
+  color: var(--fd-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Page preview thumbnails ── */
 .page-thumbnails-scroll {
   padding: 0 !important;
@@ -1423,6 +1475,57 @@ body {
 
 /* Title Page */
 .title-page { text-align: center; }
+
+/* Title Page Editor Dialog */
+.tp-editor-dialog {
+  background: var(--fd-dropdown-bg); border: 1px solid var(--fd-border);
+  border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.6);
+  width: 780px; max-height: 85vh; display: flex; flex-direction: column;
+}
+.tp-editor-body {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  padding: 16px; overflow-y: auto; flex: 1;
+}
+.tp-editor-form {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px;
+  align-content: start;
+}
+.tp-sync-btn {
+  grid-column: 1 / -1; background: none; border: 1px dashed var(--fd-border);
+  color: var(--fd-text-muted); border-radius: 3px; padding: 5px 12px;
+  font-size: 12px; cursor: pointer; margin-top: 4px;
+}
+.tp-sync-btn:hover { border-color: var(--fd-accent); color: var(--fd-accent); }
+
+/* Title Page Live Preview */
+.tp-editor-preview {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--fd-input-bg, #111); border-radius: 6px; padding: 12px;
+}
+.tp-preview-page {
+  width: 100%; max-width: 280px; aspect-ratio: 8.5 / 11;
+  background: #fff; color: #111; font-family: 'Courier New', Courier, monospace;
+  font-size: 9px; padding: 24px 16px; display: flex; flex-direction: column;
+  border-radius: 2px; box-shadow: 0 2px 12px rgba(0,0,0,.3);
+  position: relative;
+}
+.tp-preview-title {
+  text-align: center; font-size: 12px; font-weight: bold;
+  text-transform: uppercase; margin-top: 35%; letter-spacing: 0.5px;
+}
+.tp-preview-author {
+  text-align: center; margin-top: 16px; line-height: 1.5;
+}
+.tp-preview-credit { margin-bottom: 2px; }
+.tp-preview-basedon { font-size: 8px; margin-top: 2px; font-style: italic; }
+.tp-preview-bottom {
+  margin-top: auto; display: flex; justify-content: space-between;
+  align-items: flex-end; gap: 8px;
+}
+.tp-preview-bottom-left { text-align: left; line-height: 1.4; font-size: 8px; }
+.tp-preview-bottom-right { text-align: right; line-height: 1.4; font-size: 8px; }
+.tp-preview-contact { margin-bottom: 4px; }
+.tp-preview-notes { margin-top: 4px; font-style: italic; }
 
 /* ============ RTL SUPPORT FOR MULTI-LINGUAL DIALOGUE ============ */
 .dialogue[dir="rtl"],
@@ -2275,6 +2378,13 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   border-color: var(--fd-accent);
   background: rgba(0, 0, 0, 0.3);
 }
+.index-card-meta {
+  display: flex; gap: 4px; font-size: 9px; color: var(--fd-text-muted);
+  font-variant-numeric: tabular-nums; flex-shrink: 0; margin-left: auto;
+  align-items: center; white-space: nowrap;
+}
+.ic-meta-item { font-weight: 600; }
+
 .index-card-synopsis-wrap {
   position: relative; width: 100%;
 }
@@ -5867,6 +5977,54 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   font-size: 13px; outline: none; resize: vertical; font-family: inherit;
 }
 .props-textarea:focus { border-color: var(--fd-accent); }
+
+/* Collapsible section toggle */
+.props-section-toggle {
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: none; color: var(--fd-text);
+  font-size: 12px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.5px; cursor: pointer; padding: 4px 0;
+  margin-bottom: 10px; width: 100%; text-align: left;
+}
+.props-section-toggle:hover { color: var(--fd-accent); }
+.props-section-arrow {
+  display: inline-block; font-size: 9px; transition: transform 0.15s ease;
+}
+.props-section-arrow.open { transform: rotate(90deg); }
+
+/* Submission log table */
+.props-submissions-table {
+  display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px;
+}
+.props-submissions-header {
+  display: grid; grid-template-columns: 110px 1fr 100px 100px 1fr 28px;
+  gap: 6px; font-size: 10px; color: var(--fd-text-muted);
+  text-transform: uppercase; letter-spacing: 0.3px; padding: 0 0 2px;
+}
+.props-submissions-row {
+  display: grid; grid-template-columns: 110px 1fr 100px 100px 1fr 28px;
+  gap: 6px; align-items: center;
+}
+.props-submissions-row .props-input {
+  height: 26px; font-size: 12px;
+}
+.props-submissions-remove {
+  width: 24px; height: 24px; border: none; background: none;
+  color: var(--fd-text-muted); font-size: 16px; cursor: pointer;
+  border-radius: 3px; display: flex; align-items: center; justify-content: center;
+  padding: 0;
+}
+.props-submissions-remove:hover {
+  background: rgba(255,80,80,0.15); color: #f55;
+}
+.props-submissions-add {
+  background: none; border: 1px dashed var(--fd-border); color: var(--fd-text-muted);
+  border-radius: 3px; padding: 5px 12px; font-size: 12px; cursor: pointer;
+  width: 100%;
+}
+.props-submissions-add:hover {
+  border-color: var(--fd-accent); color: var(--fd-accent);
+}
 
 .project-view-tabs {
   display: flex;

@@ -1,6 +1,16 @@
 from pydantic import BaseModel
 
 
+class SubmissionEntry(BaseModel):
+    """A single submission log entry for tracking script submissions."""
+    id: str = ""
+    date: str = ""
+    submitted_to: str = ""
+    type: str = ""               # e.g. General Meeting, Submission, Query
+    status: str = ""             # e.g. Pending, Read request, Passed, Considering
+    notes: str = ""
+
+
 class ProjectProperties(BaseModel):
     """All editable project metadata fields."""
     genre: str = ""
@@ -18,6 +28,16 @@ class ProjectProperties(BaseModel):
     status: str = ""             # e.g. In Development, Pre-Production, Production
     target_length: str = ""      # e.g. "90-120 min"
     notes: str = ""
+    # Registration & Legal
+    wga_registration: str = ""
+    wga_registration_date: str = ""
+    copyright_registration: str = ""
+    copyright_year: str = ""
+    agent_name: str = ""
+    agent_contact: str = ""
+    manager_name: str = ""
+    manager_contact: str = ""
+    submissions: list[SubmissionEntry] = []
 
 
 class ProjectCreate(BaseModel):

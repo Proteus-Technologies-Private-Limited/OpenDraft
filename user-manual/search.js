@@ -52,6 +52,13 @@
     { page: 'Formatting', title: 'Format Panel', section: 'Format Panel', text: 'Right-click format panel dialog. Live preview formatting changes. Element-specific font size alignment margins spacing.', url: 'formatting.html#format-panel' },
     { page: 'Formatting', title: 'Zoom', section: 'Zoom', text: 'Editor zoom level toolbar. 50 percent to 200 percent range. Display only not print.', url: 'formatting.html#zoom' },
 
+    // Title Page
+    { page: 'Title Page', title: 'Title Page', section: '', text: 'Title page structured fields live preview. Written by author contact copyright draft WGA registration.', url: 'title-page.html' },
+    { page: 'Title Page', title: 'Title Page Fields', section: 'Fields', text: 'Title written by based on draft date contact copyright WGA registration notes. Structured metadata auto-format.', url: 'title-page.html#fields' },
+    { page: 'Title Page', title: 'Live Preview', section: 'Preview', text: 'Real-time preview title page layout. Miniature page updates as you type.', url: 'title-page.html#preview' },
+    { page: 'Title Page', title: 'Sync with Project', section: 'Sync', text: 'Sync title from project properties. Auto-populate title page fields.', url: 'title-page.html#sync' },
+    { page: 'Title Page', title: 'Title Page Export', section: 'Export', text: 'PDF formatted title page first page. FDX Final Draft TitlePage element. Fountain metadata block. Import FDX title page.', url: 'title-page.html#export' },
+
     // Find & Replace
     { page: 'Find & Replace', title: 'Find & Replace', section: '', text: 'Search screenplay replace text quickly. Cmd F open find.', url: 'find-replace.html' },
     { page: 'Find & Replace', title: 'Finding Text', section: 'Find', text: 'Cmd F open find replace panel. Type search term. Matches highlighted real-time. Arrow buttons jump between matches. Draggable panel move anywhere.', url: 'find-replace.html#finding-text' },
@@ -84,12 +91,16 @@
     // Characters
     { page: 'Characters', title: 'Characters', section: '', text: 'Character profiles rich text backstory images dialogue stats scene appearances. Cast management tracking role gender age.', url: 'characters.html' },
     { page: 'Characters', title: 'Character Statistics', section: 'Stats', text: 'Dialogue count lines. Scene appearances number. First appearance which scene. Scene list all appearances.', url: 'characters.html#character-stats' },
-    { page: 'Characters', title: 'Character Profiles', section: 'Profiles', text: 'Description rich text bold italic underline bullet list. Role lead supporting featured background day player. Gender. Age. Backstory character history motivations secrets. Highlight color. Final Draft Character Navigator fields.', url: 'characters.html#profiles' },
-    { page: 'Characters', title: 'Rich Text Editing', section: 'Rich Text', text: 'Mini rich text editor formatting toolbar. Bold italic underline bullet list. Description backstory fields. Structure character information traits goals relationships.', url: 'characters.html#rich-text' },
+    { page: 'Characters', title: 'Character Profiles', section: 'Profiles', text: 'Description rich text bold italic underline bullet list. Role lead supporting featured background day player. Gender. Age. Backstory character history motivations secrets. Arc transformation change. Speech pattern vocabulary verbal tics sample dialogue voice profile. Highlight color. Final Draft Character Navigator fields.', url: 'characters.html#profiles' },
+    { page: 'Characters', title: 'Character Arc', section: 'Arc', text: 'Character arc transformation story beginning end. Turning points beliefs change. How character evolves resists change. Rich text editor.', url: 'characters.html#character-arc' },
+    { page: 'Characters', title: 'Voice Profile', section: 'Voice', text: 'Speech pattern vocabulary verbal tics sample dialogue. How character sounds. Distinct consistent voice. Cover the name test dialogue.', url: 'characters.html#voice-profile' },
+    { page: 'Characters', title: 'Rich Text Editing', section: 'Rich Text', text: 'Mini rich text editor formatting toolbar. Bold italic underline bullet list. Description backstory arc fields. Structure character information traits goals relationships.', url: 'characters.html#rich-text' },
     { page: 'Characters', title: 'Character Images', section: 'Images', text: 'Associate images headshots costume reference mood boards. Upload image from computer. From assets picker existing project images. Avatar circular thumbnail collapsed view. Primary image lightbox full size. Star set primary. Remove unlink association.', url: 'characters.html#images' },
     { page: 'Characters', title: 'Build from Script', section: 'Build', text: 'Build from script auto extract character information. Scans action lines introductions. Age description auto populated. ALL CAPS convention.', url: 'characters.html#build-from-script' },
     { page: 'Characters', title: 'Character Highlighting', section: 'Highlighting', text: 'Highlight color character dialogue tinted. Tools character highlighter. 12-color palette auto assigned. Visual scan who speaking.', url: 'characters.html#highlighting' },
     { page: 'Characters', title: 'Sorting Characters', section: 'Sort', text: 'Sort by name alphabetical. Importance dialogue lines. Scenes appearances. Dialogues count. Appearance first order.', url: 'characters.html#sorting' },
+    { page: 'Characters', title: 'Character Relationships', section: 'Relationships', text: 'Relationships between characters. Allies rivals family romantic mentor antagonist employer friends. Relationship type description dynamic. Bidirectional. Add relationship dropdown.', url: 'characters.html#relationships' },
+    { page: 'Characters', title: 'Relationship Map', section: 'Map', text: 'Visual graph character connections. Interactive drag nodes zoom. Color-coded relationship types. Story planning structural analysis.', url: 'characters.html#relationship-map' },
 
     // Script Notes
     { page: 'Script Notes', title: 'Script Notes', section: '', text: 'Annotations reminders reference material. Anchored notes color-coded. Media embedding.', url: 'script-notes.html' },
@@ -97,6 +108,18 @@
     { page: 'Script Notes', title: 'Note Colors', section: 'Colors', text: 'Yellow general reminders. Red issues problems. Blue research references. Green approved completed. Orange feedback collaborators. Purple creative ideas alternatives.', url: 'script-notes.html#note-colors' },
     { page: 'Script Notes', title: 'Embedding Media', section: 'Media', text: 'Images reference photos mood boards. Videos YouTube Vimeo URLs. Asset references @AssetName syntax link project assets.', url: 'script-notes.html#media' },
     { page: 'Script Notes', title: 'Filtering Notes', section: 'Filter', text: 'Filter by color. Filter by element type dialogue. Filter by scene context.', url: 'script-notes.html#filtering' },
+
+    // Script Statistics & Timing
+    { page: 'Script Statistics & Timing', title: 'Script Statistics & Timing', section: '', text: 'Analyze screenplay charts dialogue breakdowns runtime estimates. Tools script statistics menu.', url: 'script-statistics.html' },
+    { page: 'Script Statistics & Timing', title: 'Overview Cards', section: 'Overview', text: 'Pages scenes characters words. Total page count estimated runtime. Average scene length. Dialogue lines word count per page.', url: 'script-statistics.html#overview' },
+    { page: 'Script Statistics & Timing', title: 'Dialogue Distribution', section: 'Dialogue', text: 'Dialogue distribution bar chart per character. Word count percentage lines scenes role. Character highlight color.', url: 'script-statistics.html#dialogue-distribution' },
+    { page: 'Script Statistics & Timing', title: 'Gender Analysis', section: 'Gender', text: 'Gender analysis donut pie chart. Dialogue split by gender male female non-binary. Highland gender analysis tool.', url: 'script-statistics.html#gender-analysis' },
+    { page: 'Script Statistics & Timing', title: 'Scene Breakdown', section: 'Breakdown', text: 'Scene breakdown interior exterior INT EXT. Day night time of day. Scene length distribution histogram. Top locations frequency.', url: 'script-statistics.html#scene-breakdown' },
+    { page: 'Script Statistics & Timing', title: 'Pacing Chart', section: 'Pacing', text: 'Pacing chart dialogue versus action density. Area chart rhythm peaks valleys. Dialogue-heavy action-heavy sections.', url: 'script-statistics.html#pacing' },
+    { page: 'Script Statistics & Timing', title: 'Character Presence Map', section: 'Presence', text: 'Character presence map heatmap grid. Rows characters columns scenes. Who appears where. Protagonist disappearing stretches.', url: 'script-statistics.html#character-presence' },
+    { page: 'Script Statistics & Timing', title: 'Script Timing', section: 'Timing', text: 'Estimated runtime screenplay. Dialogue 50 seconds per page. Action 65 seconds. Status bar Est runtime. Scene navigator timing badge.', url: 'script-statistics.html#timing' },
+    { page: 'Script Statistics & Timing', title: 'Per-Scene Timing', section: 'Scene Timing', text: 'Per-scene timing badge color coded. Green normal yellow long red very long. Scene navigator timing column.', url: 'script-statistics.html#scene-timing' },
+    { page: 'Script Statistics & Timing', title: 'Timing Report', section: 'Report', text: 'Timing report table all scenes. Dialogue action estimate cumulative total. Override manual timing. Runtime total.', url: 'script-statistics.html#timing-report' },
 
     // Tags & Entities
     { page: 'Tags & Entities', title: 'Tags & Entities', section: '', text: 'Production tags props costumes VFX stunts. Production breakdown tagging. Entity-based reusable items.', url: 'tags.html' },
@@ -120,6 +143,8 @@
     { page: 'Managing Projects', title: 'Managing Projects', section: '', text: 'Organize screenplays scripts assets. Projects screen home base. Create project properties.', url: 'projects.html' },
     { page: 'Managing Projects', title: 'Projects Screen', section: 'Screen', text: 'Projects list title creation date modification date status. Sort by custom order title created modified. Drag drop arrange.', url: 'projects.html#projects-screen' },
     { page: 'Managing Projects', title: 'Project Properties', section: 'Properties', text: 'Genre logline synopsis author contact copyright draft language format production company director producer status target length notes. Metadata.', url: 'projects.html#project-properties' },
+    { page: 'Managing Projects', title: 'Registration & Legal', section: 'Legal', text: 'WGA registration number date. Copyright registration year. Agent manager contact. Submission log tracking. Rights management.', url: 'projects.html#registration-legal' },
+    { page: 'Managing Projects', title: 'Submission Log', section: 'Submissions', text: 'Submission log table date submitted to type status notes. Track script submissions. Add remove entries.', url: 'projects.html#submission-log' },
     { page: 'Managing Projects', title: 'Organizing Projects', section: 'Organize', text: 'Color coding visual. Pinning important top list. Drag drop custom order rearrange.', url: 'projects.html#organize' },
     { page: 'Managing Projects', title: 'Scripts Tab', section: 'Scripts', text: 'Create new scripts. Open script editor. Sort scripts title date size page count. Pin color-code delete scripts.', url: 'projects.html#scripts-tab' },
     { page: 'Managing Projects', title: 'Assets Tab', section: 'Assets', text: 'Upload files drag drop. Images documents videos. Tag assets organize. Preview images videos. Download filter search. Reference materials mood boards.', url: 'projects.html#assets-tab' },

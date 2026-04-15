@@ -4,6 +4,7 @@ import { Editor } from '@tiptap/react';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore } from '../stores/editorStore';
 import { computeSceneLengths, computePageBlocks, type PageContentInfo } from '../editor/pagination';
+import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
 import SynopsisModal from './SynopsisModal';
 
 interface SceneNavigatorProps {
@@ -226,7 +227,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   const [synopsisModal, setSynopsisModal] = useState<{ sceneIdx: number; id: string; heading: string; synopsis: string; color: string } | null>(null);
 
   const handleSaveSynopsis = useCallback(
-    (synopsis: string, color: string) => {
+    (synopsis: string, color: string, timingOverride?: number | null) => {
       if (!synopsisModal || !editor) return;
       const { sceneIdx, id } = synopsisModal;
       updateSceneSynopsis(id, synopsis);
@@ -244,7 +245,8 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         const node = editor.state.doc.nodeAt(targetPos);
         if (node) {
           const { tr } = editor.state;
-          tr.setNodeMarkup(targetPos, undefined, { ...node.attrs, synopsis, sceneColor: color });
+          const newAttrs = { ...node.attrs, synopsis, sceneColor: color, timingOverride: timingOverride ?? null };
+          tr.setNodeMarkup(targetPos, undefined, newAttrs);
           tr.setMeta('addToHistory', false);
           editor.view.dispatch(tr);
         }
@@ -324,6 +326,18 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     }
     return details;
   }, [editor, scenes, pageLayout]);
+
+  // ── Compute scene timing ──
+
+  const sceneTimings = useMemo(() => {
+    if (!editor) return [];
+    try {
+      const doc = editor.getJSON();
+      return computeSceneTiming(doc).scenes;
+    } catch {
+      return [];
+    }
+  }, [editor, scenes]);
 
   // ── Compute page blocks for page preview ──
 
@@ -733,7 +747,10 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                           <span className="scene-heading-label">{highlightText(scene.heading, searchQuery)}</span>
                         </div>
                         {detail && detail.pageLength > 0 && (
-                          <div className="scene-length" data-tooltip={formatPageLength(detail.pageLength)}>
+                          <div className="scene-length" data-tooltip={
+                            formatPageLength(detail.pageLength) +
+                            (sceneTimings[sceneIdx]?.finalSeconds ? ` \u00b7 ${formatSceneDuration(sceneTimings[sceneIdx].finalSeconds)}` : '')
+                          }>
                             <SceneLengthIcon pages={detail.pageLength} />
                           </div>
                         )}
@@ -743,6 +760,19 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                       )}
                       {isExpanded && (
                         <div className="scene-synopsis-expanded">
+                          {(detail || sceneTimings[sceneIdx]) && (
+                            <div className="scene-detail-meta">
+                              {detail && detail.pageLength > 0 && (
+                                <span className="scene-meta-item">{formatPageLength(detail.pageLength)}</span>
+                              )}
+                              {sceneTimings[sceneIdx]?.finalSeconds > 0 && (
+                                <span className="scene-meta-item" style={{ color: getTimingColor(sceneTimings[sceneIdx].finalSeconds) }}>
+                                  {formatSceneDuration(sceneTimings[sceneIdx].finalSeconds)}
+                                  {sceneTimings[sceneIdx].overrideSeconds != null && ' *'}
+                                </span>
+                              )}
+                            </div>
+                          )}
                           {scene.synopsis ? (
                             <div className="scene-synopsis-text">{scene.synopsis}</div>
                           ) : (
@@ -882,6 +912,9 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         sceneHeading={synopsisModal.heading}
         synopsis={synopsisModal.synopsis}
         sceneColor={synopsisModal.color}
+        pageLength={sceneDetails[synopsisModal.sceneIdx]?.pageLength}
+        autoTimingSeconds={sceneTimings[synopsisModal.sceneIdx]?.autoEstimateSeconds}
+        timingOverride={sceneTimings[synopsisModal.sceneIdx]?.overrideSeconds}
         onSave={handleSaveSynopsis}
         onClose={() => setSynopsisModal(null)}
       />,

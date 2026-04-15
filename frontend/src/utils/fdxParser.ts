@@ -158,6 +158,41 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     };
   }
 
+  // --- Parse Title Page ---
+  const titlePageNodes: TipTapNode[] = [];
+  const titlePageEl = xmlDoc.querySelector('FinalDraft > TitlePage > Content');
+  if (titlePageEl) {
+    const tpParagraphs = titlePageEl.querySelectorAll('Paragraph');
+    const tpTexts: string[] = [];
+    for (const p of Array.from(tpParagraphs)) {
+      const textEl = p.querySelector('Text');
+      if (textEl?.textContent) tpTexts.push(textEl.textContent);
+    }
+    // Heuristic: first line is title, look for "Written by" / "by" pattern for author
+    const tpAttrs: Record<string, string> = { field: 'title', tpTitle: '', tpWrittenBy: '', tpBasedOn: '', tpDraft: '', tpDraftDate: '', tpContact: '', tpCopyright: '', tpWgaRegistration: '', tpNotes: '' };
+    if (tpTexts.length > 0) tpAttrs.tpTitle = tpTexts[0];
+    for (let i = 1; i < tpTexts.length; i++) {
+      const t = tpTexts[i];
+      if (/^(written\s+by|by)$/i.test(t) && i + 1 < tpTexts.length) {
+        tpAttrs.tpWrittenBy = tpTexts[i + 1];
+        i++; // skip next
+      } else if (/^(based\s+on|from)/i.test(t)) {
+        tpAttrs.tpBasedOn = t;
+      } else if (/copyright|\u00a9/i.test(t)) {
+        tpAttrs.tpCopyright = t;
+      } else if (/draft/i.test(t)) {
+        tpAttrs.tpDraft = t;
+      } else if (/@|\.com|phone|\d{3}[-.)\s]\d{3}/i.test(t)) {
+        tpAttrs.tpContact = tpAttrs.tpContact ? `${tpAttrs.tpContact}\n${t}` : t;
+      }
+    }
+    titlePageNodes.push({
+      type: 'titlePage',
+      attrs: tpAttrs,
+      content: tpAttrs.tpTitle ? [{ type: 'text', text: tpAttrs.tpTitle }] : [],
+    });
+  }
+
   // --- Parse Content ---
   // Use 'FinalDraft > Content' to skip the TitlePage > Content element
   const contentEl = xmlDoc.querySelector('FinalDraft > Content');
@@ -429,7 +464,7 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
   return {
     doc: {
       type: 'doc',
-      content: nodes.length > 0 ? nodes : [{ type: 'action', content: [] }],
+      content: [...titlePageNodes, ...(nodes.length > 0 ? nodes : [{ type: 'action', content: [] }])],
     },
     pageLayout,
     castList,

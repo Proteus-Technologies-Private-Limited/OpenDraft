@@ -42,6 +42,15 @@ export interface LinkPreview {
   site_name: string;
 }
 
+export interface SubmissionEntry {
+  id: string;
+  date: string;
+  submitted_to: string;
+  type: string;
+  status: string;
+  notes: string;
+}
+
 export interface ProjectProperties {
   genre: string;
   logline: string;
@@ -58,6 +67,16 @@ export interface ProjectProperties {
   status: string;
   target_length: string;
   notes: string;
+  // Registration & Legal
+  wga_registration: string;
+  wga_registration_date: string;
+  copyright_registration: string;
+  copyright_year: string;
+  agent_name: string;
+  agent_contact: string;
+  manager_name: string;
+  manager_contact: string;
+  submissions: SubmissionEntry[];
 }
 
 export interface ProjectInfo {

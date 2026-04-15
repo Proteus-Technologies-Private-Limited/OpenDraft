@@ -280,10 +280,27 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
   const baseCharWidth = pdf.getTextWidth('M');
   const charSpace = FD_CHAR_WIDTH_PT - baseCharWidth;
 
-  // Build node list with type-level styles applied
+  // Build node list with type-level styles applied, separating title page nodes
   const nodes: NodeInfo[] = [];
+  let titlePageData: { tpTitle?: string; tpWrittenBy?: string; tpBasedOn?: string; tpDraft?: string; tpDraftDate?: string; tpContact?: string; tpCopyright?: string; tpWgaRegistration?: string } | null = null;
   for (const node of doc.content) {
     const typeName = node.type || 'general';
+    if (typeName === 'titlePage') {
+      // Extract structured title page data from the title node
+      if (node.attrs?.field === 'title' && node.attrs?.tpTitle) {
+        titlePageData = {
+          tpTitle: node.attrs.tpTitle as string,
+          tpWrittenBy: node.attrs.tpWrittenBy as string,
+          tpBasedOn: node.attrs.tpBasedOn as string,
+          tpDraft: node.attrs.tpDraft as string,
+          tpDraftDate: node.attrs.tpDraftDate as string,
+          tpContact: node.attrs.tpContact as string,
+          tpCopyright: node.attrs.tpCopyright as string,
+          tpWgaRegistration: node.attrs.tpWgaRegistration as string,
+        };
+      }
+      continue; // Skip titlePage nodes from main rendering
+    }
     const rawRuns = extractRuns(node);
     const runs = applyTypeStyles(rawRuns, typeName);
     nodes.push({
@@ -297,6 +314,65 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
   let currentY = topMarginPt;
   let pageNumber = 1;
   let isFirstElement = true;
+
+  // Render title page if structured data exists
+  if (titlePageData?.tpTitle) {
+    const centerX = pageWidthPt / 2;
+    const tp = titlePageData;
+
+    // Title — centered, ~40% down the page
+    const titleY = pageHeightPt * 0.38;
+    pdf.setFont('courier', 'bold');
+    pdf.setFontSize(12);
+    pdf.text(tp.tpTitle.toUpperCase(), centerX, titleY, { align: 'center' });
+
+    // "Written by" + author — below title
+    if (tp.tpWrittenBy) {
+      pdf.setFont('courier', 'normal');
+      pdf.text('Written by', centerX, titleY + LINE_HEIGHT_PT * 3, { align: 'center' });
+      pdf.text(tp.tpWrittenBy, centerX, titleY + LINE_HEIGHT_PT * 5, { align: 'center' });
+      if (tp.tpBasedOn) {
+        pdf.text(tp.tpBasedOn, centerX, titleY + LINE_HEIGHT_PT * 7, { align: 'center' });
+      }
+    }
+
+    // Bottom-left: draft info
+    const bottomY = pageHeightPt - bottomMarginPt;
+    const leftX = layout.leftMargin * PTS_PER_INCH;
+    const rightX = pageWidthPt - layout.rightMargin * PTS_PER_INCH;
+    pdf.setFont('courier', 'normal');
+    let blY = bottomY;
+    if (tp.tpDraft) {
+      pdf.text(tp.tpDraft, leftX, blY);
+      blY -= LINE_HEIGHT_PT;
+    }
+    if (tp.tpDraftDate) {
+      pdf.text(tp.tpDraftDate, leftX, blY);
+    }
+
+    // Bottom-right: contact, copyright, WGA
+    let brY = bottomY;
+    if (tp.tpWgaRegistration) {
+      pdf.text(tp.tpWgaRegistration, rightX, brY, { align: 'right' });
+      brY -= LINE_HEIGHT_PT;
+    }
+    if (tp.tpCopyright) {
+      pdf.text(tp.tpCopyright, rightX, brY, { align: 'right' });
+      brY -= LINE_HEIGHT_PT;
+    }
+    if (tp.tpContact) {
+      const contactLines = tp.tpContact.split('\n').reverse();
+      for (const line of contactLines) {
+        pdf.text(line, rightX, brY, { align: 'right' });
+        brY -= LINE_HEIGHT_PT;
+      }
+    }
+
+    // Start page 2 for the screenplay
+    pdf.addPage([pageWidthPt, pageHeightPt]);
+    pageNumber = 2;
+    currentY = topMarginPt;
+  }
 
   function newPage(): void {
     pdf.addPage([pageWidthPt, pageHeightPt]);

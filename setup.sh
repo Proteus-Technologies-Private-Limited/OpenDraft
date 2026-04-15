@@ -149,7 +149,7 @@ build_for_browser() {
 }
 
 open_browser() {
-    local url="http://localhost:8000"
+    local url="http://localhost:8008"
     sleep 2
 
     if command -v xdg-open &>/dev/null; then
@@ -167,7 +167,7 @@ start_server() {
     echo -e "${GREEN}${BOLD}  OpenDraft is ready!${NC}"
     echo -e "${GREEN}${BOLD}════════════════════════════════════════════${NC}"
     echo ""
-    echo -e "  Open your browser to: ${BOLD}http://localhost:8000${NC}"
+    echo -e "  Open your browser to: ${BOLD}http://localhost:8008${NC}"
     echo ""
     echo -e "  Press ${BOLD}Ctrl+C${NC} to stop the server."
     echo ""

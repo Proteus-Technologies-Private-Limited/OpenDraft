@@ -1,7 +1,7 @@
 /**
  * API configuration.
  *
- * In development the Vite dev server proxies /api to the backend on port 8000.
+ * In development the Vite dev server proxies /api to the backend on port 8008.
  * For web deployments the Python backend serves both frontend and API.
  *
  * On Tauri (desktop + mobile) the HTTP backend is NOT used — all data goes
@@ -10,11 +10,11 @@
 
 // Use the browser's hostname so the API is reachable when the frontend
 // is accessed from another device on the local network (e.g. phone via IP).
-// In dev mode (Vite on port 5173), hit the backend on port 8000.
+// In dev mode (Vite on port 5173), hit the backend on port 8008.
 // In production (frontend served by the backend itself), use same-origin /api.
 const isDev = window.location.port === '5173';
 const DEFAULT_API_BASE = isDev
-  ? `http://${window.location.hostname}:8000/api`
+  ? `http://${window.location.hostname}:8008/api`
   : `${window.location.origin}/api`;
 
 export const API_BASE: string =

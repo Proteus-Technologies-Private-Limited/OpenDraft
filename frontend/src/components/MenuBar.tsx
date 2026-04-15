@@ -11,6 +11,7 @@ import { parseFDXFull } from '../utils/fdxParser';
 import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
 import { exportPDF } from '../utils/pdfExporter';
+import { downloadOdraft, parseOdraft } from '../utils/odraftFormat';
 import { trackChangesPluginKey } from '../editor/trackChanges';
 import PageSetupDialog from './PageSetupDialog';
 import TemplateSelectDialog from './TemplateSelectDialog';
@@ -458,7 +459,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     if (!editor) return;
     try {
       const result = await openTextFile([
-        { name: 'Screenplay', extensions: ['fountain', 'fdx', 'txt'] },
+        { name: 'Screenplay', extensions: ['fountain', 'fdx', 'odraft', 'txt'] },
       ]);
       if (!result) return;
 
@@ -511,6 +512,17 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             store.upsertCharacterProfile(hl.name, { color: hl.color, highlighted: hl.highlighted });
           }
         }
+      } else if (ext === 'odraft') {
+        try {
+          const parsed = parseOdraft(text);
+          doc = parsed.content;
+          if (parsed.meta.title) {
+            store.setDocumentTitle(parsed.meta.title);
+          }
+        } catch (parseErr) {
+          showToast(`Invalid .odraft file: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`, 'error');
+          return;
+        }
       } else {
         doc = parseFountain(text);
       }
@@ -518,7 +530,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       clearEditorHistory(editor);
 
       // Open as unsaved document — user can save later via Cmd+S
-      const scriptTitle = name.replace(/\.\w+$/, '') || 'Untitled';
+      const scriptTitle = ext === 'odraft' ? (store.documentTitle || name.replace(/\.\w+$/, '') || 'Untitled') : (name.replace(/\.\w+$/, '') || 'Untitled');
       store.setDocumentTitle(scriptTitle);
       setCurrentProject(null);
       setCurrentScriptId(null);
@@ -635,6 +647,22 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     }
   }, [editor, documentTitle, pageLayout]);
 
+  const handleExportOdraft = useCallback(async () => {
+    if (!editor) return;
+    try {
+      const store = useEditorStore.getState();
+      const meta = {
+        id: '', title: documentTitle, author: '', format: 'json',
+        created_at: '', updated_at: '', page_count: store.pageCount,
+        size_bytes: 0, color: '', pinned: false, sort_order: 0, preview: '',
+      };
+      await downloadOdraft(meta, editor.getJSON());
+    } catch (err) {
+      console.error('OpenDraft export failed:', err);
+      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, documentTitle]);
+
   const handleMenuClick = (label: string) => {
     setActiveMenu((prev) => (prev === label ? null : label));
     setOpenSubmenu(null);
@@ -697,6 +725,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             { icon: <FaFileCode />, label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
             { icon: <FaFileAlt />, label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
             { icon: <FaFilePdf />, label: 'PDF', action: handleExportPDF },
+            { icon: <FaFile />, label: 'OpenDraft (.odraft)', action: handleExportOdraft, disabled: isCollabGuest },
           ],
         },
         { separator: true, label: '' },
@@ -778,6 +807,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         { separator: true, label: '' },
         { icon: <FaColumns />, label: 'Dual Dialogue', shortcut: `${mod}D`, action: () => (editor as any)?.commands?.toggleDualDialogue() },
         { separator: true, label: '' },
+        { icon: <FaFileAlt />, label: 'Title Page...', action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
         { icon: <FaFileAlt />, label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true) },
       ],
     },
@@ -845,11 +875,25 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     {
       label: 'Tools',
       items: [
-        { icon: <FaUserFriends />, label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate, disabled: isCollabGuest },
-        { icon: <FaSignInAlt />, label: 'Join Collaboration...', action: onJoinCollab, disabled: isCollabGuest },
+        {
+          icon: <FaUserFriends />, label: 'Collaboration',
+          children: [
+            { icon: <FaUserFriends />, label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate, disabled: isCollabGuest },
+            { icon: <FaSignInAlt />, label: 'Join Collaboration...', action: onJoinCollab, disabled: isCollabGuest },
+          ],
+        },
         { separator: true, label: '' },
         { icon: <FaProjectDiagram />, label: 'Manage Projects...', action: () => { window.location.href = '/projects'; }, disabled: isCollabGuest },
         { icon: <FaBoxes />, label: 'Asset Manager', action: () => useAssetStore.getState().toggleAssetManager() },
+        { separator: true, label: '' },
+        {
+          icon: <FaStream />, label: 'Analytics',
+          children: [
+            { icon: <FaStream />, label: 'Script Statistics', action: () => useEditorStore.getState().setStatisticsOpen(true) },
+            { icon: <FaHistory />, label: 'Timing Report', action: () => useEditorStore.getState().setStatisticsOpen(true) },
+          ],
+        },
+        { separator: true, label: '' },
         { icon: <FaCog />, label: 'System Settings...', action: () => { window.location.href = '/settings'; } },
         { separator: true, label: '' },
         {

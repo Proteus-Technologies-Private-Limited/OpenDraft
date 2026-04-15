@@ -24,6 +24,7 @@ import {
   Transition, General, Shot, NewAct, EndOfAct, Lyrics,
   ShowEpisode, CastList, FontSize, ScriptNoteMark, TagMark,
   FormatOverride, CustomElement, DualDialogue, DualDialogueColumn,
+  TitlePage,
 } from '../editor/extensions';
 import Strike from '@tiptap/extension-strike';
 import Subscript from '@tiptap/extension-subscript';
@@ -41,6 +42,7 @@ import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
 import IndexCards from './IndexCards';
 import BeatBoard from './BeatBoard';
+import ScriptStatistics from './ScriptStatistics';
 import ScriptNotes from './ScriptNotes';
 import CharacterProfiles from './CharacterProfiles';
 import TagsPanel from './TagsPanel';
@@ -69,6 +71,7 @@ import { parseFountain } from '../utils/fountainParser';
 import { parseFDXFull } from '../utils/fdxParser';
 import { parseOdraft } from '../utils/odraftFormat';
 import SaveAsDialog from './SaveAsDialog';
+import TitlePageEditor from './TitlePageEditor';
 import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
@@ -215,7 +218,7 @@ const ScreenplayEditor: React.FC = () => {
   const {
     setActiveElement, setScenes, setPageCount, setCurrentPage,
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
-    beatBoardOpen,
+    beatBoardOpen, statisticsOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen,
     spellCheckEnabled, toggleSpellCheck, setDocumentTitle,
@@ -587,6 +590,7 @@ const ScreenplayEditor: React.FC = () => {
 
   const {
     openFromProjectOpen, setOpenFromProjectOpen, saveAsOpen, setSaveAsOpen,
+    titlePageEditorOpen, setTitlePageEditorOpen,
     compareVersionOpen, setCompareVersionOpen,
     setTrackChangesEnabled, setTrackChangesLabel,
   } = useEditorStore();
@@ -1285,7 +1289,7 @@ const ScreenplayEditor: React.FC = () => {
       }),
       SceneHeading, Action, Character, Dialogue, Parenthetical,
       Transition, General, Shot, NewAct, EndOfAct, Lyrics,
-      ShowEpisode, CastList, DualDialogue, DualDialogueColumn,
+      ShowEpisode, CastList, DualDialogue, DualDialogueColumn, TitlePage,
       ScriptNoteMark, TagMark,
       PaginationExtension,
       SearchExtension,
@@ -3172,7 +3176,9 @@ const ScreenplayEditor: React.FC = () => {
         )}
         <div className="editor-center">
           {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainRef.current} />}
-          {!isHistoryMode && beatBoardOpen ? (
+          {!isHistoryMode && statisticsOpen && editor ? (
+            <ScriptStatistics editor={editor} />
+          ) : !isHistoryMode && beatBoardOpen ? (
             <BeatBoard />
           ) : (
             <div className="editor-main" ref={editorMainRef} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
@@ -3305,7 +3311,7 @@ const ScreenplayEditor: React.FC = () => {
       </div>
       {!isHistoryMode && (
         <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-          <StatusBar />
+          <StatusBar editorDoc={editor?.getJSON()} />
           {pluginRegistry.getPanels('status-bar').map((p) => (
             <p.component key={p.id} />
           ))}
@@ -3385,6 +3391,12 @@ const ScreenplayEditor: React.FC = () => {
         <CompareVersionPicker
           onSelect={handleCompareVersionSelect}
           onClose={() => setCompareVersionOpen(false)}
+        />
+      )}
+      {!isHistoryMode && titlePageEditorOpen && editor && (
+        <TitlePageEditor
+          editor={editor}
+          onClose={() => setTitlePageEditorOpen(false)}
         />
       )}
       {!isHistoryMode && shareDialogOpen && currentProject && currentScriptId && (

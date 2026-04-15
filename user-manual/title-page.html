@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Title Page - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="../">Home</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="title-page.html" class="sidebar-link active">Title Page</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Analysis</div>
+    <a href="script-statistics.html" class="sidebar-link">Script Statistics &amp; Timing</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Title Page
+    </div>
+
+    <h1>Title Page</h1>
+    <p class="page-subtitle">Create a professional title page with structured fields and a live preview.</p>
+
+    <h2 id="opening">Opening the Title Page Editor</h2>
+
+    <p>Open the Title Page editor in one of two ways:</p>
+
+    <ul>
+      <li>From the menu: <strong>Format &gt; Title Page...</strong></li>
+      <li>Double-click on the title page area at the top of your screenplay</li>
+    </ul>
+
+    <p>The editor opens as a dialog with a form on the left and a live preview on the right.</p>
+
+    <h2 id="fields">Title Page Fields</h2>
+
+    <p>The Title Page editor provides structured fields that automatically format into a professional title page:</p>
+
+    <table>
+      <thead>
+        <tr><th>Field</th><th>Description</th><th>Placement</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Title</strong></td><td>The screenplay title, displayed in uppercase</td><td>Center of page, ~40% down</td></tr>
+        <tr><td><strong>Written By</strong></td><td>The screenwriter&rsquo;s name</td><td>Below title, preceded by &ldquo;Written by&rdquo;</td></tr>
+        <tr><td><strong>Based On</strong></td><td>Source material (e.g., &ldquo;the novel by Jane Doe&rdquo;)</td><td>Below author name</td></tr>
+        <tr><td><strong>Draft</strong></td><td>Draft identifier (e.g., &ldquo;Second Draft&rdquo;)</td><td>Bottom-left of page</td></tr>
+        <tr><td><strong>Draft Date</strong></td><td>Date of this draft</td><td>Bottom-left, below draft name</td></tr>
+        <tr><td><strong>Contact</strong></td><td>Contact info (name, agency, email, phone) &mdash; supports multiple lines</td><td>Bottom-right of page</td></tr>
+        <tr><td><strong>Copyright</strong></td><td>Copyright notice (e.g., &ldquo;Copyright 2026 Jane Smith&rdquo;)</td><td>Bottom-right, below contact</td></tr>
+        <tr><td><strong>WGA Registration #</strong></td><td>WGA registration number</td><td>Bottom-right, below copyright</td></tr>
+        <tr><td><strong>Notes</strong></td><td>Additional notes (e.g., &ldquo;CONFIDENTIAL&rdquo;)</td><td>Bottom-left, below draft info</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="preview">Live Preview</h2>
+
+    <p>The right side of the editor shows a miniature preview of your title page, formatted exactly as it will appear when printed or exported to PDF. The preview updates in real time as you type, so you can see how your title page will look before applying changes.</p>
+
+    <h2 id="sync">Syncing with Project Properties</h2>
+
+    <p>Click the <strong>Sync Title from Project</strong> button to pull the project name into the title field. This is useful when you create a new screenplay and want the title page to match the project name automatically.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>Title page data vs Project Properties:</strong> The title page fields are stored with the screenplay content, while Project Properties are stored with the project. They can differ &mdash; for example, your project might be called &ldquo;Untitled Sci-Fi&rdquo; while the title page reads &ldquo;BEYOND THE STARS&rdquo;.</p>
+      </div>
+    </div>
+
+    <h2 id="applying">Applying Changes</h2>
+
+    <p>Click <strong>Apply</strong> to save your title page. The structured data is written into the screenplay document as title page elements that appear at the top of your script. Click <strong>Cancel</strong> to discard changes.</p>
+
+    <p>The title page always renders as page 1 of your screenplay. Scene content starts on page 2.</p>
+
+    <h2 id="export">Export Behavior</h2>
+
+    <p>Title page data is included when you export your screenplay:</p>
+
+    <table>
+      <thead>
+        <tr><th>Format</th><th>How title page is exported</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>PDF</strong></td><td>Full formatted title page as the first page &mdash; centered title, author, contact in bottom-right, draft info in bottom-left</td></tr>
+        <tr><td><strong>Final Draft (.fdx)</strong></td><td>Mapped to FDX <code>&lt;TitlePage&gt;</code> element with structured paragraphs</td></tr>
+        <tr><td><strong>Fountain</strong></td><td>Exported as Fountain metadata block at the top of the file (<code>Title:</code>, <code>Author:</code>, <code>Draft date:</code>, etc.)</td></tr>
+      </tbody>
+    </table>
+
+    <p>When importing a Final Draft file, OpenDraft reads the FDX title page and maps it to the structured fields automatically.</p>
+
+    <div class="page-nav">
+      <a href="formatting.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Formatting</span>
+      </a>
+      <a href="find-replace.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Find &amp; Replace</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.17.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

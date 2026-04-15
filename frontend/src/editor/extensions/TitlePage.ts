@@ -1,5 +1,19 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 
+export interface TitlePageAttrs {
+  field: string;
+  // Structured title page metadata
+  tpTitle: string;
+  tpWrittenBy: string;
+  tpBasedOn: string;
+  tpDraft: string;
+  tpDraftDate: string;
+  tpContact: string;
+  tpCopyright: string;
+  tpWgaRegistration: string;
+  tpNotes: string;
+}
+
 export const TitlePage = Node.create({
   name: 'titlePage',
   group: 'block',
@@ -8,7 +22,17 @@ export const TitlePage = Node.create({
 
   addAttributes() {
     return {
-      field: { default: 'title' }, // title, author, contact, date, draft, copyright
+      field: { default: 'title' },
+      // Structured fields (stored on the title node with field='title')
+      tpTitle: { default: '' },
+      tpWrittenBy: { default: '' },
+      tpBasedOn: { default: '' },
+      tpDraft: { default: '' },
+      tpDraftDate: { default: '' },
+      tpContact: { default: '' },
+      tpCopyright: { default: '' },
+      tpWgaRegistration: { default: '' },
+      tpNotes: { default: '' },
     };
   },
 
@@ -21,7 +45,7 @@ export const TitlePage = Node.create({
       'div',
       mergeAttributes(HTMLAttributes, {
         'data-type': 'title-page',
-        class: `screenplay-element title-page title-page-${HTMLAttributes['data-field'] || 'title'}`,
+        class: `screenplay-element title-page title-page-${HTMLAttributes['data-field'] || HTMLAttributes.field || 'title'}`,
         'data-field': HTMLAttributes.field || 'title',
       }),
       0,

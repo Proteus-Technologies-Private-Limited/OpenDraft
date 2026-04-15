@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Script Statistics &amp; Timing - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="../">Home</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="title-page.html" class="sidebar-link">Title Page</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Analysis</div>
+    <a href="script-statistics.html" class="sidebar-link active">Script Statistics &amp; Timing</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Script Statistics &amp; Timing
+    </div>
+
+    <h1>Script Statistics &amp; Timing</h1>
+    <p class="page-subtitle">Analyze your screenplay with charts, dialogue breakdowns, and runtime estimates.</p>
+
+    <h2 id="opening">Opening Script Statistics</h2>
+
+    <p>Open the statistics panel from <strong>Tools &gt; Script Statistics</strong> in the menu bar. The panel replaces the editor area with a full-width analytics dashboard. Click the <strong>&times;</strong> button in the top-right to close it and return to your screenplay.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>Live data:</strong> All statistics are computed directly from your screenplay content. They update automatically as you write &mdash; no manual refresh needed.</p>
+      </div>
+    </div>
+
+    <h2 id="overview">Overview Cards</h2>
+
+    <p>Four summary cards appear at the top of the panel:</p>
+
+    <table>
+      <thead>
+        <tr><th>Card</th><th>Shows</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Pages</strong></td><td>Total page count and estimated runtime</td></tr>
+        <tr><td><strong>Scenes</strong></td><td>Total scene count and average scene length (in pages)</td></tr>
+        <tr><td><strong>Characters</strong></td><td>Number of speaking characters and total dialogue lines</td></tr>
+        <tr><td><strong>Words</strong></td><td>Total word count and average words per page</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="dialogue-distribution">Dialogue Distribution</h2>
+
+    <p>A horizontal bar chart shows how dialogue is distributed across your characters, sorted by word count. Each bar is color-coded using the character's assigned highlight color from the Characters panel.</p>
+
+    <p>Below the chart, a detailed table lists every speaking character with:</p>
+
+    <ul>
+      <li><strong>Lines</strong> &mdash; Number of dialogue lines</li>
+      <li><strong>Words</strong> &mdash; Total dialogue word count</li>
+      <li><strong>% Dialogue</strong> &mdash; Percentage of total screenplay dialogue</li>
+      <li><strong>Scenes</strong> &mdash; Number of scenes the character appears in</li>
+      <li><strong>Role</strong> &mdash; The character's role (Lead, Supporting, etc.) from their profile</li>
+    </ul>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>Balance check:</strong> If a supporting character has more dialogue than your protagonist, it might signal a structural issue &mdash; or that they deserve a bigger role.</p>
+      </div>
+    </div>
+
+    <h2 id="gender-analysis">Gender Analysis</h2>
+
+    <p>A donut chart shows the dialogue split by character gender, based on the gender field in each character's profile. An accompanying table breaks down the numbers by gender group:</p>
+
+    <ul>
+      <li><strong>Characters</strong> &mdash; Number of characters of that gender</li>
+      <li><strong>Lines</strong> &mdash; Total dialogue lines</li>
+      <li><strong>Words</strong> &mdash; Total dialogue words</li>
+      <li><strong>%</strong> &mdash; Percentage of total dialogue</li>
+    </ul>
+
+    <p>Characters without a gender assigned appear under &ldquo;Unassigned&rdquo;. To get accurate results, fill in the gender field in your character profiles.</p>
+
+    <h2 id="scene-breakdown">Scene Breakdown</h2>
+
+    <p>Four mini-charts in a 2&times;2 grid give you a bird&rsquo;s-eye view of your screenplay&rsquo;s structure:</p>
+
+    <table>
+      <thead>
+        <tr><th>Chart</th><th>What it shows</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Interior / Exterior</strong></td><td>Pie chart of INT. vs EXT. vs INT./EXT. scenes</td></tr>
+        <tr><td><strong>Time of Day</strong></td><td>Pie chart of Day vs Night vs Other scenes</td></tr>
+        <tr><td><strong>Scene Length Distribution</strong></td><td>Bar chart showing how many scenes fall into each length bucket (&lt;1 page, 1&ndash;2 pages, 2&ndash;3 pages, 3&ndash;5 pages, 5+ pages)</td></tr>
+        <tr><td><strong>Top Locations</strong></td><td>Bar chart of the most frequently used locations</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="pacing">Pacing Chart</h2>
+
+    <p>A stacked area chart shows dialogue versus action density across your screenplay, scene by scene. The x-axis represents each scene in order, and the y-axis shows word count.</p>
+
+    <ul>
+      <li><strong>Blue areas</strong> represent dialogue-heavy sections</li>
+      <li><strong>Orange areas</strong> represent action-heavy sections</li>
+    </ul>
+
+    <p>This visualization shows the &ldquo;rhythm&rdquo; of your screenplay. A healthy script typically alternates between dialogue and action, creating peaks and valleys. Long flat stretches of a single color may indicate pacing issues.</p>
+
+    <h2 id="character-presence">Character Presence Map</h2>
+
+    <p>A grid/heatmap where each row is a character (sorted by total appearances) and each column is a scene. Filled cells indicate the character appears in that scene.</p>
+
+    <p>This visualization helps you answer questions like:</p>
+
+    <ul>
+      <li>Does my protagonist disappear for long stretches?</li>
+      <li>Do any characters appear in only one scene (and should they be cut)?</li>
+      <li>Are there scenes with too many or too few characters?</li>
+    </ul>
+
+    <h2 id="timing">Script Timing</h2>
+
+    <p>OpenDraft estimates how long your screenplay will take to screen, using an intelligent algorithm that weights different element types:</p>
+
+    <table>
+      <thead>
+        <tr><th>Element Type</th><th>Rate</th><th>Rationale</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Dialogue</td><td>50 seconds per page</td><td>People speak quickly on screen</td></tr>
+        <tr><td>Action</td><td>65 seconds per page</td><td>Action sequences take more screen time than reading time</td></tr>
+        <tr><td>Parenthetical</td><td>30 seconds per page</td><td>Brief stage directions</td></tr>
+        <tr><td>Transition</td><td>2 seconds each</td><td>Quick editing transitions</td></tr>
+        <tr><td>General</td><td>60 seconds per page</td><td>Default rate</td></tr>
+      </tbody>
+    </table>
+
+    <p>This gives a more accurate estimate than the simple &ldquo;one page equals one minute&rdquo; rule.</p>
+
+    <h3 id="runtime-status-bar">Runtime in the Status Bar</h3>
+
+    <p>The estimated total runtime is always visible in the <strong>status bar</strong> at the bottom of the editor (e.g., &ldquo;Est. 1h 47m&rdquo;). This updates as you write.</p>
+
+    <h3 id="scene-timing">Per-Scene Timing</h3>
+
+    <p>In the <strong>Scene Navigator</strong>, each scene shows a timing badge next to the page-length indicator. The badge is color-coded:</p>
+
+    <ul>
+      <li><span style="color:#94a3b8">Grey</span> &mdash; Under 1 minute (very short scene)</li>
+      <li><span style="color:#10b981">Green</span> &mdash; 1&ndash;3 minutes (normal length)</li>
+      <li><span style="color:#f59e0b">Yellow</span> &mdash; 3&ndash;5 minutes (long scene)</li>
+      <li><span style="color:#ef4444">Red</span> &mdash; Over 5 minutes (very long scene)</li>
+    </ul>
+
+    <h3 id="timing-overrides">Timing Overrides</h3>
+
+    <p>Some scenes may be shorter or longer than the algorithm estimates &mdash; for example, a montage covering three pages might only take 30 seconds of screen time. You can set a <strong>manual timing override</strong> on any scene heading to replace the automatic estimate. The override is stored as an attribute on the scene heading and persists with your screenplay.</p>
+
+    <h3 id="timing-report">Timing Report</h3>
+
+    <p>At the bottom of the Script Statistics panel, the <strong>Timing Report</strong> table shows every scene with:</p>
+
+    <table>
+      <thead>
+        <tr><th>Column</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>#</strong></td><td>Scene number</td></tr>
+        <tr><td><strong>Scene</strong></td><td>Scene heading text</td></tr>
+        <tr><td><strong>Dialogue</strong></td><td>Estimated dialogue duration</td></tr>
+        <tr><td><strong>Action</strong></td><td>Estimated action duration</td></tr>
+        <tr><td><strong>Est.</strong></td><td>Total estimated duration (with override indicator if set)</td></tr>
+        <tr><td><strong>Cumulative</strong></td><td>Running total from the start of the screenplay</td></tr>
+      </tbody>
+    </table>
+
+    <p>The final row shows the <strong>total estimated runtime</strong> for the entire screenplay.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Industry context:</strong> Feature films typically run 90&ndash;120 minutes (90&ndash;120 pages). TV hour-long episodes run 45&ndash;60 minutes. The timing report helps you hit your target length before you hand off the script.</p>
+      </div>
+    </div>
+
+    <div class="page-nav">
+      <a href="script-notes.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Script Notes</span>
+      </a>
+      <a href="tags.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Tags &amp; Entities</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.17.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

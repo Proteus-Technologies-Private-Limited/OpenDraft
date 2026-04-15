@@ -12,6 +12,7 @@ export const SceneHeading = Node.create({
       locked: { default: false },
       synopsis: { default: '' },
       sceneColor: { default: '' },
+      timingOverride: { default: null },  // seconds (null = auto-calculate)
     };
   },
 

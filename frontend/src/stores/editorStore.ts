@@ -308,6 +308,8 @@ interface EditorState {
   toggleIndexCards: () => void;
   beatBoardOpen: boolean;
   toggleBeatBoard: () => void;
+  statisticsOpen: boolean;
+  setStatisticsOpen: (open: boolean) => void;
   scriptNotesOpen: boolean;
   toggleScriptNotes: () => void;
   notesActiveTab: 'script' | 'general';
@@ -462,6 +464,8 @@ interface EditorState {
   setSearchOpen: (open: boolean) => void;
   goToPageOpen: boolean;
   setGoToPageOpen: (open: boolean) => void;
+  titlePageEditorOpen: boolean;
+  setTitlePageEditorOpen: (open: boolean) => void;
   openFromProjectOpen: boolean;
   setOpenFromProjectOpen: (open: boolean) => void;
   saveAsOpen: boolean;
@@ -529,6 +533,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     saveViewState({ beatBoardOpen: v });
     return { beatBoardOpen: v };
   }),
+  statisticsOpen: false,
+  setStatisticsOpen: (open) => set({ statisticsOpen: open }),
   scriptNotesOpen: _vs.scriptNotesOpen ?? false,
   toggleScriptNotes: () => set((s) => {
     const v = !s.scriptNotesOpen;
@@ -886,6 +892,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSearchOpen: (open) => set({ searchOpen: open }),
   goToPageOpen: false,
   setGoToPageOpen: (open) => set({ goToPageOpen: open }),
+  titlePageEditorOpen: false,
+  setTitlePageEditorOpen: (open) => set({ titlePageEditorOpen: open }),
   openFromProjectOpen: false,
   setOpenFromProjectOpen: (open) => set({ openFromProjectOpen: open }),
   saveAsOpen: false,

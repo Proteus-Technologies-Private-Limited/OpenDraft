@@ -28,8 +28,8 @@ PORT=${PORT:-4000}
 
 # ── Backend URL ──
 
-read -rp "Backend API URL [http://localhost:8000/api]: " BACKEND_URL
-BACKEND_URL=${BACKEND_URL:-http://localhost:8000/api}
+read -rp "Backend API URL [http://localhost:8008/api]: " BACKEND_URL
+BACKEND_URL=${BACKEND_URL:-http://localhost:8008/api}
 
 # ── Database ──
 

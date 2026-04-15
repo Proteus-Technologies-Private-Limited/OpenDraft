@@ -195,10 +195,47 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   lines.push('  </HeaderAndFooter>');
   lines.push('');
 
-  // Title page
+  // Title page — extract structured attrs from titlePage nodes if available
   lines.push('  <TitlePage>');
   lines.push('    <Content>');
-  lines.push(`      <Paragraph Type="General"><Text>${esc(title)}</Text></Paragraph>`);
+  let tpTitle = title;
+  let tpWrittenBy = '';
+  let tpBasedOn = '';
+  let tpDraft = '';
+  let tpContact = '';
+  let tpCopyright = '';
+  if (doc.content) {
+    for (const node of doc.content) {
+      if (node.type === 'titlePage' && node.attrs?.field === 'title' && node.attrs?.tpTitle) {
+        tpTitle = node.attrs.tpTitle || title;
+        tpWrittenBy = node.attrs.tpWrittenBy || '';
+        tpBasedOn = node.attrs.tpBasedOn || '';
+        tpDraft = [node.attrs.tpDraft, node.attrs.tpDraftDate].filter(Boolean).join(' - ');
+        tpContact = node.attrs.tpContact || '';
+        tpCopyright = node.attrs.tpCopyright || '';
+        break;
+      }
+    }
+  }
+  lines.push(`      <Paragraph Type="General" Alignment="Center" SpaceBefore="288"><Text>${esc(tpTitle)}</Text></Paragraph>`);
+  if (tpWrittenBy) {
+    lines.push(`      <Paragraph Type="General" Alignment="Center"><Text>Written by</Text></Paragraph>`);
+    lines.push(`      <Paragraph Type="General" Alignment="Center"><Text>${esc(tpWrittenBy)}</Text></Paragraph>`);
+    if (tpBasedOn) {
+      lines.push(`      <Paragraph Type="General" Alignment="Center"><Text>${esc(tpBasedOn)}</Text></Paragraph>`);
+    }
+  }
+  if (tpDraft) {
+    lines.push(`      <Paragraph Type="General"><Text>${esc(tpDraft)}</Text></Paragraph>`);
+  }
+  if (tpContact) {
+    for (const line of tpContact.split('\n')) {
+      lines.push(`      <Paragraph Type="General" Alignment="Right"><Text>${esc(line)}</Text></Paragraph>`);
+    }
+  }
+  if (tpCopyright) {
+    lines.push(`      <Paragraph Type="General"><Text>${esc(tpCopyright)}</Text></Paragraph>`);
+  }
   lines.push('    </Content>');
   lines.push('  </TitlePage>');
   lines.push('');

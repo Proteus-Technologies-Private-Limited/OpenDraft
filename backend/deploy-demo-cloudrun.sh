@@ -164,7 +164,7 @@ echo ""
 
 echo "Updating CORS to include Cloud Run URL..."
 
-CORS_ORIGINS="$SERVICE_URL,http://localhost:5173,http://localhost:8000"
+CORS_ORIGINS="$SERVICE_URL,http://localhost:5173,http://localhost:8008"
 
 gcloud run services update "$SERVICE_NAME" \
   --region="$REGION" \

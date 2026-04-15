@@ -24,10 +24,33 @@ export function exportFountain(doc: JSONContent): string {
 
   if (!doc.content) return '';
 
+  // Extract title page metadata from titlePage nodes
+  const titlePageMeta: Record<string, string> = {};
+  for (const node of doc.content) {
+    if (node.type === 'titlePage' && node.attrs?.field === 'title') {
+      if (node.attrs.tpTitle) titlePageMeta['Title'] = node.attrs.tpTitle;
+      if (node.attrs.tpWrittenBy) titlePageMeta['Author'] = node.attrs.tpWrittenBy;
+      if (node.attrs.tpDraft) titlePageMeta['Draft date'] = node.attrs.tpDraftDate || node.attrs.tpDraft;
+      if (node.attrs.tpContact) titlePageMeta['Contact'] = node.attrs.tpContact.replace(/\n/g, '\\n');
+      if (node.attrs.tpCopyright) titlePageMeta['Copyright'] = node.attrs.tpCopyright;
+      if (node.attrs.tpBasedOn) titlePageMeta['Credit'] = `Based on ${node.attrs.tpBasedOn}`;
+      break;
+    }
+  }
+  if (Object.keys(titlePageMeta).length > 0) {
+    for (const [key, value] of Object.entries(titlePageMeta)) {
+      lines.push(`${key}: ${value}`);
+    }
+    lines.push('');
+  }
+
   for (const node of doc.content) {
     const text = getTextContent(node);
 
     switch (node.type) {
+      case 'titlePage':
+        // Already handled above
+        break;
       case 'sceneHeading':
         lines.push('');
         lines.push(text.toUpperCase());

@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAQ - OpenDraft</title>
+  <meta name="description" content="Frequently asked questions about OpenDraft, the free open-source screenwriting software.">
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png">
+  <style>
+    :root {
+      --color-bg: #0e0e12;
+      --color-surface: #16161d;
+      --color-border: #2a2a35;
+      --color-text: #ececf0;
+      --color-text-secondary: #8a8a9a;
+      --color-accent: #c455ce;
+      --color-accent-hover: #d470dd;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --max-width: 1100px;
+      --radius: 10px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 100;
+      background: rgba(14,14,18,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .nav-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--color-text);
+      font-weight: 600;
+      font-size: 17px;
+    }
+    .nav-brand img { width: 28px; height: 28px; border-radius: 6px; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a {
+      color: var(--color-text-secondary);
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--color-text); }
+    .nav-cta {
+      background: var(--color-accent) !important;
+      color: #fff !important;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    .nav-cta:hover { background: var(--color-accent-hover) !important; }
+    .nav-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--color-text);
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    /* ── HERO ── */
+    .faq-hero {
+      padding: 120px 24px 48px;
+      text-align: center;
+    }
+    .faq-hero .section-label {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-accent);
+      margin-bottom: 12px;
+    }
+    .faq-hero h1 {
+      font-size: clamp(32px, 5vw, 48px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+    .faq-hero p {
+      font-size: 17px;
+      color: var(--color-text-secondary);
+      max-width: 540px;
+      margin: 0 auto;
+    }
+
+    /* ── FAQ CONTENT ── */
+    .faq-content {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    .faq-category {
+      margin-bottom: 48px;
+    }
+    .faq-category-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-accent);
+      margin-bottom: 20px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .faq-item {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .faq-item:hover {
+      border-color: #3a3a48;
+    }
+
+    .faq-question {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: none;
+      border: none;
+      color: var(--color-text);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+      gap: 16px;
+      line-height: 1.4;
+    }
+    .faq-question:hover {
+      color: var(--color-accent);
+    }
+    .faq-arrow {
+      flex-shrink: 0;
+      font-size: 12px;
+      transition: transform 0.2s;
+      color: var(--color-text-secondary);
+    }
+    .faq-item.open .faq-arrow {
+      transform: rotate(90deg);
+    }
+
+    .faq-answer {
+      display: none;
+      padding: 0 20px 16px;
+      color: var(--color-text-secondary);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .faq-item.open .faq-answer {
+      display: block;
+    }
+    .faq-answer p {
+      margin-bottom: 8px;
+    }
+    .faq-answer p:last-child {
+      margin-bottom: 0;
+    }
+    .faq-answer ul {
+      margin: 8px 0 8px 20px;
+    }
+    .faq-answer li {
+      margin-bottom: 4px;
+    }
+    .faq-answer code {
+      background: rgba(255,255,255,0.06);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .faq-answer a {
+      color: var(--color-accent);
+      text-decoration: none;
+    }
+    .faq-answer a:hover {
+      color: var(--color-accent-hover);
+      text-decoration: underline;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 40px 24px;
+      border-top: 1px solid var(--color-border);
+      text-align: center;
+    }
+    footer p { font-size: 14px; color: var(--color-text-secondary); }
+    footer a { color: var(--color-text-secondary); text-decoration: none; }
+    footer a:hover { color: var(--color-text); }
+
+    /* ── MOBILE ── */
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .nav-links.open {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 56px;
+        left: 0;
+        right: 0;
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+        padding: 20px;
+        gap: 14px;
+      }
+      .nav-menu-btn { display: block; }
+      .faq-question { font-size: 14px; padding: 14px 16px; }
+      .faq-answer { padding: 0 16px 14px; }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="nav-brand">
+        <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png" alt="OpenDraft">
+        OpenDraft
+      </a>
+      <button class="nav-menu-btn" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="index.html#features">Features</a>
+        <a href="index.html#download">Download</a>
+        <a href="faq.html" style="color:var(--color-text)">FAQ</a>
+        <a href="report-issue.html">Report Issue</a>
+        <a href="https://opendraft-demo-267958344432.us-central1.run.app" target="_blank" rel="noopener" class="nav-cta">Try Online</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="faq-hero">
+    <div class="section-label">Support</div>
+    <h1>Frequently Asked Questions</h1>
+    <p>Everything you need to know about OpenDraft. Can't find what you're looking for? Open an issue on GitHub.</p>
+  </section>
+
+  <div class="faq-content">
+
+    <!-- ── General ── -->
+    <div class="faq-category">
+      <div class="faq-category-title">General</div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          What is OpenDraft?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>OpenDraft is a free, open-source screenwriting application. It provides professional screenplay formatting, real-time collaboration, version control, beat boards, character management, production tagging, and multi-format export &mdash; all without a subscription or cloud lock-in.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Is OpenDraft really free?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes. OpenDraft is MIT-licensed and 100% free. There are no subscriptions, no feature gates, no hidden costs. You can download it, use it forever, and even modify the source code.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          What platforms does OpenDraft run on?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>OpenDraft runs on:</p>
+          <ul>
+            <li><strong>macOS</strong> (Apple Silicon &amp; Intel) &mdash; .dmg and Mac App Store</li>
+            <li><strong>Windows</strong> &mdash; .exe installer and .msi</li>
+            <li><strong>Linux</strong> &mdash; .deb, .rpm, and .AppImage</li>
+            <li><strong>Android</strong> &mdash; .apk sideload</li>
+            <li><strong>iOS / iPadOS</strong> &mdash; App Store</li>
+            <li><strong>Browser</strong> &mdash; Self-hosted or try the online demo</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Where is my data stored?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>All your data stays on your computer. OpenDraft stores projects as files on your local disk &mdash; no cloud servers, no accounts, no data collection. You can back up your projects by simply copying the project folders.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Can I use OpenDraft without an internet connection?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes. The desktop app works entirely offline. You only need internet for real-time collaboration features and to check for updates.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Writing & Formatting ── -->
+    <div class="faq-category">
+      <div class="faq-category-title">Writing &amp; Formatting</div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Does OpenDraft format screenplays to industry standards?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes. OpenDraft uses industry-standard Courier formatting with proper margins, element indents, and page breaks that match Final Draft. Your exported PDFs will look professional and be accepted by studios, competitions, and agencies.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          How do I create a title page?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Go to <strong>Format &gt; Title Page...</strong> to open the Title Page editor. Fill in structured fields (title, written by, contact, draft, copyright, WGA registration) and see a live preview of how it will look. Click <strong>Apply</strong> to add it to your screenplay. The title page renders as page 1 and is included in PDF, Final Draft, and Fountain exports.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          What screenplay elements are supported?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>OpenDraft supports all standard screenplay elements:</p>
+          <ul>
+            <li>Scene Heading (slugline)</li>
+            <li>Action</li>
+            <li>Character</li>
+            <li>Dialogue</li>
+            <li>Parenthetical</li>
+            <li>Transition</li>
+            <li>Shot</li>
+            <li>Dual Dialogue</li>
+            <li>New Act / End of Act (TV format)</li>
+            <li>Lyrics, General, Show/Episode, Cast List</li>
+          </ul>
+          <p>Switch elements with keyboard shortcuts <code>Cmd+1</code> through <code>Cmd+8</code>.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Can I check the estimated runtime of my script?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes. The estimated runtime is always shown in the status bar at the bottom of the editor (e.g., &ldquo;Est. 1h 47m&rdquo;). OpenDraft uses an intelligent algorithm that weights dialogue, action, and other elements differently for a more accurate estimate than the simple &ldquo;one page = one minute&rdquo; rule.</p>
+          <p>The Scene Navigator also shows per-scene timing with color-coded badges: green for normal length, yellow for long, red for very long.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Characters & Story ── -->
+    <div class="faq-category">
+      <div class="faq-category-title">Characters &amp; Story</div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          How do character profiles work?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>OpenDraft automatically detects every speaking character in your screenplay. Click a character name to expand their profile, which includes: description, role, gender, age, backstory, character arc, speech pattern, vocabulary, verbal tics, sample dialogue, and images.</p>
+          <p>You can also use <strong>Build from Script</strong> to auto-extract character descriptions from your action lines.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Can I map character relationships?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes. You can define relationships between any two characters &mdash; allies, rivals, family, romantic, mentor, antagonist, employer, or friends &mdash; with a description and dynamic (stable, evolving, tense, etc.). Click <strong>Relationship Map</strong> to see an interactive visual graph of all character connections.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          What story planning tools are included?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>OpenDraft includes several story planning tools:</p>
+          <ul>
+            <li><strong>Beat Board</strong> &mdash; Visual column-based story planning with draggable cards</li>
+            <li><strong>Index Cards</strong> &mdash; Scene-based cards with synopses that can be rearranged</li>
+            <li><strong>Scene Navigator</strong> &mdash; Browse scenes, pages, and locations with length indicators</li>
+            <li><strong>Script Notes</strong> &mdash; Anchored annotations with color coding</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Analysis ── -->
+    <div class="faq-category">
+      <div class="faq-category-title">Analysis &amp; Statistics</div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          What analytics does OpenDraft provide?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>The <strong>Script Statistics</strong> panel (<strong>Tools &gt; Script Statistics</strong>) provides:</p>
+          <ul>
+            <li><strong>Overview cards</strong> &mdash; Total pages, scenes, characters, and word count</li>
+            <li><strong>Dialogue distribution</strong> &mdash; Bar chart and table showing dialogue per character</li>
+            <li><strong>Gender analysis</strong> &mdash; Dialogue split by character gender</li>
+            <li><strong>Scene breakdown</strong> &mdash; INT/EXT counts, day/night distribution, scene lengths, top locations</li>
+            <li><strong>Pacing chart</strong> &mdash; Dialogue vs action density across the screenplay</li>
+            <li><strong>Character presence map</strong> &mdash; Who appears in which scenes</li>
+            <li><strong>Timing report</strong> &mdash; Per-scene runtime estimates with cumulative total</li>
+          </ul>
+          <p>All statistics update live as you write &mdash; no manual refresh needed.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Does OpenDraft have gender analysis like Highland?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes. The Script Statistics panel includes a gender analysis chart showing the dialogue split by character gender. To get accurate results, fill in the gender field in each character's profile. Characters without a gender assigned appear under &ldquo;Unassigned&rdquo;.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Import & Export ── -->
+    <div class="faq-category">
+      <div class="faq-category-title">Import &amp; Export</div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Is OpenDraft compatible with Final Draft?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes. You can import and export Final Draft (.fdx) files. OpenDraft preserves screenplay elements, formatting, character profiles, highlighting, production tags, beat board data, and page layout during conversion. The title page, including author and contact details, is also transferred.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          What file formats are supported?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <ul>
+            <li><strong>Final Draft (.fdx)</strong> &mdash; Import and export</li>
+            <li><strong>Fountain (.fountain)</strong> &mdash; Import and export (with title page metadata)</li>
+            <li><strong>PDF</strong> &mdash; Export with industry-standard formatting and title page</li>
+            <li><strong>OpenDraft (.odraft)</strong> &mdash; Native format for lossless round-tripping</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Can I migrate from another screenwriting app?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>If your current app can export to Final Draft (.fdx) or Fountain format, you can import directly into OpenDraft. Most screenwriting apps support at least one of these formats. Go to <strong>File &gt; Import</strong> and select your file.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Collaboration & Versions ── -->
+    <div class="faq-category">
+      <div class="faq-category-title">Collaboration &amp; Versions</div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Does OpenDraft support real-time collaboration?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes. OpenDraft includes real-time collaboration where multiple writers can edit the same screenplay simultaneously. One person starts a collaboration session and shares an invite link. Changes sync instantly between all connected writers.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          How does version history work?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>OpenDraft uses built-in Git-based version control. Use <strong>File &gt; Check In</strong> to save a named version with a message (e.g., &ldquo;Finished Act 2 rewrite&rdquo;). You can view all versions in <strong>File &gt; Version History</strong>, compare any two versions, and restore a previous version at any time. Restoring creates a new version, so you never lose work.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Project Management ── -->
+    <div class="faq-category">
+      <div class="faq-category-title">Project Management</div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          What metadata can I store with a project?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Each project stores: title, genre, logline, synopsis, author, director, producer, production company, contact, copyright, draft, language, format (feature, TV, short, etc.), status, target length, and notes.</p>
+          <p>There is also a <strong>Registration &amp; Legal</strong> section for WGA registration number/date, copyright registration, agent/manager contacts, and a submission tracking log.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Can I track where I've submitted my script?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes. In <strong>Project Properties &gt; Registration &amp; Legal</strong>, there is a Submission Log where you can track each submission with date, company/person, submission type, status, and notes. Click <strong>+ Add Submission</strong> to add entries.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Production ── -->
+    <div class="faq-category">
+      <div class="faq-category-title">Production Features</div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Does OpenDraft support production breakdown tagging?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes. OpenDraft includes a full production tagging system compatible with Final Draft. Select text in your screenplay and tag it with categories like Cast, Extras, Stunts, Vehicles, Props, Costumes, VFX, and more. Tags are entity-based, meaning you create a reusable item once and track it across every scene it appears in.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Does OpenDraft have a revision mode?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes. Enable Revision Mode from <strong>Tools &gt; Production &gt; Revision Mode</strong>. Edits are visually marked with a configurable revision color. You can also use Track Changes to compare your current script against any checked-in version, with additions highlighted in green and deletions shown in red strikethrough.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Troubleshooting ── -->
+    <div class="faq-category">
+      <div class="faq-category-title">Troubleshooting</div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          The macOS app says it's "damaged and can't be opened"
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>This is macOS Gatekeeper blocking an app from an unidentified developer. Go to <strong>System Settings &gt; Privacy &amp; Security</strong>, scroll down, and click <strong>Open Anyway</strong> next to the OpenDraft message. You only need to do this once.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          How do I report a bug or request a feature?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Visit the <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/issues" target="_blank">GitHub Issues page</a> to report bugs or request features. You can also use the <a href="report-issue.html">Report Issue</a> page on this website. Include steps to reproduce the problem and your operating system version.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Can I contribute to OpenDraft?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes! OpenDraft is open source under the MIT license. Fork the repository, make your changes, and submit a pull request. Check the <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub repository</a> for contribution guidelines. You can also join the <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions" target="_blank">community discussions</a>.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <p>Made by <a href="https://github.com/Proteus-Technologies-Private-Limited">Proteus Technologies</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/LICENSE">MIT License</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft">GitHub</a></p>
+  </footer>
+
+</body>
+</html>

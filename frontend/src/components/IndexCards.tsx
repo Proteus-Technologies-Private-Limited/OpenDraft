@@ -1,6 +1,8 @@
-import React, { useCallback, useState, useRef, useEffect } from 'react';
+import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { Editor } from '@tiptap/react';
 import { useEditorStore, type SceneInfo } from '../stores/editorStore';
+import { computeSceneLengths } from '../editor/pagination';
+import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
 import SynopsisModal from './SynopsisModal';
 
 interface IndexCardsProps {
@@ -9,7 +11,7 @@ interface IndexCardsProps {
 }
 
 const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
-  const { scenes, indexCardsOpen, updateSceneSynopsis, updateSceneColor, toggleIndexCards } = useEditorStore();
+  const { scenes, indexCardsOpen, updateSceneSynopsis, updateSceneColor, toggleIndexCards, pageLayout } = useEditorStore();
 
   const [fullscreen, setFullscreen] = useState(false);
   const [dragMode, setDragMode] = useState(false);
@@ -93,7 +95,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
   const [synopsisModal, setSynopsisModal] = useState<{ sceneIdx: number; id: string; heading: string; synopsis: string; color: string } | null>(null);
 
   const handleSaveSynopsis = useCallback(
-    (synopsis: string, color: string) => {
+    (synopsis: string, color: string, timingOverride?: number | null) => {
       if (!synopsisModal || !editor) return;
       const { sceneIdx, id } = synopsisModal;
       updateSceneSynopsis(id, synopsis);
@@ -111,7 +113,8 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
         const node = editor.state.doc.nodeAt(targetPos);
         if (node) {
           const { tr } = editor.state;
-          tr.setNodeMarkup(targetPos, undefined, { ...node.attrs, synopsis, sceneColor: color });
+          const newAttrs = { ...node.attrs, synopsis, sceneColor: color, timingOverride: timingOverride ?? null };
+          tr.setNodeMarkup(targetPos, undefined, newAttrs);
           tr.setMeta('addToHistory', false);
           editor.view.dispatch(tr);
         }
@@ -126,6 +129,17 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
   // Whether there are pending changes to apply
   const hasChanges = pendingScenes && originalScenes &&
     pendingScenes.some((s, i) => s.id !== originalScenes[i]?.id);
+
+  // Scene page lengths and timing
+  const sceneLengths = useMemo(() => {
+    if (!editor) return [];
+    try { return computeSceneLengths(editor.state.doc, pageLayout); } catch { return []; }
+  }, [editor, scenes, pageLayout]);
+
+  const sceneTimings = useMemo(() => {
+    if (!editor) return [];
+    try { return computeSceneTiming(editor.getJSON()).scenes; } catch { return []; }
+  }, [editor, scenes]);
 
   // Map from scene ID to its original 1-based position (for showing "was #N")
   const originalIndexMap = useRef(new Map<string, number>());
@@ -677,6 +691,18 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
                       >
                         {scene.heading}
                       </div>
+                      {(sceneLengths[index] > 0 || sceneTimings[index]?.finalSeconds > 0) && (
+                        <div className="index-card-meta">
+                          {sceneLengths[index] > 0 && (
+                            <span className="ic-meta-item">{Number(sceneLengths[index].toFixed(1))}p</span>
+                          )}
+                          {sceneTimings[index]?.finalSeconds > 0 && (
+                            <span className="ic-meta-item" style={{ color: getTimingColor(sceneTimings[index].finalSeconds) }}>
+                              {formatSceneDuration(sceneTimings[index].finalSeconds)}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="index-card-synopsis-wrap">
                       <textarea
@@ -724,6 +750,9 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
           sceneHeading={synopsisModal.heading}
           synopsis={synopsisModal.synopsis}
           sceneColor={synopsisModal.color}
+          pageLength={sceneLengths[synopsisModal.sceneIdx]}
+          autoTimingSeconds={sceneTimings[synopsisModal.sceneIdx]?.autoEstimateSeconds}
+          timingOverride={sceneTimings[synopsisModal.sceneIdx]?.overrideSeconds}
           onSave={handleSaveSynopsis}
           onClose={() => setSynopsisModal(null)}
         />
