@@ -138,6 +138,22 @@ export interface CollabSession {
 
 // ── API methods ──────────────────────────────────────────────────────────────
 
+export interface LocationEntry {
+  id: string;
+  name: string;
+  fullName: string;
+  type: 'interior' | 'exterior' | 'both';
+  address: string;
+  notes: string;
+  contact: string;
+  availability: string;
+  tags: string[];
+  imageAssetIds: string[];
+  aliases: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DemoInfo {
   demo: boolean;
   message: string | null;
@@ -175,7 +191,7 @@ export const api = {
   listScripts: (projectId: string, includePreview: boolean = false) =>
     request<ScriptMeta[]>(`/projects/${projectId}/scripts/${includePreview ? '?include_preview=true' : ''}`),
 
-  createScript: (projectId: string, data: { title: string; content?: any }) =>
+  createScript: (projectId: string, data: { title: string; content?: any; format?: string }) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -289,6 +305,35 @@ export const api = {
       body: JSON.stringify({ url }),
     });
   },
+
+  // Locations
+  listLocations: async (projectId: string): Promise<LocationEntry[]> => {
+    const data = await request<{ locations: LocationEntry[] }>(`/projects/${projectId}/locations/`);
+    return data.locations || [];
+  },
+
+  createLocation: (projectId: string, data: Partial<LocationEntry> & { name: string }) =>
+    request<LocationEntry>(`/projects/${projectId}/locations/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateLocation: (projectId: string, locId: string, data: Partial<LocationEntry>) =>
+    request<LocationEntry>(`/projects/${projectId}/locations/${locId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteLocation: (projectId: string, locId: string) =>
+    request<{ message: string }>(`/projects/${projectId}/locations/${locId}`, {
+      method: 'DELETE',
+    }),
+
+  discoverLocations: (projectId: string) =>
+    request<{ discovered: number; locations: LocationEntry[] }>(
+      `/projects/${projectId}/locations/discover`,
+      { method: 'POST' },
+    ),
 
   // Formatting templates
   listFormattingTemplates: () =>

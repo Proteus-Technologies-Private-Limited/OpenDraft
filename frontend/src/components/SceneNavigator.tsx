@@ -5,6 +5,7 @@ import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore } from '../stores/editorStore';
 import { computeSceneLengths, computePageBlocks, type PageContentInfo } from '../editor/pagination';
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
+import { computeScriptStructure, sceneActLabel, type ScriptStructure } from '../utils/scriptStructure';
 import SynopsisModal from './SynopsisModal';
 
 interface SceneNavigatorProps {
@@ -13,7 +14,7 @@ interface SceneNavigatorProps {
   style?: React.CSSProperties;
 }
 
-type NavTab = 'scenes' | 'pages' | 'locations';
+type NavTab = 'scenes' | 'pages' | 'locations' | 'structure';
 
 // ── Scene heading parser ────────────────────────────────────────────────
 
@@ -264,10 +265,15 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     }
   }, [renamingLocation]);
 
-  // Detect scroll direction in the scene list — show search bar on scroll-up
+  // Detect scroll direction in the scene list — show search bar on scroll-up.
+  // Re-run when the Scenes tab becomes active; the `.navigator-list` div is
+  // unmounted while the user is on another tab, so the scroll listener must
+  // re-attach to the freshly mounted element when they come back.
   useEffect(() => {
+    if (activeTab !== 'scenes') return;
     const el = listRef.current;
     if (!el) return;
+    lastScrollTop.current = el.scrollTop;
     const onScroll = () => {
       const top = el.scrollTop;
       if (top < lastScrollTop.current) {
@@ -279,7 +285,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [activeTab]);
 
   // ── Compute scene details (characters, location, length) ──
 
@@ -338,6 +344,37 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       return [];
     }
   }, [editor, scenes]);
+
+  // ── Compute act/sequence structure ──
+
+  const structure: ScriptStructure = useMemo(() => {
+    if (!editor) return { acts: [], sceneActMap: new Map(), totalScenes: 0 };
+    try {
+      return computeScriptStructure(editor.getJSON());
+    } catch {
+      return { acts: [], sceneActMap: new Map(), totalScenes: 0 };
+    }
+  }, [editor, scenes]);
+
+  // ── Collapsed acts / sequences (Structure tab state) ──
+  const [collapsedActs, setCollapsedActs] = useState<Set<number>>(new Set());
+  const [collapsedSequences, setCollapsedSequences] = useState<Set<string>>(new Set());
+
+  const toggleAct = useCallback((actNumber: number) => {
+    setCollapsedActs((prev) => {
+      const next = new Set(prev);
+      if (next.has(actNumber)) next.delete(actNumber); else next.add(actNumber);
+      return next;
+    });
+  }, []);
+
+  const toggleSequence = useCallback((seqId: string) => {
+    setCollapsedSequences((prev) => {
+      const next = new Set(prev);
+      if (next.has(seqId)) next.delete(seqId); else next.add(seqId);
+      return next;
+    });
+  }, []);
 
   // ── Compute page blocks for page preview ──
 
@@ -602,11 +639,14 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   return (
     <>
     <div ref={navPanelRef} className={`scene-navigator ${panelClass}`} style={style}>
-      {/* Tab bar */}
+      {/* Tab bar — horizontally scrollable tab strip + pinned close button */}
       <div className="navigator-tabs">
-        <button className={`navigator-tab${activeTab === 'scenes' ? ' active' : ''}`} onClick={() => setActiveTab('scenes')}>Scenes</button>
-        <button className={`navigator-tab${activeTab === 'pages' ? ' active' : ''}`} onClick={() => setActiveTab('pages')}>Pages</button>
-        <button className={`navigator-tab${activeTab === 'locations' ? ' active' : ''}`} onClick={() => setActiveTab('locations')}>Locations</button>
+        <div className="navigator-tabs-scroll">
+          <button className={`navigator-tab${activeTab === 'scenes' ? ' active' : ''}`} onClick={() => setActiveTab('scenes')}>Scenes</button>
+          <button className={`navigator-tab${activeTab === 'pages' ? ' active' : ''}`} onClick={() => setActiveTab('pages')}>Pages</button>
+          <button className={`navigator-tab${activeTab === 'locations' ? ' active' : ''}`} onClick={() => setActiveTab('locations')}>Locations</button>
+          <button className={`navigator-tab${activeTab === 'structure' ? ' active' : ''}`} onClick={() => setActiveTab('structure')}>Structure</button>
+        </div>
         <button className="navigator-close" onClick={toggleNavigator} title="Close Navigator">×</button>
       </div>
 
@@ -744,6 +784,10 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                           {scene.sceneNumber != null && (
                             <span className="scene-number-badge" style={scene.color ? { background: scene.color } : undefined}>{scene.sceneNumber}</span>
                           )}
+                          {(() => {
+                            const label = sceneActLabel(structure, sceneIdx);
+                            return label ? <span className="scene-act-badge" title={`Act ${label.slice(1)}`}>{label}</span> : null;
+                          })()}
                           <span className="scene-heading-label">{highlightText(scene.heading, searchQuery)}</span>
                         </div>
                         {detail && detail.pageLength > 0 && (
@@ -838,6 +882,92 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
             </div>
           )}
         </div>
+      )}
+
+      {/* ── Structure tab ────────────────────────────────────────────── */}
+      {activeTab === 'structure' && (
+        <>
+          <div className="navigator-header">
+            <span className="navigator-title">Structure</span>
+            <span className="scene-count">
+              {structure.acts.filter((a) => a.actNumber > 0).length || '—'} acts
+            </span>
+          </div>
+          <div className="navigator-list">
+            {structure.acts.length === 0 ? (
+              <div className="navigator-empty">
+                No structure yet. Insert an Act Break from the element selector, or start writing scenes.
+              </div>
+            ) : (
+              structure.acts.map((act) => {
+                const isCollapsed = collapsedActs.has(act.actNumber);
+                const displayName = act.customName
+                  ? `${act.actName}: ${act.customName}`
+                  : act.actName;
+                return (
+                  <div key={`act-${act.actNumber}-${act.docPos}`} className="structure-act">
+                    <div
+                      className="structure-act-header"
+                      onClick={() => toggleAct(act.actNumber)}
+                    >
+                      <span className={`structure-chevron${isCollapsed ? '' : ' expanded'}`}>&#9662;</span>
+                      <span className="structure-act-name">{displayName}</span>
+                      <span className="structure-act-count">{act.scenes.length}</span>
+                    </div>
+                    {!isCollapsed && (
+                      <div className="structure-act-body">
+                        {act.sequences.map((seq) => {
+                          const seqCollapsed = collapsedSequences.has(seq.id);
+                          return (
+                            <div key={seq.id} className="structure-sequence">
+                              <div
+                                className="structure-sequence-header"
+                                onClick={() => toggleSequence(seq.id)}
+                              >
+                                <span className={`structure-chevron${seqCollapsed ? '' : ' expanded'}`}>&#9662;</span>
+                                <span className="structure-sequence-dot" style={{ background: seq.color }} />
+                                <span className="structure-sequence-name">{seq.name}</span>
+                                <span className="structure-sequence-count">{seq.scenes.length}</span>
+                              </div>
+                              {!seqCollapsed && (
+                                <div className="structure-scene-list">
+                                  {seq.scenes.map((s) => (
+                                    <div
+                                      key={`seq-scene-${s.sceneIndex}`}
+                                      className="structure-scene"
+                                      onClick={() => goToScene(s.sceneIndex)}
+                                    >
+                                      <span className="structure-scene-num">{s.sceneIndex + 1}</span>
+                                      <span className="structure-scene-heading">{s.heading}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {act.orphanScenes.length > 0 && (
+                          <div className="structure-scene-list">
+                            {act.orphanScenes.map((s) => (
+                              <div
+                                key={`orph-scene-${s.sceneIndex}`}
+                                className="structure-scene"
+                                onClick={() => goToScene(s.sceneIndex)}
+                              >
+                                <span className="structure-scene-num">{s.sceneIndex + 1}</span>
+                                <span className="structure-scene-heading">{s.heading}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </>
       )}
 
       {/* ── Locations tab ────────────────────────────────────────────── */}

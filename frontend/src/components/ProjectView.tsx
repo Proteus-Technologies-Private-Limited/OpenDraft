@@ -28,6 +28,55 @@ import { DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES, useEditorStore } from '../
 import { useProjectStore } from '../stores/projectStore';
 import AssetManager from './AssetManager';
 import ProjectPropertiesDialog from './ProjectPropertiesDialog';
+
+/** Dropdown button: "+ New Document" → Screenplay | Treatment. */
+const NewDocumentButton: React.FC<{
+  onCreateScreenplay: () => void;
+  onCreateTreatment: () => void;
+}> = ({ onCreateScreenplay, onCreateTreatment }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [open]);
+
+  return (
+    <div className="new-document-dropdown" ref={ref}>
+      <button
+        className="project-action-btn"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        + New Document ▾
+      </button>
+      {open && (
+        <div className="new-document-menu" role="menu">
+          <button
+            role="menuitem"
+            onClick={() => { setOpen(false); onCreateScreenplay(); }}
+          >
+            <strong>Screenplay</strong>
+            <span>Full-format script with scenes and dialogue</span>
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => { setOpen(false); onCreateTreatment(); }}
+          >
+            <strong>Treatment</strong>
+            <span>Prose narrative (5–25 pages) of the story</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 import { showToast } from './Toast';
 
 const ITEM_COLORS = [
@@ -528,6 +577,44 @@ const ProjectView: React.FC = () => {
     navigate('/');
   };
 
+  const [treatmentNamePrompt, setTreatmentNamePrompt] = useState<string | null>(null);
+
+  const handleCreateTreatment = () => {
+    if (!projectId || !project) return;
+    setTreatmentNamePrompt('');
+  };
+
+  const confirmCreateTreatment = async (rawName: string) => {
+    if (!projectId || !project) return;
+    const name = rawName.trim() || 'Untitled Treatment';
+    setTreatmentNamePrompt(null);
+    try {
+      const resp = await api.createScript(projectId, {
+        title: name,
+        format: 'treatment',
+        content: { type: 'doc', content: [{ type: 'paragraph' }] },
+      });
+      await fetchScripts();
+      navigate(`/project/${projectId}/treatment/${resp.meta.id}`);
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : 'Failed to create treatment',
+        'error',
+      );
+    }
+  };
+
+  /** Navigate to the appropriate editor based on the script's format. */
+  const navigateToScript = useCallback((scriptId: string) => {
+    if (!projectId) return;
+    const script = scripts.find((s) => s.id === scriptId);
+    if (script?.format === 'treatment') {
+      navigate(`/project/${projectId}/treatment/${scriptId}`);
+    } else {
+      navigate(`/project/${projectId}/edit/${scriptId}`);
+    }
+  }, [projectId, scripts, navigate]);
+
   const handleDeleteScript = (scriptId: string) => {
     setPendingDeleteId(scriptId);
   };
@@ -842,12 +929,10 @@ const ProjectView: React.FC = () => {
         {activeTab === 'scripts' && (
           <div className="project-scripts-tab">
             <div className="project-scripts-actions">
-              <button
-                className="project-action-btn"
-                onClick={handleCreateScript}
-              >
-                + New Screenplay
-              </button>
+              <NewDocumentButton
+                onCreateScreenplay={handleCreateScript}
+                onCreateTreatment={handleCreateTreatment}
+              />
               <button
                 className="project-action-btn"
                 onClick={handleImportScript}
@@ -910,7 +995,7 @@ const ProjectView: React.FC = () => {
                             key={script.id}
                             script={script}
                             sortKey={scriptSortKey}
-                            onNavigate={(id) => navigate(`/project/${projectId}/edit/${id}`)}
+                            onNavigate={navigateToScript}
                             onPin={handlePinScript}
                             onRename={handleRenameScript}
                             onDuplicate={handleDuplicateScript}
@@ -936,7 +1021,7 @@ const ProjectView: React.FC = () => {
                             key={script.id}
                             script={script}
                             sortKey={scriptSortKey}
-                            onNavigate={(id) => navigate(`/project/${projectId}/edit/${id}`)}
+                            onNavigate={navigateToScript}
                             onPin={handlePinScript}
                             onRename={handleRenameScript}
                             onDuplicate={handleDuplicateScript}
@@ -971,9 +1056,7 @@ const ProjectView: React.FC = () => {
                             script={script}
                             projectId={projectId!}
                             sortKey={scriptSortKey}
-                            onNavigate={(id) =>
-                              navigate(`/project/${projectId}/edit/${id}`)
-                            }
+                            onNavigate={navigateToScript}
                             onPin={handlePinScript}
                             onColor={handleColorScript}
                             onDelete={handleDeleteScript}
@@ -1002,9 +1085,7 @@ const ProjectView: React.FC = () => {
                             script={script}
                             projectId={projectId!}
                             sortKey={scriptSortKey}
-                            onNavigate={(id) =>
-                              navigate(`/project/${projectId}/edit/${id}`)
-                            }
+                            onNavigate={navigateToScript}
                             onPin={handlePinScript}
                             onColor={handleColorScript}
                             onDelete={handleDeleteScript}
@@ -1049,6 +1130,52 @@ const ProjectView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* New Treatment — name prompt */}
+      {treatmentNamePrompt !== null && (
+        <div
+          className="dialog-overlay"
+          onClick={() => setTreatmentNamePrompt(null)}
+        >
+          <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-header">New Treatment</div>
+            <div className="dialog-body">
+              <p style={{ margin: '0 0 10px 0' }}>Name this treatment:</p>
+              <input
+                autoFocus
+                type="text"
+                className="dialog-input"
+                value={treatmentNamePrompt}
+                onChange={(e) => setTreatmentNamePrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') confirmCreateTreatment(treatmentNamePrompt);
+                  if (e.key === 'Escape') setTreatmentNamePrompt(null);
+                }}
+                placeholder="e.g. First Treatment, Producer Draft…"
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  fontSize: '14px',
+                  background: 'var(--fd-overlay-subtle)',
+                  border: '1px solid var(--fd-border)',
+                  borderRadius: 4,
+                  color: 'var(--fd-text)',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+            <div className="dialog-actions">
+              <button onClick={() => setTreatmentNamePrompt(null)}>Cancel</button>
+              <button
+                className="dialog-primary"
+                onClick={() => confirmCreateTreatment(treatmentNamePrompt)}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       {pendingDeleteId && (

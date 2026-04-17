@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import ScreenplayEditor from './components/ScreenplayEditor';
+import TreatmentEditor from './components/TreatmentEditor';
 import ProjectList from './components/ProjectList';
 import ProjectView from './components/ProjectView';
 import SettingsPage from './components/SettingsPage';
@@ -19,6 +20,7 @@ function App() {
         <Route path="/projects" element={<ProjectList />} />
         <Route path="/project/:projectId" element={<ProjectView />} />
         <Route path="/project/:projectId/edit/:scriptId" element={<ScreenplayEditor />} />
+        <Route path="/project/:projectId/treatment/:scriptId" element={<TreatmentEditor />} />
         <Route path="/project/:projectId/history/:scriptId/:commitHash" element={<ScreenplayEditor />} />
         <Route path="/collab/:collabToken" element={<ScreenplayEditor />} />
         <Route path="/settings" element={<SettingsPage />} />

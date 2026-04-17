@@ -10,6 +10,7 @@ interface ViewState {
   scriptNotesOpen?: boolean;
   characterProfilesOpen?: boolean;
   tagsPanelOpen?: boolean;
+  locationDatabaseOpen?: boolean;
   notesVisible?: boolean;
   tagsVisible?: boolean;
   notesActiveTab?: 'script' | 'general';
@@ -403,6 +404,8 @@ interface EditorState {
   setTagsVisible: (v: boolean) => void;
   tagsPanelOpen: boolean;
   toggleTagsPanel: () => void;
+  locationDatabaseOpen: boolean;
+  toggleLocationDatabase: () => void;
   /** When set, the Tags panel shows a "select category" prompt for this selection */
   pendingTagSelection: { from: number; to: number; text: string; elementType: string; sceneId: string | null } | null;
   setPendingTagSelection: (sel: { from: number; to: number; text: string; elementType: string; sceneId: string | null } | null) => void;
@@ -839,6 +842,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const v = !s.tagsPanelOpen;
     saveViewState({ tagsPanelOpen: v });
     return { tagsPanelOpen: v };
+  }),
+  locationDatabaseOpen: _vs.locationDatabaseOpen ?? false,
+  toggleLocationDatabase: () => set((s) => {
+    const v = !s.locationDatabaseOpen;
+    saveViewState({ locationDatabaseOpen: v });
+    return { locationDatabaseOpen: v };
   }),
   pendingTagSelection: null,
   setPendingTagSelection: (sel) => set({ pendingTagSelection: sel }),

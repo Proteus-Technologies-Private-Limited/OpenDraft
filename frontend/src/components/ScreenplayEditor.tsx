@@ -46,6 +46,7 @@ import ScriptStatistics from './ScriptStatistics';
 import ScriptNotes from './ScriptNotes';
 import CharacterProfiles from './CharacterProfiles';
 import TagsPanel from './TagsPanel';
+import LocationDatabase from './LocationDatabase';
 import FormatPanel from './FormatPanel';
 import StatusBar from './StatusBar';
 import SearchReplace, { createSearchPlugin } from './SearchReplace';
@@ -220,7 +221,7 @@ const ScreenplayEditor: React.FC = () => {
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     beatBoardOpen, statisticsOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
-    characterProfilesOpen, tagsPanelOpen,
+    characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen,
     spellCheckEnabled, toggleSpellCheck, setDocumentTitle,
     sceneNumbersVisible, sceneNumbersLocked,
     saveStatus, saveError, setSaveStatus,
@@ -287,7 +288,7 @@ const ScreenplayEditor: React.FC = () => {
     document.body.style.userSelect = 'none';
   }, [navWidth, rightPanelWidth]);
 
-  const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen;
+  const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen || locationDatabaseOpen;
 
   // Yjs document & provider — stable across renders while collab is active
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -1866,6 +1867,11 @@ const ScreenplayEditor: React.FC = () => {
       }
     }
 
+    // Capture the previous load key BEFORE overwriting it. A null value here
+    // means this is the first load in this mount — there is nothing to flush
+    // (the editor only holds its default empty content, which would overwrite
+    // the stored script if saved).
+    const prevLoadKey = loadedScriptRef.current;
     loadedScriptRef.current = loadKey;
     clearTrackChanges();
     scriptSwitchingRef.current = true;
@@ -1873,7 +1879,10 @@ const ScreenplayEditor: React.FC = () => {
       try {
         // Flush unsaved changes to the CURRENT script before switching so
         // metadata (character profiles, relationships, etc.) is not lost.
-        if (currentProject && currentScriptId) {
+        // Only do this if we actually loaded a prior script in this mount —
+        // otherwise the "pending" content is just the editor's default empty
+        // state and would clobber a stored screenplay.
+        if (prevLoadKey && currentProject && currentScriptId) {
           const pendingContent = buildSaveContent();
           if (pendingContent) {
             const pendingJson = JSON.stringify(pendingContent);
@@ -3305,6 +3314,7 @@ const ScreenplayEditor: React.FC = () => {
         {!isHistoryMode && <ScriptNotes editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
+        {!isHistoryMode && <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && pluginRegistry.getPanels('right-sidebar').map((p) => (
           <p.component key={p.id} editor={editor} />
         ))}

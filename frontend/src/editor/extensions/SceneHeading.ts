@@ -13,6 +13,7 @@ export const SceneHeading = Node.create({
       synopsis: { default: '' },
       sceneColor: { default: '' },
       timingOverride: { default: null },  // seconds (null = auto-calculate)
+      sequenceId: { default: null },       // links scene to a sequence defined at document level
     };
   },
 
@@ -24,6 +25,7 @@ export const SceneHeading = Node.create({
         return {
           synopsis: dom.getAttribute('data-synopsis') || '',
           sceneColor: dom.getAttribute('data-scene-color') || '',
+          sequenceId: dom.getAttribute('data-sequence-id') || null,
         };
       },
     }];
@@ -42,6 +44,9 @@ export const SceneHeading = Node.create({
     }
     if (node.attrs.sceneColor) {
       attrs['data-scene-color'] = node.attrs.sceneColor;
+    }
+    if (node.attrs.sequenceId) {
+      attrs['data-sequence-id'] = node.attrs.sequenceId;
     }
     return [
       'div',

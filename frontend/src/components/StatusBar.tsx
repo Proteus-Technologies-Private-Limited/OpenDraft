@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useEditorStore, ELEMENT_LABELS } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 import { computeSceneTiming, formatRuntime } from '../utils/scriptTiming';
+import { computeScriptStructure } from '../utils/scriptStructure';
 
 const SAVE_STATUS_DISPLAY: Record<string, { label: string; className: string }> = {
   idle: { label: '', className: '' },
@@ -40,6 +41,18 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
     }
   }, [editorDoc]);
 
+  const currentAct = useMemo(() => {
+    if (!editorDoc) return '';
+    try {
+      const structure = computeScriptStructure(editorDoc as any);
+      const realActs = structure.acts.filter((a) => a.actNumber > 0);
+      if (realActs.length === 0) return '';
+      return `${realActs.length} act${realActs.length === 1 ? '' : 's'}`;
+    } catch {
+      return '';
+    }
+  }, [editorDoc]);
+
   return (
     <div className="status-bar">
       <div className="status-left">
@@ -61,6 +74,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
         </span>
       </div>
       <div className="status-right">
+        {currentAct && (
+          <span className="status-item status-acts" title="Act structure">
+            {currentAct}
+          </span>
+        )}
         {estimatedRuntime && (
           <span className="status-item status-timing" title="Estimated runtime">
             Est. {estimatedRuntime}
