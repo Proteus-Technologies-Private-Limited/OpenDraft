@@ -11,6 +11,8 @@ ecdsa==0.19.2
 fastapi==0.135.2
 dulwich==1.1.0
 h11==0.16.0
+httpx==0.28.1
+PyJWT==2.10.1
 idna==3.11
 lxml==6.0.2
 Mako==1.3.10

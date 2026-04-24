@@ -311,6 +311,8 @@ interface EditorState {
   toggleBeatBoard: () => void;
   statisticsOpen: boolean;
   setStatisticsOpen: (open: boolean) => void;
+  statisticsScrollTo: string | null;
+  setStatisticsScrollTo: (id: string | null) => void;
   scriptNotesOpen: boolean;
   toggleScriptNotes: () => void;
   notesActiveTab: 'script' | 'general';
@@ -469,8 +471,8 @@ interface EditorState {
   setGoToPageOpen: (open: boolean) => void;
   titlePageEditorOpen: boolean;
   setTitlePageEditorOpen: (open: boolean) => void;
-  openFromProjectOpen: boolean;
-  setOpenFromProjectOpen: (open: boolean) => void;
+  openFileOpen: boolean;
+  setOpenFileOpen: (open: boolean) => void;
   saveAsOpen: boolean;
   setSaveAsOpen: (open: boolean) => void;
   /** Optional callback to run after save-as completes (e.g. deferred import). */
@@ -538,6 +540,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   }),
   statisticsOpen: false,
   setStatisticsOpen: (open) => set({ statisticsOpen: open }),
+  statisticsScrollTo: null,
+  setStatisticsScrollTo: (id) => set({ statisticsScrollTo: id }),
   scriptNotesOpen: _vs.scriptNotesOpen ?? false,
   toggleScriptNotes: () => set((s) => {
     const v = !s.scriptNotesOpen;
@@ -903,8 +907,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setGoToPageOpen: (open) => set({ goToPageOpen: open }),
   titlePageEditorOpen: false,
   setTitlePageEditorOpen: (open) => set({ titlePageEditorOpen: open }),
-  openFromProjectOpen: false,
-  setOpenFromProjectOpen: (open) => set({ openFromProjectOpen: open }),
+  openFileOpen: false,
+  setOpenFileOpen: (open) => set({ openFileOpen: open }),
   saveAsOpen: false,
   setSaveAsOpen: (open) => set({ saveAsOpen: open }),
   postSaveAction: null,

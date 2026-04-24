@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from app.config import PROJECTS_DIR
+from app.config import get_projects_dir
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ PREFIX_RE = re.compile(r"^(INT\.?\/?EXT\.?|EXT\.?\/?INT\.?|INT\.?|EXT\.?|I\/E\.?
 
 
 def _locations_file(project_id: str) -> Path:
-    project_dir = PROJECTS_DIR / project_id
+    project_dir = get_projects_dir() / project_id
     if not project_dir.exists():
         raise FileNotFoundError(f"Project '{project_id}' not found")
     return project_dir / "locations.json"

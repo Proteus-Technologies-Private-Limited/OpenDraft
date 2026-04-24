@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import type { Editor } from '@tiptap/react';
 import { useEditorStore } from '../stores/editorStore';
 import {
@@ -31,7 +31,7 @@ function formatTime(minutes: number): string {
 }
 
 const ScriptStatistics: React.FC<Props> = ({ editor }) => {
-  const { characterProfiles, pageCount, setStatisticsOpen } = useEditorStore();
+  const { characterProfiles, pageCount, setStatisticsOpen, statisticsScrollTo, setStatisticsScrollTo } = useEditorStore();
 
   const doc = useMemo(() => editor.getJSON(), [editor]);
 
@@ -44,6 +44,17 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
   const timingResult = useMemo(() => computeSceneTiming(doc), [doc]);
 
   const sceneHeadings = useMemo(() => pacingData.map((d) => d.heading), [pacingData]);
+
+  useEffect(() => {
+    if (!statisticsScrollTo) return;
+    const id = statisticsScrollTo;
+    const t = setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setStatisticsScrollTo(null);
+    }, 50);
+    return () => clearTimeout(t);
+  }, [statisticsScrollTo, setStatisticsScrollTo]);
 
   return (
     <div className="stats-panel">
@@ -87,10 +98,10 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
                   <XAxis type="number" tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={95} />
                   <Tooltip
-                    formatter={(value: number, name: string) => [
-                      name === 'wordCount' ? `${value} words` : `${value.toFixed(1)}%`,
+                    formatter={((value: any, name: any) => [
+                      name === 'wordCount' ? `${value} words` : `${Number(value).toFixed(1)}%`,
                       name === 'wordCount' ? 'Words' : '% of dialogue',
-                    ]}
+                    ]) as any}
                     contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: 4, fontSize: 12 }}
                   />
                   <Bar dataKey="wordCount" name="wordCount" radius={[0, 3, 3, 0]}>
@@ -152,14 +163,14 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
                       innerRadius={40}
                       outerRadius={75}
                       paddingAngle={2}
-                      label={({ gender, dialoguePercentage }) => `${gender} ${dialoguePercentage.toFixed(0)}%`}
+                      label={({ gender, dialoguePercentage }: any) => `${gender} ${Number(dialoguePercentage).toFixed(0)}%`}
                     >
                       {genderStats.map((_, idx) => (
                         <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number) => [`${value} words`, 'Dialogue']}
+                      formatter={((value: any) => [`${value} words`, 'Dialogue']) as any}
                       contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: 4, fontSize: 12 }}
                     />
                   </PieChart>
@@ -206,7 +217,7 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
                     dataKey="value"
                     nameKey="name"
                     cx="50%" cy="50%" outerRadius={55}
-                    label={({ name, value }) => `${name} ${value}`}
+                    label={({ name, value }: any) => `${name} ${value}`}
                   >
                     <Cell fill="#3b82f6" />
                     <Cell fill="#10b981" />
@@ -231,7 +242,7 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
                     dataKey="value"
                     nameKey="name"
                     cx="50%" cy="50%" outerRadius={55}
-                    label={({ name, value }) => `${name} ${value}`}
+                    label={({ name, value }: any) => `${name} ${value}`}
                   >
                     <Cell fill="#f59e0b" />
                     <Cell fill="#6366f1" />
@@ -283,17 +294,17 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
                 <XAxis
                   dataKey="sceneIndex"
                   tick={{ fontSize: 10 }}
-                  tickFormatter={(v) => `S${v + 1}`}
+                  tickFormatter={(v: any) => `S${Number(v) + 1}`}
                 />
                 <YAxis tick={{ fontSize: 10 }} label={{ value: 'Words', angle: -90, position: 'insideLeft', fontSize: 10 }} />
                 <Tooltip
-                  labelFormatter={(v) => sceneHeadings[v as number] || `Scene ${(v as number) + 1}`}
-                  formatter={(value: number, name: string) => [`${value} words`, name === 'dialogueWords' ? 'Dialogue' : 'Action']}
+                  labelFormatter={(v: any) => sceneHeadings[v as number] || `Scene ${(v as number) + 1}`}
+                  formatter={((value: any, name: any) => [`${value} words`, name === 'dialogueWords' ? 'Dialogue' : 'Action']) as any}
                   contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: 4, fontSize: 12 }}
                 />
                 <Area type="monotone" dataKey="dialogueWords" stackId="1" stroke="#3b82f6" fill="#3b82f680" name="dialogueWords" />
                 <Area type="monotone" dataKey="actionWords" stackId="1" stroke="#f59e0b" fill="#f59e0b80" name="actionWords" />
-                <Legend formatter={(value) => (value === 'dialogueWords' ? 'Dialogue' : 'Action')} />
+                <Legend formatter={(value: any) => (value === 'dialogueWords' ? 'Dialogue' : 'Action')} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -339,7 +350,7 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
 
         {/* G. Timing Report */}
         {timingResult.scenes.length > 0 && (
-          <div className="stats-section">
+          <div className="stats-section" id="stats-timing-report">
             <h3 className="stats-section-title">Timing Report — Est. {formatRuntime(timingResult.totalSeconds)}</h3>
             <table className="stats-table">
               <thead>

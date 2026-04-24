@@ -6,6 +6,8 @@ import ProjectView from './components/ProjectView';
 import SettingsPage from './components/SettingsPage';
 import Toast from './components/Toast';
 import DemoBanner from './components/DemoBanner';
+import AuthGate from './components/AuthGate';
+import VerifyEmailRoute from './components/VerifyEmailRoute';
 import { pluginRegistry } from './plugins/registry';
 import './styles/screenplay.css';
 
@@ -17,6 +19,7 @@ function App() {
       <DemoBanner />
       <Routes>
         <Route path="/" element={<ScreenplayEditor />} />
+        <Route path="/verify" element={<VerifyEmailRoute />} />
         <Route path="/projects" element={<ProjectList />} />
         <Route path="/project/:projectId" element={<ProjectView />} />
         <Route path="/project/:projectId/edit/:scriptId" element={<ScreenplayEditor />} />
@@ -29,6 +32,7 @@ function App() {
         ))}
       </Routes>
       <Toast />
+      <AuthGate />
     </>
   );
 }

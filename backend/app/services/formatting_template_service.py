@@ -5,12 +5,12 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.config import PROJECTS_DIR
+from app.config import PROJECTS_DIR_BASE
 
 
 def _templates_dir() -> Path:
     """Return the global formatting templates directory, creating it if needed."""
-    tpl_dir = PROJECTS_DIR / "_formatting_templates"
+    tpl_dir = PROJECTS_DIR_BASE / "_formatting_templates"
     tpl_dir.mkdir(parents=True, exist_ok=True)
     return tpl_dir
 

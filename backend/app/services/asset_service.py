@@ -7,14 +7,14 @@ from pathlib import Path
 
 import aiofiles
 
-from app.config import PROJECTS_DIR
+from app.config import get_projects_dir
 
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
 def _assets_dir(project_id: str) -> Path:
     """Return the assets directory for a project, ensuring the project exists."""
-    project_dir = PROJECTS_DIR / project_id
+    project_dir = get_projects_dir() / project_id
     if not project_dir.exists():
         raise FileNotFoundError(f"Project '{project_id}' not found")
     assets_path = project_dir / "assets"

@@ -319,12 +319,13 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
   if (titlePageData?.tpTitle) {
     const centerX = pageWidthPt / 2;
     const tp = titlePageData;
+    const tpTitle = tp.tpTitle!;
 
     // Title — centered, ~40% down the page
     const titleY = pageHeightPt * 0.38;
     pdf.setFont('courier', 'bold');
     pdf.setFontSize(12);
-    pdf.text(tp.tpTitle.toUpperCase(), centerX, titleY, { align: 'center' });
+    pdf.text(tpTitle.toUpperCase(), centerX, titleY, { align: 'center' });
 
     // "Written by" + author — below title
     if (tp.tpWrittenBy) {

@@ -56,9 +56,14 @@ export async function validateVerificationCode(userId: string, code: string): Pr
 }
 
 export async function sendVerificationEmail(email: string, code: string): Promise<void> {
+  // Magic link: includes email + code as query params so the frontend can POST
+  // them to /auth/verify-email-link on page load — verifies and logs the user in.
+  const magicLink = `${config.appUrl}/verify?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
+
   const transport = getTransporter();
   if (!transport) {
     console.log(`[Email] SMTP not configured. Verification code for ${email}: ${code}`);
+    console.log(`[Email] Magic link: ${magicLink}`);
     return;
   }
 
@@ -66,15 +71,19 @@ export async function sendVerificationEmail(email: string, code: string): Promis
     from: config.smtpFrom,
     to: email,
     subject: 'OpenDraft - Verify your email',
-    text: `Your verification code is: ${code}\n\nThis code expires in 15 minutes.`,
+    text: `Your verification code is: ${code}\n\nOr click this link to activate your account:\n${magicLink}\n\nBoth expire in 15 minutes.`,
     html: `
-      <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
+      <div style="font-family: sans-serif; max-width: 440px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #333;">OpenDraft Email Verification</h2>
-        <p>Your verification code is:</p>
+        <p>Activate your account by clicking the link below:</p>
+        <p style="text-align: center; margin: 20px 0;">
+          <a href="${magicLink}" style="display: inline-block; background: #4a6fa5; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600;">Activate account</a>
+        </p>
+        <p>Or enter this verification code manually:</p>
         <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 20px; background: #f5f5f5; border-radius: 8px; margin: 16px 0;">
           ${code}
         </div>
-        <p style="color: #666; font-size: 13px;">This code expires in 15 minutes.</p>
+        <p style="color: #666; font-size: 13px;">Both the link and code expire in 15 minutes.</p>
       </div>
     `,
   });

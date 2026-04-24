@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import { initStorage } from './services/api';
+import { initDemoInfo } from './services/demoInfo';
 
 async function init() {
   // Apply saved theme before first render to avoid flash
@@ -21,6 +22,10 @@ async function init() {
   // initStorage() handles its own timeout and fallback internally —
   // no additional wrapping needed here.
   await initStorage();
+
+  // Fetch the backend's demo-mode flag once so CollabLoginDialog/SettingsPage
+  // can decide whether to show demo warnings. Non-blocking best-effort.
+  initDemoInfo().catch(() => {});
 
   // Set initial native window title on desktop (for macOS Window menu)
   import('./services/platform').then(({ isDesktopTauri }) => {

@@ -4,14 +4,14 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.config import PROJECTS_DIR
+from app.config import get_projects_dir
 
 logger = logging.getLogger(__name__)
 
 
 def _scripts_dir(project_id: str) -> Path:
-    """Return the scripts directory for a project, ensuring it exists."""
-    scripts_path = PROJECTS_DIR / project_id / "scripts"
+    """Return the scripts directory for the active user's project."""
+    scripts_path = get_projects_dir() / project_id / "scripts"
     if not scripts_path.exists():
         raise FileNotFoundError(f"Project '{project_id}' not found")
     return scripts_path

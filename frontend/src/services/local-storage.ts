@@ -64,6 +64,11 @@ const EMPTY_PROPS: ProjectProperties = {
   copyright: '', draft: '', language: 'en', format: 'screenplay',
   production_company: '', director: '', producer: '', status: '',
   target_length: '', notes: '',
+  wga_registration: '', wga_registration_date: '',
+  copyright_registration: '', copyright_year: '',
+  agent_name: '', agent_contact: '',
+  manager_name: '', manager_contact: '',
+  submissions: [],
 };
 
 /** Ensure the assets directory exists for a project. */
@@ -426,17 +431,24 @@ export async function createLocalStorage() {
       return { hash: commitId, short_hash: shortHash(commitId), message, date: ts };
     },
 
-    async getVersions(projectId: string): Promise<VersionInfo[]> {
+    async getVersions(projectId: string, scriptId?: string): Promise<VersionInfo[]> {
       const rows = await db.select<any[]>(
         'SELECT id, message, created_at FROM version_commits WHERE project_id = $1 ORDER BY created_at DESC',
         [projectId],
       );
-      return rows.map((r: any) => ({
+      const all: VersionInfo[] = rows.map((r: any) => ({
         hash: r.id,
         short_hash: shortHash(r.id),
         message: r.message,
         date: r.created_at,
       }));
+      if (!scriptId) return all;
+      const filtered: VersionInfo[] = [];
+      for (const v of all) {
+        const scripts = await storage._resolveVersionScripts(v.hash);
+        if (scripts.some((s) => s.script_id === scriptId)) filtered.push(v);
+      }
+      return filtered;
     },
 
     async getVersionDiff(

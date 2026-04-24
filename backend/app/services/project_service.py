@@ -6,7 +6,7 @@ from pathlib import Path
 
 from dulwich.repo import Repo as DulwichRepo
 
-from app.config import PROJECTS_DIR
+from app.config import get_projects_dir
 
 
 def _slugify(name: str) -> str:
@@ -20,7 +20,7 @@ def _slugify(name: str) -> str:
 
 def _ensure_projects_dir() -> None:
     """Create the top-level projects directory if it doesn't exist."""
-    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+    get_projects_dir().mkdir(parents=True, exist_ok=True)
 
 
 def create_project(name: str) -> dict:
@@ -31,7 +31,7 @@ def create_project(name: str) -> dict:
     if not project_id:
         raise ValueError("Project name produces an empty slug")
 
-    project_dir = PROJECTS_DIR / project_id
+    project_dir = get_projects_dir() / project_id
     if project_dir.exists():
         raise FileExistsError(f"Project '{project_id}' already exists")
 
@@ -65,7 +65,7 @@ def list_projects() -> list[dict]:
     _ensure_projects_dir()
 
     projects = []
-    for entry in sorted(PROJECTS_DIR.iterdir()):
+    for entry in sorted(get_projects_dir().iterdir()):
         if entry.is_dir():
             project_file = entry / "project.json"
             if project_file.exists():
@@ -80,7 +80,7 @@ def list_projects() -> list[dict]:
 
 def get_project(project_id: str) -> dict:
     """Read a single project's metadata."""
-    project_file = PROJECTS_DIR / project_id / "project.json"
+    project_file = get_projects_dir() / project_id / "project.json"
     if not project_file.exists():
         raise FileNotFoundError(f"Project '{project_id}' not found")
     data = json.loads(project_file.read_text(encoding="utf-8"))
@@ -100,7 +100,7 @@ def update_project(
     sort_order: int | None = None,
 ) -> dict:
     """Update a project's name, properties, and updated_at timestamp."""
-    project_file = PROJECTS_DIR / project_id / "project.json"
+    project_file = get_projects_dir() / project_id / "project.json"
     if not project_file.exists():
         raise FileNotFoundError(f"Project '{project_id}' not found")
 
@@ -126,7 +126,7 @@ def update_project(
 
 def delete_project(project_id: str) -> None:
     """Delete an entire project directory."""
-    project_dir = PROJECTS_DIR / project_id
+    project_dir = get_projects_dir() / project_id
     if not project_dir.exists():
         raise FileNotFoundError(f"Project '{project_id}' not found")
     shutil.rmtree(project_dir)
@@ -135,7 +135,7 @@ def delete_project(project_id: str) -> None:
 def ensure_default_project(default_name: str) -> dict:
     """Create the default project if it doesn't already exist, return its data."""
     project_id = _slugify(default_name)
-    project_file = PROJECTS_DIR / project_id / "project.json"
+    project_file = get_projects_dir() / project_id / "project.json"
     if project_file.exists():
         return json.loads(project_file.read_text(encoding="utf-8"))
     return create_project(default_name)

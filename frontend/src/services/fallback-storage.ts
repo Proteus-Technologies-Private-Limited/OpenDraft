@@ -69,6 +69,11 @@ const EMPTY_PROPS: ProjectProperties = {
   copyright: '', draft: '', language: 'en', format: 'screenplay',
   production_company: '', director: '', producer: '', status: '',
   target_length: '', notes: '',
+  wga_registration: '', wga_registration_date: '',
+  copyright_registration: '', copyright_year: '',
+  agent_name: '', agent_contact: '',
+  manager_name: '', manager_contact: '',
+  submissions: [],
 };
 
 export function createFallbackStorage() {

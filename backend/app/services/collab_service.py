@@ -5,14 +5,14 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from app.config import PROJECTS_DIR
+from app.config import PROJECTS_DIR_BASE
 
 logger = logging.getLogger(__name__)
 
 
 def _sessions_file() -> Path:
     """Return path to the collab sessions JSON file."""
-    p = PROJECTS_DIR.parent / "collab_sessions.json"
+    p = PROJECTS_DIR_BASE.parent / "collab_sessions.json"
     if not p.exists():
         fd = os.open(str(p), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as f:

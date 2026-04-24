@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collabAuthApi, handleAuthResponse } from '../services/collabAuth';
 import type { CollabServerConfig } from '../services/collabAuth';
-import { useSettingsStore } from '../stores/settingsStore';
+import { initDemoInfo, isDemoMode } from '../services/demoInfo';
 import { showToast } from './Toast';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
@@ -10,46 +10,45 @@ interface CollabLoginDialogProps {
   onSuccess: () => void;
 }
 
-const SAVED_CREDS_KEY = 'opendraft:collabSavedCreds';
+// Optional: remember the email only (never the password). Refreshes across
+// sign-in sessions as a convenience; the refresh token handles "stay signed
+// in" so there's no reason to keep the password on the device.
+const REMEMBERED_EMAIL_KEY = 'opendraft:rememberedEmail';
 
-interface SavedCreds { email: string; password: string; displayName?: string }
-
-function loadSavedCreds(): SavedCreds | null {
-  try {
-    const raw = localStorage.getItem(SAVED_CREDS_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+function loadRememberedEmail(): string {
+  try { return localStorage.getItem(REMEMBERED_EMAIL_KEY) || ''; } catch { return ''; }
 }
 
-function saveCreds(email: string, password: string, displayName?: string) {
-  localStorage.setItem(SAVED_CREDS_KEY, JSON.stringify({ email, password, displayName }));
+function saveRememberedEmail(email: string) {
+  try { localStorage.setItem(REMEMBERED_EMAIL_KEY, email); } catch { /* ignore */ }
 }
 
-function clearSavedCreds() {
-  localStorage.removeItem(SAVED_CREDS_KEY);
+function clearRememberedEmail() {
+  try { localStorage.removeItem(REMEMBERED_EMAIL_KEY); } catch { /* ignore */ }
 }
 
 const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSuccess }) => {
-  const saved = loadSavedCreds();
+  const savedEmail = loadRememberedEmail();
 
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [loading, setLoading] = useState(false);
   const [serverConfig, setServerConfig] = useState<CollabServerConfig | null>(null);
-  const collabServerUrl = useSettingsStore((s) => s.collabServerUrl);
-  const isDemoServer = collabServerUrl.includes('opendraft-collab-267958344432.us-central1.run.app');
+  // Demo-mode flag comes from the backend (DEMO_MODE env var), not from a URL
+  // string match. Triggers a re-render once initDemoInfo resolves.
+  const [isDemoServer, setIsDemoServer] = useState<boolean>(isDemoMode());
 
-  // Login fields — pre-fill from saved credentials
-  const [loginEmail, setLoginEmail] = useState(saved?.email ?? '');
-  const [loginPassword, setLoginPassword] = useState(saved?.password ?? '');
+  // Login fields — pre-fill email only
+  const [loginEmail, setLoginEmail] = useState(savedEmail);
+  const [loginPassword, setLoginPassword] = useState('');
 
-  // Register fields — pre-fill all fields from saved credentials
-  const [regName, setRegName] = useState(saved?.displayName ?? '');
-  const [regEmail, setRegEmail] = useState(saved?.email ?? '');
-  const [regPassword, setRegPassword] = useState(saved?.password ?? '');
-  const [regConfirm, setRegConfirm] = useState(saved?.password ?? '');
+  // Register fields — pre-fill email only
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState(savedEmail);
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirm, setRegConfirm] = useState('');
 
-  // Remember credentials
-  const [rememberCreds, setRememberCreds] = useState(!!saved);
+  // Remember email (never the password)
+  const [rememberEmail, setRememberEmail] = useState(!!savedEmail);
 
   // Password visibility toggles
   const [showLoginPw, setShowLoginPw] = useState(false);
@@ -57,7 +56,11 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
   const [showRegConfirm, setShowRegConfirm] = useState(false);
 
   useEffect(() => {
+    // One-time migration: purge the legacy key that stored email+password in
+    // plaintext. The email-only replacement is under opendraft:rememberedEmail.
+    try { localStorage.removeItem('opendraft:collabSavedCreds'); } catch { /* ignore */ }
     collabAuthApi.getServerConfig().then(setServerConfig).catch(() => {});
+    initDemoInfo().then((info) => setIsDemoServer(Boolean(info.demo))).catch(() => {});
   }, []);
 
   const handleLogin = async () => {
@@ -66,8 +69,8 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
     try {
       const response = await collabAuthApi.login(loginEmail, loginPassword);
       handleAuthResponse(response);
-      if (rememberCreds) saveCreds(loginEmail, loginPassword, saved?.displayName);
-      else clearSavedCreds();
+      if (rememberEmail) saveRememberedEmail(loginEmail);
+      else clearRememberedEmail();
       showToast('Signed in', 'success');
       onSuccess();
     } catch (err: any) {
@@ -101,8 +104,8 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
     try {
       const response = await collabAuthApi.register(regEmail, regPassword, regName);
       handleAuthResponse(response);
-      if (rememberCreds) saveCreds(regEmail, regPassword, regName);
-      else clearSavedCreds();
+      if (rememberEmail) saveRememberedEmail(regEmail);
+      else clearRememberedEmail();
       showToast('Account created!', 'success');
       onSuccess();
     } catch (err: any) {
@@ -298,20 +301,18 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
             <label className="collab-remember-label">
               <input
                 type="checkbox"
-                checked={rememberCreds}
+                checked={rememberEmail}
                 onChange={(e) => {
-                  setRememberCreds(e.target.checked);
-                  if (!e.target.checked) clearSavedCreds();
+                  setRememberEmail(e.target.checked);
+                  if (!e.target.checked) clearRememberedEmail();
                 }}
               />
-              Remember credentials
+              Remember my email address
             </label>
-            {rememberCreds && (
-              <p className="collab-remember-warning">
-                Your password will be stored in plain text on this device. This is not
-                recommended on shared or public computers.
-              </p>
-            )}
+            <p className="collab-remember-hint">
+              You stay signed in for up to 7 days using a secure refresh token —
+              no password is stored on this device.
+            </p>
           </div>
 
           {serverConfig?.googleEnabled && (

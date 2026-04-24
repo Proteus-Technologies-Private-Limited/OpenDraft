@@ -3,22 +3,43 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+import logging
+
 from app.api import scripts, auth, export, projects, versions, assets, collab, link_preview, formatting_templates, locations
-from app.config import PROJECTS_DIR, BASE_DIR, DEMO_MODE
+from app.config import COLLAB_JWT_SECRET, PROJECTS_DIR_BASE, BASE_DIR, DEMO_MODE
+from app.dependencies import require_verified_user
+from app.middleware.user_context import UserContextMiddleware
 from app.plugins import get_plugin_routers
+from app.services.user_migration import migrate_legacy_projects
+from app.services import quota_service  # noqa: F401 — registers default quota hook
+
+logger = logging.getLogger(__name__)
 
 STATIC_DIR = BASE_DIR / "static"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: ensure projects data directory exists
-    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+    # Startup: ensure projects data directory exists, then migrate any legacy
+    # (pre-auth) project directories into users/legacy/.
+    PROJECTS_DIR_BASE.mkdir(parents=True, exist_ok=True)
+    migrate_legacy_projects(PROJECTS_DIR_BASE)
+
+    # Auth config sanity check — make misconfiguration obvious at boot rather
+    # than leaving the user to diagnose silent 401s mid-session.
+    if not COLLAB_JWT_SECRET:
+        logger.error(
+            "=" * 72 + "\n"
+            "COLLAB_JWT_SECRET is NOT SET. Every authenticated request will\n"
+            "return 401 Unauthorized. Run ./setup_auth_env.sh at the project\n"
+            "root to generate a shared secret for backend + collab-server.\n"
+            + "=" * 72
+        )
     yield
 
 
@@ -36,6 +57,10 @@ _extra_origins = os.environ.get("CORS_ORIGINS", "")
 if _extra_origins:
     _cors_origins.extend([o.strip() for o in _extra_origins.split(",") if o.strip()])
 
+# Set the per-request user context from a bearer token (runs before any route
+# handler so services can resolve user-scoped paths).
+app.add_middleware(UserContextMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
@@ -49,15 +74,26 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
-app.include_router(scripts.router, prefix="/api/scripts", tags=["scripts"])
+
+# User-scoped file routers — require a verified user on every request. The
+# UserContextMiddleware has already pushed user_id into the ContextVar so
+# services resolve paths under users/<id>/.
+_user_scoped = [Depends(require_verified_user)]
+app.include_router(scripts.router, prefix="/api/scripts", tags=["scripts"], dependencies=_user_scoped)
+app.include_router(projects.router, prefix="/api/projects", tags=["projects"], dependencies=_user_scoped)
+app.include_router(versions.router, prefix="/api/projects", tags=["versions"], dependencies=_user_scoped)
+app.include_router(assets.router, prefix="/api/projects", tags=["assets"], dependencies=_user_scoped)
+app.include_router(locations.router, prefix="/api/projects", tags=["locations"], dependencies=_user_scoped)
+# Collab session management writes to a shared JSON file, so anonymous access
+# would let anyone invite to / revoke sessions for any project. The frontend
+# normally talks directly to the collab-server for invites; these routes are
+# kept for legacy callers and require a verified user.
+app.include_router(collab.router, prefix="/api/collab", tags=["collab"], dependencies=_user_scoped)
+
+# Not user-scoped: export stubs, link previews, shared formatting templates.
 app.include_router(export.router, prefix="/api/export", tags=["export"])
-app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
-app.include_router(versions.router, prefix="/api/projects", tags=["versions"])
-app.include_router(assets.router, prefix="/api/projects", tags=["assets"])
-app.include_router(collab.router, prefix="/api/collab", tags=["collab"])
 app.include_router(link_preview.router, prefix="/api/link", tags=["link-preview"])
 app.include_router(formatting_templates.router, prefix="/api/formatting-templates", tags=["formatting-templates"])
-app.include_router(locations.router, prefix="/api/projects", tags=["locations"])
 
 # Mount plugin routers (registered by external plugins before app startup)
 for _prefix, _router, _tags in get_plugin_routers():

@@ -36,6 +36,11 @@ const verifyEmailSchema = z.object({
   code: z.string().length(6),
 });
 
+const verifyEmailLinkSchema = z.object({
+  email: z.string().email().max(255),
+  code: z.string().length(6),
+});
+
 const googleLoginSchema = z.object({
   idToken: z.string().min(1),
 });
@@ -204,6 +209,48 @@ router.post('/verify-email', requireAuth, veryStrictLimiter, async (req, res) =>
     res.json({ message: 'Email verified' });
   } catch (err) {
     console.error('Verify email error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Magic-link variant: unauthenticated — the link emailed to the user carries
+// {email, code}. Validates the code, marks email as verified, and returns a
+// fresh token pair so the frontend can log the user in on click.
+router.post('/verify-email-link', veryStrictLimiter, async (req, res) => {
+  try {
+    const parsed = verifyEmailLinkSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors });
+      return;
+    }
+
+    const user = await userService.findUserByEmail(parsed.data.email);
+    if (!user) {
+      res.status(400).json({ error: 'Invalid or expired verification link' });
+      return;
+    }
+
+    const valid = await emailService.validateVerificationCode(user.id, parsed.data.code);
+    if (!valid) {
+      res.status(400).json({ error: 'Invalid or expired verification link' });
+      return;
+    }
+
+    await userService.setEmailVerified(user.id);
+    const freshUser = (await userService.findUserById(user.id))!;
+
+    const accessToken = tokenService.generateAccessToken(freshUser.id, freshUser.email);
+    const { token: refreshToken } = await tokenService.generateRefreshToken(freshUser.id);
+
+    await auditService.logEvent('email_verified', freshUser.id, null, { via: 'magic_link' }, getClientIp(req));
+
+    res.json({
+      user: userResponse(freshUser),
+      accessToken,
+      refreshToken,
+    });
+  } catch (err) {
+    console.error('Verify email-link error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

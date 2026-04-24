@@ -74,6 +74,20 @@ export interface OpenDraftPlugin {
 class PluginRegistry {
   private _plugins: Map<string, OpenDraftPlugin> = new Map();
   private _listeners: Array<() => void> = [];
+  private _upgradeHandler: (() => void) | null = null;
+
+  /**
+   * Pro registers a callback that opens its tier-picker / checkout flow.
+   * Core calls it from QuotaExceededDialog when the user clicks "Upgrade".
+   * If no handler is registered, core hides the Upgrade button.
+   */
+  registerUpgradeHandler(handler: () => void): void {
+    this._upgradeHandler = handler;
+  }
+
+  getUpgradeHandler(): (() => void) | null {
+    return this._upgradeHandler;
+  }
 
   /** Register a plugin. Replaces any existing plugin with the same id. */
   register(plugin: OpenDraftPlugin): void {

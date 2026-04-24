@@ -18,6 +18,11 @@ import TemplateSelectDialog from './TemplateSelectDialog';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { pluginRegistry } from '../plugins/registry';
+import AuthIndicator from './AuthIndicator';
+import { useNavigate } from 'react-router-dom';
+import { scriptApi } from '../services/scriptApi';
+import { cloudApi } from '../services/cloudApi';
+import { useSettingsStore } from '../stores/settingsStore';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { spellChecker } from '../editor/spellchecker';
 import { openTextFile } from '../utils/fileOps';
@@ -118,6 +123,7 @@ interface MenuSection {
 }
 
 const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, isCollabActive, isCollabGuest }) => {
+  const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -150,7 +156,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     setGoToPageOpen,
     spellCheckEnabled,
     toggleSpellCheck,
-    setOpenFromProjectOpen,
+    setOpenFileOpen,
     setPostSaveAction,
     setSaveAsOpen,
     theme,
@@ -177,6 +183,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     setCurrentScriptId,
     setScripts,
     setVersionHistoryOpen,
+    markCloudScript,
+    isCloudScript,
   } = useProjectStore();
 
   // Build a saveable content object: editor JSON + store metadata at top level
@@ -219,15 +227,78 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     setSaveStatus('saving');
     try {
       const content = buildSaveContent();
-      await api.saveScript(currentProject.id, currentScriptId, { content });
+      await scriptApi.saveScript(currentProject.id, currentScriptId, { content });
       setSaveStatus('saved');
     } catch (err) {
       console.error('Save failed:', err);
       const msg = err instanceof Error ? err.message : String(err);
       setSaveStatus('error', msg);
-      showToast(`Save failed: ${msg}`, 'error');
+      // AuthGate / QuotaExceededDialog already surfaced handled errors (401,
+      // 402, 403 unverified). Don't also raise a toast — the user would see
+      // both the friendly dialog and the raw "API error 402: ..." string.
+      if (!(err as any)?.handled) {
+        showToast(`Save failed: ${msg}`, 'error');
+      }
     }
   }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen]);
+
+  // ── Save to Cloud: upload current buffer to the backend as a cloud script ──
+  const signedIn = Boolean(useSettingsStore((s) => s.collabAuth.accessToken));
+  const handleSaveToCloud = useCallback(async () => {
+    if (!editor) return;
+    if (!signedIn) {
+      // AuthGate will show the login dialog when the API returns 401, but
+      // opening it pre-emptively avoids a doomed round-trip.
+      window.dispatchEvent(new CustomEvent('opendraft:auth-required'));
+      return;
+    }
+    const content = buildSaveContent();
+    if (!content) {
+      showToast('Nothing to upload yet', 'error');
+      return;
+    }
+    const { setSaveStatus } = useEditorStore.getState();
+    setSaveStatus('saving');
+    try {
+      // Reuse the local project name if available; otherwise default.
+      const projectName = currentProject?.name || 'Cloud Files';
+      let cloudProject;
+      try {
+        cloudProject = await cloudApi.createProject(projectName);
+      } catch (err: any) {
+        // 409 = project with that slug already exists on the server. Reuse
+        // it only when the existing project's name matches exactly; picking
+        // a random existing project would silently mis-file the script.
+        if (err?.status === 409) {
+          const existing = await cloudApi.listProjects();
+          cloudProject = existing.find((p) => p.name === projectName);
+          if (!cloudProject) throw err;
+        } else {
+          throw err;
+        }
+      }
+      const title = documentTitle || 'Untitled';
+      const created = await cloudApi.createScript(cloudProject.id, {
+        title,
+        content,
+        format: 'json',
+      });
+      markCloudScript(cloudProject.id, created.meta.id);
+      setCurrentProject(cloudProject);
+      setCurrentScriptId(created.meta.id);
+      setSaveStatus('saved');
+      showToast('Saved to cloud', 'success');
+      // Navigate so the editor re-mounts against the cloud copy.
+      navigate(`/project/${cloudProject.id}/edit/${created.meta.id}`);
+    } catch (err: any) {
+      const msg = err?.message || 'Upload failed';
+      useEditorStore.getState().setSaveStatus('error', msg);
+      // AuthGate / QuotaExceededDialog already surfaced handled errors.
+      if (!err?.handled) {
+        showToast(`Save to cloud failed: ${msg}`, 'error');
+      }
+    }
+  }, [editor, signedIn, buildSaveContent, documentTitle, currentProject, markCloudScript, setCurrentProject, setCurrentScriptId, navigate]);
 
   // ── Unsaved-changes confirmation before New / Import ──
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
@@ -718,8 +789,18 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         }] : []),
         { separator: true, label: '' },
         { icon: <FaFileImport />, label: 'Import...', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
-        { icon: <FaFolderOpen />, label: 'Open from Project...', action: () => confirmOrRun(() => setOpenFromProjectOpen(true)), disabled: isCollabGuest },
+        { icon: <FaFolderOpen />, label: 'Open...', action: () => confirmOrRun(() => setOpenFileOpen(true)), disabled: isCollabGuest },
         { icon: <FaSave />, label: 'Save', shortcut: `${mod}S`, action: handleSave, disabled: isCollabGuest },
+        {
+          icon: <FaSave />,
+          label: (currentProject && currentScriptId && isCloudScript(currentProject.id, currentScriptId))
+            ? 'Saved in Cloud'
+            : 'Save to Cloud',
+          action: handleSaveToCloud,
+          disabled:
+            isCollabGuest ||
+            !!(currentProject && currentScriptId && isCloudScript(currentProject.id, currentScriptId)),
+        },
         { separator: true, label: '' },
         {
           icon: <FaFileExport />, label: 'Export',
@@ -892,8 +973,16 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         {
           icon: <FaStream />, label: 'Analytics',
           children: [
-            { icon: <FaStream />, label: 'Script Statistics', action: () => useEditorStore.getState().setStatisticsOpen(true) },
-            { icon: <FaHistory />, label: 'Timing Report', action: () => useEditorStore.getState().setStatisticsOpen(true) },
+            { icon: <FaStream />, label: 'Script Statistics', action: () => {
+              const s = useEditorStore.getState();
+              s.setStatisticsScrollTo(null);
+              s.setStatisticsOpen(true);
+            } },
+            { icon: <FaHistory />, label: 'Timing Report', action: () => {
+              const s = useEditorStore.getState();
+              s.setStatisticsScrollTo('stats-timing-report');
+              s.setStatisticsOpen(true);
+            } },
           ],
         },
         { separator: true, label: '' },
@@ -1196,6 +1285,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         </div>
       ))}
       <div className="menu-spacer" />
+      <AuthIndicator />
       <div
         ref={(el) => { menuItemRefs.current['Help'] = el; }}
         className={`menu-item menu-item--more ${activeMenu === 'Help' ? 'active' : ''}`}

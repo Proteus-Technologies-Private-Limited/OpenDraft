@@ -1,11 +1,14 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.dependencies import require_verified_user
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectList, ReorderRequest
 from app.schemas.script import ScriptCreate, ScriptUpdate, ScriptMeta, ScriptResponse
-from app.plugins import run_hooks
+from app.plugins import run_hooks, run_gate_hooks
 from app.services import project_service, script_service
+from app.services.auth_service import AuthUser
+from app.services.quota_service import QUOTA_CHECK_CREATE_SCRIPT
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -75,7 +78,13 @@ async def delete_project(project_id: str):
 # ── Script endpoints (nested under project) ───────────────────────────────────
 
 @router.post("/{project_id}/scripts/", response_model=ScriptResponse)
-async def create_script(project_id: str, body: ScriptCreate):
+async def create_script(
+    project_id: str,
+    body: ScriptCreate,
+    user: AuthUser = Depends(require_verified_user),
+):
+    # Gate hook: free-plan quota (default) or paid-tier check (Pro).
+    await run_gate_hooks(QUOTA_CHECK_CREATE_SCRIPT, user=user)
     try:
         return script_service.create_script(
             project_id, body.title, body.content, body.format
@@ -101,7 +110,13 @@ async def get_script(project_id: str, script_id: str):
 
 
 @router.post("/{project_id}/scripts/{script_id}/duplicate", response_model=ScriptResponse)
-async def duplicate_script(project_id: str, script_id: str):
+async def duplicate_script(
+    project_id: str,
+    script_id: str,
+    user: AuthUser = Depends(require_verified_user),
+):
+    # Duplicating creates a new file — same quota gate applies.
+    await run_gate_hooks(QUOTA_CHECK_CREATE_SCRIPT, user=user)
     try:
         return script_service.duplicate_script(project_id, script_id)
     except FileNotFoundError as exc:

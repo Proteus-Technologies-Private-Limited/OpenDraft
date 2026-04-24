@@ -1,6 +1,8 @@
+import { API_BASE } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
 import type { CollabAuth, CollabUser } from '../stores/settingsStore';
 import { platformFetch } from './platform';
+import { authedFetch } from './authedFetch';
 
 // ── URL helpers ──
 
@@ -11,57 +13,98 @@ function getCollabHttpBase(): string {
 
 // ── HTTP helpers ──
 
-async function collabRequest<T>(path: string, options?: RequestInit): Promise<T> {
-  const base = getCollabHttpBase();
-  const res = await platformFetch(`${base}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-  });
-  if (!res.ok) {
-    const detail = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-    throw new Error(detail.error || `Collab API error ${res.status}`);
+/** Convert `TypeError: Failed to fetch` (network / CORS) into an actionable
+ *  message. Browsers give the same opaque error regardless of the root cause;
+ *  a generic "cannot reach server" is more useful than "Failed to fetch". */
+function wrapNetworkError(err: unknown, where: string): Error {
+  if (err instanceof TypeError) {
+    return new Error(`Cannot reach ${where}. Check that the server is running and reachable.`);
   }
+  return err instanceof Error ? err : new Error(String(err));
+}
+
+async function parseError(res: Response, fallbackLabel: string): Promise<Error> {
+  try {
+    const body = await res.json();
+    const msg = body?.error || body?.detail?.error || body?.detail?.message
+      || body?.detail || body?.message;
+    if (typeof msg === 'string') return new Error(msg);
+    return new Error(`${fallbackLabel} error ${res.status}`);
+  } catch {
+    return new Error(`${fallbackLabel} error ${res.status}`);
+  }
+}
+
+/**
+ * Auth HTTP — routes through the Python backend at /api/auth/*, which proxies
+ * to the collab server. The frontend only needs to reach its own backend;
+ * network/CORS issues with the collab host are surfaced as a clean 502 by the
+ * backend rather than a raw browser "Failed to fetch".
+ */
+async function backendAuthRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const url = `${API_BASE}/auth${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...options?.headers },
+    });
+  } catch (err) {
+    throw wrapNetworkError(err, 'the OpenDraft backend');
+  }
+  if (!res.ok) throw await parseError(res, 'Auth');
   return res.json();
 }
 
-let isRefreshing = false;
-
-async function authRequest<T>(path: string, options?: RequestInit): Promise<T> {
-  const { collabAuth } = useSettingsStore.getState();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options?.headers as Record<string, string>),
-  };
-  if (collabAuth.accessToken) {
-    headers['Authorization'] = `Bearer ${collabAuth.accessToken}`;
-  }
-
+/** Same as backendAuthRequest but attaches the bearer token and refreshes on 401. */
+async function backendAuthedRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const url = `${API_BASE}/auth${path}`;
+  let res: Response;
   try {
-    return await collabRequest<T>(path, { ...options, headers });
-  } catch (err: any) {
-    // On 401, attempt token refresh
-    if (err.message?.includes('401') && collabAuth.refreshToken && !isRefreshing) {
-      isRefreshing = true;
-      try {
-        const refreshed = await collabAuthApi.refresh(collabAuth.refreshToken);
-        useSettingsStore.getState().setCollabAuth({
-          ...collabAuth,
-          accessToken: refreshed.accessToken,
-          refreshToken: refreshed.refreshToken,
-        });
-        // Retry with new token
-        headers['Authorization'] = `Bearer ${refreshed.accessToken}`;
-        return await collabRequest<T>(path, { ...options, headers });
-      } catch {
-        // Refresh failed — clear auth
-        useSettingsStore.getState().clearCollabAuth();
-        throw new Error('Session expired, please log in again');
-      } finally {
-        isRefreshing = false;
-      }
-    }
-    throw err;
+    res = await authedFetch(url, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...options?.headers },
+    });
+  } catch (err) {
+    throw wrapNetworkError(err, 'the OpenDraft backend');
   }
+  if (!res.ok) throw await parseError(res, 'Auth');
+  return res.json();
+}
+
+/**
+ * Collab-server HTTP — used ONLY for endpoints that live on the collab
+ * server itself (reset-document, close-document, revoke-my-sessions). Auth
+ * endpoints go through backendAuthRequest above.
+ */
+async function collabRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const base = getCollabHttpBase();
+  let res: Response;
+  try {
+    res = await platformFetch(`${base}${path}`, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...options?.headers },
+    });
+  } catch (err) {
+    throw wrapNetworkError(err, 'the collaboration server');
+  }
+  if (!res.ok) throw await parseError(res, 'Collab');
+  return res.json();
+}
+
+async function collabAuthedRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const base = getCollabHttpBase();
+  let res: Response;
+  try {
+    res = await authedFetch(`${base}${path}`, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...options?.headers },
+    });
+  } catch (err) {
+    throw wrapNetworkError(err, 'the collaboration server');
+  }
+  if (!res.ok) throw await parseError(res, 'Collab');
+  return res.json();
 }
 
 // ── API types ──
@@ -81,52 +124,64 @@ export interface CollabServerConfig {
 
 export const collabAuthApi = {
   register: (email: string, password: string, displayName: string) =>
-    collabRequest<AuthResponse>('/auth/register', {
+    backendAuthRequest<AuthResponse>('/register', {
       method: 'POST',
       body: JSON.stringify({ email, password, displayName }),
     }),
 
   login: (email: string, password: string) =>
-    collabRequest<AuthResponse>('/auth/login', {
+    backendAuthRequest<AuthResponse>('/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
 
   refresh: (refreshToken: string) =>
-    collabRequest<{ accessToken: string; refreshToken: string }>('/auth/refresh', {
+    backendAuthRequest<{ accessToken: string; refreshToken: string }>('/refresh', {
       method: 'POST',
       body: JSON.stringify({ refreshToken }),
     }),
 
   logout: (refreshToken: string) =>
-    collabRequest<{ message: string }>('/auth/logout', {
+    backendAuthRequest<{ message: string }>('/logout', {
       method: 'POST',
       body: JSON.stringify({ refreshToken }),
     }),
 
   verifyEmail: (code: string) =>
-    authRequest<{ message: string }>('/auth/verify-email', {
+    backendAuthedRequest<{ message: string }>('/verify-email', {
       method: 'POST',
       body: JSON.stringify({ code }),
     }),
 
+  /** Unauthenticated magic-link verification: used by the /verify route and
+   * by the OTP dialog when the user has no session token yet. Returns a fresh
+   * token pair so the frontend can log the user in on link-click. */
+  verifyEmailLink: (email: string, code: string) =>
+    backendAuthRequest<AuthResponse>('/verify-email-link', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
+    }),
+
   resendVerification: () =>
-    authRequest<{ message: string }>('/auth/resend-verification', {
+    backendAuthedRequest<{ message: string }>('/resend-verification', {
       method: 'POST',
     }),
 
   loginWithGoogle: (idToken: string) =>
-    collabRequest<AuthResponse>('/auth/google', {
+    backendAuthRequest<AuthResponse>('/google', {
       method: 'POST',
       body: JSON.stringify({ idToken }),
     }),
 
   getMe: () =>
-    authRequest<CollabUser>('/auth/me'),
+    backendAuthedRequest<CollabUser>('/me'),
 
   getServerConfig: () =>
-    collabRequest<CollabServerConfig>('/auth/config'),
+    backendAuthRequest<CollabServerConfig>('/config'),
 
+  /** Test reachability of the *collab* server directly (used by Settings to
+   * show connection status for the websocket host). Auth flows don't depend
+   * on this — they go through the backend proxy. */
   testConnection: async (): Promise<boolean> => {
     try {
       const base = getCollabHttpBase();
@@ -153,7 +208,7 @@ export const collabAuthApi = {
 
   /** Revoke all collab sessions created by the authenticated user (called on logout) */
   revokeMyCollabSessions: () =>
-    authRequest<{ message: string }>('/api/collab/my-sessions', { method: 'DELETE' }),
+    collabAuthedRequest<{ message: string }>('/api/collab/my-sessions', { method: 'DELETE' }),
 };
 
 // ── Helper: check if current auth is valid (token present and not expired) ──
@@ -200,6 +255,19 @@ export function setLogoutCollabTeardown(fn: (() => Promise<void>) | null): void 
   _onLogoutCollabTeardown = fn;
 }
 
+/**
+ * Callback set by ScreenplayEditor to flush pending saves for a cloud file
+ * and close the editor back to a blank document. Called by performLogout
+ * *before* the access token is revoked so the final save still authenticates.
+ * Without this, the editor's auto-save loop keeps firing after signout and
+ * every PUT returns 401.
+ */
+let _onLogoutEditorReset: (() => Promise<void>) | null = null;
+
+export function setLogoutEditorReset(fn: (() => Promise<void>) | null): void {
+  _onLogoutEditorReset = fn;
+}
+
 export async function performLogout(): Promise<void> {
   const { collabAuth, clearCollabAuth } = useSettingsStore.getState();
 
@@ -208,16 +276,22 @@ export async function performLogout(): Promise<void> {
     try { await _onLogoutCollabTeardown(); } catch { /* best-effort */ }
   }
 
-  // 2. Revoke all collab invite links this user created on the server
+  // 2. Flush any pending cloud save and reset the editor to a blank file.
+  //    Runs while the access token is still valid.
+  if (_onLogoutEditorReset) {
+    try { await _onLogoutEditorReset(); } catch { /* best-effort */ }
+  }
+
+  // 3. Revoke all collab invite links this user created on the server
   if (collabAuth.accessToken) {
     try { await collabAuthApi.revokeMyCollabSessions(); } catch { /* best-effort */ }
   }
 
-  // 3. Revoke the refresh token on the server
+  // 4. Revoke the refresh token on the server
   if (collabAuth.refreshToken) {
     try { await collabAuthApi.logout(collabAuth.refreshToken); } catch { /* best-effort */ }
   }
 
-  // 4. Clear local auth state
+  // 5. Clear local auth state
   clearCollabAuth();
 }

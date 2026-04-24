@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../services/api';
 import type { ProjectInfo } from '../services/api';
+import { useSettingsStore } from '../stores/settingsStore';
 
 const LAST_PROJECT_KEY = 'opendraft:lastProject';
 
@@ -37,6 +38,13 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
   const comboRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Re-fetch projects when the signed-in user changes. The dialog can open
+  // while the user is anonymous (we got a 401 on the initial listProjects),
+  // AuthGate then prompts a sign-in, and when the token lands we want to
+  // reload the list so a subsequent save doesn't hit 409 on a project the
+  // user actually already owns.
+  const accessToken = useSettingsStore((s) => s.collabAuth.accessToken);
+
   // Load projects and pick the best default project name
   useEffect(() => {
     (async () => {
@@ -44,24 +52,28 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
         const list = await api.listProjects();
         setProjects(list);
 
-        // Priority: explicit default (from current project) > last-used > most recent > "My Project"
-        const lastUsed = getLastProjectName();
-        if (defaultProjectName && list.some((p) => p.name.toLowerCase() === defaultProjectName.toLowerCase())) {
-          setProjectName(defaultProjectName);
-        } else if (lastUsed && list.some((p) => p.name.toLowerCase() === lastUsed.toLowerCase())) {
-          setProjectName(lastUsed);
-        } else if (list.length > 0) {
-          // Sort by updated_at descending to pick the most recent
-          const sorted = [...list].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
-          setProjectName(sorted[0].name);
-        } else {
-          setProjectName(defaultProjectName || 'My Project');
-        }
+        // Only overwrite the project-name field the first time it is populated;
+        // preserve what the user is typing on subsequent refetches.
+        setProjectName((current) => {
+          if (current) return current;
+          const lastUsed = getLastProjectName();
+          if (defaultProjectName && list.some((p) => p.name.toLowerCase() === defaultProjectName.toLowerCase())) {
+            return defaultProjectName;
+          }
+          if (lastUsed && list.some((p) => p.name.toLowerCase() === lastUsed.toLowerCase())) {
+            return lastUsed;
+          }
+          if (list.length > 0) {
+            const sorted = [...list].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+            return sorted[0].name;
+          }
+          return defaultProjectName || 'My Project';
+        });
       } catch {
-        setProjectName(defaultProjectName || 'My Project');
+        setProjectName((current) => current || defaultProjectName || 'My Project');
       }
     })();
-  }, [defaultProjectName]);
+  }, [defaultProjectName, accessToken]);
 
   // Focus the file name input once project name is set
   useEffect(() => {
@@ -110,20 +122,35 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
     setError('');
 
     try {
-      // Create or find existing project
-      let project;
-      const existing = projects.find(
+      // Create or find existing project. The cached `projects` list can be
+      // stale (e.g. empty because an earlier listProjects returned 401 before
+      // sign-in), so if create fails with 409 we refetch and look up the
+      // conflicting project instead of giving up.
+      let project: ProjectInfo | undefined;
+      const cached = projects.find(
         (p) => p.name.toLowerCase() === trimmedProject.toLowerCase()
       );
-      if (existing) {
-        project = existing;
+      if (cached) {
+        project = cached;
       } else {
         try {
           project = await api.createProject(trimmedProject);
-        } catch {
-          setError('Could not create project');
-          setSaving(false);
-          return;
+        } catch (err: any) {
+          if (err?.status === 409) {
+            const fresh = await api.listProjects().catch(() => [] as ProjectInfo[]);
+            setProjects(fresh);
+            project = fresh.find(
+              (p) => p.name.toLowerCase() === trimmedProject.toLowerCase(),
+            );
+          }
+          if (!project) {
+            if (!(err as any)?.handled) {
+              const msg = err instanceof Error ? err.message : String(err);
+              setError(`Could not create project: ${msg}`);
+            }
+            setSaving(false);
+            return;
+          }
         }
       }
 
@@ -137,7 +164,11 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
       saveLastProjectName(trimmedProject);
       onSaved(project.id, trimmedProject, scriptResp.meta.id, trimmedFile);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      // AuthGate / QuotaExceededDialog already showed a dialog for these —
+      // don't duplicate the raw message inline.
+      if (!(err as any)?.handled) {
+        setError(err instanceof Error ? err.message : 'Save failed');
+      }
       setSaving(false);
     }
   };

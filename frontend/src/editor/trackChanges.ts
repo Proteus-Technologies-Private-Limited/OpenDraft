@@ -113,132 +113,237 @@ function diffSequences(oldArr: string[], newArr: string[]): DiffOp[] {
   return ops.reverse();
 }
 
-// ── Merge adjacent delete+insert pairs into "modified" ──────────────────
+// ── Positioned tokens for cluster-level diff ────────────────────────────
 
-type MergedOp =
-  | { type: 'equal'; oldIdx: number; newIdx: number }
-  | { type: 'insert'; newIdx: number }
-  | { type: 'delete'; oldIdx: number }
-  | { type: 'modified'; oldIdx: number; newIdx: number };
+// Sentinel used to mark block boundaries inside a tokenised cluster.  It
+// must never occur in real content; we use a private-use codepoint.
+const BLOCK_BREAK = '\uE000__BLOCK_BREAK__\uE000';
 
-function mergeOps(ops: DiffOp[]): MergedOp[] {
-  const merged: MergedOp[] = [];
-  let i = 0;
-
-  while (i < ops.length) {
-    if (ops[i].type === 'equal') {
-      merged.push(ops[i] as MergedOp);
-      i++;
-    } else {
-      // Collect consecutive non-equal ops
-      const deletes: number[] = [];
-      const inserts: number[] = [];
-      while (i < ops.length && ops[i].type !== 'equal') {
-        if (ops[i].type === 'delete') deletes.push((ops[i] as any).oldIdx);
-        if (ops[i].type === 'insert') inserts.push((ops[i] as any).newIdx);
-        i++;
-      }
-      // Pair up as modifications
-      const pairs = Math.min(deletes.length, inserts.length);
-      for (let p = 0; p < pairs; p++) {
-        merged.push({ type: 'modified', oldIdx: deletes[p], newIdx: inserts[p] });
-      }
-      for (let p = pairs; p < deletes.length; p++) {
-        merged.push({ type: 'delete', oldIdx: deletes[p] });
-      }
-      for (let p = pairs; p < inserts.length; p++) {
-        merged.push({ type: 'insert', newIdx: inserts[p] });
-      }
-    }
-  }
-
-  return merged;
+interface CurrToken {
+  text: string;
+  docFrom: number;
+  docTo: number;
+  isBreak: boolean;
 }
 
-// ── Word-level diff decorations within a single block ───────────────────
+function tokenizeBaseCluster(
+  baseBlocks: TextBlock[],
+  deletedIndices: number[],
+): string[] {
+  const tokens: string[] = [];
+  deletedIndices.forEach((idx, i) => {
+    if (i > 0) tokens.push(BLOCK_BREAK);
+    const blockTokens = tokenize(baseBlocks[idx].text);
+    for (const t of blockTokens) tokens.push(t);
+  });
+  return tokens;
+}
 
-function generateWordDiff(
-  base: TextBlock,
-  curr: DocBlock,
+function tokenizeCurrCluster(
+  currBlocks: DocBlock[],
+  insertedIndices: number[],
+): CurrToken[] {
+  const tokens: CurrToken[] = [];
+  insertedIndices.forEach((idx, i) => {
+    const block = currBlocks[idx];
+    if (i > 0) {
+      const prev = currBlocks[insertedIndices[i - 1]];
+      const breakPos = prev.nodeOffset + prev.nodeSize;
+      tokens.push({
+        text: BLOCK_BREAK,
+        docFrom: breakPos,
+        docTo: breakPos,
+        isBreak: true,
+      });
+    }
+    const blockTokens = tokenize(block.text);
+    let offset = 0;
+    for (const t of blockTokens) {
+      tokens.push({
+        text: t,
+        docFrom: block.from + offset,
+        docTo: block.from + offset + t.length,
+        isBreak: false,
+      });
+      offset += t.length;
+    }
+  });
+  return tokens;
+}
+
+// Fraction of non-trivial base tokens that must reappear in the inserted
+// content for a multi-block cluster to be treated as "related" and
+// token-diffed.  Below this, the cluster is rendered as independent
+// deletions and insertions — safer than letting an LCS align unrelated
+// paragraphs through their shared whitespace.
+const CLUSTER_OVERLAP_THRESHOLD = 0.3;
+
+function hasSignificantOverlap(
+  baseTokens: string[],
+  currTokens: CurrToken[],
+): boolean {
+  const currSet = new Set<string>();
+  for (const t of currTokens) {
+    if (t.isBreak) continue;
+    if (t.text.trim() === '') continue;
+    currSet.add(t.text);
+  }
+  let matched = 0;
+  let total = 0;
+  for (const t of baseTokens) {
+    if (t === BLOCK_BREAK) continue;
+    if (t.trim() === '') continue;
+    total++;
+    if (currSet.has(t)) matched++;
+  }
+  if (total === 0) return false;
+  return matched / total >= CLUSTER_OVERLAP_THRESHOLD;
+}
+
+// Render each base block as a standalone deletion widget and each curr
+// block as a full-block insertion — used when a cluster's deletes and
+// inserts are substantively unrelated (e.g. the user deleted one
+// paragraph and typed several unrelated ones nearby).
+function renderClusterIndependently(
+  baseBlocks: TextBlock[],
+  deletedIndices: number[],
+  currBlocks: DocBlock[],
+  insertedIndices: number[],
+  deletionPos: number,
   decorations: Decoration[],
 ): void {
-  const baseTokens = tokenize(base.text);
-  const currTokens = tokenize(curr.text);
-
-  if (baseTokens.length === 0 && currTokens.length === 0) return;
-
-  // If baseline is empty, everything is inserted
-  if (baseTokens.length === 0) {
+  for (const idx of insertedIndices) {
+    const curr = currBlocks[idx];
     if (curr.to > curr.from) {
       decorations.push(
-        Decoration.inline(curr.from, curr.to, { class: 'track-change-inserted' }),
+        Decoration.inline(curr.from, curr.to, {
+          class: 'track-change-inserted',
+        }),
       );
     }
-    return;
   }
-
-  // If current is empty, everything is deleted
-  if (currTokens.length === 0) {
-    const text = base.text;
-    decorations.push(
-      Decoration.widget(
-        curr.from,
-        () => createDeletedSpan(text),
-        { side: -1 },
-      ),
-    );
-    return;
-  }
-
-  const ops = diffSequences(baseTokens, currTokens);
-
-  let curOffset = 0;
-  let pendingDeleted = '';
-
-  for (const op of ops) {
-    // Flush pending deletions before any non-delete op
-    if (op.type !== 'delete' && pendingDeleted) {
-      const pos = curr.from + curOffset;
-      const text = pendingDeleted;
+  for (const idx of deletedIndices) {
+    const base = baseBlocks[idx];
+    if (base.text) {
+      const text = base.text;
+      const type = base.type;
       decorations.push(
         Decoration.widget(
-          pos,
-          () => createDeletedSpan(text),
+          deletionPos,
+          () => createDeletedBlock(text, type),
           { side: -1 },
         ),
       );
+    }
+  }
+}
+
+// Diff a cluster of adjacent deleted+inserted blocks using token-level LCS
+// with a sentinel for block boundaries.  This correctly handles splits,
+// joins, and in-place edits without marking unchanged text as inserted or
+// deleted merely because a paragraph break moved.
+function diffCluster(
+  baseBlocks: TextBlock[],
+  deletedIndices: number[],
+  currBlocks: DocBlock[],
+  insertedIndices: number[],
+  fallbackWidgetPos: number,
+  decorations: Decoration[],
+): void {
+  // Pure insertion — everything in the inserted blocks is new.
+  if (deletedIndices.length === 0) {
+    renderClusterIndependently(
+      baseBlocks,
+      deletedIndices,
+      currBlocks,
+      insertedIndices,
+      fallbackWidgetPos,
+      decorations,
+    );
+    return;
+  }
+
+  // Pure deletion — render each vanished block as a standalone widget at
+  // the position where they used to live (right before the next equal
+  // block, or end of doc if the deletion trails the document).
+  if (insertedIndices.length === 0) {
+    renderClusterIndependently(
+      baseBlocks,
+      deletedIndices,
+      currBlocks,
+      insertedIndices,
+      fallbackWidgetPos,
+      decorations,
+    );
+    return;
+  }
+
+  const baseTokens = tokenizeBaseCluster(baseBlocks, deletedIndices);
+  const currTokens = tokenizeCurrCluster(currBlocks, insertedIndices);
+
+  // Multi-block clusters of substantively unrelated content (e.g. user
+  // deleted one paragraph and typed several unrelated paragraphs nearby)
+  // must not be token-diffed — the LCS would align them through shared
+  // whitespace and interleave words from unrelated blocks.  Fall back to
+  // independent rendering for such clusters.
+  const isMultiBlock =
+    deletedIndices.length > 1 || insertedIndices.length > 1;
+  if (isMultiBlock && !hasSignificantOverlap(baseTokens, currTokens)) {
+    renderClusterIndependently(
+      baseBlocks,
+      deletedIndices,
+      currBlocks,
+      insertedIndices,
+      fallbackWidgetPos,
+      decorations,
+    );
+    return;
+  }
+
+  const currTexts = currTokens.map((t) => t.text);
+  const ops = diffSequences(baseTokens, currTexts);
+
+  let pendingDeleted = '';
+  let pendingDeletedPos =
+    currTokens.length > 0 ? currTokens[0].docFrom : fallbackWidgetPos;
+
+  const flush = () => {
+    if (pendingDeleted) {
+      const text = pendingDeleted;
+      const pos = pendingDeletedPos;
+      decorations.push(
+        Decoration.widget(pos, () => createDeletedSpan(text), { side: -1 }),
+      );
       pendingDeleted = '';
     }
+  };
 
+  for (const op of ops) {
     if (op.type === 'equal') {
-      curOffset += currTokens[op.newIdx!].length;
+      flush();
+      const token = currTokens[op.newIdx];
+      pendingDeletedPos = token.docTo;
     } else if (op.type === 'insert') {
-      const token = currTokens[op.newIdx!];
-      const from = curr.from + curOffset;
-      const to = from + token.length;
-      if (to > from) {
+      flush();
+      const token = currTokens[op.newIdx];
+      if (!token.isBreak && token.docTo > token.docFrom) {
         decorations.push(
-          Decoration.inline(from, to, { class: 'track-change-inserted' }),
+          Decoration.inline(token.docFrom, token.docTo, {
+            class: 'track-change-inserted',
+          }),
         );
       }
-      curOffset += token.length;
+      pendingDeletedPos = token.docTo;
     } else if (op.type === 'delete') {
-      pendingDeleted += baseTokens[op.oldIdx!];
+      const text = baseTokens[op.oldIdx];
+      // A deleted BLOCK_BREAK means two blocks were joined — the break
+      // itself has no visible content to strike through, so we skip it.
+      if (text !== BLOCK_BREAK) {
+        pendingDeleted += text;
+      }
     }
   }
-
-  // Flush remaining deletions at end of block
-  if (pendingDeleted) {
-    const pos = curr.from + curOffset;
-    const text = pendingDeleted;
-    decorations.push(
-      Decoration.widget(
-        pos,
-        () => createDeletedSpan(text),
-        { side: -1 },
-      ),
-    );
-  }
+  flush();
 }
 
 function createDeletedSpan(text: string): HTMLElement {
@@ -269,48 +374,71 @@ function computeDecorations(
     return DecorationSet.empty;
   }
 
-  // Node-level diff using text content
+  // Block-level diff on text content — this is still coarse-grained, but
+  // we refine any non-equal cluster with a token-level diff that preserves
+  // content that moved across a paragraph split/join.
   const baseTexts = baseBlocks.map((b) => b.text);
   const currTexts = currBlocks.map((b) => b.text);
   const nodeOps = diffSequences(baseTexts, currTexts);
-  const merged = mergeOps(nodeOps);
 
   const decorations: Decoration[] = [];
-  // Position cursor for placing deletion widgets between nodes
-  let insertionPos = 0;
+  // Position where a pure-deletion cluster's widgets should be rendered.
+  // Initialised to 0 (doc start) and updated whenever we cross an equal
+  // block.  For clusters that contain inserts this is unused — those
+  // clusters compute positions from the inserted tokens themselves.
+  let deletionAnchor = 0;
 
-  for (const op of merged) {
+  let i = 0;
+  while (i < nodeOps.length) {
+    const op = nodeOps[i];
     if (op.type === 'equal') {
       const curr = currBlocks[op.newIdx];
-      insertionPos = curr.nodeOffset + curr.nodeSize;
-    } else if (op.type === 'insert') {
-      const curr = currBlocks[op.newIdx];
-      if (curr.to > curr.from) {
-        decorations.push(
-          Decoration.inline(curr.from, curr.to, {
-            class: 'track-change-inserted',
-          }),
-        );
+      deletionAnchor = curr.nodeOffset + curr.nodeSize;
+      i++;
+      continue;
+    }
+
+    // Collect consecutive non-equal ops into a cluster
+    const deletedIndices: number[] = [];
+    const insertedIndices: number[] = [];
+    while (i < nodeOps.length && nodeOps[i].type !== 'equal') {
+      const clusterOp = nodeOps[i];
+      if (clusterOp.type === 'delete') {
+        deletedIndices.push(clusterOp.oldIdx);
+      } else if (clusterOp.type === 'insert') {
+        insertedIndices.push(clusterOp.newIdx);
       }
-      insertionPos = curr.nodeOffset + curr.nodeSize;
-    } else if (op.type === 'delete') {
-      const base = baseBlocks[op.oldIdx];
-      if (base.text) {
-        const text = base.text;
-        const type = base.type;
-        decorations.push(
-          Decoration.widget(
-            insertionPos,
-            () => createDeletedBlock(text, type),
-            { side: -1 },
-          ),
-        );
-      }
-    } else if (op.type === 'modified') {
-      const base = baseBlocks[op.oldIdx];
-      const curr = currBlocks[op.newIdx];
-      generateWordDiff(base, curr, decorations);
-      insertionPos = curr.nodeOffset + curr.nodeSize;
+      i++;
+    }
+
+    // Anchor deletion widgets at the start of the next equal block when
+    // one exists — that's where the struck-through content used to live.
+    // Otherwise fall back to after the last inserted block, and finally
+    // to the end of the previous equal block for trailing pure deletions.
+    let widgetPos = deletionAnchor;
+    const nextOp = i < nodeOps.length ? nodeOps[i] : undefined;
+    if (nextOp && nextOp.type === 'equal') {
+      widgetPos = currBlocks[nextOp.newIdx].nodeOffset;
+    } else if (insertedIndices.length > 0) {
+      const lastInsert =
+        currBlocks[insertedIndices[insertedIndices.length - 1]];
+      widgetPos = lastInsert.nodeOffset + lastInsert.nodeSize;
+    }
+
+    diffCluster(
+      baseBlocks,
+      deletedIndices,
+      currBlocks,
+      insertedIndices,
+      widgetPos,
+      decorations,
+    );
+
+    // Advance the anchor past the inserted blocks so subsequent deletions
+    // land after them.
+    if (insertedIndices.length > 0) {
+      const last = currBlocks[insertedIndices[insertedIndices.length - 1]];
+      deletionAnchor = last.nodeOffset + last.nodeSize;
     }
   }
 

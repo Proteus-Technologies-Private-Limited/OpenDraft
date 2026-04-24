@@ -1,8 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.config import DEFAULT_PROJECT
+from app.dependencies import require_verified_user
+from app.plugins import run_gate_hooks
 from app.schemas.script import ScriptCreate, ScriptUpdate, ScriptMeta, ScriptResponse
 from app.services import project_service, script_service
+from app.services.auth_service import AuthUser
+from app.services.quota_service import QUOTA_CHECK_CREATE_SCRIPT
 
 router = APIRouter()
 
@@ -20,7 +24,11 @@ async def list_scripts():
 
 
 @router.post("/", response_model=ScriptResponse)
-async def create_script(body: ScriptCreate):
+async def create_script(
+    body: ScriptCreate,
+    user: AuthUser = Depends(require_verified_user),
+):
+    await run_gate_hooks(QUOTA_CHECK_CREATE_SCRIPT, user=user)
     project_id = _default_project_id()
     return script_service.create_script(
         project_id, body.title, body.content, body.format

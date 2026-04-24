@@ -61,12 +61,14 @@ import { spellChecker } from '../editor/spellchecker';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
+import { scriptApi } from '../services/scriptApi';
 import { API_BASE, getCollabWsUrl } from '../config';
 import { showToast } from './Toast';
 import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';
 import { useParams, useNavigate } from 'react-router-dom';
-import OpenFromProject from './OpenFromProject';
+import OpenFile from './OpenFile';
+import type { OpenSource } from './OpenFile';
 import WelcomeDialog, { type WelcomeChoice } from './WelcomeDialog';
 import { parseFountain } from '../utils/fountainParser';
 import { parseFDXFull } from '../utils/fdxParser';
@@ -81,7 +83,7 @@ import ZoomPanel from './ZoomPanel';
 import { useIsTouchDevice, useSwipeEdge, usePinchZoom } from '../hooks/useTouch';
 import { useSettingsStore } from '../stores/settingsStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
-import { collabAuthApi, setLogoutCollabTeardown, isCollabAuthenticated } from '../services/collabAuth';
+import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, isCollabAuthenticated } from '../services/collabAuth';
 import { platformFetch } from '../services/platform';
 import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
@@ -227,7 +229,7 @@ const ScreenplayEditor: React.FC = () => {
     saveStatus, saveError, setSaveStatus,
   } = useEditorStore();
 
-  const { currentProject, currentScriptId, setCurrentProject, setCurrentScriptId, scriptReloadKey } = useProjectStore();
+  const { currentProject, currentScriptId, setCurrentProject, setCurrentScriptId, scriptReloadKey, markCloudScript, isCloudScript } = useProjectStore();
 
   // ── Collaboration state ──
   const [collabMode, setCollabMode] = useState(false);
@@ -506,7 +508,7 @@ const ScreenplayEditor: React.FC = () => {
       const nonce = session.session_nonce || '';
 
       const project = await api.getProject(projectId);
-      const scriptResp = await api.getScript(projectId, scriptId);
+      const scriptResp = await scriptApi.getScript(projectId, scriptId);
 
       const content = scriptResp.content as Record<string, unknown> | null;
       if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
@@ -590,7 +592,7 @@ const ScreenplayEditor: React.FC = () => {
   const [overlays, setOverlays] = useState<OverlayInfo[]>([]);
 
   const {
-    openFromProjectOpen, setOpenFromProjectOpen, saveAsOpen, setSaveAsOpen,
+    openFileOpen, setOpenFileOpen, saveAsOpen, setSaveAsOpen,
     titlePageEditorOpen, setTitlePageEditorOpen,
     compareVersionOpen, setCompareVersionOpen,
     setTrackChangesEnabled, setTrackChangesLabel,
@@ -725,7 +727,7 @@ const ScreenplayEditor: React.FC = () => {
         _characterRelationships: store.characterRelationships,
       };
       try {
-        await api.saveScript(currentProject.id, currentScriptId, { content });
+        await scriptApi.saveScript(currentProject.id, currentScriptId, { content });
       } catch { /* best-effort — auto-save will catch up */ }
     }
 
@@ -805,7 +807,7 @@ const ScreenplayEditor: React.FC = () => {
     // 4. Load the new script content and reconnect host
     try {
       const project = await api.getProject(newProjectId);
-      const scriptResp = await api.getScript(newProjectId, newScriptId);
+      const scriptResp = await scriptApi.getScript(newProjectId, newScriptId);
 
       const content = scriptResp.content as Record<string, unknown> | null;
       if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
@@ -969,7 +971,17 @@ const ScreenplayEditor: React.FC = () => {
 
     const pageRect = pageEl.getBoundingClientRect();
     const m = getPageMetrics(pageLayoutRef.current);
-    const children = Array.from(root.children) as HTMLElement[];
+    // Track-change deletion widgets become DOM siblings of real document
+    // nodes, which would shift every index after them and make the page
+    // break overlay land in the wrong place.  Filter them out so
+    // children[brk.nodeIndex] matches the ProseMirror model index.
+    // Normal editing (no track changes) has no such widgets, so this is
+    // a no-op there.
+    const children = (Array.from(root.children) as HTMLElement[]).filter(
+      (el) =>
+        !el.classList.contains('track-change-deleted') &&
+        !el.classList.contains('track-change-deleted-block'),
+    );
     const breaks = breaksRef.current;
     if (breaks.length === 0) { setOverlays([]); return; }
 
@@ -1715,6 +1727,66 @@ const ScreenplayEditor: React.FC = () => {
   // Skip for collab guests — they don't own the document and the project may
   // not exist on their local backend.
   const lastSavedJsonRef = useRef<string>('');
+
+  // Register an editor-reset hook so performLogout can flush any pending
+  // save for a cloud file and then drop the editor back to a blank, local
+  // "Untitled Screenplay". Runs while the access token is still valid so the
+  // final PUT is authenticated; without this the auto-save loop keeps firing
+  // after signout and every save returns 401.
+  useEffect(() => {
+    setLogoutEditorReset(async () => {
+      scriptSwitchingRef.current = true;
+      try {
+        if (currentProject && currentScriptId && isCloudScript(currentProject.id, currentScriptId)) {
+          const pendingContent = buildSaveContent();
+          if (pendingContent) {
+            const pendingJson = JSON.stringify(pendingContent);
+            if (pendingJson !== lastSavedJsonRef.current) {
+              try {
+                await scriptApi.saveScript(currentProject.id, currentScriptId, { content: pendingContent });
+                lastSavedJsonRef.current = pendingJson;
+              } catch (err) {
+                // Save can fail if the token already expired — log and keep going.
+                console.warn('Final cloud save on signout failed:', err);
+              }
+            }
+          }
+        }
+
+        // Reset the editor to a fresh, blank document — mirrors handleNewScreenplay.
+        if (editor && !editor.isDestroyed) {
+          clearTrackChanges();
+          editor.commands.setContent(
+            { type: 'doc', content: [{ type: 'sceneHeading', content: [] }] },
+            true,
+          );
+          clearEditorHistory(editor);
+        }
+        setCurrentProject(null);
+        setCurrentScriptId(null);
+        const store = useEditorStore.getState();
+        store.setDocumentTitle('Untitled Screenplay');
+        store.setBeats([]);
+        store.setBeatColumns([]);
+        store.setBeatArrangeMode('auto');
+        store.setNotes([]);
+        store.setGeneralNotes([]);
+        store.setTags([]);
+        store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
+        store.setCharacterProfiles([]);
+        store.setCharacterRelationships([]);
+        store.setScenes([]);
+        store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
+        lastSavedJsonRef.current = '';
+        if (window.location.pathname !== '/') {
+          navigate('/', { replace: true });
+        }
+      } finally {
+        scriptSwitchingRef.current = false;
+      }
+    });
+    return () => { setLogoutEditorReset(null); };
+  }, [editor, currentProject, currentScriptId, isCloudScript, buildSaveContent, setCurrentProject, setCurrentScriptId, navigate]);
   // Guard: suppress auto-save while switching scripts.  During the switch the
   // store metadata is cleared (0 relationships, 0 profiles, etc.) but the
   // auto-save closure still holds the OLD project/script IDs.  Without this
@@ -1732,13 +1804,16 @@ const ScreenplayEditor: React.FC = () => {
       if (json !== lastSavedJsonRef.current) {
         lastSavedJsonRef.current = json;
         setSaveStatus('saving');
-        api.saveScript(currentProject.id, currentScriptId, { content }).then(() => {
+        scriptApi.saveScript(currentProject.id, currentScriptId, { content }).then(() => {
           setSaveStatus('saved');
         }).catch((err) => {
           console.error('Auto-save failed:', err);
           const msg = err instanceof Error ? err.message : String(err);
           setSaveStatus('error', msg);
-          showToast(`Auto-save failed: ${msg}`, 'error');
+          // AuthGate / QuotaExceededDialog already showed a dialog — skip toast.
+          if (!(err as any)?.handled) {
+            showToast(`Auto-save failed: ${msg}`, 'error');
+          }
         });
       }
     }, 30000);
@@ -1795,7 +1870,7 @@ const ScreenplayEditor: React.FC = () => {
         if (json !== lastSavedJsonRef.current) {
           lastSavedJsonRef.current = json;
           useEditorStore.getState().setSaveStatus('saving');
-          api.saveScript(pid, sid, { content }).then(() => {
+          scriptApi.saveScript(pid, sid, { content }).then(() => {
             useEditorStore.getState().setSaveStatus('saved');
           }).catch((err) => {
             console.error('Metadata save failed:', err);
@@ -1824,7 +1899,7 @@ const ScreenplayEditor: React.FC = () => {
       const json = JSON.stringify(content);
       if (json !== lastSavedJsonRef.current) {
         lastSavedJsonRef.current = json;
-        api.saveScript(pid, sid, { content }).catch(() => {});
+        scriptApi.saveScript(pid, sid, { content }).catch(() => {});
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -1888,7 +1963,7 @@ const ScreenplayEditor: React.FC = () => {
             const pendingJson = JSON.stringify(pendingContent);
             if (pendingJson !== lastSavedJsonRef.current) {
               lastSavedJsonRef.current = pendingJson;
-              try { await api.saveScript(currentProject.id, currentScriptId, { content: pendingContent }); } catch {}
+              try { await scriptApi.saveScript(currentProject.id, currentScriptId, { content: pendingContent }); } catch {}
             }
           }
         }
@@ -1902,7 +1977,7 @@ const ScreenplayEditor: React.FC = () => {
           scriptResp = await api.getScriptAtVersion(urlProjectId, urlCommitHash, urlScriptId);
           setHistoryVersionLabel(urlCommitHash.slice(0, 7));
         } else {
-          scriptResp = await api.getScript(urlProjectId, urlScriptId);
+          scriptResp = await scriptApi.getScript(urlProjectId, urlScriptId);
         }
         const content = scriptResp.content as Record<string, unknown> | null;
 
@@ -2153,13 +2228,22 @@ const ScreenplayEditor: React.FC = () => {
     editor?.commands.focus();
   }, [editor]);
 
-  const handleOpenFromProject = useCallback(
-    async (projectId: string, project: import('../services/api').ProjectInfo, scriptId: string, scriptTitle: string) => {
+  const handleOpenFile = useCallback(
+    async (
+      projectId: string,
+      project: import('../services/api').ProjectInfo,
+      scriptId: string,
+      scriptTitle: string,
+      source: OpenSource = 'local',
+    ) => {
       if (!editor) {
         console.error('Editor not available');
         return;
       }
-      setOpenFromProjectOpen(false);
+      setOpenFileOpen(false);
+      // Cloud files must be tagged before the load so scriptApi routes reads
+      // and subsequent saves to cloudApi rather than the local SQLite.
+      if (source === 'cloud') markCloudScript(projectId, scriptId);
 
       // Host switching documents during collab
       if (collabMode && isCollabHost) {
@@ -2177,12 +2261,12 @@ const ScreenplayEditor: React.FC = () => {
             const pendingJson = JSON.stringify(pendingContent);
             if (pendingJson !== lastSavedJsonRef.current) {
               lastSavedJsonRef.current = pendingJson;
-              try { await api.saveScript(currentProject.id, currentScriptId, { content: pendingContent }); } catch {}
+              try { await scriptApi.saveScript(currentProject.id, currentScriptId, { content: pendingContent }); } catch {}
             }
           }
         }
 
-        const scriptResp = await api.getScript(projectId, scriptId);
+        const scriptResp = await scriptApi.getScript(projectId, scriptId);
         const content = scriptResp.content as Record<string, unknown> | null;
 
         try {
@@ -2280,7 +2364,7 @@ const ScreenplayEditor: React.FC = () => {
         scriptSwitchingRef.current = false;
       }
     },
-    [editor, collabMode, collabUserName, switchCollabDocument, setOpenFromProjectOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes, currentProject, currentScriptId, buildSaveContent],
+    [editor, collabMode, collabUserName, switchCollabDocument, setOpenFileOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes, currentProject, currentScriptId, buildSaveContent, markCloudScript],
   );
 
   const handleWelcomeChoice = useCallback(async (choice: WelcomeChoice) => {
@@ -2665,10 +2749,12 @@ const ScreenplayEditor: React.FC = () => {
       const content = buildSaveContent();
       if (content) {
         try {
-          await api.saveScript(currentProject.id, currentScriptId, { content });
+          await scriptApi.saveScript(currentProject.id, currentScriptId, { content });
           lastSavedJsonRef.current = JSON.stringify(content);
         } catch (err) {
-          showToast(`Save failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+          if (!(err as any)?.handled) {
+            showToast(`Save failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+          }
         }
       }
     }
@@ -3129,7 +3215,7 @@ const ScreenplayEditor: React.FC = () => {
             const content = buildSaveContent();
             if (!content || !currentProject || !currentScriptId) return;
             setSaveStatus('saving');
-            api.saveScript(currentProject.id, currentScriptId, { content }).then(() => {
+            scriptApi.saveScript(currentProject.id, currentScriptId, { content }).then(() => {
               lastSavedJsonRef.current = JSON.stringify(content);
               setSaveStatus('saved');
               showToast('Saved successfully', 'success');
@@ -3381,10 +3467,10 @@ const ScreenplayEditor: React.FC = () => {
       )}
       {!isHistoryMode && <VersionHistory />}
       {!isHistoryMode && currentProject && <AssetManager projectId={currentProject.id} />}
-      {!isHistoryMode && openFromProjectOpen && (
-        <OpenFromProject
-          onOpen={handleOpenFromProject}
-          onClose={() => setOpenFromProjectOpen(false)}
+      {!isHistoryMode && openFileOpen && (
+        <OpenFile
+          onOpen={handleOpenFile}
+          onClose={() => setOpenFileOpen(false)}
         />
       )}
       {!isHistoryMode && showWelcome && <WelcomeDialog onChoice={handleWelcomeChoice} />}

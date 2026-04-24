@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.config import PROJECTS_DIR
+from app.config import get_projects_dir
 from app.schemas.version import (
     CheckinRequest,
     DiffResponse,
@@ -16,7 +16,7 @@ router = APIRouter()
 
 def _project_path(project_id: str):
     """Resolve and validate project directory path."""
-    path = PROJECTS_DIR / project_id
+    path = get_projects_dir() / project_id
     if not path.exists():
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
     return path
@@ -35,14 +35,23 @@ async def checkin(project_id: str, body: CheckinRequest):
 
 
 @router.get("/{project_id}/versions/", response_model=list[VersionInfo])
-async def list_versions(project_id: str, limit: int = Query(50, ge=1, le=500)):
-    """List version history for a project."""
+async def list_versions(
+    project_id: str,
+    limit: int = Query(50, ge=1, le=500),
+    script_id: str | None = Query(None, description="Filter to commits containing this script"),
+):
+    """List version history for a project.
+
+    When ``script_id`` is provided, only commits whose tree contains the
+    matching ``scripts/<script_id>.json`` file are returned — so the client
+    never sees versions where the script never existed.
+    """
     path = _project_path(project_id)
 
     # Ensure repo is initialized
     git_service.init_repo(path)
 
-    return git_service.get_log(path, limit=limit)
+    return git_service.get_log(path, limit=limit, script_id=script_id)
 
 
 @router.get("/{project_id}/versions/diff", response_model=DiffResponse)

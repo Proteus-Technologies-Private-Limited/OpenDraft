@@ -103,8 +103,33 @@ def commit(project_path: Path, message: str) -> dict:
     }
 
 
-def get_log(project_path: Path, limit: int = 50) -> list[dict]:
-    """Return the commit log (most recent first)."""
+def _tree_contains_path(repo, tree, path_parts: list[str]) -> bool:
+    """Return True iff ``path_parts`` resolves to a blob in ``tree``."""
+    current = tree
+    for part in path_parts[:-1]:
+        found = None
+        for item in current.items():
+            if item.path.decode() == part:
+                found = repo[item.sha]
+                break
+        if found is None or not isinstance(found, Tree):
+            return False
+        current = found
+    leaf = path_parts[-1]
+    for item in current.items():
+        if item.path.decode() == leaf:
+            return isinstance(repo[item.sha], Blob)
+    return False
+
+
+def get_log(project_path: Path, limit: int = 50, script_id: str | None = None) -> list[dict]:
+    """Return the commit log (most recent first).
+
+    If ``script_id`` is given, only commits whose tree contains
+    ``scripts/<script_id>.json`` are returned. ``limit`` bounds the number of
+    commits walked, not the number returned — if a script is newer than the
+    limit, older commits that lack it will still be correctly skipped.
+    """
     repo = Repo(str(project_path))
 
     try:
@@ -113,10 +138,18 @@ def get_log(project_path: Path, limit: int = 50) -> list[dict]:
         logger.warning("Git repo at %s has no HEAD; returning empty log", project_path)
         return []
 
+    filter_parts: list[str] | None = None
+    if script_id:
+        filter_parts = ["scripts", f"{script_id}.json"]
+
     result = []
     walker = repo.get_walker(include=[head], max_entries=limit)
     for entry in walker:
         c = entry.commit
+        if filter_parts is not None:
+            tree = repo[c.tree]
+            if not _tree_contains_path(repo, tree, filter_parts):
+                continue
         commit_hex = c.id.decode("ascii") if isinstance(c.id, bytes) else str(c.id)
         result.append({
             "hash": commit_hex,
@@ -167,27 +200,24 @@ def get_file_at_version(project_path: Path, commit_hash: str, file_path: str) ->
 
 
 def restore_version(project_path: Path, commit_hash: str) -> dict:
-    """Restore the working tree to a specific version (creates a new commit)."""
-    import shutil
+    """Restore files from a past commit, preserving any files added since.
 
+    Mirrors ``git checkout <hash> -- .`` semantics (not ``git reset --hard``):
+    every file present in the target tree is overwritten on disk, but files
+    that exist in the working tree and are NOT in the target tree are kept.
+    This preserves scripts the user created after the target commit.
+    """
     repo = Repo(str(project_path))
     short = commit_hash[:7]
     target_commit = repo[commit_hash.encode()]
     target_tree = repo[target_commit.tree]
 
-    # Clear working tree (except .git) and restore from target tree
-    for item in project_path.iterdir():
-        if item.name == ".git":
-            continue
-        if item.is_dir():
-            shutil.rmtree(item)
-        else:
-            item.unlink()
-
-    # Recursively restore files from the target tree
+    # Overlay: write every file from the target tree on top of the working
+    # tree. Files on disk that are NOT in the target tree are left alone.
     _restore_tree(repo, target_tree, project_path)
 
-    # Stage all restored files
+    # Stage everything on disk (both the overlaid target files and any
+    # preserved files).
     files = [
         str(f.relative_to(project_path))
         for f in project_path.rglob("*")
@@ -195,18 +225,6 @@ def restore_version(project_path: Path, commit_hash: str) -> dict:
     ]
     if files:
         porcelain.add(str(project_path), files)
-
-    # Handle deletions in index
-    index = repo.open_index()
-    to_remove = []
-    for entry_path in list(index):
-        full_path = project_path / entry_path.decode()
-        if not full_path.exists():
-            to_remove.append(entry_path)
-    for path in to_remove:
-        del index[path]
-    if to_remove:
-        index.write()
 
     message = f"Restored to version {short}"
     commit_id = porcelain.commit(

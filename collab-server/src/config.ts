@@ -23,6 +23,7 @@ export interface ServerConfig {
   smtpUser: string | null;
   smtpPass: string | null;
   smtpFrom: string;
+  appUrl: string;
   rateLimitWindowMs: number;
   rateLimitMax: number;
   corsOrigins: string[];
@@ -78,6 +79,8 @@ function loadConfig(): ServerConfig {
     smtpUser: process.env.SMTP_USER || null,
     smtpPass: process.env.SMTP_PASS || null,
     smtpFrom: process.env.SMTP_FROM || 'noreply@opendraft.app',
+    // Base URL of the frontend — used to build magic-link verification URLs.
+    appUrl: (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, ''),
     rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || String(15 * 60 * 1000), 10),
     rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
     corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000,http://localhost:8008,http://localhost:18321,tauri://localhost,https://tauri.localhost').split(',').map(s => s.trim()),

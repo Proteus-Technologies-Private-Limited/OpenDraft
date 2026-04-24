@@ -1,0 +1,61 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DEMO_HOST: ${DEMO_HOST}
+      COLLAB_HOST: ${COLLAB_HOST}
+      ACME_EMAIL: ${ACME_EMAIL}
+    depends_on:
+      - demo
+      - collab
+
+  demo:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      OPENDRAFT_DATA_DIR: /app/data
+      PORT: "8080"
+    volumes:
+      - demo_data:/app/data
+
+  collab:
+    build:
+      context: ../collab-server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      HOST: 0.0.0.0
+      DATA_DIR: /app/data
+      DB_TYPE: sqlite
+      JWT_SECRET: ${JWT_SECRET}
+      DOC_IDLE_TIMEOUT_MINUTES: "30"
+      WS_MAX_CONNECTIONS_PER_IP: "50"
+      WS_MAX_CONNECTIONS_PER_USER: "10"
+      RATE_LIMIT_WINDOW_MS: "900000"
+      RATE_LIMIT_MAX: "100"
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    volumes:
+      - collab_data:/app/data
+
+volumes:
+  caddy_data:
+  caddy_config:
+  demo_data:
+  collab_data:

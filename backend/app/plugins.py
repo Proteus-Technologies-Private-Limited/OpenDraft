@@ -65,7 +65,9 @@ def register_hook(event: str, callback: Callable[..., Any]) -> None:
 
 
 async def run_hooks(event: str, **kwargs: Any) -> None:
-    """Execute all callbacks registered for an event."""
+    """Execute all callbacks registered for an event. Exceptions are logged
+    but do not propagate — use this for side-effect hooks (audit logging,
+    cache invalidation, etc.)."""
     for callback in _hooks.get(event, []):
         try:
             result = callback(**kwargs)
@@ -77,6 +79,19 @@ async def run_hooks(event: str, **kwargs: Any) -> None:
             logging.getLogger("plugins").error(
                 "Hook %s callback failed: %s", event, exc
             )
+
+
+async def run_gate_hooks(event: str, **kwargs: Any) -> None:
+    """Execute gate callbacks for an event — exceptions PROPAGATE.
+
+    Use this for hooks that may block a request (e.g. quota checks, access
+    control). A callback raises HTTPException to reject the request; the
+    exception bubbles up through the endpoint unchanged.
+    """
+    for callback in _hooks.get(event, []):
+        result = callback(**kwargs)
+        if hasattr(result, "__await__"):
+            await result  # type: ignore[arg-type]
 
 
 def get_registered_plugins() -> list[str]:

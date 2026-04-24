@@ -72,7 +72,6 @@ const VersionHistory: React.FC = () => {
         try {
           return await api.getScriptAtVersion(currentProject.id, hash, currentScriptId);
         } catch (e) {
-          // 404 = script didn't exist at that version (or was at a different path)
           const msg = e instanceof Error ? e.message : String(e);
           if (msg.includes('404') || /not found/i.test(msg)) return null;
           throw e;
@@ -129,14 +128,14 @@ const VersionHistory: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getVersions(currentProject.id);
+      const data = await api.getVersions(currentProject.id, currentScriptId || undefined);
       setVersions(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load versions');
     } finally {
       setLoading(false);
     }
-  }, [currentProject, setVersions]);
+  }, [currentProject, currentScriptId, setVersions]);
 
   useEffect(() => {
     if (versionHistoryOpen && currentProject) {

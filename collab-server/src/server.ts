@@ -253,10 +253,15 @@ const hocuspocus = new Hocuspocus({
 
 const app = express();
 
-// Trust proxy headers (required behind Cloud Run / load balancers for correct
-// client IP in rate limiting and X-Forwarded-* headers)
+// Trust proxy headers. In production (Cloud Run / load balancer) we trust
+// every hop; in development the Python backend proxies /auth/* to us from
+// the loopback interface, so we trust only loopback there. Without this,
+// express-rate-limit throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR whenever the
+// backend forwards X-Forwarded-For.
 if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', true);
+} else {
+  app.set('trust proxy', 'loopback');
 }
 
 app.use(helmet({ contentSecurityPolicy: false }));

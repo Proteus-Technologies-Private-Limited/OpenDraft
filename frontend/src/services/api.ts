@@ -1,34 +1,113 @@
 import { API_BASE, getCollabWsUrl } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
+import { authedFetch } from './authedFetch';
+
+/**
+ * Custom events dispatched by the API client so UI components (AuthGate) can
+ * react to auth/quota failures from any backend call site without each caller
+ * having to handle them.
+ *
+ *   opendraft:auth-required    — 401 / no token (prompt login)
+ *   opendraft:email-unverified — 403 email_not_verified (prompt OTP)
+ *   opendraft:quota-exceeded   — 402 with the quota payload in event.detail
+ */
+export type QuotaErrorDetail = {
+  error: 'quota_exceeded';
+  message: string;
+  current_plan: string;
+  limit: number;
+  current: number;
+};
+
+export class ApiError extends Error {
+  status: number;
+  body: unknown;
+  /** True when the API client has already surfaced this error to the user via
+   *  an AuthGate event (sign-in prompt, quota dialog, verify-email prompt).
+   *  Call sites should NOT show an additional toast when this is true, or
+   *  the user sees both the nice dialog and the raw "API error 402: ..." */
+  handled: boolean;
+  constructor(status: number, body: unknown, message: string, handled = false) {
+    super(message);
+    this.status = status;
+    this.body = body;
+    this.handled = handled;
+  }
+}
+
+export function dispatchApiEvent(name: string, detail?: unknown): void {
+  try {
+    window.dispatchEvent(new CustomEvent(name, { detail }));
+  } catch {
+    /* no-op in non-browser envs (SSR/tests) */
+  }
+}
+
+/**
+ * Parse a non-OK response, fire the appropriate AuthGate event, and throw
+ * an ApiError carrying the status + parsed body. Shared by api.ts, cloudApi.ts,
+ * and any other backend caller.
+ */
+export async function handleNonOkResponse(res: Response, label: string): Promise<never> {
+  let parsedBody: unknown = null;
+  const rawText = await res.text().catch(() => '');
+  try {
+    parsedBody = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    parsedBody = rawText;
+  }
+
+  // Track whether we surface this error via a dedicated dialog so callers
+  // know to suppress their own toast.
+  let handled = false;
+
+  if (res.status === 401) {
+    // authedFetch has already cleared auth if refresh failed; ensure it's
+    // cleared for the no-refresh-token path too.
+    useSettingsStore.getState().clearCollabAuth();
+    dispatchApiEvent('opendraft:auth-required');
+    handled = true;
+  } else if (res.status === 403) {
+    const detail = (parsedBody as any)?.detail;
+    if (detail && typeof detail === 'object' && detail.error === 'email_not_verified') {
+      dispatchApiEvent('opendraft:email-unverified');
+      handled = true;
+    }
+  } else if (res.status === 402) {
+    const detail = (parsedBody as any)?.detail;
+    if (detail && typeof detail === 'object' && detail.error === 'quota_exceeded') {
+      dispatchApiEvent('opendraft:quota-exceeded', detail as QuotaErrorDetail);
+      handled = true;
+    }
+  }
+
+  throw new ApiError(
+    res.status,
+    parsedBody,
+    `${label} error ${res.status}: ${rawText || res.statusText}`,
+    handled,
+  );
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${detail}`);
-  }
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  };
+  const res = await authedFetch(`${API_BASE}${path}`, { ...options, headers });
+  if (!res.ok) await handleNonOkResponse(res, 'API');
   return res.json();
 }
 
 /** Authenticated request to the collab server (not the Python backend). */
 async function collabServerRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const base = getCollabWsUrl().replace(/^ws(s?):\/\//, 'http$1://');
-  const { collabAuth } = useSettingsStore.getState();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
   };
-  if (collabAuth.accessToken) {
-    headers['Authorization'] = `Bearer ${collabAuth.accessToken}`;
-  }
-  const res = await fetch(`${base}${path}`, { ...options, headers });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${detail}`);
-  }
+  const res = await authedFetch(`${base}${path}`, { ...options, headers });
+  if (!res.ok) await handleNonOkResponse(res, 'Collab API');
   return res.json();
 }
 
@@ -229,8 +308,10 @@ export const api = {
       body: JSON.stringify({ message }),
     }),
 
-  getVersions: (projectId: string) =>
-    request<VersionInfo[]>(`/projects/${projectId}/versions/`),
+  getVersions: (projectId: string, scriptId?: string) => {
+    const qs = scriptId ? `?script_id=${encodeURIComponent(scriptId)}` : '';
+    return request<VersionInfo[]>(`/projects/${projectId}/versions/${qs}`);
+  },
 
   getVersionDiff: (projectId: string, fromHash: string, toHash: string) =>
     request<DiffResponse>(
@@ -276,11 +357,12 @@ export const api = {
     const formData = new FormData();
     formData.append('file', file);
     if (tags.length) formData.append('tags', tags.join(','));
-    const res = await fetch(`${API_BASE}/projects/${projectId}/assets/upload`, {
+    // Multipart — do NOT set Content-Type; the browser adds the boundary.
+    const res = await authedFetch(`${API_BASE}/projects/${projectId}/assets/upload`, {
       method: 'POST',
       body: formData,
     });
-    if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+    if (!res.ok) await handleNonOkResponse(res, 'Upload');
     return res.json();
   },
 

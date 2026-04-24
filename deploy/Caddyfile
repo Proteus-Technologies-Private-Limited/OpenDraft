@@ -1,0 +1,16 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$DEMO_HOST} {
+	encode gzip zstd
+	reverse_proxy demo:8080
+}
+
+{$COLLAB_HOST} {
+	encode gzip zstd
+	reverse_proxy collab:8080 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+}
