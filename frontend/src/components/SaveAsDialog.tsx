@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { FaCloud, FaDesktop } from 'react-icons/fa';
 import { api } from '../services/api';
+import { cloudApi } from '../services/cloudApi';
+import { isWeb } from '../services/platform';
 import type { ProjectInfo } from '../services/api';
 import { useSettingsStore } from '../stores/settingsStore';
+
+export type SaveDestination = 'local' | 'cloud';
 
 const LAST_PROJECT_KEY = 'opendraft:lastProject';
 
@@ -15,14 +20,29 @@ function saveLastProjectName(name: string) {
 interface SaveAsDialogProps {
   defaultProjectName: string;
   defaultFileName: string;
-  onSaved: (projectId: string, projectName: string, scriptId: string, scriptTitle: string) => void;
+  /** Pre-select the destination tab. Pass 'cloud' when the user came from a
+   *  cloud project — otherwise the dialog defaults to 'local' and the
+   *  cloud-only project name will not match anything in the local list,
+   *  silently filing the new screenplay under a random local project. */
+  defaultDestination?: SaveDestination;
+  onSaved: (
+    projectId: string,
+    projectName: string,
+    scriptId: string,
+    scriptTitle: string,
+    destination: SaveDestination,
+  ) => void;
   onClose: () => void;
   buildContent: () => Record<string, unknown> | undefined;
 }
 
+/** Web is always cloud-backed; the device/cloud toggle would be misleading. */
+const WEB_ONLY_CLOUD = isWeb();
+
 const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
   defaultProjectName,
   defaultFileName,
+  defaultDestination,
   onSaved,
   onClose,
   buildContent,
@@ -34,6 +54,9 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
   const [error, setError] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isTyping, setIsTyping] = useState(false);  // true when user is actively typing to filter
+  const [destination, setDestination] = useState<SaveDestination>(
+    WEB_ONLY_CLOUD ? 'cloud' : (defaultDestination ?? 'local'),
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const comboRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,12 +67,26 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
   // reload the list so a subsequent save doesn't hit 409 on a project the
   // user actually already owns.
   const accessToken = useSettingsStore((s) => s.collabAuth.accessToken);
+  const authVerified = useSettingsStore((s) => s.authVerified);
+  const signedIn = Boolean(accessToken && authVerified);
 
-  // Load projects and pick the best default project name
+  // Load projects and pick the best default project name. Re-runs when the
+  // destination tab flips so cloud projects appear when the user switches to
+  // the Cloud tab and vice versa.
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        const list = await api.listProjects();
+        // Cloud listing requires a verified login. Without one, just leave the
+        // projects list empty and let the user sign in via the warning banner;
+        // a fallback to local would silently mis-route a "Save to Cloud".
+        if (destination === 'cloud' && !signedIn) {
+          if (!cancelled) setProjects([]);
+          return;
+        }
+        const client = destination === 'cloud' ? cloudApi : api;
+        const list = await client.listProjects();
+        if (cancelled) return;
         setProjects(list);
 
         // Only overwrite the project-name field the first time it is populated;
@@ -70,10 +107,13 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
           return defaultProjectName || 'My Project';
         });
       } catch {
-        setProjectName((current) => current || defaultProjectName || 'My Project');
+        if (!cancelled) {
+          setProjectName((current) => current || defaultProjectName || 'My Project');
+        }
       }
     })();
-  }, [defaultProjectName, accessToken]);
+    return () => { cancelled = true; };
+  }, [defaultProjectName, accessToken, destination, signedIn]);
 
   // Focus the file name input once project name is set
   useEffect(() => {
@@ -118,8 +158,18 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
     const trimmedFile = fileName.trim();
     if (!trimmedProject || !trimmedFile) return;
 
+    if (destination === 'cloud' && !signedIn) {
+      // AuthGate handles dispatching the login dialog. The user can re-click
+      // Save once they're back; the projects list will refresh automatically
+      // via the auth-token effect dependency.
+      window.dispatchEvent(new CustomEvent('opendraft:auth-required'));
+      return;
+    }
+
     setSaving(true);
     setError('');
+
+    const client = destination === 'cloud' ? cloudApi : api;
 
     try {
       // Create or find existing project. The cached `projects` list can be
@@ -134,10 +184,10 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
         project = cached;
       } else {
         try {
-          project = await api.createProject(trimmedProject);
+          project = await client.createProject(trimmedProject);
         } catch (err: any) {
           if (err?.status === 409) {
-            const fresh = await api.listProjects().catch(() => [] as ProjectInfo[]);
+            const fresh = await client.listProjects().catch(() => [] as ProjectInfo[]);
             setProjects(fresh);
             project = fresh.find(
               (p) => p.name.toLowerCase() === trimmedProject.toLowerCase(),
@@ -156,13 +206,13 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
 
       // Create script in the project
       const content = buildContent();
-      const scriptResp = await api.createScript(project.id, {
+      const scriptResp = await client.createScript(project.id, {
         title: trimmedFile,
         content: content || undefined,
       });
 
       saveLastProjectName(trimmedProject);
-      onSaved(project.id, trimmedProject, scriptResp.meta.id, trimmedFile);
+      onSaved(project.id, trimmedProject, scriptResp.meta.id, trimmedFile, destination);
     } catch (err) {
       // AuthGate / QuotaExceededDialog already showed a dialog for these —
       // don't duplicate the raw message inline.
@@ -191,6 +241,36 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
       <div className="dialog-box" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
         <div className="dialog-header">Save Screenplay</div>
         <div className="dialog-body">
+          {!WEB_ONLY_CLOUD && (
+            <div className="dialog-row" style={{ marginBottom: 12 }}>
+              <label>Save to</label>
+              <div className="open-file-source-tabs" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={destination === 'local'}
+                  className={`open-file-source-tab ${destination === 'local' ? 'active' : ''}`}
+                  onClick={() => setDestination('local')}
+                >
+                  <FaDesktop /> This device
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={destination === 'cloud'}
+                  className={`open-file-source-tab ${destination === 'cloud' ? 'active' : ''}`}
+                  onClick={() => setDestination('cloud')}
+                >
+                  <FaCloud /> OpenDraft Cloud
+                </button>
+              </div>
+              {destination === 'cloud' && !signedIn && (
+                <div style={{ fontSize: 12, color: '#ff9966', marginTop: 6 }}>
+                  Sign in to save to OpenDraft Cloud — pressing Save will open the login dialog.
+                </div>
+              )}
+            </div>
+          )}
           <div className="dialog-row">
             <label>Project</label>
             <div ref={comboRef} style={{ position: 'relative' }}>
@@ -295,7 +375,9 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
             onClick={handleSave}
             disabled={saving || !projectName.trim() || !fileName.trim()}
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving
+              ? 'Saving...'
+              : destination === 'cloud' ? 'Save to Cloud' : 'Save'}
           </button>
         </div>
       </div>

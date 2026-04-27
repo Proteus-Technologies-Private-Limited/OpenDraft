@@ -9,7 +9,8 @@
  * app works offline without login but shows status clearly.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FaCloud, FaUserCircle } from 'react-icons/fa';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -18,11 +19,57 @@ import CollabLoginDialog from './CollabLoginDialog';
 
 const AuthIndicator: React.FC = () => {
   const collabAuth = useSettingsStore((s) => s.collabAuth);
+  const authVerified = useSettingsStore((s) => s.authVerified);
   const [loginOpen, setLoginOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuRect, setMenuRect] = useState<{ top: number; right: number } | null>(null);
 
-  const signedIn = Boolean(collabAuth.accessToken && collabAuth.user);
+  // Only show "signed in" once the server has confirmed the token. A stored
+  // token that hasn't been verified (offline launch, server down) reads as
+  // "Local only" — the user hasn't actually been authenticated this session.
+  const signedIn = Boolean(collabAuth.accessToken && collabAuth.user && authVerified);
+
+  // Recompute the dropdown's anchor position whenever it opens, and on
+  // resize/scroll so it stays attached to the button. The dropdown is
+  // portaled to <body> with position: fixed so the menu-bar's
+  // overflow:hidden on mobile (added for horizontal scroll) doesn't clip it.
+  useLayoutEffect(() => {
+    if (!menuOpen) return;
+    const update = () => {
+      const r = buttonRef.current?.getBoundingClientRect();
+      if (!r) return;
+      setMenuRect({
+        top: r.bottom + 4,
+        right: Math.max(8, window.innerWidth - r.right),
+      });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [menuOpen]);
+
+  // Close on outside click / tap. onMouseLeave doesn't fire on touch devices,
+  // which is why this menu was unreachable on Android/iOS — now it closes on
+  // any pointer interaction outside the menu or trigger.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: PointerEvent) => {
+      const t = e.target as Node | null;
+      if (!t) return;
+      if (menuRef.current?.contains(t)) return;
+      if (buttonRef.current?.contains(t)) return;
+      setMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
+  }, [menuOpen]);
 
   if (!signedIn) {
     return (
@@ -52,6 +99,7 @@ const AuthIndicator: React.FC = () => {
   return (
     <div className="auth-indicator-wrap" style={{ position: 'relative' }}>
       <button
+        ref={buttonRef}
         type="button"
         className={`auth-indicator auth-indicator--signed-in ${user.emailVerified ? '' : 'auth-indicator--unverified'}`}
         onClick={() => setMenuOpen((v) => !v)}
@@ -61,11 +109,12 @@ const AuthIndicator: React.FC = () => {
         <span className="auth-indicator__name">{user.displayName || user.email}</span>
         {!user.emailVerified && <span className="auth-indicator__badge">verify</span>}
       </button>
-      {menuOpen && (
+      {menuOpen && menuRect && createPortal(
         <div
-          className="auth-indicator__menu"
+          ref={menuRef}
+          className="auth-indicator__menu auth-indicator__menu--portal"
           role="menu"
-          onMouseLeave={() => setMenuOpen(false)}
+          style={{ position: 'fixed', top: menuRect.top, right: menuRect.right }}
         >
           <button
             type="button"
@@ -84,7 +133,8 @@ const AuthIndicator: React.FC = () => {
           >
             Sign out
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

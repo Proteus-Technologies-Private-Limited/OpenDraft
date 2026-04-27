@@ -23,6 +23,12 @@ interface SettingsState {
   setCollabAuth: (auth: CollabAuth) => void;
   clearCollabAuth: () => void;
 
+  // Whether the persisted token has been verified against the server during
+  // this app session. Always starts false — a stored token alone never proves
+  // "logged in" if the server hasn't confirmed it yet (e.g. offline boot).
+  authVerified: boolean;
+  setAuthVerified: (verified: boolean) => void;
+
   // Default invite expiry (hours)
   defaultInviteExpiry: number;
   setDefaultInviteExpiry: (hours: number) => void;
@@ -57,12 +63,21 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   collabAuth: loadAuth(),
   setCollabAuth: (auth) => {
     localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(auth));
-    set({ collabAuth: auth });
+    // A fresh token from login/refresh is implicitly verified — the server
+    // just issued it. Avoids a flicker where AuthIndicator briefly shows
+    // "Local only" right after sign-in while we wait for /auth/me.
+    set({ collabAuth: auth, authVerified: Boolean(auth.accessToken && auth.user) });
   },
   clearCollabAuth: () => {
     localStorage.removeItem(STORAGE_KEY_AUTH);
-    set({ collabAuth: { accessToken: null, refreshToken: null, user: null } });
+    set({
+      collabAuth: { accessToken: null, refreshToken: null, user: null },
+      authVerified: false,
+    });
   },
+
+  authVerified: false,
+  setAuthVerified: (verified) => set({ authVerified: verified }),
 
   defaultInviteExpiry: parseInt(localStorage.getItem(STORAGE_KEY_EXPIRY) || '1', 10),
   setDefaultInviteExpiry: (hours) => {

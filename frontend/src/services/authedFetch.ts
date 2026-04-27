@@ -17,6 +17,7 @@
 
 import { useSettingsStore } from '../stores/settingsStore';
 import { collabAuthApi } from './collabAuth';
+import { platformFetch } from './platform';
 
 let refreshing: Promise<string | null> | null = null;
 
@@ -55,7 +56,11 @@ function withAuth(init: RequestInit, token: string | null): RequestInit {
 
 export async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const initial = useSettingsStore.getState().collabAuth.accessToken;
-  let res = await fetch(url, withAuth(init, initial));
+  // Route through platformFetch so HTTP backend URLs work from the Tauri
+  // WebView (whose origin is https://tauri.localhost — plain fetch() to
+  // http:// targets is blocked as mixed content). On web this is a thin
+  // pass-through to the native fetch.
+  let res = await platformFetch(url, withAuth(init, initial));
 
   if (res.status !== 401) return res;
 
@@ -65,5 +70,5 @@ export async function authedFetch(url: string, init: RequestInit = {}): Promise<
   const fresh = await refreshOnce();
   if (!fresh) return res;
 
-  return fetch(url, withAuth(init, fresh));
+  return platformFetch(url, withAuth(init, fresh));
 }

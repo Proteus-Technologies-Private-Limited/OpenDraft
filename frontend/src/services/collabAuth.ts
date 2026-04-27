@@ -1,4 +1,4 @@
-import { API_BASE } from '../config';
+import { getApiBase } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
 import type { CollabAuth, CollabUser } from '../stores/settingsStore';
 import { platformFetch } from './platform';
@@ -42,10 +42,17 @@ async function parseError(res: Response, fallbackLabel: string): Promise<Error> 
  * backend rather than a raw browser "Failed to fetch".
  */
 async function backendAuthRequest<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${API_BASE}/auth${path}`;
+  const base = getApiBase();
+  if (!base) {
+    throw new Error('OpenDraft Cloud is not configured for this app. Open Settings → System Settings to set the OpenDraft server URL.');
+  }
+  const url = `${base}/auth${path}`;
   let res: Response;
   try {
-    res = await fetch(url, {
+    // platformFetch tunnels through Tauri's http_fetch invoke when running
+    // inside a WebView, sidestepping the WKWebView/Android-WebView mixed-
+    // content block on plain HTTP backends.
+    res = await platformFetch(url, {
       ...options,
       headers: { 'Content-Type': 'application/json', ...options?.headers },
     });
@@ -58,7 +65,11 @@ async function backendAuthRequest<T>(path: string, options?: RequestInit): Promi
 
 /** Same as backendAuthRequest but attaches the bearer token and refreshes on 401. */
 async function backendAuthedRequest<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${API_BASE}/auth${path}`;
+  const base = getApiBase();
+  if (!base) {
+    throw new Error('OpenDraft Cloud is not configured for this app. Open Settings → System Settings to set the OpenDraft server URL.');
+  }
+  const url = `${base}/auth${path}`;
   let res: Response;
   try {
     res = await authedFetch(url, {

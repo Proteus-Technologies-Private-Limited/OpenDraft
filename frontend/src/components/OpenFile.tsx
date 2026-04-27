@@ -77,7 +77,12 @@ function compareScripts(a: ScriptMeta, b: ScriptMeta, sort: SortKey): number {
 const WEB_ONLY_CLOUD = isWeb();
 
 const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose }) => {
-  const signedIn = Boolean(useSettingsStore((s) => s.collabAuth.accessToken));
+  // Only treat the user as signed in once the token has been verified against
+  // the server this session. A stale localStorage token shouldn't let us hit
+  // the cloud API — the request would fail anyway.
+  const accessToken = useSettingsStore((s) => s.collabAuth.accessToken);
+  const authVerified = useSettingsStore((s) => s.authVerified);
+  const signedIn = Boolean(accessToken && authVerified);
   const [source, setSource] = useState<OpenSource>(WEB_ONLY_CLOUD ? 'cloud' : 'local');
   const [groups, setGroups] = useState<ProjectWithScripts[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { collabAuthApi, handleAuthResponse } from '../services/collabAuth';
 import type { CollabServerConfig } from '../services/collabAuth';
 import { initDemoInfo, isDemoMode } from '../services/demoInfo';
@@ -140,7 +141,11 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
     }
   };
 
-  return (
+  // Portal to <body> so position:fixed escapes any ancestor positioning
+  // context. On iOS WKWebView the menu-bar's overflow:scroll container
+  // confines fixed children to its bounds, which made the dialog open but
+  // appear off-screen / clipped — so it looked like the tap did nothing.
+  return createPortal(
     <div className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-box"
@@ -340,7 +345,8 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
           <button className="dialog-btn" onClick={onClose}>Cancel</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

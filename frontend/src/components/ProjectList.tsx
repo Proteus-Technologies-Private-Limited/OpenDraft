@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   DndContext,
@@ -14,10 +14,21 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { FaCloud, FaDesktop } from 'react-icons/fa';
 import { api } from '../services/api';
+import { cloudApi } from '../services/cloudApi';
+import { isWeb } from '../services/platform';
+import { getApiBase } from '../config';
+import { useProjectStore } from '../stores/projectStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import type { ProjectInfo } from '../services/api';
 import { importProjectFromZip } from '../utils/zipImport';
 import { showToast } from './Toast';
+
+type ProjectSource = 'local' | 'cloud';
+
+/** Web is always cloud; the toggle would be misleading. */
+const WEB_ONLY_CLOUD = isWeb();
 
 const ITEM_COLORS = [
   '#e06060', '#e89b4f', '#f4d35e', '#6abf69',
@@ -36,6 +47,7 @@ interface ProjectWithCount extends ProjectInfo {
 interface SortableCardProps {
   project: ProjectWithCount;
   sortKey: SortKey;
+  source: ProjectSource;
   onNavigate: (id: string) => void;
   onPin: (id: string, pinned: boolean) => void;
   onColor: (id: string, color: string) => void;
@@ -47,6 +59,7 @@ interface SortableCardProps {
 const SortableCard: React.FC<SortableCardProps> = ({
   project,
   sortKey,
+  source,
   onNavigate,
   onPin,
   onColor,
@@ -64,8 +77,23 @@ const SortableCard: React.FC<SortableCardProps> = ({
   } = useSortable({ id: project.id, disabled: sortKey !== 'custom' });
 
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showActions, setShowActions] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(project.name);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  // Close the actions dropdown when clicking outside the card. Without this,
+  // the menu stays open as the user moves around the page.
+  React.useEffect(() => {
+    if (!showActions) return;
+    const handler = (e: MouseEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setShowActions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showActions]);
 
   const handleRenameSubmit = () => {
     const trimmed = editName.trim();
@@ -86,7 +114,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => { setNodeRef(node); cardRef.current = node; }}
       style={style}
       className={`project-card${project.pinned ? ' pinned' : ''}`}
     >
@@ -133,6 +161,14 @@ const SortableCard: React.FC<SortableCardProps> = ({
           <span>
             {project.script_count} screenplay{project.script_count !== 1 ? 's' : ''}
           </span>
+          <span className="project-card-dot">&middot;</span>
+          <span
+            className={`source-badge source-badge--${source}`}
+            title={source === 'cloud' ? 'Stored on OpenDraft Cloud' : 'Stored on this device'}
+          >
+            {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
+            {source === 'cloud' ? 'Cloud' : 'Local'}
+          </span>
         </div>
         <div className="project-card-meta">
           <span>Created {formatDate(project.created_at)}</span>
@@ -160,16 +196,39 @@ const SortableCard: React.FC<SortableCardProps> = ({
             style={{ backgroundColor: project.color || '#666' }}
           />
         </button>
-        {project.script_count === 0 && (
-          <button
-            className="card-action-btn delete-btn"
-            onClick={(e) => { e.stopPropagation(); onDelete(project.id); }}
-            title="Delete empty project"
-          >
-            &#x2715;
-          </button>
-        )}
+        <button
+          className="card-action-btn more-btn"
+          onClick={(e) => { e.stopPropagation(); setShowActions((v) => !v); }}
+          title="More actions"
+          aria-haspopup="menu"
+          aria-expanded={showActions}
+        >
+          &#x22EE;
+        </button>
       </div>
+
+      {/* Actions dropdown — Rename and Delete are reachable regardless of
+          whether the project has scripts. Confirmation for non-empty
+          projects is handled by the parent's pendingDelete dialog. */}
+      {showActions && (
+        <div className="script-actions-dropdown script-card-dropdown" onClick={(e) => e.stopPropagation()} role="menu">
+          <div
+            className="dropdown-item"
+            role="menuitem"
+            onClick={() => { setShowActions(false); setEditing(true); setEditName(project.name); }}
+          >
+            Rename
+          </div>
+          <div className="dropdown-separator" />
+          <div
+            className="dropdown-item dropdown-item-danger"
+            role="menuitem"
+            onClick={() => { setShowActions(false); onDelete(project.id); }}
+          >
+            Delete
+          </div>
+        </div>
+      )}
 
       {/* Color picker dropdown */}
       {showColorPicker && (
@@ -200,23 +259,59 @@ const ProjectList: React.FC = () => {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [source, setSource] = useState<ProjectSource>(() => {
+    if (WEB_ONLY_CLOUD) return 'cloud';
+    return ((localStorage.getItem('opendraft:projectSource') as ProjectSource) || 'local');
+  });
   const [sortKey, setSortKey] = useState<SortKey>(() => {
     return (localStorage.getItem('opendraft:projectSort') as SortKey) || 'custom';
   });
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string>('');
+
+  const accessToken = useSettingsStore((s) => s.collabAuth.accessToken);
+  const authVerified = useSettingsStore((s) => s.authVerified);
+  const signedIn = Boolean(accessToken && authVerified);
+  const syncCloudProjects = useProjectStore((s) => s.syncCloudProjects);
+  const markCloudProject = useProjectStore((s) => s.markCloudProject);
+  const unmarkCloudProject = useProjectStore((s) => s.unmarkCloudProject);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
+  // Persist the chosen tab so reopening the app remembers what the user was
+  // browsing last. Web stays locked to 'cloud' so we don't clobber that.
+  useEffect(() => {
+    if (!WEB_ONLY_CLOUD) {
+      try { localStorage.setItem('opendraft:projectSource', source); } catch { /* ignore */ }
+    }
+  }, [source]);
+
   const fetchProjects = useCallback(async () => {
     setLoading(true);
+    setErrorMsg('');
     try {
-      const projectList = await api.listProjects();
+      // Cloud listing requires a verified login. Empty state with a hint is
+      // better than a confusing "no projects" when the user just hasn't
+      // signed in yet.
+      if (source === 'cloud' && !signedIn) {
+        setProjects([]);
+        setLoading(false);
+        return;
+      }
+      const client = source === 'cloud' ? cloudApi : api;
+      const projectList = await client.listProjects();
+      // Keep the cloud-project marker set in sync with what the server
+      // currently returns. ProjectView reads this to dispatch reads/writes
+      // to cloudApi.
+      if (source === 'cloud') {
+        syncCloudProjects(projectList.map((p) => p.id));
+      }
       const withCounts: ProjectWithCount[] = await Promise.all(
         projectList.map(async (p) => {
           try {
-            const scripts = await api.listScripts(p.id);
+            const scripts = await client.listScripts(p.id);
             return { ...p, script_count: scripts.length };
           } catch {
             return { ...p, script_count: 0 };
@@ -224,11 +319,12 @@ const ProjectList: React.FC = () => {
         }),
       );
       setProjects(withCounts);
-    } catch {
-      // silently fail
+    } catch (err) {
+      setProjects([]);
+      setErrorMsg(err instanceof Error ? err.message : 'Could not load projects');
     }
     setLoading(false);
-  }, []);
+  }, [source, signedIn, syncCloudProjects]);
 
   useEffect(() => {
     fetchProjects();
@@ -272,11 +368,20 @@ const ProjectList: React.FC = () => {
 
   // ── Handlers ──
 
+  /** All mutations route through whichever backend currently owns this view.
+   *  Cloud view → cloudApi. Local view → api (local SQLite on Tauri). */
+  const client = source === 'cloud' ? cloudApi : api;
+
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
+    if (source === 'cloud' && !signedIn) {
+      window.dispatchEvent(new CustomEvent('opendraft:auth-required'));
+      return;
+    }
     setCreating(true);
     try {
-      await api.createProject(newProjectName.trim());
+      const created = await client.createProject(newProjectName.trim());
+      if (source === 'cloud') markCloudProject(created.id);
       setShowNewDialog(false);
       setNewProjectName('');
       await fetchProjects();
@@ -293,7 +398,7 @@ const ProjectList: React.FC = () => {
         list.map((p) => (p.id === id ? { ...p, name } : p)),
       );
       try {
-        await api.updateProject(id, { name });
+        await client.updateProject(id, { name });
       } catch {
         if (prev) {
           setProjects((list) =>
@@ -302,7 +407,7 @@ const ProjectList: React.FC = () => {
         }
       }
     },
-    [projects],
+    [projects, client],
   );
 
   const handlePin = useCallback(
@@ -311,7 +416,7 @@ const ProjectList: React.FC = () => {
         prev.map((p) => (p.id === id ? { ...p, pinned } : p)),
       );
       try {
-        await api.updateProject(id, { pinned });
+        await client.updateProject(id, { pinned });
       } catch {
         // revert on failure
         setProjects((prev) =>
@@ -319,7 +424,7 @@ const ProjectList: React.FC = () => {
         );
       }
     },
-    [],
+    [client],
   );
 
   const handleColor = useCallback(
@@ -328,12 +433,12 @@ const ProjectList: React.FC = () => {
         prev.map((p) => (p.id === id ? { ...p, color } : p)),
       );
       try {
-        await api.updateProject(id, { color });
+        await client.updateProject(id, { color });
       } catch {
         // silently fail — color already updated visually
       }
     },
-    [],
+    [client],
   );
 
   const handleDelete = useCallback((id: string) => {
@@ -343,7 +448,8 @@ const ProjectList: React.FC = () => {
   const confirmDelete = useCallback(async () => {
     if (!pendingDeleteId) return;
     try {
-      await api.deleteProject(pendingDeleteId);
+      await client.deleteProject(pendingDeleteId);
+      if (source === 'cloud') unmarkCloudProject(pendingDeleteId);
       showToast('Project deleted', 'success');
       await fetchProjects();
     } catch (err) {
@@ -353,7 +459,7 @@ const ProjectList: React.FC = () => {
       );
     }
     setPendingDeleteId(null);
-  }, [pendingDeleteId, fetchProjects]);
+  }, [pendingDeleteId, fetchProjects, client, source, unmarkCloudProject]);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -373,9 +479,9 @@ const ProjectList: React.FC = () => {
       setProjects(updated);
 
       // Persist
-      api.reorderProjects(updated.map((p) => ({ id: p.id, sort_order: p.sort_order }))).catch(() => {});
+      client.reorderProjects(updated.map((p) => ({ id: p.id, sort_order: p.sort_order }))).catch(() => {});
     },
-    [allSortedProjects],
+    [allSortedProjects, client],
   );
 
   const formatDate = (iso: string): string => {
@@ -393,10 +499,41 @@ const ProjectList: React.FC = () => {
 
   return (
     <div className="project-list-page">
+      {!WEB_ONLY_CLOUD && (
+        <div className="project-source-bar" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={source === 'local'}
+            className={`project-source-tab ${source === 'local' ? 'active' : ''}`}
+            onClick={() => setSource('local')}
+          >
+            <FaDesktop /> This device
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={source === 'cloud'}
+            className={`project-source-tab ${source === 'cloud' ? 'active' : ''}`}
+            onClick={() => setSource('cloud')}
+          >
+            <FaCloud /> OpenDraft Cloud
+          </button>
+        </div>
+      )}
+
       <div className="project-list-header">
         <div className="project-list-title-area">
-          <h1 className="project-list-title">Open Draft</h1>
-          <span className="project-list-subtitle">Your Projects</span>
+          <h1 className="project-list-title">Projects</h1>
+          <span className="project-list-subtitle">
+            {source === 'cloud' ? 'OpenDraft Cloud' : 'On this device'}
+            {source === 'cloud' && getApiBase() && (
+              <>
+                {' · '}
+                <span title="Server this app is talking to">{getApiBase()}</span>
+              </>
+            )}
+          </span>
         </div>
         <div className="project-list-controls">
           <select
@@ -410,29 +547,31 @@ const ProjectList: React.FC = () => {
             <option value="updated">Last Modified</option>
             <option value="color">Color</option>
           </select>
-          <button
-            className="project-new-btn"
-            onClick={async () => {
-              try {
-                const { openBinaryFile } = await import('../utils/fileOps');
-                const result = await openBinaryFile([
-                  { name: 'ZIP Archive', extensions: ['zip'] },
-                ]);
-                if (!result) return;
-                const newId = await importProjectFromZip(result.content);
-                await fetchProjects();
-                showToast('Project imported', 'success');
-                navigate(`/project/${newId}`);
-              } catch (err) {
-                showToast(
-                  `Import failed: ${err instanceof Error ? err.message : String(err)}`,
-                  'error',
-                );
-              }
-            }}
-          >
-            Import Project
-          </button>
+          {source === 'local' && (
+            <button
+              className="project-new-btn project-secondary-btn"
+              onClick={async () => {
+                try {
+                  const { openBinaryFile } = await import('../utils/fileOps');
+                  const result = await openBinaryFile([
+                    { name: 'ZIP Archive', extensions: ['zip'] },
+                  ]);
+                  if (!result) return;
+                  const newId = await importProjectFromZip(result.content);
+                  await fetchProjects();
+                  showToast('Project imported', 'success');
+                  navigate(`/project/${newId}`);
+                } catch (err) {
+                  showToast(
+                    `Import failed: ${err instanceof Error ? err.message : String(err)}`,
+                    'error',
+                  );
+                }
+              }}
+            >
+              Import Project
+            </button>
+          )}
           <button
             className="project-new-btn"
             onClick={() => setShowNewDialog(true)}
@@ -444,10 +583,24 @@ const ProjectList: React.FC = () => {
 
       {loading ? (
         <div className="project-list-loading">Loading projects...</div>
+      ) : source === 'cloud' && !signedIn ? (
+        <div className="project-list-empty">
+          <div className="project-list-empty-icon">&#9729;</div>
+          <div>Sign in to access OpenDraft Cloud projects. Click the "Local only" indicator at the top to sign in.</div>
+        </div>
+      ) : errorMsg ? (
+        <div className="project-list-empty">
+          <div className="project-list-empty-icon">&#9888;</div>
+          <div>{errorMsg}</div>
+        </div>
       ) : projects.length === 0 ? (
         <div className="project-list-empty">
           <div className="project-list-empty-icon">&#128209;</div>
-          <div>No projects yet. Create your first project to get started.</div>
+          <div>
+            {source === 'cloud'
+              ? 'No cloud projects yet. Create one or upload via File › Save to Cloud from the editor.'
+              : 'No projects yet. Create your first project to get started.'}
+          </div>
         </div>
       ) : (
         <DndContext
@@ -468,6 +621,7 @@ const ProjectList: React.FC = () => {
                       key={project.id}
                       project={project}
                       sortKey={sortKey}
+                      source={source}
                       onNavigate={(id) => navigate(`/project/${id}`)}
                       onPin={handlePin}
                       onColor={handleColor}
@@ -493,6 +647,7 @@ const ProjectList: React.FC = () => {
                       key={project.id}
                       project={project}
                       sortKey={sortKey}
+                      source={source}
                       onNavigate={(id) => navigate(`/project/${id}`)}
                       onPin={handlePin}
                       onColor={handleColor}

@@ -7,6 +7,7 @@ import SettingsPage from './components/SettingsPage';
 import Toast from './components/Toast';
 import DemoBanner from './components/DemoBanner';
 import AuthGate from './components/AuthGate';
+import AuthBootstrap from './components/AuthBootstrap';
 import VerifyEmailRoute from './components/VerifyEmailRoute';
 import { pluginRegistry } from './plugins/registry';
 import './styles/screenplay.css';
@@ -33,6 +34,7 @@ function App() {
       </Routes>
       <Toast />
       <AuthGate />
+      <AuthBootstrap />
     </>
   );
 }

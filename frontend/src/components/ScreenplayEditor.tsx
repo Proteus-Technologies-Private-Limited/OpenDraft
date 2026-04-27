@@ -61,6 +61,8 @@ import { spellChecker } from '../editor/spellchecker';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
+import { cloudApi } from '../services/cloudApi';
+import { projectApi } from '../services/projectApi';
 import { scriptApi } from '../services/scriptApi';
 import { API_BASE, getCollabWsUrl } from '../config';
 import { showToast } from './Toast';
@@ -507,7 +509,7 @@ const ScreenplayEditor: React.FC = () => {
       const session = await api.validateCollabSession(sharedToken);
       const nonce = session.session_nonce || '';
 
-      const project = await api.getProject(projectId);
+      const project = await projectApi.getProject(projectId);
       const scriptResp = await scriptApi.getScript(projectId, scriptId);
 
       const content = scriptResp.content as Record<string, unknown> | null;
@@ -806,7 +808,7 @@ const ScreenplayEditor: React.FC = () => {
 
     // 4. Load the new script content and reconnect host
     try {
-      const project = await api.getProject(newProjectId);
+      const project = await projectApi.getProject(newProjectId);
       const scriptResp = await scriptApi.getScript(newProjectId, newScriptId);
 
       const content = scriptResp.content as Record<string, unknown> | null;
@@ -1968,7 +1970,7 @@ const ScreenplayEditor: React.FC = () => {
           }
         }
 
-        const project = await api.getProject(urlProjectId);
+        const project = await projectApi.getProject(urlProjectId);
         setCurrentProject(project);
         setCurrentScriptId(isHistoryMode ? null : urlScriptId);
 
@@ -2868,25 +2870,45 @@ const ScreenplayEditor: React.FC = () => {
   }, [editor, hasUnsavedChanges, importDroppedFile]);
 
   const handleSaveAsComplete = useCallback(
-    async (projectId: string, _projectName: string, scriptId: string, scriptTitle: string) => {
+    async (
+      projectId: string,
+      _projectName: string,
+      scriptId: string,
+      scriptTitle: string,
+      destination: 'local' | 'cloud',
+    ) => {
       setSaveAsOpen(false);
       // Check if there's a deferred action (e.g. "New Screenplay") waiting
       const store = useEditorStore.getState();
       const hasDeferredAction = !!store.postSaveAction;
 
+      // Use the same backend the SaveAsDialog wrote to. Without this branch
+      // a cloud-saved script would 404 against the local SQLite getProject
+      // and the editor would never finish wiring up to the new file.
+      const client = destination === 'cloud' ? cloudApi : api;
+
       try {
-        const project = await api.getProject(projectId);
+        const project = await client.getProject(projectId);
+        if (destination === 'cloud') {
+          // Mark BOTH the project and the script as cloud-routed. The script
+          // marker keeps subsequent saves dispatching to cloudApi; the
+          // project marker makes the project show up under the "Cloud" tab
+          // of the project list and routes ProjectView's reads correctly.
+          const ps = useProjectStore.getState();
+          ps.markCloudProject(projectId);
+          ps.markCloudScript(projectId, scriptId);
+        }
         setCurrentProject(project);
         setCurrentScriptId(scriptId);
         setDocumentTitle(scriptTitle);
-        const scripts = await api.listScripts(projectId);
+        const scripts = await client.listScripts(projectId);
         useProjectStore.getState().setScripts(scripts);
         // Only navigate to the project route if there's no deferred action
         // that will reset the editor state (e.g. New Screenplay)
         if (!hasDeferredAction) {
           navigate(`/project/${projectId}/edit/${scriptId}`, { replace: true });
         }
-        showToast('Saved', 'success');
+        showToast(destination === 'cloud' ? 'Saved to cloud' : 'Saved', 'success');
       } catch (err) {
         console.error('Failed to finalize save:', err);
       }
@@ -3478,6 +3500,11 @@ const ScreenplayEditor: React.FC = () => {
         <SaveAsDialog
           defaultProjectName={currentProject?.name || 'My Project'}
           defaultFileName={useEditorStore.getState().documentTitle || 'First Draft'}
+          defaultDestination={
+            currentProject && useProjectStore.getState().isCloudProject(currentProject.id)
+              ? 'cloud'
+              : 'local'
+          }
           onSaved={handleSaveAsComplete}
           onClose={() => setSaveAsOpen(false)}
           buildContent={buildSaveContent}

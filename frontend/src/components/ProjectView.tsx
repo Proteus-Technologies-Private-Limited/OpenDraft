@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { FaCloud, FaDesktop } from 'react-icons/fa';
 import {
   DndContext,
   closestCenter,
@@ -16,6 +17,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { api } from '../services/api';
+import { cloudApi } from '../services/cloudApi';
+import { projectApi } from '../services/projectApi';
 import type { ProjectInfo, ScriptMeta, VersionInfo } from '../services/api';
 import { parseFountain } from '../utils/fountainParser';
 import { parseFDXFull } from '../utils/fdxParser';
@@ -93,6 +96,7 @@ type ScriptSortKey = 'custom' | 'title' | 'created' | 'updated' | 'color' | 'siz
 interface SortableScriptRowProps {
   script: ScriptMeta;
   projectId: string;
+  source: 'local' | 'cloud';
   sortKey: ScriptSortKey;
   onNavigate: (id: string) => void;
   onPin: (id: string, pinned: boolean) => void;
@@ -107,6 +111,7 @@ interface SortableScriptRowProps {
 
 const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
   script,
+  source,
   sortKey,
   onNavigate,
   onPin,
@@ -218,6 +223,14 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
           )}
           <span className="project-card-dot">&middot;</span>
           <span>{formatSize(script.size_bytes)}</span>
+          <span className="project-card-dot">&middot;</span>
+          <span
+            className={`source-badge source-badge--${source}`}
+            title={source === 'cloud' ? 'Stored on OpenDraft Cloud' : 'Stored on this device'}
+          >
+            {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
+            {source === 'cloud' ? 'Cloud' : 'Local'}
+          </span>
         </div>
       </div>
 
@@ -287,6 +300,7 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
 
 interface ScriptCardProps {
   script: ScriptMeta;
+  source: 'local' | 'cloud';
   sortKey: ScriptSortKey;
   onNavigate: (id: string) => void;
   onPin: (id: string, pinned: boolean) => void;
@@ -299,6 +313,7 @@ interface ScriptCardProps {
 
 const ScriptCard: React.FC<ScriptCardProps> = ({
   script,
+  source,
   sortKey,
   onNavigate,
   onPin,
@@ -426,6 +441,13 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
       <div className="script-card-meta">
         {script.page_count > 0 && <span>{script.page_count} pg</span>}
         <span>{formatDate(script.updated_at)}</span>
+        <span
+          className={`source-badge source-badge--${source}`}
+          title={source === 'cloud' ? 'Stored on OpenDraft Cloud' : 'Stored on this device'}
+        >
+          {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
+          {source === 'cloud' ? 'Cloud' : 'Local'}
+        </span>
       </div>
 
       {/* Actions dropdown */}
@@ -451,6 +473,15 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
 const ProjectView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  // Project's storage source — drives both the routing dispatchers (already
+  // handled by projectApi) and the visual badges on individual scripts.
+  const isCloud = useProjectStore((s) => projectId ? Boolean(s.cloudProjects[projectId]) : false);
+  const projectSource: 'local' | 'cloud' = isCloud ? 'cloud' : 'local';
+  // All script-level reads/writes (rename, pin, color, delete, duplicate)
+  // need to go to the same backend that owns the project. Without this,
+  // renaming or deleting a script inside a cloud project would hit local
+  // SQLite, find nothing, and silently no-op (or 404).
+  const client = isCloud ? cloudApi : api;
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [scripts, setScripts] = useState<ScriptMeta[]>([]);
   const [versions, setVersions] = useState<VersionInfo[]>([]);
@@ -475,7 +506,7 @@ const ProjectView: React.FC = () => {
   const fetchProject = useCallback(async () => {
     if (!projectId) return;
     try {
-      const p = await api.getProject(projectId);
+      const p = await projectApi.getProject(projectId);
       setProject(p);
     } catch {
       navigate('/');
@@ -485,7 +516,7 @@ const ProjectView: React.FC = () => {
   const fetchScripts = useCallback(async () => {
     if (!projectId) return;
     try {
-      const s = await api.listScripts(projectId);
+      const s = await projectApi.listScripts(projectId);
       setScripts(s);
     } catch {
       // silently fail
@@ -517,7 +548,7 @@ const ProjectView: React.FC = () => {
     localStorage.setItem('opendraft:scriptViewMode', viewMode);
     // Re-fetch with previews when switching to card view
     if (viewMode === 'card' && projectId) {
-      api.listScripts(projectId, true).then(setScripts).catch(() => {});
+      projectApi.listScripts(projectId, true).then(setScripts).catch(() => {});
     }
   }, [viewMode, projectId]);
 
@@ -589,7 +620,7 @@ const ProjectView: React.FC = () => {
     const name = rawName.trim() || 'Untitled Treatment';
     setTreatmentNamePrompt(null);
     try {
-      const resp = await api.createScript(projectId, {
+      const resp = await client.createScript(projectId, {
         title: name,
         format: 'treatment',
         content: { type: 'doc', content: [{ type: 'paragraph' }] },
@@ -622,7 +653,7 @@ const ProjectView: React.FC = () => {
   const confirmDeleteScript = async () => {
     if (!projectId || !pendingDeleteId) return;
     try {
-      await api.deleteScript(projectId, pendingDeleteId);
+      await client.deleteScript(projectId, pendingDeleteId);
       await fetchScripts();
     } catch (err) {
       showToast(
@@ -640,14 +671,14 @@ const ProjectView: React.FC = () => {
         prev.map((s) => (s.id === id ? { ...s, pinned } : s)),
       );
       try {
-        await api.saveScript(projectId, id, { pinned });
+        await client.saveScript(projectId, id, { pinned });
       } catch {
         setScripts((prev) =>
           prev.map((s) => (s.id === id ? { ...s, pinned: !pinned } : s)),
         );
       }
     },
-    [projectId],
+    [projectId, client],
   );
 
   const handleColorScript = useCallback(
@@ -657,12 +688,12 @@ const ProjectView: React.FC = () => {
         prev.map((s) => (s.id === id ? { ...s, color } : s)),
       );
       try {
-        await api.saveScript(projectId, id, { color });
+        await client.saveScript(projectId, id, { color });
       } catch {
         // silently fail
       }
     },
-    [projectId],
+    [projectId, client],
   );
 
   const handleRenameScript = useCallback(
@@ -673,23 +704,42 @@ const ProjectView: React.FC = () => {
         list.map((s) => (s.id === id ? { ...s, title } : s)),
       );
       try {
-        await api.saveScript(projectId, id, { title });
-      } catch {
+        await client.saveScript(projectId, id, { title });
+      } catch (err) {
+        // Roll back on failure and surface the reason — silently swallowing
+        // here is what made "rename doesn't work" so confusing in the cloud
+        // case.
         if (prev) {
           setScripts((list) =>
             list.map((s) => (s.id === id ? { ...s, title: prev.title } : s)),
           );
         }
+        showToast(
+          `Rename failed: ${err instanceof Error ? err.message : String(err)}`,
+          'error',
+        );
       }
     },
-    [projectId, scripts],
+    [projectId, scripts, client],
   );
 
   const handleDuplicateScript = useCallback(
     async (id: string) => {
       if (!projectId) return;
       try {
-        await api.duplicateScript(projectId, id);
+        if (isCloud) {
+          // cloudApi has no native duplicate endpoint yet; fall back to
+          // get + re-create so users still get a working duplicate from
+          // a cloud project.
+          const orig = await cloudApi.getScript(projectId, id);
+          await cloudApi.createScript(projectId, {
+            title: `${orig.meta.title} (copy)`,
+            content: orig.content,
+            format: 'json',
+          });
+        } else {
+          await api.duplicateScript(projectId, id);
+        }
         await fetchScripts();
         showToast('Script duplicated', 'success');
       } catch (err) {
@@ -699,14 +749,14 @@ const ProjectView: React.FC = () => {
         );
       }
     },
-    [projectId, fetchScripts],
+    [projectId, fetchScripts, isCloud],
   );
 
   const handleExportScript = useCallback(
     async (id: string, format: string) => {
       if (!projectId) return;
       try {
-        const resp = await api.getScript(projectId, id);
+        const resp = await client.getScript(projectId, id);
         const content = resp.content as Record<string, unknown>;
         const title = resp.meta.title || 'Untitled';
 
@@ -757,14 +807,14 @@ const ProjectView: React.FC = () => {
       const updated = reordered.map((s, i) => ({ ...s, sort_order: i }));
       setScripts(updated);
 
-      api
+      client
         .reorderScripts(
           projectId,
           updated.map((s) => ({ id: s.id, sort_order: s.sort_order })),
         )
         .catch(() => {});
     },
-    [projectId, allSortedScripts],
+    [projectId, allSortedScripts, client],
   );
 
   const handleImportScript = () => {
@@ -791,7 +841,7 @@ const ProjectView: React.FC = () => {
           doc = parseFountain(text);
         }
         try {
-          const resp = await api.createScript(projectId, {
+          const resp = await client.createScript(projectId, {
             title,
             content: doc,
           });
@@ -854,7 +904,7 @@ const ProjectView: React.FC = () => {
                 if (e.key === 'Enter') {
                   const trimmed = editProjectName.trim();
                   if (trimmed && project && trimmed !== project.name) {
-                    api.updateProject(project.id, { name: trimmed }).then((updated) => setProject(updated)).catch(() => {});
+                    projectApi.updateProject(project.id, { name: trimmed }).then((updated) => setProject(updated)).catch(() => {});
                   }
                   setEditingProjectName(false);
                 }
@@ -863,7 +913,7 @@ const ProjectView: React.FC = () => {
               onBlur={() => {
                 const trimmed = editProjectName.trim();
                 if (trimmed && project && trimmed !== project.name) {
-                  api.updateProject(project.id, { name: trimmed }).then((updated) => setProject(updated)).catch(() => {});
+                  projectApi.updateProject(project.id, { name: trimmed }).then((updated) => setProject(updated)).catch(() => {});
                 }
                 setEditingProjectName(false);
               }}
@@ -994,6 +1044,7 @@ const ProjectView: React.FC = () => {
                           <ScriptCard
                             key={script.id}
                             script={script}
+                            source={projectSource}
                             sortKey={scriptSortKey}
                             onNavigate={navigateToScript}
                             onPin={handlePinScript}
@@ -1020,6 +1071,7 @@ const ProjectView: React.FC = () => {
                           <ScriptCard
                             key={script.id}
                             script={script}
+                            source={projectSource}
                             sortKey={scriptSortKey}
                             onNavigate={navigateToScript}
                             onPin={handlePinScript}
@@ -1055,6 +1107,7 @@ const ProjectView: React.FC = () => {
                             key={script.id}
                             script={script}
                             projectId={projectId!}
+                            source={projectSource}
                             sortKey={scriptSortKey}
                             onNavigate={navigateToScript}
                             onPin={handlePinScript}
@@ -1084,6 +1137,7 @@ const ProjectView: React.FC = () => {
                             key={script.id}
                             script={script}
                             projectId={projectId!}
+                            source={projectSource}
                             sortKey={scriptSortKey}
                             onNavigate={navigateToScript}
                             onPin={handlePinScript}

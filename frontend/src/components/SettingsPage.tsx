@@ -28,6 +28,15 @@ const SettingsPage: React.FC = () => {
   const [urlInput, setUrlInput] = useState(collabServerUrl);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
 
+  // OpenDraft Cloud (HTTP backend) URL — distinct from the collab WebSocket
+  // server. On Tauri custom schemes the same-origin default doesn't work, so
+  // the user must point at a real backend (e.g. https://opendraft-demo…/api).
+  const CLOUD_API_KEY = 'opendraft:cloudApiUrl';
+  const [cloudApiInput, setCloudApiInput] = useState<string>(() => {
+    try { return localStorage.getItem(CLOUD_API_KEY) || ''; } catch { return ''; }
+  });
+  const [cloudApiStatus, setCloudApiStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
+
   // Auth forms — remember email only; never store password.
   // Migrate away from the legacy password-storing key on first render.
   useEffect(() => {
@@ -78,6 +87,41 @@ const SettingsPage: React.FC = () => {
     }
     setCollabServerUrl(trimmed);
     showToast('Collaboration server URL saved', 'success');
+  };
+
+  const handleSaveCloudApi = () => {
+    const trimmed = cloudApiInput.trim().replace(/\/+$/, '');
+    if (trimmed && !/^https?:\/\//.test(trimmed)) {
+      showToast('URL must start with http:// or https://', 'error');
+      return;
+    }
+    try {
+      if (trimmed) localStorage.setItem(CLOUD_API_KEY, trimmed);
+      else localStorage.removeItem(CLOUD_API_KEY);
+      showToast('OpenDraft Cloud URL saved', 'success');
+    } catch {
+      showToast('Could not save URL', 'error');
+    }
+  };
+
+  const handleTestCloudApi = async () => {
+    const trimmed = cloudApiInput.trim().replace(/\/+$/, '');
+    if (!trimmed) { setCloudApiStatus('fail'); return; }
+    setCloudApiStatus('testing');
+    try {
+      // The Python backend exposes /api/demo-info even without auth, so it's a
+      // safe reachability probe. Route through platformFetch so the same
+      // mixed-content tunnel the real cloud calls use is exercised here —
+      // otherwise the test passes/fails on a different code path than the
+      // actual login/projects requests.
+      const { platformFetch } = await import('../services/platform');
+      const probe = trimmed.endsWith('/api') ? `${trimmed}/demo-info` : `${trimmed}/api/demo-info`;
+      const res = await platformFetch(probe);
+      setCloudApiStatus(res.ok ? 'ok' : 'fail');
+    } catch {
+      setCloudApiStatus('fail');
+    }
+    setTimeout(() => setCloudApiStatus('idle'), 3000);
   };
 
   const handleTestConnection = async () => {
@@ -268,6 +312,50 @@ const SettingsPage: React.FC = () => {
             )}
             {urlInput.startsWith('ws://') && (
               <div className="settings-hint">No encryption (ws://). Suitable for local networks only.</div>
+            )}
+          </div>
+        </section>
+
+        {/* ── OpenDraft Cloud API URL ── */}
+        <section className="settings-section">
+          <h2 className="settings-section-title">OpenDraft Cloud Server</h2>
+          <p className="settings-section-desc">
+            HTTP backend used for sign-in, projects, and "Save to Cloud". Leave blank
+            in the browser to use this site's <code>/api</code>. Required on the
+            desktop and mobile apps — point it at your OpenDraft backend, e.g.
+            <code> https://opendraft-demo.duckdns.org</code> or
+            <code> https://opendraft-demo.duckdns.org/api</code> (the
+            <code>/api</code> suffix is added automatically if missing).
+          </p>
+
+          <div className="settings-row">
+            <label>Cloud API URL</label>
+            <div className="settings-url-row">
+              <input
+                className="dialog-input settings-url-input"
+                value={cloudApiInput}
+                onChange={(e) => setCloudApiInput(e.target.value)}
+                placeholder="https://opendraft-demo.duckdns.org/api"
+                onKeyDown={(e) => handleKeyDown(e, handleSaveCloudApi)}
+              />
+              <button className="dialog-btn dialog-btn-primary" onClick={handleSaveCloudApi}>
+                Save
+              </button>
+              <button
+                className="dialog-btn"
+                onClick={handleTestCloudApi}
+                disabled={cloudApiStatus === 'testing'}
+              >
+                {cloudApiStatus === 'testing' ? 'Testing...' :
+                  cloudApiStatus === 'ok' ? 'Reachable' :
+                    cloudApiStatus === 'fail' ? 'Failed' : 'Test'}
+              </button>
+            </div>
+            {cloudApiStatus === 'ok' && (
+              <div className="settings-status settings-status-ok">Server is reachable</div>
+            )}
+            {cloudApiStatus === 'fail' && (
+              <div className="settings-status settings-status-fail">Cannot reach server</div>
             )}
           </div>
         </section>

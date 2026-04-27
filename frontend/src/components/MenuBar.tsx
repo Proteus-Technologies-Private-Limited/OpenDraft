@@ -184,6 +184,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     setScripts,
     setVersionHistoryOpen,
     markCloudScript,
+    markCloudProject,
     isCloudScript,
   } = useProjectStore();
 
@@ -243,14 +244,57 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen]);
 
   // ── Save to Cloud: upload current buffer to the backend as a cloud script ──
-  const signedIn = Boolean(useSettingsStore((s) => s.collabAuth.accessToken));
+  // Treat as signed in only after /auth/me has confirmed the token this
+  // session — a stale localStorage token would otherwise invite a doomed
+  // upload that errors out cryptically.
+  const cloudAccessToken = useSettingsStore((s) => s.collabAuth.accessToken);
+  const cloudAuthVerified = useSettingsStore((s) => s.authVerified);
+  const signedIn = Boolean(cloudAccessToken && cloudAuthVerified);
+
+  /** Block until the user is signed in (verified token). Opens the login
+   *  dialog via AuthGate and resolves once a verified token arrives, or
+   *  resolves false if the user closes the dialog without signing in. */
+  const ensureSignedIn = useCallback((): Promise<boolean> => {
+    if (useSettingsStore.getState().authVerified
+        && useSettingsStore.getState().collabAuth.accessToken) {
+      return Promise.resolve(true);
+    }
+    return new Promise<boolean>((resolve) => {
+      let settled = false;
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        unsub();
+        clearInterval(closeWatch);
+        resolve(ok);
+      };
+      // Resolve as soon as the store flips to a verified, signed-in state.
+      const unsub = useSettingsStore.subscribe((state) => {
+        if (state.authVerified && state.collabAuth.accessToken) finish(true);
+      });
+      // AuthGate's login dialog has no "closed" event — poll the DOM cheaply
+      // for the .dialog-overlay it renders. When the overlay disappears
+      // without a token landing, the user dismissed the dialog and we abort
+      // the cloud save instead of hanging forever.
+      let sawDialog = false;
+      const closeWatch = setInterval(() => {
+        const overlay = document.querySelector('.dialog-overlay');
+        if (overlay) sawDialog = true;
+        else if (sawDialog && !useSettingsStore.getState().collabAuth.accessToken) {
+          finish(false);
+        }
+      }, 400);
+      window.dispatchEvent(new CustomEvent('opendraft:auth-required'));
+    });
+  }, []);
+
   const handleSaveToCloud = useCallback(async () => {
     if (!editor) return;
     if (!signedIn) {
-      // AuthGate will show the login dialog when the API returns 401, but
-      // opening it pre-emptively avoids a doomed round-trip.
-      window.dispatchEvent(new CustomEvent('opendraft:auth-required'));
-      return;
+      // Open the login dialog, then resume the save once the user is in. If
+      // they cancel, drop the save quietly — they explicitly chose not to.
+      const ok = await ensureSignedIn();
+      if (!ok) return;
     }
     const content = buildSaveContent();
     if (!content) {
@@ -283,6 +327,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         content,
         format: 'json',
       });
+      markCloudProject(cloudProject.id);
       markCloudScript(cloudProject.id, created.meta.id);
       setCurrentProject(cloudProject);
       setCurrentScriptId(created.meta.id);
@@ -298,7 +343,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         showToast(`Save to cloud failed: ${msg}`, 'error');
       }
     }
-  }, [editor, signedIn, buildSaveContent, documentTitle, currentProject, markCloudScript, setCurrentProject, setCurrentScriptId, navigate]);
+  }, [editor, signedIn, ensureSignedIn, buildSaveContent, documentTitle, currentProject, markCloudScript, markCloudProject, setCurrentProject, setCurrentScriptId, navigate]);
 
   // ── Unsaved-changes confirmation before New / Import ──
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
@@ -986,7 +1031,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           ],
         },
         { separator: true, label: '' },
-        { icon: <FaCog />, label: 'System Settings...', action: () => { window.location.href = '/settings'; } },
+        { icon: <FaCog />, label: 'System Settings...', action: () => navigate('/settings') },
         { separator: true, label: '' },
         {
           icon: <FaFilm />, label: 'Production',

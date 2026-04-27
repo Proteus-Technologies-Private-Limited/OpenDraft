@@ -6170,6 +6170,73 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   overflow-y: auto;
   box-sizing: border-box;
 }
+/* Top-level scope switch — sits above the title so the user picks "where"
+   first, then operates on whatever's inside. */
+.project-source-bar {
+  display: flex;
+  gap: 0;
+  max-width: 1200px;
+  margin: 0 auto 24px;
+  border-bottom: 1px solid var(--fd-border);
+}
+.project-source-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--fd-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.project-source-tab:hover { color: var(--fd-text); }
+.project-source-tab.active {
+  color: var(--fd-accent);
+  border-bottom-color: var(--fd-accent);
+}
+
+/* Secondary action buttons (e.g. Import Project) — visually subordinate to
+   the primary "+ New Project" button so the hierarchy reads at a glance. */
+.project-secondary-btn {
+  background: transparent !important;
+  color: var(--fd-text-muted) !important;
+  border: 1px solid var(--fd-border) !important;
+}
+.project-secondary-btn:hover {
+  background: var(--fd-menu-hover) !important;
+  color: var(--fd-text) !important;
+}
+
+/* Source badge on project / script cards. Tells the user where the file
+   actually lives at a glance, even when the active tab matches. */
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border: 1px solid var(--fd-border);
+  background: var(--fd-bg);
+  color: var(--fd-text-muted);
+}
+.source-badge--cloud {
+  color: #5aa9ff;
+  border-color: rgba(90, 169, 255, 0.4);
+  background: rgba(90, 169, 255, 0.08);
+}
+.source-badge--local {
+  color: var(--fd-text-muted);
+}
+
 .project-list-header {
   display: flex;
   justify-content: space-between;
@@ -6260,7 +6327,24 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   cursor: default;
   transition: border-color 0.15s, box-shadow 0.15s;
   position: relative;
-  overflow: hidden;
+  /* Visible so the actions dropdown can extend past the card. The color
+     stripe carries its own border-radius, so it doesn't need parent clipping. */
+  overflow: visible;
+}
+/* Lift the card whose menu is open above its neighbours; otherwise the
+   dropdown can be drawn behind the next card in the grid. */
+.project-card:has(.script-card-dropdown) {
+  z-index: 10;
+}
+/* Anchor the actions dropdown above the project card's actions row so
+   it opens upward over the card body. Dropping below would push past the
+   bottom of the viewport on the last grid row, and dropping over the
+   actions themselves would re-cover the "more" button. */
+.project-card > .script-card-dropdown {
+  top: auto;
+  bottom: 56px;
+  right: 8px;
+  margin-top: 0;
 }
 .project-card:hover {
   border-color: var(--fd-accent);
@@ -8710,13 +8794,63 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   /* Asset manager: full-width */
   .asset-manager.dialog { width: calc(100vw - 24px); max-width: 720px; }
 
-  /* Project list: compact */
-  .project-list-page { padding: 20px 16px; }
-  .project-list-header { margin-bottom: 24px; flex-direction: column; gap: 12px; align-items: flex-start; }
+  /* Project list: compact, full-width controls so the page is usable on
+     phones. Source tabs become a row of equal-width pills above the title;
+     the title row stacks; sort + buttons line up underneath. */
+  .project-list-page { padding: 16px 12px; }
+  .project-source-bar {
+    margin-bottom: 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .project-source-bar::-webkit-scrollbar { display: none; }
+  .project-source-tab {
+    flex: 1 1 50%;
+    justify-content: center;
+    padding: 12px 10px;
+    font-size: 14px;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+  .project-list-header {
+    margin-bottom: 20px;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
   .project-list-title { font-size: 22px; }
-  .project-new-btn { align-self: stretch; height: 44px; font-size: 15px; }
+  .project-list-controls {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .project-list-controls .sort-select { flex: 1 1 100%; height: 44px; font-size: 14px; }
+  .project-list-controls .project-new-btn,
+  .project-list-controls .project-secondary-btn {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    height: 44px;
+    font-size: 14px;
+  }
   .project-list-grid { grid-template-columns: 1fr; gap: 12px; }
   .project-card { padding: 16px; }
+  .project-card-actions {
+    /* Larger tap targets on touch devices. */
+    gap: 6px;
+  }
+  .project-card-actions .card-action-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+  }
+  /* Always show the more-actions / dropdown menu items at full width on
+     mobile so a fat finger can hit them. */
+  .script-card-dropdown { right: 8px; min-width: 200px; }
+  .dropdown-item { min-height: 44px; padding: 12px 14px; font-size: 14px; }
+
+  /* Auth-indicator dropdown is portaled to <body>, but the items still need
+     touch-friendly hit areas. */
+  .auth-indicator__menu--portal { min-width: 220px; }
+  .auth-indicator__menu-item { min-height: 44px; padding: 12px 14px; font-size: 14px; }
 
   /* Project view: compact */
   .project-view-header { padding: 14px 16px; gap: 12px; flex-wrap: wrap; }
