@@ -1300,6 +1300,10 @@ jobs:
           echo "macOS upload complete"
 
       - name: Upload Android AAB to Google Play (production)
+        # Don't fail the release if the Play Store credentials are stale or
+        # the AAB version was already uploaded — submit-stores must still
+        # complete so publish-release can flip the GitHub release out of draft.
+        continue-on-error: true
         env:
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
         run: |
@@ -1310,8 +1314,8 @@ jobs:
 
           AAB=$(find android-artifacts -name "*.aab" | head -1)
           if [ -z "$AAB" ]; then
-            echo "::error::No AAB file found in artifacts"
-            exit 1
+            echo "::warning::No AAB file found in artifacts — skipping Play Store upload"
+            exit 0
           fi
 
           echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64" | base64 --decode > /tmp/play-service-account.json
@@ -1320,7 +1324,7 @@ jobs:
           gem install fastlane --no-document
 
           echo "Uploading $AAB to Google Play production track..."
-          fastlane supply \
+          if ! fastlane supply \
             --aab "$AAB" \
             --track production \
             --package_name com.proteus.opendraft \
@@ -1329,7 +1333,9 @@ jobs:
             --skip_upload_images \
             --skip_upload_screenshots \
             --skip_upload_changelogs \
-            --skip_upload_apk
+            --skip_upload_apk; then
+            echo "::warning::Play Store upload failed — submit manually as a follow-up"
+          fi
 
           rm /tmp/play-service-account.json
           echo "Google Play upload complete — check Play Console for review status"
