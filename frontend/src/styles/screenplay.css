@@ -417,8 +417,9 @@ body {
 .auth-indicator__menu {
   position: absolute; right: 0; top: calc(100% + 4px);
   min-width: 180px;
-  background: var(--fd-surface, #222);
-  border: 1px solid var(--fd-border, rgba(255,255,255,0.12));
+  background: var(--fd-dropdown-bg);
+  color: var(--fd-text);
+  border: 1px solid var(--fd-border);
   border-radius: 6px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.35);
   padding: 4px 0; z-index: 1200;
@@ -426,10 +427,10 @@ body {
 .auth-indicator__menu-item {
   display: flex; align-items: center; gap: 8px;
   width: 100%; text-align: left;
-  background: transparent; border: 0; color: inherit;
+  background: transparent; border: 0; color: var(--fd-text);
   padding: 8px 12px; font-size: 13px; cursor: pointer;
 }
-.auth-indicator__menu-item:hover { background: rgba(255,255,255,0.05); }
+.auth-indicator__menu-item:hover { background: var(--fd-hover, rgba(127,127,127,0.15)); }
 .menu-bar.chrome-comfortable .menu-item { padding: 10px 16px; min-height: 44px; gap: 8px; border-radius: 8px; }
 .menu-bar.chrome-comfortable .menu-label { font-size: 14px; font-weight: normal; }
 .menu-bar.chrome-comfortable .menu-icon { font-size: 14px; }
