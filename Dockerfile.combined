@@ -76,7 +76,11 @@ ENV OPENDRAFT_DATA_DIR=/app/data/backend \
     # Backend's auth proxy needs to reach the collab server inside the container.
     # In the per-service compose setup this is set to http://collab:8080; here
     # both services share localhost on different ports.
-    COLLAB_SERVER_URL=http://localhost:8081
+    COLLAB_SERVER_URL=http://localhost:8081 \
+    # Co-located DB path so the backend can read email_verified directly from
+    # the collab SQLite file. Without this the backend falls back to assuming
+    # email_verified=false and every authed call 403s into the verify dialog.
+    COLLAB_DB_PATH=/app/data/collab/collab.sqlite3
     # Optional demo-user seeding (off by default — credentials must NOT be
     # baked into a public image). Enable at runtime by passing:
     #   -e SEED_DEMO_USER=true
