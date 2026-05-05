@@ -77,6 +77,12 @@ ENV OPENDRAFT_DATA_DIR=/app/data/backend \
     # In the per-service compose setup this is set to http://collab:8080; here
     # both services share localhost on different ports.
     COLLAB_SERVER_URL=http://localhost:8081
+    # Optional demo-user seeding (off by default — credentials must NOT be
+    # baked into a public image). Enable at runtime by passing:
+    #   -e SEED_DEMO_USER=true
+    #   -e SEED_DEMO_USER_EMAIL=demo@opendraft.local
+    #   -e SEED_DEMO_USER_PASSWORD=<your-choice>
+    # The seeder is idempotent: it skips if a user with that email exists.
 
 EXPOSE 8080 8081
 

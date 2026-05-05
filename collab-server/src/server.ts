@@ -19,6 +19,7 @@ import { WebSocketServer } from 'ws';
 
 import { config } from './config';
 import { initDB, getDB } from './db';
+import { seedDemoUser } from './bootstrap/seedDemoUser';
 import { verifyAccessToken } from './services/tokenService';
 import * as auditService from './services/auditService';
 import authRoutes from './routes/auth';
@@ -404,6 +405,8 @@ app.post('/api/close-document', async (req, res) => {
 async function main(): Promise<void> {
   // Initialize database (async — needed for PostgreSQL)
   await initDB();
+  // Seed the demo user once the schema exists. No-op unless SEED_DEMO_USER is set.
+  await seedDemoUser();
 
   const HOST = config.host;
   const PORT = config.port;

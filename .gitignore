@@ -11,6 +11,7 @@ __pycache__/
 # Environment
 .env
 .env.local
+deploy/combined.env
 
 # IDE
 .vscode/
