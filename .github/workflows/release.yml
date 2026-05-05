@@ -980,6 +980,9 @@ jobs:
     runs-on: macos-26
     name: Build (macOS App Store)
     timeout-minutes: 30
+    # Keep going even if the App Store .pkg fails — store submission is a
+    # follow-up step that should not block the public release.
+    continue-on-error: true
 
     steps:
       - name: Checkout
@@ -1021,6 +1024,9 @@ jobs:
           security create-keychain -p "" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "" build.keychain
+          # Disable keychain auto-lock so codesign doesn't block on a UI prompt
+          # mid-sign (was hanging the job for 24+ min until job timeout).
+          security set-keychain-settings build.keychain
           security import $RUNNER_TEMP/distribution.p12 -k build.keychain \
             -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild
           security set-key-partition-list -S apple-tool:,apple:,codesign:,productbuild: -s -k "" build.keychain
@@ -1118,14 +1124,17 @@ jobs:
           # --timestamp=none: App Store doesn't require RFC3161 timestamps
           # (Apple re-signs on store ingestion). Skipping avoids 30+ minute
           # hangs when timestamp.apple.com is slow/unreachable from CI.
-          codesign --force --options runtime --timestamp=none \
+          # Each codesign call wrapped in `timeout 180` — if Apple's intermediate
+          # cert lookup or the keychain blocks, fail in 3 min instead of hanging
+          # to the job-level timeout.
+          timeout 180 codesign --force --options runtime --timestamp=none \
             --keychain build.keychain \
             --entitlements "$ENTITLEMENTS" \
             --sign "$APP_SIGN_ID" \
             "$APP_PATH/Contents/MacOS/opendraft"
 
           # Sign the entire .app bundle
-          codesign --force --deep --options runtime --timestamp=none \
+          timeout 180 codesign --force --deep --options runtime --timestamp=none \
             --keychain build.keychain \
             --entitlements "$ENTITLEMENTS" \
             --sign "$APP_SIGN_ID" \
@@ -1139,7 +1148,7 @@ jobs:
             "$APP_PATH/Contents/embedded.provisionprofile"
 
           # Re-sign after embedding profile
-          codesign --force --deep --options runtime --timestamp=none \
+          timeout 180 codesign --force --deep --options runtime --timestamp=none \
             --keychain build.keychain \
             --entitlements "$ENTITLEMENTS" \
             --sign "$APP_SIGN_ID" \
@@ -1223,6 +1232,7 @@ jobs:
 
       - name: Download macOS pkg artifact
         uses: actions/download-artifact@v5
+        continue-on-error: true
         with:
           name: macos-pkg
           path: macos-artifacts
@@ -1275,10 +1285,10 @@ jobs:
           mkdir -p ~/.private_keys
           echo "$APPSTORE_API_KEY" | base64 --decode > ~/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8
 
-          PKG=$(find macos-artifacts -name "*.pkg" | head -1)
+          PKG=$(find macos-artifacts -name "*.pkg" 2>/dev/null | head -1)
           if [ -z "$PKG" ]; then
-            echo "::error::No pkg file found in artifacts"
-            exit 1
+            echo "::warning::No pkg file found — skipping Mac App Store upload (build-mac-appstore likely failed; submit manually as a follow-up)"
+            exit 0
           fi
 
           echo "Uploading $PKG to App Store Connect..."
