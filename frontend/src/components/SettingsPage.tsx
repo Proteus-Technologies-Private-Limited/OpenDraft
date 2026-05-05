@@ -320,7 +320,7 @@ const SettingsPage: React.FC = () => {
         <section className="settings-section">
           <h2 className="settings-section-title">OpenDraft Cloud Server</h2>
           <p className="settings-section-desc">
-            HTTP backend used for sign-in, projects, and "Save to Cloud". Leave blank
+            HTTP backend used for sign-in, projects, and cloud saves. Leave blank
             in the browser to use this site's <code>/api</code>. Required on the
             desktop and mobile apps — point it at your OpenDraft backend, e.g.
             <code> https://opendraft-demo.duckdns.org</code> or

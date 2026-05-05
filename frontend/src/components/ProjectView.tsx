@@ -605,6 +605,9 @@ const ProjectView: React.FC = () => {
     edStore.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
     edStore.setCharacterProfiles([]);
     edStore.setScenes([]);
+    // Tell MenuBar (which mounts inside ScreenplayEditor on '/') to prompt
+    // for a script format. The flag is consumed by MenuBar's mount effect.
+    edStore.setPendingFormatPromptInProject(true);
     navigate('/');
   };
 

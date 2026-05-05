@@ -482,6 +482,12 @@ interface EditorState {
   setOpenFileOpen: (open: boolean) => void;
   saveAsOpen: boolean;
   setSaveAsOpen: (open: boolean) => void;
+  /** Set by ProjectView before navigating away to the editor for a new
+   *  in-project script. MenuBar's mount effect consumes the flag and prompts
+   *  the user for a script format (without wiping the project context that
+   *  ProjectView just established). */
+  pendingFormatPromptInProject: boolean;
+  setPendingFormatPromptInProject: (v: boolean) => void;
   /** Optional callback to run after save-as completes (e.g. deferred import). */
   postSaveAction: (() => void) | null;
   setPostSaveAction: (action: (() => void) | null) => void;
@@ -918,6 +924,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setOpenFileOpen: (open) => set({ openFileOpen: open }),
   saveAsOpen: false,
   setSaveAsOpen: (open) => set({ saveAsOpen: open }),
+  pendingFormatPromptInProject: false,
+  setPendingFormatPromptInProject: (v) => set({ pendingFormatPromptInProject: v }),
   postSaveAction: null,
   setPostSaveAction: (action) => set({ postSaveAction: action }),
 }));

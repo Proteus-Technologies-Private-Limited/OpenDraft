@@ -27,12 +27,11 @@ import { pluginRegistry } from '../plugins/registry';
 import AuthIndicator from './AuthIndicator';
 import { useNavigate } from 'react-router-dom';
 import { scriptApi } from '../services/scriptApi';
-import { cloudApi } from '../services/cloudApi';
 import { useSettingsStore } from '../stores/settingsStore';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { spellChecker } from '../editor/spellchecker';
 import { openTextFile, openBinaryFile } from '../utils/fileOps';
-import { isDesktopTauri, isWeb } from '../services/platform';
+import { isDesktopTauri } from '../services/platform';
 import { getCompatEntries } from '../services/compat';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
 import {
@@ -190,9 +189,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     setCurrentScriptId,
     setScripts,
     setVersionHistoryOpen,
-    markCloudScript,
-    markCloudProject,
-    isCloudScript,
   } = useProjectStore();
 
   // Build a saveable content object: editor JSON + store metadata at top level
@@ -250,107 +246,13 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     }
   }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen]);
 
-  // ── Save to Cloud: upload current buffer to the backend as a cloud script ──
-  // Treat as signed in only after /auth/me has confirmed the token this
-  // session — a stale localStorage token would otherwise invite a doomed
-  // upload that errors out cryptically.
-  const cloudAccessToken = useSettingsStore((s) => s.collabAuth.accessToken);
-  const cloudAuthVerified = useSettingsStore((s) => s.authVerified);
-  const signedIn = Boolean(cloudAccessToken && cloudAuthVerified);
-
-  /** Block until the user is signed in (verified token). Opens the login
-   *  dialog via AuthGate and resolves once a verified token arrives, or
-   *  resolves false if the user closes the dialog without signing in. */
-  const ensureSignedIn = useCallback((): Promise<boolean> => {
-    if (useSettingsStore.getState().authVerified
-        && useSettingsStore.getState().collabAuth.accessToken) {
-      return Promise.resolve(true);
-    }
-    return new Promise<boolean>((resolve) => {
-      let settled = false;
-      const finish = (ok: boolean) => {
-        if (settled) return;
-        settled = true;
-        unsub();
-        clearInterval(closeWatch);
-        resolve(ok);
-      };
-      // Resolve as soon as the store flips to a verified, signed-in state.
-      const unsub = useSettingsStore.subscribe((state) => {
-        if (state.authVerified && state.collabAuth.accessToken) finish(true);
-      });
-      // AuthGate's login dialog has no "closed" event — poll the DOM cheaply
-      // for the .dialog-overlay it renders. When the overlay disappears
-      // without a token landing, the user dismissed the dialog and we abort
-      // the cloud save instead of hanging forever.
-      let sawDialog = false;
-      const closeWatch = setInterval(() => {
-        const overlay = document.querySelector('.dialog-overlay');
-        if (overlay) sawDialog = true;
-        else if (sawDialog && !useSettingsStore.getState().collabAuth.accessToken) {
-          finish(false);
-        }
-      }, 400);
-      window.dispatchEvent(new CustomEvent('opendraft:auth-required'));
-    });
-  }, []);
-
-  const handleSaveToCloud = useCallback(async () => {
+  /** Save As: always opens the destination/project/filename picker, even when
+   *  the current document is already saved. Use this to fork a local script
+   *  to cloud (or vice versa) or to write a copy under a different name. */
+  const handleSaveAs = useCallback(() => {
     if (!editor) return;
-    if (!signedIn) {
-      // Open the login dialog, then resume the save once the user is in. If
-      // they cancel, drop the save quietly — they explicitly chose not to.
-      const ok = await ensureSignedIn();
-      if (!ok) return;
-    }
-    const content = buildSaveContent();
-    if (!content) {
-      showToast('Nothing to upload yet', 'error');
-      return;
-    }
-    const { setSaveStatus } = useEditorStore.getState();
-    setSaveStatus('saving');
-    try {
-      // Reuse the local project name if available; otherwise default.
-      const projectName = currentProject?.name || 'Cloud Files';
-      let cloudProject;
-      try {
-        cloudProject = await cloudApi.createProject(projectName);
-      } catch (err: any) {
-        // 409 = project with that slug already exists on the server. Reuse
-        // it only when the existing project's name matches exactly; picking
-        // a random existing project would silently mis-file the script.
-        if (err?.status === 409) {
-          const existing = await cloudApi.listProjects();
-          cloudProject = existing.find((p) => p.name === projectName);
-          if (!cloudProject) throw err;
-        } else {
-          throw err;
-        }
-      }
-      const title = documentTitle || 'Untitled';
-      const created = await cloudApi.createScript(cloudProject.id, {
-        title,
-        content,
-        format: 'json',
-      });
-      markCloudProject(cloudProject.id);
-      markCloudScript(cloudProject.id, created.meta.id);
-      setCurrentProject(cloudProject);
-      setCurrentScriptId(created.meta.id);
-      setSaveStatus('saved');
-      showToast('Saved to cloud', 'success');
-      // Navigate so the editor re-mounts against the cloud copy.
-      navigate(`/project/${cloudProject.id}/edit/${created.meta.id}`);
-    } catch (err: any) {
-      const msg = err?.message || 'Upload failed';
-      useEditorStore.getState().setSaveStatus('error', msg);
-      // AuthGate / QuotaExceededDialog already surfaced handled errors.
-      if (!err?.handled) {
-        showToast(`Save to cloud failed: ${msg}`, 'error');
-      }
-    }
-  }, [editor, signedIn, ensureSignedIn, buildSaveContent, documentTitle, currentProject, markCloudScript, markCloudProject, setCurrentProject, setCurrentScriptId, navigate]);
+    setSaveAsOpen(true);
+  }, [editor, setSaveAsOpen]);
 
   // ── Unsaved-changes confirmation before New / Import ──
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
@@ -761,43 +663,62 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     }
   }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
 
-  /** Apply the chosen format (sets active template + seeds starter content), after state is reset. */
-  const finishNewScreenplayWithFormat = useCallback((templateId: string) => {
-    resetForNewScreenplay();
+  /** Picker mode: 'reset' clears project context (top-level New Screenplay);
+   *  'apply-only' just applies the template, leaving the current project intact
+   *  (used by ProjectView so the new script stays in the current project). */
+  const [formatPickerMode, setFormatPickerMode] = useState<'reset' | 'apply-only'>('reset');
+
+  /** Apply the chosen format (sets active template + seeds starter content). */
+  const finishNewScreenplayWithFormat = useCallback((templateId: string, mode: 'reset' | 'apply-only' = 'reset') => {
+    if (mode === 'reset') resetForNewScreenplay();
     applyScriptFormat(editor, templateId);
   }, [editor, resetForNewScreenplay]);
 
+  /** Run the format-selection flow. Mode 'reset' is the global New Screenplay
+   *  action; 'apply-only' is invoked from in-project script creation, where the
+   *  caller has already wired up project context. */
+  const promptForNewScreenplayFormat = useCallback((mode: 'reset' | 'apply-only') => {
+    if (!editor) return;
+    setFormatPickerMode(mode);
+    const settings = useSettingsStore.getState();
+    const enabled = settings.enabledScriptFormats;
+
+    // First run — never asked the user. Show the multi-select prefs dialog.
+    if (!settings.formatPreferencesInitialized) {
+      setFormatPrefsOpen({ firstRun: true, afterSave: 'apply-new-screenplay' });
+      return;
+    }
+
+    // No formats enabled (edge case — user deselected everything).
+    if (enabled.length === 0) {
+      setFormatPrefsOpen({ firstRun: false, afterSave: 'apply-new-screenplay' });
+      return;
+    }
+
+    // Exactly one enabled — apply it directly, no prompt.
+    if (enabled.length === 1) {
+      finishNewScreenplayWithFormat(enabled[0], mode);
+      return;
+    }
+
+    // 2+ enabled — show the quick single-select picker.
+    setFormatPickerOpen(true);
+  }, [editor, finishNewScreenplayWithFormat]);
+
   const handleNewScreenplay = useCallback(() => {
-    confirmOrRun(() => {
-      if (!editor) return;
-      const settings = useSettingsStore.getState();
-      const enabled = settings.enabledScriptFormats;
+    confirmOrRun(() => promptForNewScreenplayFormat('reset'));
+  }, [confirmOrRun, promptForNewScreenplayFormat]);
 
-      // First run — never asked the user. Show the multi-select prefs dialog.
-      // After they save, route through the same logic (1 enabled = apply directly,
-      // 2+ enabled = show picker).
-      if (!settings.formatPreferencesInitialized) {
-        setFormatPrefsOpen({ firstRun: true, afterSave: 'apply-new-screenplay' });
-        return;
-      }
-
-      // No formats enabled (edge case — user deselected everything).
-      // Re-prompt via prefs dialog rather than silently picking one.
-      if (enabled.length === 0) {
-        setFormatPrefsOpen({ firstRun: false, afterSave: 'apply-new-screenplay' });
-        return;
-      }
-
-      // Exactly one enabled — apply it directly, no prompt.
-      if (enabled.length === 1) {
-        finishNewScreenplayWithFormat(enabled[0]);
-        return;
-      }
-
-      // 2+ enabled — show the quick single-select picker.
-      setFormatPickerOpen(true);
-    });
-  }, [editor, confirmOrRun, finishNewScreenplayWithFormat]);
+  // ProjectView sets pendingFormatPromptInProject=true before navigating into
+  // the editor for a fresh in-project script. Consume it once on mount (or
+  // when it becomes true) and prompt for a script format without touching the
+  // project context ProjectView already wired up.
+  const pendingFormatPromptInProject = useEditorStore((s) => s.pendingFormatPromptInProject);
+  useEffect(() => {
+    if (!pendingFormatPromptInProject || !editor) return;
+    useEditorStore.getState().setPendingFormatPromptInProject(false);
+    promptForNewScreenplayFormat('apply-only');
+  }, [pendingFormatPromptInProject, editor, promptForNewScreenplayFormat]);
 
   // ── Global keyboard shortcuts ──
   useEffect(() => {
@@ -810,8 +731,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           if (!isCollabGuest) handleNewScreenplay();
           break;
         case 's':
+        case 'S':
           e.preventDefault();
-          if (!isCollabGuest) handleSave();
+          if (!isCollabGuest) (e.shiftKey ? handleSaveAs() : handleSave());
           break;
         case 'p':
           e.preventDefault();
@@ -838,7 +760,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleSave, handleNewScreenplay, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel]);
+  }, [handleSave, handleSaveAs, handleNewScreenplay, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel]);
 
   const handleExportFDX = useCallback(async () => {
     if (!editor) return;
@@ -967,16 +889,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         },
         { icon: <FaFolderOpen />, label: 'Open...', action: () => confirmOrRun(() => setOpenFileOpen(true)), disabled: isCollabGuest },
         { icon: <FaSave />, label: 'Save', shortcut: `${mod}S`, action: handleSave, disabled: isCollabGuest },
-        ...(isWeb() ? [] : [{
-          icon: <FaSave />,
-          label: (currentProject && currentScriptId && isCloudScript(currentProject.id, currentScriptId))
-            ? 'Saved in Cloud'
-            : 'Save to Cloud',
-          action: handleSaveToCloud,
-          disabled:
-            isCollabGuest ||
-            !!(currentProject && currentScriptId && isCloudScript(currentProject.id, currentScriptId)),
-        }]),
+        { icon: <FaSave />, label: 'Save As…', shortcut: `⇧${mod}S`, action: handleSaveAs, disabled: isCollabGuest },
         { separator: true, label: '' },
         {
           icon: <FaFileExport />, label: 'Export',
@@ -1678,9 +1591,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           if (next?.afterSave === 'apply-new-screenplay') {
             // After saving prefs, immediately route the new-screenplay action through
             // the same logic again (1 enabled = apply directly, 2+ = show picker).
-            if (ids.length === 1) finishNewScreenplayWithFormat(ids[0]);
+            if (ids.length === 1) finishNewScreenplayWithFormat(ids[0], formatPickerMode);
             else if (ids.length > 1) setFormatPickerOpen(true);
-            else finishNewScreenplayWithFormat(INDUSTRY_STANDARD_ID);
+            else finishNewScreenplayWithFormat(INDUSTRY_STANDARD_ID, formatPickerMode);
           }
         }}
         onCancel={() => setFormatPrefsOpen(null)}
@@ -1691,7 +1604,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         enabledIds={useSettingsStore.getState().enabledScriptFormats}
         onPick={(id) => {
           setFormatPickerOpen(false);
-          finishNewScreenplayWithFormat(id);
+          finishNewScreenplayWithFormat(id, formatPickerMode);
         }}
         onCancel={() => setFormatPickerOpen(false)}
       />

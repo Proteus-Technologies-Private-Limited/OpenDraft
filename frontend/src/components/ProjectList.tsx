@@ -600,7 +600,7 @@ const ProjectList: React.FC = () => {
             {source === 'cloud'
               ? (WEB_ONLY_CLOUD
                   ? 'No projects yet. Create your first project to get started.'
-                  : 'No cloud projects yet. Create one or upload via File › Save to Cloud from the editor.')
+                  : 'No cloud projects yet. Create one or upload via File › Save As… and pick OpenDraft Cloud.')
               : 'No projects yet. Create your first project to get started.'}
           </div>
         </div>
