@@ -666,9 +666,8 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
         run: npx --prefix frontend tauri build --target x86_64-apple-darwin
 
-      - name: Upload legacy DMG to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Stage legacy DMG artifact
+        id: stage_legacy
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           DMG=$(find src-tauri/target/x86_64-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
@@ -676,10 +675,16 @@ jobs:
             echo "::error::No DMG found for legacy Intel build"
             exit 1
           fi
-          DEST="OpenDraft_${VERSION}_x86_64-legacy.dmg"
-          cp "$DMG" "$DEST"
-          gh release upload "$GITHUB_REF_NAME" "$DEST" --clobber
-          echo "Uploaded $DEST to release"
+          mkdir -p legacy-artifacts
+          cp "$DMG" "legacy-artifacts/OpenDraft_${VERSION}_x86_64-legacy.dmg"
+          ls -la legacy-artifacts/
+
+      - name: Upload legacy DMG to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: legacy-artifacts/*
+          draft: true
 
   build-ios:
     runs-on: macos-26
