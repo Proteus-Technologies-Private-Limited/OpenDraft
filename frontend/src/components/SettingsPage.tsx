@@ -30,7 +30,7 @@ const SettingsPage: React.FC = () => {
 
   // OpenDraft Cloud (HTTP backend) URL — distinct from the collab WebSocket
   // server. On Tauri custom schemes the same-origin default doesn't work, so
-  // the user must point at a real backend (e.g. https://opendraft-demo…/api).
+  // the user must point at a real backend (e.g. https://opendraft.duckdns.org/api).
   const CLOUD_API_KEY = 'opendraft:cloudApiUrl';
   const [cloudApiInput, setCloudApiInput] = useState<string>(() => {
     try { return localStorage.getItem(CLOUD_API_KEY) || ''; } catch { return ''; }
@@ -323,8 +323,8 @@ const SettingsPage: React.FC = () => {
             HTTP backend used for sign-in, projects, and cloud saves. Leave blank
             in the browser to use this site's <code>/api</code>. Required on the
             desktop and mobile apps — point it at your OpenDraft backend, e.g.
-            <code> https://opendraft-demo.duckdns.org</code> or
-            <code> https://opendraft-demo.duckdns.org/api</code> (the
+            <code> https://opendraft.duckdns.org</code> or
+            <code> https://opendraft.duckdns.org/api</code> (the
             <code>/api</code> suffix is added automatically if missing).
           </p>
 
@@ -335,7 +335,7 @@ const SettingsPage: React.FC = () => {
                 className="dialog-input settings-url-input"
                 value={cloudApiInput}
                 onChange={(e) => setCloudApiInput(e.target.value)}
-                placeholder="https://opendraft-demo.duckdns.org/api"
+                placeholder="https://opendraft.duckdns.org/api"
                 onKeyDown={(e) => handleKeyDown(e, handleSaveCloudApi)}
               />
               <button className="dialog-btn dialog-btn-primary" onClick={handleSaveCloudApi}>

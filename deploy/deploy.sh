@@ -12,7 +12,7 @@ set -euo pipefail
 #
 # DNS (free, no domain purchase):
 #   1. Sign up at https://www.duckdns.org (GitHub/Google login).
-#   2. Create two subdomains, e.g. opendraft-demo + opendraft-collab.
+#   2. Create two subdomains, e.g. opendraft + opendraft-collab.
 #   3. Point both to this VPS's public IPv4 address.
 #
 # First run:
