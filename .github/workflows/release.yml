@@ -979,6 +979,7 @@ jobs:
   build-mac-appstore:
     runs-on: macos-26
     name: Build (macOS App Store)
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -1114,13 +1115,18 @@ jobs:
           fi
 
           # Sign main binary
-          codesign --force --options runtime \
+          # --timestamp=none: App Store doesn't require RFC3161 timestamps
+          # (Apple re-signs on store ingestion). Skipping avoids 30+ minute
+          # hangs when timestamp.apple.com is slow/unreachable from CI.
+          codesign --force --options runtime --timestamp=none \
+            --keychain build.keychain \
             --entitlements "$ENTITLEMENTS" \
             --sign "$APP_SIGN_ID" \
             "$APP_PATH/Contents/MacOS/opendraft"
 
           # Sign the entire .app bundle
-          codesign --force --deep --options runtime \
+          codesign --force --deep --options runtime --timestamp=none \
+            --keychain build.keychain \
             --entitlements "$ENTITLEMENTS" \
             --sign "$APP_SIGN_ID" \
             "$APP_PATH"
@@ -1133,13 +1139,16 @@ jobs:
             "$APP_PATH/Contents/embedded.provisionprofile"
 
           # Re-sign after embedding profile
-          codesign --force --deep --options runtime \
+          codesign --force --deep --options runtime --timestamp=none \
+            --keychain build.keychain \
             --entitlements "$ENTITLEMENTS" \
             --sign "$APP_SIGN_ID" \
             "$APP_PATH"
 
-          # Build .pkg installer
-          productbuild --component "$APP_PATH" /Applications \
+          # Build .pkg installer. Cap at 5 min to fail fast if Apple's
+          # signature timestamp server is unreachable (job-level timeout
+          # is the backstop, but this gives a clearer error).
+          timeout 300 productbuild --component "$APP_PATH" /Applications \
             --sign "$INSTALLER_SIGN_ID" \
             "OpenDraft.pkg"
 
