@@ -1,0 +1,55 @@
+# Per-Dockerfile dockerignore for Dockerfile.combined.
+# Mirrors the root .dockerignore but allows collab-server/ source so the
+# combined image can include the Hocuspocus collab service.
+
+# Tauri / native builds (20 GB+)
+src-tauri/
+
+# Python venv (rebuilt in container)
+venv/
+
+# Node dependencies (rebuilt in container)
+frontend/node_modules
+collab-server/node_modules
+collab-server/dist
+collab-server/data
+collab-server/.env
+
+# Build artifacts
+frontend/dist
+backend/static
+backend/dist
+backend/build
+backend/__pycache__
+build/
+dist/
+
+# Data & env
+backend/data
+.env
+*.env
+
+# Git & IDE
+.git
+.github
+.vscode
+.claude
+
+# Large assets not needed at runtime
+images/
+certificates/
+fastlane/
+user-manual/
+landing/
+
+# Misc
+*.md
+Promotion
+docs
+test-script
+*.dmg
+*.app
+*.pkg
+*.ipa
+*.aab
+*.apk

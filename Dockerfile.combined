@@ -1,0 +1,83 @@
+# Combined image: FastAPI backend + Hocuspocus collab server in one container.
+# Two processes managed by supervisord. Use the per-service Dockerfiles + docker-compose
+# instead unless you specifically need a single image (e.g. single-service hosting).
+#
+# Internal ports:
+#   - backend (uvicorn):  8080
+#   - collab  (node):     8081
+# Both are EXPOSEd so the caller can map them or front them with their own proxy.
+#
+# Persistent data lives at /app/data and is split per service:
+#   - /app/data/backend  (OPENDRAFT_DATA_DIR)
+#   - /app/data/collab   (DATA_DIR)
+
+# ── Stage 1: build the frontend (served by the backend) ──
+FROM node:20-slim AS frontend-builder
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# ── Stage 2: build the collab server (TS → JS) ──
+FROM node:20-slim AS collab-builder
+WORKDIR /collab
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+COPY collab-server/package.json collab-server/package-lock.json ./
+RUN npm ci
+COPY collab-server/tsconfig.json ./
+COPY collab-server/src/ ./src/
+RUN npm run build
+
+# ── Stage 3: runtime image (Python + Node + supervisord) ──
+FROM python:3.12-slim
+
+# Install Node 20 from NodeSource and supervisord; keep build tools so the
+# collab server's better-sqlite3 native binding can be rebuilt against the
+# image's libc/glibc when we install production deps below.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates gnupg supervisor \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ── Backend (Python) ──
+COPY backend/requirements.txt ./backend-requirements.txt
+RUN grep -v pyinstaller backend-requirements.txt > backend-requirements-docker.txt \
+    && pip install --no-cache-dir -r backend-requirements-docker.txt \
+    && rm backend-requirements-docker.txt backend-requirements.txt
+
+COPY backend/app ./backend/app
+COPY --from=frontend-builder /frontend/dist ./backend/static
+
+# ── Collab (Node) ──
+COPY collab-server/package.json collab-server/package-lock.json ./collab/
+RUN cd collab && npm ci --omit=dev
+COPY --from=collab-builder /collab/dist ./collab/dist
+
+# Drop build toolchain to slim the image; keep python3 since some npm postinstalls
+# look for it. better-sqlite3 was already rebuilt during `npm ci` above.
+RUN apt-get purge -y --auto-remove make g++ curl gnupg && rm -rf /var/lib/apt/lists/*
+
+# ── Data dirs ──
+RUN mkdir -p /app/data/backend/projects /app/data/collab
+
+# ── supervisord ──
+COPY deploy/supervisord.conf /etc/supervisor/conf.d/opendraft.conf
+
+ENV OPENDRAFT_DATA_DIR=/app/data/backend \
+    BACKEND_PORT=8080 \
+    DATA_DIR=/app/data/collab \
+    COLLAB_PORT=8081 \
+    COLLAB_HOST=0.0.0.0 \
+    NODE_ENV=production \
+    # Backend's auth proxy needs to reach the collab server inside the container.
+    # In the per-service compose setup this is set to http://collab:8080; here
+    # both services share localhost on different ports.
+    COLLAB_SERVER_URL=http://localhost:8081
+
+EXPOSE 8080 8081
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/opendraft.conf", "-n"]
