@@ -1,0 +1,56 @@
+# Pre-built combined image fronted by Caddy. Used by deploy.sh when invoked
+# with --combined (or OPENDRAFT_USE_COMBINED=1). The combined image bundles
+# the backend (uvicorn, port 8080) and the collab server (node, port 8081)
+# behind supervisord, so we expose both internal ports to Caddy and route
+# the two DuckDNS hostnames at them just like the per-service setup.
+#
+# Image tag is read from OPENDRAFT_VERSION (defaults to "latest"). Pin a
+# specific version in .env (e.g. OPENDRAFT_VERSION=0.16.2) for predictable
+# rollbacks.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile.combined:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DEMO_HOST: ${DEMO_HOST}
+      COLLAB_HOST: ${COLLAB_HOST}
+      ACME_EMAIL: ${ACME_EMAIL}
+    depends_on:
+      - opendraft
+
+  opendraft:
+    image: ghcr.io/proteus-technologies-private-limited/opendraft-combined:${OPENDRAFT_VERSION:-latest}
+    restart: unless-stopped
+    expose:
+      - "8080"
+      - "8081"
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      # SMTP — empty values fall back to "no email", which auto-verifies users.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      # Optional demo seeding — leave SEED_DEMO_USER unset in real prod.
+      SEED_DEMO_USER: ${SEED_DEMO_USER:-}
+      SEED_DEMO_USER_EMAIL: ${SEED_DEMO_USER_EMAIL:-}
+      SEED_DEMO_USER_PASSWORD: ${SEED_DEMO_USER_PASSWORD:-}
+      SEED_DEMO_USER_NAME: ${SEED_DEMO_USER_NAME:-}
+    volumes:
+      - opendraft_data:/app/data
+
+volumes:
+  caddy_data:
+  caddy_config:
+  opendraft_data:

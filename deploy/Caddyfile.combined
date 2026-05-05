@@ -1,0 +1,17 @@
+{
+	email {$ACME_EMAIL}
+}
+
+# Single combined container exposes backend on :8080 and collab on :8081.
+{$DEMO_HOST} {
+	encode gzip zstd
+	reverse_proxy opendraft:8080
+}
+
+{$COLLAB_HOST} {
+	encode gzip zstd
+	reverse_proxy opendraft:8081 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+}
