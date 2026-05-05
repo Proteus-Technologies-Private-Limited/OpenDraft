@@ -1621,12 +1621,21 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.16.1</div>
               <ul className="about-list">
-                <li><strong>Multiple Windows</strong> — Open different files in separate windows via File &gt; New Window. Each window has independent editor state.</li>
-                <li><strong>Save Status Indicator</strong> — The status bar now shows Unsaved changes, Saving, Saved, or Save failed in real time.</li>
-                <li><strong>Save Failure Recovery</strong> — A persistent banner with Retry, Save As, and Export Backup actions appears when auto-save fails.</li>
-                <li><strong>Collaboration Status</strong> — The collab banner shows connection state (Connecting, Synced, Reconnecting) and an activity log tracking joins, leaves, and sync events.</li>
-                <li><strong>File Drag-and-Drop Fix</strong> — Dragging .fdx, .fountain, .odraft, or .txt files from the OS into the editor now works on desktop.</li>
-                <li><strong>Open With in New Window</strong> — Double-clicking a screenplay file while the app is running opens it in a new window without disturbing your current work.</li>
+                <li><strong>Treatment Documents</strong> — Write a 20–25 page prose treatment alongside your screenplay. Use "+ New Document" in a project to open the manuscript-format editor.</li>
+                <li><strong>Location Database</strong> — Sidebar panel for managing screenplay locations: list / detail / edit, auto-discovery from scene headings, aliases, and rename-in-scene-headings.</li>
+                <li><strong>Act &amp; Sequence Structure</strong> — Tag scenes into acts and sequences, browse them in a new Structure tab in the Scene Navigator, with "A1"/"A2" badges on each scene.</li>
+                <li><strong>Version Diff View</strong> — Compare any two checked-in versions side-by-side, unified, or changes-only, with a summary of scenes changed and per-character dialogue delta.</li>
+                <li><strong>Multi-Format Templates</strong> — AV (two-column), multicam sitcom, one-hour drama, radio play, and stage play templates with a format picker for new screenplays.</li>
+                <li><strong>DOCX Import / Export</strong> — Round-trip your screenplay through Microsoft Word.</li>
+                <li><strong>Title Page Editor</strong> — Structured editor with live preview (Format &gt; Title Page); data flows into PDF, FDX, and Fountain exports.</li>
+                <li><strong>Script Statistics &amp; Timing</strong> — Tools &gt; Analytics opens dialogue distribution, gender analysis, pacing chart, and character presence map. Per-scene timing in the Navigator and a runtime estimate in the status bar.</li>
+                <li><strong>WGA &amp; Registration Fields</strong> — Project Properties gains WGA registration, copyright, agent/manager fields, and a submission log.</li>
+                <li><strong>Scene Navigator: Search &amp; Synopsis</strong> — Search scene headings and synopses with highlighting; inline synopsis preview on each collapsed scene.</li>
+                <li><strong>Character Relationships</strong> — Inline relationship editor, relationship map tab, and profile-completeness indicator on the Characters panel.</li>
+                <li><strong>Cloud Projects &amp; Per-User Files</strong> — Configurable cloud server URL, per-user file isolation, free 5-file quota, Local/Cloud project tabs, and mobile-friendly tap targets.</li>
+                <li><strong>Save As Replaces Save to Cloud</strong> — Shift+Cmd+S now offers an explicit Local/Cloud destination tab.</li>
+                <li><strong>Self-Hosted Docker Image</strong> — Single <code>ghcr.io/&hellip;/opendraft-combined</code> image bundling backend + collab server for one-image deployment targets.</li>
+                <li><strong>Save Reliability Fixes</strong> — Manual save (Cmd+S) now preserves character relationships and other metadata; auto-save race on script switch fixed; metadata changes flush within 2s.</li>
               </ul>
             </div>
 
