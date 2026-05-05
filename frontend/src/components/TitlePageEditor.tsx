@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { Editor } from '@tiptap/react';
 import type { TitlePageAttrs } from '../editor/extensions/TitlePage';
 import { useEditorStore } from '../stores/editorStore';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { showToast } from './Toast';
 
 interface Props {
@@ -167,12 +168,24 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
     showToast('Synced title from project', 'success');
   }, []);
 
+  // The active script-format template can restrict which title-page fields appear
+  // (e.g. stage plays don't have WGA Registration). Unset = show all default fields.
+  const activeTpFields: string[] | undefined = (() => {
+    try {
+      return useFormattingTemplateStore.getState().getActiveTemplate().titlePageFields;
+    } catch {
+      return undefined;
+    }
+  })();
+  const showField = (id: string): boolean => !activeTpFields || activeTpFields.includes(id);
+
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="tp-editor-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">Title Page</div>
         <div className="tp-editor-body">
           <div className="tp-editor-form">
+            {showField('tpTitle') && (
             <div className="props-field props-field-wide">
               <label className="props-label">Title</label>
               <input
@@ -183,6 +196,8 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                 autoFocus
               />
             </div>
+            )}
+            {showField('tpWrittenBy') && (
             <div className="props-field">
               <label className="props-label">Written By</label>
               <input
@@ -192,6 +207,8 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                 placeholder="Author Name"
               />
             </div>
+            )}
+            {showField('tpBasedOn') && (
             <div className="props-field">
               <label className="props-label">Based On</label>
               <input
@@ -201,6 +218,8 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                 placeholder="the novel by..."
               />
             </div>
+            )}
+            {showField('tpDraft') && (
             <div className="props-field">
               <label className="props-label">Draft</label>
               <input
@@ -210,6 +229,8 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                 placeholder="e.g. Second Draft"
               />
             </div>
+            )}
+            {showField('tpDraftDate') && (
             <div className="props-field">
               <label className="props-label">Draft Date</label>
               <input
@@ -219,6 +240,8 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                 onChange={(e) => setField('tpDraftDate', e.target.value)}
               />
             </div>
+            )}
+            {showField('tpContact') && (
             <div className="props-field props-field-wide">
               <label className="props-label">Contact</label>
               <textarea
@@ -229,6 +252,8 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                 rows={3}
               />
             </div>
+            )}
+            {showField('tpCopyright') && (
             <div className="props-field">
               <label className="props-label">Copyright</label>
               <input
@@ -238,6 +263,8 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                 placeholder="Copyright 2026 Author Name"
               />
             </div>
+            )}
+            {showField('tpWgaRegistration') && (
             <div className="props-field">
               <label className="props-label">WGA Registration #</label>
               <input
@@ -247,6 +274,8 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                 placeholder="WGAw #123456"
               />
             </div>
+            )}
+            {showField('tpNotes') && (
             <div className="props-field props-field-wide">
               <label className="props-label">Notes</label>
               <input
@@ -256,6 +285,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                 placeholder="e.g. CONFIDENTIAL"
               />
             </div>
+            )}
             <button
               className="tp-sync-btn"
               onClick={handleSyncFromProject}

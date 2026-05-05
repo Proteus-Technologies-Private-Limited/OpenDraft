@@ -2,6 +2,8 @@
  * Type definitions for the formatting template system.
  */
 
+import type { PageLayout } from './editorStore';
+
 
 
 /** Formatting rules for a single element type within a template. */
@@ -50,6 +52,14 @@ export interface FormattingElementRule {
 /** Template category: system templates are read-only, user templates are editable. */
 export type TemplateCategory = 'system' | 'user';
 
+/** A starter document node — minimal Tiptap-style JSON used to seed new scripts.
+ *  Only the fields needed to insert plain blocks; full ProseMirror JSON is also accepted. */
+export interface StarterNode {
+  type: string;
+  attrs?: Record<string, unknown>;
+  content?: Array<StarterNode | { type: 'text'; text: string }>;
+}
+
 /** A complete formatting template. */
 export interface FormattingTemplate {
   id: string;
@@ -63,6 +73,25 @@ export interface FormattingTemplate {
   rules: Record<string, FormattingElementRule>;
   createdAt: string;
   updatedAt: string;
+
+  // ── Optional script-type extensions (added for multi-format support) ──
+
+  /** Partial overrides for default page layout (page size, margins, header/footer). */
+  pageLayout?: Partial<PageLayout>;
+  /** Initial document content seeded when a new script is created with this template. */
+  starterDocument?: StarterNode[];
+  /** Pages-per-runtime metric for stats (60 = 1 min/page screenplay; 30 = 30 sec/page sitcom). */
+  pageTimeSeconds?: number;
+  /** Subset of title-page fields to display, in order. If unset, shows all default fields. */
+  titlePageFields?: string[];
+  /** Element ids that must start on a new page (e.g. sitcom: every sceneHeading). */
+  forceBreakBefore?: string[];
+  /** Multiplier for line-height in pagination computation (e.g. 2.0 for double-spaced sitcom dialogue). Keyed by element id. */
+  lineHeightMultiplier?: Record<string, number>;
+  /** Optional human-readable category for grouping in the format picker (e.g. "TV", "Stage", "Audio"). */
+  scriptTypeGroup?: string;
+  /** Short tagline shown in the format-picker card. */
+  scriptTypeTagline?: string;
 }
 
 /** The 13 built-in element type ids (matches ElementType union). */

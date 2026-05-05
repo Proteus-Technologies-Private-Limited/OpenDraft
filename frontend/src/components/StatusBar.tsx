@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { useEditorStore, ELEMENT_LABELS } from '../stores/editorStore';
+import { useEditorStore, ELEMENT_LABELS, type BuiltInElementType } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { computeSceneTiming, formatRuntime } from '../utils/scriptTiming';
 import { computeScriptStructure } from '../utils/scriptStructure';
 
@@ -28,8 +29,20 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
   } = useEditorStore();
 
   const { currentProject } = useProjectStore();
+  const getActiveTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate);
 
   const saveDisplay = SAVE_STATUS_DISPLAY[saveStatus] || SAVE_STATUS_DISPLAY.idle;
+
+  const elementLabel = useMemo(() => {
+    const builtIn = (ELEMENT_LABELS as Record<string, string>)[activeElement as BuiltInElementType];
+    if (builtIn) return builtIn;
+    try {
+      const rule = getActiveTemplate().rules[activeElement];
+      return rule?.label || activeElement;
+    } catch {
+      return activeElement;
+    }
+  }, [activeElement, getActiveTemplate]);
 
   const estimatedRuntime = useMemo(() => {
     if (!editorDoc) return '';
@@ -70,7 +83,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
       </div>
       <div className="status-center">
         <span className="status-item status-element">
-          {ELEMENT_LABELS[activeElement]}
+          {elementLabel}
         </span>
       </div>
       <div className="status-right">

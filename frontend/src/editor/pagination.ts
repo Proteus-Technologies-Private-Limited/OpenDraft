@@ -5,6 +5,28 @@ import type { PageLayout } from '../stores/editorStore';
 
 export const paginationPluginKey = new PluginKey('pagination');
 
+/** Template hints that influence pagination — supplied by the active FormattingTemplate. */
+export interface TemplateHints {
+  /** Element ids that must start on a new page (e.g. sitcom: every sceneHeading). */
+  forceBreakBefore: Set<string>;
+  /** Per-element line-height multiplier (e.g. dialogue: 2.0 for double-spaced sitcom). */
+  lineHeightMultiplier: Record<string, number>;
+}
+
+const EMPTY_HINTS: TemplateHints = {
+  forceBreakBefore: new Set(),
+  lineHeightMultiplier: {},
+};
+
+/** Resolve the effective element id for a top-level node (built-in name or customTypeId). */
+function getElementId(node: PmNode): string {
+  if (node.type.name === 'customElement') {
+    const t = (node.attrs as { customTypeId?: string }).customTypeId;
+    if (t) return t;
+  }
+  return node.type.name;
+}
+
 const LINE_HEIGHT_PT = 12;
 
 // Final Draft Courier ≈ 10.33 chars/inch
@@ -63,18 +85,19 @@ export interface PaginationState {
 export function createPaginationPlugin(
   onUpdate: (state: PaginationState) => void,
   getLayout: () => PageLayout,
+  getHints: () => TemplateHints = () => EMPTY_HINTS,
 ) {
   return new Plugin({
     key: paginationPluginKey,
     state: {
       init(_, state) {
-        const result = computeBreaks(state.doc, getLayout());
+        const result = computeBreaks(state.doc, getLayout(), getHints());
         setTimeout(() => onUpdate(result), 0);
         return result;
       },
       apply(tr, oldState, _oldEditorState, newEditorState) {
         if (!tr.docChanged && !tr.getMeta('forceRepaginate')) return oldState;
-        const result = computeBreaks(newEditorState.doc, getLayout());
+        const result = computeBreaks(newEditorState.doc, getLayout(), getHints());
         onUpdate(result);
         return result;
       },
@@ -108,19 +131,21 @@ function getTextLines(text: string, cpl: number): number {
   return text.length === 0 ? 1 : Math.ceil(text.length / cpl);
 }
 
-function computeBreaks(doc: PmNode, layout: PageLayout): PaginationState {
+function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHints = EMPTY_HINTS): PaginationState {
   const { linesPerPage } = getPageMetrics(layout);
 
   interface NodeInfo {
-    typeName: string; spaceBefore: number; text: string;
-    offset: number; nodeSize: number;
+    typeName: string; elementId: string; spaceBefore: number; text: string;
+    offset: number; nodeSize: number; lineMul: number;
   }
   const nodes: NodeInfo[] = [];
   let isFirst = true;
   doc.forEach((node, offset) => {
     const typeName = node.type.name;
+    const elementId = getElementId(node);
     const sb = isFirst ? 0 : (SPACE_BEFORE[typeName] ?? 0);
-    nodes.push({ typeName, spaceBefore: sb, text: node.textContent || '', offset, nodeSize: node.nodeSize });
+    const lineMul = hints.lineHeightMultiplier[elementId] ?? 1;
+    nodes.push({ typeName, elementId, spaceBefore: sb, text: node.textContent || '', offset, nodeSize: node.nodeSize, lineMul });
     isFirst = false;
   });
 
@@ -132,7 +157,7 @@ function computeBreaks(doc: PmNode, layout: PageLayout): PaginationState {
   while (i < nodes.length) {
     const node = nodes[i];
     const cpl = CHARS_PER_LINE[node.typeName] || 62;
-    const textLines = getTextLines(node.text, cpl);
+    const textLines = getTextLines(node.text, cpl) * node.lineMul;
     const totalLines = node.spaceBefore + textLines;
 
     // Build character+dialogue block
@@ -144,18 +169,21 @@ function computeBreaks(doc: PmNode, layout: PageLayout): PaginationState {
       while (j < nodes.length && DIALOGUE_BLOCK_TYPES.has(nodes[j].typeName)) {
         const dn = nodes[j];
         const dc = CHARS_PER_LINE[dn.typeName] || 36;
-        blockLines += dn.spaceBefore + getTextLines(dn.text, dc);
+        blockLines += dn.spaceBefore + getTextLines(dn.text, dc) * dn.lineMul;
         j++;
       }
       blockEnd = j - 1;
     } else if (node.typeName === 'sceneHeading' && i + 1 < nodes.length) {
       const nn = nodes[i + 1];
       const nc = CHARS_PER_LINE[nn.typeName] || 62;
-      blockLines += nn.spaceBefore + getTextLines(nn.text, nc);
+      blockLines += nn.spaceBefore + getTextLines(nn.text, nc) * nn.lineMul;
       blockEnd = i + 1;
     }
 
-    if (lineCount + blockLines > linesPerPage && lineCount > 0) {
+    // Force break: template can require certain elements to start a new page (e.g. sitcom sceneHeading).
+    const forceBreak = lineCount > 0 && hints.forceBreakBefore.has(node.elementId);
+
+    if ((forceBreak || lineCount + blockLines > linesPerPage) && lineCount > 0) {
       const remaining = linesPerPage - lineCount;
 
       // Try to split character+dialogue blocks

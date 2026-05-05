@@ -598,7 +598,9 @@ const ProjectList: React.FC = () => {
           <div className="project-list-empty-icon">&#128209;</div>
           <div>
             {source === 'cloud'
-              ? 'No cloud projects yet. Create one or upload via File › Save to Cloud from the editor.'
+              ? (WEB_ONLY_CLOUD
+                  ? 'No projects yet. Create your first project to get started.'
+                  : 'No cloud projects yet. Create one or upload via File › Save to Cloud from the editor.')
               : 'No projects yet. Create your first project to get started.'}
           </div>
         </div>

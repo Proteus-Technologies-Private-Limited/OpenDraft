@@ -41,8 +41,8 @@ function rule(
 
 export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
   id: INDUSTRY_STANDARD_ID,
-  name: 'Industry Standard',
-  description: 'Standard screenplay formatting used by Final Draft and other professional tools.',
+  name: 'Film Screenplay',
+  description: 'Industry-standard feature-film screenplay formatting (Final Draft compatible).',
   mode: 'enforce',
   category: 'system',
   createdAt: '',

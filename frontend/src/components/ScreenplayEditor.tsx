@@ -25,7 +25,9 @@ import {
   ShowEpisode, CastList, FontSize, ScriptNoteMark, TagMark,
   FormatOverride, CustomElement, DualDialogue, DualDialogueColumn,
   TitlePage,
+  AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvKeymap,
 } from '../editor/extensions';
+import { registerAvCellPicker } from '../editor/extensions/AvBlock';
 import Strike from '@tiptap/extension-strike';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
@@ -932,14 +934,16 @@ const ScreenplayEditor: React.FC = () => {
   const [pendingDropFile, setPendingDropFile] = useState<File | null>(null);
   const [dropConfirmOpen, setDropConfirmOpen] = useState(false);
 
-  // Element picker state
+  // Element picker state. `availableTypes`, when set, restricts the picker
+  // to that exact list (used inside AV cells where only avPara/avShot/avDirection apply).
   const [pickerState, setPickerState] = useState<{
     visible: boolean;
     position: { top: number; left: number };
     defaultType: ElementType;
+    availableTypes?: ElementType[];
   }>({ visible: false, position: { top: 0, left: 0 }, defaultType: 'action' });
 
-  const showPickerRef = useRef<(defaultType: ElementType) => void>(() => {});
+  const showPickerRef = useRef<(defaultType: ElementType, availableTypes?: ElementType[]) => void>(() => {});
 
   // Character autocomplete state
   const [knownCharacters, setKnownCharacters] = useState<string[]>([]);
@@ -1305,6 +1309,7 @@ const ScreenplayEditor: React.FC = () => {
       SceneHeading, Action, Character, Dialogue, Parenthetical,
       Transition, General, Shot, NewAct, EndOfAct, Lyrics,
       ShowEpisode, CastList, DualDialogue, DualDialogueColumn, TitlePage,
+      AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvKeymap,
       ScriptNoteMark, TagMark,
       PaginationExtension,
       SearchExtension,
@@ -2203,7 +2208,7 @@ const ScreenplayEditor: React.FC = () => {
   }, [overlays]);
 
   // Wire up the picker trigger
-  showPickerRef.current = useCallback((defaultType: ElementType) => {
+  showPickerRef.current = useCallback((defaultType: ElementType, availableTypes?: ElementType[]) => {
     if (!editor) return;
     // Use requestAnimationFrame so the DOM has settled after the split
     requestAnimationFrame(() => {
@@ -2214,13 +2219,37 @@ const ScreenplayEditor: React.FC = () => {
         visible: true,
         position: { top: coords.bottom + 4, left: coords.left },
         defaultType,
+        availableTypes,
       });
     });
   }, [editor]);
 
+  // Bridge: let the AvKeymap extension surface the same element picker, but
+  // restricted to the cell-valid types (avPara/avShot/avDirection).
+  React.useEffect(() => {
+    registerAvCellPicker((defaultType, types) => {
+      showPickerRef.current(defaultType as ElementType, types as readonly ElementType[] as ElementType[]);
+    });
+    return () => registerAvCellPicker(null);
+  }, []);
+
   const handlePickerSelect = useCallback((type: ElementType) => {
     if (!editor) return;
-    editor.chain().focus().setNode(type).run();
+    // setNode works for any real schema node (built-in screenplay elements as
+    // well as the AV inner types avPara/avShot/avDirection). Custom-id elements
+    // declared only in template rules go through the customElement wrapper.
+    if (editor.schema.nodes[type]) {
+      editor.chain().focus().setNode(type).run();
+    } else {
+      const tpl = useFormattingTemplateStore.getState().getActiveTemplate();
+      const rule = tpl.rules[type];
+      if (rule) {
+        editor.chain().focus().setNode('customElement', {
+          customTypeId: type,
+          customLabel: rule.label,
+        }).run();
+      }
+    }
     setPickerState(s => ({ ...s, visible: false }));
   }, [editor]);
 
@@ -3442,6 +3471,7 @@ const ScreenplayEditor: React.FC = () => {
         <ElementPicker
           position={pickerState.position}
           defaultType={pickerState.defaultType}
+          availableTypes={pickerState.availableTypes}
           onSelect={handlePickerSelect}
           onDismiss={handlePickerDismiss}
         />

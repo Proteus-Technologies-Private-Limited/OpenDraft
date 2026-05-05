@@ -38,6 +38,36 @@ const FDX_TYPE_MAP: Record<string, string> = {
   'Singing': 'lyrics',
 };
 
+/** Custom (non-built-in) element ids used by script-type templates.
+ *  These import as customElement nodes; mapping is symmetric for export. */
+const FDX_CUSTOM_TYPE_MAP: Record<string, { customTypeId: string; customLabel: string }> = {
+  'Sound Effect': { customTypeId: 'soundEffect', customLabel: 'Sound Effect' },
+  'SoundEffect':  { customTypeId: 'soundEffect', customLabel: 'Sound Effect' },
+  'SFX':          { customTypeId: 'soundEffect', customLabel: 'Sound Effect' },
+  'Music Cue':    { customTypeId: 'musicCue',    customLabel: 'Music Cue' },
+  'MusicCue':     { customTypeId: 'musicCue',    customLabel: 'Music Cue' },
+  'Stage Direction': { customTypeId: 'stageDirection', customLabel: 'Stage Direction' },
+  'StageDirection':  { customTypeId: 'stageDirection', customLabel: 'Stage Direction' },
+  'Scene Characters': { customTypeId: 'sceneCharacters', customLabel: 'Scene Characters' },
+};
+
+/** Inverse of FDX_CUSTOM_TYPE_MAP keyed by customTypeId — used by FDX exporter. */
+export const CUSTOM_TYPE_TO_FDX: Record<string, string> = {
+  soundEffect: 'Sound Effect',
+  musicCue: 'Music Cue',
+  stageDirection: 'Stage Direction',
+  sceneCharacters: 'Scene Characters',
+};
+
+/** Resolve an FDX paragraph Type to either a built-in element id or a custom-element descriptor. */
+export function resolveFdxType(fdxType: string): { kind: 'builtin'; id: string } | { kind: 'custom'; customTypeId: string; customLabel: string } | null {
+  const builtIn = FDX_TYPE_MAP[fdxType];
+  if (builtIn) return { kind: 'builtin', id: builtIn };
+  const custom = FDX_CUSTOM_TYPE_MAP[fdxType];
+  if (custom) return { kind: 'custom', ...custom };
+  return null;
+}
+
 const FDX_ALIGNMENT_MAP: Record<string, string> = {
   'Left': 'left',
   'Center': 'center',
@@ -277,8 +307,19 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
       return null; // outline paragraphs go to beat board, not script
     }
 
-    const nodeType = FDX_TYPE_MAP[fdxType] || 'general';
+    // Resolve type — built-in element id, or custom-element wrapper for script-type templates.
+    const resolved = resolveFdxType(fdxType);
+    let nodeType: string;
     const attrs: Record<string, unknown> = {};
+    if (resolved && resolved.kind === 'custom') {
+      nodeType = 'customElement';
+      attrs.customTypeId = resolved.customTypeId;
+      attrs.customLabel = resolved.customLabel;
+    } else if (resolved && resolved.kind === 'builtin') {
+      nodeType = resolved.id;
+    } else {
+      nodeType = 'general';
+    }
 
     const sceneNumber = para.getAttribute('Number');
     if (sceneNumber) attrs.sceneNumber = sceneNumber;

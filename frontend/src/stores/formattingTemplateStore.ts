@@ -9,7 +9,32 @@ import { create } from 'zustand';
 import type { FormattingTemplate } from './formattingTypes';
 import { INDUSTRY_STANDARD_ID } from './formattingTypes';
 import { INDUSTRY_STANDARD_TEMPLATE } from './industryStandardTemplate';
+import { MULTICAM_SITCOM_TEMPLATE, MULTICAM_SITCOM_ID } from './templates/multicamSitcomTemplate';
+import { ONE_HOUR_DRAMA_TEMPLATE, ONE_HOUR_DRAMA_ID } from './templates/oneHourDramaTemplate';
+import { STAGE_PLAY_TEMPLATE, STAGE_PLAY_ID } from './templates/stagePlayTemplate';
+import { RADIO_PLAY_TEMPLATE, RADIO_PLAY_ID } from './templates/radioPlayTemplate';
+import { AV_SCRIPT_TEMPLATE, AV_SCRIPT_ID } from './templates/avScriptTemplate';
 import { api } from '../services/api';
+
+/** Built-in system templates, keyed by id. Read-only — never persisted. */
+export const SYSTEM_TEMPLATES: Record<string, FormattingTemplate> = {
+  [INDUSTRY_STANDARD_ID]: INDUSTRY_STANDARD_TEMPLATE,
+  [MULTICAM_SITCOM_ID]: MULTICAM_SITCOM_TEMPLATE,
+  [ONE_HOUR_DRAMA_ID]: ONE_HOUR_DRAMA_TEMPLATE,
+  [STAGE_PLAY_ID]: STAGE_PLAY_TEMPLATE,
+  [RADIO_PLAY_ID]: RADIO_PLAY_TEMPLATE,
+  [AV_SCRIPT_ID]: AV_SCRIPT_TEMPLATE,
+};
+
+/** Ordered list of system templates for the format picker. */
+export const SYSTEM_TEMPLATE_LIST: FormattingTemplate[] = [
+  INDUSTRY_STANDARD_TEMPLATE,
+  ONE_HOUR_DRAMA_TEMPLATE,
+  MULTICAM_SITCOM_TEMPLATE,
+  STAGE_PLAY_TEMPLATE,
+  RADIO_PLAY_TEMPLATE,
+  AV_SCRIPT_TEMPLATE,
+];
 
 interface FormattingTemplateState {
   /** All user-created templates */
@@ -59,7 +84,9 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
 
   getActiveTemplate: () => {
     const { activeTemplateId, templates } = get();
-    if (activeTemplateId && activeTemplateId !== INDUSTRY_STANDARD_ID) {
+    if (activeTemplateId) {
+      const sys = SYSTEM_TEMPLATES[activeTemplateId];
+      if (sys) return sys;
       const found = templates.find((t) => t.id === activeTemplateId);
       if (found) return found;
     }
@@ -133,9 +160,7 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
   },
 
   duplicateTemplate: async (id) => {
-    const source = id === INDUSTRY_STANDARD_ID
-      ? INDUSTRY_STANDARD_TEMPLATE
-      : get().templates.find((t) => t.id === id);
+    const source = SYSTEM_TEMPLATES[id] || get().templates.find((t) => t.id === id);
     if (!source) throw new Error('Template not found');
 
     return get().createTemplate({

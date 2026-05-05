@@ -232,7 +232,9 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose }) => {
               {query
                 ? `No files match “${query}”.`
                 : source === 'cloud'
-                  ? 'No cloud files yet. Use File › Save to Cloud to upload.'
+                  ? (WEB_ONLY_CLOUD
+                      ? 'No files yet. Use File › Save to create your first screenplay.'
+                      : 'No cloud files yet. Use File › Save to Cloud to upload.')
                   : 'No files yet. Use File › Import to create a project.'}
             </div>
           ) : (

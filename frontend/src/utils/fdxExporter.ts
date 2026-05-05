@@ -1,6 +1,7 @@
 // Final Draft XML (.fdx) exporter — full formatting & layout support
 import type { JSONContent } from '@tiptap/react';
 import type { CharacterProfile, TagCategory, TagItem, BeatInfo, BeatColumn, PageLayout } from '../stores/editorStore';
+import { CUSTOM_TYPE_TO_FDX } from './fdxParser';
 
 const NODE_TO_FDX: Record<string, string> = {
   sceneHeading: 'Scene Heading',
@@ -17,6 +18,17 @@ const NODE_TO_FDX: Record<string, string> = {
   showEpisode: 'Show/Episode',
   castList: 'Cast List',
 };
+
+/** Resolve the FDX paragraph Type for a Tiptap node.
+ *  customElement nodes use their customTypeId to look up an FDX-equivalent name. */
+function resolveFdxExportType(node: JSONContent): string {
+  if (node.type === 'customElement') {
+    const cid = (node.attrs as { customTypeId?: string } | undefined)?.customTypeId;
+    if (cid && CUSTOM_TYPE_TO_FDX[cid]) return CUSTOM_TYPE_TO_FDX[cid];
+    return 'General';
+  }
+  return NODE_TO_FDX[node.type || ''] || 'General';
+}
 
 const ALIGNMENT_TO_FDX: Record<string, string> = {
   left: 'Left', center: 'Center', right: 'Right', justify: 'Justify',
@@ -287,7 +299,7 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
 
   // Helper: emit a single Paragraph element
   const emitParagraph = (node: JSONContent, indent: string) => {
-    const fdxType = NODE_TO_FDX[node.type || ''] || 'General';
+    const fdxType = resolveFdxExportType(node);
     const paraAttrs: string[] = [`Type="${fdxType}"`];
 
     if (node.attrs?.sceneNumber) paraAttrs.push(`Number="${node.attrs.sceneNumber}"`);
@@ -338,6 +350,29 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
           }
         }
         lines.push('    </DualDialogue>');
+      } else if (node.type === 'avBlock') {
+        // AV block: emit each row as a pair of General paragraphs with custom attrs.
+        // FDX-aware OpenDraft instances re-import this back into avBlock; Final Draft
+        // sees a flat sequence of General paragraphs (acceptable degradation).
+        if (node.content) {
+          let rowIdx = 0;
+          for (const row of node.content) {
+            if (row.type !== 'avRow' || !row.content) continue;
+            const rowId = `r${rowIdx++}`;
+            for (const cell of row.content) {
+              if (cell.type !== 'avCell' || !cell.content) continue;
+              const side = (cell.attrs as { side?: string } | undefined)?.side || 'video';
+              for (const para of cell.content) {
+                // Build text content (joining all text children of the inner para)
+                let text = '';
+                if (para.content) {
+                  for (const t of para.content) text += (t as { text?: string }).text || '';
+                }
+                lines.push(`    <Paragraph Type="General" data-av-side="${esc(side)}" data-av-row-id="${esc(rowId)}"><Text>${esc(text)}</Text></Paragraph>`);
+              }
+            }
+          }
+        }
       } else {
         emitParagraph(node, '    ');
       }

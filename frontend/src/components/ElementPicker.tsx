@@ -27,24 +27,34 @@ const DEFAULT_ORDER: ElementType[] = [
 interface ElementPickerProps {
   position: { top: number; left: number };
   defaultType: ElementType;
+  /** When provided, overrides the template-derived element list (used inside AV cells). */
+  availableTypes?: ElementType[];
   onSelect: (type: ElementType) => void;
   onDismiss: () => void;
 }
 
 const ElementPicker: React.FC<ElementPickerProps> = ({
-  position, defaultType, onSelect, onDismiss,
+  position, defaultType, availableTypes, onSelect, onDismiss,
 }) => {
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
-  const orderedTypes = useMemo(
+  const orderedTypes = useMemo<ElementType[]>(
     () => {
+      // Caller-supplied list (e.g. AV cell context) wins outright.
+      if (availableTypes && availableTypes.length > 0) return availableTypes;
       const enabled = new Set(
         Object.values(activeTemplate.rules).filter((r) => r.enabled).map((r) => r.id),
       );
       return (ELEMENT_ORDER[defaultType] || DEFAULT_ORDER)
         .filter((t) => enabled.has(t));
     },
-    [defaultType, activeTemplate],
+    [defaultType, activeTemplate, availableTypes],
   );
+
+  // Resolve a display label: built-in label first, then template-rule label,
+  // finally the raw id. Custom-element ids (avShot, sceneCharacters, etc.) only
+  // have labels in the template rules.
+  const labelFor = (type: ElementType): string =>
+    ELEMENT_LABELS[type] || activeTemplate.rules[type]?.label || String(type);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -135,7 +145,7 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
           onMouseDown={(e) => { e.preventDefault(); onSelect(type); }}
           onMouseEnter={() => setSelectedIndex(i)}
         >
-          <span className="element-picker-label">{ELEMENT_LABELS[type]}</span>
+          <span className="element-picker-label">{labelFor(type)}</span>
         </div>
       ))}
     </div>

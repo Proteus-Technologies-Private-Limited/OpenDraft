@@ -174,20 +174,43 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     const type = e.target.value;
     if (!editor) return;
     setActiveElement(type as ElementType);
-    // Check if it's a built-in element or a custom element
+    // Three cases:
+    //   1. Built-in screenplay element (sceneHeading, action, etc.) — direct setNode
+    //   2. Real schema node not in BUILT_IN list (avPara, avShot, avDirection) — also direct setNode
+    //   3. Template-declared custom id (sceneCharacters, soundEffect, etc.) — wrap as customElement
     if (BUILT_IN_ELEMENT_IDS.includes(type)) {
       editor.chain().focus().setNode(type).run();
-    } else {
-      // Custom element
-      const rule = activeTemplate.rules[type];
-      if (rule) {
-        editor.chain().focus().setNode('customElement', {
-          customTypeId: type,
-          customLabel: rule.label,
-        }).run();
-      }
+      return;
+    }
+    if (editor.schema.nodes[type]) {
+      editor.chain().focus().setNode(type).run();
+      return;
+    }
+    const rule = activeTemplate.rules[type];
+    if (rule) {
+      editor.chain().focus().setNode('customElement', {
+        customTypeId: type,
+        customLabel: rule.label,
+      }).run();
     }
   };
+
+  /** True when the selection is inside an AV cell — used to scope the element dropdown. */
+  const isInsideAvCell = React.useMemo(() => {
+    if (!editor) return false;
+    try {
+      const { $from } = editor.state.selection;
+      for (let d = $from.depth; d >= 0; d--) {
+        if ($from.node(d).type.name === 'avCell') return true;
+      }
+    } catch { /* ignore */ }
+    return false;
+  // Re-evaluate on selection updates
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, activeElement]);
+
+  /** Element ids valid inside an AV cell (per the avCell schema content rule). */
+  const AV_CELL_ELEMENT_IDS = ['avPara', 'avShot', 'avDirection'];
 
   const isActive = (format: string) => {
     if (!editor) return false;
@@ -776,6 +799,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         >
           {Object.values(activeTemplate.rules)
             .filter((r) => r.enabled)
+            // When inside an AV cell, only cell-valid types make sense — selecting
+            // sceneHeading/action/etc. silently fails the schema check anyway.
+            .filter((r) => isInsideAvCell ? AV_CELL_ELEMENT_IDS.includes(r.id) : !AV_CELL_ELEMENT_IDS.includes(r.id))
             .map((r) => (
               <option key={r.id} value={r.id}>
                 {r.label}

@@ -11,6 +11,7 @@ import AuthBootstrap from './components/AuthBootstrap';
 import VerifyEmailRoute from './components/VerifyEmailRoute';
 import { pluginRegistry } from './plugins/registry';
 import './styles/screenplay.css';
+import './styles/avScript.css';
 
 function App() {
   const pluginRoutes = pluginRegistry.getRoutes();

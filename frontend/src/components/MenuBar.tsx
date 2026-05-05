@@ -11,11 +11,17 @@ import { parseFDXFull } from '../utils/fdxParser';
 import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
 import { exportPDF } from '../utils/pdfExporter';
+import { downloadDocx } from '../utils/docxExporter';
+import { parseDocx } from '../utils/docxImporter';
 import { downloadOdraft, parseOdraft } from '../utils/odraftFormat';
 import { trackChangesPluginKey } from '../editor/trackChanges';
 import PageSetupDialog from './PageSetupDialog';
 import TemplateSelectDialog from './TemplateSelectDialog';
+import ScriptFormatPreferencesDialog from './ScriptFormatPreferencesDialog';
+import ScriptFormatPickerDialog from './ScriptFormatPickerDialog';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { applyScriptFormat } from '../utils/applyScriptFormat';
+import { INDUSTRY_STANDARD_ID } from '../stores/formattingTypes';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { pluginRegistry } from '../plugins/registry';
 import AuthIndicator from './AuthIndicator';
@@ -25,8 +31,8 @@ import { cloudApi } from '../services/cloudApi';
 import { useSettingsStore } from '../stores/settingsStore';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { spellChecker } from '../editor/spellchecker';
-import { openTextFile } from '../utils/fileOps';
-import { isDesktopTauri } from '../services/platform';
+import { openTextFile, openBinaryFile } from '../utils/fileOps';
+import { isDesktopTauri, isWeb } from '../services/platform';
 import { getCompatEntries } from '../services/compat';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
 import {
@@ -43,6 +49,7 @@ import {
   FaFileExport,
   FaFileCode,
   FaFilePdf,
+  FaFileWord,
   FaCodeBranch,
   FaCog,
   FaPrint,
@@ -349,6 +356,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
+  // ── Word import: best-effort warning shown before opening the file picker ──
+  const [docxImportWarningOpen, setDocxImportWarningOpen] = useState(false);
+
   /** Returns true if the editor has unsaved changes worth prompting about.
    *  - If never saved to a project: true when editor has any meaningful text.
    *  - If saved to a project: always false (auto-save handles it). */
@@ -400,6 +410,13 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   // ── Page Setup ──
   const [pageSetupOpen, setPageSetupOpen] = useState(false);
   const [templateSelectOpen, setTemplateSelectOpen] = useState(false);
+
+  // ── Script-format preferences (multi-select) and per-script picker ──
+  // `formatPrefsOpen` controls the multi-select preferences dialog. When `firstRun`
+  // is true the dialog is non-cancellable and triggers `pendingFormatApply` after save.
+  // `formatPickerOpen` is the single-select dialog shown when 2+ formats are enabled.
+  const [formatPrefsOpen, setFormatPrefsOpen] = useState<{ firstRun: boolean; afterSave: 'apply-new-screenplay' | null } | null>(null);
+  const [formatPickerOpen, setFormatPickerOpen] = useState(false);
 
   // ── Per-attribute locking from active template ──
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
@@ -659,34 +676,128 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     }
   }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
 
-  const handleNewScreenplay = useCallback(() => {
-    confirmOrRun(() => {
-      if (!editor) return;
+  // Core Word import: open binary file → parse → apply.  The pre-import
+  // warning dialog and the unsaved-changes guard wrap this.
+  const handleImportDocxCore = useCallback(async () => {
+    if (!editor) return;
+    try {
+      const result = await openBinaryFile([
+        { name: 'Word Document', extensions: ['docx'] },
+      ]);
+      if (!result) return;
+
+      const { name, content } = result;
+      const parsed = await parseDocx(content);
+
+      // Clear previous document state
       clearTrackChanges();
-      editor.commands.setContent({
-        type: 'doc',
-        content: [{ type: 'sceneHeading', content: [] }],
-      }, true);
-      clearEditorHistory(editor);
-      setCurrentProject(null);
-      setCurrentScriptId(null);
-      setScripts([]);
       const store = useEditorStore.getState();
-      store.setDocumentTitle('Untitled Screenplay');
       store.setBeats([]);
       store.setBeatColumns([]);
       store.setBeatArrangeMode('auto');
       store.setNotes([]);
       store.setTags([]);
-      store.setTagCategories([]);
+      store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
       store.setCharacterProfiles([]);
       store.setScenes([]);
-      store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
-      if (window.location.pathname !== '/') {
-        window.history.replaceState(null, '', '/');
+
+      editor.commands.setContent(parsed.doc, true);
+      clearEditorHistory(editor);
+
+      const scriptTitle = parsed.scriptTitle || name.replace(/\.\w+$/, '') || 'Untitled';
+      store.setDocumentTitle(scriptTitle);
+      setCurrentProject(null);
+      setCurrentScriptId(null);
+      setScripts([]);
+
+      if (parsed.warnings.length > 0) {
+        const summary = parsed.ambiguousCount > 0
+          ? `Imported with ${parsed.ambiguousCount} paragraph(s) auto-classified as Action — review the script.`
+          : `Imported with ${parsed.warnings.length} note(s). See console for details.`;
+        showToast(summary, 'info');
+        for (const w of parsed.warnings) console.warn('[Word Import]', w);
+      } else {
+        showToast('Word document imported.', 'info');
       }
+    } catch (err) {
+      console.error('Word import failed:', err);
+      showToast(`Word import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
+
+  // Wraps handleImportDocxCore with the best-effort warning dialog.
+  const handleImportDocx = useCallback(() => {
+    setDocxImportWarningOpen(true);
+  }, []);
+
+  const handleConfirmDocxImport = useCallback(() => {
+    setDocxImportWarningOpen(false);
+    // Run through unsaved-changes guard, then through the core importer.
+    confirmOrRun(() => { handleImportDocxCore(); });
+  }, [confirmOrRun, handleImportDocxCore]);
+
+  /** Resets all per-script session state for a fresh new-screenplay,
+   *  but does NOT seed editor content — caller picks the format and content. */
+  const resetForNewScreenplay = useCallback(() => {
+    if (!editor) return;
+    clearTrackChanges();
+    clearEditorHistory(editor);
+    setCurrentProject(null);
+    setCurrentScriptId(null);
+    setScripts([]);
+    const store = useEditorStore.getState();
+    store.setDocumentTitle('Untitled Screenplay');
+    store.setBeats([]);
+    store.setBeatColumns([]);
+    store.setBeatArrangeMode('auto');
+    store.setNotes([]);
+    store.setTags([]);
+    store.setTagCategories([]);
+    store.setCharacterProfiles([]);
+    store.setScenes([]);
+    store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
+    if (window.location.pathname !== '/') {
+      window.history.replaceState(null, '', '/');
+    }
+  }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
+
+  /** Apply the chosen format (sets active template + seeds starter content), after state is reset. */
+  const finishNewScreenplayWithFormat = useCallback((templateId: string) => {
+    resetForNewScreenplay();
+    applyScriptFormat(editor, templateId);
+  }, [editor, resetForNewScreenplay]);
+
+  const handleNewScreenplay = useCallback(() => {
+    confirmOrRun(() => {
+      if (!editor) return;
+      const settings = useSettingsStore.getState();
+      const enabled = settings.enabledScriptFormats;
+
+      // First run — never asked the user. Show the multi-select prefs dialog.
+      // After they save, route through the same logic (1 enabled = apply directly,
+      // 2+ enabled = show picker).
+      if (!settings.formatPreferencesInitialized) {
+        setFormatPrefsOpen({ firstRun: true, afterSave: 'apply-new-screenplay' });
+        return;
+      }
+
+      // No formats enabled (edge case — user deselected everything).
+      // Re-prompt via prefs dialog rather than silently picking one.
+      if (enabled.length === 0) {
+        setFormatPrefsOpen({ firstRun: false, afterSave: 'apply-new-screenplay' });
+        return;
+      }
+
+      // Exactly one enabled — apply it directly, no prompt.
+      if (enabled.length === 1) {
+        finishNewScreenplayWithFormat(enabled[0]);
+        return;
+      }
+
+      // 2+ enabled — show the quick single-select picker.
+      setFormatPickerOpen(true);
     });
-  }, [editor, confirmOrRun, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
+  }, [editor, confirmOrRun, finishNewScreenplayWithFormat]);
 
   // ── Global keyboard shortcuts ──
   useEffect(() => {
@@ -765,6 +876,20 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     }
   }, [editor, documentTitle, pageLayout]);
 
+  const handleExportDocx = useCallback(async () => {
+    if (!editor) return;
+    try {
+      const store = useEditorStore.getState();
+      await downloadDocx(editor.getJSON(), documentTitle, pageLayout, {
+        documentTitle: store.documentTitle,
+        revisionColor: store.revisionMode ? store.revisionColor : '',
+      });
+    } catch (err) {
+      console.error('Word export failed:', err);
+      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, documentTitle, pageLayout]);
+
   const handleExportOdraft = useCallback(async () => {
     if (!editor) return;
     try {
@@ -833,10 +958,16 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           },
         }] : []),
         { separator: true, label: '' },
-        { icon: <FaFileImport />, label: 'Import...', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
+        {
+          icon: <FaFileImport />, label: 'Import',
+          children: [
+            { icon: <FaFileCode />, label: 'Final Draft / Fountain / OpenDraft...', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
+            { icon: <FaFileWord />, label: 'Microsoft Word (.docx)...', action: handleImportDocx, disabled: isCollabGuest },
+          ],
+        },
         { icon: <FaFolderOpen />, label: 'Open...', action: () => confirmOrRun(() => setOpenFileOpen(true)), disabled: isCollabGuest },
         { icon: <FaSave />, label: 'Save', shortcut: `${mod}S`, action: handleSave, disabled: isCollabGuest },
-        {
+        ...(isWeb() ? [] : [{
           icon: <FaSave />,
           label: (currentProject && currentScriptId && isCloudScript(currentProject.id, currentScriptId))
             ? 'Saved in Cloud'
@@ -845,7 +976,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           disabled:
             isCollabGuest ||
             !!(currentProject && currentScriptId && isCloudScript(currentProject.id, currentScriptId)),
-        },
+        }]),
         { separator: true, label: '' },
         {
           icon: <FaFileExport />, label: 'Export',
@@ -853,6 +984,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             { icon: <FaFileCode />, label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
             { icon: <FaFileAlt />, label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
             { icon: <FaFilePdf />, label: 'PDF', action: handleExportPDF },
+            { icon: <FaFileWord />, label: 'Microsoft Word (.docx)', action: handleExportDocx },
             { icon: <FaFile />, label: 'OpenDraft (.odraft)', action: handleExportOdraft, disabled: isCollabGuest },
           ],
         },
@@ -937,6 +1069,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         { separator: true, label: '' },
         { icon: <FaFileAlt />, label: 'Title Page...', action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
         { icon: <FaFileAlt />, label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true) },
+        { icon: <FaFileAlt />, label: 'Script Format Preferences...', action: () => setFormatPrefsOpen({ firstRun: false, afterSave: null }) },
       ],
     },
     {
@@ -1536,6 +1669,33 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     {templateSelectOpen && (
       <TemplateSelectDialog editor={editor} onClose={() => setTemplateSelectOpen(false)} />
     )}
+    {formatPrefsOpen && (
+      <ScriptFormatPreferencesDialog
+        firstRun={formatPrefsOpen.firstRun}
+        onConfirm={(ids) => {
+          const next = formatPrefsOpen;
+          setFormatPrefsOpen(null);
+          if (next?.afterSave === 'apply-new-screenplay') {
+            // After saving prefs, immediately route the new-screenplay action through
+            // the same logic again (1 enabled = apply directly, 2+ = show picker).
+            if (ids.length === 1) finishNewScreenplayWithFormat(ids[0]);
+            else if (ids.length > 1) setFormatPickerOpen(true);
+            else finishNewScreenplayWithFormat(INDUSTRY_STANDARD_ID);
+          }
+        }}
+        onCancel={() => setFormatPrefsOpen(null)}
+      />
+    )}
+    {formatPickerOpen && (
+      <ScriptFormatPickerDialog
+        enabledIds={useSettingsStore.getState().enabledScriptFormats}
+        onPick={(id) => {
+          setFormatPickerOpen(false);
+          finishNewScreenplayWithFormat(id);
+        }}
+        onCancel={() => setFormatPickerOpen(false)}
+      />
+    )}
     {aboutOpen && (
       <div className="dialog-overlay" onClick={() => setAboutOpen(false)}>
         <div className="dialog-box about-dialog" onClick={(e) => e.stopPropagation()}>
@@ -1613,6 +1773,38 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <button onClick={handleDiscardConfirmCancel}>Cancel</button>
             <button onClick={handleDiscardConfirmDiscard}>Discard</button>
             <button className="dialog-primary" onClick={handleDiscardConfirmSave}>Save &amp; Continue</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {docxImportWarningOpen && (
+      <div className="dialog-overlay" onClick={() => setDocxImportWarningOpen(false)}>
+        <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
+          <div className="dialog-header">Import from Word — Best-Effort Formatting</div>
+          <div className="dialog-body">
+            <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
+              OpenDraft will detect screenplay element types (scene heading, action,
+              character, dialogue, parenthetical, transition, etc.) from the
+              Word document&apos;s formatting.
+            </p>
+            <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
+              Detection is <strong>best-effort</strong> and depends on consistent
+              formatting being applied throughout the document. Results will be
+              accurate if you used:
+            </p>
+            <ul style={{ margin: '0 0 8px 18px', fontSize: 13, color: 'var(--fd-text)' }}>
+              <li>Final Draft, Fade In, Trelby, or Highland style names, OR</li>
+              <li>Standard Final Draft indents (Action 1.5&quot;, Character 3.5&quot;, Dialogue 2.5&quot;, Parenthetical 3.0&quot;), OR</li>
+              <li>Conventional text patterns (INT./EXT., ALL-CAPS character cues, &quot;CUT TO:&quot; transitions).</li>
+            </ul>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-muted, #888)' }}>
+              Anything that can&apos;t be classified will be imported as Action and
+              listed in a post-import notice for you to review.
+            </p>
+          </div>
+          <div className="dialog-actions">
+            <button onClick={() => setDocxImportWarningOpen(false)}>Cancel</button>
+            <button className="dialog-primary" onClick={handleConfirmDocxImport}>Continue</button>
           </div>
         </div>
       </div>

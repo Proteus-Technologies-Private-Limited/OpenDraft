@@ -1,0 +1,53 @@
+/* Two-column AV (Audio | Video) script layout.
+ * The avBlock wraps any number of avRows; each row is a 2-column grid.
+ * Cell padding inherits page indents via the existing --pl/--pr CSS variables. */
+
+.av-block {
+  margin: 12pt 0;
+}
+
+.av-row {
+  display: grid;
+  grid-template-columns: 1fr 12px 1fr;
+  align-items: stretch;
+  margin-bottom: 6pt;
+}
+
+.av-cell {
+  padding: 6pt 4pt;
+  min-height: 1.2em;
+  border: 1px solid transparent;
+  position: relative;
+}
+
+.av-cell-video { grid-column: 1; }
+.av-cell-audio {
+  grid-column: 3;
+  border-left: 1px solid #d0d0d0;
+}
+
+/* Visual focus indication when caret is inside a cell */
+.ProseMirror .av-cell:has(.ProseMirror-selectednode),
+.ProseMirror .av-cell:focus-within {
+  background-color: rgba(0, 120, 255, 0.04);
+}
+
+/* Inner paragraph defaults — overridden per-template via templateCss.ts */
+.av-cell .av-para  { margin: 0; }
+.av-cell .av-shot  { margin: 0; text-transform: uppercase; font-weight: bold; }
+.av-cell .av-direction { margin: 0; font-style: italic; }
+
+/* Print: don't break inside a row by default. (Pagination engine handles row-level breaks
+ * when wired in; this is the fallback for raw print and PDF export.) */
+@media print {
+  .av-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* Light-on-dark: tone down the divider so it doesn't dominate */
+[data-theme='dark'] .av-cell-audio { border-left-color: #3a3a3a; }
+[data-theme='dark'] .ProseMirror .av-cell:focus-within {
+  background-color: rgba(120, 180, 255, 0.07);
+}

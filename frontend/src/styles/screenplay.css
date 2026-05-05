@@ -2812,7 +2812,6 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   border-radius: 3px;
   margin: 0 4px;
 }
-.element-picker-item:hover,
 .element-picker-item.selected {
   background: var(--fd-accent);
   color: #fff;
@@ -10579,6 +10578,122 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;
+}
+
+/* ============ SCRIPT FORMAT PREFERENCES & PICKER DIALOGS ============ */
+.fmt-dialog {
+  background: var(--fd-dropdown-bg, #1e1e1e);
+  border: 1px solid var(--fd-border, #555);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.6);
+  width: 560px;
+  max-width: 92vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.fmt-dialog-narrow { width: 460px; }
+.fmt-dialog .dialog-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--fd-border);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--fd-text);
+}
+.fmt-dialog-body {
+  padding: 14px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+.fmt-dialog-hint {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: var(--fd-text-muted, var(--fd-text-dim));
+  line-height: 1.45;
+}
+.fmt-dialog .dialog-actions {
+  padding: 12px 20px;
+  border-top: 1px solid var(--fd-border);
+}
+
+/* Card list — used by both the multi-select preferences dialog (with checkbox)
+   and the single-select picker (without checkbox). */
+.fmt-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fmt-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--fd-border, #444);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: var(--fd-text);
+  font-family: inherit;
+  font-size: 13px;
+  width: 100%;
+  transition: background 0.1s, border-color 0.1s;
+}
+.fmt-card:hover {
+  background: var(--fd-hover, rgba(255,255,255,0.05));
+  border-color: var(--fd-accent, #3b82f6);
+}
+.fmt-card.is-selected {
+  background: var(--fd-accent-bg, rgba(59,130,246,0.12));
+  border-color: var(--fd-accent, #3b82f6);
+}
+.fmt-card-checkbox {
+  margin-top: 2px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--fd-accent, #3b82f6);
+}
+.fmt-card-info { flex: 1; min-width: 0; }
+.fmt-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fd-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fmt-card-group {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--fd-bg-dim, rgba(255,255,255,0.06));
+  color: var(--fd-text-dim);
+}
+.fmt-card-tagline {
+  font-size: 12px;
+  color: var(--fd-text-dim);
+  margin-top: 3px;
+  line-height: 1.4;
+}
+.fmt-empty {
+  padding: 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--fd-text-dim);
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .fmt-card {
+  border-color: var(--fd-border, #d0d0d0);
+}
+[data-theme="light"] .fmt-card:hover {
+  background: rgba(0,0,0,0.04);
+}
+[data-theme="light"] .fmt-card.is-selected {
+  background: rgba(59,130,246,0.08);
 }
 
 /* ============ TEMPLATE CONFLICT DIALOG ============ */

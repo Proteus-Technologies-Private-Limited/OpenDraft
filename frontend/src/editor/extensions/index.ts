@@ -18,3 +18,4 @@ export { ScriptNoteMark } from './ScriptNoteMark';
 export { TagMark } from './TagMark';
 export { FormatOverride } from './FormatOverride';
 export { CustomElement } from './CustomElement';
+export { AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvKeymap, AvBlockExtensions } from './AvBlock';

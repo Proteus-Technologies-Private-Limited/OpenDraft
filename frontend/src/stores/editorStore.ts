@@ -32,7 +32,8 @@ function saveViewState(patch: Partial<ViewState>) {
 }
 const _vs = loadViewState();
 
-export type ElementType =
+/** Built-in screenplay element types — fixed set, hardcoded as Tiptap extensions. */
+export type BuiltInElementType =
   | 'sceneHeading'
   | 'action'
   | 'character'
@@ -48,7 +49,13 @@ export type ElementType =
   | 'castList'
   | 'titlePage';
 
-export const ELEMENT_LABELS: Record<ElementType, string> = {
+/** Element type id — built-in literal or any custom id declared by a template.
+ *  The `(string & {})` trick keeps autocomplete on built-ins while accepting any string. */
+export type ElementType = BuiltInElementType | (string & {});
+
+/** Display labels for built-in element types. Keyed permissively as `string` so callers
+ *  can index with any `ElementType` (custom ids return undefined; pair with `|| fallback`). */
+export const ELEMENT_LABELS: Record<string, string> = {
   sceneHeading: 'Scene Heading',
   action: 'Action',
   character: 'Character',
