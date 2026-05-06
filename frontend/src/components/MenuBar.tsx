@@ -1619,11 +1619,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.17.0</div>
+            <div className="about-version">Version 0.17.1</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.17.0</div>
+              <div className="about-section-title">What's New in 0.17.1</div>
               <ul className="about-list">
                 <li><strong>Treatment Documents</strong> — Write a 20–25 page prose treatment alongside your screenplay. Use "+ New Document" in a project to open the manuscript-format editor.</li>
                 <li><strong>Location Database</strong> — Sidebar panel for managing screenplay locations: list / detail / edit, auto-discovery from scene headings, aliases, and rename-in-scene-headings.</li>
