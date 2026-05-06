@@ -57,10 +57,16 @@ function loadData(): FallbackData {
 }
 
 function saveData(data: FallbackData): void {
+  // Propagate failures (quota exceeded, security errors) so the editor's
+  // save promise rejects and the user sees a "Save failed" indicator.
+  // Swallowing the error here is what produced the silent-loss bug on
+  // Windows users whose fallback storage filled up.
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (e) {
     console.error('Fallback storage: failed to save (quota exceeded?)', e);
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`Local storage save failed: ${msg}`);
   }
 }
 

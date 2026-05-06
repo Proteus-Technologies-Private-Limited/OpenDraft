@@ -1651,26 +1651,45 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
                 </thead>
                 <tbody>
                   {getCompatEntries().map((entry) => (
-                    <tr key={entry.label}>
-                      <td style={{ padding: '4px 8px', color: 'var(--fd-text)' }}>{entry.label}</td>
-                      <td style={{ padding: '4px 8px' }}>
-                        <span style={{
-                          display: 'inline-block',
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          backgroundColor: entry.mode === 'primary' ? '#4caf50' : '#ff9800',
-                          marginRight: 6,
-                          verticalAlign: 'middle',
-                        }} />
-                        <span style={{ color: entry.mode === 'primary' ? '#4caf50' : '#ff9800', verticalAlign: 'middle' }}>
-                          {entry.mode === 'primary' ? 'Latest' : 'Fallback'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '4px 8px', color: 'var(--fd-text-secondary)', fontSize: 11 }}>
-                        {entry.using}
-                      </td>
-                    </tr>
+                    <React.Fragment key={entry.label}>
+                      <tr>
+                        <td style={{ padding: '4px 8px', color: 'var(--fd-text)' }}>{entry.label}</td>
+                        <td style={{ padding: '4px 8px' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            backgroundColor: entry.mode === 'primary' ? '#4caf50' : '#ff9800',
+                            marginRight: 6,
+                            verticalAlign: 'middle',
+                          }} />
+                          <span style={{ color: entry.mode === 'primary' ? '#4caf50' : '#ff9800', verticalAlign: 'middle' }}>
+                            {entry.mode === 'primary' ? 'Latest' : 'Fallback'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '4px 8px', color: 'var(--fd-text-secondary)', fontSize: 11 }}>
+                          {entry.using}
+                        </td>
+                      </tr>
+                      {entry.errorReason && (
+                        <tr>
+                          <td colSpan={3} style={{ padding: '0 8px 8px 8px' }}>
+                            <pre style={{
+                              margin: 0,
+                              padding: '6px 8px',
+                              fontSize: 11,
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                              background: 'var(--fd-surface-2, #f4f4f4)',
+                              border: '1px solid var(--fd-border, #ddd)',
+                              borderRadius: 4,
+                              color: 'var(--fd-text-secondary)',
+                            }}>{entry.errorReason}</pre>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>

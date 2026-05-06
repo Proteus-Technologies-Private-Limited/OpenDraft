@@ -5,6 +5,7 @@
   "windows": ["main", "main-*", "splashscreen"],
   "permissions": [
     "core:default",
+    "core:window:allow-destroy",
     "sql:default",
     "sql:allow-load",
     "sql:allow-execute",
@@ -23,6 +24,8 @@
         { "path": "$RESOURCE/**" }
       ]
     },
-    "dialog:default"
+    "dialog:default",
+    "dialog:allow-confirm",
+    "dialog:allow-ask"
   ]
 }

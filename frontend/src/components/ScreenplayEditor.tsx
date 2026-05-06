@@ -88,7 +88,7 @@ import { useIsTouchDevice, useSwipeEdge, usePinchZoom } from '../hooks/useTouch'
 import { useSettingsStore } from '../stores/settingsStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
 import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, isCollabAuthenticated } from '../services/collabAuth';
-import { platformFetch } from '../services/platform';
+import { platformFetch, isTauri } from '../services/platform';
 import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
@@ -1892,7 +1892,17 @@ const ScreenplayEditor: React.FC = () => {
   }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
 
   // --- Save on page unload (refresh / close) ---
-  // Uses api.saveScript so it works on both web/desktop (HTTP) and mobile (SQLite).
+  // Two strategies depending on platform:
+  //   1. Tauri desktop / mobile — register a `onCloseRequested` handler that
+  //      preventDefault()s the close, awaits the SQLite save, and only then
+  //      closes the window.  Plain `beforeunload` is unreliable on WebView2
+  //      (Windows): the renderer is torn down before the async IPC save
+  //      completes, so the last unsaved edits are silently lost.
+  //   2. Web — `beforeunload` is the only hook available.  We fire the save
+  //      and, if there are unsaved changes, also set returnValue so the
+  //      browser shows its standard "Leave this page?" prompt.  That gives
+  //      the in-flight save a few extra milliseconds before the tab dies.
+  //
   // NOTE: We intentionally do NOT save on component unmount because the
   // editor may already be destroyed at that point, and editor.getJSON()
   // would return an empty doc, overwriting the saved file with blank content.
@@ -1900,17 +1910,88 @@ const ScreenplayEditor: React.FC = () => {
     if (!editor || !currentProject || !currentScriptId || isCollabGuest) return;
     const pid = currentProject.id;
     const sid = currentScriptId;
-    const handleBeforeUnload = () => {
+
+    const flushPendingSave = async (): Promise<void> => {
       if (editor.isDestroyed) return;
       const content = buildSaveContent();
+      if (!content) return;
       const json = JSON.stringify(content);
-      if (json !== lastSavedJsonRef.current) {
-        lastSavedJsonRef.current = json;
-        scriptApi.saveScript(pid, sid, { content }).catch(() => {});
+      if (json === lastSavedJsonRef.current) return;
+      lastSavedJsonRef.current = json;
+      try {
+        await scriptApi.saveScript(pid, sid, { content });
+      } catch (err) {
+        // Bubble through console — the close handler decides what to do
+        // about persistence failures (it falls back to confirm()).
+        console.error('Save-on-close failed:', err);
+        throw err;
       }
     };
+
+    // ── Tauri path ────────────────────────────────────────────────────────
+    let unlistenCloseRequested: (() => void) | null = null;
+    let cancelled = false;
+
+    if (isTauri()) {
+      (async () => {
+        try {
+          const { getCurrentWebviewWindow } = await import(
+            '@tauri-apps/api/webviewWindow'
+          );
+          const win = getCurrentWebviewWindow();
+          const unlisten = await win.onCloseRequested(async (event) => {
+            if (editor.isDestroyed) return;
+            const content = buildSaveContent();
+            if (!content) return;
+            const json = JSON.stringify(content);
+            if (json === lastSavedJsonRef.current) return;
+            // We have unsaved edits.  Block the close, run the save, then
+            // close programmatically.  If the save fails, ask the user
+            // before discarding their work.
+            event.preventDefault();
+            try {
+              await flushPendingSave();
+              await win.destroy();
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              const proceed = window.confirm(
+                `Could not save your latest changes:\n\n${msg}\n\n` +
+                  'Close anyway and lose those changes?',
+              );
+              if (proceed) await win.destroy();
+            }
+          });
+          if (cancelled) unlisten();
+          else unlistenCloseRequested = unlisten;
+        } catch (err) {
+          console.error('Failed to register onCloseRequested handler:', err);
+        }
+      })();
+    }
+
+    // ── Web path (and a defensive fallback for Tauri) ─────────────────────
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (editor.isDestroyed) return;
+      const content = buildSaveContent();
+      if (!content) return;
+      const json = JSON.stringify(content);
+      if (json === lastSavedJsonRef.current) return;
+      lastSavedJsonRef.current = json;
+      // Fire-and-forget save.  The browser will give the request a brief
+      // grace window before terminating the tab.
+      scriptApi.saveScript(pid, sid, { content }).catch(() => {});
+      // Trigger the browser's native confirm prompt so the user gets a
+      // chance to abort the close while the save is still in flight.
+      event.preventDefault();
+      event.returnValue = '';
+    };
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      cancelled = true;
+      if (unlistenCloseRequested) unlistenCloseRequested();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
 
   // --- Load script from URL params ---

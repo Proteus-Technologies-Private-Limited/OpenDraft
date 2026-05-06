@@ -18,6 +18,8 @@ export interface CompatEntry {
   primary: string;
   /** What the fallback implementation is. */
   fallback: string;
+  /** Reason why the primary failed (only populated for fallback mode). */
+  errorReason?: string;
 }
 
 const entries: Record<string, CompatEntry> = {};
@@ -29,6 +31,7 @@ export function setCompat(
   mode: 'primary' | 'fallback',
   primary: string,
   fallback: string,
+  errorReason?: string,
 ): void {
   entries[key] = {
     label,
@@ -36,7 +39,13 @@ export function setCompat(
     using: mode === 'primary' ? primary : fallback,
     primary,
     fallback,
+    errorReason,
   };
+}
+
+/** Look up a single compatibility entry by key. */
+export function getCompat(key: string): CompatEntry | undefined {
+  return entries[key];
 }
 
 /** Return a snapshot of all registered entries (for the About dialog). */

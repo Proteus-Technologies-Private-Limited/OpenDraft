@@ -450,9 +450,12 @@ export async function initStorage(): Promise<void> {
   const { setCompat } = await import('./compat');
   // Dynamic imports keep the Tauri/SQLite code out of web bundles.
   const { isTauri } = await import('./platform');
+  const { useStorageStatusStore } = await import('../stores/storageStatusStore');
+
   if (!isTauri()) {
     setCompat('storage', 'Storage', 'primary',
       'HTTP API (Python backend)', 'localStorage (browser fallback)');
+    useStorageStatusStore.getState().setMode('http');
     return;                                           // ← web: nothing changes
   }
 
@@ -479,15 +482,39 @@ export async function initStorage(): Promise<void> {
     // up the local implementation automatically.
     Object.assign(api, localApi);
     setCompat('storage', 'Storage', 'primary',
-      'Tauri SQLite (local database)', 'localStorage (browser fallback)');
+      'Tauri SQLite (local database)', 'File-based fallback (AppData)');
+    useStorageStatusStore.getState().setMode('sqlite');
   } catch (err) {
-    // Tauri SQLite failed (e.g. older macOS with incompatible WKWebView APIs).
-    // Fall back to localStorage so the app still works.
-    console.error('Tauri SQLite init failed, falling back to localStorage:', err);
-    const { createFallbackStorage } = await import('./fallback-storage');
-    const fallbackApi = createFallbackStorage();
-    Object.assign(api, fallbackApi);
-    setCompat('storage', 'Storage', 'fallback',
-      'Tauri SQLite (local database)', 'localStorage (browser fallback)');
+    // Tauri SQLite failed.  Drop to the file-based fallback (index in
+    // localStorage, content in $APPDATA/file-fallback/) — this gives us a
+    // sane degraded mode without hitting the localStorage 5 MB cap.
+    const sqliteReason = err instanceof Error
+      ? `${err.name}: ${err.message}`
+      : String(err);
+    console.error('Tauri SQLite init failed, falling back to file storage:', err);
+    try {
+      const { createFileFallbackStorage } = await import('./file-fallback-storage');
+      const fallbackApi = await createFileFallbackStorage();
+      Object.assign(api, fallbackApi);
+      setCompat('storage', 'Storage', 'fallback',
+        'Tauri SQLite (local database)', 'File-based fallback (AppData)',
+        sqliteReason);
+      useStorageStatusStore.getState().setMode('file-fallback', sqliteReason);
+    } catch (fileErr) {
+      // Even the file fallback couldn't initialise (fs plugin disabled,
+      // app-data dir not writable).  Drop to localStorage so something
+      // works, but flag it loudly via the dialog.
+      console.error('File fallback init also failed, dropping to localStorage:', fileErr);
+      const { createFallbackStorage } = await import('./fallback-storage');
+      const fallbackApi = createFallbackStorage();
+      Object.assign(api, fallbackApi);
+      const reason = `${sqliteReason}\n\nFile fallback also failed: ${
+        fileErr instanceof Error ? fileErr.message : String(fileErr)
+      }`;
+      setCompat('storage', 'Storage', 'fallback',
+        'Tauri SQLite (local database)', 'localStorage (browser fallback)',
+        reason);
+      useStorageStatusStore.getState().setMode('localstorage-fallback', reason);
+    }
   }
 }
