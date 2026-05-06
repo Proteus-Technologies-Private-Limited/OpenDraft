@@ -17,6 +17,21 @@ async function init() {
     if (vp) vp.setAttribute('content', vp.getAttribute('content') + ', viewport-fit=cover');
   }
 
+  // Track the visual viewport height as a CSS variable so dialogs/overlays can
+  // shrink when the soft keyboard appears. Android WebView's `dvh` unit is
+  // unreliable for keyboard insets, but `visualViewport.height` is accurate.
+  const updateViewportHeight = () => {
+    const vv = window.visualViewport;
+    const h = vv ? vv.height : window.innerHeight;
+    document.documentElement.style.setProperty('--vv-height', `${h}px`);
+  };
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateViewportHeight);
+    window.visualViewport.addEventListener('scroll', updateViewportHeight);
+  }
+  window.addEventListener('resize', updateViewportHeight);
+  updateViewportHeight();
+
   // On Tauri (desktop + mobile) this swaps the HTTP api with local SQLite.
   // On web it is a no-op — the Python backend is used as-is.
   // initStorage() handles its own timeout and fallback internally —

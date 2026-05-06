@@ -2517,16 +2517,25 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 
 /* ============ DIALOG (Go To Page, etc.) ============ */
 .dialog-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 3000;
-  display: flex; align-items: center; justify-content: center;
+  position: fixed; left: 0; top: 0; right: 0; background: rgba(0,0,0,.5); z-index: 3000;
+  display: flex; align-items: flex-start; justify-content: center;
+  /* `--vv-height` is set from window.visualViewport.height (see main.tsx) so
+     the overlay shrinks accurately when the Android soft keyboard appears.
+     Falls back to 100dvh when JS hasn't initialized yet. */
+  height: var(--vv-height, 100dvh);
+  padding: 5vh 16px 16px;
+  overflow-y: auto;
 }
 .dialog-box {
   background: var(--fd-dropdown-bg); border: 1px solid var(--fd-border);
   border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.6);
   min-width: 320px; max-width: 400px;
+  max-height: calc(var(--vv-height, 100dvh) - 48px);
+  display: flex;
+  flex-direction: column;
 }
-.dialog-header { padding: 14px 20px; border-bottom: 1px solid var(--fd-border); font-weight: 600; font-size: 16px; }
-.dialog-body { padding: 20px; }
+.dialog-header { padding: 14px 20px; border-bottom: 1px solid var(--fd-border); font-weight: 600; font-size: 16px; flex-shrink: 0; }
+.dialog-body { padding: 20px; overflow-y: auto; flex: 1 1 auto; }
 .dialog-row { display: flex; flex-direction: column; gap: 8px; }
 .dialog-row label { font-size: 14px; color: var(--fd-text-muted); }
 .dialog-row input {
@@ -2538,6 +2547,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .dialog-footer {
   display: flex; align-items: center; gap: 8px;
   padding: 14px 20px; border-top: 1px solid var(--fd-border);
+  flex-shrink: 0;
 }
 .dialog-footer button {
   height: 34px; padding: 0 18px; background: var(--fd-toolbar-bg); color: var(--fd-text);
@@ -2547,6 +2557,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .dialog-actions {
   display: flex; justify-content: flex-end; gap: 8px;
   padding: 14px 20px; border-top: 1px solid var(--fd-border);
+  flex-shrink: 0;
 }
 .dialog-actions button {
   height: 34px; padding: 0 18px; background: var(--fd-toolbar-bg); color: var(--fd-text);
@@ -8978,13 +8989,20 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
     border-left: none;
   }
 
-  /* Dialogs: full-screen */
-  .dialog-overlay { padding: 0; align-items: flex-end; }
+  /* Dialogs: full-width sheet anchored to the TOP of the screen. We used to
+     anchor to the bottom (flex-end) like a bottom sheet, but Android Tauri
+     WebView does not fire visualViewport.resize for the soft keyboard, so a
+     bottom-anchored sheet ends up hidden behind the IME. Top-anchored keeps
+     the inputs in the upper half of the screen, well clear of the keyboard. */
+  .dialog-overlay {
+    padding: env(safe-area-inset-top, 0) 0 0;
+    align-items: flex-start;
+  }
   .dialog-box {
     width: 100vw !important;
     max-width: 100vw !important;
-    border-radius: 12px 12px 0 0;
-    max-height: 90vh;
+    border-radius: 0 0 12px 12px;
+    max-height: 60vh;
     overflow-y: auto;
   }
   .dialog-row input { font-size: 16px; } /* Prevent iOS zoom on focus */
@@ -8997,25 +9015,32 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
     border-radius: 12px 12px 0 0;
   }
 
-  /* Spell modal: full-width bottom sheet */
+  /* Spell modal: full-width sheet anchored to TOP. Bottom-anchored sheets
+     get hidden by the Android soft keyboard because the WebView doesn't
+     fire visualViewport.resize. `--vv-height` is set in main.tsx from
+     window.visualViewport.height so max-height shrinks correctly when the
+     IME appears on either platform. */
   .spell-modal {
     width: calc(100vw - 16px) !important;
     left: 8px !important;
     right: 8px !important;
-    top: auto !important;
-    bottom: 8px !important;
-    max-height: 85vh;
+    top: calc(env(safe-area-inset-top, 0) + 8px) !important;
+    bottom: auto !important;
+    max-height: calc(var(--vv-height, 100dvh) - 16px);
     overflow-y: auto;
     border-radius: 12px;
   }
 
-  /* Search/Replace: full-width */
+  /* Search/Replace: full-width sheet anchored to TOP (same reason as above) */
   .search-replace-panel {
-    top: auto;
-    bottom: 32px;
+    top: env(safe-area-inset-top, 0);
+    bottom: auto;
     left: 0;
     right: 0;
-    border-radius: 12px 12px 0 0;
+    width: 100vw;
+    max-height: calc(var(--vv-height, 100dvh) - 8px);
+    overflow-y: auto;
+    border-radius: 0 0 12px 12px;
   }
   .search-options { flex-wrap: wrap; gap: 10px; }
 

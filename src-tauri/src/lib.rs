@@ -211,7 +211,12 @@ fn android_get_intent_data() -> Option<String> {
     use jni::objects::JObject;
     use jni::JavaVM;
 
-    let ctx = ndk_context::android_context();
+    // ndk_context::android_context() panics with "android context was not
+    // initialized" when called before tao's Android glue has registered the
+    // JNI VM. That race shows up on cold start under some NDK/Tauri builds
+    // and brings the whole app down. Treat a missing context as "no pending
+    // file" — file-association handling is opportunistic.
+    let ctx = std::panic::catch_unwind(|| ndk_context::android_context()).ok()?;
     let vm = unsafe { JavaVM::from_raw(ctx.vm().cast()) }.ok()?;
     let mut env = vm.attach_current_thread().ok()?;
     let activity = unsafe { JObject::from_raw(ctx.context().cast()) };

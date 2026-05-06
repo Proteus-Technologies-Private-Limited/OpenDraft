@@ -139,10 +139,16 @@ const SettingsPage: React.FC = () => {
       const httpUrl = urlInput.trim().replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
       const res = await platformFetch(`${httpUrl}/health`);
       setConnectionStatus(res.ok ? 'ok' : 'fail');
-    } catch {
+      if (!res.ok) {
+        showToast(`Server returned HTTP ${res.status}`, 'error');
+      }
+    } catch (err: any) {
+      console.error('[SettingsPage] Test connection failed:', err);
       setConnectionStatus('fail');
+      const msg = typeof err === 'string' ? err : (err?.message || String(err));
+      showToast(`Connection error: ${msg}`, 'error');
     }
-    setTimeout(() => setConnectionStatus('idle'), 3000);
+    setTimeout(() => setConnectionStatus('idle'), 5000);
   };
 
   // ── Auth handlers ──

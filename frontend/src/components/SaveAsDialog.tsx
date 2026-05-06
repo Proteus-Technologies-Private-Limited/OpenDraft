@@ -122,6 +122,14 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
       const t = setTimeout(() => {
         fileInputRef.current?.focus();
         fileInputRef.current?.select();
+        // Android: the soft keyboard appears ~150-300ms after focus and the
+        // visual viewport shrinks — explicitly scroll the input into view so
+        // it's not hidden behind the keyboard, with a follow-up scroll once
+        // the IME has finished animating.
+        fileInputRef.current?.scrollIntoView({ block: 'center', behavior: 'auto' });
+        setTimeout(() => {
+          fileInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }, 350);
       }, 50);
       return () => clearTimeout(t);
     }
