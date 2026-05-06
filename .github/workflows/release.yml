@@ -977,7 +977,11 @@ jobs:
           path: ios-artifacts/*.ipa
 
   build-mac-appstore:
-    runs-on: macos-26
+    # Pinned to macos-15 — codesign on macos-26 hangs ~24 min on cert-chain
+    # validation (likely OCSP/CRL network calls). The same job ran in 2-4 min
+    # on macos-26 in v0.16.0/v0.16.1, then started hanging mid-Apr 2026 after
+    # a runner image update. Revisit when the macos-26 codesign issue is fixed.
+    runs-on: macos-15
     name: Build (macOS App Store)
     timeout-minutes: 30
     # Keep going even if the App Store .pkg fails — store submission is a
@@ -1024,9 +1028,6 @@ jobs:
           security create-keychain -p "" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "" build.keychain
-          # Disable keychain auto-lock so codesign doesn't block on a UI prompt
-          # mid-sign (was hanging the job for 24+ min until job timeout).
-          security set-keychain-settings build.keychain
           security import $RUNNER_TEMP/distribution.p12 -k build.keychain \
             -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild
           security set-key-partition-list -S apple-tool:,apple:,codesign:,productbuild: -s -k "" build.keychain
@@ -1124,18 +1125,14 @@ jobs:
           # --timestamp=none: App Store doesn't require RFC3161 timestamps
           # (Apple re-signs on store ingestion). Skipping avoids 30+ minute
           # hangs when timestamp.apple.com is slow/unreachable from CI.
-          # Each codesign call wrapped in `timeout 180` — if Apple's intermediate
-          # cert lookup or the keychain blocks, fail in 3 min instead of hanging
-          # to the job-level timeout.
-          timeout 180 codesign --force --options runtime --timestamp=none \
-            --keychain build.keychain \
+          # Sign main binary
+          codesign --force --options runtime \
             --entitlements "$ENTITLEMENTS" \
             --sign "$APP_SIGN_ID" \
             "$APP_PATH/Contents/MacOS/opendraft"
 
           # Sign the entire .app bundle
-          timeout 180 codesign --force --deep --options runtime --timestamp=none \
-            --keychain build.keychain \
+          codesign --force --deep --options runtime \
             --entitlements "$ENTITLEMENTS" \
             --sign "$APP_SIGN_ID" \
             "$APP_PATH"
@@ -1148,16 +1145,13 @@ jobs:
             "$APP_PATH/Contents/embedded.provisionprofile"
 
           # Re-sign after embedding profile
-          timeout 180 codesign --force --deep --options runtime --timestamp=none \
-            --keychain build.keychain \
+          codesign --force --deep --options runtime \
             --entitlements "$ENTITLEMENTS" \
             --sign "$APP_SIGN_ID" \
             "$APP_PATH"
 
-          # Build .pkg installer. Cap at 5 min to fail fast if Apple's
-          # signature timestamp server is unreachable (job-level timeout
-          # is the backstop, but this gives a clearer error).
-          timeout 300 productbuild --component "$APP_PATH" /Applications \
+          # Build .pkg installer
+          productbuild --component "$APP_PATH" /Applications \
             --sign "$INSTALLER_SIGN_ID" \
             "OpenDraft.pkg"
 
