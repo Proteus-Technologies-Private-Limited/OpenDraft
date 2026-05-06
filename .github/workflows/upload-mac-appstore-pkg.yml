@@ -1,0 +1,62 @@
+# One-off: pull the macos-pkg artifact from a release-pipeline run and
+# upload it to App Store Connect. Used when build-mac-appstore succeeded
+# but the submit-stores job failed before the macOS upload step ran.
+# Delete this file once v0.17.0 is in App Store Connect.
+name: Upload Mac App Store Pkg (one-off)
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "ID of the release.yml run that has the macos-pkg artifact"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  upload:
+    runs-on: macos-15
+    name: Upload pkg to App Store Connect
+
+    steps:
+      - name: Download macOS pkg artifact from previous run
+        uses: actions/download-artifact@v5
+        with:
+          name: macos-pkg
+          path: macos-artifacts
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show pkg
+        run: ls -la macos-artifacts/
+
+      - name: Upload to App Store Connect
+        env:
+          APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+        run: |
+          if [ -z "$APPSTORE_API_KEY" ]; then
+            echo "::error::APPSTORE_API_KEY missing"
+            exit 1
+          fi
+
+          mkdir -p ~/.private_keys
+          echo "$APPSTORE_API_KEY" | base64 --decode > ~/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8
+
+          PKG=$(find macos-artifacts -name "*.pkg" | head -1)
+          if [ -z "$PKG" ]; then
+            echo "::error::No pkg in artifact"
+            exit 1
+          fi
+
+          echo "Uploading $PKG to App Store Connect..."
+          xcrun altool --upload-app \
+            --file "$PKG" \
+            --type macos \
+            --apiKey "$APPSTORE_API_KEY_ID" \
+            --apiIssuer "$APPSTORE_API_ISSUER_ID"
+          echo "Upload complete"
