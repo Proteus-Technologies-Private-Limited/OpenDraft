@@ -1,6 +1,32 @@
-# Collab Server — Google Cloud Run Deployment
+# Collab Server Deployment
 
-## Production URLs
+## Current Production
+
+The public collab server runs on a self-hosted VM behind Caddy as part of the
+combined Docker image (see `deploy/docker-compose.combined.yml`).
+
+| Protocol | URL |
+|----------|-----|
+| HTTPS | `https://collab.open-draft.com` |
+| WSS | `wss://collab.open-draft.com` |
+| Health | `https://collab.open-draft.com/health` |
+
+Quick check:
+
+```bash
+curl https://collab.open-draft.com/health
+curl https://collab.open-draft.com/auth/config
+```
+
+The Cloud Run service below is an alternative deployment target — useful for
+free-tier hosting or when you don't want to run a VM. Both layouts are
+supported; pick whichever fits your operational model.
+
+---
+
+## Option A — Google Cloud Run
+
+### URLs (legacy / fallback)
 
 | Protocol | URL |
 |----------|-----|

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://opendraft-demo-267958344432.us-central1.run.app">
+  <a href="https://open-draft.com">
     <img src="https://img.shields.io/badge/%E2%96%B6_Try_OpenDraft_Now-c455ce?style=for-the-badge&labelColor=4a154b" alt="Try OpenDraft Now">
   </a>
 </p>
@@ -179,7 +179,7 @@ For all versions and platforms, visit the [Releases](https://github.com/Proteus-
 
 New to OpenDraft? Here's everything you need:
 
-- **Just want to try it?** [Open the demo](https://opendraft-demo-267958344432.us-central1.run.app) — no account, no install, opens in seconds.
+- **Just want to try it?** [Open the demo](https://open-draft.com) — no account, no install, opens in seconds.
 - **Ready to install?** Grab the [latest download](#download) for your platform.
 - **Need a walkthrough?** Read the [User Manual](https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/).
 - **Want to learn more?** Visit the [OpenDraft website](https://proteus-technologies-private-limited.github.io/OpenDraft/).
@@ -272,7 +272,7 @@ Installs dependencies, builds the app, and opens it at **http://localhost:8000**
 
 Requires Python 3.12+, Node.js 18+, and Git. See [docs/INSTALLATION.md](docs/INSTALLATION.md) for details.
 
-> **Note:** This is for developers who want to self-host or contribute. If you just want to use OpenDraft, [download the desktop app](#download) or [try the demo](https://opendraft-demo-267958344432.us-central1.run.app).
+> **Note:** This is for developers who want to self-host or contribute. If you just want to use OpenDraft, [download the desktop app](#download) or [try the demo](https://open-draft.com).
 
 </details>
 
