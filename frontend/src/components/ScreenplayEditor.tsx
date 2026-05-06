@@ -89,6 +89,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
 import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, isCollabAuthenticated } from '../services/collabAuth';
 import { platformFetch, isTauri } from '../services/platform';
+import { reportSaveError } from '../stores/saveErrorStore';
 import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
@@ -1817,10 +1818,10 @@ const ScreenplayEditor: React.FC = () => {
           console.error('Auto-save failed:', err);
           const msg = err instanceof Error ? err.message : String(err);
           setSaveStatus('error', msg);
-          // AuthGate / QuotaExceededDialog already showed a dialog — skip toast.
-          if (!(err as any)?.handled) {
-            showToast(`Auto-save failed: ${msg}`, 'error');
-          }
+          // AuthGate / QuotaExceededDialog already showed a dialog for handled
+          // errors (401/402/403); reportSaveError skips them.  All other
+          // failures get a blocking modal the user must acknowledge.
+          reportSaveError(err, 'auto-save');
         });
       }
     }, 30000);
@@ -1883,6 +1884,7 @@ const ScreenplayEditor: React.FC = () => {
             console.error('Metadata save failed:', err);
             const msg = err instanceof Error ? err.message : String(err);
             useEditorStore.getState().setSaveStatus('error', msg);
+            reportSaveError(err, 'metadata-save');
           });
         }
       }, 2000);
@@ -1978,8 +1980,13 @@ const ScreenplayEditor: React.FC = () => {
       if (json === lastSavedJsonRef.current) return;
       lastSavedJsonRef.current = json;
       // Fire-and-forget save.  The browser will give the request a brief
-      // grace window before terminating the tab.
-      scriptApi.saveScript(pid, sid, { content }).catch(() => {});
+      // grace window before terminating the tab.  If the user cancels the
+      // unload (returnValue prompt below), they'll still be in the editor
+      // and need to know the save failed — so push it to the modal store.
+      scriptApi.saveScript(pid, sid, { content }).catch((err) => {
+        console.error('Save-on-unload failed:', err);
+        reportSaveError(err, 'save-on-close');
+      });
       // Trigger the browser's native confirm prompt so the user gets a
       // chance to abort the close while the save is still in flight.
       event.preventDefault();

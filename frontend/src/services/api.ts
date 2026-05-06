@@ -484,6 +484,36 @@ export async function initStorage(): Promise<void> {
     setCompat('storage', 'Storage', 'primary',
       'Tauri SQLite (local database)', 'File-based fallback (AppData)');
     useStorageStatusStore.getState().setMode('sqlite');
+
+    // ── Recovery: SQLite is back, drain anything that landed in the file
+    //    fallback during a previous degraded session.  Never overwrites —
+    //    duplicate names get a `(recovered)` suffix.  Runs in the background
+    //    so it doesn't block app startup.
+    void (async () => {
+      try {
+        const { migrateFileFallbackToSqlite } = await import('./file-fallback-recovery');
+        const result = await migrateFileFallbackToSqlite(localApi);
+        if (!result) return;
+        const { showToast } = await import('../components/Toast');
+        const counts = [
+          result.projects ? `${result.projects} project${result.projects === 1 ? '' : 's'}` : null,
+          result.scripts ? `${result.scripts} script${result.scripts === 1 ? '' : 's'}` : null,
+          result.assets ? `${result.assets} asset${result.assets === 1 ? '' : 's'}` : null,
+          result.templates ? `${result.templates} template${result.templates === 1 ? '' : 's'}` : null,
+        ].filter(Boolean).join(', ');
+        if (result.errors.length === 0 && counts) {
+          showToast(`Imported ${counts} from file-based fallback storage`, 'success');
+        } else if (result.errors.length > 0) {
+          console.error('[recovery] errors:', result.errors);
+          showToast(
+            `Imported ${counts || 'nothing'} from fallback. ${result.errors.length} item(s) failed — check DevTools for details.`,
+            'error',
+          );
+        }
+      } catch (recoveryErr) {
+        console.error('[recovery] migration crashed:', recoveryErr);
+      }
+    })();
   } catch (err) {
     // Tauri SQLite failed.  Drop to the file-based fallback (index in
     // localStorage, content in $APPDATA/file-fallback/) — this gives us a

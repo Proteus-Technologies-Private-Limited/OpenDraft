@@ -9,6 +9,7 @@ import DemoBanner from './components/DemoBanner';
 import AuthGate from './components/AuthGate';
 import AuthBootstrap from './components/AuthBootstrap';
 import StorageFallbackDialog from './components/StorageFallbackDialog';
+import SaveErrorDialog from './components/SaveErrorDialog';
 import VerifyEmailRoute from './components/VerifyEmailRoute';
 import { pluginRegistry } from './plugins/registry';
 import './styles/screenplay.css';
@@ -38,6 +39,7 @@ function App() {
       <AuthGate />
       <AuthBootstrap />
       <StorageFallbackDialog />
+      <SaveErrorDialog />
     </>
   );
 }

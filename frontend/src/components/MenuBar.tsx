@@ -33,6 +33,7 @@ import { spellChecker } from '../editor/spellchecker';
 import { openTextFile, openBinaryFile } from '../utils/fileOps';
 import { isDesktopTauri } from '../services/platform';
 import { getCompatEntries } from '../services/compat';
+import { reportSaveError } from '../stores/saveErrorStore';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
 import {
   FaFile,
@@ -238,11 +239,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       const msg = err instanceof Error ? err.message : String(err);
       setSaveStatus('error', msg);
       // AuthGate / QuotaExceededDialog already surfaced handled errors (401,
-      // 402, 403 unverified). Don't also raise a toast — the user would see
-      // both the friendly dialog and the raw "API error 402: ..." string.
-      if (!(err as any)?.handled) {
-        showToast(`Save failed: ${msg}`, 'error');
-      }
+      // 402, 403 unverified) — reportSaveError skips them.  Other failures
+      // get the blocking modal so the user can't miss them.
+      reportSaveError(err, 'manual-save');
     }
   }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen]);
 
@@ -355,6 +354,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         await api.saveScript(currentProject.id, currentScriptId, { content });
       } catch (err) {
         console.error('Auto-save before checkin failed:', err);
+        reportSaveError(err, 'manual-save');
+        // Don't proceed with the check-in if we couldn't persist the latest
+        // content — committing stale data would be worse than the failure.
+        setCheckinSaving(false);
+        return;
       }
     }
     try {
@@ -1681,10 +1685,10 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
                               fontSize: 11,
                               whiteSpace: 'pre-wrap',
                               wordBreak: 'break-word',
-                              background: 'var(--fd-surface-2, #f4f4f4)',
-                              border: '1px solid var(--fd-border, #ddd)',
+                              background: '#f4f4f4',
+                              border: '1px solid #ddd',
                               borderRadius: 4,
-                              color: 'var(--fd-text-secondary)',
+                              color: '#1a1a1a',
                             }}>{entry.errorReason}</pre>
                           </td>
                         </tr>

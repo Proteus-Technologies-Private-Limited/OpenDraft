@@ -838,6 +838,36 @@ export async function createLocalStorage() {
     async deleteFormattingTemplate(id: string): Promise<void> {
       await db.execute(`DELETE FROM formatting_templates WHERE id = $1`, [id]);
     },
+
+    // ── Recovery hook ─────────────────────────────────────────────────────
+    // Used by file-fallback-recovery.ts to re-insert an asset row that
+    // already had its file copied into place.  Not part of the public api
+    // surface — flagged with `_` for that reason.
+    async _registerImportedAsset(meta: {
+      id: string;
+      project_id: string;
+      filename: string;
+      original_name: string;
+      mime_type: string;
+      size_bytes: number;
+      tags: string[];
+      created_at: string;
+    }): Promise<void> {
+      await db.execute(
+        'INSERT OR REPLACE INTO assets (id, project_id, filename, original_name, mime_type, size_bytes, tags, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+        [
+          meta.id,
+          meta.project_id,
+          meta.filename,
+          meta.original_name,
+          meta.mime_type,
+          meta.size_bytes,
+          JSON.stringify(meta.tags || []),
+          meta.created_at,
+        ],
+      );
+      assetFilenameCache[meta.id] = meta.filename;
+    },
   };
 
   return storage;
