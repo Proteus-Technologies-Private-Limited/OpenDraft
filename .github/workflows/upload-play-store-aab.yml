@@ -1,0 +1,81 @@
+# One-off: pull the android-aab artifact from a release-pipeline run and
+# upload it to Google Play production track. Used to backfill v0.17.0
+# now that GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 has been refreshed.
+# Delete this file once the upload succeeds.
+name: Upload Play Store AAB (one-off)
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "ID of the release.yml run that has the android-aab artifact"
+        required: true
+        type: string
+      track:
+        description: "Play Store track"
+        required: false
+        default: "production"
+        type: choice
+        options:
+          - production
+          - beta
+          - alpha
+          - internal
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  upload:
+    runs-on: macos-15
+    name: Upload AAB to Google Play
+
+    steps:
+      - name: Download Android AAB artifact from previous run
+        uses: actions/download-artifact@v5
+        with:
+          name: android-aab
+          path: android-artifacts
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show AAB
+        run: ls -la android-artifacts/
+
+      - name: Validate Play Store credentials
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
+        run: |
+          if [ -z "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64" ]; then
+            echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 secret missing"
+            exit 1
+          fi
+          echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64" | base64 --decode > /tmp/play-service-account.json
+          gem install fastlane --no-document
+          fastlane run validate_play_store_json_key json_key:/tmp/play-service-account.json
+
+      - name: Upload AAB to Google Play
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
+          TRACK: ${{ github.event.inputs.track }}
+        run: |
+          AAB=$(find android-artifacts -name "*.aab" | head -1)
+          if [ -z "$AAB" ]; then
+            echo "::error::No AAB found in artifact"
+            exit 1
+          fi
+
+          echo "Uploading $AAB to Google Play track: $TRACK"
+          fastlane supply \
+            --aab "$AAB" \
+            --track "$TRACK" \
+            --package_name com.proteus.opendraft \
+            --json_key /tmp/play-service-account.json \
+            --skip_upload_metadata \
+            --skip_upload_images \
+            --skip_upload_screenshots \
+            --skip_upload_changelogs \
+            --skip_upload_apk
+          rm -f /tmp/play-service-account.json
+          echo "Upload complete — check Play Console for review status"
