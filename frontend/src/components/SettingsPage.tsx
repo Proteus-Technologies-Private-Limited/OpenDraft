@@ -33,15 +33,12 @@ const SettingsPage: React.FC = () => {
   // server. On Tauri custom schemes the same-origin default doesn't work, so
   // the user must point at a real backend (e.g. https://opendraft.duckdns.org/api).
   const CLOUD_API_KEY = 'opendraft:cloudApiUrl';
-  const [cloudApiInput, setCloudApiInput] = useState<string>(() => {
-    try {
-      const stored = localStorage.getItem(CLOUD_API_KEY);
-      if (stored) return stored;
-    } catch { /* ignore */ }
-    // No stored value — pre-fill with the live default so users see the actual
-    // URL the app will hit, not just a faded placeholder.
-    return getApiBase();
-  });
+  // Use getApiBase() rather than reading localStorage directly: getApiBase
+  // discards bug-residue values that point at the Tauri WebView origin
+  // (e.g. `https://tauri.localhost/api`).  It returns the override when the
+  // user has set one, otherwise the live default — same UX, but immune to
+  // the legacy bad-stored-value path.
+  const [cloudApiInput, setCloudApiInput] = useState<string>(() => getApiBase());
   const [cloudApiStatus, setCloudApiStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
 
   // Auth forms — remember email only; never store password.
@@ -100,6 +97,12 @@ const SettingsPage: React.FC = () => {
     const trimmed = cloudApiInput.trim().replace(/\/+$/, '');
     if (trimmed && !/^https?:\/\//.test(trimmed)) {
       showToast('URL must start with http:// or https://', 'error');
+      return;
+    }
+    if (trimmed && /\b(tauri|asset)\.localhost\b/i.test(trimmed)) {
+      // Refuse to persist the in-process WebView origin — that's the Windows
+      // bug we just fixed, not a real backend.
+      showToast('That URL points at the app itself, not a server. Use the public OpenDraft URL or your own server.', 'error');
       return;
     }
     try {

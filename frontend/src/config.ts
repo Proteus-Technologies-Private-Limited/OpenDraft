@@ -20,9 +20,37 @@
 // cloudApi can surface a clean "cloud not configured" message instead.
 const STORAGE_KEY_CLOUD_API = 'opendraft:cloudApiUrl';
 
+/**
+ * URLs that point at the Tauri WebView itself instead of a real backend.
+ * Earlier builds had a bug where `computeApiBase()` would return
+ * `https://tauri.localhost/api` on Windows when `__TAURI_INTERNALS__` wasn't
+ * yet defined at module-load time, and the Settings dialog would pre-fill
+ * its input with that string. Saving the dialog (deliberately or not) baked
+ * the bad URL into localStorage, where it then took precedence over the
+ * default forever after. We detect those values here and treat them as
+ * absent — also wiping the bad localStorage entry so future readers don't
+ * keep tripping over it.
+ */
+function isWebviewOriginUrl(url: string): boolean {
+  return (
+    /^https?:\/\/tauri\.localhost\b/i.test(url) ||
+    /^tauri:\/\//i.test(url) ||
+    /^https?:\/\/asset\.localhost\b/i.test(url)
+  );
+}
+
 function loadStoredCloudApi(): string {
   try {
-    return localStorage.getItem(STORAGE_KEY_CLOUD_API) || '';
+    const value = localStorage.getItem(STORAGE_KEY_CLOUD_API) || '';
+    if (value && isWebviewOriginUrl(value)) {
+      console.warn(
+        '[config] discarding stored cloud API URL that points at the Tauri WebView origin:',
+        value,
+      );
+      localStorage.removeItem(STORAGE_KEY_CLOUD_API);
+      return '';
+    }
+    return value;
   } catch {
     return '';
   }
@@ -49,12 +77,23 @@ function computeApiBase(): string {
   // on macOS/iOS, `https://tauri.localhost` on Windows, `null` on some Linux
   // builds. None of these point at a real backend, so always fall through to
   // the hosted default. Users can override in Settings → Cloud API URL.
-  const isTauri = !!(window as any).__TAURI_INTERNALS__;
-  if (isTauri) return 'https://open-draft.com/api';
+  //
+  // We can't rely on `__TAURI_INTERNALS__` alone: this module evaluates at
+  // import time and on Windows the bridge injection sometimes happens after
+  // the bundle's first synchronous evaluation. So also recognise the WebView
+  // origins directly via hostname / origin pattern.
   const origin = window.location.origin;
+  const hostname = window.location.hostname;
+  const isTauriBridge = !!(window as any).__TAURI_INTERNALS__;
+  const isTauriOrigin =
+    hostname === 'tauri.localhost' ||
+    hostname === 'asset.localhost' ||
+    origin === 'null' ||
+    /^tauri:/i.test(origin);
+  if (isTauriBridge || isTauriOrigin) return 'https://open-draft.com/api';
   const validOrigin = origin && origin !== 'null';
   const isDev = window.location.port === '5173';
-  if (isDev) return `http://${window.location.hostname}:8008/api`;
+  if (isDev) return `http://${hostname}:8008/api`;
   if (validOrigin) return `${origin}/api`;
   return 'https://open-draft.com/api';
 }
