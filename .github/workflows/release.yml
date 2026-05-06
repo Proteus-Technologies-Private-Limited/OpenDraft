@@ -1242,6 +1242,10 @@ jobs:
           APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
           APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
           APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+        # Treat "already uploaded" as success on re-runs of the same tag, and
+        # don't let an iOS upload failure cascade-skip the macOS pkg upload
+        # below.
+        continue-on-error: true
         run: |
           if [ -z "$APPSTORE_API_KEY" ]; then
             echo "::warning::APPSTORE_API_KEY not configured — skipping iOS App Store upload"
@@ -1253,19 +1257,29 @@ jobs:
 
           IPA=$(find ios-artifacts -name "*.ipa" | head -1)
           if [ -z "$IPA" ]; then
-            echo "::error::No IPA file found in artifacts"
-            exit 1
+            echo "::warning::No IPA file found in artifacts — skipping iOS App Store upload"
+            exit 0
           fi
 
           echo "Uploading $IPA to App Store Connect..."
-          xcrun altool --upload-app \
+          ALTOOL_LOG=$(mktemp)
+          if xcrun altool --upload-app \
             --file "$IPA" \
             --type ios \
             --apiKey "$APPSTORE_API_KEY_ID" \
-            --apiIssuer "$APPSTORE_API_ISSUER_ID"
-          echo "iOS upload complete"
+            --apiIssuer "$APPSTORE_API_ISSUER_ID" 2>&1 | tee "$ALTOOL_LOG"; then
+            echo "iOS upload complete"
+          elif grep -q "ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE\|already been used" "$ALTOOL_LOG"; then
+            echo "::warning::iOS build for this version was already uploaded — treating as success"
+          else
+            echo "::error::iOS upload failed"
+            exit 1
+          fi
 
       - name: Upload macOS pkg to App Store Connect
+        # Always run, even if iOS upload above failed — they're independent.
+        if: always() && !cancelled()
+        continue-on-error: true
         env:
           APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
           APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
@@ -1286,12 +1300,19 @@ jobs:
           fi
 
           echo "Uploading $PKG to App Store Connect..."
-          xcrun altool --upload-app \
+          ALTOOL_LOG=$(mktemp)
+          if xcrun altool --upload-app \
             --file "$PKG" \
             --type macos \
             --apiKey "$APPSTORE_API_KEY_ID" \
-            --apiIssuer "$APPSTORE_API_ISSUER_ID"
-          echo "macOS upload complete"
+            --apiIssuer "$APPSTORE_API_ISSUER_ID" 2>&1 | tee "$ALTOOL_LOG"; then
+            echo "macOS upload complete"
+          elif grep -q "ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE\|already been used" "$ALTOOL_LOG"; then
+            echo "::warning::macOS pkg for this version was already uploaded — treating as success"
+          else
+            echo "::error::macOS pkg upload failed"
+            exit 1
+          fi
 
       - name: Upload Android AAB to Google Play (production)
         # Don't fail the release if the Play Store credentials are stale or
