@@ -45,15 +45,18 @@ function computeApiBase(): string {
   if (stored) return normalizeApiBase(stored);
   const env = import.meta.env.VITE_API_BASE;
   if (env) return normalizeApiBase(String(env));
+  // Tauri (desktop + mobile) ships its own webview origins — `tauri://localhost`
+  // on macOS/iOS, `https://tauri.localhost` on Windows, `null` on some Linux
+  // builds. None of these point at a real backend, so always fall through to
+  // the hosted default. Users can override in Settings → Cloud API URL.
+  const isTauri = !!(window as any).__TAURI_INTERNALS__;
+  if (isTauri) return 'https://open-draft.com/api';
   const origin = window.location.origin;
   const validOrigin = origin && origin !== 'null';
   const isDev = window.location.port === '5173';
   if (isDev) return `http://${window.location.hostname}:8008/api`;
   if (validOrigin) return `${origin}/api`;
-  // Tauri desktop with custom-scheme origin — no usable default. Cloud calls
-  // will throw a clear configuration error instead of producing a malformed
-  // URL the platform fetch can't parse.
-  return '';
+  return 'https://open-draft.com/api';
 }
 
 /**
@@ -76,7 +79,7 @@ export const SERVER_BASE: string = API_BASE.replace(/\/api$/, '');
  *  Reads from localStorage (settings store) first, then falls back
  *  to the VITE env var, then to the default.
  */
-const DEFAULT_COLLAB_WS = 'wss://opendraft-collab-267958344432.us-central1.run.app';
+const DEFAULT_COLLAB_WS = 'wss://collab.open-draft.com';
 export function getCollabWsUrl(): string {
   const stored = localStorage.getItem('opendraft:collabServerUrl');
   if (stored) return stored;

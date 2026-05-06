@@ -12,6 +12,7 @@ __pycache__/
 .env
 .env.local
 deploy/combined.env
+deploy/*.vm
 
 # IDE
 .vscode/

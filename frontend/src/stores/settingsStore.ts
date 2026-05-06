@@ -65,7 +65,7 @@ function loadEnabledScriptFormats(): string[] {
   return [];
 }
 
-const DEFAULT_COLLAB_URL = 'wss://opendraft-collab-267958344432.us-central1.run.app';
+const DEFAULT_COLLAB_URL = 'wss://collab.open-draft.com';
 
 function loadAuth(): CollabAuth {
   try {

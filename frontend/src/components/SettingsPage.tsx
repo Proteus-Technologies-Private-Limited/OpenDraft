@@ -5,6 +5,7 @@ import { collabAuthApi, handleAuthResponse, performLogout } from '../services/co
 import type { CollabServerConfig } from '../services/collabAuth';
 import { initDemoInfo, isDemoMode } from '../services/demoInfo';
 import { showToast } from './Toast';
+import { getApiBase } from '../config';
 
 const EXPIRY_OPTIONS = [
   { label: '30 minutes', hours: 0.5 },
@@ -33,7 +34,13 @@ const SettingsPage: React.FC = () => {
   // the user must point at a real backend (e.g. https://opendraft.duckdns.org/api).
   const CLOUD_API_KEY = 'opendraft:cloudApiUrl';
   const [cloudApiInput, setCloudApiInput] = useState<string>(() => {
-    try { return localStorage.getItem(CLOUD_API_KEY) || ''; } catch { return ''; }
+    try {
+      const stored = localStorage.getItem(CLOUD_API_KEY);
+      if (stored) return stored;
+    } catch { /* ignore */ }
+    // No stored value — pre-fill with the live default so users see the actual
+    // URL the app will hit, not just a faded placeholder.
+    return getApiBase();
   });
   const [cloudApiStatus, setCloudApiStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
 
@@ -285,7 +292,7 @@ const SettingsPage: React.FC = () => {
                 className="dialog-input settings-url-input"
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="wss://opendraft-collab-267958344432.us-central1.run.app"
+                placeholder="wss://collab.open-draft.com"
                 onKeyDown={(e) => handleKeyDown(e, handleSaveUrl)}
               />
               <button className="dialog-btn dialog-btn-primary" onClick={handleSaveUrl}>
@@ -322,10 +329,10 @@ const SettingsPage: React.FC = () => {
           <p className="settings-section-desc">
             HTTP backend used for sign-in, projects, and cloud saves. Leave blank
             in the browser to use this site's <code>/api</code>. Required on the
-            desktop and mobile apps — point it at your OpenDraft backend, e.g.
-            <code> https://opendraft.duckdns.org</code> or
-            <code> https://opendraft.duckdns.org/api</code> (the
-            <code>/api</code> suffix is added automatically if missing).
+            desktop and mobile apps — defaults to <code>https://open-draft.com</code>;
+            override to point at a self-hosted backend like
+            <code> https://your-host.example.com</code> (the <code>/api</code> suffix
+            is added automatically if missing).
           </p>
 
           <div className="settings-row">
@@ -335,7 +342,7 @@ const SettingsPage: React.FC = () => {
                 className="dialog-input settings-url-input"
                 value={cloudApiInput}
                 onChange={(e) => setCloudApiInput(e.target.value)}
-                placeholder="https://opendraft.duckdns.org/api"
+                placeholder="https://open-draft.com"
                 onKeyDown={(e) => handleKeyDown(e, handleSaveCloudApi)}
               />
               <button className="dialog-btn dialog-btn-primary" onClick={handleSaveCloudApi}>
