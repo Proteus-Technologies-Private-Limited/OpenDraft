@@ -2660,8 +2660,20 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   font-size: 12px;
   color: var(--fd-text-muted);
   line-height: 1.5;
-  max-height: 300px;
+}
+.about-changelog {
+  max-height: 320px;
   overflow-y: auto;
+  padding-right: 4px;
+}
+.about-subsection-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fd-text);
+  margin: 10px 0 4px;
+}
+.about-subsection-title:first-child {
+  margin-top: 0;
 }
 .about-list li {
   padding: 4px 0 4px 12px;

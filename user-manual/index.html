@@ -168,7 +168,27 @@
 
     <h2 id="whats-new">What's New</h2>
 
+    <h3>v0.17.3</h3>
+    <ul>
+      <li><strong>Save Prompt Before New / Open / Import</strong> &mdash; The unsaved-changes dialog now also fires when auto-save hasn't caught up yet, so edits made just before resetting the editor are no longer silently discarded.</li>
+      <li><strong>Faster Panel &amp; Search Navigation</strong> &mdash; Clicking a character, scene, note, tag, or search match jumps the editor instantly instead of animating, removing a noticeable lag on long paginated documents.</li>
+    </ul>
+
     <h3>v0.17.2</h3>
+    <ul>
+      <li><strong>Save Reliability on Windows</strong> &mdash; Switched the local SQLite database to WAL journal mode and added a post-write byte-count verification step. Fixes silent save failures on large files (issue #39).</li>
+      <li><strong>OneDrive Detection</strong> &mdash; Warns you at startup if OpenDraft's data folder is inside a OneDrive-synced location (a known cause of silent SQLite corruption on Windows) and shows how to fix it.</li>
+      <li><strong>Diagnostics Dialog</strong> &mdash; New <em>Help &gt; Diagnostics</em> with a Copy Report button. Captures storage backend, DB path, OS, and last storage error so it can be pasted into bug reports.</li>
+    </ul>
+
+    <h3>v0.17.1</h3>
+    <ul>
+      <li><strong>Storage Fallback Recovery</strong> &mdash; If the app falls back to in-memory storage after a SQLite failure, it now recovers cleanly the next time SQLite becomes available, and surfaces fallback errors instead of swallowing them.</li>
+      <li><strong>No More Lost Edits on Close</strong> &mdash; Pending edits are flushed before the window closes, even on unclean exits.</li>
+      <li><strong>Mobile Stability</strong> &mdash; Dialogs survive the soft keyboard on Android &amp; iOS; fixed an Android cold-start crash.</li>
+    </ul>
+
+    <h3>v0.17.0</h3>
     <ul>
       <li><strong>Treatment Documents</strong> &mdash; Write a 20&ndash;25 page prose treatment alongside your screenplay. Use "+ New Document" in a project to open the manuscript-format editor (Times New Roman, double-spaced, 1-inch margins).</li>
       <li><strong>Location Database</strong> &mdash; Right-sidebar panel for managing screenplay locations: list, detail, and edit views; auto-discovery from scene headings; alias support; and rename-in-scene-headings.</li>
@@ -187,7 +207,7 @@
       <li><strong>Save Reliability Fixes</strong> &mdash; Manual save (Cmd+S) preserves character relationships and metadata; auto-save race on script switch fixed; metadata flushes to backend within 2s; light-theme button visibility fix.</li>
     </ul>
 
-    <h3>v0.17.2</h3>
+    <h3>v0.16.0</h3>
     <ul>
       <li><strong>Multiple Windows</strong> &mdash; Open different files in separate windows via File &gt; New Window. Each window has independent editor state.</li>
       <li><strong>Save Status Indicator</strong> &mdash; The status bar now shows Unsaved changes, Saving, Saved, or Save failed in real time.</li>
