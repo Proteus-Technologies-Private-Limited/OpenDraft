@@ -592,6 +592,23 @@ const ScreenplayEditor: React.FC = () => {
   }, [isTouch]);
 
   const zoomLevelRef = useRef(zoomLevel);
+  // Preserve scroll position when zoom changes: content scales but scrollTop
+  // is in viewport pixels, so without an adjustment the user lands on a
+  // completely different page after each zoom step.
+  const prevZoomRef = useRef(zoomLevel);
+  useEffect(() => {
+    const el = editorMainRef.current;
+    if (!el) {
+      prevZoomRef.current = zoomLevel;
+      return;
+    }
+    const oldScale = (prevZoomRef.current || 100) / 100;
+    const newScale = (zoomLevel || 100) / 100;
+    if (oldScale !== newScale && el.scrollTop > 0) {
+      el.scrollTop = el.scrollTop * (newScale / oldScale);
+    }
+    prevZoomRef.current = zoomLevel;
+  }, [zoomLevel]);
   zoomLevelRef.current = zoomLevel;
 
   const [overlays, setOverlays] = useState<OverlayInfo[]>([]);
@@ -2261,13 +2278,17 @@ const ScreenplayEditor: React.FC = () => {
   }, [editor]);
 
   // --- Scroll → current page tracking ---
+  // ov.top is in the page's unscaled coordinate system; pageRect/containerRect
+  // are in viewport (scaled) space, so ov.top must be multiplied by the zoom
+  // scale before mixing with rect deltas.
   const handleScroll = useCallback(() => {
     if (!editorMainRef.current || !pageRef.current) return;
     const containerTop = editorMainRef.current.getBoundingClientRect().top;
     const pageTop = pageRef.current.getBoundingClientRect().top;
+    const scale = (zoomLevelRef.current || 100) / 100;
     let page = 1;
     for (const ov of overlays) {
-      if (pageTop + ov.top - containerTop < 50) page = ov.pageNumber;
+      if (pageTop + ov.top * scale - containerTop < 50) page = ov.pageNumber;
     }
     setCurrentPage(page);
   }, [overlays, setCurrentPage]);
@@ -2280,18 +2301,30 @@ const ScreenplayEditor: React.FC = () => {
   }, [handleScroll]);
 
   // --- Go to page ---
+  // Jump instantly: smooth-scrolling thousands of pixels on a long screenplay
+  // takes seconds. ov.top is unscaled, so multiply by zoom scale to land on
+  // the correct page when zoom != 100%. ov.top sits at the top of the page
+  // separator block (previous page's bottom margin + gap + new page's top
+  // margin). Skip past the previous-page bottom margin and the 40px visual
+  // gap so the new page (with its header line at the top) lands flush with
+  // the viewport top — not flush with the start of the body content, which
+  // would hide the page header and look like we'd overshot.
   const handleGoToPage = useCallback((page: number) => {
     if (!editorMainRef.current || !pageRef.current) return;
     if (page <= 1) {
-      editorMainRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      editorMainRef.current.scrollTo({ top: 0, behavior: 'auto' });
       return;
     }
     const ov = overlays.find(o => o.pageNumber === page);
     if (ov) {
       const pageRect = pageRef.current.getBoundingClientRect();
       const containerRect = editorMainRef.current.getBoundingClientRect();
-      const scrollTo = editorMainRef.current.scrollTop + (pageRect.top + ov.top - containerRect.top);
-      editorMainRef.current.scrollTo({ top: scrollTo, behavior: 'smooth' });
+      const scale = (zoomLevelRef.current || 100) / 100;
+      const layout = pageLayoutRef.current;
+      const bottomMarginPx = (layout.bottomMargin / 72) * 96;
+      const pageTopOffset = ov.top + bottomMarginPx + 40; // 40 = page-sep-gap
+      const scrollTo = editorMainRef.current.scrollTop + (pageRect.top + pageTopOffset * scale - containerRect.top);
+      editorMainRef.current.scrollTo({ top: scrollTo, behavior: 'auto' });
     }
   }, [overlays]);
 
