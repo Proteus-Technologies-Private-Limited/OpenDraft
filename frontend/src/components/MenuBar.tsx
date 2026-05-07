@@ -279,11 +279,16 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
 
   /** Returns true if the editor has unsaved changes worth prompting about.
    *  - If never saved to a project: true when editor has any meaningful text.
-   *  - If saved to a project: always false (auto-save handles it). */
+   *  - If saved to a project: true when auto-save hasn't caught up yet
+   *    (saveStatus is 'unsaved', 'saving', or 'error'). The 30s auto-save
+   *    interval leaves a window where edits exist only in memory; resetting
+   *    the editor in that window would silently discard them. */
   const editorHasUnsavedChanges = useCallback((): boolean => {
     if (!editor) return false;
-    // Already saved to a project — auto-save keeps it in sync, no prompt needed
-    if (currentProject && currentScriptId) return false;
+    if (currentProject && currentScriptId) {
+      const status = useEditorStore.getState().saveStatus;
+      return status === 'unsaved' || status === 'saving' || status === 'error';
+    }
     // Never-saved document — prompt only if there's real content
     const text = editor.state.doc.textContent.trim();
     return text.length > 0;
