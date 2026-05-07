@@ -112,13 +112,16 @@ sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_android\.apk/OpenDraft_${NEW_VERSI
 echo "  ✓ landing/index.html (download links)"
 
 # user-manual - footer version in all HTML files
+# user-manual - footer version in all HTML files. Match only the footer
+# pattern, NOT every "vX.Y.Z" — index.html also lists past-version <h3>
+# headings in the cumulative changelog and those must stay intact.
 for f in "$PROJECT_ROOT"/user-manual/*.html; do
-  sed -i '' "s/v${OLD_VERSION}/v${NEW_VERSION}/g" "$f"
+  sed -i '' "s/&middot; v${OLD_VERSION} &middot;/\&middot; v${NEW_VERSION} \&middot;/g" "$f"
 done
 echo "  ✓ user-manual/*.html (footers)"
 
-# user-manual/search.js
-sed -i '' "s/v${OLD_VERSION}/v${NEW_VERSION}/g" \
+# user-manual/search.js — only the "What's New in vX.Y.Z" entry, not every "v"
+sed -i '' "s/What's New in v${OLD_VERSION}/What's New in v${NEW_VERSION}/g" \
   "$PROJECT_ROOT/user-manual/search.js"
 echo "  ✓ user-manual/search.js"
 
