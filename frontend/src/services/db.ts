@@ -16,8 +16,30 @@ let _db: Database | null = null;
 export async function getDb(): Promise<Database> {
   if (_db) return _db;
   _db = await Database.load('sqlite:opendraft.db');
+  await applyPragmas(_db);
   await migrate(_db);
   return _db;
+}
+
+/**
+ * Apply SQLite PRAGMAs that improve durability and concurrency, especially
+ * on Windows where the default rollback journal can be corrupted by AV
+ * scanners or cloud-sync (OneDrive) touching the .db-journal file mid-write.
+ *
+ * journal_mode and synchronous persist on the database file itself, so even
+ * if a later pool connection skips this call, WAL mode still applies. The
+ * busy_timeout is connection-local but harmless if not propagated.
+ */
+async function applyPragmas(db: Database): Promise<void> {
+  try {
+    await db.execute('PRAGMA journal_mode = WAL');
+    await db.execute('PRAGMA synchronous = NORMAL');
+    await db.execute('PRAGMA busy_timeout = 5000');
+    await db.execute('PRAGMA foreign_keys = ON');
+  } catch (err) {
+    // Don't block startup if a PRAGMA fails; log so we can see it in devtools.
+    console.warn('[db] PRAGMA configuration failed:', err);
+  }
 }
 
 async function migrate(db: Database): Promise<void> {

@@ -92,6 +92,7 @@ import {
   FaBars,
   FaInfoCircle,
   FaKeyboard,
+  FaStethoscope,
   FaSearchPlus,
   FaSearchMinus,
   FaUpload,
@@ -128,6 +129,22 @@ interface MenuSection {
   label: string;
   items: MenuItem[];
 }
+
+const DiagRow: React.FC<{ label: string; value: string; mono?: boolean }> = ({ label, value, mono }) => (
+  <tr>
+    <td style={{ padding: '4px 8px', color: 'var(--fd-text-secondary)', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+      {label}
+    </td>
+    <td style={{
+      padding: '4px 8px',
+      color: 'var(--fd-text)',
+      fontFamily: mono ? 'ui-monospace, Menlo, Consolas, monospace' : undefined,
+      wordBreak: 'break-word',
+    }}>
+      {value}
+    </td>
+  </tr>
+);
 
 const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, isCollabActive, isCollabGuest }) => {
   const navigate = useNavigate();
@@ -327,6 +344,30 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
 
   // ── About / What's New ──
   const [aboutOpen, setAboutOpen] = useState(false);
+
+  // ── Diagnostics (Help menu) ──
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [diagnosticsReport, setDiagnosticsReport] = useState<import('../services/diagnostics').DiagnosticsReport | null>(null);
+  const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
+
+  const handleOpenDiagnostics = useCallback(async () => {
+    const { collectDiagnostics } = await import('../services/diagnostics');
+    setDiagnosticsReport(await collectDiagnostics());
+    setDiagnosticsCopied(false);
+    setDiagnosticsOpen(true);
+  }, []);
+
+  const handleCopyDiagnostics = useCallback(async () => {
+    if (!diagnosticsReport) return;
+    try {
+      const { formatReport } = await import('../services/diagnostics');
+      await navigator.clipboard.writeText(formatReport(diagnosticsReport));
+      setDiagnosticsCopied(true);
+      setTimeout(() => setDiagnosticsCopied(false), 2000);
+    } catch (err) {
+      showToast('Could not copy to clipboard', 'error');
+    }
+  }, [diagnosticsReport]);
 
   // ── Check in (git commit) ──
   const [checkinOpen, setCheckinOpen] = useState(false);
@@ -1122,6 +1163,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         action: () =>
           showToast(`${mod}1-8: Elements | Tab: Next | ${mod}B/I/U: Format | ${mod}Z: Undo | ${mod}F: Find | ${mod}G: Go to Page`, 'success'),
       },
+      {
+        icon: <FaStethoscope />,
+        label: 'Diagnostics',
+        action: () => { void handleOpenDiagnostics(); },
+      },
     ],
   };
 
@@ -1625,21 +1671,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.17.1</div>
               <ul className="about-list">
-                <li><strong>Treatment Documents</strong> — Write a 20–25 page prose treatment alongside your screenplay. Use "+ New Document" in a project to open the manuscript-format editor.</li>
-                <li><strong>Location Database</strong> — Sidebar panel for managing screenplay locations: list / detail / edit, auto-discovery from scene headings, aliases, and rename-in-scene-headings.</li>
-                <li><strong>Act &amp; Sequence Structure</strong> — Tag scenes into acts and sequences, browse them in a new Structure tab in the Scene Navigator, with "A1"/"A2" badges on each scene.</li>
-                <li><strong>Version Diff View</strong> — Compare any two checked-in versions side-by-side, unified, or changes-only, with a summary of scenes changed and per-character dialogue delta.</li>
-                <li><strong>Multi-Format Templates</strong> — AV (two-column), multicam sitcom, one-hour drama, radio play, and stage play templates with a format picker for new screenplays.</li>
-                <li><strong>DOCX Import / Export</strong> — Round-trip your screenplay through Microsoft Word.</li>
-                <li><strong>Title Page Editor</strong> — Structured editor with live preview (Format &gt; Title Page); data flows into PDF, FDX, and Fountain exports.</li>
-                <li><strong>Script Statistics &amp; Timing</strong> — Tools &gt; Analytics opens dialogue distribution, gender analysis, pacing chart, and character presence map. Per-scene timing in the Navigator and a runtime estimate in the status bar.</li>
-                <li><strong>WGA &amp; Registration Fields</strong> — Project Properties gains WGA registration, copyright, agent/manager fields, and a submission log.</li>
-                <li><strong>Scene Navigator: Search &amp; Synopsis</strong> — Search scene headings and synopses with highlighting; inline synopsis preview on each collapsed scene.</li>
-                <li><strong>Character Relationships</strong> — Inline relationship editor, relationship map tab, and profile-completeness indicator on the Characters panel.</li>
-                <li><strong>Cloud Projects &amp; Per-User Files</strong> — Configurable cloud server URL, per-user file isolation, free 5-file quota, Local/Cloud project tabs, and mobile-friendly tap targets.</li>
-                <li><strong>Save As Replaces Save to Cloud</strong> — Shift+Cmd+S now offers an explicit Local/Cloud destination tab.</li>
-                <li><strong>Self-Hosted Docker Image</strong> — Single <code>ghcr.io/&hellip;/opendraft-combined</code> image bundling backend + collab server for one-image deployment targets.</li>
-                <li><strong>Save Reliability Fixes</strong> — Manual save (Cmd+S) now preserves character relationships and other metadata; auto-save race on script switch fixed; metadata changes flush within 2s.</li>
+                <li><strong>Save Reliability on Windows</strong> — Switched the local SQLite database to WAL journal mode and added a post-write byte-count verification step. Fixes silent save failures on large files (issue #39). Any remaining write corruption now produces a visible error instead of failing silently.</li>
+                <li><strong>OneDrive Detection</strong> — Warns you at startup if OpenDraft's data folder is inside a OneDrive-synced location (a known cause of silent SQLite corruption on Windows) and shows how to fix it.</li>
+                <li><strong>Diagnostics Dialog</strong> — New <em>Help → Diagnostics</em> with a Copy Report button. Captures storage backend, DB path, OS, and last storage error so it can be pasted into bug reports.</li>
               </ul>
             </div>
 
@@ -1701,6 +1735,70 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           </div>
           <div className="dialog-actions">
             <button className="dialog-primary" onClick={() => setAboutOpen(false)}>Close</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {diagnosticsOpen && (
+      <div className="dialog-overlay" onClick={() => setDiagnosticsOpen(false)}>
+        <div className="dialog-box about-dialog" onClick={(e) => e.stopPropagation()}>
+          <div className="dialog-header">Diagnostics</div>
+          <div className="dialog-body about-body">
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-secondary)' }}>
+              Runtime info to attach to bug reports. Click "Copy" to copy the
+              full report to your clipboard, then paste it into the GitHub issue.
+            </p>
+            {diagnosticsReport ? (
+              <>
+                {diagnosticsReport.oneDriveSuspect && (
+                  <div style={{
+                    marginTop: 12,
+                    padding: '10px 12px',
+                    background: '#fff8e1',
+                    border: '1px solid #ffcc80',
+                    borderRadius: 4,
+                    color: '#8b5a00',
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                  }}>
+                    <strong>OneDrive interference suspected.</strong> Your app
+                    data folder appears to be inside a OneDrive-synced
+                    location. OneDrive can corrupt SQLite WAL files mid-write,
+                    causing silent save failures. To fix this, exclude
+                    OpenDraft's data folder from OneDrive backup, or move your
+                    Windows AppData folder out of OneDrive sync.
+                  </div>
+                )}
+                <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', marginTop: 12 }}>
+                  <tbody>
+                    <DiagRow label="Version" value={diagnosticsReport.appVersion} />
+                    <DiagRow label="OS" value={diagnosticsReport.os} />
+                    <DiagRow label="Storage backend" value={diagnosticsReport.storageMode} />
+                    {diagnosticsReport.storageError && (
+                      <DiagRow label="Storage error" value={diagnosticsReport.storageError} mono />
+                    )}
+                    {diagnosticsReport.appDataDir && (
+                      <DiagRow label="App data dir" value={diagnosticsReport.appDataDir} mono />
+                    )}
+                    {diagnosticsReport.sqliteDbPath && (
+                      <DiagRow label="SQLite DB path" value={diagnosticsReport.sqliteDbPath} mono />
+                    )}
+                  </tbody>
+                </table>
+              </>
+            ) : (
+              <div style={{ marginTop: 12, color: 'var(--fd-text-secondary)' }}>Loading…</div>
+            )}
+          </div>
+          <div className="dialog-actions">
+            <button
+              className="dialog-secondary"
+              onClick={handleCopyDiagnostics}
+              disabled={!diagnosticsReport}
+            >
+              {diagnosticsCopied ? 'Copied ✓' : 'Copy Report'}
+            </button>
+            <button className="dialog-primary" onClick={() => setDiagnosticsOpen(false)}>Close</button>
           </div>
         </div>
       </div>

@@ -85,6 +85,11 @@ sed -i '' "s/What's New in ${OLD_VERSION}/What's New in ${NEW_VERSION}/g" \
   "$PROJECT_ROOT/frontend/src/components/MenuBar.tsx"
 echo "  ✓ frontend/src/components/MenuBar.tsx"
 
+# frontend/src/services/diagnostics.ts
+sed -i '' "s/return '${OLD_VERSION}';/return '${NEW_VERSION}';/g" \
+  "$PROJECT_ROOT/frontend/src/services/diagnostics.ts"
+echo "  ✓ frontend/src/services/diagnostics.ts"
+
 # README.md download links
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_aarch64\.dmg/OpenDraft_${NEW_VERSION}_aarch64.dmg/g" "$PROJECT_ROOT/README.md"
 sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64\.dmg/OpenDraft_${NEW_VERSION}_x64.dmg/g" "$PROJECT_ROOT/README.md"

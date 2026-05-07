@@ -290,12 +290,10 @@ export async function createLocalStorage() {
       const sort_order = data.sort_order ?? existing.meta.sort_order;
       const ts = now();
 
-      await db.execute(
-        'UPDATE scripts SET title = $1, size_bytes = $2, updated_at = $3, color = $4, pinned = $5, sort_order = $6 WHERE id = $7',
-        [title, sizeBytes, ts, color, pinned ? 1 : 0, sort_order, scriptId],
-      );
-
-      // Upsert content
+      // Write content FIRST, then metadata. tauri-plugin-sql's pool means we
+      // can't safely BEGIN/COMMIT across execute() calls, so we order writes
+      // so a content failure leaves scripts.updated_at at the old value --
+      // never a half-saved state where metadata advances but content didn't.
       const existingContent = await db.select<any[]>(
         'SELECT script_id FROM script_content WHERE script_id = $1', [scriptId]
       );
@@ -310,6 +308,29 @@ export async function createLocalStorage() {
           [scriptId, contentStr],
         );
       }
+
+      // Verify content actually persisted at the expected byte length. Catches
+      // silent IPC truncation, driver-level write failures, and any other
+      // class of error that returns success but doesn't land the bytes.
+      // CAST AS BLOB so LENGTH() returns UTF-8 byte count, matching sizeBytes.
+      if (contentStr) {
+        const verify = await db.select<any[]>(
+          'SELECT LENGTH(CAST(content AS BLOB)) AS bytes FROM script_content WHERE script_id = $1',
+          [scriptId],
+        );
+        const persistedBytes = Number(verify[0]?.bytes ?? 0);
+        if (persistedBytes !== sizeBytes) {
+          throw new Error(
+            `Save verification failed: expected ${sizeBytes} bytes in script_content, found ${persistedBytes}. ` +
+            `Script "${title}" was NOT saved correctly. Try again, and if this persists please report the issue.`,
+          );
+        }
+      }
+
+      await db.execute(
+        'UPDATE scripts SET title = $1, size_bytes = $2, updated_at = $3, color = $4, pinned = $5, sort_order = $6 WHERE id = $7',
+        [title, sizeBytes, ts, color, pinned ? 1 : 0, sort_order, scriptId],
+      );
 
       await db.execute('UPDATE projects SET updated_at = $1 WHERE id = $2', [ts, projectId]);
 
