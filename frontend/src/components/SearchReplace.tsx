@@ -230,14 +230,16 @@ const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
       if (!editor) return;
       // Select the match text so the user sees it
       editor.chain().setTextSelection({ from: match.from, to: match.to }).run();
-      // Scroll into view
+      // Jump directly to the match. Smooth scrolling animates through every
+      // intermediate frame, which is slow on long paginated documents because
+      // the editor repaints on each frame. Instant jump renders once.
       requestAnimationFrame(() => {
         const coords = editor.view.coordsAtPos(match.from);
         const scrollEl = editor.view.dom.closest('.editor-main');
         if (scrollEl) {
           const rect = scrollEl.getBoundingClientRect();
           const target = scrollEl.scrollTop + (coords.top - rect.top) - rect.height / 3;
-          scrollEl.scrollTo({ top: target, behavior: 'smooth' });
+          scrollEl.scrollTo({ top: target, behavior: 'auto' });
         }
       });
     },

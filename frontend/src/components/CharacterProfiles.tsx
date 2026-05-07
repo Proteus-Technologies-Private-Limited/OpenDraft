@@ -332,7 +332,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         if (editorMain && coords) {
           const rect = editorMain.getBoundingClientRect();
           const scrollTo = editorMain.scrollTop + (coords.top - rect.top) - rect.height / 3;
-          editorMain.scrollTo({ top: scrollTo, behavior: 'smooth' });
+          editorMain.scrollTo({ top: scrollTo, behavior: 'auto' });
         }
       }
     },
@@ -363,7 +363,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         if (editorMain && coords) {
           const rect = editorMain.getBoundingClientRect();
           const scrollTo = editorMain.scrollTop + (coords.top - rect.top) - rect.height / 3;
-          editorMain.scrollTo({ top: scrollTo, behavior: 'smooth' });
+          editorMain.scrollTo({ top: scrollTo, behavior: 'auto' });
         }
       }
     },

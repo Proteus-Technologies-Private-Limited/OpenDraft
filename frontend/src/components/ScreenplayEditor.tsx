@@ -3325,7 +3325,7 @@ const ScreenplayEditor: React.FC = () => {
                     if (label.textContent === u.name) {
                       const caret = label.closest('.collaboration-cursor__caret');
                       if (caret) {
-                        caret.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        caret.scrollIntoView({ behavior: 'auto', block: 'center' });
                       }
                       return;
                     }

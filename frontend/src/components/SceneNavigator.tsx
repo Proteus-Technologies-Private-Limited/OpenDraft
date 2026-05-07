@@ -543,7 +543,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         if (scrollContainer) {
           const containerRect = scrollContainer.getBoundingClientRect();
           const scrollTo = scrollContainer.scrollTop + (coords.top - containerRect.top) - 60;
-          scrollContainer.scrollTo({ top: scrollTo, behavior: 'smooth' });
+          scrollContainer.scrollTo({ top: scrollTo, behavior: 'auto' });
         }
       });
     },
@@ -561,7 +561,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         if (scrollContainer) {
           const containerRect = scrollContainer.getBoundingClientRect();
           const scrollTo = scrollContainer.scrollTop + (coords.top - containerRect.top) - 60;
-          scrollContainer.scrollTo({ top: scrollTo, behavior: 'smooth' });
+          scrollContainer.scrollTo({ top: scrollTo, behavior: 'auto' });
         }
       });
     },
