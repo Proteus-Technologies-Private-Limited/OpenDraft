@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSettingsStore } from '../stores/settingsStore';
-import { collabAuthApi, handleAuthResponse, performLogout } from '../services/collabAuth';
-import type { CollabServerConfig } from '../services/collabAuth';
+import { collabAuthApi, handleAuthResponse, performLogout, isDeviceChallenge } from '../services/collabAuth';
+import type { CollabServerConfig, DeviceRecord } from '../services/collabAuth';
 import { initDemoInfo, isDemoMode } from '../services/demoInfo';
 import { showToast } from './Toast';
 import { getApiBase } from '../config';
+import { getDeviceId } from '../services/deviceId';
 
 const EXPIRY_OPTIONS = [
   { label: '30 minutes', hours: 0.5 },
@@ -65,6 +66,34 @@ const SettingsPage: React.FC = () => {
   // Email verification
   const [verifyCode, setVerifyCode] = useState('');
   const [verifying, setVerifying] = useState(false);
+
+  // New-device 2FA challenge (only set when /login returns a challenge)
+  const [pendingChallenge, setPendingChallenge] = useState<{ challengeId: string; email: string } | null>(null);
+  const [deviceCode, setDeviceCode] = useState('');
+  const [verifyingDevice, setVerifyingDevice] = useState(false);
+
+  // Account management state
+  const [showAccount, setShowAccount] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const [twoFactorBusy, setTwoFactorBusy] = useState(false);
+
+  const [devices, setDevices] = useState<DeviceRecord[] | null>(null);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  // Cloud screenplay inventory — populated when the delete dialog opens so we
+  // can warn the user about exactly what they'll lose. Empty array = none on
+  // file; null = not loaded yet (or load failed and we proceed with the
+  // generic warning).
+  const [cloudInventory, setCloudInventory] = useState<{ projects: number; scripts: number } | null>(null);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
 
   // Google OAuth
   const [serverConfig, setServerConfig] = useState<CollabServerConfig | null>(null);
@@ -158,6 +187,14 @@ const SettingsPage: React.FC = () => {
     setAuthLoading(true);
     try {
       const response = await collabAuthApi.login(loginEmail, loginPassword);
+      if (isDeviceChallenge(response)) {
+        // 2FA enabled and this device is new — server emailed a code instead
+        // of issuing tokens. Hand off to the device-verification UI.
+        setPendingChallenge({ challengeId: response.challengeId, email: loginEmail });
+        setDeviceCode('');
+        showToast(response.message || 'Verification code emailed for this new device.', 'info');
+        return;
+      }
       handleAuthResponse(response);
       try {
         if (rememberEmail) localStorage.setItem('opendraft:rememberedEmail', loginEmail);
@@ -176,6 +213,27 @@ const SettingsPage: React.FC = () => {
       }
     } finally {
       setAuthLoading(false);
+    }
+  };
+
+  const handleVerifyDevice = async () => {
+    if (!pendingChallenge || deviceCode.length !== 6) return;
+    setVerifyingDevice(true);
+    try {
+      const response = await collabAuthApi.verifyDevice(pendingChallenge.challengeId, deviceCode);
+      handleAuthResponse(response);
+      try {
+        if (rememberEmail) localStorage.setItem('opendraft:rememberedEmail', pendingChallenge.email);
+      } catch { /* ignore */ }
+      showToast('Device verified — you are signed in.', 'success');
+      setPendingChallenge(null);
+      setDeviceCode('');
+      setLoginEmail('');
+      setLoginPassword('');
+    } catch (err: any) {
+      showToast(err.message || 'Verification failed', 'error');
+    } finally {
+      setVerifyingDevice(false);
     }
   };
 
@@ -267,6 +325,164 @@ const SettingsPage: React.FC = () => {
   const handleLogout = async () => {
     await performLogout();
     showToast('Logged out', 'success');
+  };
+
+  // ── Account: change password ──
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !newPasswordConfirm) return;
+    if (newPassword !== newPasswordConfirm) {
+      showToast('New passwords do not match', 'error');
+      return;
+    }
+    if (newPassword.length < 8 || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
+      showToast('New password must be 8+ chars with upper, lower, and digit', 'error');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await collabAuthApi.changePassword(currentPassword, newPassword);
+      // Server revokes every refresh token — sign the user out so they
+      // re-authenticate with the new password.
+      showToast('Password changed. Please sign in again.', 'success');
+      setCurrentPassword('');
+      setNewPassword('');
+      setNewPasswordConfirm('');
+      await performLogout();
+    } catch (err: any) {
+      showToast(err.message || 'Could not change password', 'error');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  // ── Account: two-factor toggle ──
+  const handleToggleTwoFactor = async (enabled: boolean) => {
+    setTwoFactorBusy(true);
+    try {
+      const r = await collabAuthApi.setTwoFactorEnabled(enabled);
+      useSettingsStore.getState().setCollabAuth({
+        ...useSettingsStore.getState().collabAuth,
+        user: r.user,
+      });
+      showToast(
+        enabled
+          ? 'Two-factor verification turned on. New devices will need an emailed code.'
+          : 'Two-factor verification turned off. New sign-ins will only get a notification email.',
+        'success',
+      );
+    } catch (err: any) {
+      showToast(err.message || 'Could not update 2FA setting', 'error');
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  };
+
+  // ── Account: devices list ──
+  const refreshDevices = useCallback(async () => {
+    setDevicesLoading(true);
+    try {
+      const list = await collabAuthApi.listDevices();
+      setDevices(list);
+    } catch (err: any) {
+      showToast(err.message || 'Could not load devices', 'error');
+      setDevices([]);
+    } finally {
+      setDevicesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showAccount && isLoggedIn && devices === null && !devicesLoading) {
+      void refreshDevices();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAccount, isLoggedIn]);
+
+  const handleRevokeDevice = async (deviceId: string) => {
+    if (deviceId === getDeviceId()) {
+      showToast('Use Sign Out to remove the current device.', 'error');
+      return;
+    }
+    if (!confirm('Sign this device out and revoke its sessions?')) return;
+    try {
+      await collabAuthApi.revokeDevice(deviceId);
+      showToast('Device revoked', 'success');
+      await refreshDevices();
+    } catch (err: any) {
+      showToast(err.message || 'Could not revoke device', 'error');
+    }
+  };
+
+  // ── Account: delete account (Apple Guideline 5.1.1(v)) ──
+  const cloudPortalLink = (() => {
+    const base = getApiBase();
+    if (!base) return '';
+    return base.replace(/\/api\/?$/, '');
+  })();
+
+  // Load the user's cloud screenplay count when the user opens the delete
+  // dialog so the warning can name the actual amount they're about to lose.
+  // Best-effort: if the cloud is unreachable or returns 401 we leave the
+  // generic warning in place — better to under-warn than block the deletion
+  // flow on a network hiccup.
+  const loadCloudInventory = useCallback(async () => {
+    setInventoryLoading(true);
+    setCloudInventory(null);
+    try {
+      const { cloudApi } = await import('../services/cloudApi');
+      const projects = await cloudApi.listProjects();
+      let scripts = 0;
+      // The list endpoint already returns project metadata; counting scripts
+      // is a per-project API hop. Limit it to the first 25 projects so we
+      // don't make a long sequence of requests in the worst case — anything
+      // past that is good enough as an "X+ screenplays" warning.
+      const sample = projects.slice(0, 25);
+      for (const p of sample) {
+        try {
+          const list = await cloudApi.listScripts(p.id, false);
+          scripts += list.length;
+        } catch { /* ignore per-project failure */ }
+      }
+      setCloudInventory({ projects: projects.length, scripts });
+    } catch {
+      setCloudInventory(null);
+    } finally {
+      setInventoryLoading(false);
+    }
+  }, []);
+
+  const handleOpenDelete = () => {
+    setDeleteOpen(true);
+    void loadCloudInventory();
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!collabAuth.user) return;
+    if (deleteConfirmation !== 'DELETE') {
+      showToast('Type DELETE to confirm.', 'error');
+      return;
+    }
+    setDeleting(true);
+    try {
+      // Always send both fields when present — the server picks the right one
+      // based on whether the account has a password set. We can't tell from
+      // the client because /auth/me doesn't expose that detail.
+      const opts: { password?: string; confirmation?: string } = {
+        confirmation: deleteConfirmation,
+      };
+      if (deletePassword) opts.password = deletePassword;
+      await collabAuthApi.deleteAccount(opts);
+      showToast('Account deleted. We are sorry to see you go.', 'success');
+      setDeleteOpen(false);
+      setDeletePassword('');
+      setDeleteConfirmation('');
+      // Clear local auth state — the access token now references a deleted user.
+      useSettingsStore.getState().clearCollabAuth();
+    } catch (err: any) {
+      showToast(err.message || 'Could not delete account', 'error');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, action: () => void) => {
@@ -454,6 +670,43 @@ const SettingsPage: React.FC = () => {
               </div>
 
               {authTab === 'login' ? (
+                pendingChallenge ? (
+                  <div className="settings-auth-form">
+                    <div className="settings-verify-text">
+                      A 6-digit verification code was emailed to{' '}
+                      <strong>{pendingChallenge.email}</strong> to confirm this is a
+                      device you trust. Enter it below to finish signing in.
+                    </div>
+                    <div className="settings-field">
+                      <label>Verification Code</label>
+                      <input
+                        className="dialog-input settings-verify-input"
+                        value={deviceCode}
+                        onChange={(e) => setDeviceCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="000000"
+                        maxLength={6}
+                        autoFocus
+                        onKeyDown={(e) => handleKeyDown(e, handleVerifyDevice)}
+                      />
+                    </div>
+                    <div className="settings-verify-row">
+                      <button
+                        className="dialog-btn dialog-btn-primary"
+                        onClick={handleVerifyDevice}
+                        disabled={deviceCode.length !== 6 || verifyingDevice}
+                      >
+                        {verifyingDevice ? 'Verifying...' : 'Verify Device'}
+                      </button>
+                      <button
+                        className="dialog-btn"
+                        onClick={() => { setPendingChallenge(null); setDeviceCode(''); }}
+                        disabled={verifyingDevice}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                 <div className="settings-auth-form">
                   <div className="settings-field">
                     <label>Email</label>
@@ -485,6 +738,7 @@ const SettingsPage: React.FC = () => {
                     {authLoading ? 'Signing in...' : 'Sign In'}
                   </button>
                 </div>
+                )
               ) : (
                 <div className="settings-auth-form">
                   <div className="settings-field">
@@ -581,6 +835,243 @@ const SettingsPage: React.FC = () => {
             </div>
           )}
         </section>
+
+        {/* ── Account & Security (signed-in users only) ── */}
+        {isLoggedIn && (
+          <section className="settings-section">
+            <h2 className="settings-section-title">Account &amp; Security</h2>
+            <p className="settings-section-desc">
+              Manage your password, devices, two-factor verification, and account deletion.
+            </p>
+
+            {!showAccount ? (
+              <button className="dialog-btn" onClick={() => setShowAccount(true)}>
+                Open Account Settings
+              </button>
+            ) : (
+              <div className="settings-auth-card">
+                {/* Two-factor toggle */}
+                <div className="settings-account-block">
+                  <div className="settings-account-row">
+                    <div>
+                      <div className="settings-account-title">Two-factor verification</div>
+                      <div className="settings-account-hint">
+                        When on, signing in from a new device requires a 6-digit code emailed to
+                        you. When off, you'll only get a heads-up email so you can spot
+                        unauthorized sign-ins.
+                      </div>
+                    </div>
+                    <label className="settings-switch">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(collabAuth.user?.twoFactorEnabled)}
+                        disabled={twoFactorBusy}
+                        onChange={(e) => handleToggleTwoFactor(e.target.checked)}
+                      />
+                      <span>{collabAuth.user?.twoFactorEnabled ? 'On' : 'Off'}</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Change password */}
+                <div className="settings-account-block">
+                  <div className="settings-account-title">Change password</div>
+                  <div className="settings-account-hint">
+                    Updating your password will sign you out everywhere. You'll need to sign in
+                    again with the new password on each device.
+                  </div>
+                  <div className="settings-field">
+                    <label>Current Password</label>
+                    <input
+                      className="dialog-input"
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Current password"
+                      autoComplete="current-password"
+                    />
+                  </div>
+                  <div className="settings-field">
+                    <label>New Password</label>
+                    <input
+                      className="dialog-input"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="At least 8 characters"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <div className="settings-field">
+                    <label>Confirm New Password</label>
+                    <input
+                      className="dialog-input"
+                      type="password"
+                      value={newPasswordConfirm}
+                      onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                      placeholder="Repeat new password"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <button
+                    className="dialog-btn dialog-btn-primary"
+                    onClick={handleChangePassword}
+                    disabled={!currentPassword || !newPassword || !newPasswordConfirm || changingPassword}
+                  >
+                    {changingPassword ? 'Updating...' : 'Update Password'}
+                  </button>
+                </div>
+
+                {/* Devices */}
+                <div className="settings-account-block">
+                  <div className="settings-account-row">
+                    <div>
+                      <div className="settings-account-title">Active devices</div>
+                      <div className="settings-account-hint">
+                        These are the devices currently signed in to your account. Revoke any
+                        you don't recognise — that device will be signed out immediately.
+                      </div>
+                    </div>
+                    <button className="dialog-btn" onClick={refreshDevices} disabled={devicesLoading}>
+                      {devicesLoading ? 'Loading...' : 'Refresh'}
+                    </button>
+                  </div>
+                  {devicesLoading && devices === null ? (
+                    <div className="settings-account-hint">Loading devices…</div>
+                  ) : (devices || []).length === 0 ? (
+                    <div className="settings-account-hint">No registered devices yet.</div>
+                  ) : (
+                    <ul className="settings-device-list">
+                      {(devices || []).map((d) => (
+                        <li key={d.deviceId} className="settings-device-row">
+                          <div className="settings-device-info">
+                            <div className="settings-device-name">
+                              {d.deviceName}
+                              {d.current && <span className="settings-device-current"> (this device)</span>}
+                            </div>
+                            <div className="settings-device-meta">
+                              {d.platform || 'Unknown platform'}
+                              {d.ipAddress ? ` · ${d.ipAddress}` : ''}
+                            </div>
+                            <div className="settings-device-meta">
+                              Last seen {new Date(d.lastSeenAt).toLocaleString()}
+                            </div>
+                          </div>
+                          {!d.current && (
+                            <button
+                              className="dialog-btn dialog-btn-danger"
+                              onClick={() => handleRevokeDevice(d.deviceId)}
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Delete account (Apple Guideline 5.1.1(v)) */}
+                <div className="settings-account-block settings-account-danger">
+                  <div className="settings-account-title">Delete account</div>
+                  <div className="settings-account-hint">
+                    Permanently deletes your account, password, devices, and any cloud
+                    screenplays stored under your account. This cannot be undone.
+                  </div>
+                  {!deleteOpen ? (
+                    <button
+                      className="dialog-btn dialog-btn-danger"
+                      onClick={handleOpenDelete}
+                    >
+                      Delete Account…
+                    </button>
+                  ) : (
+                    <div className="settings-delete-confirm">
+                      <div className="settings-delete-warning">
+                        <strong>Before you continue:</strong>{' '}
+                        {inventoryLoading ? (
+                          <>checking your OpenDraft Cloud account for screenplays…</>
+                        ) : cloudInventory && (cloudInventory.projects > 0 || cloudInventory.scripts > 0) ? (
+                          <>
+                            you have <strong>{cloudInventory.projects}</strong>{' '}
+                            project{cloudInventory.projects === 1 ? '' : 's'}
+                            {cloudInventory.scripts > 0 && (
+                              <>
+                                {' '}with at least <strong>{cloudInventory.scripts}</strong>{' '}
+                                screenplay{cloudInventory.scripts === 1 ? '' : 's'}
+                              </>
+                            )}{' '}
+                            stored in OpenDraft Cloud. They will be permanently deleted along
+                            with this account and cannot be recovered. Please open each one in
+                            OpenDraft and use <em>File → Save As / Export</em> to download a
+                            local copy before continuing.
+                          </>
+                        ) : (
+                          <>
+                            any screenplays stored in OpenDraft Cloud under this account will be
+                            deleted along with the account and cannot be recovered. Please make
+                            sure you have downloaded them first.
+                          </>
+                        )}
+                        {cloudPortalLink && (
+                          <>
+                            {' '}You can review and download them from{' '}
+                            <a href={cloudPortalLink} target="_blank" rel="noreferrer">
+                              {cloudPortalLink}
+                            </a>.
+                          </>
+                        )}
+                      </div>
+
+                      <div className="settings-field">
+                        <label>Current password (leave blank for Google-only accounts)</label>
+                        <input
+                          className="dialog-input"
+                          type="password"
+                          value={deletePassword}
+                          onChange={(e) => setDeletePassword(e.target.value)}
+                          placeholder="Your password"
+                          autoComplete="current-password"
+                        />
+                      </div>
+
+                      <div className="settings-field">
+                        <label>Type <strong>DELETE</strong> to confirm</label>
+                        <input
+                          className="dialog-input"
+                          value={deleteConfirmation}
+                          onChange={(e) => setDeleteConfirmation(e.target.value)}
+                          placeholder="DELETE"
+                        />
+                      </div>
+
+                      <div className="settings-verify-row">
+                        <button
+                          className="dialog-btn dialog-btn-danger"
+                          onClick={handleDeleteAccount}
+                          disabled={deleting || deleteConfirmation !== 'DELETE'}
+                        >
+                          {deleting ? 'Deleting...' : 'Permanently delete my account'}
+                        </button>
+                        <button
+                          className="dialog-btn"
+                          onClick={() => {
+                            setDeleteOpen(false);
+                            setDeletePassword('');
+                            setDeleteConfirmation('');
+                          }}
+                          disabled={deleting}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* ── Invite Defaults ── */}
         <section className="settings-section">

@@ -10166,6 +10166,98 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   background: var(--fd-toolbar-hover);
 }
 
+/* ============ ACCOUNT & SECURITY ============ */
+.settings-account-block {
+  border-top: 1px solid var(--fd-border);
+  padding: 16px 0;
+}
+.settings-account-block:first-child { border-top: none; padding-top: 0; }
+.settings-account-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.settings-account-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fd-text);
+  margin-bottom: 4px;
+}
+.settings-account-hint {
+  font-size: 12px;
+  color: var(--fd-text-secondary, #999);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.settings-account-danger { border-top-color: rgba(255,68,68,0.4); }
+
+.settings-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--fd-text);
+}
+.settings-switch input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.settings-device-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.settings-device-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--fd-border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background: var(--fd-toolbar-bg, transparent);
+}
+.settings-device-info { min-width: 0; flex: 1; }
+.settings-device-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--fd-text);
+  word-break: break-word;
+}
+.settings-device-current {
+  color: var(--fd-accent, #4a9eff);
+  font-weight: 500;
+  font-size: 12px;
+}
+.settings-device-meta {
+  font-size: 11px;
+  color: var(--fd-text-secondary, #999);
+  word-break: break-word;
+}
+
+.settings-delete-confirm {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255,68,68,0.4);
+  border-radius: 6px;
+  background: rgba(255,68,68,0.05);
+}
+.settings-delete-warning {
+  font-size: 12px;
+  color: var(--fd-text);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.settings-delete-warning a {
+  color: var(--fd-accent, #4a9eff);
+  text-decoration: underline;
+  word-break: break-all;
+}
+
 /* ============ CUSTOM ELEMENT ============ */
 .custom-element { }
 

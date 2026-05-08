@@ -71,3 +71,49 @@ export async function setEmailVerified(userId: string): Promise<void> {
   const now = new Date().toISOString();
   await db.run('UPDATE users SET email_verified = 1, updated_at = ? WHERE id = ?', [now, userId]);
 }
+
+export async function setTwoFactorEnabled(userId: string, enabled: boolean): Promise<void> {
+  const db = getDB();
+  const now = new Date().toISOString();
+  await db.run(
+    'UPDATE users SET two_factor_enabled = ?, updated_at = ? WHERE id = ?',
+    [enabled ? 1 : 0, now, userId],
+  );
+}
+
+export async function updatePassword(userId: string, newPassword: string): Promise<void> {
+  const db = getDB();
+  const now = new Date().toISOString();
+  const passwordHash = bcrypt.hashSync(newPassword, config.bcryptRounds);
+  await db.run(
+    'UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?',
+    [passwordHash, now, userId],
+  );
+}
+
+/**
+ * Delete a user and every record that references them.
+ *
+ * `users` is the parent of refresh_tokens, email_verifications, user_devices,
+ * and device_challenges via ON DELETE CASCADE — but we explicitly delete the
+ * children first so the same code path works on databases where cascades
+ * weren't defined when the table was first created (older deployments).
+ *
+ * The user's invite tokens (`collab_sessions.created_by`) and audit-log rows
+ * are not foreign-keyed; we null/blank them out so the user cannot be
+ * reidentified through them but the audit trail is preserved.
+ */
+export async function deleteUser(userId: string): Promise<void> {
+  const db = getDB();
+  await db.run('UPDATE collab_sessions SET active = 0 WHERE created_by = ?', [userId]);
+  await db.run('DELETE FROM device_challenges WHERE user_id = ?', [userId]);
+  await db.run('DELETE FROM user_devices WHERE user_id = ?', [userId]);
+  await db.run('DELETE FROM email_verifications WHERE user_id = ?', [userId]);
+  await db.run('DELETE FROM refresh_tokens WHERE user_id = ?', [userId]);
+  // Anonymise audit log so the deletion event is preserved without keeping PII.
+  await db.run(
+    "UPDATE audit_log SET user_id = NULL, detail = NULL WHERE user_id = ?",
+    [userId],
+  );
+  await db.run('DELETE FROM users WHERE id = ?', [userId]);
+}

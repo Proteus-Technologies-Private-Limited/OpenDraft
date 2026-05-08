@@ -3,6 +3,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import type { CollabAuth, CollabUser } from '../stores/settingsStore';
 import { platformFetch } from './platform';
 import { authedFetch } from './authedFetch';
+import { getDeviceInfo, getDeviceId } from './deviceId';
 
 // ── URL helpers ──
 
@@ -54,13 +55,37 @@ async function backendAuthRequest<T>(path: string, options?: RequestInit): Promi
     // content block on plain HTTP backends.
     res = await platformFetch(url, {
       ...options,
-      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Device-Id': getDeviceId(),
+        ...options?.headers,
+      },
     });
   } catch (err) {
     throw wrapNetworkError(err, 'the OpenDraft backend');
   }
   if (!res.ok) throw await parseError(res, 'Auth');
   return res.json();
+}
+
+async function backendAuthRequestRaw(path: string, options?: RequestInit): Promise<Response> {
+  const base = getApiBase();
+  if (!base) {
+    throw new Error('OpenDraft Cloud is not configured for this app. Open Settings → System Settings to set the OpenDraft server URL.');
+  }
+  const url = `${base}/auth${path}`;
+  try {
+    return await platformFetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Device-Id': getDeviceId(),
+        ...options?.headers,
+      },
+    });
+  } catch (err) {
+    throw wrapNetworkError(err, 'the OpenDraft backend');
+  }
 }
 
 /** Same as backendAuthRequest but attaches the bearer token and refreshes on 401. */
@@ -74,7 +99,11 @@ async function backendAuthedRequest<T>(path: string, options?: RequestInit): Pro
   try {
     res = await authedFetch(url, {
       ...options,
-      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Device-Id': getDeviceId(),
+        ...options?.headers,
+      },
     });
   } catch (err) {
     throw wrapNetworkError(err, 'the OpenDraft backend');
@@ -126,9 +155,35 @@ export interface AuthResponse {
   refreshToken: string;
 }
 
+/** Returned by /login when 2FA is on and the device is new — instead of
+ *  tokens, the server gives us a challengeId and emails the user a code. */
+export interface DeviceChallengeResponse {
+  deviceVerificationRequired: true;
+  challengeId: string;
+  message?: string;
+}
+
+export type LoginResponse = AuthResponse | DeviceChallengeResponse;
+
+export function isDeviceChallenge(r: LoginResponse): r is DeviceChallengeResponse {
+  return (r as DeviceChallengeResponse).deviceVerificationRequired === true;
+}
+
 export interface CollabServerConfig {
   googleEnabled: boolean;
   emailVerificationRequired: boolean;
+}
+
+export interface DeviceRecord {
+  deviceId: string;
+  deviceName: string;
+  platform: string | null;
+  userAgent: string | null;
+  ipAddress: string | null;
+  trusted: boolean;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  current: boolean;
 }
 
 // ── API methods ──
@@ -137,13 +192,20 @@ export const collabAuthApi = {
   register: (email: string, password: string, displayName: string) =>
     backendAuthRequest<AuthResponse>('/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, displayName }),
+      body: JSON.stringify({ email, password, displayName, device: getDeviceInfo() }),
     }),
 
   login: (email: string, password: string) =>
-    backendAuthRequest<AuthResponse>('/login', {
+    backendAuthRequest<LoginResponse>('/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, device: getDeviceInfo() }),
+    }),
+
+  /** Confirm a new-device 2FA challenge with the emailed 6-digit code. */
+  verifyDevice: (challengeId: string, code: string) =>
+    backendAuthRequest<AuthResponse>('/verify-device', {
+      method: 'POST',
+      body: JSON.stringify({ challengeId, code }),
     }),
 
   refresh: (refreshToken: string) =>
@@ -181,8 +243,47 @@ export const collabAuthApi = {
   loginWithGoogle: (idToken: string) =>
     backendAuthRequest<AuthResponse>('/google', {
       method: 'POST',
-      body: JSON.stringify({ idToken }),
+      body: JSON.stringify({ idToken, device: getDeviceInfo() }),
     }),
+
+  /** Change the password for the authenticated user. Server also revokes
+   *  every refresh token, so the client must re-login afterwards. */
+  changePassword: (currentPassword: string, newPassword: string) =>
+    backendAuthedRequest<{ message: string }>('/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+
+  setTwoFactorEnabled: (enabled: boolean) =>
+    backendAuthedRequest<{ user: CollabUser }>('/two-factor', {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
+
+  listDevices: () =>
+    backendAuthedRequest<{ devices: DeviceRecord[] }>('/devices')
+      .then((r) => r.devices),
+
+  revokeDevice: (deviceId: string) =>
+    backendAuthedRequest<{ message: string }>(
+      `/devices/${encodeURIComponent(deviceId)}`,
+      { method: 'DELETE' },
+    ),
+
+  /** Permanently delete the authenticated user's account (Apple Guideline 5.1.1(v)).
+   *  For password accounts, supply the current password; for Google-only
+   *  accounts, supply confirmation: 'DELETE'. After this returns 200 the
+   *  caller MUST clear local auth state — the access token still references
+   *  a user that no longer exists. */
+  deleteAccount: async (opts: { password?: string; confirmation?: string }) => {
+    const res = await backendAuthRequestRaw('/account', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${useSettingsStore.getState().collabAuth.accessToken ?? ''}` },
+      body: JSON.stringify(opts),
+    });
+    if (!res.ok) throw await parseError(res, 'Auth');
+    return res.json() as Promise<{ message: string }>;
+  },
 
   getMe: () =>
     backendAuthedRequest<CollabUser>('/me'),
