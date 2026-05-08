@@ -98,7 +98,7 @@ function getAppVersion(): string {
   if (typeof window !== 'undefined' && (window as any).__OPENDRAFT_VERSION__) {
     return (window as any).__OPENDRAFT_VERSION__;
   }
-  return '0.17.3';
+  return '0.17.4';
 }
 
 /** Format a report as plain text suitable for pasting into a GitHub issue. */
