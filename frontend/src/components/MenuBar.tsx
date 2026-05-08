@@ -1676,6 +1676,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.17</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.17.4</div>
+              <ul className="about-list">
+                <li><strong>Resend Verification Code</strong> — When signing in on a new device with two-factor verification, you can now request a fresh 6-digit code if the original email didn't arrive.</li>
+                <li><strong>Smarter Two-Factor Toggle</strong> — The Settings two-factor switch is automatically disabled when the collaboration server can't send email, so accounts can't be accidentally locked out of new devices.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.17.3</div>
               <ul className="about-list">
                 <li><strong>Save Prompt Before New / Open / Import</strong> — The unsaved-changes dialog now also fires when auto-save hasn't caught up yet. Edits made just before resetting the editor are no longer silently discarded.</li>
