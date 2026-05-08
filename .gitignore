@@ -5,6 +5,7 @@ venv/
 # Build output
 frontend/dist/
 collab-server/dist/
+*.tsbuildinfo
 __pycache__/
 *.pyc
 
