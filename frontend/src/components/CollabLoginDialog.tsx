@@ -116,6 +116,22 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
     }
   };
 
+  const handleResendDeviceCode = async () => {
+    if (!pendingChallenge) return;
+    setLoading(true);
+    try {
+      const r = await collabAuthApi.resendDeviceChallenge(pendingChallenge.challengeId);
+      // Server invalidates the old code and returns a fresh challengeId.
+      setPendingChallenge({ challengeId: r.challengeId, email: pendingChallenge.email });
+      setDeviceCode('');
+      showToast(r.message || 'A new verification code was sent to your email.', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Could not resend code', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRegister = async () => {
     if (!regEmail || !regPassword || !regName) return;
     if (regPassword !== regConfirm) {
@@ -241,6 +257,13 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
                     disabled={deviceCode.length !== 6 || loading}
                   >
                     {loading ? 'Verifying...' : 'Verify Device'}
+                  </button>
+                  <button
+                    className="dialog-btn"
+                    onClick={handleResendDeviceCode}
+                    disabled={loading}
+                  >
+                    Resend code
                   </button>
                   <button
                     className="dialog-btn"

@@ -165,6 +165,22 @@ export async function createDeviceChallenge(
   return { challengeId: id, code };
 }
 
+/**
+ * Look up a challenge row by id without consuming it. Used by
+ * /resend-device-challenge to recover the (user, device) pair so we can
+ * re-issue a new code with the same context. Returns null if missing.
+ */
+export async function findChallengeById(
+  challengeId: string,
+): Promise<DeviceChallengeRow | null> {
+  const db = getDB();
+  const row = await db.get<DeviceChallengeRow>(
+    'SELECT * FROM device_challenges WHERE id = ?',
+    [challengeId],
+  );
+  return row ?? null;
+}
+
 export async function consumeDeviceChallenge(
   challengeId: string,
   code: string,

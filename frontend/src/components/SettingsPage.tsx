@@ -237,6 +237,22 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const handleResendDeviceCode = async () => {
+    if (!pendingChallenge) return;
+    setVerifyingDevice(true);
+    try {
+      const r = await collabAuthApi.resendDeviceChallenge(pendingChallenge.challengeId);
+      // Server invalidates the old code and returns a fresh challengeId.
+      setPendingChallenge({ challengeId: r.challengeId, email: pendingChallenge.email });
+      setDeviceCode('');
+      showToast(r.message || 'A new verification code was sent to your email.', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Could not resend code', 'error');
+    } finally {
+      setVerifyingDevice(false);
+    }
+  };
+
   const handleRegister = async () => {
     if (!regEmail || !regPassword || !regName) return;
     if (regPassword !== regConfirm) {
@@ -699,6 +715,13 @@ const SettingsPage: React.FC = () => {
                       </button>
                       <button
                         className="dialog-btn"
+                        onClick={handleResendDeviceCode}
+                        disabled={verifyingDevice}
+                      >
+                        Resend code
+                      </button>
+                      <button
+                        className="dialog-btn"
                         onClick={() => { setPendingChallenge(null); setDeviceCode(''); }}
                         disabled={verifyingDevice}
                       >
@@ -860,12 +883,25 @@ const SettingsPage: React.FC = () => {
                         you. When off, you'll only get a heads-up email so you can spot
                         unauthorized sign-ins.
                       </div>
+                      {serverConfig && serverConfig.smtpConfigured === false && (
+                        <div
+                          className="settings-account-hint"
+                          style={{ color: 'var(--fd-warning, #b85c00)', marginTop: 4 }}
+                        >
+                          Email is not configured on this server, so verification codes can't be
+                          sent. Two-factor verification is unavailable until SMTP is set up.
+                        </div>
+                      )}
                     </div>
                     <label className="settings-switch">
                       <input
                         type="checkbox"
                         checked={Boolean(collabAuth.user?.twoFactorEnabled)}
-                        disabled={twoFactorBusy}
+                        disabled={
+                          twoFactorBusy ||
+                          (serverConfig?.smtpConfigured === false &&
+                            !collabAuth.user?.twoFactorEnabled)
+                        }
                         onChange={(e) => handleToggleTwoFactor(e.target.checked)}
                       />
                       <span>{collabAuth.user?.twoFactorEnabled ? 'On' : 'Off'}</span>

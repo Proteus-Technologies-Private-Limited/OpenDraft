@@ -63,6 +63,10 @@ const verifyDeviceSchema = z.object({
   code: z.string().length(6),
 });
 
+const resendDeviceChallengeSchema = z.object({
+  challengeId: z.string().min(8).max(128),
+});
+
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: passwordRule,
@@ -333,6 +337,83 @@ router.post('/verify-device', strictLimiter, async (req, res) => {
   }
 });
 
+/**
+ * Re-issue a new-device verification code for an existing pending challenge.
+ *
+ * Used by the frontend when the user clicks "Resend code" — we look up the
+ * original challenge to recover the (user, device) context, generate a fresh
+ * code, and email it. The old challenge is invalidated by createDeviceChallenge.
+ *
+ * Security: callers don't need to be authenticated (they got into this flow
+ * because they typed a correct password but were challenged for a new device).
+ * The challengeId itself is the proof — it's a uuidv4 the client only knows
+ * because /login just returned it. The hourly per-user rate limit inside
+ * createDeviceChallenge stops resend-spam abuse.
+ */
+router.post('/resend-device-challenge', strictLimiter, async (req, res) => {
+  try {
+    const parsed = resendDeviceChallengeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid input' });
+      return;
+    }
+
+    if (!config.smtpHost) {
+      res.status(400).json({
+        error: 'Email is not configured on this server — cannot resend the verification code.',
+      });
+      return;
+    }
+
+    const existing = await deviceService.findChallengeById(parsed.data.challengeId);
+    if (!existing) {
+      res.status(404).json({ error: 'Challenge not found' });
+      return;
+    }
+
+    const user = await userService.findUserById(existing.user_id);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const fresh = await deviceService.createDeviceChallenge(user.id, {
+      deviceId: existing.device_id,
+      deviceName: existing.device_name,
+      userAgent: existing.user_agent,
+      platform: existing.platform,
+      ipAddress: existing.ip_address,
+    });
+    if (!fresh) {
+      res.status(429).json({ error: 'Too many verification attempts. Please try again later.' });
+      return;
+    }
+
+    await emailService.sendNewDeviceCode(
+      user.email,
+      fresh.code,
+      existing.device_name,
+      existing.ip_address,
+    );
+
+    await auditService.logEvent(
+      'new_device_challenge_resend',
+      user.id,
+      null,
+      { device: existing.device_name, deviceId: existing.device_id },
+      getClientIp(req),
+    );
+
+    res.json({
+      challengeId: fresh.challengeId,
+      message: 'A new verification code was sent to your email.',
+    });
+  } catch (err) {
+    console.error('Resend device challenge error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.post('/refresh', strictLimiter, async (req, res) => {
   try {
     const parsed = refreshSchema.safeParse(req.body);
@@ -540,6 +621,10 @@ router.get('/config', (req, res) => {
   res.json({
     googleEnabled: Boolean(config.googleClientId),
     emailVerificationRequired: Boolean(config.smtpHost),
+    // Whether outbound email is wired up. UI gates 2FA on this — without
+    // SMTP, the new-device code can't be delivered, so enabling it would
+    // lock users out of new devices.
+    smtpConfigured: Boolean(config.smtpHost),
   });
 });
 
@@ -652,6 +737,18 @@ router.post('/two-factor', requireAuth, async (req, res) => {
     const parsed = twoFactorSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: 'Invalid input' });
+      return;
+    }
+    // Reject enabling 2FA when outbound email isn't wired up — without it,
+    // the new-device code never reaches the user and they get locked out.
+    // Disabling is always allowed so an admin who turned SMTP off can still
+    // unblock existing accounts.
+    if (parsed.data.enabled && !config.smtpHost) {
+      res.status(400).json({
+        error:
+          'Email is not configured on this server, so two-factor verification cannot be enabled. ' +
+          'Configure SMTP and try again.',
+      });
       return;
     }
     await userService.setTwoFactorEnabled(req.user!.id, parsed.data.enabled);

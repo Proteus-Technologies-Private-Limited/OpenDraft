@@ -150,6 +150,12 @@ async def verify_device(request: Request) -> Response:
     return await _proxy(request, "POST", "verify-device")
 
 
+@router.post("/resend-device-challenge")
+async def resend_device_challenge(request: Request) -> Response:
+    """Re-issue a fresh new-device 2FA code for an existing pending challenge."""
+    return await _proxy(request, "POST", "resend-device-challenge")
+
+
 @router.post("/change-password")
 async def change_password(request: Request) -> Response:
     return await _proxy(request, "POST", "change-password")

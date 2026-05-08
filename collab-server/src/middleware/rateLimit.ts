@@ -19,7 +19,7 @@ export const strictLimiter = rateLimit({
 
 export const veryStrictLimiter = rateLimit({
   windowMs: config.rateLimitWindowMs,
-  max: 5,
+  max: 15,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later' },

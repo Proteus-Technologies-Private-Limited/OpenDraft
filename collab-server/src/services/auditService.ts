@@ -13,6 +13,7 @@ export type AuditAction =
   | 'email_verified'
   | 'google_login'
   | 'new_device_challenge'
+  | 'new_device_challenge_resend'
   | 'new_device_verified'
   | 'password_changed'
   | 'account_deleted'

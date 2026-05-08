@@ -172,6 +172,8 @@ export function isDeviceChallenge(r: LoginResponse): r is DeviceChallengeRespons
 export interface CollabServerConfig {
   googleEnabled: boolean;
   emailVerificationRequired: boolean;
+  /** Whether outbound SMTP is configured. When false, 2FA cannot be enabled. */
+  smtpConfigured?: boolean;
 }
 
 export interface DeviceRecord {
@@ -206,6 +208,14 @@ export const collabAuthApi = {
     backendAuthRequest<AuthResponse>('/verify-device', {
       method: 'POST',
       body: JSON.stringify({ challengeId, code }),
+    }),
+
+  /** Ask the server to send a fresh new-device verification code. Returns the
+   *  new challengeId — old codes are invalidated server-side. */
+  resendDeviceChallenge: (challengeId: string) =>
+    backendAuthRequest<{ challengeId: string; message?: string }>('/resend-device-challenge', {
+      method: 'POST',
+      body: JSON.stringify({ challengeId }),
     }),
 
   refresh: (refreshToken: string) =>
