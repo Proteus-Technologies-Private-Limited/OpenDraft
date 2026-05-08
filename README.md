@@ -38,7 +38,7 @@
 
 <p align="center">
   <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Proteus-Technologies-Private-Limited/OpenDraft?label=Download&style=flat-square&color=blue&cacheSeconds=600" alt="Download">
+    <img src="https://img.shields.io/github/v/release/Proteus-Technologies-Private-Limited/OpenDraft?label=Download&style=flat-square&color=blue&cacheSeconds=300&v=0174" alt="Download">
   </a>
   <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/stargazers">
     <img src="https://img.shields.io/github/stars/Proteus-Technologies-Private-Limited/OpenDraft?style=flat-square&cacheSeconds=600" alt="GitHub Stars">
