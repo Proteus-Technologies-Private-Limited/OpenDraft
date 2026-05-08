@@ -11,7 +11,12 @@ export type AuditAction =
   | 'document_store'
   | 'token_refresh'
   | 'email_verified'
-  | 'google_login';
+  | 'google_login'
+  | 'new_device_challenge'
+  | 'new_device_verified'
+  | 'password_changed'
+  | 'account_deleted'
+  | 'device_revoked';
 
 export async function logEvent(
   action: AuditAction,

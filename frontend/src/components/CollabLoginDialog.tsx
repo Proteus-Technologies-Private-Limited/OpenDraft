@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { collabAuthApi, handleAuthResponse } from '../services/collabAuth';
+import { collabAuthApi, handleAuthResponse, isDeviceChallenge } from '../services/collabAuth';
 import type { CollabServerConfig } from '../services/collabAuth';
 import { initDemoInfo, isDemoMode } from '../services/demoInfo';
 import { showToast } from './Toast';
@@ -56,6 +56,11 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
   const [showRegPw, setShowRegPw] = useState(false);
   const [showRegConfirm, setShowRegConfirm] = useState(false);
 
+  // New-device 2FA challenge — set when /login returns a challenge instead
+  // of tokens. Replaces the email/password fields with a code-entry form.
+  const [pendingChallenge, setPendingChallenge] = useState<{ challengeId: string; email: string } | null>(null);
+  const [deviceCode, setDeviceCode] = useState('');
+
   useEffect(() => {
     // One-time migration: purge the legacy key that stored email+password in
     // plaintext. The email-only replacement is under opendraft:rememberedEmail.
@@ -69,6 +74,12 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
     setLoading(true);
     try {
       const response = await collabAuthApi.login(loginEmail, loginPassword);
+      if (isDeviceChallenge(response)) {
+        setPendingChallenge({ challengeId: response.challengeId, email: loginEmail });
+        setDeviceCode('');
+        showToast(response.message || 'Verification code emailed for this new device.', 'info');
+        return;
+      }
       handleAuthResponse(response);
       if (rememberEmail) saveRememberedEmail(loginEmail);
       else clearRememberedEmail();
@@ -82,6 +93,24 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
       } else {
         showToast(msg, 'error');
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyDevice = async () => {
+    if (!pendingChallenge || deviceCode.length !== 6) return;
+    setLoading(true);
+    try {
+      const response = await collabAuthApi.verifyDevice(pendingChallenge.challengeId, deviceCode);
+      handleAuthResponse(response);
+      if (rememberEmail) saveRememberedEmail(pendingChallenge.email);
+      showToast('Device verified — signed in.', 'success');
+      setPendingChallenge(null);
+      setDeviceCode('');
+      onSuccess();
+    } catch (err: any) {
+      showToast(err.message || 'Verification failed', 'error');
     } finally {
       setLoading(false);
     }
@@ -134,7 +163,8 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      if (tab === 'login') handleLogin();
+      if (tab === 'login' && pendingChallenge) handleVerifyDevice();
+      else if (tab === 'login') handleLogin();
       else handleRegister();
     } else if (e.key === 'Escape') {
       onClose();
@@ -187,6 +217,41 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
           </div>
 
           {tab === 'login' ? (
+            pendingChallenge ? (
+              <div className="settings-auth-form">
+                <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--fd-text-muted)' }}>
+                  A 6-digit verification code was emailed to <strong>{pendingChallenge.email}</strong>{' '}
+                  to confirm this new device. Enter it below to finish signing in.
+                </p>
+                <div className="settings-field">
+                  <label>Verification Code</label>
+                  <input
+                    className="dialog-input settings-verify-input"
+                    value={deviceCode}
+                    onChange={(e) => setDeviceCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    maxLength={6}
+                    autoFocus
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    className="dialog-btn dialog-btn-primary settings-auth-submit"
+                    onClick={handleVerifyDevice}
+                    disabled={deviceCode.length !== 6 || loading}
+                  >
+                    {loading ? 'Verifying...' : 'Verify Device'}
+                  </button>
+                  <button
+                    className="dialog-btn"
+                    onClick={() => { setPendingChallenge(null); setDeviceCode(''); }}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
             <div className="settings-auth-form">
               <div className="settings-field">
                 <label>Email</label>
@@ -228,6 +293,7 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
                 {loading ? 'Signing in...' : 'Sign In'}
               </button>
             </div>
+            )
           ) : (
             <div className="settings-auth-form">
               <div className="settings-field">

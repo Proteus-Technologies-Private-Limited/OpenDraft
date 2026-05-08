@@ -14,6 +14,7 @@ export interface UserRow {
   display_name: string;
   created_at: string;
   updated_at: string;
+  two_factor_enabled: number;
 }
 
 export interface EmailVerificationRow {
@@ -31,6 +32,34 @@ export interface RefreshTokenRow {
   token_hash: string;
   expires_at: string;
   revoked: number;
+  created_at: string;
+  device_id: string | null;
+}
+
+export interface UserDeviceRow {
+  id: string;
+  user_id: string;
+  device_id: string;
+  device_name: string;
+  user_agent: string | null;
+  platform: string | null;
+  ip_address: string | null;
+  trusted: number;
+  first_seen_at: string;
+  last_seen_at: string;
+}
+
+export interface DeviceChallengeRow {
+  id: string;
+  user_id: string;
+  device_id: string;
+  device_name: string;
+  user_agent: string | null;
+  platform: string | null;
+  ip_address: string | null;
+  code: string;
+  expires_at: string;
+  used: number;
   created_at: string;
 }
 
@@ -68,7 +97,8 @@ const SCHEMA_SQL = `
     google_id TEXT UNIQUE,
     display_name TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    two_factor_enabled INTEGER DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS email_verifications (
@@ -86,6 +116,34 @@ const SCHEMA_SQL = `
     token_hash TEXT NOT NULL,
     expires_at TEXT NOT NULL,
     revoked INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL,
+    device_id TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS user_devices (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    device_id TEXT NOT NULL,
+    device_name TEXT NOT NULL,
+    user_agent TEXT,
+    platform TEXT,
+    ip_address TEXT,
+    trusted INTEGER DEFAULT 0,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS device_challenges (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    device_id TEXT NOT NULL,
+    device_name TEXT NOT NULL,
+    user_agent TEXT,
+    platform TEXT,
+    ip_address TEXT,
+    code TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used INTEGER DEFAULT 0,
     created_at TEXT NOT NULL
   );
 
@@ -119,6 +177,11 @@ const SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);
   CREATE INDEX IF NOT EXISTS idx_collab_sessions_project_script
     ON collab_sessions(project_id, script_id);
+  CREATE INDEX IF NOT EXISTS idx_user_devices_user ON user_devices(user_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_user_devices_user_device
+    ON user_devices(user_id, device_id);
+  CREATE INDEX IF NOT EXISTS idx_device_challenges_user_device
+    ON device_challenges(user_id, device_id);
 `;
 
 export async function initDB(): Promise<DBAdapter> {
@@ -143,6 +206,25 @@ export async function initDB(): Promise<DBAdapter> {
   // Migration: add created_by column to existing collab_sessions tables
   try {
     await adapter.run('ALTER TABLE collab_sessions ADD COLUMN created_by TEXT', []);
+  } catch {
+    // Column already exists — ignore
+  }
+
+  // Migration: add device_id column to existing refresh_tokens tables so we
+  // can attribute tokens to a specific device for the devices list / revoke
+  // flow. Older rows simply have NULL device_id.
+  try {
+    await adapter.run('ALTER TABLE refresh_tokens ADD COLUMN device_id TEXT', []);
+  } catch {
+    // Column already exists — ignore
+  }
+
+  // Migration: add two_factor_enabled column on existing users tables. Off
+  // by default — when on, login from an unrecognised device requires emailed
+  // 2FA confirmation; when off, login proceeds and we just send a heads-up
+  // "new device signed in" email.
+  try {
+    await adapter.run('ALTER TABLE users ADD COLUMN two_factor_enabled INTEGER DEFAULT 0', []);
   } catch {
     // Column already exists — ignore
   }

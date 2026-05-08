@@ -16,7 +16,10 @@ export function generateAccessToken(userId: string, email: string): string {
   return jwt.sign(payload, config.jwtSecret, { expiresIn: config.jwtAccessExpiry as any });
 }
 
-export async function generateRefreshToken(userId: string): Promise<{ token: string; expiresAt: string }> {
+export async function generateRefreshToken(
+  userId: string,
+  deviceId: string | null = null,
+): Promise<{ token: string; expiresAt: string }> {
   const db = getDB();
   const token = crypto.randomBytes(48).toString('base64url');
   const tokenHash = bcrypt.hashSync(token, 10);
@@ -36,9 +39,9 @@ export async function generateRefreshToken(userId: string): Promise<{ token: str
   const expiresAt = new Date(now.getTime() + expiresMs).toISOString();
 
   await db.run(
-    `INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, revoked, created_at)
-     VALUES (?, ?, ?, ?, 0, ?)`,
-    [id, userId, tokenHash, expiresAt, now.toISOString()],
+    `INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, revoked, created_at, device_id)
+     VALUES (?, ?, ?, ?, 0, ?, ?)`,
+    [id, userId, tokenHash, expiresAt, now.toISOString(), deviceId],
   );
 
   return { token, expiresAt };
@@ -59,13 +62,13 @@ export async function rotateRefreshToken(oldToken: string): Promise<{ accessToke
   const now = new Date().toISOString();
 
   // Find all non-revoked, non-expired refresh tokens
-  const rows = await db.all<{ id: string; user_id: string; token_hash: string }>(
+  const rows = await db.all<{ id: string; user_id: string; token_hash: string; device_id: string | null }>(
     'SELECT * FROM refresh_tokens WHERE revoked = 0 AND expires_at > ?',
     [now],
   );
 
   // Find matching token
-  let matchedRow: { id: string; user_id: string } | null = null;
+  let matchedRow: { id: string; user_id: string; device_id: string | null } | null = null;
   for (const row of rows) {
     if (bcrypt.compareSync(oldToken, row.token_hash)) {
       matchedRow = row;
@@ -82,9 +85,10 @@ export async function rotateRefreshToken(oldToken: string): Promise<{ accessToke
   const user = await db.get<{ email: string }>('SELECT email FROM users WHERE id = ?', [matchedRow.user_id]);
   if (!user) return null;
 
-  // Issue new pair
+  // Issue new pair, preserving the device binding so the new refresh token
+  // is still attributable to the same device for the devices list / revoke.
   const accessToken = generateAccessToken(matchedRow.user_id, user.email);
-  const { token: refreshToken } = await generateRefreshToken(matchedRow.user_id);
+  const { token: refreshToken } = await generateRefreshToken(matchedRow.user_id, matchedRow.device_id);
 
   return { accessToken, refreshToken, userId: matchedRow.user_id };
 }

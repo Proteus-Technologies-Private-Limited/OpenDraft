@@ -5,6 +5,9 @@ export interface CollabUser {
   email: string;
   displayName: string;
   emailVerified: boolean;
+  /** Optional — only present from the collab server; the backend's lighter
+   *  /api/auth/me payload omits it. Defaults to false when missing. */
+  twoFactorEnabled?: boolean;
 }
 
 export interface CollabAuth {
