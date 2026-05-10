@@ -5706,6 +5706,26 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   box-shadow: 0 0 0 2px rgba(255, 213, 79, 0.5);
 }
 
+/* ============ GRAMMAR / WRITING SUGGESTIONS ============ */
+/* Style suggestions (passive voice, weak words, wordy phrases): blue dotted */
+.grammar-issue.grammar-style {
+  text-decoration: underline dotted #2e7dd7;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 2px;
+}
+/* Grammar errors (a/an, repeated words): teal wavy — distinct from spelling red */
+.grammar-issue.grammar-grammar {
+  text-decoration: underline wavy #1aa888;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 2px;
+}
+/* Highlight the issue currently being reviewed in the modal */
+.grammar-active {
+  background: rgba(46, 125, 215, 0.18);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px rgba(46, 125, 215, 0.45);
+}
+
 /* MS Word-style spell check modal — floating, draggable, non-blocking */
 .spell-modal {
   background: var(--fd-dropdown-bg);

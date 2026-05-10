@@ -27,6 +27,11 @@ const FontPicker: React.FC<FontPickerProps> = ({ value, onChange, extraFonts = [
       onChange={handleChange}
       title="Font Family"
     >
+      {/* When the selection has multiple fonts, value is "" — show a blank
+          placeholder so the picker doesn't appear to claim a single font. */}
+      {value === '' && (
+        <option value="" disabled hidden>—</option>
+      )}
       {/* Extra fonts from document that aren't in the registry */}
       {extraFonts.length > 0 && (
         <optgroup label="Document Fonts">

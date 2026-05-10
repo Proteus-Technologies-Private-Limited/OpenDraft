@@ -180,6 +180,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     setGoToPageOpen,
     spellCheckEnabled,
     toggleSpellCheck,
+    setSpellModalOpen,
+    grammarCheckEnabled,
+    toggleGrammarCheck,
+    setGrammarModalOpen,
+    setGrammarRulesPanelOpen,
     setOpenFileOpen,
     setPostSaveAction,
     setSaveAsOpen,
@@ -773,6 +778,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   // ── Global keyboard shortcuts ──
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.key === 'F7' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        if (e.shiftKey) setGrammarModalOpen(true);
+        else setSpellModalOpen(true);
+        return;
+      }
       const m = e.metaKey || e.ctrlKey;
       if (!m) return;
       switch (e.key) {
@@ -800,7 +811,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         case '=': // Cmd+= is Cmd++ on most keyboards
         case '+':
           e.preventDefault();
-          setZoomLevel(Math.min(200, useEditorStore.getState().zoomLevel + 10));
+          setZoomLevel(Math.min(300, useEditorStore.getState().zoomLevel + 10));
           break;
         case '-':
           e.preventDefault();
@@ -810,7 +821,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleSave, handleSaveAs, handleNewScreenplay, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel]);
+  }, [handleSave, handleSaveAs, handleNewScreenplay, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel, setSpellModalOpen, setGrammarModalOpen]);
 
   const handleExportFDX = useCallback(async () => {
     if (!editor) return;
@@ -987,7 +998,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         { separator: true, label: '' },
         { icon: <FaSearch />, label: 'Find & Replace...', shortcut: `${mod}F`, action: () => setSearchOpen(true) },
         { icon: <FaHashtag />, label: 'Go to Page...', shortcut: `${mod}G`, action: () => setGoToPageOpen(true) },
-        { icon: <FaSpellCheck />, label: spellCheckEnabled ? '\u2713 Spell Check' : 'Spell Check', action: toggleSpellCheck },
+        { icon: <FaSpellCheck />, label: spellCheckEnabled ? '\u2713 Auto Spell Check' : 'Auto Spell Check', action: toggleSpellCheck },
+        { icon: <FaSpellCheck />, label: 'Spell Check\u2026', shortcut: 'F7', action: () => setSpellModalOpen(true) },
+        { icon: <FaSpellCheck />, label: grammarCheckEnabled ? '\u2713 Auto Writing Suggestions' : 'Auto Writing Suggestions', action: toggleGrammarCheck },
+        { icon: <FaSpellCheck />, label: 'Writing Suggestions\u2026', shortcut: '\u21e7F7', action: () => setGrammarModalOpen(true) },
+        { icon: <FaSpellCheck />, label: 'Configure Suggestion Rules\u2026', action: () => setGrammarRulesPanelOpen(true) },
       ],
     },
     {
@@ -1084,7 +1099,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         {
           icon: <FaSearchPlus />, label: `Zoom (${zoomLevel}%)`,
           children: [
-            { icon: <FaSearchPlus />, label: 'Zoom In', shortcut: `${mod}+`, action: () => setZoomLevel(Math.min(200, zoomLevel + 10)) },
+            { icon: <FaSearchPlus />, label: 'Zoom In', shortcut: `${mod}+`, action: () => setZoomLevel(Math.min(300, zoomLevel + 10)) },
             { icon: <FaSearchMinus />, label: 'Zoom Out', shortcut: `${mod}−`, action: () => setZoomLevel(Math.max(50, zoomLevel - 10)) },
             { separator: true, label: '' },
             { label: zoomLevel === 50 ? '\u2713 50%' : '50%', action: () => setZoomLevel(50) },
@@ -1093,6 +1108,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             { label: zoomLevel === 125 ? '\u2713 125%' : '125%', action: () => setZoomLevel(125) },
             { label: zoomLevel === 150 ? '\u2713 150%' : '150%', action: () => setZoomLevel(150) },
             { label: zoomLevel === 200 ? '\u2713 200%' : '200%', action: () => setZoomLevel(200) },
+            { label: zoomLevel === 300 ? '\u2713 300%' : '300%', action: () => setZoomLevel(300) },
           ],
         },
       ],

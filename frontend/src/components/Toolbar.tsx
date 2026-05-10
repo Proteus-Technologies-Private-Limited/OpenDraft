@@ -94,9 +94,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   const [currentTextColor, setCurrentTextColor] = useState<string>('#000000');
   const [currentBgColor, setCurrentBgColor] = useState<string>('#ffff00');
 
-  // Track the font/size of the text at current cursor position
-  const [cursorFont, setCursorFont] = useState(fontFamily);
-  const [cursorSize, setCursorSize] = useState(fontSize);
+  // Track the font/size of the text at current cursor position. Empty string
+  // / null indicates the selection spans more than one value ("mixed").
+  const [cursorFont, setCursorFont] = useState<string>(fontFamily);
+  const [cursorSize, setCursorSize] = useState<number | null>(fontSize);
   // Fonts found in document that aren't in the registry
   const [extraFonts, setExtraFonts] = useState<string[]>([]);
 
@@ -107,25 +108,83 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     const rule = getCurrentElementRule(editor, activeTemplate);
     setLocked(getLockedFormatting(rule, isEnforceMode));
 
-    const attrs = editor.getAttributes('textStyle');
-    const detectedFont = (attrs.fontFamily as string | undefined) || '';
-    const detectedSize = (attrs.fontSize as string | undefined) || '';
+    const { from, to, empty } = editor.state.selection;
 
-    // Font: use detected mark value, or template rule, or page-level font
-    const effectiveFont = detectedFont || rule?.fontFamily || fontFamily;
-    setCursorFont(effectiveFont);
-
-    // If this font isn't in the registry, add it to extras so the dropdown shows it
-    if (effectiveFont && !FONT_REGISTRY.find(f => f.name === effectiveFont)) {
-      setExtraFonts(prev => prev.includes(effectiveFont) ? prev : [...prev, effectiveFont]);
+    // For an empty cursor, fall back to the textStyle mark at that position.
+    if (empty) {
+      const attrs = editor.getAttributes('textStyle');
+      const detectedFont = (attrs.fontFamily as string | undefined) || '';
+      const detectedSize = (attrs.fontSize as string | undefined) || '';
+      const effectiveFont = detectedFont || rule?.fontFamily || fontFamily;
+      setCursorFont(effectiveFont);
+      if (effectiveFont && !FONT_REGISTRY.find((f) => f.name === effectiveFont)) {
+        setExtraFonts((prev) => (prev.includes(effectiveFont) ? prev : [...prev, effectiveFont]));
+      }
+      if (detectedSize) {
+        const parsed = parseInt(detectedSize, 10);
+        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? fontSize));
+      } else {
+        setCursorSize(rule?.fontSize ?? fontSize);
+      }
+      return;
     }
 
-    // Size: parse "14pt" -> 14, or use template rule, or page-level size
-    if (detectedSize) {
-      const parsed = parseInt(detectedSize, 10);
-      setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? fontSize));
+    // For a real selection, walk the text nodes within [from, to]. If every
+    // text node carries the same fontFamily / fontSize, show that value;
+    // otherwise show the picker as blank to indicate "mixed".
+    const fonts = new Set<string>();
+    const sizes = new Set<string>();
+    let sawText = false;
+    editor.state.doc.nodesBetween(from, to, (node, pos) => {
+      if (!node.isText || !node.text) return;
+      const start = Math.max(pos, from);
+      const end = Math.min(pos + node.nodeSize, to);
+      if (end <= start) return;
+      sawText = true;
+      const ts = node.marks.find((m) => m.type.name === 'textStyle');
+      const ff = (ts?.attrs.fontFamily as string | undefined) || '';
+      const fs = (ts?.attrs.fontSize as string | undefined) || '';
+      fonts.add(ff);
+      sizes.add(fs);
+    });
+
+    if (!sawText) {
+      // Selection contains only block boundaries / no text — fall back to cursor attrs.
+      const attrs = editor.getAttributes('textStyle');
+      const detectedFont = (attrs.fontFamily as string | undefined) || '';
+      const detectedSize = (attrs.fontSize as string | undefined) || '';
+      const effectiveFont = detectedFont || rule?.fontFamily || fontFamily;
+      setCursorFont(effectiveFont);
+      if (detectedSize) {
+        const parsed = parseInt(detectedSize, 10);
+        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? fontSize));
+      } else {
+        setCursorSize(rule?.fontSize ?? fontSize);
+      }
+      return;
+    }
+
+    if (fonts.size > 1) {
+      setCursorFont('');
     } else {
-      setCursorSize(rule?.fontSize ?? fontSize);
+      const single = [...fonts][0] || '';
+      const effective = single || rule?.fontFamily || fontFamily;
+      setCursorFont(effective);
+      if (effective && !FONT_REGISTRY.find((f) => f.name === effective)) {
+        setExtraFonts((prev) => (prev.includes(effective) ? prev : [...prev, effective]));
+      }
+    }
+
+    if (sizes.size > 1) {
+      setCursorSize(null);
+    } else {
+      const single = [...sizes][0] || '';
+      if (single) {
+        const parsed = parseInt(single, 10);
+        setCursorSize(!isNaN(parsed) ? parsed : (rule?.fontSize ?? fontSize));
+      } else {
+        setCursorSize(rule?.fontSize ?? fontSize);
+      }
     }
   }, [editor, fontFamily, fontSize, activeTemplate, isEnforceMode]);
 
@@ -224,7 +283,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   useEffect(() => { if (!zoomEditing) setZoomInput(String(zoomLevel)); }, [zoomLevel, zoomEditing]);
   const commitZoom = () => {
     const val = parseInt(zoomInput, 10);
-    if (!isNaN(val) && val >= 50 && val <= 200) setZoomLevel(val);
+    if (!isNaN(val) && val >= 50 && val <= 300) setZoomLevel(val);
     else setZoomInput(String(zoomLevel));
     setZoomEditing(false);
   };
@@ -459,9 +518,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             if (entry) loadFont(entry);
             const DEFAULT_FONTS = ['Courier Final Draft', 'Courier Prime', 'Courier New', 'Courier'];
             if (DEFAULT_FONTS.includes(val)) {
-              editor?.chain().focus().setMark('textStyle', { fontFamily: null }).removeEmptyTextStyle().run();
+              editor?.chain().focus(undefined, { scrollIntoView: false }).setMark('textStyle', { fontFamily: null }).removeEmptyTextStyle().run();
             } else {
-              editor?.chain().focus().setMark('textStyle', { fontFamily: val }).run();
+              editor?.chain().focus(undefined, { scrollIntoView: false }).setMark('textStyle', { fontFamily: val }).run();
             }
             if (inOverflow) setOverflowOpen(false);
           }}
@@ -470,22 +529,30 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       <div className="toolbar-group">
         <select
           className="font-size-selector"
-          value={cursorSize}
+          value={cursorSize ?? ''}
           disabled={locked.fontSize}
           onChange={(e) => {
             if (locked.fontSize) return;
+            if (e.target.value === '') return; // user clicked the mixed placeholder — no-op
             const val = Number(e.target.value);
             setFontSize(val);
             if (val === 12) {
-              editor?.chain().focus().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
+              editor?.chain().focus(undefined, { scrollIntoView: false }).setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
             } else {
-              editor?.chain().focus().setFontSize(`${val}pt`).run();
+              editor?.chain().focus(undefined, { scrollIntoView: false }).setFontSize(`${val}pt`).run();
             }
             if (inOverflow) setOverflowOpen(false);
           }}
           title="Font Size"
         >
-          {(FONT_SIZES.includes(cursorSize) ? FONT_SIZES : [...FONT_SIZES, cursorSize].sort((a, b) => a - b)).map((s) => (
+          {/* Mixed-selection placeholder. */}
+          {cursorSize === null && (
+            <option value="" disabled hidden>—</option>
+          )}
+          {(cursorSize !== null && !FONT_SIZES.includes(cursorSize)
+            ? [...FONT_SIZES, cursorSize].sort((a, b) => a - b)
+            : FONT_SIZES
+          ).map((s) => (
             <option key={s} value={s}>
               {s}pt
             </option>
@@ -722,7 +789,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         className="toolbar-btn"
         title="Zoom In"
         onClick={() => setZoomLevel(zoomLevel + 10)}
-        disabled={zoomLevel >= 200}
+        disabled={zoomLevel >= 300}
       >
         <FaSearchPlus />
       </button>
@@ -916,7 +983,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           className="toolbar-btn"
           title="Zoom In"
           onClick={() => setZoomLevel(zoomLevel + 10)}
-          disabled={zoomLevel >= 200}
+          disabled={zoomLevel >= 300}
         >
           <FaSearchPlus />
         </button>

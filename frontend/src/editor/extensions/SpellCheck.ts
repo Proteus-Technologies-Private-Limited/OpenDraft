@@ -3,6 +3,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import type { Transaction, EditorState } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { EditorView } from '@tiptap/pm/view';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { spellChecker } from '../spellchecker';
 
 export const spellCheckPluginKey = new PluginKey('spellCheck');
@@ -14,52 +15,118 @@ interface SpellCheckPluginState {
   activeTo: number;
 }
 
-/** Shared scan logic: find misspelled words in a doc and build decorations. */
-function buildSpellDecorations(
-  doc: EditorState['doc'],
-  activeFrom?: number,
-  activeTo?: number,
-): Decoration[] {
-  const decorations: Decoration[] = [];
-  doc.descendants((node, pos) => {
-    if (!node.isText) return;
-    const text = node.text || '';
-    const wordRegex = /[a-zA-Z\u00C0-\u024F']+/g;
-    let match: RegExpExecArray | null;
-    while ((match = wordRegex.exec(text)) !== null) {
-      const word = match[0];
-      if (word.length < 2) continue;
-      if (word === word.toUpperCase() && word.length > 1) continue;
-      if (!spellChecker.check(word)) {
-        // Build the same context key used by findAllErrors / ignoreOnce
-        const contextKey = buildContextKey(text, match.index, word.length);
-        if (spellChecker.isIgnoredOnce(word, contextKey)) continue;
-        const from = pos + match.index;
-        const to = from + word.length;
-        const isActive = activeFrom !== undefined && from === activeFrom && to === activeTo;
-        decorations.push(
-          Decoration.inline(from, to, {
-            class: isActive ? 'spell-error spell-active' : 'spell-error',
-          }),
-        );
-      }
-    }
-  });
-  return decorations;
-}
+const WORD_REGEX = /[a-zA-ZÀ-ɏ']+/g;
 
-/** Context key builder — must match SpellChecker.buildContextKey */
+/** Context key builder — must match SpellChecker.buildContextKey. */
 function buildContextKey(text: string, matchIndex: number, wordLength: number): string {
   const before = text.slice(Math.max(0, matchIndex - 20), matchIndex);
   const after = text.slice(matchIndex + wordLength, matchIndex + wordLength + 20);
   return `${before}>><<${after}`;
 }
 
+function shouldSkipWord(word: string): boolean {
+  if (word.length < 2) return true;
+  if (word === word.toUpperCase() && word.length > 1) return true;
+  return false;
+}
+
+function makeDecoration(from: number, to: number, isActive: boolean): Decoration {
+  return Decoration.inline(from, to, {
+    class: isActive ? 'spell-error spell-active' : 'spell-error',
+  });
+}
+
+/** Scan a single text node for misspellings and append decorations. */
+function scanTextNode(
+  text: string,
+  nodePos: number,
+  out: Decoration[],
+  activeFrom?: number,
+  activeTo?: number,
+) {
+  WORD_REGEX.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = WORD_REGEX.exec(text)) !== null) {
+    const word = match[0];
+    if (shouldSkipWord(word)) continue;
+    if (spellChecker.check(word)) continue;
+    const contextKey = buildContextKey(text, match.index, word.length);
+    if (spellChecker.isIgnoredOnce(word, contextKey)) continue;
+    const from = nodePos + match.index;
+    const to = from + word.length;
+    const isActive =
+      activeFrom !== undefined &&
+      activeTo !== undefined &&
+      from === activeFrom &&
+      to === activeTo;
+    out.push(makeDecoration(from, to, isActive));
+  }
+}
+
+/** Scan an entire doc — used on initial enable. */
+function buildSpellDecorationsFull(
+  doc: ProseMirrorNode,
+  activeFrom?: number,
+  activeTo?: number,
+): Decoration[] {
+  const decos: Decoration[] = [];
+  doc.descendants((node, pos) => {
+    if (node.isText && node.text) {
+      scanTextNode(node.text, pos, decos, activeFrom, activeTo);
+    }
+  });
+  return decos;
+}
+
+/** Scan only a range (used for incremental rescan after edits). */
+function buildSpellDecorationsRange(
+  doc: ProseMirrorNode,
+  from: number,
+  to: number,
+): Decoration[] {
+  const decos: Decoration[] = [];
+  doc.nodesBetween(from, to, (node, pos) => {
+    if (node.isText && node.text) {
+      scanTextNode(node.text, pos, decos);
+    }
+  });
+  return decos;
+}
+
+/** Expand a range to the enclosing block boundaries so we re-scan whole words. */
+function expandToBlockRange(doc: ProseMirrorNode, from: number, to: number): { from: number; to: number } {
+  const docSize = doc.content.size;
+  const safeFrom = Math.max(0, Math.min(from, docSize));
+  const safeTo = Math.max(safeFrom, Math.min(to, docSize));
+  try {
+    const $from = doc.resolve(safeFrom);
+    const $to = doc.resolve(safeTo);
+    const blockFrom = $from.depth > 0 ? $from.before($from.depth) : safeFrom;
+    const blockTo = $to.depth > 0 ? $to.after($to.depth) : safeTo;
+    return { from: Math.max(0, blockFrom), to: Math.min(docSize, blockTo) };
+  } catch {
+    return { from: safeFrom, to: safeTo };
+  }
+}
+
+/** Compute combined changed range across all step maps in a transaction. */
+function getChangedRange(tr: Transaction): { from: number; to: number } | null {
+  let from = -1;
+  let to = -1;
+  for (const stepMap of tr.mapping.maps) {
+    stepMap.forEach((_oldStart, _oldEnd, newStart, newEnd) => {
+      if (from === -1 || newStart < from) from = newStart;
+      if (newEnd > to) to = newEnd;
+    });
+  }
+  return from === -1 ? null : { from, to };
+}
+
 export const SpellCheck = Extension.create({
   name: 'spellCheck',
 
   addProseMirrorPlugins() {
-    let timeout: ReturnType<typeof setTimeout> | null = null;
+    let initialScanTimeout: ReturnType<typeof setTimeout> | null = null;
 
     return [
       new Plugin({
@@ -77,6 +144,7 @@ export const SpellCheck = Extension.create({
             const meta = tr.getMeta(spellCheckPluginKey) as
               | { toggle?: boolean; decorations?: DecorationSet; activeRange?: { from: number; to: number } | null }
               | undefined;
+
             if (meta?.toggle !== undefined) {
               const enabled = meta.toggle;
               if (!enabled) {
@@ -84,11 +152,10 @@ export const SpellCheck = Extension.create({
               }
               return { ...value, enabled };
             }
+
             if (meta?.activeRange !== undefined) {
               if (meta.activeRange === null) {
-                const decos = value.enabled
-                  ? buildSpellDecorations(newState.doc)
-                  : [];
+                const decos = value.enabled ? buildSpellDecorationsFull(newState.doc) : [];
                 return {
                   ...value,
                   activeFrom: 0,
@@ -97,9 +164,7 @@ export const SpellCheck = Extension.create({
                 };
               }
               const { from, to } = meta.activeRange;
-              const decos = value.enabled
-                ? buildSpellDecorations(newState.doc, from, to)
-                : [];
+              const decos = value.enabled ? buildSpellDecorationsFull(newState.doc, from, to) : [];
               return {
                 ...value,
                 activeFrom: from,
@@ -107,72 +172,87 @@ export const SpellCheck = Extension.create({
                 decorations: DecorationSet.create(newState.doc, decos),
               };
             }
+
             if (meta?.decorations !== undefined) {
               return { ...value, decorations: meta.decorations };
             }
+
             if (tr.docChanged && value.enabled) {
-              return {
-                ...value,
-                decorations: value.decorations.map(tr.mapping, tr.doc),
-              };
+              // 1) Shift existing decorations through the mapping so untouched ones stay aligned.
+              let mapped = value.decorations.map(tr.mapping, tr.doc);
+
+              // 2) If the dictionary isn't ready yet, defer rescan to view.update.
+              if (!spellChecker.isReady()) {
+                return { ...value, decorations: mapped };
+              }
+
+              // 3) Find the changed range and expand it to enclosing block boundaries.
+              const changed = getChangedRange(tr);
+              if (!changed) return { ...value, decorations: mapped };
+              const { from: blockFrom, to: blockTo } = expandToBlockRange(tr.doc, changed.from, changed.to);
+
+              // 4) Remove old decorations in the affected range and rescan.
+              const stale = mapped.find(blockFrom, blockTo);
+              if (stale.length > 0) {
+                mapped = mapped.remove(stale);
+              }
+              const fresh = buildSpellDecorationsRange(tr.doc, blockFrom, blockTo);
+              if (fresh.length > 0) {
+                mapped = mapped.add(tr.doc, fresh);
+              }
+              return { ...value, decorations: mapped };
             }
+
             return value;
           },
         },
         props: {
           decorations(state: EditorState) {
-            const pluginState = spellCheckPluginKey.getState(state) as
-              | SpellCheckPluginState
-              | undefined;
+            const pluginState = spellCheckPluginKey.getState(state) as SpellCheckPluginState | undefined;
             return pluginState?.decorations || DecorationSet.empty;
           },
         },
         view(editorView: EditorView) {
-          const runCheck = async () => {
-            const pluginState = spellCheckPluginKey.getState(
-              editorView.state,
-            ) as SpellCheckPluginState | undefined;
+          const runFullScan = async () => {
+            const pluginState = spellCheckPluginKey.getState(editorView.state) as SpellCheckPluginState | undefined;
             if (!pluginState?.enabled) return;
-
-            // Wait for dictionary to finish loading if still in progress
             if (!spellChecker.isReady()) {
               const ok = await spellChecker.whenReady();
               if (!ok) return;
-              const ps = spellCheckPluginKey.getState(editorView.state) as
-                | SpellCheckPluginState
-                | undefined;
+              const ps = spellCheckPluginKey.getState(editorView.state) as SpellCheckPluginState | undefined;
               if (!ps?.enabled) return;
             }
-
             const { doc } = editorView.state;
-            const decorations = buildSpellDecorations(doc);
+            const decorations = buildSpellDecorationsFull(doc);
             const decorationSet = DecorationSet.create(doc, decorations);
-            const tr = editorView.state.tr.setMeta(spellCheckPluginKey, {
-              decorations: decorationSet,
-            });
+            const tr = editorView.state.tr.setMeta(spellCheckPluginKey, { decorations: decorationSet });
             editorView.dispatch(tr);
           };
 
+          // Kick off dictionary load eagerly so it's ready when the user starts typing.
+          spellChecker.init().catch(() => {});
+
           return {
             update(view: EditorView, prevState: EditorState) {
-              const pluginState = spellCheckPluginKey.getState(view.state) as
-                | SpellCheckPluginState
-                | undefined;
+              const pluginState = spellCheckPluginKey.getState(view.state) as SpellCheckPluginState | undefined;
               if (!pluginState?.enabled) return;
 
-              const prevPluginState = spellCheckPluginKey.getState(
-                prevState,
-              ) as SpellCheckPluginState | undefined;
-              const justEnabled =
-                pluginState.enabled && !prevPluginState?.enabled;
+              const prevPluginState = spellCheckPluginKey.getState(prevState) as SpellCheckPluginState | undefined;
+              const justEnabled = pluginState.enabled && !prevPluginState?.enabled;
 
-              if (justEnabled || !view.state.doc.eq(prevState.doc)) {
-                if (timeout) clearTimeout(timeout);
-                timeout = setTimeout(runCheck, justEnabled ? 100 : 500);
+              // Only the initial enable triggers a full scan. Subsequent edits are handled incrementally in apply().
+              // If the dictionary wasn't ready when an edit landed, we'll catch up via this same path on the next change.
+              const dictWasNotReady =
+                view.state.doc !== prevState.doc &&
+                pluginState.decorations.find().length === 0 &&
+                !spellChecker.isReady();
+              if (justEnabled || dictWasNotReady) {
+                if (initialScanTimeout) clearTimeout(initialScanTimeout);
+                initialScanTimeout = setTimeout(runFullScan, justEnabled ? 100 : 300);
               }
             },
             destroy() {
-              if (timeout) clearTimeout(timeout);
+              if (initialScanTimeout) clearTimeout(initialScanTimeout);
             },
           };
         },

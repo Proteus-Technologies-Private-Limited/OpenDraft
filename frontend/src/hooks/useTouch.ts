@@ -274,7 +274,7 @@ export function usePinchZoom(
     currentZoom,
     onZoomChange,
     minZoom = 50,
-    maxZoom = 200,
+    maxZoom = 300,
     enabled = true,
   } = config;
 

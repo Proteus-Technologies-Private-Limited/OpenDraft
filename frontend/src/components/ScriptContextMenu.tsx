@@ -4,6 +4,9 @@ import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorS
 import { useEditorStore } from '../stores/editorStore';
 import { spellChecker } from '../editor/spellchecker';
 import { spellCheckPluginKey } from '../editor/extensions/SpellCheck';
+import { grammarPluginKey } from '../editor/extensions/Grammar';
+import { grammarIgnore, GrammarIgnore } from '../editor/grammar/grammarIgnore';
+import { RETEXT_CATEGORY_META } from '../editor/grammar/retextProvider';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 
@@ -42,10 +45,20 @@ interface SpellInfo {
   suggestions: string[];
 }
 
+interface GrammarInfo {
+  from: number;
+  to: number;
+  ruleId: string;
+  message: string;
+  severity: 'style' | 'grammar';
+  suggestions: string[];
+}
+
 interface ScriptContextMenuProps {
   editor: Editor;
   position: { x: number; y: number };
   spellInfo: SpellInfo | null;
+  grammarInfo: GrammarInfo | null;
   onClose: () => void;
   onOpenFormatPanel: () => void;
   /** Pre-captured selection from long-press (touch devices blur the editor before mounting). */
@@ -56,10 +69,12 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   editor,
   position,
   spellInfo,
+  grammarInfo,
   onClose,
   onOpenFormatPanel,
   overrideSelection,
 }) => {
+  const setGrammarRuleEnabled = useEditorStore((s) => s.setGrammarRuleEnabled);
   const menuRef = useRef<HTMLDivElement>(null);
   const [elementSubOpen, setElementSubOpen] = useState(false);
   const [styleSubOpen, setStyleSubOpen] = useState(false);
@@ -406,6 +421,49 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
     triggerSpellRecheck();
   };
 
+  // ── Grammar (writing-suggestion) handlers ──
+
+  const triggerGrammarRecheck = useCallback(() => {
+    const tr = editor.state.tr.setMeta(grammarPluginKey, { rescanAll: true });
+    editor.view.dispatch(tr);
+  }, [editor]);
+
+  const handleGrammarSuggestion = (suggestion: string) => {
+    if (!grammarInfo) return;
+    editor.chain().focus().command(({ tr }) => {
+      tr.insertText(suggestion, grammarInfo.from, grammarInfo.to);
+      return true;
+    }).run();
+    onClose();
+  };
+
+  const handleGrammarIgnoreOnce = () => {
+    if (!grammarInfo) return;
+    const start = Math.max(0, grammarInfo.from - 30);
+    const end = Math.min(editor.state.doc.content.size, grammarInfo.to + 30);
+    const text = editor.state.doc.textBetween(start, end, ' ');
+    const localIdx = grammarInfo.from - start;
+    const len = grammarInfo.to - grammarInfo.from;
+    const ctxKey = GrammarIgnore.buildContextKey(text, localIdx, len);
+    grammarIgnore.ignoreOnce(grammarInfo.ruleId, ctxKey);
+    onClose();
+    triggerGrammarRecheck();
+  };
+
+  const handleGrammarIgnoreRuleForDoc = () => {
+    if (!grammarInfo) return;
+    grammarIgnore.ignoreRuleForDoc(grammarInfo.ruleId);
+    onClose();
+    triggerGrammarRecheck();
+  };
+
+  const handleGrammarDisableRule = () => {
+    if (!grammarInfo) return;
+    setGrammarRuleEnabled(grammarInfo.ruleId, false);
+    onClose();
+    // Store subscriber inside Grammar extension triggers a rescan automatically.
+  };
+
   // ── Tag handlers ──
   const handleTagAs = () => {
     const { from, to, empty } = savedSelection.current;
@@ -490,6 +548,32 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           ) : (
             <div className="ctx-item ctx-disabled">No suggestions</div>
           )}
+          <div className="ctx-separator" />
+        </>
+      )}
+
+      {/* Grammar / writing suggestions */}
+      {grammarInfo && (
+        <>
+          <div className="ctx-item ctx-disabled" style={{ fontSize: 11, opacity: 0.7 }}>
+            {RETEXT_CATEGORY_META[grammarInfo.ruleId as keyof typeof RETEXT_CATEGORY_META]?.label ?? grammarInfo.ruleId}: {grammarInfo.message}
+          </div>
+          {grammarInfo.suggestions.length > 0 ? (
+            grammarInfo.suggestions.slice(0, 5).map((s) => (
+              <div
+                key={s}
+                className="ctx-item ctx-spell-suggestion"
+                onClick={() => handleGrammarSuggestion(s)}
+              >
+                {s}
+              </div>
+            ))
+          ) : (
+            <div className="ctx-item ctx-disabled">No automatic replacement</div>
+          )}
+          <div className="ctx-item" onClick={handleGrammarIgnoreOnce}>Ignore Once</div>
+          <div className="ctx-item" onClick={handleGrammarIgnoreRuleForDoc}>Ignore in Document</div>
+          <div className="ctx-item" onClick={handleGrammarDisableRule}>Disable Rule</div>
           <div className="ctx-separator" />
         </>
       )}

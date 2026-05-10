@@ -56,10 +56,15 @@ import GoToPage from './GoToPage';
 import ElementPicker from './ElementPicker';
 import CharacterAutocomplete from './CharacterAutocomplete';
 import SpellCheckModal from './SpellCheckModal';
+import WritingSuggestionsModal from './WritingSuggestionsModal';
+import GrammarRulesPanel from './GrammarRulesPanel';
 // MobileAccessoryBar removed — context menu via 3-finger touch only
 import ScriptContextMenu from './ScriptContextMenu';
 import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck';
+import { Grammar, grammarPluginKey } from '../editor/extensions/Grammar';
 import { spellChecker } from '../editor/spellchecker';
+import { grammarIgnore } from '../editor/grammar/grammarIgnore';
+import { runRetext, RETEXT_CATEGORIES, type RetextCategory } from '../editor/grammar/retextProvider';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
@@ -229,7 +234,10 @@ const ScreenplayEditor: React.FC = () => {
     beatBoardOpen, statisticsOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen,
-    spellCheckEnabled, toggleSpellCheck, setDocumentTitle,
+    spellCheckEnabled, spellModalOpen, setSpellModalOpen,
+    grammarCheckEnabled, grammarModalOpen, setGrammarModalOpen,
+    grammarRulesPanelOpen, setGrammarRulesPanelOpen,
+    setDocumentTitle,
     sceneNumbersVisible, sceneNumbersLocked,
     saveStatus, saveError, setSaveStatus,
   } = useEditorStore();
@@ -584,7 +592,7 @@ const ScreenplayEditor: React.FC = () => {
         }
         cx /= 3;
         cy /= 3;
-        setCtxMenuState({ visible: true, position: { x: cx, y: cy }, spellInfo: null });
+        setCtxMenuState({ visible: true, position: { x: cx, y: cy }, spellInfo: null, grammarInfo: null });
       }
     };
     document.addEventListener('touchstart', handleThreeFingerTouch, { passive: false });
@@ -972,8 +980,6 @@ const ScreenplayEditor: React.FC = () => {
   }>({ visible: false, position: { top: 0, left: 0 }, suggestions: [] });
   const charAutoDismissedRef = useRef(false);
 
-  // Spell check modal state
-  const [spellModalOpen, setSpellModalOpen] = useState(false);
   const [formatPanelOpen, setFormatPanelOpen] = useState(false);
 
   // Script context menu state
@@ -981,8 +987,9 @@ const ScreenplayEditor: React.FC = () => {
     visible: boolean;
     position: { x: number; y: number };
     spellInfo: { word: string; from: number; to: number; suggestions: string[] } | null;
+    grammarInfo: { from: number; to: number; ruleId: string; message: string; severity: 'style' | 'grammar'; suggestions: string[] } | null;
     savedSelection?: { from: number; to: number };
-  }>({ visible: false, position: { x: 0, y: 0 }, spellInfo: null });
+  }>({ visible: false, position: { x: 0, y: 0 }, spellInfo: null, grammarInfo: null });
 
   const breaksRef = useRef<import('../editor/pagination').BreakInfo[]>([]);
 
@@ -1334,6 +1341,7 @@ const ScreenplayEditor: React.FC = () => {
       TrackChangesExtension,
       ...(isHistoryMode ? [] : [EnforceGuardExtension, EnterHandlerExtension, TabHandlerExtension, ElementShortcutExtension]),
       SpellCheck,
+      Grammar,
       ...pluginRegistry.getEditorExtensions(),
     ],
     // In collab mode, pass fetched content so TipTap seeds the Yjs doc on first connect.
@@ -1714,13 +1722,67 @@ const ScreenplayEditor: React.FC = () => {
     const { tr } = editor.state;
     tr.setMeta(spellCheckPluginKey, { toggle: spellCheckEnabled });
     editor.view.dispatch(tr);
-    // Sync spell check modal visibility with enabled state
-    if (spellCheckEnabled) {
-      setTimeout(() => setSpellModalOpen(true), 300);
-    } else {
-      setSpellModalOpen(false);
-    }
   }, [editor, spellCheckEnabled]);
+
+  // --- Spell modal needs decorations to highlight the active word.
+  //     If auto-check is off, enable the plugin while the modal is open and
+  //     restore the store's setting on close. ---
+  useEffect(() => {
+    if (!editor) return;
+    if (!spellModalOpen) return;
+    if (spellCheckEnabled) return; // plugin already on via the toggle effect above
+    const tr1 = editor.state.tr.setMeta(spellCheckPluginKey, { toggle: true });
+    editor.view.dispatch(tr1);
+    return () => {
+      if (editor.isDestroyed) return;
+      // Re-read the latest setting; if user turned auto-check on while the modal was open, leave it on.
+      const stillOff = !useEditorStore.getState().spellCheckEnabled;
+      if (stillOff) {
+        const tr2 = editor.state.tr.setMeta(spellCheckPluginKey, { toggle: false });
+        editor.view.dispatch(tr2);
+      }
+    };
+  }, [editor, spellModalOpen, spellCheckEnabled]);
+
+  // --- Register the local rule-based grammar provider exactly once. ---
+  useEffect(() => {
+    pluginRegistry.registerGrammarProvider('opendraft-retext', async (text, baseOffset, signal) => {
+      const enabledSet = new Set<RetextCategory>();
+      const rulesEnabled = useEditorStore.getState().grammarRulesEnabled || {};
+      for (const cat of RETEXT_CATEGORIES) {
+        if (rulesEnabled[cat] !== false) enabledSet.add(cat);
+      }
+      return runRetext(text, baseOffset, enabledSet, signal);
+    });
+    return () => {
+      pluginRegistry.unregisterGrammarProvider('opendraft-retext');
+    };
+  }, []);
+
+  // --- Toggle grammar plugin when store changes ---
+  useEffect(() => {
+    if (!editor) return;
+    const { tr } = editor.state;
+    tr.setMeta(grammarPluginKey, { toggle: grammarCheckEnabled });
+    editor.view.dispatch(tr);
+  }, [editor, grammarCheckEnabled]);
+
+  // --- If auto-grammar is off but the modal is open, enable it temporarily. ---
+  useEffect(() => {
+    if (!editor) return;
+    if (!grammarModalOpen) return;
+    if (grammarCheckEnabled) return;
+    const tr1 = editor.state.tr.setMeta(grammarPluginKey, { toggle: true });
+    editor.view.dispatch(tr1);
+    return () => {
+      if (editor.isDestroyed) return;
+      const stillOff = !useEditorStore.getState().grammarCheckEnabled;
+      if (stillOff) {
+        const tr2 = editor.state.tr.setMeta(grammarPluginKey, { toggle: false });
+        editor.view.dispatch(tr2);
+      }
+    };
+  }, [editor, grammarModalOpen, grammarCheckEnabled]);
 
   // Build a saveable content object: editor JSON + store metadata at top level
   const buildSaveContent = useCallback((): Record<string, unknown> | undefined => {
@@ -1742,6 +1804,8 @@ const ScreenplayEditor: React.FC = () => {
       _templateId: tplStore.activeTemplateId,
       _ignoredWords: spellChecker.getIgnoredWords(),
       _ignoredOnce: spellChecker.getIgnoredOnce(),
+      _ignoredGrammarRules: grammarIgnore.getIgnoredRules(),
+      _ignoredGrammarOnce: grammarIgnore.getIgnoredOnce(),
       _sceneNumbersVisible: store.sceneNumbersVisible,
       _sceneNumbersLocked: store.sceneNumbersLocked,
       _pageLayout: store.pageLayout,
@@ -2194,6 +2258,11 @@ const ScreenplayEditor: React.FC = () => {
             spellChecker.setIgnoredWords(ignoredArr as string[]);
             const ignoredOnceArr = parseAttr(c._ignoredOnce);
             spellChecker.setIgnoredOnce(ignoredOnceArr as string[]);
+            // Restore per-document ignored grammar rules / occurrences
+            const grammarRules = parseAttr(c._ignoredGrammarRules);
+            grammarIgnore.setIgnoredRules(grammarRules as string[]);
+            const grammarOnce = parseAttr(c._ignoredGrammarOnce);
+            grammarIgnore.setIgnoredOnce(grammarOnce as string[]);
             // Restore per-document page layout (header/footer, margins)
             if (c._pageLayout && typeof c._pageLayout === 'object') {
               store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT, ...(c._pageLayout as Record<string, unknown>) });
@@ -3233,10 +3302,32 @@ const ScreenplayEditor: React.FC = () => {
         }
       }
 
+      // Check if clicked on a grammar issue.
+      let grammarInfo:
+        | { from: number; to: number; ruleId: string; message: string; severity: 'style' | 'grammar'; suggestions: string[] }
+        | null = null;
+      if (pos && (target.classList.contains('grammar-issue') || target.closest('.grammar-issue'))) {
+        const ps = grammarPluginKey.getState(editor.state) as { enabled: boolean; issues: import('../plugins/registry').GrammarIssue[] } | undefined;
+        if (ps?.enabled && Array.isArray(ps.issues)) {
+          const hit = ps.issues.find((i) => pos.pos >= i.from && pos.pos <= i.to);
+          if (hit) {
+            grammarInfo = {
+              from: hit.from,
+              to: hit.to,
+              ruleId: hit.ruleId,
+              message: hit.message,
+              severity: hit.severity,
+              suggestions: hit.suggestions ?? [],
+            };
+          }
+        }
+      }
+
       setCtxMenuState({
         visible: true,
         position: { x: e.clientX, y: e.clientY },
         spellInfo,
+        grammarInfo,
       });
     };
 
@@ -3611,6 +3702,7 @@ const ScreenplayEditor: React.FC = () => {
           editor={editor}
           position={ctxMenuState.position}
           spellInfo={ctxMenuState.spellInfo}
+          grammarInfo={ctxMenuState.grammarInfo}
           onClose={handleCtxMenuClose}
           onOpenFormatPanel={() => {
             // Block opening if element disallows all format overrides
@@ -3632,11 +3724,17 @@ const ScreenplayEditor: React.FC = () => {
       {!isHistoryMode && spellModalOpen && editor && (
         <SpellCheckModal
           editor={editor}
-          onClose={() => {
-            setSpellModalOpen(false);
-            if (spellCheckEnabled) toggleSpellCheck();
-          }}
+          onClose={() => setSpellModalOpen(false)}
         />
+      )}
+      {!isHistoryMode && grammarModalOpen && editor && (
+        <WritingSuggestionsModal
+          editor={editor}
+          onClose={() => setGrammarModalOpen(false)}
+        />
+      )}
+      {!isHistoryMode && grammarRulesPanelOpen && (
+        <GrammarRulesPanel onClose={() => setGrammarRulesPanelOpen(false)} />
       )}
       {!isHistoryMode && <VersionHistory />}
       {!isHistoryMode && currentProject && <AssetManager projectId={currentProject.id} />}

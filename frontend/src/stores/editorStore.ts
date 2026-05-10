@@ -17,6 +17,9 @@ interface ViewState {
   zoomLevel?: number;
   toolbarMode?: 'compact' | 'comfortable' | 'hidden';
   characterSortBy?: 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance';
+  spellCheckEnabled?: boolean;
+  grammarCheckEnabled?: boolean;
+  grammarRulesEnabled?: Record<string, boolean>;
 }
 function loadViewState(): ViewState {
   try {
@@ -457,6 +460,21 @@ interface EditorState {
   // Spell check
   spellCheckEnabled: boolean;
   toggleSpellCheck: () => void;
+  setSpellCheckEnabled: (v: boolean) => void;
+  spellModalOpen: boolean;
+  setSpellModalOpen: (open: boolean) => void;
+
+  // Grammar / writing suggestions
+  grammarCheckEnabled: boolean;
+  toggleGrammarCheck: () => void;
+  setGrammarCheckEnabled: (v: boolean) => void;
+  grammarModalOpen: boolean;
+  setGrammarModalOpen: (open: boolean) => void;
+  grammarRulesPanelOpen: boolean;
+  setGrammarRulesPanelOpen: (open: boolean) => void;
+  /** Per-rule on/off switch. Missing key = enabled by default. */
+  grammarRulesEnabled: Record<string, boolean>;
+  setGrammarRuleEnabled: (ruleId: string, enabled: boolean) => void;
 
   // Track changes
   trackChangesEnabled: boolean;
@@ -872,7 +890,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setEditingTagId: (id) => set({ editingTagId: id }),
 
   zoomLevel: _vs.zoomLevel ?? 100,
-  setZoomLevel: (level) => { const clamped = Math.min(200, Math.max(50, level)); set({ zoomLevel: clamped }); saveViewState({ zoomLevel: clamped }); },
+  setZoomLevel: (level) => { const clamped = Math.min(300, Math.max(50, level)); set({ zoomLevel: clamped }); saveViewState({ zoomLevel: clamped }); },
   zoomPanelOpen: false,
   setZoomPanelOpen: (open) => set({ zoomPanelOpen: open }),
 
@@ -900,8 +918,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   navPanelWidth: 0,
   setNavPanelWidth: (w) => set({ navPanelWidth: w }),
 
-  spellCheckEnabled: false,
-  toggleSpellCheck: () => set((s) => ({ spellCheckEnabled: !s.spellCheckEnabled })),
+  spellCheckEnabled: (_vs.spellCheckEnabled as boolean | undefined) ?? true,
+  toggleSpellCheck: () => set((s) => {
+    const v = !s.spellCheckEnabled;
+    saveViewState({ spellCheckEnabled: v });
+    return { spellCheckEnabled: v };
+  }),
+  setSpellCheckEnabled: (v) => { set({ spellCheckEnabled: v }); saveViewState({ spellCheckEnabled: v }); },
+  spellModalOpen: false,
+  setSpellModalOpen: (open) => set({ spellModalOpen: open }),
+
+  grammarCheckEnabled: (_vs.grammarCheckEnabled as boolean | undefined) ?? true,
+  toggleGrammarCheck: () => set((s) => {
+    const v = !s.grammarCheckEnabled;
+    saveViewState({ grammarCheckEnabled: v });
+    return { grammarCheckEnabled: v };
+  }),
+  setGrammarCheckEnabled: (v) => { set({ grammarCheckEnabled: v }); saveViewState({ grammarCheckEnabled: v }); },
+  grammarModalOpen: false,
+  setGrammarModalOpen: (open) => set({ grammarModalOpen: open }),
+  grammarRulesPanelOpen: false,
+  setGrammarRulesPanelOpen: (open) => set({ grammarRulesPanelOpen: open }),
+  grammarRulesEnabled: (_vs.grammarRulesEnabled as Record<string, boolean> | undefined) ?? {},
+  setGrammarRuleEnabled: (ruleId, enabled) => set((s) => {
+    const next = { ...s.grammarRulesEnabled, [ruleId]: enabled };
+    saveViewState({ grammarRulesEnabled: next });
+    return { grammarRulesEnabled: next };
+  }),
 
   trackChangesEnabled: false,
   trackChangesLabel: '',

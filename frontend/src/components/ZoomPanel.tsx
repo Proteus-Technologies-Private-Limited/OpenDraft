@@ -15,7 +15,7 @@ const ZoomPanel: React.FC = () => {
 
   const handleInputCommit = () => {
     const val = parseInt(inputValue, 10);
-    if (!isNaN(val) && val >= 50 && val <= 200) {
+    if (!isNaN(val) && val >= 50 && val <= 300) {
       setZoomLevel(val);
     } else {
       setInputValue(String(zoomLevel));
@@ -36,7 +36,7 @@ const ZoomPanel: React.FC = () => {
           className="zoom-panel-input"
           type="number"
           min={50}
-          max={200}
+          max={300}
           step={10}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
@@ -50,7 +50,7 @@ const ZoomPanel: React.FC = () => {
       <button
         className="zoom-panel-btn"
         onClick={() => setZoomLevel(zoomLevel + 10)}
-        disabled={zoomLevel >= 200}
+        disabled={zoomLevel >= 300}
       >
         <FaSearchPlus />
       </button>

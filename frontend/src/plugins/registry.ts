@@ -69,12 +69,50 @@ export interface OpenDraftPlugin {
   destroy?: () => void;
 }
 
+// ── Grammar / writing-suggestion providers ──
+//
+// Plugins (including OpenDraft-Pro) can register grammar providers that
+// supply additional issues — e.g. a cloud LLM or LanguageTool integration —
+// alongside the local rule-based provider that ships with core.
+
+export type GrammarSeverity = 'style' | 'grammar';
+
+export interface GrammarIssue {
+  /** ProseMirror doc position of the issue start. */
+  from: number;
+  /** ProseMirror doc position of the issue end. */
+  to: number;
+  /** Human-readable explanation of the issue. */
+  message: string;
+  /** Stable identifier for the rule that fired (e.g. "passive", "lt:CONFUSION_RULE"). */
+  ruleId: string;
+  /** Category — drives underline color and rule grouping. */
+  severity: GrammarSeverity;
+  /** Optional one-click replacements. */
+  suggestions?: string[];
+  /** Source provider name (filled in by the registry). */
+  source?: string;
+}
+
+export type GrammarProvider = (
+  text: string,
+  baseOffset: number,
+  signal: AbortSignal,
+) => Promise<GrammarIssue[]>;
+
+export interface RegisteredGrammarProvider {
+  name: string;
+  provider: GrammarProvider;
+}
+
 // ── Registry implementation ──
 
 class PluginRegistry {
   private _plugins: Map<string, OpenDraftPlugin> = new Map();
   private _listeners: Array<() => void> = [];
   private _upgradeHandler: (() => void) | null = null;
+  private _grammarProviders: Map<string, GrammarProvider> = new Map();
+  private _grammarListeners: Array<() => void> = [];
 
   /**
    * Pro registers a callback that opens its tier-picker / checkout flow.
@@ -171,6 +209,37 @@ class PluginRegistry {
 
   private _notify(): void {
     for (const listener of this._listeners) listener();
+  }
+
+  // ── Grammar providers ──
+
+  /** Register a grammar provider. Replaces any existing provider with the same name. */
+  registerGrammarProvider(name: string, provider: GrammarProvider): void {
+    this._grammarProviders.set(name, provider);
+    this._notifyGrammar();
+  }
+
+  /** Remove a grammar provider by name. */
+  unregisterGrammarProvider(name: string): void {
+    this._grammarProviders.delete(name);
+    this._notifyGrammar();
+  }
+
+  /** Get all registered grammar providers, in insertion order. */
+  getGrammarProviders(): RegisteredGrammarProvider[] {
+    return Array.from(this._grammarProviders.entries()).map(([name, provider]) => ({ name, provider }));
+  }
+
+  /** Subscribe to grammar provider registry changes. Returns unsubscribe. */
+  subscribeGrammar(listener: () => void): () => void {
+    this._grammarListeners.push(listener);
+    return () => {
+      this._grammarListeners = this._grammarListeners.filter((l) => l !== listener);
+    };
+  }
+
+  private _notifyGrammar(): void {
+    for (const listener of this._grammarListeners) listener();
   }
 }
 
