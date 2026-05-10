@@ -83,10 +83,17 @@ const WritingSuggestionsModal: React.FC<WritingSuggestionsModalProps> = ({ edito
   }, [clampPosition]);
 
   // Pull current issues from the plugin state and stay in sync as edits happen.
+  // Gate on the plugin's issues array reference: meta-only transactions (e.g.
+  // activeRange highlight updates) keep the same reference, so we skip those
+  // to avoid an infinite render loop with the highlight effect below.
+  const lastIssuesRef = useRef<GrammarIssue[] | null>(null);
   useEffect(() => {
     const pull = () => {
       const ps = grammarPluginKey.getState(editor.state) as { issues?: GrammarIssue[] } | undefined;
-      const next = ps?.issues ? [...ps.issues].sort((a, b) => a.from - b.from) : [];
+      const psIssues = ps?.issues ?? [];
+      if (psIssues === lastIssuesRef.current) return;
+      lastIssuesRef.current = psIssues;
+      const next = [...psIssues].sort((a, b) => a.from - b.from);
       setIssues(next);
       setCurrentIndex((idx) => Math.min(idx, Math.max(0, next.length - 1)));
     };
