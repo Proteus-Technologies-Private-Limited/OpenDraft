@@ -69,17 +69,50 @@ function makeDecoration(issue: GrammarIssue, isActive: boolean): Decoration {
   });
 }
 
-/** Walk text nodes overlapping [from, to] and return their text + doc position. */
+/**
+ * Walk textblock nodes (each screenplay element — scene heading, action,
+ * character, dialogue, etc. — is its own textblock) overlapping [from, to]
+ * and return their inline content as a single string per block.
+ *
+ * We send each block independently to grammar providers so they can't run
+ * sentence segmentation across block boundaries. Even without terminal
+ * punctuation, the text of one element is treated as a standalone unit.
+ *
+ * Within a block we concatenate text-node fragments (which marks split into
+ * pieces) and replace atom inline nodes (hardBreak, mentions, etc.) with a
+ * space. Each atom occupies one PM position, so the linear mapping
+ * `baseOffset + index` stays valid for mapping issue offsets back to doc
+ * positions.
+ */
 function collectTextNodes(
   doc: ProseMirrorNode,
   from: number,
   to: number,
 ): { text: string; pos: number }[] {
   const out: { text: string; pos: number }[] = [];
-  doc.nodesBetween(from, to, (node, pos) => {
-    if (node.isText && node.text && node.text.trim().length > 0) {
-      out.push({ text: node.text, pos });
+  // Clamp to current doc bounds — a scheduled scan can carry a stale range
+  // from before a deletion. nodesBetween crashes if `to` exceeds the doc.
+  const docSize = doc.content.size;
+  const safeFrom = Math.max(0, Math.min(from, docSize));
+  const safeTo = Math.max(safeFrom, Math.min(to, docSize));
+  if (safeFrom === safeTo) return out;
+  doc.nodesBetween(safeFrom, safeTo, (node, pos) => {
+    if (!node.isTextblock) return true;
+    let blockText = '';
+    node.forEach((child) => {
+      if (child.isText && child.text) {
+        blockText += child.text;
+      } else if (child.isInline) {
+        // Atom (1 PM position wide) — use a space so the offset mapping
+        // stays linear.
+        blockText += ' ';
+      }
+    });
+    if (blockText.trim().length > 0) {
+      // baseOffset = doc position of the first character inside the block
+      out.push({ text: blockText, pos: pos + 1 });
     }
+    return false; // don't recurse into the textblock's inline content
   });
   return out;
 }
@@ -211,8 +244,17 @@ export const Grammar = Extension.create({
               const block = expandToBlockRange(tr.doc, changed.from, changed.to);
 
               // Merge with any pending range from earlier transactions.
+              // The stored pending positions are in the OLD doc — map them
+              // through this transaction so they refer to valid positions
+              // in the new doc (otherwise a delete can leave pendingTo past
+              // the doc end and crash nodesBetween).
+              const newDocSize = tr.doc.content.size;
               let pendingFrom = value.pendingFrom;
               let pendingTo = value.pendingTo;
+              if (pendingFrom !== -1) {
+                pendingFrom = Math.max(0, Math.min(tr.mapping.map(pendingFrom, 1), newDocSize));
+                pendingTo = Math.max(pendingFrom, Math.min(tr.mapping.map(pendingTo, -1), newDocSize));
+              }
               if (pendingFrom === -1) {
                 pendingFrom = block.from;
                 pendingTo = block.to;

@@ -151,6 +151,7 @@ export async function runRetext(
     const endOff = place?.end?.offset;
     if (typeof startOff !== 'number' || typeof endOff !== 'number') continue;
     if (endOff <= startOff) continue;
+    if (isKnownFalsePositive(text, startOff, endOff, category)) continue;
     issues.push({
       from: baseOffset + startOff,
       to: baseOffset + endOff,
@@ -161,4 +162,30 @@ export async function runRetext(
     });
   }
   return issues;
+}
+
+/**
+ * Suppress retext-simplify hits where the flagged phrase is part of a
+ * common English idiom or grammatical construction that the underlying
+ * dictionary doesn't account for. retext-simplify is purely substring-based
+ * — it flags "all of" without knowing it precedes "a sudden", "which",
+ * "them", etc., where the simplification produces ungrammatical English.
+ */
+function isKnownFalsePositive(
+  text: string,
+  startOff: number,
+  endOff: number,
+  category: RetextCategory,
+): boolean {
+  if (category !== 'simplify') return false;
+  const phrase = text.slice(startOff, endOff).toLowerCase();
+  const after = text.slice(endOff).toLowerCase();
+  // "all of" before "a sudden" / "which" / "whom" / pronouns / "the" is
+  // idiomatic or syntactically required — leave it alone.
+  if (phrase === 'all of') {
+    if (/^\s+(a sudden|which|whom|the|that|these|those|my|your|his|her|its|our|their|them|us|you|me|him|it)\b/.test(after)) {
+      return true;
+    }
+  }
+  return false;
 }
