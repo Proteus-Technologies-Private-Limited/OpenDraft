@@ -169,12 +169,12 @@ export function toggleBoldOverride(editor: Editor, rule: FormattingElementRule |
     // Template is bold — toggle override to remove it
     const attrs = editor.getAttributes('formatOverride');
     if (attrs?.fontWeight === 'normal') {
-      editor.chain().focus().unsetMark('formatOverride').run();
+      editor.chain().focus(undefined, { scrollIntoView: false }).unsetMark('formatOverride').run();
     } else {
-      editor.chain().focus().setMark('formatOverride', { fontWeight: 'normal' }).run();
+      editor.chain().focus(undefined, { scrollIntoView: false }).setMark('formatOverride', { fontWeight: 'normal' }).run();
     }
   } else {
-    editor.chain().focus().toggleBold().run();
+    editor.chain().focus(undefined, { scrollIntoView: false }).toggleBold().run();
   }
 }
 
@@ -182,12 +182,12 @@ export function toggleItalicOverride(editor: Editor, rule: FormattingElementRule
   if (rule?.italic) {
     const attrs = editor.getAttributes('formatOverride');
     if (attrs?.fontStyle === 'normal') {
-      editor.chain().focus().unsetMark('formatOverride').run();
+      editor.chain().focus(undefined, { scrollIntoView: false }).unsetMark('formatOverride').run();
     } else {
-      editor.chain().focus().setMark('formatOverride', { fontStyle: 'normal' }).run();
+      editor.chain().focus(undefined, { scrollIntoView: false }).setMark('formatOverride', { fontStyle: 'normal' }).run();
     }
   } else {
-    editor.chain().focus().toggleItalic().run();
+    editor.chain().focus(undefined, { scrollIntoView: false }).toggleItalic().run();
   }
 }
 
@@ -195,11 +195,11 @@ export function toggleUnderlineOverride(editor: Editor, rule: FormattingElementR
   if (rule?.underline) {
     const attrs = editor.getAttributes('formatOverride');
     if (attrs?.textDecoration === 'none') {
-      editor.chain().focus().unsetMark('formatOverride').run();
+      editor.chain().focus(undefined, { scrollIntoView: false }).unsetMark('formatOverride').run();
     } else {
-      editor.chain().focus().setMark('formatOverride', { textDecoration: 'none' }).run();
+      editor.chain().focus(undefined, { scrollIntoView: false }).setMark('formatOverride', { textDecoration: 'none' }).run();
     }
   } else {
-    editor.chain().focus().toggleUnderline().run();
+    editor.chain().focus(undefined, { scrollIntoView: false }).toggleUnderline().run();
   }
 }

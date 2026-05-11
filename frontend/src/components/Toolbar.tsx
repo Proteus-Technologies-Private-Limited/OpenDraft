@@ -576,7 +576,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             if (isOverrideMode) {
               toggleBoldOverride(editor, getCurrentElementRule(editor, activeTemplate));
             } else {
-              editor.chain().focus().toggleBold().run();
+              editor.chain().focus(undefined, { scrollIntoView: false }).toggleBold().run();
             }
           }}
         >
@@ -591,7 +591,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             if (isOverrideMode) {
               toggleItalicOverride(editor, getCurrentElementRule(editor, activeTemplate));
             } else {
-              editor.chain().focus().toggleItalic().run();
+              editor.chain().focus(undefined, { scrollIntoView: false }).toggleItalic().run();
             }
           }}
         >
@@ -606,7 +606,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             if (isOverrideMode) {
               toggleUnderlineOverride(editor, getCurrentElementRule(editor, activeTemplate));
             } else {
-              editor.chain().focus().toggleUnderline().run();
+              editor.chain().focus(undefined, { scrollIntoView: false }).toggleUnderline().run();
             }
           }}
         >
@@ -616,7 +616,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           className={`toolbar-btn ${isActive('strike') ? 'active' : ''}`}
           title="Strikethrough"
           disabled={locked.strikethrough}
-          onClick={() => { if (!locked.strikethrough) editor?.chain().focus().toggleStrike().run(); }}
+          onClick={() => { if (!locked.strikethrough) editor?.chain().focus(undefined, { scrollIntoView: false }).toggleStrike().run(); }}
         >
           <FaStrikethrough />
         </button>
@@ -624,7 +624,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           className={`toolbar-btn ${isActive('subscript') ? 'active' : ''}`}
           title="Subscript"
           disabled={locked.subscript}
-          onClick={() => { if (!locked.subscript) editor?.chain().focus().toggleSubscript().run(); }}
+          onClick={() => { if (!locked.subscript) editor?.chain().focus(undefined, { scrollIntoView: false }).toggleSubscript().run(); }}
         >
           <FaSubscript />
         </button>
@@ -632,7 +632,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           className={`toolbar-btn ${isActive('superscript') ? 'active' : ''}`}
           title="Superscript"
           disabled={locked.superscript}
-          onClick={() => { if (!locked.superscript) editor?.chain().focus().toggleSuperscript().run(); }}
+          onClick={() => { if (!locked.superscript) editor?.chain().focus(undefined, { scrollIntoView: false }).toggleSuperscript().run(); }}
         >
           <FaSuperscript />
         </button>
@@ -655,9 +655,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             onChange={(color) => {
               setCurrentTextColor(color || '#000000');
               if (color) {
-                editor?.chain().focus().setColor(color).run();
+                editor?.chain().focus(undefined, { scrollIntoView: false }).setColor(color).run();
               } else {
-                editor?.chain().focus().unsetColor().run();
+                editor?.chain().focus(undefined, { scrollIntoView: false }).unsetColor().run();
               }
               setTextColorOpen(false);
             }}
@@ -679,9 +679,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             onChange={(color) => {
               setCurrentBgColor(color || '#ffff00');
               if (color) {
-                editor?.chain().focus().toggleHighlight({ color }).run();
+                editor?.chain().focus(undefined, { scrollIntoView: false }).toggleHighlight({ color }).run();
               } else {
-                editor?.chain().focus().unsetHighlight().run();
+                editor?.chain().focus(undefined, { scrollIntoView: false }).unsetHighlight().run();
               }
               setBgColorOpen(false);
             }}
