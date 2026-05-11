@@ -1698,6 +1698,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.17</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.17.5</div>
+              <ul className="about-list">
+                <li><strong>Stable Caret on Format Changes</strong> — Toggling bold, italic, underline, font, or size across a multi-block selection no longer scrolls the viewport to one end of the selection. The page stays put so you can keep editing where you were.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.17.4</div>
               <ul className="about-list">
                 <li><strong>Resend Verification Code</strong> — When signing in on a new device with two-factor verification, you can now request a fresh 6-digit code if the original email didn't arrive.</li>
