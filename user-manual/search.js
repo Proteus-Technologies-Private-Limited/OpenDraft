@@ -51,6 +51,8 @@
     { page: 'Formatting', title: 'Font Size', section: 'Font Size', text: 'Standard 12pt. Adjust 8pt to 72pt. Size dropdown toolbar. Page count accuracy.', url: 'formatting.html#font-size' },
     { page: 'Formatting', title: 'Format Panel', section: 'Format Panel', text: 'Right-click format panel dialog. Live preview formatting changes. Element-specific font size alignment margins spacing.', url: 'formatting.html#format-panel' },
     { page: 'Formatting', title: 'Zoom', section: 'Zoom', text: 'Editor zoom level toolbar. 50 percent to 200 percent range. Display only not print.', url: 'formatting.html#zoom' },
+    { page: 'Formatting', title: 'Formatting Templates', section: 'Templates', text: 'Formatting template manager Format menu. Industry Standard default template. Duplicate copy customize save new template. Custom templates fonts margins indents alignment element flow Tab Enter. Enforce override mode locked defaults. Per-element font size text style transform alignment colors layout placeholder.', url: 'formatting.html#formatting-templates' },
+    { page: 'Formatting', title: 'Creating a Custom Template', section: 'Custom Template', text: 'Customize template save new template. Duplicate Industry Standard. Create Template button. Name description mode Enforce Override. Configure each element type font size margins indents alignment. Custom element types. Apply template current script.', url: 'formatting.html#create-template' },
 
     // Title Page
     { page: 'Title Page', title: 'Title Page', section: '', text: 'Title page structured fields live preview. Written by author contact copyright draft WGA registration.', url: 'title-page.html' },
