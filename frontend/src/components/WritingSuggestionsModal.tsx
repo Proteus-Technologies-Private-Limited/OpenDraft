@@ -5,6 +5,7 @@ import { grammarPluginKey } from '../editor/extensions/Grammar';
 import { grammarIgnore, GrammarIgnore } from '../editor/grammar/grammarIgnore';
 import { useEditorStore } from '../stores/editorStore';
 import { RETEXT_CATEGORY_META } from '../editor/grammar/retextProvider';
+import { HARPER_CATEGORY_META } from '../editor/grammar/harperProvider';
 import type { GrammarIssue } from '../plugins/registry';
 
 interface WritingSuggestionsModalProps {
@@ -211,7 +212,9 @@ const WritingSuggestionsModal: React.FC<WritingSuggestionsModalProps> = ({ edito
   }
 
   const ruleLabel = currentIssue
-    ? RETEXT_CATEGORY_META[currentIssue.ruleId as keyof typeof RETEXT_CATEGORY_META]?.label || currentIssue.ruleId
+    ? (RETEXT_CATEGORY_META[currentIssue.ruleId as keyof typeof RETEXT_CATEGORY_META]?.label
+        ?? HARPER_CATEGORY_META[currentIssue.ruleId as keyof typeof HARPER_CATEGORY_META]?.label
+        ?? currentIssue.ruleId)
     : '';
 
   // Build a small context snippet around the issue.

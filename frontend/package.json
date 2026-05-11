@@ -46,6 +46,7 @@
     "@types/dompurify": "^3.0.5",
     "docx": "^9.6.1",
     "dompurify": "^3.3.3",
+    "harper.js": "^2.0.0",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "react": "^19.2.4",

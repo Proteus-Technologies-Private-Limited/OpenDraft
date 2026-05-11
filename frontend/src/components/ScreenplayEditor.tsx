@@ -65,6 +65,7 @@ import { Grammar, grammarPluginKey } from '../editor/extensions/Grammar';
 import { spellChecker } from '../editor/spellchecker';
 import { grammarIgnore } from '../editor/grammar/grammarIgnore';
 import { runRetext, RETEXT_CATEGORIES, type RetextCategory } from '../editor/grammar/retextProvider';
+import { runHarper } from '../editor/grammar/harperProvider';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
@@ -1744,7 +1745,9 @@ const ScreenplayEditor: React.FC = () => {
     };
   }, [editor, spellModalOpen, spellCheckEnabled]);
 
-  // --- Register the local rule-based grammar provider exactly once. ---
+  // --- Register the local rule-based grammar providers exactly once. ---
+  // retext: style/wordiness checks (passive voice, weak intensifiers, etc.)
+  // harper: actual grammar (subject-verb agreement, tense, articles, ...)
   useEffect(() => {
     pluginRegistry.registerGrammarProvider('opendraft-retext', async (text, baseOffset, signal) => {
       const enabledSet = new Set<RetextCategory>();
@@ -1754,8 +1757,12 @@ const ScreenplayEditor: React.FC = () => {
       }
       return runRetext(text, baseOffset, enabledSet, signal);
     });
+    pluginRegistry.registerGrammarProvider('opendraft-harper', (text, baseOffset, signal) => {
+      return runHarper(text, baseOffset, signal);
+    });
     return () => {
       pluginRegistry.unregisterGrammarProvider('opendraft-retext');
+      pluginRegistry.unregisterGrammarProvider('opendraft-harper');
     };
   }, []);
 
@@ -1806,6 +1813,8 @@ const ScreenplayEditor: React.FC = () => {
       _ignoredOnce: spellChecker.getIgnoredOnce(),
       _ignoredGrammarRules: grammarIgnore.getIgnoredRules(),
       _ignoredGrammarOnce: grammarIgnore.getIgnoredOnce(),
+      _spellCheckEnabled: store.spellCheckEnabled,
+      _grammarCheckEnabled: store.grammarCheckEnabled,
       _sceneNumbersVisible: store.sceneNumbersVisible,
       _sceneNumbersLocked: store.sceneNumbersLocked,
       _pageLayout: store.pageLayout,
@@ -1943,7 +1952,9 @@ const ScreenplayEditor: React.FC = () => {
         state.generalNotes === prev.generalNotes &&
         state.tags === prev.tags &&
         state.beats === prev.beats &&
-        state.beatColumns === prev.beatColumns
+        state.beatColumns === prev.beatColumns &&
+        state.spellCheckEnabled === prev.spellCheckEnabled &&
+        state.grammarCheckEnabled === prev.grammarCheckEnabled
       ) return;
       if (scriptSwitchingRef.current) return;
       // Mark unsaved immediately
@@ -2160,7 +2171,7 @@ const ScreenplayEditor: React.FC = () => {
         // Strip app metadata keys before feeding to ProseMirror
         let pmDoc: Record<string, unknown> | null = null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, _sceneNumbersVisible: _snv, _sceneNumbersLocked: _snl, _pageLayout: _pl, ...rest } = content as any;
+          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, _ignoredGrammarRules: _igr, _ignoredGrammarOnce: _igo, _spellCheckEnabled: _sce, _grammarCheckEnabled: _gce, _sceneNumbersVisible: _snv, _sceneNumbersLocked: _snl, _pageLayout: _pl, ...rest } = content as any;
           pmDoc = rest;
         }
 
@@ -2263,6 +2274,9 @@ const ScreenplayEditor: React.FC = () => {
             grammarIgnore.setIgnoredRules(grammarRules as string[]);
             const grammarOnce = parseAttr(c._ignoredGrammarOnce);
             grammarIgnore.setIgnoredOnce(grammarOnce as string[]);
+            // Restore per-document spell/grammar check toggles (default off)
+            store.setSpellCheckEnabled(c._spellCheckEnabled === true);
+            store.setGrammarCheckEnabled(c._grammarCheckEnabled === true);
             // Restore per-document page layout (header/footer, margins)
             if (c._pageLayout && typeof c._pageLayout === 'object') {
               store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT, ...(c._pageLayout as Record<string, unknown>) });
@@ -2492,7 +2506,7 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, _sceneNumbersVisible: _snv2, _sceneNumbersLocked: _snl2, _pageLayout: _pl2, ...pmDoc } = content as any;
+            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, _ignoredWords: _iw2, _ignoredOnce: _io2, _ignoredGrammarRules: _igr2, _ignoredGrammarOnce: _igo2, _spellCheckEnabled: _sce2, _grammarCheckEnabled: _gce2, _sceneNumbersVisible: _snv2, _sceneNumbersLocked: _snl2, _pageLayout: _pl2, ...pmDoc } = content as any;
             editor.commands.setContent(pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             editor.commands.setContent(content);
@@ -2518,6 +2532,10 @@ const ScreenplayEditor: React.FC = () => {
         store.setBeats([]);
         store.setBeatColumns([]);
         store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
+        // Default per-doc spell/grammar to off; the block below overrides
+        // from the loaded content if the user had enabled them previously.
+        store.setSpellCheckEnabled(false);
+        store.setGrammarCheckEnabled(false);
         const parseAttr2 = (val: unknown): unknown[] => {
           if (typeof val === 'string') { try { const p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch { return []; } }
           if (Array.isArray(val)) return val;
@@ -2573,6 +2591,9 @@ const ScreenplayEditor: React.FC = () => {
           if (c._pageLayout && typeof c._pageLayout === 'object') {
             store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT, ...(c._pageLayout as Record<string, unknown>) });
           }
+          // Restore per-document spell/grammar check toggles
+          store.setSpellCheckEnabled(c._spellCheckEnabled === true);
+          store.setGrammarCheckEnabled(c._grammarCheckEnabled === true);
         }
         setCurrentProject(project);
         setCurrentScriptId(scriptId);

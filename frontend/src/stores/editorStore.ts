@@ -17,8 +17,6 @@ interface ViewState {
   zoomLevel?: number;
   toolbarMode?: 'compact' | 'comfortable' | 'hidden';
   characterSortBy?: 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance';
-  spellCheckEnabled?: boolean;
-  grammarCheckEnabled?: boolean;
   grammarRulesEnabled?: Record<string, boolean>;
 }
 function loadViewState(): ViewState {
@@ -918,23 +916,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   navPanelWidth: 0,
   setNavPanelWidth: (w) => set({ navPanelWidth: w }),
 
-  spellCheckEnabled: (_vs.spellCheckEnabled as boolean | undefined) ?? true,
-  toggleSpellCheck: () => set((s) => {
-    const v = !s.spellCheckEnabled;
-    saveViewState({ spellCheckEnabled: v });
-    return { spellCheckEnabled: v };
-  }),
-  setSpellCheckEnabled: (v) => { set({ spellCheckEnabled: v }); saveViewState({ spellCheckEnabled: v }); },
+  // Spell & grammar check are per-document, not global. Default off; when the
+  // user enables them for a doc, the preference is saved alongside the
+  // script content (_spellCheckEnabled / _grammarCheckEnabled) and restored
+  // on next open.
+  spellCheckEnabled: false,
+  toggleSpellCheck: () => set((s) => ({ spellCheckEnabled: !s.spellCheckEnabled })),
+  setSpellCheckEnabled: (v) => set({ spellCheckEnabled: v }),
   spellModalOpen: false,
   setSpellModalOpen: (open) => set({ spellModalOpen: open }),
 
-  grammarCheckEnabled: (_vs.grammarCheckEnabled as boolean | undefined) ?? true,
-  toggleGrammarCheck: () => set((s) => {
-    const v = !s.grammarCheckEnabled;
-    saveViewState({ grammarCheckEnabled: v });
-    return { grammarCheckEnabled: v };
-  }),
-  setGrammarCheckEnabled: (v) => { set({ grammarCheckEnabled: v }); saveViewState({ grammarCheckEnabled: v }); },
+  grammarCheckEnabled: false,
+  toggleGrammarCheck: () => set((s) => ({ grammarCheckEnabled: !s.grammarCheckEnabled })),
+  setGrammarCheckEnabled: (v) => set({ grammarCheckEnabled: v }),
   grammarModalOpen: false,
   setGrammarModalOpen: (open) => set({ grammarModalOpen: open }),
   grammarRulesPanelOpen: false,
