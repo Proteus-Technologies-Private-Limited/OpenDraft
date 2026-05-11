@@ -115,25 +115,38 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
     return () => { cancelled = true; };
   }, [defaultProjectName, accessToken, destination, signedIn]);
 
-  // Focus the file name input once project name is set
+  // Focus the file name input once the project name has been auto-populated
+  // by the projects-list load. Two guards:
+  //  - didInitialFocusRef: only fire once, so clearing & retyping doesn't
+  //    yank focus.
+  //  - active-element check inside the timer: if the user has already
+  //    clicked into the project input (e.g. they were faster than the
+  //    list load), don't steal their focus mid-typing.
+  const didInitialFocusRef = useRef(false);
   useEffect(() => {
-    if (projectName) {
-      // Small delay to let React render the field
-      const t = setTimeout(() => {
-        fileInputRef.current?.focus();
-        fileInputRef.current?.select();
-        // Android: the soft keyboard appears ~150-300ms after focus and the
-        // visual viewport shrinks — explicitly scroll the input into view so
-        // it's not hidden behind the keyboard, with a follow-up scroll once
-        // the IME has finished animating.
-        fileInputRef.current?.scrollIntoView({ block: 'center', behavior: 'auto' });
-        setTimeout(() => {
-          fileInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        }, 350);
-      }, 50);
-      return () => clearTimeout(t);
-    }
-  }, [projectName ? 'set' : 'unset']); // only fire once project is populated
+    if (didInitialFocusRef.current) return;
+    if (!projectName) return;
+    didInitialFocusRef.current = true;
+    // Small delay to let React render the field
+    const t = setTimeout(() => {
+      // If the user has already focused (or typed into) any input in this
+      // dialog, leave them alone — auto-focus is only a convenience when
+      // they haven't engaged with the form yet.
+      const active = document.activeElement;
+      if (active && active.tagName === 'INPUT') return;
+      fileInputRef.current?.focus();
+      fileInputRef.current?.select();
+      // Android: the soft keyboard appears ~150-300ms after focus and the
+      // visual viewport shrinks — explicitly scroll the input into view so
+      // it's not hidden behind the keyboard, with a follow-up scroll once
+      // the IME has finished animating.
+      fileInputRef.current?.scrollIntoView({ block: 'center', behavior: 'auto' });
+      setTimeout(() => {
+        fileInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 350);
+    }, 50);
+    return () => clearTimeout(t);
+  }, [projectName]);
 
   // Close dropdown on outside click
   useEffect(() => {
