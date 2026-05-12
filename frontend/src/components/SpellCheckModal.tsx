@@ -3,6 +3,7 @@ import type { Editor } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
 import { spellChecker } from '../editor/spellchecker';
 import { spellCheckPluginKey } from '../editor/extensions/SpellCheck';
+import { useEditorStore } from '../stores/editorStore';
 
 interface SpellError {
   word: string;
@@ -107,9 +108,10 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
     };
   }, [editor]);
 
+  const flagProperNouns = useEditorStore((s) => s.spellingSettings.flagProperNouns);
   const rescan = useCallback(() => {
-    return spellChecker.findAllErrors(editor.state.doc);
-  }, [editor]);
+    return spellChecker.findAllErrors(editor.state.doc, flagProperNouns);
+  }, [editor, flagProperNouns]);
 
   // Initial scan — wait for dictionary to load first
   useEffect(() => {
@@ -216,7 +218,7 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
 
   const handleAddToDictionary = useCallback(() => {
     if (!currentError) return;
-    spellChecker.addToCustomDictionary(currentError.word);
+    spellChecker.addToProjectDictionary(currentError.word);
     const found = rescan();
     setErrors(found);
     goToError(found, Math.min(currentIndex, found.length - 1));

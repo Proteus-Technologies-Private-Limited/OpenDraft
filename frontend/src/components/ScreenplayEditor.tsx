@@ -1811,6 +1811,8 @@ const ScreenplayEditor: React.FC = () => {
       _templateId: tplStore.activeTemplateId,
       _ignoredWords: spellChecker.getIgnoredWords(),
       _ignoredOnce: spellChecker.getIgnoredOnce(),
+      _customDictWords: spellChecker.getProjectWords(),
+      _enabledGlobalDicts: spellChecker.getEnabledGlobalDicts(),
       _ignoredGrammarRules: grammarIgnore.getIgnoredRules(),
       _ignoredGrammarOnce: grammarIgnore.getIgnoredOnce(),
       _spellCheckEnabled: store.spellCheckEnabled,
@@ -2171,7 +2173,7 @@ const ScreenplayEditor: React.FC = () => {
         // Strip app metadata keys before feeding to ProseMirror
         let pmDoc: Record<string, unknown> | null = null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, _ignoredGrammarRules: _igr, _ignoredGrammarOnce: _igo, _spellCheckEnabled: _sce, _grammarCheckEnabled: _gce, _sceneNumbersVisible: _snv, _sceneNumbersLocked: _snl, _pageLayout: _pl, ...rest } = content as any;
+          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, _customDictWords: _cdw, _enabledGlobalDicts: _egd, _ignoredGrammarRules: _igr, _ignoredGrammarOnce: _igo, _spellCheckEnabled: _sce, _grammarCheckEnabled: _gce, _sceneNumbersVisible: _snv, _sceneNumbersLocked: _snl, _pageLayout: _pl, ...rest } = content as any;
           pmDoc = rest;
         }
 
@@ -2269,6 +2271,19 @@ const ScreenplayEditor: React.FC = () => {
             spellChecker.setIgnoredWords(ignoredArr as string[]);
             const ignoredOnceArr = parseAttr(c._ignoredOnce);
             spellChecker.setIgnoredOnce(ignoredOnceArr as string[]);
+            // Restore per-document custom dictionary contents and which global dicts are enabled.
+            const projectWords = parseAttr(c._customDictWords);
+            spellChecker.setProjectWords(projectWords as string[]);
+            if (c._enabledGlobalDicts === undefined) {
+              // Legacy script (saved before this feature) — auto-enable "Personal"
+              // if it exists, so users who had the old global custom dictionary keep
+              // those words recognized.
+              const lib = useEditorStore.getState().customDictionaries;
+              spellChecker.setEnabledGlobalDicts(lib['Personal'] ? ['Personal'] : []);
+            } else {
+              const enabledGlobals = parseAttr(c._enabledGlobalDicts);
+              spellChecker.setEnabledGlobalDicts(enabledGlobals as string[]);
+            }
             // Restore per-document ignored grammar rules / occurrences
             const grammarRules = parseAttr(c._ignoredGrammarRules);
             grammarIgnore.setIgnoredRules(grammarRules as string[]);
@@ -2506,7 +2521,7 @@ const ScreenplayEditor: React.FC = () => {
 
         try {
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, _ignoredWords: _iw2, _ignoredOnce: _io2, _ignoredGrammarRules: _igr2, _ignoredGrammarOnce: _igo2, _spellCheckEnabled: _sce2, _grammarCheckEnabled: _gce2, _sceneNumbersVisible: _snv2, _sceneNumbersLocked: _snl2, _pageLayout: _pl2, ...pmDoc } = content as any;
+            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, _ignoredWords: _iw2, _ignoredOnce: _io2, _customDictWords: _cdw2, _enabledGlobalDicts: _egd2, _ignoredGrammarRules: _igr2, _ignoredGrammarOnce: _igo2, _spellCheckEnabled: _sce2, _grammarCheckEnabled: _gce2, _sceneNumbersVisible: _snv2, _sceneNumbersLocked: _snl2, _pageLayout: _pl2, ...pmDoc } = content as any;
             editor.commands.setContent(pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             editor.commands.setContent(content);

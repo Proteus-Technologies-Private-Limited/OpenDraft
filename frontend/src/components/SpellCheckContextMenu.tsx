@@ -79,7 +79,7 @@ const SpellCheckContextMenu: React.FC<SpellCheckContextMenuProps> = ({
   }, [word, onClose, triggerRecheck]);
 
   const handleAddToDictionary = useCallback(() => {
-    spellChecker.addToCustomDictionary(word);
+    spellChecker.addToProjectDictionary(word);
     onClose();
     triggerRecheck();
   }, [word, onClose, triggerRecheck]);

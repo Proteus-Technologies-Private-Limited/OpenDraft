@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { uuid } from '../utils/uuid';
+import { spellChecker } from '../editor/spellchecker';
 
 // ── View-state persistence helpers ──
 const VIEW_STATE_KEY = 'opendraft:viewState';
@@ -18,7 +19,17 @@ interface ViewState {
   toolbarMode?: 'compact' | 'comfortable' | 'hidden';
   characterSortBy?: 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance';
   grammarRulesEnabled?: Record<string, boolean>;
+  spellingSettings?: SpellingSettings;
 }
+
+export interface SpellingSettings {
+  /** When true, capitalized unknown words (likely proper nouns) are flagged. */
+  flagProperNouns?: boolean;
+}
+
+const DEFAULT_SPELLING_SETTINGS: Required<SpellingSettings> = {
+  flagProperNouns: false,
+};
 function loadViewState(): ViewState {
   try {
     const raw = localStorage.getItem(VIEW_STATE_KEY);
@@ -32,6 +43,50 @@ function saveViewState(patch: Partial<ViewState>) {
   } catch { /* localStorage unavailable */ }
 }
 const _vs = loadViewState();
+
+// ── Custom dictionary library (named global word lists) ──
+const DICTS_KEY = 'opendraft:dictionaries';
+const LEGACY_DICT_KEY = 'opendraft:customDictionary';
+
+function loadCustomDictionaries(): Record<string, string[]> {
+  try {
+    const raw = localStorage.getItem(DICTS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        const out: Record<string, string[]> = {};
+        for (const [name, words] of Object.entries(parsed)) {
+          if (Array.isArray(words)) out[name] = words.filter((w): w is string => typeof w === 'string');
+        }
+        return out;
+      }
+    }
+    // Migrate the legacy single-global dictionary into a "Personal" entry.
+    const legacy = localStorage.getItem(LEGACY_DICT_KEY);
+    if (legacy) {
+      try {
+        const arr = JSON.parse(legacy);
+        if (Array.isArray(arr)) {
+          const migrated = { Personal: arr.filter((w): w is string => typeof w === 'string') };
+          localStorage.setItem(DICTS_KEY, JSON.stringify(migrated));
+          return migrated;
+        }
+      } catch { /* fall through */ }
+    }
+  } catch { /* localStorage unavailable */ }
+  return {};
+}
+
+function saveCustomDictionaries(dicts: Record<string, string[]>) {
+  try {
+    localStorage.setItem(DICTS_KEY, JSON.stringify(dicts));
+  } catch { /* localStorage unavailable */ }
+}
+
+const _initialDicts = loadCustomDictionaries();
+// Push the loaded library to the spell checker immediately so it's in effect
+// before any document is opened.
+spellChecker.setGlobalDictionaries(_initialDicts);
 
 /** Built-in screenplay element types — fixed set, hardcoded as Tiptap extensions. */
 export type BuiltInElementType =
@@ -473,6 +528,17 @@ interface EditorState {
   /** Per-rule on/off switch. Missing key = enabled by default. */
   grammarRulesEnabled: Record<string, boolean>;
   setGrammarRuleEnabled: (ruleId: string, enabled: boolean) => void;
+  /** Spell-checker preferences (proper-noun handling, etc.). */
+  spellingSettings: Required<SpellingSettings>;
+  setSpellingSetting: <K extends keyof SpellingSettings>(key: K, value: Required<SpellingSettings>[K]) => void;
+  /** Global custom-dictionary library, keyed by user-chosen name. */
+  customDictionaries: Record<string, string[]>;
+  createGlobalDictionary: (name: string) => void;
+  renameGlobalDictionary: (oldName: string, newName: string) => void;
+  deleteGlobalDictionary: (name: string) => void;
+  setGlobalDictionaryWords: (name: string, words: string[]) => void;
+  dictionaryLibraryOpen: boolean;
+  setDictionaryLibraryOpen: (open: boolean) => void;
 
   // Track changes
   trackChangesEnabled: boolean;
@@ -939,6 +1005,61 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     saveViewState({ grammarRulesEnabled: next });
     return { grammarRulesEnabled: next };
   }),
+  spellingSettings: { ...DEFAULT_SPELLING_SETTINGS, ...(_vs.spellingSettings ?? {}) },
+  setSpellingSetting: (key, value) => set((s) => {
+    const next = { ...s.spellingSettings, [key]: value };
+    saveViewState({ spellingSettings: next });
+    return { spellingSettings: next };
+  }),
+  customDictionaries: _initialDicts,
+  createGlobalDictionary: (name) => set((s) => {
+    const trimmed = name.trim();
+    if (!trimmed || s.customDictionaries[trimmed]) return s;
+    const next = { ...s.customDictionaries, [trimmed]: [] };
+    saveCustomDictionaries(next);
+    spellChecker.setGlobalDictionaries(next);
+    return { customDictionaries: next };
+  }),
+  renameGlobalDictionary: (oldName, newName) => set((s) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) return s;
+    if (!(oldName in s.customDictionaries)) return s;
+    if (trimmed in s.customDictionaries) return s;
+    const next: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(s.customDictionaries)) {
+      next[k === oldName ? trimmed : k] = v;
+    }
+    saveCustomDictionaries(next);
+    spellChecker.setGlobalDictionaries(next);
+    // If the renamed dict was enabled for the current project, swap the name.
+    const enabled = spellChecker.getEnabledGlobalDicts();
+    if (enabled.includes(oldName)) {
+      spellChecker.setEnabledGlobalDicts(enabled.map((n) => (n === oldName ? trimmed : n)));
+    }
+    return { customDictionaries: next };
+  }),
+  deleteGlobalDictionary: (name) => set((s) => {
+    if (!(name in s.customDictionaries)) return s;
+    const next = { ...s.customDictionaries };
+    delete next[name];
+    saveCustomDictionaries(next);
+    spellChecker.setGlobalDictionaries(next);
+    const enabled = spellChecker.getEnabledGlobalDicts();
+    if (enabled.includes(name)) {
+      spellChecker.setEnabledGlobalDicts(enabled.filter((n) => n !== name));
+    }
+    return { customDictionaries: next };
+  }),
+  setGlobalDictionaryWords: (name, words) => set((s) => {
+    if (!(name in s.customDictionaries)) return s;
+    const cleaned = Array.from(new Set(words.map((w) => w.trim()).filter(Boolean))).sort();
+    const next = { ...s.customDictionaries, [name]: cleaned };
+    saveCustomDictionaries(next);
+    spellChecker.setGlobalDictionaries(next);
+    return { customDictionaries: next };
+  }),
+  dictionaryLibraryOpen: false,
+  setDictionaryLibraryOpen: (open) => set({ dictionaryLibraryOpen: open }),
 
   trackChangesEnabled: false,
   trackChangesLabel: '',

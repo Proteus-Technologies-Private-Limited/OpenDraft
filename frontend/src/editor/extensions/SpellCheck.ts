@@ -5,6 +5,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { EditorView } from '@tiptap/pm/view';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { spellChecker } from '../spellchecker';
+import { useEditorStore } from '../../stores/editorStore';
 
 export const spellCheckPluginKey = new PluginKey('spellCheck');
 
@@ -15,7 +16,7 @@ interface SpellCheckPluginState {
   activeTo: number;
 }
 
-const WORD_REGEX = /[a-zA-ZÀ-ɏ']+/g;
+const WORD_REGEX = /[a-zA-ZÀ-ɏ'‘’]+/g;
 
 /** Context key builder — must match SpellChecker.buildContextKey. */
 function buildContextKey(text: string, matchIndex: number, wordLength: number): string {
@@ -28,6 +29,13 @@ function shouldSkipWord(word: string): boolean {
   if (word.length < 2) return true;
   if (word === word.toUpperCase() && word.length > 1) return true;
   return false;
+}
+
+// A word that the dictionary doesn't recognize but starts with an uppercase
+// letter is almost always a proper noun (person, place, brand) rather than a
+// misspelling — flagging them all is noisy in a screenplay full of names.
+function looksLikeProperNoun(word: string): boolean {
+  return /^\p{Lu}/u.test(word);
 }
 
 function makeDecoration(from: number, to: number, isActive: boolean): Decoration {
@@ -50,6 +58,7 @@ function scanTextNode(
     const word = match[0];
     if (shouldSkipWord(word)) continue;
     if (spellChecker.check(word)) continue;
+    if (!useEditorStore.getState().spellingSettings.flagProperNouns && looksLikeProperNoun(word)) continue;
     const contextKey = buildContextKey(text, match.index, word.length);
     if (spellChecker.isIgnoredOnce(word, contextKey)) continue;
     const from = nodePos + match.index;
@@ -232,6 +241,22 @@ export const SpellCheck = Extension.create({
           // Kick off dictionary load eagerly so it's ready when the user starts typing.
           spellChecker.init().catch(() => {});
 
+          // Rescan when spelling settings change (e.g. user toggles proper-noun flagging).
+          const unsubStore = useEditorStore.subscribe((next, prev) => {
+            if (next.spellingSettings === prev.spellingSettings) return;
+            const ps = spellCheckPluginKey.getState(editorView.state) as SpellCheckPluginState | undefined;
+            if (!ps?.enabled) return;
+            runFullScan();
+          });
+
+          // Rescan when the dictionary contents change (project words added/removed,
+          // global library mutated, or enabled-set toggled).
+          const unsubDict = spellChecker.onChange(() => {
+            const ps = spellCheckPluginKey.getState(editorView.state) as SpellCheckPluginState | undefined;
+            if (!ps?.enabled) return;
+            runFullScan();
+          });
+
           return {
             update(view: EditorView, prevState: EditorState) {
               const pluginState = spellCheckPluginKey.getState(view.state) as SpellCheckPluginState | undefined;
@@ -252,6 +277,8 @@ export const SpellCheck = Extension.create({
               }
             },
             destroy() {
+              unsubStore();
+              unsubDict();
               if (initialScanTimeout) clearTimeout(initialScanTimeout);
             },
           };

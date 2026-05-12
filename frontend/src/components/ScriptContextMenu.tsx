@@ -416,7 +416,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
 
   const handleSpellAddDict = () => {
     if (!spellInfo) return;
-    spellChecker.addToCustomDictionary(spellInfo.word);
+    spellChecker.addToProjectDictionary(spellInfo.word);
     onClose();
     triggerSpellRecheck();
   };
