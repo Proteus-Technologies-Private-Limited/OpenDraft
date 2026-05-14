@@ -1352,7 +1352,7 @@ const ScreenplayEditor: React.FC = () => {
       : (urlScriptId || urlCommitHash) ? undefined : { type: 'doc', content: [{ type: 'action', content: [] }] },
     editable: !isHistoryMode && !(collabMode && collabRole === 'viewer'),
     editorProps: {
-      attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: isHistoryMode ? 'false' : 'true' },
+      attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: 'false' },
     },
     onSelectionUpdate: ({ editor: ed }) => {
       // Check custom element first
