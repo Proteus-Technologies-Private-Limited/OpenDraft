@@ -61,6 +61,12 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
   const [pendingChallenge, setPendingChallenge] = useState<{ challengeId: string; email: string } | null>(null);
   const [deviceCode, setDeviceCode] = useState('');
 
+  // Forgot-password state — when the user clicks "Forgot password?" we swap
+  // the login form for an email-entry form. After submitting, we show a
+  // generic "if an account exists, an email was sent" confirmation.
+  const [forgotMode, setForgotMode] = useState<'form' | 'sent' | null>(null);
+  const [forgotEmail, setForgotEmail] = useState(savedEmail);
+
   useEffect(() => {
     // One-time migration: purge the legacy key that stored email+password in
     // plaintext. The email-only replacement is under opendraft:rememberedEmail.
@@ -161,6 +167,22 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!forgotEmail) return;
+    setLoading(true);
+    try {
+      const r = await collabAuthApi.forgotPassword(forgotEmail);
+      // Server returns the generic message regardless of whether the email
+      // is registered. Show its message verbatim — don't second-guess it.
+      showToast(r.message || 'If an account exists, a reset link was sent.', 'success');
+      setForgotMode('sent');
+    } catch (err: any) {
+      showToast(err.message || 'Could not send reset email', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
@@ -179,7 +201,8 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      if (tab === 'login' && pendingChallenge) handleVerifyDevice();
+      if (tab === 'login' && forgotMode === 'form') handleForgotPassword();
+      else if (tab === 'login' && pendingChallenge) handleVerifyDevice();
       else if (tab === 'login') handleLogin();
       else handleRegister();
     } else if (e.key === 'Escape') {
@@ -220,20 +243,71 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
           <div className="settings-auth-tabs">
             <button
               className={`settings-auth-tab ${tab === 'login' ? 'active' : ''}`}
-              onClick={() => setTab('login')}
+              onClick={() => { setTab('login'); setForgotMode(null); }}
             >
               Sign In
             </button>
             <button
               className={`settings-auth-tab ${tab === 'register' ? 'active' : ''}`}
-              onClick={() => setTab('register')}
+              onClick={() => { setTab('register'); setForgotMode(null); }}
             >
               Create Account
             </button>
           </div>
 
           {tab === 'login' ? (
-            pendingChallenge ? (
+            forgotMode === 'form' ? (
+              <div className="settings-auth-form">
+                <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--fd-text-muted)' }}>
+                  Enter the email address you used to sign up. We'll email you
+                  a link to choose a new password. The link expires in 30 minutes.
+                </p>
+                <div className="settings-field">
+                  <label>Email</label>
+                  <input
+                    className="dialog-input"
+                    type="email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    autoFocus
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    className="dialog-btn dialog-btn-primary settings-auth-submit"
+                    onClick={handleForgotPassword}
+                    disabled={!forgotEmail || loading}
+                  >
+                    {loading ? 'Sending...' : 'Send reset link'}
+                  </button>
+                  <button
+                    className="dialog-btn"
+                    onClick={() => setForgotMode(null)}
+                    disabled={loading}
+                  >
+                    Back to sign in
+                  </button>
+                </div>
+              </div>
+            ) : forgotMode === 'sent' ? (
+              <div className="settings-auth-form">
+                <p style={{ margin: '0 0 12px', fontSize: 13 }}>
+                  If an account with <strong>{forgotEmail}</strong> exists, we've
+                  emailed it a link to choose a new password. Check your inbox
+                  (and the spam folder).
+                </p>
+                <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--fd-text-muted)' }}>
+                  The link expires in 30 minutes. You can request a new one at any time.
+                </p>
+                <button
+                  className="dialog-btn dialog-btn-primary settings-auth-submit"
+                  onClick={() => setForgotMode(null)}
+                >
+                  Back to sign in
+                </button>
+              </div>
+            ) : pendingChallenge ? (
               <div className="settings-auth-form">
                 <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--fd-text-muted)' }}>
                   A 6-digit verification code was emailed to <strong>{pendingChallenge.email}</strong>{' '}
@@ -307,6 +381,19 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
                     {showLoginPw ? <FaEyeSlash /> : <FaEye />}
                   </button>
                 </div>
+                <button
+                  type="button"
+                  className="collab-forgot-link"
+                  onClick={() => {
+                    // Carry whatever they've typed into the email field over,
+                    // so the most common case (typo'd password) needs no extra
+                    // typing in the reset form.
+                    setForgotEmail(loginEmail || savedEmail);
+                    setForgotMode('form');
+                  }}
+                >
+                  Forgot password?
+                </button>
               </div>
               <button
                 className="dialog-btn dialog-btn-primary settings-auth-submit"

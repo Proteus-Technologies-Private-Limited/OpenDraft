@@ -16,6 +16,9 @@ export type AuditAction =
   | 'new_device_challenge_resend'
   | 'new_device_verified'
   | 'password_changed'
+  | 'password_reset_requested'
+  | 'password_reset_failed'
+  | 'password_reset'
   | 'account_deleted'
   | 'device_revoked';
 

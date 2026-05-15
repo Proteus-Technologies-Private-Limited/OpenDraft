@@ -63,6 +63,16 @@ export interface DeviceChallengeRow {
   created_at: string;
 }
 
+export interface PasswordResetRow {
+  id: string;
+  user_id: string;
+  token_hash: string;
+  expires_at: string;
+  used: number;
+  created_at: string;
+  ip_address: string | null;
+}
+
 export interface CollabSessionRow {
   token: string;
   project_id: string;
@@ -147,6 +157,16 @@ const SCHEMA_SQL = `
     created_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS password_resets (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL,
+    ip_address TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS audit_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT,
@@ -182,6 +202,10 @@ const SCHEMA_SQL = `
     ON user_devices(user_id, device_id);
   CREATE INDEX IF NOT EXISTS idx_device_challenges_user_device
     ON device_challenges(user_id, device_id);
+  CREATE INDEX IF NOT EXISTS idx_password_resets_user
+    ON password_resets(user_id);
+  CREATE INDEX IF NOT EXISTS idx_password_resets_expires
+    ON password_resets(expires_at);
 `;
 
 export async function initDB(): Promise<DBAdapter> {

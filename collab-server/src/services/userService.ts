@@ -106,6 +106,7 @@ export async function updatePassword(userId: string, newPassword: string): Promi
 export async function deleteUser(userId: string): Promise<void> {
   const db = getDB();
   await db.run('UPDATE collab_sessions SET active = 0 WHERE created_by = ?', [userId]);
+  await db.run('DELETE FROM password_resets WHERE user_id = ?', [userId]);
   await db.run('DELETE FROM device_challenges WHERE user_id = ?', [userId]);
   await db.run('DELETE FROM user_devices WHERE user_id = ?', [userId]);
   await db.run('DELETE FROM email_verifications WHERE user_id = ?', [userId]);

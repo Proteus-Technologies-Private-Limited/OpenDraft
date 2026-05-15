@@ -177,6 +177,50 @@ export async function sendNewDeviceNotice(
   });
 }
 
+export async function sendPasswordResetEmail(
+  email: string,
+  token: string,
+  ipAddress: string | null,
+): Promise<void> {
+  // The link carries only the opaque token — the server looks the user up by
+  // matching it against stored hashes. No email is in the URL.
+  const resetLink = `${config.appUrl}/reset-password?token=${encodeURIComponent(token)}`;
+  const ipLine = ipAddress ? `\nRequested from IP: ${ipAddress}` : '';
+
+  const transport = getTransporter();
+  if (!transport) {
+    console.log(`[Email] SMTP not configured. Password reset link for ${email}: ${resetLink}`);
+    return;
+  }
+
+  await transport.sendMail({
+    from: config.smtpFrom,
+    to: email,
+    subject: 'OpenDraft - Reset your password',
+    text:
+      `Someone requested a password reset for your OpenDraft account.${ipLine}\n\n` +
+      `If this was you, click the link below to choose a new password. The link expires in 30 minutes:\n\n${resetLink}\n\n` +
+      `If you did not request this, you can safely ignore this email — your password will not change.`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 440px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #333;">Reset your OpenDraft password</h2>
+        <p>Someone requested a password reset for your OpenDraft account.</p>
+        ${ipAddress ? `<p style="color: #666; font-size: 13px;">Requested from IP: ${ipAddress}</p>` : ''}
+        <p>If this was you, click the button below to choose a new password:</p>
+        <p style="text-align: center; margin: 20px 0;">
+          <a href="${resetLink}" style="display: inline-block; background: #4a6fa5; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600;">Reset password</a>
+        </p>
+        <p style="color: #666; font-size: 13px;">Or copy this link into your browser:<br><span style="word-break: break-all;">${resetLink}</span></p>
+        <p style="color: #666; font-size: 13px;">The link expires in 30 minutes.</p>
+        <p style="color: #b00; font-size: 13px;">
+          If you did not request this, you can safely ignore this email — your
+          password will not change.
+        </p>
+      </div>
+    `,
+  });
+}
+
 export async function sendPasswordChangedNotice(email: string, deviceName: string): Promise<void> {
   const transport = getTransporter();
   if (!transport) {
