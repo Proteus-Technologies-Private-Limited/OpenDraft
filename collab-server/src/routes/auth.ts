@@ -7,6 +7,7 @@ import * as tokenService from '../services/tokenService';
 import * as emailService from '../services/emailService';
 import * as auditService from '../services/auditService';
 import * as deviceService from '../services/deviceService';
+import * as passwordResetService from '../services/passwordResetService';
 import type { DeviceInfo } from '../services/deviceService';
 import { requireAuth } from '../middleware/auth';
 import { strictLimiter, veryStrictLimiter } from '../middleware/rateLimit';
@@ -69,6 +70,16 @@ const resendDeviceChallengeSchema = z.object({
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
+  newPassword: passwordRule,
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email().max(255),
+});
+
+const resetPasswordSchema = z.object({
+  // The token is base64url-encoded 32 random bytes (~43 chars). Cap generously.
+  token: z.string().min(16).max(256),
   newPassword: passwordRule,
 });
 
@@ -644,9 +655,9 @@ router.post('/change-password', requireAuth, veryStrictLimiter, async (req, res)
     }
 
     if (!user.password_hash) {
-      // Google-only account: no password to change. Asks the user to set one
-      // by signing out and using "Forgot password" — which we don't have yet,
-      // so this is a hard error for now.
+      // Google-only account: no password to change. The user can set one by
+      // signing out and going through the "Forgot password" flow, which
+      // accepts a Google-linked account and writes a password_hash.
       res.status(400).json({ error: 'This account does not use a password (signed in with Google).' });
       return;
     }
@@ -682,6 +693,132 @@ router.post('/change-password', requireAuth, veryStrictLimiter, async (req, res)
     res.json({ message: 'Password updated. Please sign in again on all devices.' });
   } catch (err) {
     console.error('Change password error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Forgot password / reset password ──
+//
+// The flow is:
+//   1. User submits their email to /forgot-password. Server generates a
+//      single-use token, stores its bcrypt hash, and emails the user a link
+//      containing the raw token. The response is intentionally generic —
+//      "if an account exists, an email was sent" — to avoid leaking which
+//      addresses are registered.
+//   2. User opens the link in the frontend, which collects a new password
+//      and POSTs it with the token to /reset-password. Server validates,
+//      updates password_hash, invalidates every refresh token, and emails a
+//      "your password was changed" notice. Google-only accounts can use this
+//      flow to *set* an initial password (the email itself is proof of
+//      identity).
+//
+// Both endpoints require outbound SMTP — without it the email never reaches
+// the user and the flow stalls, so we return a clear error.
+
+router.post('/forgot-password', veryStrictLimiter, async (req, res) => {
+  try {
+    const parsed = forgotPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid input' });
+      return;
+    }
+
+    if (!config.smtpHost) {
+      res.status(503).json({
+        error:
+          'Password reset is unavailable: this server has no email service configured. ' +
+          'Contact the administrator.',
+      });
+      return;
+    }
+
+    const genericMessage =
+      'If an account with that email exists, a password-reset link was sent to it. ' +
+      'The link expires in 30 minutes.';
+
+    const user = await userService.findUserByEmail(parsed.data.email);
+    if (user) {
+      const created = await passwordResetService.createResetToken(user.id, getClientIp(req));
+      try {
+        await emailService.sendPasswordResetEmail(user.email, created.token, getClientIp(req));
+      } catch (err) {
+        // Log but do not surface — keeps the response identical for valid
+        // and invalid email enumeration attempts.
+        console.error('Failed to send password reset email:', err);
+      }
+      await auditService.logEvent(
+        'password_reset_requested',
+        user.id,
+        null,
+        { email: user.email },
+        getClientIp(req),
+      );
+    } else {
+      await auditService.logEvent(
+        'password_reset_requested',
+        null,
+        null,
+        { email: parsed.data.email, reason: 'user_not_found' },
+        getClientIp(req),
+      );
+    }
+
+    // Always respond identically so callers can't enumerate registered emails.
+    res.json({ message: genericMessage });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/reset-password', veryStrictLimiter, async (req, res) => {
+  try {
+    const parsed = resetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors });
+      return;
+    }
+
+    const userId = await passwordResetService.consumeResetToken(parsed.data.token);
+    if (!userId) {
+      await auditService.logEvent(
+        'password_reset_failed',
+        null,
+        null,
+        { reason: 'invalid_or_expired_token' },
+        getClientIp(req),
+      );
+      res.status(400).json({ error: 'Invalid or expired reset link. Request a new one.' });
+      return;
+    }
+
+    const user = await userService.findUserById(userId);
+    if (!user) {
+      res.status(400).json({ error: 'Invalid or expired reset link. Request a new one.' });
+      return;
+    }
+
+    await userService.updatePassword(user.id, parsed.data.newPassword);
+    // Treat email-verified once they've proven control of the address by
+    // clicking the link — same logic as the magic-link verify route.
+    if (!user.email_verified) {
+      await userService.setEmailVerified(user.id);
+    }
+    // Invalidate every refresh token — any device that was signed in must
+    // sign in again with the new password.
+    await tokenService.revokeAllRefreshTokens(user.id);
+
+    await auditService.logEvent('password_reset', user.id, null, null, getClientIp(req));
+
+    // Best-effort notification email.
+    const ua = typeof req.headers['user-agent'] === 'string'
+      ? req.headers['user-agent']
+      : 'Unknown device';
+    try { await emailService.sendPasswordChangedNotice(user.email, ua); } catch { /* ignore */ }
+
+    res.json({ message: 'Password updated. You can now sign in with your new password.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

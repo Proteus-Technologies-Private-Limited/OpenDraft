@@ -264,6 +264,24 @@ export const collabAuthApi = {
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
 
+  /** Request a password-reset email. The server replies with a generic
+   *  "if an account exists, an email was sent" message regardless of whether
+   *  the address is registered — do not surface differently in the UI. */
+  forgotPassword: (email: string) =>
+    backendAuthRequest<{ message: string }>('/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  /** Consume a reset token from the emailed link and set a new password.
+   *  All refresh tokens are revoked server-side, so other devices will need
+   *  to sign in again. */
+  resetPassword: (token: string, newPassword: string) =>
+    backendAuthRequest<{ message: string }>('/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
+    }),
+
   setTwoFactorEnabled: (enabled: boolean) =>
     backendAuthedRequest<{ user: CollabUser }>('/two-factor', {
       method: 'POST',

@@ -161,6 +161,19 @@ async def change_password(request: Request) -> Response:
     return await _proxy(request, "POST", "change-password")
 
 
+@router.post("/forgot-password")
+async def forgot_password(request: Request) -> Response:
+    """Request a password-reset email. Always returns a generic message so
+    callers can't enumerate registered email addresses."""
+    return await _proxy(request, "POST", "forgot-password")
+
+
+@router.post("/reset-password")
+async def reset_password(request: Request) -> Response:
+    """Consume a reset token + set the new password."""
+    return await _proxy(request, "POST", "reset-password")
+
+
 @router.post("/two-factor")
 async def toggle_two_factor(request: Request) -> Response:
     return await _proxy(request, "POST", "two-factor")
