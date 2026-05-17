@@ -5,6 +5,7 @@ import { cloudApi } from '../services/cloudApi';
 import { isWeb } from '../services/platform';
 import type { ProjectInfo } from '../services/api';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useEditorStore } from '../stores/editorStore';
 
 export type SaveDestination = 'local' | 'cloud';
 
@@ -38,6 +39,33 @@ interface SaveAsDialogProps {
 
 /** Web is always cloud-backed; the device/cloud toggle would be misleading. */
 const WEB_ONLY_CLOUD = isWeb();
+
+/** Banner shown when the user is saving a document that came from an external
+ *  file (FDX, Fountain, DOCX, etc.). Clarifies that the save goes into
+ *  OpenDraft's library — it does *not* write back to the source file. */
+const ImportedSourceNotice: React.FC = () => {
+  const importedSource = useEditorStore((s) => s.importedSource);
+  if (!importedSource) return null;
+  return (
+    <div
+      style={{
+        padding: '10px 12px',
+        margin: '0 0 12px 0',
+        border: '1px solid rgba(46,125,215,0.4)',
+        background: 'rgba(46,125,215,0.10)',
+        borderRadius: 6,
+        fontSize: 12,
+        color: 'var(--fd-text)',
+        lineHeight: 1.45,
+      }}
+    >
+      <strong>Note:</strong> This document was imported from <strong>{importedSource.name}</strong>{' '}
+      ({importedSource.format}). Saving creates a new file inside OpenDraft's library —
+      it does <strong>not</strong> overwrite the original source file. To write back to
+      the original format, use <em>File → Export</em> after saving.
+    </div>
+  );
+};
 
 const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
   defaultProjectName,
@@ -262,6 +290,8 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
       <div className="dialog-box" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
         <div className="dialog-header">Save Screenplay</div>
         <div className="dialog-body">
+          <ImportedSourceNotice />
+
           {!WEB_ONLY_CLOUD && (
             <div className="dialog-row" style={{ marginBottom: 12 }}>
               <label>Save to</label>

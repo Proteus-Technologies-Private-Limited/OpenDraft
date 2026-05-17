@@ -62,7 +62,7 @@ import GrammarRulesPanel from './GrammarRulesPanel';
 import ScriptContextMenu from './ScriptContextMenu';
 import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { Grammar, grammarPluginKey } from '../editor/extensions/Grammar';
-import { spellChecker } from '../editor/spellchecker';
+import { spellChecker, BUILTIN_LANGUAGE } from '../editor/spellchecker';
 import { grammarIgnore } from '../editor/grammar/grammarIgnore';
 import { runRetext, RETEXT_CATEGORIES, type RetextCategory } from '../editor/grammar/retextProvider';
 import { runHarper } from '../editor/grammar/harperProvider';
@@ -1811,8 +1811,12 @@ const ScreenplayEditor: React.FC = () => {
       _templateId: tplStore.activeTemplateId,
       _ignoredWords: spellChecker.getIgnoredWords(),
       _ignoredOnce: spellChecker.getIgnoredOnce(),
-      _customDictWords: spellChecker.getProjectWords(),
+      // Project dictionary lives on the Project entity now; keep the script
+      // field empty so older clients don't show stale words after migration.
+      _customDictWords: [],
       _enabledGlobalDicts: spellChecker.getEnabledGlobalDicts(),
+      _projectDictEnabled: spellChecker.isProjectDictionaryEnabled(),
+      _enabledLanguages: spellChecker.getEnabledLanguages(),
       _ignoredGrammarRules: grammarIgnore.getIgnoredRules(),
       _ignoredGrammarOnce: grammarIgnore.getIgnoredOnce(),
       _spellCheckEnabled: store.spellCheckEnabled,
@@ -1987,6 +1991,40 @@ const ScreenplayEditor: React.FC = () => {
     return () => { unsub(); if (timer) clearTimeout(timer); };
   }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
 
+  // --- Persist project dictionary words when they change ---
+  // Words live on the Project entity (shared by every script in the project).
+  // Subscribe to spell-checker changes and write the new list back to the
+  // project via projectApi, debounced. Skipped for collab guests.
+  useEffect(() => {
+    if (!currentProject || isCollabGuest) return;
+    const pid = currentProject.id;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    // Baseline: whatever the project currently believes its words are.
+    let lastSavedKey = JSON.stringify(
+      [...((currentProject.properties?.dictionary_words ?? []) as string[])].sort(),
+    );
+    const unsub = spellChecker.onChange(() => {
+      const words = spellChecker.getProjectWords();
+      const key = JSON.stringify(words);
+      if (key === lastSavedKey) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(async () => {
+        try {
+          const proj = useProjectStore.getState().currentProject;
+          if (!proj || proj.id !== pid) return;
+          const updated = await projectApi.updateProject(pid, {
+            properties: { ...proj.properties, dictionary_words: words } as any,
+          });
+          setCurrentProject(updated);
+          lastSavedKey = key;
+        } catch (err) {
+          console.warn('Failed to persist project dictionary words', err);
+        }
+      }, 800);
+    });
+    return () => { unsub(); if (timer) clearTimeout(timer); };
+  }, [currentProject, isCollabGuest, setCurrentProject]);
+
   // --- Save on page unload (refresh / close) ---
   // Two strategies depending on platform:
   //   1. Tauri desktop / mobile — register a `onCloseRequested` handler that
@@ -2160,6 +2198,9 @@ const ScreenplayEditor: React.FC = () => {
         const project = await projectApi.getProject(urlProjectId);
         setCurrentProject(project);
         setCurrentScriptId(isHistoryMode ? null : urlScriptId);
+        // Loading a project-backed script means we're no longer editing an
+        // imported standalone file — drop the source-file notice.
+        useEditorStore.getState().setImportedSource(null);
 
         let scriptResp;
         if (isHistoryMode && urlCommitHash) {
@@ -2173,7 +2214,7 @@ const ScreenplayEditor: React.FC = () => {
         // Strip app metadata keys before feeding to ProseMirror
         let pmDoc: Record<string, unknown> | null = null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, _customDictWords: _cdw, _enabledGlobalDicts: _egd, _ignoredGrammarRules: _igr, _ignoredGrammarOnce: _igo, _spellCheckEnabled: _sce, _grammarCheckEnabled: _gce, _sceneNumbersVisible: _snv, _sceneNumbersLocked: _snl, _pageLayout: _pl, ...rest } = content as any;
+          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, _customDictWords: _cdw, _enabledGlobalDicts: _egd, _projectDictEnabled: _pde, _enabledLanguages: _elx, _ignoredGrammarRules: _igr, _ignoredGrammarOnce: _igo, _spellCheckEnabled: _sce, _grammarCheckEnabled: _gce, _sceneNumbersVisible: _snv, _sceneNumbersLocked: _snl, _pageLayout: _pl, ...rest } = content as any;
           pmDoc = rest;
         }
 
@@ -2271,9 +2312,31 @@ const ScreenplayEditor: React.FC = () => {
             spellChecker.setIgnoredWords(ignoredArr as string[]);
             const ignoredOnceArr = parseAttr(c._ignoredOnce);
             spellChecker.setIgnoredOnce(ignoredOnceArr as string[]);
-            // Restore per-document custom dictionary contents and which global dicts are enabled.
-            const projectWords = parseAttr(c._customDictWords);
-            spellChecker.setProjectWords(projectWords as string[]);
+            // Project dictionary: words live on the Project entity. Merge with
+            // any legacy per-script `_customDictWords` so we don't lose words
+            // saved by older clients (the script copy is dropped on next save).
+            const scriptDictWords = (parseAttr(c._customDictWords) as string[]).map((s) => String(s));
+            const projDictWords = ((project.properties?.dictionary_words ?? []) as string[]).map((s) => String(s));
+            const mergedSet = new Set<string>();
+            for (const w of projDictWords) if (typeof w === 'string') mergedSet.add(w.toLowerCase());
+            for (const w of scriptDictWords) if (typeof w === 'string') mergedSet.add(w.toLowerCase());
+            const merged = [...mergedSet].sort();
+            spellChecker.setProjectWords(merged);
+            // If the script carried words the project didn't have, write the
+            // merged set back to the project so the migration sticks.
+            const needsMigration =
+              scriptDictWords.length > 0 &&
+              JSON.stringify(merged) !== JSON.stringify([...projDictWords].sort());
+            if (needsMigration) {
+              try {
+                const updated = await projectApi.updateProject(project.id, {
+                  properties: { ...project.properties, dictionary_words: merged } as any,
+                });
+                setCurrentProject(updated);
+              } catch (err) {
+                console.warn('Project dictionary migration save failed', err);
+              }
+            }
             if (c._enabledGlobalDicts === undefined) {
               // Legacy script (saved before this feature) — auto-enable "Personal"
               // if it exists, so users who had the old global custom dictionary keep
@@ -2284,6 +2347,15 @@ const ScreenplayEditor: React.FC = () => {
               const enabledGlobals = parseAttr(c._enabledGlobalDicts);
               spellChecker.setEnabledGlobalDicts(enabledGlobals as string[]);
             }
+            // Per-script project-dictionary toggle. Default to enabled (back-compat).
+            spellChecker.setProjectDictionaryEnabled(
+              typeof c._projectDictEnabled === 'boolean' ? c._projectDictEnabled : true,
+            );
+            // Per-script enabled-languages. Default to built-in only.
+            const langs = parseAttr(c._enabledLanguages);
+            spellChecker.setEnabledLanguages(
+              langs.length > 0 ? (langs as string[]) : [BUILTIN_LANGUAGE],
+            );
             // Restore per-document ignored grammar rules / occurrences
             const grammarRules = parseAttr(c._ignoredGrammarRules);
             grammarIgnore.setIgnoredRules(grammarRules as string[]);
@@ -2519,9 +2591,16 @@ const ScreenplayEditor: React.FC = () => {
         const scriptResp = await scriptApi.getScript(projectId, scriptId);
         const content = scriptResp.content as Record<string, unknown> | null;
 
+        // Switch the project context first so the dictionary-words save effect
+        // sees the new project before any spellChecker.setProjectWords() fires.
+        setCurrentProject(project);
+        setCurrentScriptId(scriptId);
+        // Opening a project script clears any prior "imported file" notice.
+        useEditorStore.getState().setImportedSource(null);
+
         try {
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, _ignoredWords: _iw2, _ignoredOnce: _io2, _customDictWords: _cdw2, _enabledGlobalDicts: _egd2, _ignoredGrammarRules: _igr2, _ignoredGrammarOnce: _igo2, _spellCheckEnabled: _sce2, _grammarCheckEnabled: _gce2, _sceneNumbersVisible: _snv2, _sceneNumbersLocked: _snl2, _pageLayout: _pl2, ...pmDoc } = content as any;
+            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, _ignoredWords: _iw2, _ignoredOnce: _io2, _customDictWords: _cdw2, _enabledGlobalDicts: _egd2, _projectDictEnabled: _pde2, _enabledLanguages: _elx2, _ignoredGrammarRules: _igr2, _ignoredGrammarOnce: _igo2, _spellCheckEnabled: _sce2, _grammarCheckEnabled: _gce2, _sceneNumbersVisible: _snv2, _sceneNumbersLocked: _snl2, _pageLayout: _pl2, ...pmDoc } = content as any;
             editor.commands.setContent(pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             editor.commands.setContent(content);
@@ -2609,9 +2688,49 @@ const ScreenplayEditor: React.FC = () => {
           // Restore per-document spell/grammar check toggles
           store.setSpellCheckEnabled(c._spellCheckEnabled === true);
           store.setGrammarCheckEnabled(c._grammarCheckEnabled === true);
+          // Per-script project-dictionary toggle (default on).
+          spellChecker.setProjectDictionaryEnabled(
+            typeof c._projectDictEnabled === 'boolean' ? c._projectDictEnabled : true,
+          );
+          // Per-script enabled-languages (default: built-in only).
+          const langs2 = parseAttr2(c._enabledLanguages);
+          spellChecker.setEnabledLanguages(
+            langs2.length > 0 ? (langs2 as string[]) : [BUILTIN_LANGUAGE],
+          );
+          // Enabled global dictionaries.
+          if (c._enabledGlobalDicts === undefined) {
+            const lib = useEditorStore.getState().customDictionaries;
+            spellChecker.setEnabledGlobalDicts(lib['Personal'] ? ['Personal'] : []);
+          } else {
+            const enabledGlobals2 = parseAttr2(c._enabledGlobalDicts);
+            spellChecker.setEnabledGlobalDicts(enabledGlobals2 as string[]);
+          }
+          // Ignored-words / ignored-once carry per document.
+          spellChecker.setIgnoredWords(parseAttr2(c._ignoredWords) as string[]);
+          spellChecker.setIgnoredOnce(parseAttr2(c._ignoredOnce) as string[]);
+          // Project dictionary: project entity is source of truth; merge with
+          // legacy per-script `_customDictWords` for back-compat.
+          const scriptDict2 = (parseAttr2(c._customDictWords) as string[]).map(String);
+          const projDict2 = ((project.properties?.dictionary_words ?? []) as string[]).map(String);
+          const merged2 = new Set<string>();
+          for (const w of projDict2) if (typeof w === 'string') merged2.add(w.toLowerCase());
+          for (const w of scriptDict2) if (typeof w === 'string') merged2.add(w.toLowerCase());
+          const mergedArr2 = [...merged2].sort();
+          spellChecker.setProjectWords(mergedArr2);
+          const needsMigration2 =
+            scriptDict2.length > 0 &&
+            JSON.stringify(mergedArr2) !== JSON.stringify([...projDict2].sort());
+          if (needsMigration2) {
+            try {
+              const updated = await projectApi.updateProject(project.id, {
+                properties: { ...project.properties, dictionary_words: mergedArr2 } as any,
+              });
+              setCurrentProject(updated);
+            } catch (err) {
+              console.warn('Project dictionary migration save failed (open-file path)', err);
+            }
+          }
         }
-        setCurrentProject(project);
-        setCurrentScriptId(scriptId);
         setDocumentTitle(scriptTitle);
         requestAnimationFrame(() => updateScenes());
       } catch (err) {
@@ -2684,6 +2803,10 @@ const ScreenplayEditor: React.FC = () => {
       clearEditorHistory(editor);
       const scriptTitle = name.replace(/\.\w+$/, '') || 'Untitled';
       useEditorStore.getState().setDocumentTitle(scriptTitle);
+      const fmtLabel = ext === 'fdx' ? 'Final Draft (.fdx)'
+        : ext === 'fountain' ? 'Fountain (.fountain)'
+        : ext ? `.${ext}` : 'imported file';
+      useEditorStore.getState().setImportedSource({ name, format: fmtLabel });
     }
     // 'blank' — editor already has empty content, nothing to do
   }, [editor]);
@@ -2777,6 +2900,12 @@ const ScreenplayEditor: React.FC = () => {
       // Clear project context — this is a standalone opened file
       setCurrentProject(null);
       setCurrentScriptId(null);
+      // Mark as imported so Save As shows the "saved to OpenDraft library" notice.
+      const fmtLabel = ext === 'fdx' ? 'Final Draft (.fdx)'
+        : ext === 'fountain' ? 'Fountain (.fountain)'
+        : ext === 'odraft' ? 'OpenDraft (.odraft)'
+        : ext ? `.${ext}` : 'imported file';
+      useEditorStore.getState().setImportedSource({ name: filename, format: fmtLabel });
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       console.error('Failed to open external file:', filePath, detail, err);
@@ -2960,6 +3089,11 @@ const ScreenplayEditor: React.FC = () => {
       setCurrentProject(null);
       setCurrentScriptId(null);
       setShowWelcome(false);
+      const fmtLabel = ext === 'fdx' ? 'Final Draft (.fdx)'
+        : ext === 'fountain' ? 'Fountain (.fountain)'
+        : ext === 'odraft' ? 'OpenDraft (.odraft)'
+        : ext ? `.${ext}` : 'imported file';
+      useEditorStore.getState().setImportedSource({ name: file.name, format: fmtLabel });
     } catch (err) {
       console.error('Failed to import dropped file:', err);
       showToast(`Failed to import file: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -3156,6 +3290,9 @@ const ScreenplayEditor: React.FC = () => {
         setCurrentProject(project);
         setCurrentScriptId(scriptId);
         setDocumentTitle(scriptTitle);
+        // Save-as resolved an imported document into a real project script —
+        // the "imported file" notice is no longer relevant.
+        store.setImportedSource(null);
         const scripts = await client.listScripts(projectId);
         useProjectStore.getState().setScripts(scripts);
         // Only navigate to the project route if there's no deferred action

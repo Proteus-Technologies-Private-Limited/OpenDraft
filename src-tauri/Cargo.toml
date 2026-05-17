@@ -10,15 +10,19 @@ name = "opendraft_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+# Pinned: tauri 2.11 / wry 0.55 introduced an Android startup crash. These
+# pins match the v0.16.1 build (last release known to run on Android).
+tauri-build = { version = "=2.5.6", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+# Pinned: see comment on tauri-build above. wry 0.54 (transitive via
+# tauri 2.10.3) works on Android; wry 0.55 (tauri 2.11) does not.
+tauri = { version = "=2.10.3", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri-plugin-sql = { version = "2", features = ["sqlite"] }
-tauri-plugin-fs = "2"
-tauri-plugin-dialog = "2"
+tauri-plugin-sql = { version = "=2.4.0", features = ["sqlite"] }
+tauri-plugin-fs = "=2.5.0"
+tauri-plugin-dialog = "=2.7.0"
 reqwest = { version = "0.12", features = ["rustls-tls"], default-features = false }
 percent-encoding = "2"
 
@@ -31,4 +35,8 @@ panic = "abort"
 codegen-units = 1
 lto = true
 opt-level = "s"
-strip = true
+# strip = false: keep symbols so Android crash reports can be symbolicated via
+# Play Console "Native debug symbols" upload and ndk-stack. Adds ~MBs to the
+# desktop binary but does not affect runtime performance.
+strip = false
+debug = "line-tables-only"

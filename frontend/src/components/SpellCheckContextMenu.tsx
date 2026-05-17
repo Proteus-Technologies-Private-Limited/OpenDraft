@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import type { Editor } from '@tiptap/react';
-import { spellChecker } from '../editor/spellchecker';
+import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { spellCheckPluginKey } from '../editor/extensions/SpellCheck';
+import { useEditorStore } from '../stores/editorStore';
 
 interface SpellCheckContextMenuProps {
   editor: Editor;
@@ -22,6 +23,9 @@ const SpellCheckContextMenu: React.FC<SpellCheckContextMenuProps> = ({
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const suggestions = spellChecker.suggest(word);
+  const [addOpen, setAddOpen] = useState(false);
+  const appendWordToGlobalDictionary = useEditorStore((s) => s.appendWordToGlobalDictionary);
+  const activeTargets = spellChecker.getActiveAddTargets();
 
   // Close on click outside or Escape
   useEffect(() => {
@@ -78,11 +82,34 @@ const SpellCheckContextMenu: React.FC<SpellCheckContextMenuProps> = ({
     triggerRecheck();
   }, [word, onClose, triggerRecheck]);
 
+  const addWordTo = useCallback(
+    (target: string) => {
+      if (target === PROJECT_DICT_TARGET) {
+        spellChecker.addToProjectDictionary(word);
+      } else {
+        appendWordToGlobalDictionary(target, word);
+      }
+      onClose();
+      triggerRecheck();
+    },
+    [word, onClose, triggerRecheck, appendWordToGlobalDictionary],
+  );
+
   const handleAddToDictionary = useCallback(() => {
-    spellChecker.addToProjectDictionary(word);
-    onClose();
-    triggerRecheck();
-  }, [word, onClose, triggerRecheck]);
+    if (activeTargets.length === 0) {
+      // Fallback: project (re-enable not necessary; addToProjectDictionary stores
+      // even if the project dict is currently disabled).
+      spellChecker.addToProjectDictionary(word);
+      onClose();
+      triggerRecheck();
+      return;
+    }
+    if (activeTargets.length === 1) {
+      addWordTo(activeTargets[0]);
+      return;
+    }
+    setAddOpen((x) => !x);
+  }, [activeTargets, addWordTo, word, onClose, triggerRecheck]);
 
   // Adjust position to keep menu in viewport
   const adjustedPosition = { ...position };
@@ -94,6 +121,8 @@ const SpellCheckContextMenu: React.FC<SpellCheckContextMenuProps> = ({
       adjustedPosition.y = window.innerHeight - 260;
     }
   }
+
+  const hasMultipleTargets = activeTargets.length > 1;
 
   return (
     <div
@@ -120,9 +149,31 @@ const SpellCheckContextMenu: React.FC<SpellCheckContextMenuProps> = ({
       <div className="spell-context-item" onClick={handleIgnore}>
         Ignore
       </div>
-      <div className="spell-context-item" onClick={handleAddToDictionary}>
-        Add to Dictionary
+      <div
+        className="spell-context-item"
+        onClick={handleAddToDictionary}
+        style={hasMultipleTargets ? { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } : undefined}
+      >
+        <span>Add to Dictionary</span>
+        {hasMultipleTargets && <span style={{ fontSize: 11, color: 'var(--fd-text-muted)' }}>▸</span>}
       </div>
+      {hasMultipleTargets && addOpen && (
+        <div style={{ borderTop: '1px solid var(--fd-border)' }}>
+          {activeTargets.map((t) => {
+            const label = t === PROJECT_DICT_TARGET ? 'Project dictionary' : t;
+            return (
+              <div
+                key={t}
+                className="spell-context-item"
+                style={{ paddingLeft: 24 }}
+                onClick={() => addWordTo(t)}
+              >
+                {label}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

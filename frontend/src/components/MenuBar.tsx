@@ -627,6 +627,13 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       setCurrentProject(null);
       setCurrentScriptId(null);
       setScripts([]);
+      // Track that this is an imported document so Save As can warn the user
+      // that the save goes to OpenDraft's library, not back to the source file.
+      const fmtLabel = ext === 'fdx' ? 'Final Draft (.fdx)'
+        : ext === 'fountain' ? 'Fountain (.fountain)'
+        : ext === 'odraft' ? 'OpenDraft (.odraft)'
+        : ext ? `.${ext}` : 'imported file';
+      store.setImportedSource({ name, format: fmtLabel });
     } catch (err) {
       console.error('Import failed:', err);
       showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -666,6 +673,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       setCurrentProject(null);
       setCurrentScriptId(null);
       setScripts([]);
+      store.setImportedSource({ name, format: 'Microsoft Word (.docx)' });
 
       if (parsed.warnings.length > 0) {
         const summary = parsed.ambiguousCount > 0

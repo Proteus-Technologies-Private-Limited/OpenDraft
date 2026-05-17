@@ -16,7 +16,10 @@ interface SpellCheckPluginState {
   activeTo: number;
 }
 
-const WORD_REGEX = /[a-zA-ZÀ-ɏ'‘’]+/g;
+// Unicode-aware tokenizer: matches any letter (incl. Devanagari, CJK,
+// Cyrillic, etc.) optionally followed by combining marks, plus straight
+// and curly apostrophes for contractions.
+const WORD_REGEX = /[\p{L}\p{M}'‘’]+/gu;
 
 /** Context key builder — must match SpellChecker.buildContextKey. */
 function buildContextKey(text: string, matchIndex: number, wordLength: number): string {
@@ -27,7 +30,15 @@ function buildContextKey(text: string, matchIndex: number, wordLength: number): 
 
 function shouldSkipWord(word: string): boolean {
   if (word.length < 2) return true;
-  if (word === word.toUpperCase() && word.length > 1) return true;
+  // Skip ACRONYMS (all uppercase), but only for cased scripts. Scripts without
+  // case (Devanagari, Odia, Bengali, Tamil, Arabic, etc.) report
+  // toUpperCase() === toLowerCase() === word, so the naive "all caps" check
+  // would skip every word in those languages.
+  if (
+    word === word.toUpperCase() &&
+    word !== word.toLowerCase() &&
+    word.length > 1
+  ) return true;
   return false;
 }
 

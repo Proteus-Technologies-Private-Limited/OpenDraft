@@ -156,6 +156,7 @@ export interface ProjectProperties {
   manager_name: string;
   manager_contact: string;
   submissions: SubmissionEntry[];
+  dictionary_words?: string[];
 }
 
 export interface ProjectInfo {

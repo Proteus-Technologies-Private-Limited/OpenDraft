@@ -38,6 +38,8 @@ class ProjectProperties(BaseModel):
     manager_name: str = ""
     manager_contact: str = ""
     submissions: list[SubmissionEntry] = []
+    # Shared dictionary words for spell-check, applied to every script in this project.
+    dictionary_words: list[str] = []
 
 
 class ProjectCreate(BaseModel):

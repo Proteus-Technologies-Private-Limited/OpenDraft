@@ -1019,22 +1019,23 @@ pub fn run() {
             let file_path_str = decoded.trim_start_matches('/');
             let file_path = std::path::Path::new(file_path_str);
 
+            // Build a Response without unwrapping — a panic here aborts the
+            // whole process because [profile.release] panic = "abort".
+            let build_response = |status: u16, mime: &str, body: Vec<u8>| {
+                tauri::http::Response::builder()
+                    .status(status)
+                    .header("Content-Type", mime)
+                    .header("Access-Control-Allow-Origin", "*")
+                    .body(body)
+                    .unwrap_or_else(|_| {
+                        tauri::http::Response::new(Vec::new())
+                    })
+            };
             match std::fs::read(file_path) {
-                Ok(data) => {
-                    let mime = guess_mime(file_path);
-                    tauri::http::Response::builder()
-                        .status(200)
-                        .header("Content-Type", mime)
-                        .header("Access-Control-Allow-Origin", "*")
-                        .body(data)
-                        .unwrap()
-                }
+                Ok(data) => build_response(200, guess_mime(file_path), data),
                 Err(e) => {
                     eprintln!("[asset] Failed to read {}: {}", file_path_str, e);
-                    tauri::http::Response::builder()
-                        .status(404)
-                        .body(Vec::new())
-                        .unwrap()
+                    build_response(404, "text/plain", Vec::new())
                 }
             }
         })
