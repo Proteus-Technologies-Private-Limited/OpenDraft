@@ -5890,6 +5890,16 @@ html.android .grammar-issue.grammar-grammar {
   z-index: 3000;
   box-shadow: -4px 0 20px rgba(0,0,0,.4);
 }
+/* Android: the WebView extends behind the (transparent) status bar and
+   gesture-pill area. Without this, the panel header (and its close button)
+   sits in the system-bar touch region and taps are intercepted by the OS.
+   Inset top/bottom by the larger of env() or a safe fallback. */
+html.android .version-history-panel {
+  top: max(env(safe-area-inset-top), 28px);
+  bottom: max(env(safe-area-inset-bottom), 24px);
+  height: auto;
+  right: env(safe-area-inset-right, 0px);
+}
 .version-history-header {
   display: flex;
   justify-content: space-between;
