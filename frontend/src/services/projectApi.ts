@@ -10,7 +10,7 @@
  */
 
 import { useProjectStore } from '../stores/projectStore';
-import { api } from './api';
+import { api, type ProjectProperties } from './api';
 import { cloudApi } from './cloudApi';
 
 function pick(projectId: string) {
@@ -25,7 +25,7 @@ export const projectApi = {
 
   updateProject: (
     id: string,
-    data: { name?: string; color?: string; pinned?: boolean; sort_order?: number },
+    data: { name?: string; color?: string; pinned?: boolean; sort_order?: number; properties?: Partial<ProjectProperties> },
   ) => pick(id).updateProject(id, data),
 
   deleteProject: async (id: string) => {

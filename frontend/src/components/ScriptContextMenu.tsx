@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Editor } from '@tiptap/react';
 import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorStore';
 import { useEditorStore } from '../stores/editorStore';
-import { spellChecker } from '../editor/spellchecker';
+import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { grammarPluginKey } from '../editor/extensions/Grammar';
 import { grammarIgnore, GrammarIgnore } from '../editor/grammar/grammarIgnore';
@@ -79,6 +79,8 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   const [elementSubOpen, setElementSubOpen] = useState(false);
   const [styleSubOpen, setStyleSubOpen] = useState(false);
   const [revisionSubOpen, setRevisionSubOpen] = useState(false);
+  const [addDictSubOpen, setAddDictSubOpen] = useState(false);
+  const appendWordToGlobalDictionary = useEditorStore((s) => s.appendWordToGlobalDictionary);
 
   const {
     revisionMode, setRevisionMode, revisionColor, setRevisionColor,
@@ -414,11 +416,32 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
     triggerSpellRecheck();
   };
 
-  const handleSpellAddDict = () => {
+  const handleSpellAddDictTo = useCallback((target: string) => {
     if (!spellInfo) return;
-    spellChecker.addToProjectDictionary(spellInfo.word);
+    if (target === PROJECT_DICT_TARGET) {
+      spellChecker.addToProjectDictionary(spellInfo.word);
+    } else {
+      appendWordToGlobalDictionary(target, spellInfo.word);
+    }
     onClose();
     triggerSpellRecheck();
+  }, [spellInfo, onClose, triggerSpellRecheck]);
+
+  const handleSpellAddDict = () => {
+    if (!spellInfo) return;
+    const targets = spellChecker.getActiveAddTargets();
+    if (targets.length === 0) {
+      // Fallback: project. Stores even if currently disabled — re-enabling later restores.
+      spellChecker.addToProjectDictionary(spellInfo.word);
+      onClose();
+      triggerSpellRecheck();
+      return;
+    }
+    if (targets.length === 1) {
+      handleSpellAddDictTo(targets[0]);
+      return;
+    }
+    setAddDictSubOpen((v) => !v);
   };
 
   // ── Grammar (writing-suggestion) handlers ──
@@ -791,16 +814,48 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       <div className="ctx-separator" />
 
       {/* Spelling tools */}
-      {spellInfo && (
-        <>
-          <div className="ctx-item" onClick={handleSpellIgnore}>
-            <span>Ignore Spelling</span>
-          </div>
-          <div className="ctx-item" onClick={handleSpellAddDict}>
-            <span>Add to Dictionary</span>
-          </div>
-        </>
-      )}
+      {spellInfo && (() => {
+        const activeAddTargets = spellChecker.getActiveAddTargets();
+        const multipleTargets = activeAddTargets.length > 1;
+        return (
+          <>
+            <div className="ctx-item" onClick={handleSpellIgnore}>
+              <span>Ignore Spelling</span>
+            </div>
+            <div
+              className="ctx-item"
+              onMouseEnter={() => multipleTargets && setAddDictSubOpen(true)}
+              onMouseLeave={() => multipleTargets && setAddDictSubOpen(false)}
+              onClick={handleSpellAddDict}
+              style={multipleTargets ? { position: 'relative' } : undefined}
+            >
+              <span>Add to Dictionary{multipleTargets ? '…' : ''}</span>
+              {multipleTargets && (
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--fd-text-muted)' }}>▸</span>
+              )}
+              {multipleTargets && addDictSubOpen && (
+                <div className="ctx-submenu" style={{ left: '100%', top: 0 }}>
+                  {activeAddTargets.map((t) => {
+                    const label = t === PROJECT_DICT_TARGET ? 'Project dictionary' : t;
+                    return (
+                      <div
+                        key={t}
+                        className="ctx-item"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSpellAddDictTo(t);
+                        }}
+                      >
+                        <span>{label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 };

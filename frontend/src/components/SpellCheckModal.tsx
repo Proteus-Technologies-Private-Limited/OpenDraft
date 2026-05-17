@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
-import { spellChecker } from '../editor/spellchecker';
+import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { useEditorStore } from '../stores/editorStore';
 
@@ -216,13 +216,26 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
     goToError(found, Math.min(currentIndex, found.length - 1));
   }, [currentError, rescan, currentIndex, goToError]);
 
-  const handleAddToDictionary = useCallback(() => {
+  const handleAddToDictionaryTarget = useCallback((target: string) => {
     if (!currentError) return;
-    spellChecker.addToProjectDictionary(currentError.word);
+    if (target === PROJECT_DICT_TARGET) {
+      spellChecker.addToProjectDictionary(currentError.word);
+    } else {
+      useEditorStore.getState().appendWordToGlobalDictionary(target, currentError.word);
+    }
     const found = rescan();
     setErrors(found);
     goToError(found, Math.min(currentIndex, found.length - 1));
   }, [currentError, rescan, currentIndex, goToError]);
+
+  const handleAddToDictionary = useCallback(() => {
+    const targets = spellChecker.getActiveAddTargets();
+    if (targets.length === 0) {
+      handleAddToDictionaryTarget(PROJECT_DICT_TARGET);
+      return;
+    }
+    handleAddToDictionaryTarget(targets[0]);
+  }, [handleAddToDictionaryTarget]);
 
   const handleRecheck = useCallback(() => {
     setComplete(false);
@@ -308,14 +321,29 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
         <div className="spell-modal-section">
           <label className="spell-modal-label">Not in Dictionary:</label>
           <div className="spell-modal-context">
-            {currentError && (
-              <span dangerouslySetInnerHTML={{
-                __html: currentError.context.replace(
-                  new RegExp(`\\b${currentError.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`),
-                  `<span class="spell-modal-error-word">${currentError.word}</span>`
-                ),
-              }} />
-            )}
+            {currentError && (() => {
+              // Highlight the misspelled word in its surrounding context.
+              // We deliberately avoid a `\b...\b` regex here — JavaScript's
+              // `\b` is ASCII-only, so for Devanagari / CJK / Cyrillic / etc.
+              // it never matches and the highlight silently disappears. Plain
+              // case-insensitive index lookup works for every script and also
+              // avoids dangerouslySetInnerHTML on arbitrary script text.
+              const ctx = currentError.context;
+              const word = currentError.word;
+              const lcCtx = ctx.toLowerCase();
+              const lcWord = word.toLowerCase();
+              const idx = lcCtx.indexOf(lcWord);
+              if (idx < 0 || !word) return <span>{ctx}</span>;
+              return (
+                <>
+                  {ctx.slice(0, idx)}
+                  <span className="spell-modal-error-word">
+                    {ctx.slice(idx, idx + word.length)}
+                  </span>
+                  {ctx.slice(idx + word.length)}
+                </>
+              );
+            })()}
           </div>
         </div>
 
@@ -355,7 +383,20 @@ const SpellCheckModal: React.FC<SpellCheckModalProps> = ({ editor, onClose }) =>
         <div className="spell-modal-actions-col">
           <button onClick={handleIgnore}>Ignore Once</button>
           <button onClick={handleIgnoreAll}>Ignore All</button>
-          <button onClick={handleAddToDictionary}>Add to Dictionary</button>
+          {(() => {
+            const targets = spellChecker.getActiveAddTargets();
+            if (targets.length <= 1) {
+              return <button onClick={handleAddToDictionary}>Add to Dictionary</button>;
+            }
+            return targets.map((t) => {
+              const label = t === PROJECT_DICT_TARGET ? 'Add to Project' : `Add to "${t}"`;
+              return (
+                <button key={t} onClick={() => handleAddToDictionaryTarget(t)}>
+                  {label}
+                </button>
+              );
+            });
+          })()}
         </div>
         <div className="spell-modal-actions-col">
           <button className="dialog-primary" onClick={handleChange}>Change</button>

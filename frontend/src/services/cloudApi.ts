@@ -12,7 +12,7 @@
 import { getApiBase } from '../config';
 import { authedFetch } from './authedFetch';
 import { handleNonOkResponse } from './api';
-import type { ProjectInfo, ScriptMeta, ScriptResponse } from './api';
+import type { ProjectInfo, ProjectProperties, ScriptMeta, ScriptResponse } from './api';
 
 const NOT_CONFIGURED =
   'OpenDraft Cloud is not configured for this app. Open Settings → System Settings to set the OpenDraft server URL.';
@@ -54,7 +54,7 @@ export const cloudApi = {
 
   updateProject: (
     id: string,
-    data: { name?: string; color?: string; pinned?: boolean; sort_order?: number },
+    data: { name?: string; color?: string; pinned?: boolean; sort_order?: number; properties?: Partial<ProjectProperties> },
   ) => request<ProjectInfo>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   deleteProject: (id: string) =>
