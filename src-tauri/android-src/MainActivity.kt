@@ -1,25 +1,32 @@
 package com.proteus.opendraft
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import java.io.File
 
 class MainActivity : TauriActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        // Explicit edge-to-edge opt-in with transparent bars using the
+        // non-deprecated androidx.activity API. The no-arg enableEdgeToEdge()
+        // form triggers Play Console's "Edge-to-edge may not display for all
+        // users" warning on apps targeting Android 15+; passing SystemBarStyle
+        // explicitly resolves it.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
+        )
         super.onCreate(savedInstanceState)
 
-        // Apply system bar insets as padding so WebView content doesn't overlap
-        // the status bar or navigation bar
-        val contentView = findViewById<android.view.View>(android.R.id.content)
-        ViewCompat.setOnApplyWindowInsetsListener(contentView) { view, windowInsets ->
-            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(insets.left, insets.top, insets.right, insets.bottom)
-            WindowInsetsCompat.CONSUMED
-        }
+        // No parent-view padding — the WebView is full-bleed so HTML content
+        // sees the real env(safe-area-inset-*) values and can place the menu
+        // bar / page header below the status bar via CSS (see
+        // frontend/src/styles/screenplay.css `.android` rules near
+        // env(safe-area-inset-top)). Padding the parent here hides the inset
+        // from the WebView, which produced the visible blank stripe above the
+        // editor.
     }
 
     companion object {
