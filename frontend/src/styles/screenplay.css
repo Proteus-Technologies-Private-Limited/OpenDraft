@@ -5699,6 +5699,19 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   text-decoration-skip-ink: none;
   text-underline-offset: 2px;
 }
+/* Android: `text-decoration: wavy` renders inconsistently across OEM WebView
+   builds (Samsung / older AOSP / low-end Motorola devices have reported it
+   missing). Override with an inline-SVG background underline — same approach
+   Google Docs / Word Online use because it renders identically on every
+   WebView that supports SVG data URIs. */
+html.android .spell-error {
+  text-decoration: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 6 3'><path d='M0 1.5 Q1.5 0 3 1.5 T6 1.5' fill='none' stroke='%23e74c3c' stroke-width='1'/></svg>");
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  background-size: 6px 3px;
+  padding-bottom: 1px;
+}
 /* Highlight the word currently being checked in the spell check modal */
 .spell-active {
   background: rgba(255, 213, 79, 0.45);
@@ -5713,11 +5726,27 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   text-decoration-skip-ink: none;
   text-underline-offset: 2px;
 }
+html.android .grammar-issue.grammar-style {
+  text-decoration: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 2'><circle cx='1' cy='1.5' r='0.6' fill='%232e7dd7'/></svg>");
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  background-size: 4px 2px;
+  padding-bottom: 1px;
+}
 /* Grammar errors (a/an, repeated words): teal wavy — distinct from spelling red */
 .grammar-issue.grammar-grammar {
   text-decoration: underline wavy #1aa888;
   text-decoration-skip-ink: none;
   text-underline-offset: 2px;
+}
+html.android .grammar-issue.grammar-grammar {
+  text-decoration: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 6 3'><path d='M0 1.5 Q1.5 0 3 1.5 T6 1.5' fill='none' stroke='%231aa888' stroke-width='1'/></svg>");
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  background-size: 6px 3px;
+  padding-bottom: 1px;
 }
 /* Highlight the issue currently being reviewed in the modal */
 .grammar-active {
