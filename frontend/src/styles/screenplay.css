@@ -8805,34 +8805,62 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   .status-center { display: none; }
   .status-bar { height: 28px; }
 
-  /* Dialogs: nearly full-screen */
-  .dialog-box { min-width: 0; max-width: none; width: calc(100vw - 32px); }
+  /* Dialogs / floating panels: nearly full-screen.
+     env(safe-area-inset-left/right) ensures the panel doesn't run into the
+     curved-edge region on devices like the Galaxy S-series Edge — without it
+     the panel's right side gets clipped under the curve. */
+  .dialog-box {
+    min-width: 0;
+    max-width: none;
+    width: calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  }
   .dialog-actions button { height: 40px; font-size: 14px; }
   .dialog-row input { height: 40px; font-size: 16px; }
 
   /* Format panel: full-width */
-  .format-panel { width: calc(100vw - 32px); max-width: 380px; }
+  .format-panel {
+    width: calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    max-width: 380px;
+  }
   .format-style-btn { width: 40px; height: 38px; }
 
   /* Spell check modal: full-width */
-  .spell-modal { min-width: 0; max-width: none; width: calc(100vw - 32px); }
+  .spell-modal {
+    min-width: 0;
+    max-width: none;
+    width: calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  }
   .spell-modal-actions { flex-direction: column; gap: 8px; }
   .spell-modal-actions-col { flex-direction: row; flex-wrap: wrap; gap: 6px; }
   .spell-modal-actions button { min-width: 0; flex: 1; min-height: 40px; }
 
   /* Search & Replace: full-width */
-  .search-replace-panel { right: 8px; left: 8px; width: auto; top: 50px; }
+  .search-replace-panel {
+    right: calc(8px + env(safe-area-inset-right, 0px));
+    left: calc(8px + env(safe-area-inset-left, 0px));
+    width: auto;
+    top: 50px;
+  }
   .search-actions { flex-wrap: wrap; }
   .search-actions button { height: 36px; }
 
   /* Version history: full-width */
-  .version-history-panel { width: 100vw; }
+  .version-history-panel {
+    width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    margin-left: env(safe-area-inset-left, 0px);
+  }
 
   /* Welcome card: responsive */
-  .welcome-card { width: calc(100vw - 32px); max-width: 380px; }
+  .welcome-card {
+    width: calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    max-width: 380px;
+  }
 
   /* Props dialog: responsive */
-  .props-dialog { width: calc(100vw - 32px); max-width: 580px; }
+  .props-dialog {
+    width: calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    max-width: 580px;
+  }
   .props-grid { grid-template-columns: 1fr; }
 
   /* Asset manager: full-width */
