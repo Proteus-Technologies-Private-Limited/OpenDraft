@@ -1700,12 +1700,18 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.17.5</div>
+            <div className="about-version">Version 0.17.6</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.17</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.17.6</div>
+              <ul className="about-list">
+                <li><strong>Improved Stability</strong> — Resolves a startup crash that affected the Android app on certain devices.</li>
+                <li><strong>Per-Document Language &amp; Dictionary</strong> — Choose a spellcheck language per script (English, Hindi, Odia, and others) with a global custom-word library that follows you across projects.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.17.5</div>
               <ul className="about-list">
                 <li><strong>Stable Caret on Format Changes</strong> — Toggling bold, italic, underline, font, or size across a multi-block selection no longer scrolls the viewport to one end of the selection. The page stays put so you can keep editing where you were.</li>
