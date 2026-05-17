@@ -1285,6 +1285,15 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   const fabWasDragRef = useRef(false);
   const fabX = fabPos?.x ?? (navPanelWidth + 14);
   const fabY = fabPos?.y ?? 10;
+  // On Android the WebView extends behind the (transparent) status bar, so a
+  // FAB rendered at top: 10px sits in the system-bar touch region and never
+  // receives taps. Clamp the rendered top below the status bar (28dp fallback
+  // when env() reports 0, otherwise the real inset).
+  const isAndroidWebView = typeof document !== 'undefined'
+    && document.documentElement.classList.contains('android');
+  const fabTopStyle = isAndroidWebView
+    ? `max(${fabY}px, calc(max(env(safe-area-inset-top), 28px) + 8px))`
+    : `max(${fabY}px, calc(env(safe-area-inset-top, 0px) + 8px))`;
 
   // Desktop: pointer events with capture for mouse drag
   const handleFabPointerDown = useCallback((e: React.PointerEvent) => {
@@ -1484,7 +1493,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div
             ref={fabElRef}
             className={`menu-fab ${floatingMenuOpen ? 'menu-fab--open' : ''}`}
-            style={{ left: fabX, top: fabY }}
+            style={{ left: fabX, top: fabTopStyle }}
             onPointerDown={handleFabPointerDown}
             onPointerMove={handleFabPointerMove}
             onPointerUp={handleFabPointerUp}

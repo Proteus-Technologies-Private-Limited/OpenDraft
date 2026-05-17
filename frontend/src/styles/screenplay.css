@@ -8547,20 +8547,21 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
-  /* Android: env(safe-area-inset-top) often returns 0 even when the WebView
-     extends behind the status bar. Use max() with 28px (standard Android
-     status bar height in dp/CSS-px) as a reliable fallback. */
+  /* Android: env(safe-area-inset-top/bottom) often returns 0 even when the
+     WebView extends behind the system bars. Use max() with explicit fallbacks
+     (28dp top status bar, 24dp bottom gesture-pill area) so content stays
+     clear of the bars even when env() under-reports. */
   html.android .app-container {
     padding-top: max(env(safe-area-inset-top), 28px);
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: max(env(safe-area-inset-bottom), 24px);
   }
   html.android .project-list-page {
     padding-top: calc(40px + max(env(safe-area-inset-top), 28px));
-    padding-bottom: calc(40px + env(safe-area-inset-bottom));
+    padding-bottom: calc(40px + max(env(safe-area-inset-bottom), 24px));
   }
   html.android .project-view {
     padding-top: max(env(safe-area-inset-top), 28px);
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: max(env(safe-area-inset-bottom), 24px);
   }
 }
 
