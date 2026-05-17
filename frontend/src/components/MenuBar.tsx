@@ -1708,7 +1708,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
               <div className="about-changelog">
               <div className="about-subsection-title">v0.17.6</div>
               <ul className="about-list">
-                <li><strong>Improved Stability</strong> — Resolves a startup crash that affected the Android app on certain devices.</li>
+                <li><strong>Improved Stability</strong> — Resolves a startup crash that affected the app on certain devices.</li>
                 <li><strong>Per-Document Language &amp; Dictionary</strong> — Choose a spellcheck language per script (English, Hindi, Odia, and others) with a global custom-word library that follows you across projects.</li>
               </ul>
 
