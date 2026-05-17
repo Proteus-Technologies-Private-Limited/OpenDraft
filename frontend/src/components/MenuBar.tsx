@@ -1709,12 +1709,20 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.17.6</div>
+            <div className="about-version">Version 0.17.7</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.17</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.17.7</div>
+              <ul className="about-list">
+                <li><strong>Edge-to-Edge Display on Android</strong> — Updated how the editor handles modern Android screens so content reaches the screen edges without sitting under the status bar or gesture pill, addressing Play Console pre-launch warnings.</li>
+                <li><strong>Floating Menu Accessibility</strong> — The hidden-menu icon now stays clear of the status bar so it's tappable on every device.</li>
+                <li><strong>Curved-Edge Layouts</strong> — Spelling, grammar, search, and dialog panels now respect the safe area on devices with curved displays so the panel never disappears under the curve.</li>
+                <li><strong>Reliable Spell-Check Markers</strong> — Replaced the wavy underline on misspelled and grammar-flagged words with a version that renders consistently across Android WebView builds, including older OEM variants where the native style was silently skipped.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.17.6</div>
               <ul className="about-list">
                 <li><strong>Improved Stability</strong> — Resolves a startup crash that affected the app on certain devices.</li>
