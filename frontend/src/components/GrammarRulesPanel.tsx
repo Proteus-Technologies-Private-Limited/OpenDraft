@@ -101,7 +101,7 @@ const GrammarRulesPanel: React.FC<GrammarRulesPanelProps> = ({ onClose }) => {
         <div
           className="dialog-box"
           onClick={(e) => e.stopPropagation()}
-          style={{ maxWidth: 640, minWidth: 480, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
+          style={{ maxWidth: 640, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
         >
           <div className="dialog-header">Grammar &amp; Spelling Settings</div>
           <div
