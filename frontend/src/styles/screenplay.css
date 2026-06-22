@@ -2220,7 +2220,8 @@ body {
 .tp-editor-dialog {
   background: var(--fd-dropdown-bg); border: 1px solid var(--fd-border);
   border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.6);
-  width: 780px; max-height: 85vh; display: flex; flex-direction: column;
+  width: min(780px, 96vw); max-width: 96vw; max-height: 85vh;
+  display: flex; flex-direction: column;
 }
 .tp-editor-body {
   display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
@@ -2266,6 +2267,15 @@ body {
 .tp-preview-bottom-right { text-align: right; line-height: 1.4; font-size: 8px; }
 .tp-preview-contact { margin-bottom: 4px; }
 .tp-preview-notes { margin-top: 4px; font-style: italic; }
+
+/* Title Page dialog — mobile: stack form above preview, single-column fields,
+   so it fits the screen without horizontal scroll. */
+@media (max-width: 720px) {
+  .tp-editor-dialog { width: 96vw; max-height: 90vh; }
+  .tp-editor-body { grid-template-columns: 1fr; gap: 14px; }
+  .tp-editor-form { grid-template-columns: 1fr; }
+  .tp-preview-page { max-width: 240px; }
+}
 
 /* ============ RTL SUPPORT FOR MULTI-LINGUAL DIALOGUE ============ */
 .dialogue[dir="rtl"],

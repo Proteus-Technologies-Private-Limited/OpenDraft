@@ -1718,8 +1718,13 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.18</div>
+              <div className="about-section-title">What's New in 0.19</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.19.0</div>
+              <ul className="about-list">
+                <li><strong>Mobile-Friendly Title Page</strong> — The Title Page editor now adapts to small screens: the form and live preview stack vertically and the dialog fits the viewport, so there's no more horizontal scrolling on phones.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.18.0</div>
               <ul className="about-list">
                 <li><strong>Insert Images</strong> — Add images anywhere in the script and on the title page via Format → Insert Image, paste from the clipboard, or drag &amp; drop. Resize with the corner handle, set alignment, and they export to PDF and Word.</li>
