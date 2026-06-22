@@ -135,7 +135,7 @@ jobs:
 
       - name: Build Tauri app
         id: tauri_build
-        timeout-minutes: 20
+        timeout-minutes: 60
         continue-on-error: true
         uses: tauri-apps/tauri-action@v0
         env:
@@ -195,7 +195,7 @@ jobs:
 
       - name: Build Tauri app (retry)
         if: steps.tauri_build.outcome == 'failure'
-        timeout-minutes: 20
+        timeout-minutes: 60
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -536,7 +536,7 @@ jobs:
 
       - name: Build Tauri app
         id: tauri_build
-        timeout-minutes: 30
+        timeout-minutes: 60
         continue-on-error: true
         uses: tauri-apps/tauri-action@v0
         env:
@@ -557,7 +557,7 @@ jobs:
 
       - name: Build Tauri app (retry)
         if: steps.tauri_build.outcome == 'failure'
-        timeout-minutes: 30
+        timeout-minutes: 60
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -645,7 +645,7 @@ jobs:
 
       - name: Build Tauri app
         id: tauri_build_legacy
-        timeout-minutes: 30
+        timeout-minutes: 60
         continue-on-error: true
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -657,7 +657,7 @@ jobs:
 
       - name: Build Tauri app (retry)
         if: steps.tauri_build_legacy.outcome == 'failure'
-        timeout-minutes: 30
+        timeout-minutes: 60
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -983,7 +983,7 @@ jobs:
     # a runner image update. Revisit when the macos-26 codesign issue is fixed.
     runs-on: macos-15
     name: Build (macOS App Store)
-    timeout-minutes: 30
+    timeout-minutes: 60
     # Keep going even if the App Store .pkg fails — store submission is a
     # follow-up step that should not block the public release.
     continue-on-error: true
