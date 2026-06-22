@@ -6,7 +6,7 @@ import { useEditorStore } from '../stores/editorStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 
-const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
+const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 
 interface FormatPanelProps {
   editor: Editor;
@@ -211,6 +211,55 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // When an image node is selected, show image properties instead of text formatting.
+  const nodeSel = editor.state.selection as unknown as { node?: { type: { name: string }; attrs: Record<string, unknown> } };
+  const selImage = nodeSel.node && nodeSel.node.type.name === 'screenplayImage' ? nodeSel.node : null;
+  if (selImage) {
+    const a = selImage.attrs as { width?: number | null; align?: string };
+    const setImgAttr = (patch: Record<string, unknown>) =>
+      editor.chain().updateAttributes('screenplayImage', patch).run();
+    return (
+      <div className="format-panel-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className="format-panel" ref={panelRef} style={panelPos ? { position: 'fixed', left: panelPos.x, top: panelPos.y, margin: 0 } : undefined}>
+          <div className="format-panel-header" style={{ cursor: 'move' }} onPointerDown={onHeaderPointerDown} onPointerMove={onHeaderPointerMove} onPointerUp={onHeaderPointerUp}>
+            <span>Image</span>
+            <button className="format-panel-close" onClick={onClose} aria-label="Close image properties">&times;</button>
+          </div>
+          <div className="format-panel-body">
+            <div className="format-row">
+              <label className="format-label">Width (px)</label>
+              <input
+                type="number"
+                min={40}
+                value={a.width ?? ''}
+                placeholder="auto"
+                style={{ width: 90 }}
+                onChange={(e) => setImgAttr({ width: Math.max(40, Number(e.target.value) || 40) })}
+              />
+            </div>
+            <div className="format-row">
+              <label className="format-label">Align</label>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {(['left', 'center', 'right'] as const).map((al) => (
+                  <button
+                    key={al}
+                    onClick={() => setImgAttr({ align: al })}
+                    style={{ textTransform: 'capitalize', fontWeight: (a.align || 'center') === al ? 700 : 400 }}
+                  >
+                    {al}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="format-panel-actions">
+            <button className="format-primary" onClick={onClose}>Done</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="format-panel-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) handleCancel(); }}>

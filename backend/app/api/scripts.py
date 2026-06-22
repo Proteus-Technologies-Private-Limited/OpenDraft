@@ -49,10 +49,13 @@ async def update_script(script_id: str, body: ScriptUpdate):
     project_id = _default_project_id()
     try:
         return script_service.update_script(
-            project_id, script_id, body.title, body.content
+            project_id, script_id, body.title, body.content,
+            allow_empty_body=body.allow_empty_body,
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    except script_service.EmptyOverwriteError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
 
 
 @router.delete("/{script_id}")

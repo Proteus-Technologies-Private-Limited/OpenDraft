@@ -337,6 +337,8 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
 
   if (doc.content) {
     for (const node of doc.content) {
+      // FDX has no representation for inserted images — skip them.
+      if (node.type === 'screenplayImage') continue;
       if (node.type === 'dualDialogue') {
         // Wrap in DualDialogue element — flatten columns into paragraphs
         lines.push('    <DualDialogue>');

@@ -2186,8 +2186,35 @@ body {
   margin-top: 12pt;
 }
 
-/* Title Page */
-.title-page { text-align: center; }
+/* Title Page — WYSIWYG free-flow: title, credits and images render in document
+   order, top-to-bottom, identically in the editor, dialog preview and PDF/DOCX.
+   Spacing is modest and uniform; writers add blank title-page lines for vertical
+   space and reorder images freely. Per-field alignment only. */
+.title-page { text-align: center; margin-top: 12pt; }
+.title-page-title {
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: center;
+}
+.title-page-author { text-align: center; line-height: 1.5; }
+.title-page-draft { text-align: left; }
+.title-page-contact,
+.title-page-copyright { text-align: right; }
+.title-page-date { text-align: center; }
+
+/* Inserted images (body + title page) */
+.sp-image { display: block; margin: 6pt 0; }
+.sp-image.align-center { text-align: center; }
+.sp-image.align-left { text-align: left; }
+.sp-image.align-right { text-align: right; }
+.sp-image-inner { position: relative; display: inline-block; max-width: 100%; line-height: 0; }
+.sp-image-img { display: block; width: 100%; height: auto; max-width: 100%; }
+.sp-image.is-selected .sp-image-inner { outline: 2px solid var(--fd-accent, #4a90d9); }
+.sp-image-resize {
+  position: absolute; right: -5px; bottom: -5px; width: 12px; height: 12px;
+  background: var(--fd-accent, #4a90d9); border: 1px solid #fff; border-radius: 2px;
+  cursor: nwse-resize; z-index: 3;
+}
 
 /* Title Page Editor Dialog */
 .tp-editor-dialog {

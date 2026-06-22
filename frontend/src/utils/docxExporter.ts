@@ -22,8 +22,10 @@ import {
   LineRuleType,
   PageNumber,
   TabStopType,
+  ImageRun,
 } from 'docx';
 import type { ISectionOptions } from 'docx';
+import { resolveImageUrl, loadImageBytes } from './imageAsset';
 import type { JSONContent } from '@tiptap/react';
 import { DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
@@ -245,114 +247,52 @@ function buildHFParagraph(
 
 // --- Title page ---
 
-interface TitlePageData {
-  tpTitle?: string;
-  tpWrittenBy?: string;
-  tpBasedOn?: string;
-  tpDraft?: string;
-  tpDraftDate?: string;
-  tpContact?: string;
-  tpCopyright?: string;
-  tpWgaRegistration?: string;
+/** Plain text of a node (joins text children, honoring nested content). */
+function nodeText(node: JSONContent): string {
+  if (!node.content) return '';
+  return node.content.map((c) => (c.type === 'text' ? (c.text || '') : nodeText(c))).join('');
 }
 
-function buildTitlePageParagraphs(tp: TitlePageData, layout: PageLayout): Paragraph[] {
-  // Use blank paragraphs to position content — Word renders blank paragraphs
-  // deterministically (each = 12pt = 1/6 inch at our exact line height) but
-  // may suppress space-before on the first paragraph of a section.
+/**
+ * Build the title-page paragraphs in DOCUMENT ORDER (free-flow / WYSIWYG):
+ * titlePage text nodes (aligned by field; title bold + size) and image nodes,
+ * exactly as arranged in the editor. Empty titlePage nodes become blank lines.
+ */
+function buildTitlePageFlow(
+  nodes: JSONContent[],
+  images: Map<number, { data: Uint8Array; w: number; h: number; align: string }>,
+): Paragraph[] {
   const paras: Paragraph[] = [];
-
-  const blank = (): Paragraph =>
-    new Paragraph({
-      spacing: { line: 240, lineRule: LineRuleType.EXACT },
-      children: [new TextRun({ text: '', font: FONT_FAMILY, size: FONT_SIZE_HALFPT })],
-    });
-  const center = (text: string, opts?: { bold?: boolean }): Paragraph =>
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { line: 240, lineRule: LineRuleType.EXACT },
-      children: [
-        new TextRun({
-          text,
-          font: FONT_FAMILY,
-          size: FONT_SIZE_HALFPT,
-          bold: opts?.bold || undefined,
-        }),
-      ],
-    });
-
-  // Position the title ~3 inches down (Final Draft's classic ~upper-third).
-  // 3 inches at 12pt exact line height = 18 blank lines.
-  const BLANKS_BEFORE_TITLE = 18;
-  for (let i = 0; i < BLANKS_BEFORE_TITLE; i++) paras.push(blank());
-
-  paras.push(center((tp.tpTitle || '').toUpperCase(), { bold: true }));
-
-  if (tp.tpWrittenBy) {
-    paras.push(blank());
-    paras.push(blank());
-    paras.push(center('Written by'));
-    paras.push(blank());
-    paras.push(center(tp.tpWrittenBy));
-    if (tp.tpBasedOn) {
-      paras.push(blank());
-      paras.push(center(tp.tpBasedOn));
+  nodes.forEach((node, i) => {
+    if (node.type === 'screenplayImage') {
+      const img = images.get(i);
+      if (!img) return;
+      paras.push(new Paragraph({
+        alignment: img.align === 'left' ? AlignmentType.LEFT : img.align === 'right' ? AlignmentType.RIGHT : AlignmentType.CENTER,
+        children: [new ImageRun({ type: 'png', data: img.data, transformation: { width: img.w, height: img.h } })],
+      }));
+      return;
     }
-  }
-
-  // Bottom block: draft on left, contact/copyright/WGA on right.  Padded with
-  // enough blanks to land near the page bottom but capped so it never spills
-  // onto page 2 and pushes the screenplay down.
-  const contentWidthTwips =
-    Math.round((layout.pageWidth - layout.leftMargin - layout.rightMargin) * TWIPS_PER_INCH);
-
-  const contactLines = tp.tpContact ? tp.tpContact.split('\n') : [];
-  const leftLines: string[] = [];
-  if (tp.tpDraft) leftLines.push(tp.tpDraft);
-  if (tp.tpDraftDate) leftLines.push(tp.tpDraftDate);
-  const rightLines: string[] = [];
-  rightLines.push(...contactLines);
-  if (tp.tpCopyright) rightLines.push(tp.tpCopyright);
-  if (tp.tpWgaRegistration) rightLines.push(tp.tpWgaRegistration);
-
-  const bottomLines = Math.max(leftLines.length, rightLines.length);
-  if (bottomLines > 0) {
-    // Lines used above bottom block:
-    // BLANKS_BEFORE_TITLE + title + (writtenBy section: 5) + (basedOn: 2)
-    const linesUsedAbove =
-      BLANKS_BEFORE_TITLE +
-      1 +
-      (tp.tpWrittenBy ? 5 : 0) +
-      (tp.tpBasedOn ? 2 : 0);
-    // Total lines of usable area at 12pt EXACT line height:
-    //   floor((pageHeight - margins) * 6 lines/in)
-    const usableLines = Math.floor(
-      (layout.pageHeight - (layout.topMargin + layout.bottomMargin) / 72) * 6,
-    );
-    // Leave a small bottom margin (4 lines ≈ 0.67in) so we never overflow.
-    const SAFETY_LINES = 4;
-    const fillBlanks = Math.max(
-      2,
-      usableLines - linesUsedAbove - bottomLines - SAFETY_LINES,
-    );
-    for (let i = 0; i < fillBlanks; i++) paras.push(blank());
-
-    for (let i = 0; i < bottomLines; i++) {
-      paras.push(
-        new Paragraph({
-          tabStops: [{ type: TabStopType.RIGHT, position: contentWidthTwips }],
-          spacing: { line: 240, lineRule: LineRuleType.EXACT },
-          children: [
-            new TextRun({ text: leftLines[i] || '', font: FONT_FAMILY, size: FONT_SIZE_HALFPT }),
-            new TextRun({ text: '\t', font: FONT_FAMILY, size: FONT_SIZE_HALFPT }),
-            new TextRun({ text: rightLines[i] || '', font: FONT_FAMILY, size: FONT_SIZE_HALFPT }),
-          ],
-        }),
-      );
-    }
-  }
-
-  // No trailing PageBreak — body's first paragraph carries pageBreakBefore.
+    const field = (node.attrs?.field as string) || 'title';
+    const isTitle = field === 'title';
+    const align = field === 'draft' ? AlignmentType.LEFT
+      : (field === 'contact' || field === 'copyright') ? AlignmentType.RIGHT
+        : AlignmentType.CENTER;
+    const size = isTitle ? (Number(node.attrs?.tpTitleFontSize) || 12) * 2 : FONT_SIZE_HALFPT;
+    const lines = nodeText(node).split('\n');
+    const children = lines.map((line, idx) => new TextRun({
+      text: isTitle ? line.toUpperCase() : line,
+      font: FONT_FAMILY,
+      size,
+      bold: isTitle || undefined,
+      break: idx > 0 ? 1 : undefined,
+    }));
+    paras.push(new Paragraph({
+      alignment: align,
+      spacing: { line: size * 10, lineRule: LineRuleType.EXACT },
+      children: children.length ? children : [new TextRun({ text: '', font: FONT_FAMILY, size: FONT_SIZE_HALFPT })],
+    }));
+  });
   return paras;
 }
 
@@ -407,28 +347,28 @@ export async function exportDocx(
   const { saveFile } = await import('./fileOps');
   const filename = `${sanitizeFilename(title)}.docx`;
 
-  // Separate title page node from the rest.
-  let titlePage: TitlePageData | null = null;
+  // Separate the title-page region (the leading run of titlePage + image nodes)
+  // from the body. The title page renders its nodes in DOCUMENT ORDER (free-flow),
+  // matching the editor and PDF.
   const bodyNodes: JSONContent[] = [];
+  const titleRegionNodes: JSONContent[] = [];
+  let hasTitlePage = false;
+  let inLeadingRegion = true;
   if (doc?.content) {
     for (const node of doc.content) {
-      if (node.type === 'titlePage') {
-        if (node.attrs?.field === 'title' && node.attrs?.tpTitle) {
-          titlePage = {
-            tpTitle: node.attrs.tpTitle as string | undefined,
-            tpWrittenBy: node.attrs.tpWrittenBy as string | undefined,
-            tpBasedOn: node.attrs.tpBasedOn as string | undefined,
-            tpDraft: node.attrs.tpDraft as string | undefined,
-            tpDraftDate: node.attrs.tpDraftDate as string | undefined,
-            tpContact: node.attrs.tpContact as string | undefined,
-            tpCopyright: node.attrs.tpCopyright as string | undefined,
-            tpWgaRegistration: node.attrs.tpWgaRegistration as string | undefined,
-          };
-        }
+      if (inLeadingRegion && (node.type === 'titlePage' || node.type === 'screenplayImage')) {
+        if (node.type === 'titlePage' && node.attrs?.field === 'title' && node.attrs?.tpTitle) hasTitlePage = true;
+        titleRegionNodes.push(node);
         continue;
       }
+      inLeadingRegion = false;
       bodyNodes.push(node);
     }
+  }
+  // No real title page → leading images are top-of-body content; restore them.
+  if (!hasTitlePage && titleRegionNodes.length > 0) {
+    bodyNodes.unshift(...titleRegionNodes.filter((n) => n.type === 'screenplayImage'));
+    titleRegionNodes.length = 0;
   }
 
   // Page geometry in twips
@@ -451,13 +391,57 @@ export async function exportDocx(
   const skipFirstPage = (layout.headerStartPage ?? 2) >= 2 || (layout.footerStartPage ?? 1) >= 2;
 
   // Body paragraphs
+  // Pre-load inserted images (async) before building paragraphs.
+  const contentWidthPx = contentWidthTw / 15; // 15 twips per CSS px @ 96dpi
+  const imageMap = new Map<number, { data: Uint8Array; w: number; h: number; align: string }>();
+  for (let i = 0; i < bodyNodes.length; i++) {
+    if (bodyNodes[i].type !== 'screenplayImage') continue;
+    const attrs = (bodyNodes[i].attrs || {}) as Record<string, unknown>;
+    const url = resolveImageUrl(attrs);
+    if (!url) continue;
+    const b = await loadImageBytes(url);
+    if (!b) continue;
+    const widthPx = Number(attrs.width) || 0;
+    let w = widthPx > 0 ? widthPx : Math.min(b.width, Math.round(contentWidthPx * 0.9));
+    w = Math.min(w, Math.round(contentWidthPx));
+    const h = Math.round(w * (b.height / (b.width || 1)));
+    imageMap.set(i, { data: b.data, w, h, align: (attrs.align as string) || 'center' });
+  }
+
+  // Pre-load title-page images, keyed by their index in the title region (so the
+  // flow builder can place them in document order).
+  const titleImageMap = new Map<number, { data: Uint8Array; w: number; h: number; align: string }>();
+  for (let i = 0; i < titleRegionNodes.length; i++) {
+    const node = titleRegionNodes[i];
+    if (node.type !== 'screenplayImage') continue;
+    const attrs = (node.attrs || {}) as Record<string, unknown>;
+    const url = resolveImageUrl(attrs);
+    if (!url) continue;
+    const b = await loadImageBytes(url);
+    if (!b) continue;
+    const widthPx = Number(attrs.width) || 0;
+    let w = widthPx > 0 ? widthPx : Math.min(b.width, Math.round(contentWidthPx * 0.5));
+    w = Math.min(w, Math.round(contentWidthPx));
+    const h = Math.round(w * (b.height / (b.width || 1)));
+    titleImageMap.set(i, { data: b.data, w, h, align: (attrs.align as string) || 'center' });
+  }
+
   const bodyParagraphs: Paragraph[] = [];
   for (let i = 0; i < bodyNodes.length; i++) {
     // When a title page precedes the body, force the screenplay's first
     // paragraph to start on a new page.  This is belt-and-suspenders on top
     // of the section break and prevents Word from rendering the screenplay
     // partway down page 2 if the title page didn't fully consume page 1.
-    const forcePageBreak = i === 0 && titlePage !== null;
+    const forcePageBreak = i === 0 && hasTitlePage;
+    const img = imageMap.get(i);
+    if (img) {
+      bodyParagraphs.push(new Paragraph({
+        alignment: img.align === 'left' ? AlignmentType.LEFT : img.align === 'right' ? AlignmentType.RIGHT : AlignmentType.CENTER,
+        ...(forcePageBreak ? { pageBreakBefore: true } : {}),
+        children: [new ImageRun({ type: 'png', data: img.data, transformation: { width: img.w, height: img.h } })],
+      }));
+      continue;
+    }
     bodyParagraphs.push(
       buildElementParagraph(bodyNodes[i], layout, i === 0, forcePageBreak),
     );
@@ -497,7 +481,7 @@ export async function exportDocx(
 
   const sections: ISectionOptions[] = [];
 
-  if (titlePage) {
+  if (hasTitlePage) {
     // Single section with `titlePage: true` so Word uses the empty first-page
     // header/footer for page 1 (the title page) and the real header/footer
     // for page 2+ (the screenplay).  The body's first paragraph carries
@@ -522,7 +506,7 @@ export async function exportDocx(
       headers: Object.keys(headers).length > 0 ? headers : undefined,
       footers: Object.keys(footers).length > 0 ? footers : undefined,
       children: [
-        ...buildTitlePageParagraphs(titlePage, layout),
+        ...buildTitlePageFlow(titleRegionNodes, titleImageMap),
         ...bodyParagraphs,
       ],
     });

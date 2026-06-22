@@ -13,6 +13,9 @@ class ScriptUpdate(BaseModel):
     color: str | None = None
     pinned: bool | None = None
     sort_order: int | None = None
+    # Opt-in to overwriting a non-empty script with an empty body (intentional
+    # clear). Defaults False so an accidental empty save is rejected.
+    allow_empty_body: bool = False
 
 
 class ScriptMeta(BaseModel):

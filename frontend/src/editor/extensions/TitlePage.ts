@@ -12,6 +12,8 @@ export interface TitlePageAttrs {
   tpCopyright: string;
   tpWgaRegistration: string;
   tpNotes: string;
+  /** Title font size in points (default 12). */
+  tpTitleFontSize: number;
 }
 
 export const TitlePage = Node.create({
@@ -33,6 +35,7 @@ export const TitlePage = Node.create({
       tpCopyright: { default: '' },
       tpWgaRegistration: { default: '' },
       tpNotes: { default: '' },
+      tpTitleFontSize: { default: 12 },
     };
   },
 
@@ -40,15 +43,16 @@ export const TitlePage = Node.create({
     return [{ tag: 'div[data-type="title-page"]' }];
   },
 
-  renderHTML({ HTMLAttributes }) {
-    return [
-      'div',
-      mergeAttributes(HTMLAttributes, {
-        'data-type': 'title-page',
-        class: `screenplay-element title-page title-page-${HTMLAttributes['data-field'] || HTMLAttributes.field || 'title'}`,
-        'data-field': HTMLAttributes.field || 'title',
-      }),
-      0,
-    ];
+  renderHTML({ node, HTMLAttributes }) {
+    const field = node.attrs.field || 'title';
+    const size = Number(node.attrs.tpTitleFontSize) || 12;
+    const attrs: Record<string, string> = {
+      'data-type': 'title-page',
+      class: `screenplay-element title-page title-page-${field}`,
+      'data-field': field,
+    };
+    // Apply a custom title font size (default 12pt is left to CSS).
+    if (field === 'title' && size !== 12) attrs.style = `font-size: ${size}pt`;
+    return ['div', mergeAttributes(HTMLAttributes, attrs), 0];
   },
 });

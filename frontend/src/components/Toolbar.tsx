@@ -44,7 +44,7 @@ interface ToolbarProps {
   editor: Editor | null;
 }
 
-const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24];
+const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 
 // Priority groups — higher number = hidden first when toolbar shrinks.
 // Priority 1 = zoom-out (just the minus button area)

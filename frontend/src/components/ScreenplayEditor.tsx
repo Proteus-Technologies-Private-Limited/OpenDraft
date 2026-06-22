@@ -34,10 +34,14 @@ import Superscript from '@tiptap/extension-superscript';
 import Highlight from '@tiptap/extension-highlight';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
+import { docHasAnyText } from '../utils/docText';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { createPaginationPlugin, getPageMetrics } from '../editor/pagination';
+import { createContdCasePlugin } from '../editor/contdCase';
+import { ScreenplayImage } from '../editor/extensions/ScreenplayImage';
+import { insertImageNode } from '../utils/insertImage';
 
-import { useEditorStore, DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT, DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
+import { useEditorStore, DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT, DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES, resolveMoresContds } from '../stores/editorStore';
 import type { ElementType } from '../stores/editorStore';
 import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
@@ -85,6 +89,7 @@ import { parseFDXFull } from '../utils/fdxParser';
 import { parseOdraft } from '../utils/odraftFormat';
 import SaveAsDialog from './SaveAsDialog';
 import TitlePageEditor from './TitlePageEditor';
+import MoresContdsDialog from './MoresContdsDialog';
 import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
@@ -205,7 +210,9 @@ interface OverlayInfo {
   pageNumber: number;
   isDialogueSplit: boolean;
   characterName: string;
+  isTitlePage: boolean;
 }
+
 
 /** Resolve dynamic field placeholders in header/footer text */
 function resolveHFFields(
@@ -625,6 +632,7 @@ const ScreenplayEditor: React.FC = () => {
   const {
     openFileOpen, setOpenFileOpen, saveAsOpen, setSaveAsOpen,
     titlePageEditorOpen, setTitlePageEditorOpen,
+    moresContdsOpen, setMoresContdsOpen,
     compareVersionOpen, setCompareVersionOpen,
     setTrackChangesEnabled, setTrackChangesLabel,
   } = useEditorStore();
@@ -1034,6 +1042,7 @@ const ScreenplayEditor: React.FC = () => {
         pageNumber: brk.pageNumber,
         isDialogueSplit: brk.isDialogueSplit,
         characterName: brk.characterName,
+        isTitlePage: brk.isTitlePage,
       });
     }
     setOverlays(newOverlays);
@@ -1054,6 +1063,15 @@ const ScreenplayEditor: React.FC = () => {
             () => pageLayoutRef.current,
           ),
         ];
+      },
+    })
+  );
+
+  const [ContdCaseExtension] = React.useState(() =>
+    Extension.create({
+      name: 'contdCase',
+      addProseMirrorPlugins() {
+        return [createContdCasePlugin(() => pageLayoutRef.current)];
       },
     })
   );
@@ -1112,6 +1130,41 @@ const ScreenplayEditor: React.FC = () => {
             const currentNode = $from.parent;
             const currentType = currentNode.type.name;
             const isEmpty = currentNode.textContent.trim() === '';
+
+            // A non-text selection (e.g. a selected image atom) — let ProseMirror's
+            // default Enter handle it. Computing block positions below would throw
+            // "no position before the top-level node" for a top-level NodeSelection.
+            if (!$from.parent.isTextblock) return false;
+
+            // Title-page lines must STAY in the title page: Enter adds another
+            // (blank) title-page line instead of a body element, so the content
+            // shifts down one line rather than breaking to the next page.
+            if (currentType === 'titlePage') {
+              const atStartTp = $from.parentOffset === 0;
+              editor.chain().splitBlock().run();
+              const s2 = editor.state;
+              const np = s2.selection.$from;
+              if (np.depth > 0) {
+                const cursorStart = np.before(np.depth);
+                let blankPos = -1;
+                if (atStartTp) {
+                  if (cursorStart > 0) {
+                    const prev = s2.doc.resolve(cursorStart - 1);
+                    if (prev.depth > 0) blankPos = prev.before(prev.depth);
+                  }
+                } else {
+                  const n = s2.doc.nodeAt(cursorStart);
+                  if (n && n.textContent.trim() === '') blankPos = cursorStart;
+                }
+                if (blankPos >= 0) {
+                  const bn = s2.doc.nodeAt(blankPos);
+                  if (bn && bn.type.name === 'titlePage' && bn.attrs.field !== 'blank') {
+                    editor.view.dispatch(s2.tr.setNodeMarkup(blankPos, undefined, { ...bn.attrs, field: 'blank' }));
+                  }
+                }
+              }
+              return true;
+            }
 
             // Inside dualDialogue on an empty line: exit the container
             if (isEmpty) {
@@ -1299,7 +1352,7 @@ const ScreenplayEditor: React.FC = () => {
       Subscript, Superscript,
       Highlight.configure({ multicolor: true }),
       TextStyle, Color, FontFamily, FontSize,
-      FormatOverride, CustomElement,
+      FormatOverride, CustomElement, ScreenplayImage,
       // Use History in normal mode, Collaboration in collab mode
       ...(collabMode ? collabExtensions : [History.configure({ newGroupDelay: 150 })]),
       TextAlign.configure({ types: [...ALL_ELEMENT_TYPES, 'customElement'] }),
@@ -1338,6 +1391,7 @@ const ScreenplayEditor: React.FC = () => {
       AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvKeymap,
       ScriptNoteMark, TagMark,
       PaginationExtension,
+      ContdCaseExtension,
       SearchExtension,
       TrackChangesExtension,
       ...(isHistoryMode ? [] : [EnforceGuardExtension, EnterHandlerExtension, TabHandlerExtension, ElementShortcutExtension]),
@@ -1450,6 +1504,49 @@ const ScreenplayEditor: React.FC = () => {
     setEditorKey((k) => k + 1);
   }, [editor, currentProject, currentScriptId, setupCollab]);
 
+  // --- Image insertion: upload to the project's assets, then insert a node that
+  // references the asset (keeps the document small). Falls back to an inline data
+  // URL only when there is no project to upload to. ---
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
+  // The cursor position captured when the menu/toolbar triggers image insertion,
+  // so the upload's async gap (file dialog) doesn't lose the insertion point.
+  const imageInsertPosRef = useRef<number | null>(null);
+  const setImageInsertHandler = useEditorStore((s) => s.setImageInsertHandler);
+  useEffect(() => {
+    setImageInsertHandler(() => {
+      imageInsertPosRef.current = editor ? editor.state.selection.to : null;
+      imageFileInputRef.current?.click();
+    });
+    return () => setImageInsertHandler(null);
+  }, [setImageInsertHandler, editor]);
+
+  const handleImageFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file || !editor) return;
+    if (!file.type.startsWith('image/')) { showToast('Please choose an image file', 'error'); return; }
+    // Insert at the captured cursor position (valid block position), not doc start.
+    const pos = imageInsertPosRef.current ?? editor.state.selection.to;
+    const insertAt = (attrs: Record<string, unknown>) => insertImageNode(editor, attrs, pos);
+    try {
+      if (currentProject) {
+        const asset = await api.uploadAsset(currentProject.id, file, ['inline-image']);
+        insertAt({ assetId: asset.id, projectId: currentProject.id, filename: asset.filename ?? file.name, align: 'center' });
+      } else {
+        // No project yet (unsaved local doc) — embed as a data URL.
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result as string);
+          r.onerror = () => reject(r.error);
+          r.readAsDataURL(file);
+        });
+        insertAt({ src: dataUrl, align: 'center' });
+      }
+    } catch (err) {
+      showToast(`Failed to insert image: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, currentProject]);
+
   // Helper: clear track changes when switching documents
   const clearTrackChanges = useCallback(() => {
     const store = useEditorStore.getState();
@@ -1530,6 +1627,10 @@ const ScreenplayEditor: React.FC = () => {
   }, []);
 
   const { setCharacters } = useEditorStore();
+  // Per-document "Mores & Continueds" config. Reactive: editing it re-runs the
+  // CONT'D effect and re-renders the page-break markers.
+  const moresContds = resolveMoresContds(pageLayout);
+  const { characterContd, contdText } = moresContds;
 
   const updateCharacters = useCallback(() => {
     if (!editor) return;
@@ -1579,21 +1680,33 @@ const ScreenplayEditor: React.FC = () => {
   }, [editor, updateCharacters]);
 
   // --- Auto CONT'D: add/remove (CONT'D) based on previous dialogue ---
+  // Industry rule (Final Draft / WriterDuet / Fade In): append the continued
+  // marker when the same character resumes speaking after action *within the same
+  // scene*. A scene heading / transition resets continuation. A per-cue override
+  // remembers when the writer deletes it so it is not re-added there. Gated by the
+  // per-document characterContd setting; page-break (CONT'D)/(MORE) is separate.
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || !characterContd) return;
     let timeout: ReturnType<typeof setTimeout> | null = null;
+    // Configured marker, e.g. "(CONT'D)", and an uppercase form for detection.
+    const contdMarker = contdText.trim() || "(CONT'D)";
+    const contdMarkerUpper = contdMarker.toUpperCase();
+
+    // Elements that mark a new scene — they break dialogue continuation.
+    const CONTD_RESET_TYPES = new Set(['sceneHeading', 'transition', 'newAct', 'endOfAct']);
 
     const updateContd = () => {
       const { doc } = editor.state;
 
       // First pass: collect all children and determine what each character node should be
-      const children: { type: string; text: string; pos: number }[] = [];
+      const children: { type: string; text: string; pos: number; attrs: Record<string, unknown> }[] = [];
       doc.forEach((node, offset) => {
-        children.push({ type: node.type.name, text: node.textContent, pos: offset });
+        children.push({ type: node.type.name, text: node.textContent, pos: offset, attrs: node.attrs });
       });
 
-      // Determine CONT'D status for each character node
-      interface ContdChange { pos: number; oldText: string; newText: string }
+      // Determine CONT'D status for each character node. A change may update the node's
+      // text and/or its override attributes (contdSeen / contdSuppressed).
+      interface ContdChange { pos: number; oldText: string | null; newText: string | null; attrs: Record<string, unknown> | null }
       const changes: ContdChange[] = [];
       let lastCharBase: string | null = null;
       let lastWasDialogue = false;
@@ -1602,13 +1715,46 @@ const ScreenplayEditor: React.FC = () => {
         if (child.type === 'character') {
           const raw = child.text.trim().toUpperCase();
           const base = stripCharacterExtension(raw);
-          const hasContd = /\(CONT'D\)|\(CONT'D\)|\(CONTD\)/i.test(raw);
+          // Detect the configured marker as well as the standard forms, so an
+          // existing marker is recognised even if the text setting was changed.
+          const hasContd = /\(CONT'D\)|\(CONT'D\)|\(CONTD\)/i.test(raw) || raw.includes(contdMarkerUpper);
+          const contdAuto = child.attrs.contdAuto === true;
+          const contdSuppressed = child.attrs.contdSuppressed === true;
           const shouldHaveContd = lastCharBase !== null && base === lastCharBase && !lastWasDialogue;
 
-          if (shouldHaveContd && !hasContd && base) {
-            changes.push({ pos: child.pos, oldText: child.text, newText: `${base} (CONT'D)` });
-          } else if (!shouldHaveContd && hasContd) {
-            changes.push({ pos: child.pos, oldText: child.text, newText: base });
+          const setText = (newText: string) =>
+            changes.push({ pos: child.pos, oldText: child.text, newText, attrs: null });
+          const setAttrs = (patch: Record<string, unknown>) =>
+            changes.push({ pos: child.pos, oldText: null, newText: null, attrs: { ...child.attrs, ...patch } });
+
+          // Golden rule: the automation only ever adds/removes a (CONT'D) it added
+          // itself (contdAuto). A (CONT'D) the writer typed is never touched.
+          if (shouldHaveContd && base) {
+            if (contdSuppressed) {
+              // Writer opted out here. If they re-typed (CONT'D), respect it as their
+              // own (manual) and forget the opt-out; otherwise leave the cue untouched.
+              if (hasContd) setAttrs({ contdSuppressed: false });
+            } else if (!hasContd) {
+              if (contdAuto) {
+                // An auto (CONT'D) was here and is now gone → writer removed it → remember.
+                setAttrs({ contdSuppressed: true, contdAuto: false });
+              } else {
+                // Genuine first-time auto-add.
+                setText(`${base} ${contdMarker}`);
+                setAttrs({ contdAuto: true });
+              }
+            } else if (contdAuto && !raw.endsWith(contdMarkerUpper)) {
+              // Present and auto-added, but the marker text was changed in settings →
+              // normalise it to the configured text. Manually typed markers are left.
+              setText(`${base} ${contdMarker}`);
+            }
+            // else hasContd && !suppressed: present (manual, or already correct) → leave it.
+          } else {
+            // Not a continuation here (different speaker, or after a scene reset).
+            // Only strip a now-stale (CONT'D) the automation itself added — never a
+            // manually typed one.
+            if (hasContd && contdAuto) setText(base);
+            if (contdAuto || contdSuppressed) setAttrs({ contdAuto: false, contdSuppressed: false });
           }
 
           lastCharBase = base;
@@ -1616,19 +1762,25 @@ const ScreenplayEditor: React.FC = () => {
         } else if (child.type === 'dialogue' || child.type === 'parenthetical') {
           lastWasDialogue = true;
         } else {
+          if (CONTD_RESET_TYPES.has(child.type)) {
+            lastCharBase = null; // new scene / transition breaks dialogue continuation
+          }
           lastWasDialogue = false;
         }
       }
 
       if (changes.length === 0) return;
 
-      // Apply changes in reverse order so positions don't shift
+      // Apply changes in reverse document order so earlier positions don't shift.
       const { tr } = editor.state;
       for (let i = changes.length - 1; i >= 0; i--) {
         const c = changes[i];
-        const from = c.pos + 1; // +1 for node open token
-        const to = from + c.oldText.length;
-        tr.insertText(c.newText, from, to);
+        if (c.attrs) tr.setNodeMarkup(c.pos, undefined, c.attrs);
+        if (c.oldText !== null && c.newText !== null) {
+          const from = c.pos + 1; // +1 for node open token
+          const to = from + c.oldText.length;
+          tr.insertText(c.newText, from, to);
+        }
       }
       tr.setMeta('addToHistory', false);
       editor.view.dispatch(tr);
@@ -1645,7 +1797,7 @@ const ScreenplayEditor: React.FC = () => {
       editor.off('update', debouncedUpdate);
       if (timeout) clearTimeout(timeout);
     };
-  }, [editor, stripCharacterExtension]);
+  }, [editor, stripCharacterExtension, characterContd, contdText]);
 
   // --- Character autocomplete: show/update on each editor update while in character block ---
   useEffect(() => {
@@ -1831,6 +1983,10 @@ const ScreenplayEditor: React.FC = () => {
   // Skip for collab guests — they don't own the document and the project may
   // not exist on their local backend.
   const lastSavedJsonRef = useRef<string>('');
+  // Tracks whether the script currently in the editor has real (textful) content
+  // saved. When true, an auto-save that finds the editor body suddenly empty is
+  // treated as an editor glitch (reset/remount) and skipped — never written.
+  const lastSavedNonEmptyRef = useRef<boolean>(false);
 
   // Register an editor-reset hook so performLogout can flush any pending
   // save for a cloud file and then drop the editor back to a blank, local
@@ -1904,9 +2060,16 @@ const ScreenplayEditor: React.FC = () => {
       if (scriptSwitchingRef.current) return;
       const content = buildSaveContent();
       if (!content) return;
+      // Data-loss guard: never let an empty/just-reset editor body overwrite a
+      // script that has real content saved (the blank-document bug).
+      if (!docHasAnyText(content) && lastSavedNonEmptyRef.current) {
+        console.warn('Auto-save skipped: editor body is empty but saved content is not (likely editor reset).');
+        return;
+      }
       const json = JSON.stringify(content);
       if (json !== lastSavedJsonRef.current) {
         lastSavedJsonRef.current = json;
+        lastSavedNonEmptyRef.current = docHasAnyText(content);
         setSaveStatus('saving');
         scriptApi.saveScript(currentProject.id, currentScriptId, { content }).then(() => {
           setSaveStatus('saved');
@@ -1972,9 +2135,16 @@ const ScreenplayEditor: React.FC = () => {
         if (scriptSwitchingRef.current) return;
         const content = buildSaveContent();
         if (!content) return;
+        // Data-loss guard (see auto-save): don't overwrite real content with an
+        // empty/just-reset editor body.
+        if (!docHasAnyText(content) && lastSavedNonEmptyRef.current) {
+          console.warn('Metadata-save skipped: editor body is empty but saved content is not.');
+          return;
+        }
         const json = JSON.stringify(content);
         if (json !== lastSavedJsonRef.current) {
           lastSavedJsonRef.current = json;
+          lastSavedNonEmptyRef.current = docHasAnyText(content);
           useEditorStore.getState().setSaveStatus('saving');
           scriptApi.saveScript(pid, sid, { content }).then(() => {
             useEditorStore.getState().setSaveStatus('saved');
@@ -2232,6 +2402,10 @@ const ScreenplayEditor: React.FC = () => {
           editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
         }
         clearEditorHistory(editor);
+
+        // Record whether this script holds real content, so a later editor reset
+        // to an empty body cannot silently overwrite it (data-loss guard).
+        lastSavedNonEmptyRef.current = docHasAnyText(pmDoc ?? content);
 
         // Restore metadata from top-level content keys (skip in history mode)
         if (!isHistoryMode) {
@@ -3755,10 +3929,12 @@ const ScreenplayEditor: React.FC = () => {
                     const hStart = pageLayout.headerStartPage ?? 2;
                     const fStart = pageLayout.footerStartPage ?? 1;
                     const { documentTitle: docTitle, revisionColor: revColor, pageCount: totalPages } = useEditorStore.getState();
-                    const showHeader = ov.pageNumber >= hStart;
-                    // The footer belongs to the page BEFORE this break (ov.pageNumber - 1)
+                    const showHeader = ov.pageNumber >= hStart && !ov.isTitlePage;
+                    // The footer belongs to the page BEFORE this break (ov.pageNumber - 1).
+                    // For the title-page break that previous page IS the title page, which
+                    // is unnumbered and carries no header/footer.
                     const footerPage = ov.pageNumber - 1;
-                    const showFooterForPrev = footerPage >= fStart;
+                    const showFooterForPrev = footerPage >= fStart && !ov.isTitlePage;
                     return (
                     <div
                       key={ov.pageNumber}
@@ -3766,8 +3942,8 @@ const ScreenplayEditor: React.FC = () => {
                       style={{ top: `${ov.top}px` }}
                     >
                       <div className="page-sep-bottom" style={{ height: `${pageLayout.bottomMargin}pt`, position: 'relative' }}>
-                        {ov.isDialogueSplit && (
-                          <div className="page-sep-more">(MORE)</div>
+                        {ov.isDialogueSplit && moresContds.dialogueBreakContd && (
+                          <div className="page-sep-more">{moresContds.moreText}</div>
                         )}
                         {showFooterForPrev && (fContent.left || fContent.center || fContent.right) && (
                           <div className="page-sep-footer">
@@ -3787,9 +3963,9 @@ const ScreenplayEditor: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      {ov.isDialogueSplit && ov.characterName && (
+                      {ov.isDialogueSplit && ov.characterName && moresContds.dialogueBreakContd && (
                         <div className="page-sep-contd">
-                          {ov.characterName} (CONT'D)
+                          {ov.characterName} <span style={{ textTransform: 'none' }}>{moresContds.contdText}</span>
                         </div>
                       )}
 
@@ -3944,6 +4120,16 @@ const ScreenplayEditor: React.FC = () => {
           onClose={() => setTitlePageEditorOpen(false)}
         />
       )}
+      {!isHistoryMode && moresContdsOpen && (
+        <MoresContdsDialog onClose={() => setMoresContdsOpen(false)} />
+      )}
+      <input
+        ref={imageFileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleImageFileChange}
+      />
       {!isHistoryMode && shareDialogOpen && currentProject && currentScriptId && (
         <ShareDialog
           projectId={currentProject.id}

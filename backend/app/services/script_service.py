@@ -9,6 +9,13 @@ from app.config import get_projects_dir
 logger = logging.getLogger(__name__)
 
 
+class EmptyOverwriteError(Exception):
+    """Raised when a save would blank a script that currently has content.
+
+    The blank-document data-loss guard. Routes map this to HTTP 409.
+    """
+
+
 def _scripts_dir(project_id: str) -> Path:
     """Return the scripts directory for the active user's project."""
     scripts_path = get_projects_dir() / project_id / "scripts"
@@ -121,6 +128,26 @@ def get_script(project_id: str, script_id: str) -> dict:
     return {"meta": meta, "content": content}
 
 
+def _has_body_text(content: dict | None) -> bool:
+    """True when a TipTap/ProseMirror doc has any non-whitespace text in its body.
+
+    Only ``content`` arrays are walked, so app-metadata keys (e.g. ``_notes``)
+    don't count as body text. Mirrors ``docHasAnyText`` on the frontend.
+    """
+    if not isinstance(content, dict):
+        return False
+    if content.get("type") == "text":
+        text = content.get("text")
+        if isinstance(text, str) and text.strip():
+            return True
+    children = content.get("content")
+    if isinstance(children, list):
+        for child in children:
+            if _has_body_text(child):
+                return True
+    return False
+
+
 def update_script(
     project_id: str,
     script_id: str,
@@ -129,6 +156,7 @@ def update_script(
     color: str | None = None,
     pinned: bool | None = None,
     sort_order: int | None = None,
+    allow_empty_body: bool = False,
 ) -> dict:
     """Update a script's title and/or content."""
     scripts_path = _scripts_dir(project_id)
@@ -138,6 +166,24 @@ def update_script(
 
     if not meta_file.exists():
         raise FileNotFoundError(f"Script '{script_id}' not found")
+
+    # Data-loss guard: refuse to overwrite a script that has real content with an
+    # empty/textless body (the blank-document bug). Callers that intentionally
+    # clear a document must pass allow_empty_body=True. Checked before any write
+    # so a rejected save leaves the script (and updated_at) untouched.
+    if content is not None and not allow_empty_body and not _has_body_text(content):
+        existing = (
+            json.loads(content_file.read_text(encoding="utf-8"))
+            if content_file.exists()
+            else None
+        )
+        if _has_body_text(existing):
+            raise EmptyOverwriteError(
+                f"Refusing to overwrite script '{script_id}' with an empty document — "
+                "the saved script has content but the incoming one has none. This "
+                "guards against accidental data loss. If you really meant to clear it, "
+                "delete the script instead."
+            )
 
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
 

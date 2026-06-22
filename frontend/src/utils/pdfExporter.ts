@@ -2,8 +2,9 @@
 // All constants match pagination.ts and screenplay.css for exact visual parity
 import jsPDF from 'jspdf';
 import type { JSONContent } from '@tiptap/react';
-import { DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT } from '../stores/editorStore';
+import { DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT, resolveMoresContds } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
+import { resolveImageUrl, loadImageData } from './imageAsset';
 
 // --- Constants matching pagination.ts ---
 
@@ -267,6 +268,8 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
   const topMarginPt = layout.topMargin;
   const bottomMarginPt = layout.bottomMargin;
   const usableBottomPt = pageHeightPt - bottomMarginPt;
+  // "Mores & Continueds" config for page-break (MORE)/(CONT'D) markers.
+  const mc = resolveMoresContds(layout);
 
   const pdf = new jsPDF({
     unit: 'pt',
@@ -280,27 +283,31 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
   const baseCharWidth = pdf.getTextWidth('M');
   const charSpace = FD_CHAR_WIDTH_PT - baseCharWidth;
 
-  // Build node list with type-level styles applied, separating title page nodes
+  // Build the body node list, separating the title-page region: the leading run
+  // of titlePage + image nodes. The title page renders its nodes in DOCUMENT
+  // ORDER (free-flow / WYSIWYG), matching the editor and DOCX.
   const nodes: NodeInfo[] = [];
-  let titlePageData: { tpTitle?: string; tpWrittenBy?: string; tpBasedOn?: string; tpDraft?: string; tpDraftDate?: string; tpContact?: string; tpCopyright?: string; tpWgaRegistration?: string } | null = null;
+  interface TitleItem { kind: 'text' | 'image'; field?: string; text?: string; titleSize?: number; attrs?: Record<string, unknown>; }
+  const titleItems: TitleItem[] = [];
+  let inLeadingRegion = true;
+  let hasTitlePage = false;
   for (const node of doc.content) {
     const typeName = node.type || 'general';
-    if (typeName === 'titlePage') {
-      // Extract structured title page data from the title node
-      if (node.attrs?.field === 'title' && node.attrs?.tpTitle) {
-        titlePageData = {
-          tpTitle: node.attrs.tpTitle as string,
-          tpWrittenBy: node.attrs.tpWrittenBy as string,
-          tpBasedOn: node.attrs.tpBasedOn as string,
-          tpDraft: node.attrs.tpDraft as string,
-          tpDraftDate: node.attrs.tpDraftDate as string,
-          tpContact: node.attrs.tpContact as string,
-          tpCopyright: node.attrs.tpCopyright as string,
-          tpWgaRegistration: node.attrs.tpWgaRegistration as string,
-        };
+    if (inLeadingRegion && (typeName === 'titlePage' || typeName === 'screenplayImage')) {
+      if (typeName === 'titlePage') {
+        if (node.attrs?.field === 'title' && node.attrs?.tpTitle) hasTitlePage = true;
+        titleItems.push({
+          kind: 'text',
+          field: (node.attrs?.field as string) || 'title',
+          text: getPlainText(extractRuns(node)),
+          titleSize: Number(node.attrs?.tpTitleFontSize) || 12,
+        });
+      } else {
+        titleItems.push({ kind: 'image', attrs: (node.attrs || {}) as Record<string, unknown> });
       }
-      continue; // Skip titlePage nodes from main rendering
+      continue;
     }
+    inLeadingRegion = false;
     const rawRuns = extractRuns(node);
     const runs = applyTypeStyles(rawRuns, typeName);
     nodes.push({
@@ -310,62 +317,68 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
       attrs: node.attrs as Record<string, unknown> | undefined,
     });
   }
+  // No real title page → leading images are top-of-body content; restore them.
+  if (!hasTitlePage && titleItems.length > 0) {
+    const restored: NodeInfo[] = titleItems
+      .filter((it) => it.kind === 'image')
+      .map((it) => ({ typeName: 'screenplayImage', runs: [], plainText: '', attrs: it.attrs }));
+    nodes.unshift(...restored);
+    titleItems.length = 0;
+  }
 
   let currentY = topMarginPt;
   let pageNumber = 1;
   let isFirstElement = true;
 
-  // Render title page if structured data exists
-  if (titlePageData?.tpTitle) {
-    const centerX = pageWidthPt / 2;
-    const tp = titlePageData;
-    const tpTitle = tp.tpTitle!;
-
-    // Title — centered, ~40% down the page
-    const titleY = pageHeightPt * 0.38;
-    pdf.setFont('courier', 'bold');
-    pdf.setFontSize(12);
-    pdf.text(tpTitle.toUpperCase(), centerX, titleY, { align: 'center' });
-
-    // "Written by" + author — below title
-    if (tp.tpWrittenBy) {
-      pdf.setFont('courier', 'normal');
-      pdf.text('Written by', centerX, titleY + LINE_HEIGHT_PT * 3, { align: 'center' });
-      pdf.text(tp.tpWrittenBy, centerX, titleY + LINE_HEIGHT_PT * 5, { align: 'center' });
-      if (tp.tpBasedOn) {
-        pdf.text(tp.tpBasedOn, centerX, titleY + LINE_HEIGHT_PT * 7, { align: 'center' });
-      }
+  // Pre-load title-page images (rendered in document order).
+  const titleImgData = new Map<number, { dataUrl: string; wPt: number; hPt: number }>();
+  if (hasTitlePage) {
+    const contentW = pageWidthPt - (layout.leftMargin + layout.rightMargin) * PTS_PER_INCH;
+    for (let k = 0; k < titleItems.length; k++) {
+      const it = titleItems[k];
+      if (it.kind !== 'image') continue;
+      const url = resolveImageUrl(it.attrs || {});
+      if (!url) continue;
+      const d = await loadImageData(url);
+      if (!d) continue;
+      const widthPx = Number(it.attrs?.width) || 0;
+      let wPt = widthPx > 0 ? widthPx * 0.75 : Math.min(d.width * 0.75, contentW * 0.6);
+      wPt = Math.min(wPt, contentW);
+      titleImgData.set(k, { dataUrl: d.dataUrl, wPt, hPt: wPt * (d.height / (d.width || 1)) });
     }
+  }
 
-    // Bottom-left: draft info
-    const bottomY = pageHeightPt - bottomMarginPt;
+  // Render the title page in document order (free-flow), top-to-bottom.
+  if (hasTitlePage) {
+    const centerX = pageWidthPt / 2;
     const leftX = layout.leftMargin * PTS_PER_INCH;
     const rightX = pageWidthPt - layout.rightMargin * PTS_PER_INCH;
-    pdf.setFont('courier', 'normal');
-    let blY = bottomY;
-    if (tp.tpDraft) {
-      pdf.text(tp.tpDraft, leftX, blY);
-      blY -= LINE_HEIGHT_PT;
-    }
-    if (tp.tpDraftDate) {
-      pdf.text(tp.tpDraftDate, leftX, blY);
-    }
-
-    // Bottom-right: contact, copyright, WGA
-    let brY = bottomY;
-    if (tp.tpWgaRegistration) {
-      pdf.text(tp.tpWgaRegistration, rightX, brY, { align: 'right' });
-      brY -= LINE_HEIGHT_PT;
-    }
-    if (tp.tpCopyright) {
-      pdf.text(tp.tpCopyright, rightX, brY, { align: 'right' });
-      brY -= LINE_HEIGHT_PT;
-    }
-    if (tp.tpContact) {
-      const contactLines = tp.tpContact.split('\n').reverse();
-      for (const line of contactLines) {
-        pdf.text(line, rightX, brY, { align: 'right' });
-        brY -= LINE_HEIGHT_PT;
+    const bottom = pageHeightPt - bottomMarginPt;
+    let y = topMarginPt;
+    for (let k = 0; k < titleItems.length; k++) {
+      const it = titleItems[k];
+      if (it.kind === 'image') {
+        const im = titleImgData.get(k);
+        if (!im || y + im.hPt > bottom) continue;
+        const align = (it.attrs?.align as string) || 'center';
+        const x = align === 'left' ? leftX : align === 'right' ? rightX - im.wPt : centerX - im.wPt / 2;
+        pdf.addImage(im.dataUrl, 'PNG', x, y, im.wPt, im.hPt);
+        y += im.hPt + 6;
+      } else {
+        const isTitle = it.field === 'title';
+        const align: 'left' | 'center' | 'right' =
+          it.field === 'draft' ? 'left' : (it.field === 'contact' || it.field === 'copyright') ? 'right' : 'center';
+        const lineH = isTitle ? (it.titleSize || 12) : LINE_HEIGHT_PT;
+        pdf.setFont('courier', isTitle ? 'bold' : 'normal');
+        pdf.setFontSize(isTitle ? (it.titleSize || 12) : 12);
+        const x = align === 'left' ? leftX : align === 'right' ? rightX : centerX;
+        const lines = (it.text || '').split('\n');
+        for (const line of lines) {
+          if (line && y + lineH <= bottom) pdf.text(isTitle ? line.toUpperCase() : line, x, y + lineH, { align });
+          y += lineH;
+        }
+        pdf.setFontSize(12);
+        y += 4; // small gap between elements
       }
     }
 
@@ -381,11 +394,51 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     currentY = topMarginPt;
   }
 
+  // Pre-load inserted images (async) so the render loop below stays synchronous.
+  const contentWidthPt = pageWidthPt - (layout.leftMargin + layout.rightMargin) * PTS_PER_INCH;
+  const imageMap = new Map<number, { dataUrl: string; wPt: number; hPt: number; align: string }>();
+  for (let k = 0; k < nodes.length; k++) {
+    if (nodes[k].typeName !== 'screenplayImage') continue;
+    const attrs = (nodes[k].attrs || {}) as Record<string, unknown>;
+    const url = resolveImageUrl(attrs);
+    if (!url) continue;
+    const d = await loadImageData(url);
+    if (!d) continue;
+    const widthPx = Number(attrs.width) || 0;
+    let wPt = widthPx > 0 ? widthPx * 0.75 : Math.min(d.width * 0.75, contentWidthPt * 0.9);
+    wPt = Math.min(wPt, contentWidthPt);
+    const hPt = wPt * (d.height / (d.width || 1));
+    imageMap.set(k, { dataUrl: d.dataUrl, wPt, hPt, align: (attrs.align as string) || 'center' });
+  }
+
   // Process each node
   let i = 0;
   while (i < nodes.length) {
     const node = nodes[i];
     const typeName = node.typeName;
+
+    // Inserted image — place it, paginating if it doesn't fit.
+    if (typeName === 'screenplayImage') {
+      const img = imageMap.get(i);
+      if (img) {
+        const sbPt = isFirstElement ? 0 : LINE_HEIGHT_PT;
+        if (currentY + sbPt + img.hPt > pageHeightPt - bottomMarginPt && currentY > topMarginPt) {
+          newPage();
+        } else {
+          currentY += sbPt;
+        }
+        const contentLeft = layout.leftMargin * PTS_PER_INCH;
+        const contentRight = pageWidthPt - layout.rightMargin * PTS_PER_INCH;
+        let x = contentLeft;
+        if (img.align === 'center') x = (contentLeft + contentRight) / 2 - img.wPt / 2;
+        else if (img.align === 'right') x = contentRight - img.wPt;
+        pdf.addImage(img.dataUrl, 'PNG', x, currentY, img.wPt, img.hPt);
+        currentY += img.hPt;
+        isFirstElement = false;
+      }
+      i++;
+      continue;
+    }
     const indents = FD_INDENTS[typeName] || FD_INDENTS.general;
     const leftPt = indents[0] * PTS_PER_INCH;
     const rightPt = indents[1] * PTS_PER_INCH;
@@ -479,20 +532,22 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
           // Render (MORE) indicator
           const moreIndents = FD_INDENTS.character || FD_INDENTS.general;
           const moreLeftPt = moreIndents[0] * PTS_PER_INCH;
-          if (currentY + LINE_HEIGHT_PT <= usableBottomPt) {
+          if (mc.dialogueBreakContd && currentY + LINE_HEIGHT_PT <= usableBottomPt) {
             setFontStyle(pdf, false, false);
-            pdf.text('(MORE)', moreLeftPt, currentY + LINE_HEIGHT_PT, { charSpace });
+            pdf.text(mc.moreText, moreLeftPt, currentY + LINE_HEIGHT_PT, { charSpace });
           }
 
           newPage();
 
           // Render CONT'D character name
           const charName = node.plainText.trim().toUpperCase();
-          setFontStyle(pdf, false, false);
           const contdIndents = FD_INDENTS.character || FD_INDENTS.general;
           const contdLeftPt = contdIndents[0] * PTS_PER_INCH;
-          pdf.text(`${charName} (CONT'D)`, contdLeftPt, currentY + LINE_HEIGHT_PT, { charSpace });
-          currentY += LINE_HEIGHT_PT;
+          if (mc.dialogueBreakContd) {
+            setFontStyle(pdf, false, false);
+            pdf.text(`${charName} ${mc.contdText}`, contdLeftPt, currentY + LINE_HEIGHT_PT, { charSpace });
+            currentY += LINE_HEIGHT_PT;
+          }
 
           // Render remaining dialogue nodes
           while (dIdx < dialogueBlockNodes.length) {
@@ -508,14 +563,16 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
 
             // Check for another page break within continued dialogue
             if (currentY + dHeight > usableBottomPt) {
-              if (currentY + LINE_HEIGHT_PT <= usableBottomPt) {
+              if (mc.dialogueBreakContd && currentY + LINE_HEIGHT_PT <= usableBottomPt) {
                 setFontStyle(pdf, false, false);
-                pdf.text('(MORE)', contdLeftPt, currentY + LINE_HEIGHT_PT, { charSpace });
+                pdf.text(mc.moreText, contdLeftPt, currentY + LINE_HEIGHT_PT, { charSpace });
               }
               newPage();
-              setFontStyle(pdf, false, false);
-              pdf.text(`${charName} (CONT'D)`, contdLeftPt, currentY + LINE_HEIGHT_PT, { charSpace });
-              currentY += LINE_HEIGHT_PT;
+              if (mc.dialogueBreakContd) {
+                setFontStyle(pdf, false, false);
+                pdf.text(`${charName} ${mc.contdText}`, contdLeftPt, currentY + LINE_HEIGHT_PT, { charSpace });
+                currentY += LINE_HEIGHT_PT;
+              }
             }
 
             currentY += dSb;

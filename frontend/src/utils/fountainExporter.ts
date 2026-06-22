@@ -51,6 +51,9 @@ export function exportFountain(doc: JSONContent): string {
       case 'titlePage':
         // Already handled above
         break;
+      case 'screenplayImage':
+        // Fountain is plain text — no image representation. Skip.
+        break;
       case 'sceneHeading':
         lines.push('');
         lines.push(text.toUpperCase());

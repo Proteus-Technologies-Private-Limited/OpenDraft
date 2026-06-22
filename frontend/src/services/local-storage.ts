@@ -15,6 +15,7 @@
  */
 
 import { getDb, simpleHash } from './db';
+import { isDestructiveEmptyOverwrite } from '../utils/docText';
 import {
   mkdir,
   writeFile,
@@ -278,11 +279,24 @@ export async function createLocalStorage() {
     async saveScript(
       projectId: string,
       scriptId: string,
-      data: { title?: string; content?: Record<string, unknown>; color?: string; pinned?: boolean; sort_order?: number },
+      data: { title?: string; content?: Record<string, unknown>; color?: string; pinned?: boolean; sort_order?: number; allowEmptyBody?: boolean },
     ): Promise<ScriptResponse> {
       const existing = await storage.getScript(projectId, scriptId);
       const title = data.title ?? existing.meta.title;
       const content = data.content ?? existing.content;
+
+      // Data-loss guard: refuse to overwrite a script that has real (textful)
+      // content with an empty/textless body. This is the last line of defence
+      // against the blank-document bug, where a reset editor auto-saves an empty
+      // doc over a full screenplay. Callers that intentionally clear a document
+      // must pass `allowEmptyBody: true`.
+      if (isDestructiveEmptyOverwrite(data.content, existing.content, data.allowEmptyBody)) {
+        throw new Error(
+          `Refusing to overwrite "${title}" with an empty document — the saved script has content but the ` +
+          `incoming one has none. This guards against accidental data loss (the editor may have reset). ` +
+          `If you really meant to clear it, delete the script instead.`,
+        );
+      }
       const contentStr = content ? JSON.stringify(content) : null;
       const sizeBytes = contentStr ? new Blob([contentStr]).size : 0;
       const color = data.color ?? existing.meta.color;

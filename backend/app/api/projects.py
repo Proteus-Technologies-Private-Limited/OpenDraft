@@ -148,6 +148,7 @@ async def update_script(project_id: str, script_id: str, body: ScriptUpdate):
         result = script_service.update_script(
             project_id, script_id, body.title, body.content,
             color=body.color, pinned=body.pinned, sort_order=body.sort_order,
+            allow_empty_body=body.allow_empty_body,
         )
         if is_content_save:
             await run_hooks("script:after_save", project_id=project_id,
@@ -155,6 +156,8 @@ async def update_script(project_id: str, script_id: str, body: ScriptUpdate):
         return result
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    except script_service.EmptyOverwriteError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
 
 
 @router.delete("/{project_id}/scripts/{script_id}")

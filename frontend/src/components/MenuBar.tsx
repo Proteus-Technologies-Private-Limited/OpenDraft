@@ -75,6 +75,8 @@ import {
   FaAlignJustify,
   FaColumns,
   FaFileAlt,
+  FaCommentDots,
+  FaImage,
   FaCompass,
   FaTh,
   FaStream,
@@ -1059,6 +1061,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         { separator: true, label: '' },
         { icon: <FaColumns />, label: 'Dual Dialogue', shortcut: `${mod}D`, action: () => (editor as any)?.commands?.toggleDualDialogue() },
         { separator: true, label: '' },
+        { icon: <FaCommentDots />, label: 'Mores & Continueds...', action: () => useEditorStore.getState().setMoresContdsOpen(true) },
+        { icon: <FaImage />, label: 'Insert Image...', action: () => useEditorStore.getState().imageInsertHandler?.() },
+        { separator: true, label: '' },
         { icon: <FaFileAlt />, label: 'Title Page...', action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
         { icon: <FaFileAlt />, label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true) },
         { icon: <FaFileAlt />, label: 'Script Format Preferences...', action: () => setFormatPrefsOpen({ firstRun: false, afterSave: null }) },
@@ -1713,8 +1718,18 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.17</div>
+              <div className="about-section-title">What's New in 0.18</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.18.0</div>
+              <ul className="about-list">
+                <li><strong>Insert Images</strong> — Add images anywhere in the script and on the title page via Format → Insert Image, paste from the clipboard, or drag &amp; drop. Resize with the corner handle, set alignment, and they export to PDF and Word.</li>
+                <li><strong>Redesigned Title Page</strong> — Manage title-page images (add, place top/bottom, align, remove), choose a larger title font size, and preview the page live. The editor, preview, and PDF/DOCX exports all match.</li>
+                <li><strong>Mores &amp; Continueds</strong> — A new Format dialog to control automatic character (CONT'D) and the (MORE)/(CONT'D) at dialogue page breaks, with customizable marker text.</li>
+                <li><strong>Smarter (CONT'D)</strong> — (CONT'D) no longer carries across a new scene, and deleting it at a specific cue is remembered. Manually typed (CONT'D) is never removed.</li>
+                <li><strong>Larger Font Sizes</strong> — The font-size menus now go up to 96pt.</li>
+                <li><strong>Data-Loss Protection</strong> — A safeguard prevents a blank/just-loaded editor from ever overwriting a saved script with an empty document.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.17.7</div>
               <ul className="about-list">
                 <li><strong>Edge-to-Edge Display on Android</strong> — Updated how the editor handles modern Android screens so content reaches the screen edges without sitting under the status bar or gesture pill, addressing Play Console pre-launch warnings.</li>

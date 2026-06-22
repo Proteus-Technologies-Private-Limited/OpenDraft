@@ -2,6 +2,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import type { PageLayout } from '../stores/editorStore';
+import { resolveMoresContds } from '../stores/editorStore';
 
 export const paginationPluginKey = new PluginKey('pagination');
 
@@ -75,6 +76,10 @@ export interface BreakInfo {
   linesOnPage: number;
   isDialogueSplit: boolean;
   characterName: string;
+  /** True for the break that separates the title page from the script body.
+   *  The title page is its own unnumbered page and is not part of the script
+   *  page count, so this break does not consume a page number. */
+  isTitlePage: boolean;
 }
 
 export interface PaginationState {
@@ -109,11 +114,13 @@ export function createPaginationPlugin(
         const layout = getLayout();
         const { linesPerPage, sepHeightPx } = getPageMetrics(layout);
         const lineHeightPx = LINE_HEIGHT_PT * (96 / 72);
+        // Only reserve room for the CONT'D label when the marker is actually shown.
+        const showDialogueBreakContd = resolveMoresContds(layout).dialogueBreakContd;
         const decos: Decoration[] = [];
         for (const brk of ps.breaks) {
           const whitespacePx = Math.max(0, linesPerPage - brk.linesOnPage) * lineHeightPx;
           // Dialogue splits need extra space for the CONT'D label on the next page
-          const contdPx = brk.isDialogueSplit ? lineHeightPx : 0;
+          const contdPx = brk.isDialogueSplit && showDialogueBreakContd ? lineHeightPx : 0;
           const marginTop = Math.round(whitespacePx + sepHeightPx + contdPx);
           decos.push(
             Decoration.node(brk.offset, brk.offset + brk.nodeSize, {
@@ -136,7 +143,7 @@ function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHints = E
 
   interface NodeInfo {
     typeName: string; elementId: string; spaceBefore: number; text: string;
-    offset: number; nodeSize: number; lineMul: number;
+    offset: number; nodeSize: number; lineMul: number; fixedLines?: number;
   }
   const nodes: NodeInfo[] = [];
   let isFirst = true;
@@ -145,7 +152,11 @@ function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHints = E
     const elementId = getElementId(node);
     const sb = isFirst ? 0 : (SPACE_BEFORE[typeName] ?? 0);
     const lineMul = hints.lineHeightMultiplier[elementId] ?? 1;
-    nodes.push({ typeName, elementId, spaceBefore: sb, text: node.textContent || '', offset, nodeSize: node.nodeSize, lineMul });
+    // Images occupy a fixed estimated number of lines (no text to wrap).
+    const fixedLines = typeName === 'screenplayImage'
+      ? Math.max(1, Number(node.attrs?.heightLines) || 8)
+      : undefined;
+    nodes.push({ typeName, elementId, spaceBefore: sb, text: node.textContent || '', offset, nodeSize: node.nodeSize, lineMul, fixedLines });
     isFirst = false;
   });
 
@@ -153,11 +164,36 @@ function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHints = E
   let lineCount = 0;
   let pageNumber = 2;
   let i = 0;
+  // Title page handling: a leading run of `titlePage` nodes forms a separate,
+  // unnumbered page. Force the script body onto its own page after them.
+  let sawTitlePage = false;
+  let titleBroken = false;
 
   while (i < nodes.length) {
     const node = nodes[i];
+
+    if (node.typeName === 'titlePage') sawTitlePage = true;
+    // Leading images (when a title page exists) belong to the title page, so they
+    // don't trigger the body break and stay on the title page.
+    const isTitleRegionNode = node.typeName === 'titlePage' || node.typeName === 'screenplayImage';
+    if (!titleBroken && sawTitlePage && !isTitleRegionNode && lineCount > 0) {
+      // First script element after the title page → start it on a fresh page.
+      // pageNumber stays at its current value (the title page does not consume a
+      // number); the body's first page remains the implicit unnumbered page 1.
+      titleBroken = true;
+      breaks.push({
+        nodeIndex: i,
+        offset: node.offset, nodeSize: node.nodeSize,
+        pageNumber: 1, linesOnPage: lineCount,
+        isDialogueSplit: false, characterName: '', isTitlePage: true,
+      });
+      lineCount = 0; // fall through and lay this node out at the top of the body page
+    }
+
     const cpl = CHARS_PER_LINE[node.typeName] || 62;
-    const textLines = getTextLines(node.text, cpl) * node.lineMul;
+    const textLines = node.fixedLines !== undefined
+      ? node.fixedLines
+      : getTextLines(node.text, cpl) * node.lineMul;
     const totalLines = node.spaceBefore + textLines;
 
     // Build character+dialogue block
@@ -229,6 +265,7 @@ function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHints = E
               pageNumber, linesOnPage: lineCount,
               isDialogueSplit: true,
               characterName: node.text.trim(),
+              isTitlePage: false,
             });
             pageNumber++;
             lineCount = 1; // CONT'D line
@@ -249,7 +286,7 @@ function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHints = E
         nodeIndex: i,
         offset: node.offset, nodeSize: node.nodeSize,
         pageNumber, linesOnPage: lineCount,
-        isDialogueSplit: false, characterName: '',
+        isDialogueSplit: false, characterName: '', isTitlePage: false,
       });
       pageNumber++;
       lineCount = blockLines - node.spaceBefore;

@@ -11,6 +11,9 @@ export const Character = Node.create({
       extension: { default: null }, // (V.O.), (O.S.), (CONT'D)
       lang: { default: null },
       dir: { default: null },
+      // Auto-CONT'D bookkeeping (persisted via getJSON, not rendered to HTML).
+      contdAuto: { default: false },       // the automation added this (CONT'D) → it owns/may remove it
+      contdSuppressed: { default: false }, // writer removed an auto (CONT'D) here → do not re-add it
     };
   },
 

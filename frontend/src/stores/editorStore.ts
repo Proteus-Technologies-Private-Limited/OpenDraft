@@ -189,6 +189,40 @@ export const DEFAULT_FOOTER_CONTENT: HeaderFooterContent = {
   right: '',
 };
 
+/** "Mores & Continueds" config (per-document, like Final Draft). Controls the two
+ *  independent kinds of dialogue continuation and their marker text. Note: the
+ *  character (CONT'D) never carries across a scene heading — that is a fixed
+ *  industry rule, not a setting. */
+export interface MoresContds {
+  /** Append (CONT'D) to a character cue that resumes speaking after action
+   *  WITHIN the same scene. */
+  characterContd: boolean;
+  /** Show (MORE) at the bottom of a page and CHARACTER (CONT'D) at the top of the
+   *  next when a single dialogue block splits across a page break. */
+  dialogueBreakContd: boolean;
+  /** Marker for continued dialogue, e.g. "(CONT'D)". */
+  contdText: string;
+  /** Marker shown when dialogue continues onto the next page, e.g. "(MORE)". */
+  moreText: string;
+}
+
+export const DEFAULT_MORES_CONTDS: MoresContds = {
+  characterContd: true,
+  dialogueBreakContd: true,
+  contdText: "(CONT'D)",
+  moreText: '(MORE)',
+};
+
+/** Always returns a complete MoresContds, filling any missing/legacy fields with
+ *  defaults so older documents (saved before this feature) behave sensibly. */
+export function resolveMoresContds(layout: PageLayout | undefined): MoresContds {
+  const m = layout?.moresContds;
+  const resolved: MoresContds = { ...DEFAULT_MORES_CONTDS, ...(m ?? {}) };
+  if (!resolved.contdText.trim()) resolved.contdText = DEFAULT_MORES_CONTDS.contdText;
+  if (!resolved.moreText.trim()) resolved.moreText = DEFAULT_MORES_CONTDS.moreText;
+  return resolved;
+}
+
 export interface PageLayout {
   pageWidth: number;     // inches
   pageHeight: number;    // inches
@@ -203,6 +237,9 @@ export interface PageLayout {
   /** Show header/footer starting from this page number (default 2 = skip first page) */
   headerStartPage: number;
   footerStartPage: number;
+  /** Dialogue continuation ("Mores & Continueds") config. Optional for back-compat
+   *  with documents saved before this existed — read via resolveMoresContds(). */
+  moresContds?: MoresContds;
 }
 
 export const DEFAULT_PAGE_LAYOUT: PageLayout = {
@@ -218,6 +255,7 @@ export const DEFAULT_PAGE_LAYOUT: PageLayout = {
   footerContent: { ...DEFAULT_FOOTER_CONTENT },
   headerStartPage: 2,
   footerStartPage: 1,
+  moresContds: { ...DEFAULT_MORES_CONTDS },
 };
 
 export interface SceneInfo {
@@ -621,6 +659,11 @@ interface EditorState {
   setGoToPageOpen: (open: boolean) => void;
   titlePageEditorOpen: boolean;
   setTitlePageEditorOpen: (open: boolean) => void;
+  moresContdsOpen: boolean;
+  setMoresContdsOpen: (open: boolean) => void;
+  // Registered by ScreenplayEditor; the menu/toolbar calls it to start image insertion.
+  imageInsertHandler: (() => void) | null;
+  setImageInsertHandler: (fn: (() => void) | null) => void;
   openFileOpen: boolean;
   setOpenFileOpen: (open: boolean) => void;
   saveAsOpen: boolean;
@@ -1219,6 +1262,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setGoToPageOpen: (open) => set({ goToPageOpen: open }),
   titlePageEditorOpen: false,
   setTitlePageEditorOpen: (open) => set({ titlePageEditorOpen: open }),
+  moresContdsOpen: false,
+  setMoresContdsOpen: (open) => set({ moresContdsOpen: open }),
+  imageInsertHandler: null,
+  setImageInsertHandler: (fn) => set({ imageInsertHandler: fn }),
   openFileOpen: false,
   setOpenFileOpen: (open) => set({ openFileOpen: open }),
   saveAsOpen: false,
