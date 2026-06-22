@@ -125,13 +125,15 @@ sed -i '' "s/What's New in v${OLD_VERSION}/What's New in v${NEW_VERSION}/g" \
   "$PROJECT_ROOT/user-manual/search.js"
 echo "  ✓ user-manual/search.js"
 
-# Update Cargo.lock
+# Update Cargo.lock — bump ONLY the opendraft package version. Do NOT run
+# `cargo generate-lockfile`/`cargo update`: that re-resolves every dependency to
+# the latest version and pulls in incompatible Tauri releases (wry/tauri-runtime)
+# that break the build. The pinned dependency versions must stay as-is.
 echo ""
-echo "  Updating Cargo.lock..."
-cd "$PROJECT_ROOT/src-tauri"
-cargo generate-lockfile 2>/dev/null
+echo "  Updating Cargo.lock (opendraft version only)..."
+perl -0pi -e "s/(name = \"opendraft\"\nversion = \")${OLD_VERSION}(\")/\${1}${NEW_VERSION}\${2}/" \
+  "$PROJECT_ROOT/src-tauri/Cargo.lock"
 echo "  ✓ src-tauri/Cargo.lock"
-cd "$PROJECT_ROOT"
 
 echo ""
 
