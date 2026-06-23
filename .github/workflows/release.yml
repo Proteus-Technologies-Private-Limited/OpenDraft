@@ -1126,13 +1126,13 @@ jobs:
           # (Apple re-signs on store ingestion). Skipping avoids 30+ minute
           # hangs when timestamp.apple.com is slow/unreachable from CI.
           # Sign main binary
-          codesign --force --options runtime \
+          codesign --force --options runtime --timestamp=none \
             --entitlements "$ENTITLEMENTS" \
             --sign "$APP_SIGN_ID" \
             "$APP_PATH/Contents/MacOS/opendraft"
 
           # Sign the entire .app bundle
-          codesign --force --deep --options runtime \
+          codesign --force --deep --options runtime --timestamp=none \
             --entitlements "$ENTITLEMENTS" \
             --sign "$APP_SIGN_ID" \
             "$APP_PATH"
@@ -1145,7 +1145,7 @@ jobs:
             "$APP_PATH/Contents/embedded.provisionprofile"
 
           # Re-sign after embedding profile
-          codesign --force --deep --options runtime \
+          codesign --force --deep --options runtime --timestamp=none \
             --entitlements "$ENTITLEMENTS" \
             --sign "$APP_SIGN_ID" \
             "$APP_PATH"
