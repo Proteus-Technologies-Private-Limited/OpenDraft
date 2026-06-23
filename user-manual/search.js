@@ -48,7 +48,9 @@
     { page: 'Formatting', title: 'Formatting', section: '', text: 'Bold italic underline fonts text styling. Screenplay formatting conventions.', url: 'formatting.html' },
     { page: 'Formatting', title: 'Text Styling', section: 'Text Style', text: 'Bold Cmd B. Italic Cmd I. Underline Cmd U. Toggle style. Toolbar buttons. Select text apply style.', url: 'formatting.html#text-style' },
     { page: 'Formatting', title: 'Fonts', section: 'Fonts', text: 'Courier font 12pt size. Courier Prime default modern readable. Courier New classic. Courier Final Draft. Font dropdown toolbar. Page-level character-level.', url: 'formatting.html#fonts' },
-    { page: 'Formatting', title: 'Font Size', section: 'Font Size', text: 'Standard 12pt. Adjust 8pt to 72pt. Size dropdown toolbar. Page count accuracy.', url: 'formatting.html#font-size' },
+    { page: 'Formatting', title: 'Font Size', section: 'Font Size', text: 'Standard 12pt. Adjust 8pt to 96pt. Size dropdown toolbar. Page count accuracy.', url: 'formatting.html#font-size' },
+    { page: 'Formatting', title: 'Inserting Images', section: 'Images', text: 'Insert image Format menu. Paste image clipboard. Drag and drop image file. Resize corner handle align left center right. Images stored with screenplay export PDF Word docx. Storyboard reference photo logo shot insert.', url: 'formatting.html#images' },
+    { page: 'Formatting', title: 'Mores & Continueds', section: 'Mores Continueds', text: 'MORE CONTD continued page break dialogue split. Automatic character CONTD. Custom marker text house style. Scene aware not carried across scene heading. Manually typed CONTD untouched. Format menu Mores and Continueds.', url: 'formatting.html#mores-continueds' },
     { page: 'Formatting', title: 'Format Panel', section: 'Format Panel', text: 'Right-click format panel dialog. Live preview formatting changes. Element-specific font size alignment margins spacing.', url: 'formatting.html#format-panel' },
     { page: 'Formatting', title: 'Zoom', section: 'Zoom', text: 'Editor zoom level toolbar. 50 percent to 200 percent range. Display only not print.', url: 'formatting.html#zoom' },
     { page: 'Formatting', title: 'Formatting Templates', section: 'Templates', text: 'Formatting template manager Format menu. Industry Standard default template. Duplicate copy customize save new template. Custom templates fonts margins indents alignment element flow Tab Enter. Enforce override mode locked defaults. Per-element font size text style transform alignment colors layout placeholder.', url: 'formatting.html#formatting-templates' },
@@ -57,7 +59,9 @@
     // Title Page
     { page: 'Title Page', title: 'Title Page', section: '', text: 'Title page structured fields live preview. Written by author contact copyright draft WGA registration.', url: 'title-page.html' },
     { page: 'Title Page', title: 'Title Page Fields', section: 'Fields', text: 'Title written by based on draft date contact copyright WGA registration notes. Structured metadata auto-format.', url: 'title-page.html#fields' },
-    { page: 'Title Page', title: 'Live Preview', section: 'Preview', text: 'Real-time preview title page layout. Miniature page updates as you type.', url: 'title-page.html#preview' },
+    { page: 'Title Page', title: 'Live Preview', section: 'Preview', text: 'Real-time preview title page layout. Miniature page updates as you type. Mobile responsive form preview stack vertically phone small screen.', url: 'title-page.html#preview' },
+    { page: 'Title Page', title: 'Title Page Images', section: 'Images', text: 'Add image title page logo studio production. Place top bottom align left center right. Remove image. Preview PDF Word docx export.', url: 'title-page.html#images' },
+    { page: 'Title Page', title: 'Title Font Size', section: 'Title Font', text: 'Larger title font size. Editor preview PDF DOCX export match same size.', url: 'title-page.html#title-font' },
     { page: 'Title Page', title: 'Sync with Project', section: 'Sync', text: 'Sync title from project properties. Auto-populate title page fields.', url: 'title-page.html#sync' },
     { page: 'Title Page', title: 'Title Page Export', section: 'Export', text: 'PDF formatted title page first page. FDX Final Draft TitlePage element. Fountain metadata block. Import FDX title page.', url: 'title-page.html#export' },
 

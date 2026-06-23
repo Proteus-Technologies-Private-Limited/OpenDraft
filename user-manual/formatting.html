@@ -159,7 +159,7 @@
 
     <h3 id="font-size">Font Size</h3>
 
-    <p>The standard screenplay font size is <strong>12pt</strong>. You can adjust font size from 8pt to 72pt using the size dropdown in the toolbar. Keep in mind that changing from 12pt will affect page count accuracy (1 page = ~1 minute is based on 12pt Courier).</p>
+    <p>The standard screenplay font size is <strong>12pt</strong>. You can adjust font size from 8pt to 96pt using the size dropdown in the toolbar. Keep in mind that changing from 12pt will affect page count accuracy (1 page = ~1 minute is based on 12pt Courier).</p>
 
     <h2 id="format-panel">Format Panel</h2>
 
@@ -365,6 +365,41 @@
     </ul>
 
     <p>Templates are applied per document. Different screenplays in the same project can use different templates.</p>
+
+    <h2 id="images">Inserting Images</h2>
+
+    <p>You can add images anywhere in your script &mdash; and on the title page &mdash; using any of these methods:</p>
+
+    <ul>
+      <li>From the menu: <strong>Format &gt; Insert Image...</strong></li>
+      <li><strong>Paste</strong> an image directly from the clipboard</li>
+      <li><strong>Drag &amp; drop</strong> an image file into the editor</li>
+    </ul>
+
+    <p>Once placed, drag the corner handle to resize an image, and use the alignment controls to position it left, center, or right. Images are stored with the screenplay, so they travel with your document.</p>
+
+    <p>Inserted images are included when you export to <strong>PDF</strong> and <strong>Word (.docx)</strong>, rendered at the size and alignment you set.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p>Images are ideal for storyboards, reference photos, logos on the title page, or shot inserts. For title-page images specifically, see the <a href="title-page.html#images">Title Page</a> chapter.</p>
+      </div>
+    </div>
+
+    <h2 id="mores-continueds">Mores &amp; Continueds</h2>
+
+    <p>When a block of dialogue is split across a page break, professional screenplays mark the break with <strong>(MORE)</strong> at the bottom of the first page and <strong>(CONT'D)</strong> next to the character name at the top of the next page. OpenDraft handles this automatically.</p>
+
+    <p>Open <strong>Format &gt; Mores &amp; Continueds...</strong> to control the behavior:</p>
+
+    <ul>
+      <li><strong>Automatic character (CONT'D)</strong> &mdash; adds (CONT'D) after a character name when the same character speaks again without interruption.</li>
+      <li><strong>(MORE) / (CONT'D) at page breaks</strong> &mdash; inserts the markers when dialogue spans a page boundary.</li>
+      <li><strong>Custom marker text</strong> &mdash; change the exact text used for the (MORE) and (CONT'D) markers to match your house style.</li>
+    </ul>
+
+    <p>The automatic (CONT'D) is scene-aware: it is <em>not</em> carried across a new scene heading, and if you delete it at a particular cue, OpenDraft remembers that choice. A (CONT'D) you type manually is always left untouched.</p>
 
     <h2 id="zoom">Zoom</h2>
 
