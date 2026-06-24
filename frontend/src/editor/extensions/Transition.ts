@@ -3,7 +3,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 export const Transition = Node.create({
   name: 'transition',
   group: 'block',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
 
   parseHTML() {

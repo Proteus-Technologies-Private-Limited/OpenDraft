@@ -3,7 +3,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 export const Lyrics = Node.create({
   name: 'lyrics',
   group: 'block',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
 
   parseHTML() {

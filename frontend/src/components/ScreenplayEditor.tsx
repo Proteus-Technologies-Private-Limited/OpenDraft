@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react';
 import Document from '@tiptap/extension-document';
 import Text from '@tiptap/extension-text';
+import HardBreak from '@tiptap/extension-hard-break';
 import Bold from '@tiptap/extension-bold';
 import Italic from '@tiptap/extension-italic';
 import Underline from '@tiptap/extension-underline';
@@ -1348,7 +1349,7 @@ const ScreenplayEditor: React.FC = () => {
       Document.extend({
         content: 'block+',
       }),
-      Text, Bold, Italic, Underline, Strike, Dropcursor, Gapcursor,
+      Text, HardBreak, Bold, Italic, Underline, Strike, Dropcursor, Gapcursor,
       Subscript, Superscript,
       Highlight.configure({ multicolor: true }),
       TextStyle, Color, FontFamily, FontSize,

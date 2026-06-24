@@ -3,7 +3,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 export const Character = Node.create({
   name: 'character',
   group: 'block',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
 
   addAttributes() {

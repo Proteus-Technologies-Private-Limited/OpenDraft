@@ -3,7 +3,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 export const CastList = Node.create({
   name: 'castList',
   group: 'block',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
 
   parseHTML() {

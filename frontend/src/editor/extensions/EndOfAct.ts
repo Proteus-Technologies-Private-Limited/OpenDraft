@@ -7,7 +7,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 export const EndOfAct = Node.create({
   name: 'endOfAct',
   group: 'block',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
 
   addAttributes() {

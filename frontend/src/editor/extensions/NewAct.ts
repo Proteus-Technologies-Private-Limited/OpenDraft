@@ -8,7 +8,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 export const NewAct = Node.create({
   name: 'newAct',
   group: 'block',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
 
   addAttributes() {

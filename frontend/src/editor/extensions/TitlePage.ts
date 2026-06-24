@@ -19,7 +19,7 @@ export interface TitlePageAttrs {
 export const TitlePage = Node.create({
   name: 'titlePage',
   group: 'block',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
 
   addAttributes() {
