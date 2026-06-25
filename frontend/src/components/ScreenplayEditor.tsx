@@ -1447,6 +1447,7 @@ const ScreenplayEditor: React.FC = () => {
   // ── Dynamic CSS injection for custom formatting templates ──
   const activeTemplateId = useFormattingTemplateStore((s) => s.activeTemplateId);
   const templatesLoaded = useFormattingTemplateStore((s) => s.loaded);
+  const templates = useFormattingTemplateStore((s) => s.templates);
 
   useEffect(() => {
     // Load templates on mount
@@ -1460,12 +1461,11 @@ const ScreenplayEditor: React.FC = () => {
       injectTemplateCss(null);
       return;
     }
-    const pageLayout = useEditorStore.getState().pageLayout;
     const css = generateTemplateCss(template, pageLayout);
     injectTemplateCss(css);
 
     return () => { injectTemplateCss(null); };
-  }, [activeTemplateId, templatesLoaded]);
+  }, [activeTemplateId, templatesLoaded, templates, pageLayout]);
 
   // ── Owner starts collaboration — save current content, create own token, switch to collab mode ──
   const handleStartCollab = useCallback(async (guestSession: import('../services/api').CollabSession) => {
