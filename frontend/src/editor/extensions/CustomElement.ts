@@ -22,7 +22,7 @@ declare module '@tiptap/core' {
 export const CustomElement = Node.create<CustomElementOptions>({
   name: 'customElement',
   group: 'block',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
 
   addAttributes() {

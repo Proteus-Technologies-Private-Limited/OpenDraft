@@ -3,7 +3,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 export const SceneHeading = Node.create({
   name: 'sceneHeading',
   group: 'block',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
 
   addAttributes() {

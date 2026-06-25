@@ -3,7 +3,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 export const Action = Node.create({
   name: 'action',
   group: 'block',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
 
   parseHTML() {

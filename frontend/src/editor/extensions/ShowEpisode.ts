@@ -3,7 +3,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 export const ShowEpisode = Node.create({
   name: 'showEpisode',
   group: 'block',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
 
   parseHTML() {
