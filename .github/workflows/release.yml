@@ -133,9 +133,26 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
 
+      # Notarization is the slowest, most fragile part of the macOS build, and
+      # it runs at the very END of it. When Apple rejects the request — an
+      # expired Program License Agreement is the usual reason — the build has
+      # already spent ten minutes compiling, and the failure arrives as an
+      # opaque 403. Worse, the same condition sometimes makes notarytool hang
+      # instead of erroring, burning the full step timeout twice (once here,
+      # once in the retry). Asking notarytool a trivial question first turns all
+      # of that into a ten-second failure with an actionable message.
+      - name: Verify Apple notarization access
+        if: runner.os == 'macOS'
+        timeout-minutes: 5
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+        run: .github/scripts/check-notarization-access.sh
+
       - name: Build Tauri app
         id: tauri_build
-        timeout-minutes: 60
+        timeout-minutes: 30
         continue-on-error: true
         uses: tauri-apps/tauri-action@v0
         env:
@@ -195,7 +212,7 @@ jobs:
 
       - name: Build Tauri app (retry)
         if: steps.tauri_build.outcome == 'failure'
-        timeout-minutes: 60
+        timeout-minutes: 30
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -534,9 +551,19 @@ jobs:
           fs.writeFileSync('tauri.conf.json', JSON.stringify(cfg, null, 2));
           "
 
+      # See the matrix job — fails in seconds when Apple's agreement lapsed,
+      # instead of after the build in a step that may hang until it times out.
+      - name: Verify Apple notarization access
+        timeout-minutes: 5
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+        run: .github/scripts/check-notarization-access.sh
+
       - name: Build Tauri app
         id: tauri_build
-        timeout-minutes: 60
+        timeout-minutes: 30
         continue-on-error: true
         uses: tauri-apps/tauri-action@v0
         env:
@@ -557,7 +584,7 @@ jobs:
 
       - name: Build Tauri app (retry)
         if: steps.tauri_build.outcome == 'failure'
-        timeout-minutes: 60
+        timeout-minutes: 30
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -643,9 +670,19 @@ jobs:
           fs.writeFileSync('tauri.conf.json', JSON.stringify(cfg, null, 2));
           "
 
+      # See the matrix job — fails in seconds when Apple's agreement lapsed,
+      # instead of after the build in a step that may hang until it times out.
+      - name: Verify Apple notarization access
+        timeout-minutes: 5
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+        run: .github/scripts/check-notarization-access.sh
+
       - name: Build Tauri app
         id: tauri_build_legacy
-        timeout-minutes: 60
+        timeout-minutes: 30
         continue-on-error: true
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -657,7 +694,7 @@ jobs:
 
       - name: Build Tauri app (retry)
         if: steps.tauri_build_legacy.outcome == 'failure'
-        timeout-minutes: 60
+        timeout-minutes: 30
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
