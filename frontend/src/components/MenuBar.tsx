@@ -1804,9 +1804,10 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
               <div className="about-changelog">
               <div className="about-subsection-title">v0.20.0</div>
               <ul className="about-list">
-                <li><strong>Automatic Backups</strong> — Choose a folder and OpenDraft saves timestamped copies of your script there while you write. Back up on demand with File → Backups → Back Up Now, and bring any snapshot back with Recover Backup. Backups include your notes, tags, beats, characters and images, and live outside the app's database — so they survive even if something happens to it. (Desktop only.)</li>
+                <li><strong>Automatic Backups</strong> — Choose a folder and OpenDraft saves timestamped copies of your script there while you write. Each project gets its own folder and the first copy is written the moment you turn backups on. Back up on demand with File → Backups → Back Up Now, and bring any snapshot back with Recover Backup. Backups include your notes, tags, beats, characters and images, and live outside the app's database — so they survive even if something happens to it. (Desktop only.)</li>
                 <li><strong>Hard Line Breaks</strong> — Shift+Enter starts a new line inside a screenplay element without creating a new element. Breaks are preserved in PDF, Word, Final Draft and Fountain exports, and counted correctly when paginating.</li>
                 <li><strong>More Reliable Saving</strong> — Manual saves no longer drop per-script spelling and grammar settings, and exported <code>.odraft</code> files now carry all of a script's notes, tags, beats and character profiles.</li>
+                <li><strong>Your Script Survives a Trip to Settings</strong> — Opening Settings (or the project list) and coming back no longer leaves the editor blank. Whatever you had open returns exactly as you left it, including unsaved edits and files opened straight from disk.</li>
               </ul>
 
               <div className="about-subsection-title">v0.19.0</div>
