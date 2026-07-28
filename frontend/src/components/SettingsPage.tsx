@@ -7,6 +7,7 @@ import { initDemoInfo, isDemoMode } from '../services/demoInfo';
 import { showToast } from './Toast';
 import { getApiBase } from '../config';
 import { getDeviceId } from '../services/deviceId';
+import BackupSettingsSection from './BackupSettingsSection';
 
 const EXPIRY_OPTIONS = [
   { label: '30 minutes', hours: 0.5 },
@@ -604,6 +605,8 @@ const SettingsPage: React.FC = () => {
             )}
           </div>
         </section>
+
+        <BackupSettingsSection />
 
         {/* ── Collab Account ── */}
         <section className="settings-section">

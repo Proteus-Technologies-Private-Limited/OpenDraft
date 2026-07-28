@@ -3,6 +3,7 @@
  * No React, no side-effects — just data in, stats out.
  */
 import type { JSONContent } from '@tiptap/react';
+import { jsonBlockText, singleLine } from './nodeText';
 import type { CharacterProfile } from '../stores/editorStore';
 
 // ── Scene heading parsing (matching SceneNavigator patterns) ──────────
@@ -43,11 +44,9 @@ function parseHeading(raw: string): { prefix: string; location: string; timeOfDa
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-function getTextContent(node: JSONContent): string {
-  if (node.text) return node.text;
-  if (!node.content) return '';
-  return node.content.map(getTextContent).join('');
-}
+// Hard breaks count as newlines so words either side stay separate — a
+// glued "endbegin" would understate every word count below.
+const getTextContent = jsonBlockText;
 
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
@@ -140,9 +139,13 @@ function extractSceneData(doc: JSONContent): SceneData[] {
 
     if (type === 'sceneHeading') {
       if (current) scenes.push(current);
-      const parsed = parseHeading(text);
+      // A heading is one line by definition. Collapse any hard break so the
+      // prefix / location / time-of-day split isn't thrown by a newline, and
+      // so the heading reads correctly wherever it's displayed.
+      const headingText = singleLine(text);
+      const parsed = parseHeading(headingText);
       current = {
-        heading: text,
+        heading: headingText,
         prefix: parsed.prefix,
         location: parsed.location,
         timeOfDay: parsed.timeOfDay,

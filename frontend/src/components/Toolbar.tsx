@@ -25,6 +25,7 @@ import {
 } from 'react-icons/fa';
 import { useEditorStore, NOTE_COLORS } from '../stores/editorStore';
 import type { ElementType } from '../stores/editorStore';
+import { singleLine } from '../utils/nodeText';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { BUILT_IN_ELEMENT_IDS } from '../stores/formattingTypes';
 import {
@@ -411,7 +412,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
     if (text.trim()) {
       const currentNodeType = $from.parent.type.name;
-      const nodeText = $from.parent.textContent.trim();
+      const nodeText = singleLine($from.parent.textContent);
       let contextLabel = nodeText.slice(0, 60);
       if (currentNodeType === 'character') {
         contextLabel = nodeText.replace(/\s*\([^)]*\)\s*/g, '').trim();
@@ -421,7 +422,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         let charName = '';
         editor.state.doc.nodesBetween(0, selFrom, (node) => {
           if (node.type.name === 'character') {
-            charName = node.textContent.trim().replace(/\s*\([^)]*\)\s*/g, '').trim();
+            charName = singleLine(node.textContent).replace(/\s*\([^)]*\)\s*/g, '').trim();
           }
           return true;
         });

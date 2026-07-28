@@ -12,6 +12,7 @@
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { Node as PMNode } from '@tiptap/pm/model';
+import { jsonBlockText } from '../utils/nodeText';
 
 export const trackChangesPluginKey = new PluginKey('trackChanges');
 
@@ -33,8 +34,13 @@ interface DocBlock extends TextBlock {
 
 function extractBlocksFromJSON(doc: any): TextBlock[] {
   if (!doc?.content) return [];
+  // Must agree character-for-character with extractBlocksFromDoc below: the
+  // base doc comes in as JSON and the current doc as ProseMirror nodes, and
+  // the two are diffed against each other. A hard break is one newline on both
+  // sides (`leafText` handles the PM side). If they disagreed, every block
+  // after a break would produce phantom diffs and out-of-range decorations.
   return doc.content.map((node: any) => ({
-    text: node.content?.map((c: any) => c.text || '').join('') || '',
+    text: jsonBlockText(node),
     type: node.type,
   }));
 }

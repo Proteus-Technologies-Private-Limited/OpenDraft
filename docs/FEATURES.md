@@ -27,6 +27,15 @@ A complete list of features in OpenDraft.
 - **Visual Diff** -- Compare any two versions side-by-side to see exactly what changed
 - **Restore** -- Roll back to any previous draft instantly
 
+## Backups
+
+- **Automatic Backups** -- Timestamped copies of your script written to a folder you choose, on an interval you set (desktop only)
+- **Back Up Now** -- Pin the current moment on demand; manual backups are never deleted by the retention limit
+- **Recover Backup** -- Browse every snapshot, preview it, and restore it as a new script or over the current one
+- **Complete snapshots** -- Backups carry notes, tags, beats, character profiles and images, so a restore brings the script back whole
+
+**Version History vs Backups:** Version History stores checkpoints *inside* OpenDraft's database and covers a whole project. Backups are ordinary files *outside* the app, one per script -- so they survive even if the database is lost. Use both.
+
 ## Collaboration
 
 - **Real-time Co-editing** -- Multiple writers editing simultaneously with live cursors and presence

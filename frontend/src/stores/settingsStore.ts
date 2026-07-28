@@ -49,6 +49,26 @@ interface SettingsState {
   // Until then, the New Screenplay action opens the prefs dialog instead of going straight in.
   formatPreferencesInitialized: boolean;
   setFormatPreferencesInitialized: (v: boolean) => void;
+
+  // ── Automatic backups (desktop only) ──────────────────────────────────
+  /** Master switch for timed snapshots to `backupFolder`. */
+  backupEnabled: boolean;
+  setBackupEnabled: (v: boolean) => void;
+  /** Absolute path to the folder snapshots are written to. '' = not chosen. */
+  backupFolder: string;
+  setBackupFolder: (path: string) => void;
+  /** Minutes between automatic snapshots. */
+  backupIntervalMinutes: number;
+  setBackupIntervalMinutes: (m: number) => void;
+  /** Automatic snapshots kept per script; 0 = keep all. Manual ones are never pruned. */
+  backupRetentionCount: number;
+  setBackupRetentionCount: (n: number) => void;
+  /** Embed referenced images so a restore is complete (at the cost of size). */
+  backupIncludeImages: boolean;
+  setBackupIncludeImages: (v: boolean) => void;
+  /** Also snapshot documents that were never saved to the library. */
+  backupUnsavedDocs: boolean;
+  setBackupUnsavedDocs: (v: boolean) => void;
 }
 
 const STORAGE_KEY_URL = 'opendraft:collabServerUrl';
@@ -56,6 +76,40 @@ const STORAGE_KEY_AUTH = 'opendraft:collabAuth';
 const STORAGE_KEY_EXPIRY = 'opendraft:defaultInviteExpiry';
 const STORAGE_KEY_FORMATS = 'opendraft:enabledScriptFormats';
 const STORAGE_KEY_FORMATS_INIT = 'opendraft:formatPreferencesInitialized';
+const STORAGE_KEY_BACKUP_ENABLED = 'opendraft:backupEnabled';
+const STORAGE_KEY_BACKUP_FOLDER = 'opendraft:backupFolder';
+const STORAGE_KEY_BACKUP_INTERVAL = 'opendraft:backupIntervalMinutes';
+const STORAGE_KEY_BACKUP_RETENTION = 'opendraft:backupRetentionCount';
+const STORAGE_KEY_BACKUP_IMAGES = 'opendraft:backupIncludeImages';
+const STORAGE_KEY_BACKUP_UNSAVED = 'opendraft:backupUnsavedDocs';
+
+export const BACKUP_INTERVAL_OPTIONS = [5, 10, 15, 30, 60] as const;
+/** 0 means "keep every snapshot". */
+export const BACKUP_RETENTION_OPTIONS = [10, 25, 50, 100, 0] as const;
+
+const DEFAULT_BACKUP_INTERVAL_MINUTES = 10;
+const DEFAULT_BACKUP_RETENTION = 25;
+
+/**
+ * Read a stored integer, clamped into a sane range.
+ *
+ * Corrupted or hand-edited localStorage must never yield a 0ms timer interval
+ * or a negative retention count, so every read goes through this rather than a
+ * bare parseInt.
+ */
+function loadClampedInt(key: string, fallback: number, min: number, max: number): number {
+  const raw = localStorage.getItem(key);
+  if (raw === null) return fallback;
+  const n = parseInt(raw, 10);
+  if (Number.isNaN(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function loadBool(key: string, fallback: boolean): boolean {
+  const raw = localStorage.getItem(key);
+  if (raw === null) return fallback;
+  return raw === '1';
+}
 
 function loadEnabledScriptFormats(): string[] {
   try {
@@ -124,5 +178,44 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setFormatPreferencesInitialized: (v) => {
     try { localStorage.setItem(STORAGE_KEY_FORMATS_INIT, v ? '1' : '0'); } catch { /* ignore */ }
     set({ formatPreferencesInitialized: v });
+  },
+
+  // ── Automatic backups ────────────────────────────────────────────────
+  backupEnabled: loadBool(STORAGE_KEY_BACKUP_ENABLED, false),
+  setBackupEnabled: (v) => {
+    try { localStorage.setItem(STORAGE_KEY_BACKUP_ENABLED, v ? '1' : '0'); } catch { /* ignore */ }
+    set({ backupEnabled: v });
+  },
+
+  backupFolder: localStorage.getItem(STORAGE_KEY_BACKUP_FOLDER) || '',
+  setBackupFolder: (path) => {
+    try { localStorage.setItem(STORAGE_KEY_BACKUP_FOLDER, path); } catch { /* ignore */ }
+    set({ backupFolder: path });
+  },
+
+  backupIntervalMinutes: loadClampedInt(STORAGE_KEY_BACKUP_INTERVAL, DEFAULT_BACKUP_INTERVAL_MINUTES, 1, 240),
+  setBackupIntervalMinutes: (m) => {
+    const clamped = Math.min(240, Math.max(1, m));
+    try { localStorage.setItem(STORAGE_KEY_BACKUP_INTERVAL, String(clamped)); } catch { /* ignore */ }
+    set({ backupIntervalMinutes: clamped });
+  },
+
+  backupRetentionCount: loadClampedInt(STORAGE_KEY_BACKUP_RETENTION, DEFAULT_BACKUP_RETENTION, 0, 1000),
+  setBackupRetentionCount: (n) => {
+    const clamped = Math.min(1000, Math.max(0, n));
+    try { localStorage.setItem(STORAGE_KEY_BACKUP_RETENTION, String(clamped)); } catch { /* ignore */ }
+    set({ backupRetentionCount: clamped });
+  },
+
+  backupIncludeImages: loadBool(STORAGE_KEY_BACKUP_IMAGES, true),
+  setBackupIncludeImages: (v) => {
+    try { localStorage.setItem(STORAGE_KEY_BACKUP_IMAGES, v ? '1' : '0'); } catch { /* ignore */ }
+    set({ backupIncludeImages: v });
+  },
+
+  backupUnsavedDocs: loadBool(STORAGE_KEY_BACKUP_UNSAVED, true),
+  setBackupUnsavedDocs: (v) => {
+    try { localStorage.setItem(STORAGE_KEY_BACKUP_UNSAVED, v ? '1' : '0'); } catch { /* ignore */ }
+    set({ backupUnsavedDocs: v });
   },
 }));

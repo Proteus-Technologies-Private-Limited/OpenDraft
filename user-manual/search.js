@@ -161,6 +161,10 @@
     { page: 'Version History', title: 'Viewing History', section: 'View', text: 'File version history. Versions tab project view. Message date author. Relative time hours ago.', url: 'version-history.html#view-history' },
     { page: 'Version History', title: 'Restoring a Version', section: 'Restore', text: 'Go back previous version. Find version restore button. Script updated match. New version created. Safe undo restore. Does not delete history.', url: 'version-history.html#restore' },
     { page: 'Version History', title: 'Save vs Check In', section: 'Save vs Check In', text: 'Save Cmd S disk frequently. Check in named version snapshot milestones. Finished scene end session before major changes.', url: 'version-history.html#save-vs-checkin' },
+    { page: 'Version History', title: 'Backups & Recovery', section: 'Backups', text: 'Automatic backups timestamped copies folder outside database survive data loss. Backup vs version history difference. Desktop only.', url: 'version-history.html#backups' },
+    { page: 'Version History', title: 'Turning on automatic backups', section: 'Backups', text: 'Settings automatic backups browse folder use default Documents OpenDraft Backups. Interval 5 10 15 30 60 minutes. Retention keep most recent per script. Include images. OneDrive Dropbox iCloud warning cloud sync.', url: 'version-history.html#automatic-backups' },
+    { page: 'Version History', title: 'Back Up Now', section: 'Backups', text: 'File backups back up now manual snapshot immediately no dialog. Never deleted retention limit. Before risky rewrite. Difference from export odraft.', url: 'version-history.html#back-up-now' },
+    { page: 'Version History', title: 'Recovering a backup', section: 'Backups', text: 'File backups recover backup browse snapshots preview restore. Open as new script safe. Replace current script overwrite undo safety copy. Import from a file odraft.', url: 'version-history.html#recover-backup' },
 
     // Import & Export
     { page: 'Import & Export', title: 'Import & Export', section: '', text: 'Final Draft Fountain PDF plain text formats. Import export save as.', url: 'import-export.html' },

@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react';
 import Document from '@tiptap/extension-document';
 import Text from '@tiptap/extension-text';
+import { ScreenplayHardBreak, HardBreakLeafText } from '../editor/extensions/ScreenplayHardBreak';
 import Bold from '@tiptap/extension-bold';
 import Italic from '@tiptap/extension-italic';
 import Underline from '@tiptap/extension-underline';
@@ -68,6 +69,10 @@ import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck
 import { Grammar, grammarPluginKey } from '../editor/extensions/Grammar';
 import { spellChecker, BUILTIN_LANGUAGE } from '../editor/spellchecker';
 import { grammarIgnore } from '../editor/grammar/grammarIgnore';
+import { buildSaveContent as buildSaveContentShared } from '../utils/saveContent';
+import { characterKey } from '../utils/nodeText';
+import { computeContdChanges, type ContdBlock } from '../editor/contdAuto';
+import { useBackupScheduler } from '../hooks/useBackupScheduler';
 import { runRetext, RETEXT_CATEGORIES, type RetextCategory } from '../editor/grammar/retextProvider';
 import { runHarper } from '../editor/grammar/harperProvider';
 import { clearEditorHistory } from '../editor/clearHistory';
@@ -86,7 +91,9 @@ import type { OpenSource } from './OpenFile';
 import WelcomeDialog, { type WelcomeChoice } from './WelcomeDialog';
 import { parseFountain } from '../utils/fountainParser';
 import { parseFDXFull } from '../utils/fdxParser';
-import { parseOdraft } from '../utils/odraftFormat';
+import { parseOdraft, downloadOdraft } from '../utils/odraftFormat';
+import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
+import { stashSessionDoc, takeSessionDoc, clearSessionDoc } from '../utils/sessionDoc';
 import SaveAsDialog from './SaveAsDialog';
 import TitlePageEditor from './TitlePageEditor';
 import MoresContdsDialog from './MoresContdsDialog';
@@ -1348,7 +1355,9 @@ const ScreenplayEditor: React.FC = () => {
       Document.extend({
         content: 'block+',
       }),
-      Text, Bold, Italic, Underline, Strike, Dropcursor, Gapcursor,
+      // HardBreakLeafText must travel with ScreenplayHardBreak — see that module.
+      Text, ScreenplayHardBreak, HardBreakLeafText,
+      Bold, Italic, Underline, Strike, Dropcursor, Gapcursor,
       Subscript, Superscript,
       Highlight.configure({ multicolor: true }),
       TextStyle, Color, FontFamily, FontSize,
@@ -1619,13 +1628,10 @@ const ScreenplayEditor: React.FC = () => {
     if (editor) updateScenes();
   }, [editor, sceneNumbersVisible, sceneNumbersLocked, updateScenes]);
 
-  // --- Collect character names from document (strip extensions like CONT'D, V.O., O.S.) ---
-  const stripCharacterExtension = useCallback((raw: string): string => {
-    // Remove all parenthetical extensions from character names
-    // Handles: (CONT'D), (CONT'D), (CONTD), (V.O.), (V/O), (O.S.), (O.C.), (MORE)
-    return raw.replace(/\s*\([^)]*\)\s*/g, '').trim();
-  }, []);
-
+  // --- Collect character names from document ---
+  // `characterKey` (utils/nodeText) is the one normalization: collapse hard
+  // breaks to spaces, drop extensions like (CONT'D)/(V.O.)/(O.S.), uppercase.
+  // Every site that compares a cue to a stored name must use it on both sides.
   const { setCharacters } = useEditorStore();
   // Per-document "Mores & Continueds" config. Reactive: editing it re-runs the
   // CONT'D effect and re-renders the page-break markers.
@@ -1637,8 +1643,7 @@ const ScreenplayEditor: React.FC = () => {
     const names = new Set<string>();
     editor.state.doc.descendants((node) => {
       if (node.type.name === 'character') {
-        const raw = node.textContent.trim().toUpperCase();
-        const base = stripCharacterExtension(raw);
+        const base = characterKey(node.textContent);
         if (base) names.add(base);
       }
       return true;
@@ -1646,7 +1651,7 @@ const ScreenplayEditor: React.FC = () => {
     const sorted = Array.from(names).sort();
     setKnownCharacters(sorted);
     setCharacters(sorted);
-  }, [editor, stripCharacterExtension, setCharacters]);
+  }, [editor, setCharacters]);
 
   useEffect(() => {
     if (!editor) return;
@@ -1688,87 +1693,28 @@ const ScreenplayEditor: React.FC = () => {
   useEffect(() => {
     if (!editor || !characterContd) return;
     let timeout: ReturnType<typeof setTimeout> | null = null;
-    // Configured marker, e.g. "(CONT'D)", and an uppercase form for detection.
+    // Configured marker, e.g. "(CONT'D)".
     const contdMarker = contdText.trim() || "(CONT'D)";
-    const contdMarkerUpper = contdMarker.toUpperCase();
-
-    // Elements that mark a new scene — they break dialogue continuation.
-    const CONTD_RESET_TYPES = new Set(['sceneHeading', 'transition', 'newAct', 'endOfAct']);
 
     const updateContd = () => {
       const { doc } = editor.state;
 
-      // First pass: collect all children and determine what each character node should be
-      const children: { type: string; text: string; pos: number; attrs: Record<string, unknown> }[] = [];
+      // Collect every top-level block. `nodeSize` travels with each one so the
+      // replace range is derived from it rather than from the text length —
+      // the latter is short by one per hard break, which would leave the tail
+      // of the cue behind and duplicate it.
+      const blocks: ContdBlock[] = [];
       doc.forEach((node, offset) => {
-        children.push({ type: node.type.name, text: node.textContent, pos: offset, attrs: node.attrs });
+        blocks.push({
+          type: node.type.name,
+          text: node.textContent,
+          pos: offset,
+          nodeSize: node.nodeSize,
+          attrs: node.attrs,
+        });
       });
 
-      // Determine CONT'D status for each character node. A change may update the node's
-      // text and/or its override attributes (contdSeen / contdSuppressed).
-      interface ContdChange { pos: number; oldText: string | null; newText: string | null; attrs: Record<string, unknown> | null }
-      const changes: ContdChange[] = [];
-      let lastCharBase: string | null = null;
-      let lastWasDialogue = false;
-
-      for (const child of children) {
-        if (child.type === 'character') {
-          const raw = child.text.trim().toUpperCase();
-          const base = stripCharacterExtension(raw);
-          // Detect the configured marker as well as the standard forms, so an
-          // existing marker is recognised even if the text setting was changed.
-          const hasContd = /\(CONT'D\)|\(CONT'D\)|\(CONTD\)/i.test(raw) || raw.includes(contdMarkerUpper);
-          const contdAuto = child.attrs.contdAuto === true;
-          const contdSuppressed = child.attrs.contdSuppressed === true;
-          const shouldHaveContd = lastCharBase !== null && base === lastCharBase && !lastWasDialogue;
-
-          const setText = (newText: string) =>
-            changes.push({ pos: child.pos, oldText: child.text, newText, attrs: null });
-          const setAttrs = (patch: Record<string, unknown>) =>
-            changes.push({ pos: child.pos, oldText: null, newText: null, attrs: { ...child.attrs, ...patch } });
-
-          // Golden rule: the automation only ever adds/removes a (CONT'D) it added
-          // itself (contdAuto). A (CONT'D) the writer typed is never touched.
-          if (shouldHaveContd && base) {
-            if (contdSuppressed) {
-              // Writer opted out here. If they re-typed (CONT'D), respect it as their
-              // own (manual) and forget the opt-out; otherwise leave the cue untouched.
-              if (hasContd) setAttrs({ contdSuppressed: false });
-            } else if (!hasContd) {
-              if (contdAuto) {
-                // An auto (CONT'D) was here and is now gone → writer removed it → remember.
-                setAttrs({ contdSuppressed: true, contdAuto: false });
-              } else {
-                // Genuine first-time auto-add.
-                setText(`${base} ${contdMarker}`);
-                setAttrs({ contdAuto: true });
-              }
-            } else if (contdAuto && !raw.endsWith(contdMarkerUpper)) {
-              // Present and auto-added, but the marker text was changed in settings →
-              // normalise it to the configured text. Manually typed markers are left.
-              setText(`${base} ${contdMarker}`);
-            }
-            // else hasContd && !suppressed: present (manual, or already correct) → leave it.
-          } else {
-            // Not a continuation here (different speaker, or after a scene reset).
-            // Only strip a now-stale (CONT'D) the automation itself added — never a
-            // manually typed one.
-            if (hasContd && contdAuto) setText(base);
-            if (contdAuto || contdSuppressed) setAttrs({ contdAuto: false, contdSuppressed: false });
-          }
-
-          lastCharBase = base;
-          lastWasDialogue = false;
-        } else if (child.type === 'dialogue' || child.type === 'parenthetical') {
-          lastWasDialogue = true;
-        } else {
-          if (CONTD_RESET_TYPES.has(child.type)) {
-            lastCharBase = null; // new scene / transition breaks dialogue continuation
-          }
-          lastWasDialogue = false;
-        }
-      }
-
+      const changes = computeContdChanges(blocks, { contdMarker });
       if (changes.length === 0) return;
 
       // Apply changes in reverse document order so earlier positions don't shift.
@@ -1777,9 +1723,7 @@ const ScreenplayEditor: React.FC = () => {
         const c = changes[i];
         if (c.attrs) tr.setNodeMarkup(c.pos, undefined, c.attrs);
         if (c.oldText !== null && c.newText !== null) {
-          const from = c.pos + 1; // +1 for node open token
-          const to = from + c.oldText.length;
-          tr.insertText(c.newText, from, to);
+          tr.insertText(c.newText, c.from, c.to);
         }
       }
       tr.setMeta('addToHistory', false);
@@ -1797,7 +1741,7 @@ const ScreenplayEditor: React.FC = () => {
       editor.off('update', debouncedUpdate);
       if (timeout) clearTimeout(timeout);
     };
-  }, [editor, stripCharacterExtension, characterContd, contdText]);
+  }, [editor, characterContd, contdText]);
 
   // --- Character autocomplete: show/update on each editor update while in character block ---
   useEffect(() => {
@@ -1811,8 +1755,7 @@ const ScreenplayEditor: React.FC = () => {
       if (charAutoDismissedRef.current) return;
 
       const { $from } = editor.state.selection;
-      const rawText = $from.parent.textContent.trim().toUpperCase();
-      const text = stripCharacterExtension(rawText);
+      const text = characterKey($from.parent.textContent);
       if (!text) {
         setCharAutoState(s => s.visible ? { ...s, visible: false } : s);
         charAutoDismissedRef.current = false;
@@ -1943,41 +1886,14 @@ const ScreenplayEditor: React.FC = () => {
     };
   }, [editor, grammarModalOpen, grammarCheckEnabled]);
 
-  // Build a saveable content object: editor JSON + store metadata at top level
-  const buildSaveContent = useCallback((): Record<string, unknown> | undefined => {
-    if (!editor || editor.isDestroyed) return undefined;
-    const store = useEditorStore.getState();
-    const tplStore = useFormattingTemplateStore.getState();
-    const doc = editor.getJSON();
-    return {
-      ...doc,
-      _notes: store.notes,
-      _generalNotes: store.generalNotes,
-      _tags: store.tags,
-      _tagCategories: store.tagCategories,
-      _characterProfiles: store.characterProfiles,
-      _characterRelationships: store.characterRelationships,
-      _beats: store.beats,
-      _beatColumns: store.beatColumns,
-      _beatArrangeMode: store.beatArrangeMode,
-      _templateId: tplStore.activeTemplateId,
-      _ignoredWords: spellChecker.getIgnoredWords(),
-      _ignoredOnce: spellChecker.getIgnoredOnce(),
-      // Project dictionary lives on the Project entity now; keep the script
-      // field empty so older clients don't show stale words after migration.
-      _customDictWords: [],
-      _enabledGlobalDicts: spellChecker.getEnabledGlobalDicts(),
-      _projectDictEnabled: spellChecker.isProjectDictionaryEnabled(),
-      _enabledLanguages: spellChecker.getEnabledLanguages(),
-      _ignoredGrammarRules: grammarIgnore.getIgnoredRules(),
-      _ignoredGrammarOnce: grammarIgnore.getIgnoredOnce(),
-      _spellCheckEnabled: store.spellCheckEnabled,
-      _grammarCheckEnabled: store.grammarCheckEnabled,
-      _sceneNumbersVisible: store.sceneNumbersVisible,
-      _sceneNumbersLocked: store.sceneNumbersLocked,
-      _pageLayout: store.pageLayout,
-    };
-  }, [editor]);
+  // Build a saveable content object: editor JSON + store metadata at top level.
+  // The payload shape lives in utils/saveContent so MenuBar's Cmd+S and the
+  // backup writer cannot drift from it again. Keep the useCallback wrapper —
+  // its identity is a dependency of the auto-save and metadata-save effects.
+  const buildSaveContent = useCallback(
+    (): Record<string, unknown> | undefined => buildSaveContentShared(editor),
+    [editor],
+  );
 
   // --- Auto-save to backend every 30 seconds if a project/script is active ---
   // Skip for collab guests — they don't own the document and the project may
@@ -1986,7 +1902,14 @@ const ScreenplayEditor: React.FC = () => {
   // Tracks whether the script currently in the editor has real (textful) content
   // saved. When true, an auto-save that finds the editor body suddenly empty is
   // treated as an editor glitch (reset/remount) and skipped — never written.
-  const lastSavedNonEmptyRef = useRef<boolean>(false);
+  //
+  // Seeded from the store rather than `false`: mounting with a script already
+  // open (a remount after a trip to Settings) means a saved script exists that
+  // this mount has not read yet, and until it does, the safe assumption is that
+  // it has content. Starting at `false` left that window unguarded — the only
+  // thing that stopped the blank body being written was the storage-layer guard
+  // throwing, which surfaced as a save-error modal.
+  const lastSavedNonEmptyRef = useRef<boolean>(Boolean(currentProject && currentScriptId));
 
   // Register an editor-reset hook so performLogout can flush any pending
   // save for a cloud file and then drop the editor back to a blank, local
@@ -2014,6 +1937,9 @@ const ScreenplayEditor: React.FC = () => {
         }
 
         // Reset the editor to a fresh, blank document — mirrors handleNewScreenplay.
+        // Drop the stash too, so the signed-out document cannot be restored into
+        // the blank one on the next route change.
+        clearSessionDoc();
         if (editor && !editor.isDestroyed) {
           clearTrackChanges();
           editor.commands.setContent(
@@ -2053,6 +1979,25 @@ const ScreenplayEditor: React.FC = () => {
   // guard the auto-save would overwrite the old script with empty metadata.
   const scriptSwitchingRef = useRef(false);
   const isCollabGuest = collabMode && !isCollabHost;
+
+  // Subscribed (not getState) so a rename is reflected in the next snapshot's
+  // filename without waiting for an unrelated re-render.
+  const backupDocumentTitle = useEditorStore((s) => s.documentTitle);
+
+  // Timed snapshots to the user's backup folder. Separate from the auto-save
+  // below — different cadence, and it also covers documents that were never
+  // saved to the library. No-ops unless enabled on desktop.
+  useBackupScheduler({
+    buildSaveContent,
+    documentTitle: backupDocumentTitle,
+    projectId: currentProject?.id ?? null,
+    scriptId: currentScriptId,
+    projectTitle: currentProject?.name,
+    scriptSwitchingRef,
+    isCollabGuest,
+    isHistoryMode,
+  });
+
   useEffect(() => {
     if (!editor || !currentProject || !currentScriptId || isCollabGuest) return;
     const { setSaveStatus } = useEditorStore.getState();
@@ -2302,6 +2247,60 @@ const ScreenplayEditor: React.FC = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
+
+  // --- Keep the open document across route changes ---
+  // Going to Settings (or any other route) unmounts this component and destroys
+  // the editor, and only a script whose ids are in the URL is refetched below.
+  // Everything else — File → Open, an imported file, an unsaved draft — used to
+  // come back blank. TipTap schedules the destroy a tick after unmount, so the
+  // document is still readable from this cleanup.
+  useEffect(() => {
+    if (!editor || collabMode || isHistoryMode) return;
+    return () => {
+      if (editor.isDestroyed) return;
+      try {
+        const doc = editor.getJSON();
+        // A blank body is never worth restoring, and stashing one could put an
+        // empty document back over a real one.
+        if (!docHasAnyText(doc)) return;
+        stashSessionDoc({
+          doc,
+          projectId: currentProject?.id ?? null,
+          scriptId: currentScriptId ?? null,
+        });
+      } catch (err) {
+        console.warn('Could not stash the open document:', err);
+      }
+    };
+  }, [editor, collabMode, isHistoryMode, currentProject, currentScriptId]);
+
+  // Put it back on the way in. Skipped when the URL carries script ids — that
+  // load path owns the content and reads the saved version, which is newer than
+  // anything stashed.
+  //
+  // Strictly a mount-time action: the attempt is marked done as soon as the
+  // editor exists, whether or not anything was restored. Retrying later would
+  // mean a stash left over from an earlier document could land on top of a
+  // script that has since been loaded from the library.
+  const sessionRestoreDoneRef = useRef(false);
+  useEffect(() => {
+    if (!editor || collabMode || isHistoryMode) return;
+    if (sessionRestoreDoneRef.current) return;
+    sessionRestoreDoneRef.current = true;
+    if (urlScriptId || urlCommitHash) return;
+
+    const doc = takeSessionDoc(currentProject?.id ?? null, currentScriptId ?? null);
+    if (!doc) return;
+    try {
+      editor.commands.setContent(doc as Record<string, unknown>, false);
+      clearEditorHistory(editor);
+      setShowWelcome(false);
+      updateScenes();
+    } catch (err) {
+      console.error('Could not restore the open document:', err);
+      showToast('Could not restore the document you had open', 'error');
+    }
+  }, [editor, collabMode, isHistoryMode, urlScriptId, urlCommitHash, currentProject, currentScriptId, updateScenes]);
 
   // --- Load script from URL params ---
   // Reset the guard when the editor instance changes so we reload
@@ -3053,6 +3052,10 @@ const ScreenplayEditor: React.FC = () => {
       } else if (ext === 'odraft') {
         const parsed = parseOdraft(text);
         doc = parsed.content;
+        // Bring back notes, tags, beats, character profiles and layout. Without
+        // this an imported .odraft — including a restored backup — came back as
+        // bare text with all of that silently dropped.
+        hydrateEditorStoresFromContent(parsed.content);
         if (parsed.meta.title) {
           setDocumentTitle(parsed.meta.title);
           setShowWelcome(false);
@@ -3244,6 +3247,10 @@ const ScreenplayEditor: React.FC = () => {
       } else if (ext === 'odraft') {
         const parsed = parseOdraft(text);
         doc = parsed.content;
+        // Bring back notes, tags, beats, character profiles and layout. Without
+        // this an imported .odraft — including a restored backup — came back as
+        // bare text with all of that silently dropped.
+        hydrateEditorStoresFromContent(parsed.content);
         if (parsed.meta.title) {
           setDocumentTitle(parsed.meta.title);
           setCurrentProject(null);
@@ -3591,7 +3598,7 @@ const ScreenplayEditor: React.FC = () => {
       const node = resolved.parent;
 
       if (node.type.name === 'character') {
-        const base = node.textContent.trim().replace(/\s*\([^)]*\)\s*/g, '').toUpperCase();
+        const base = characterKey(node.textContent);
         if (base) {
           store.setSelectedCharacter(base);
         }
@@ -3842,16 +3849,32 @@ const ScreenplayEditor: React.FC = () => {
             Save As
           </button>
           <button className="save-failure-btn" onClick={() => {
+            // Goes through downloadOdraft so the file gets the .odraft envelope
+            // and OpenDraft can actually reopen it. The previous version wrote a
+            // bare payload via a raw anchor, which parseOdraft rejected — the
+            // emergency backup could not be imported — and which on desktop
+            // dropped silently into Downloads with no dialog.
             const content = buildSaveContent();
             if (!content) return;
-            const blob = new Blob([JSON.stringify(content, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${useEditorStore.getState().documentTitle || 'backup'}_backup.odraft`;
-            a.click();
-            URL.revokeObjectURL(url);
-            showToast('Backup exported', 'success');
+            const store = useEditorStore.getState();
+            const title = store.documentTitle || 'Untitled';
+            downloadOdraft(
+              {
+                id: '', title, author: '', format: 'json',
+                created_at: '', updated_at: '', page_count: store.pageCount,
+                size_bytes: 0, color: '', pinned: false, sort_order: 0, preview: '',
+              },
+              content,
+              {
+                backupKind: 'crash',
+                projectId: currentProject?.id ?? null,
+                scriptId: currentScriptId ?? null,
+              },
+            ).then(() => showToast('Backup exported', 'success'))
+              .catch((err) => showToast(
+                `Backup export failed: ${err instanceof Error ? err.message : String(err)}`,
+                'error',
+              ));
           }}>
             Export Backup
           </button>

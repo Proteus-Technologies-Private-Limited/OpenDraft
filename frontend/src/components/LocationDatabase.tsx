@@ -5,6 +5,7 @@ import { useProjectStore } from '../stores/projectStore';
 import { api, type LocationEntry } from '../services/api';
 import { showToast } from './Toast';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
+import { blockContentRange, singleLine } from '../utils/nodeText';
 
 interface Props {
   editor: Editor | null;
@@ -143,19 +144,37 @@ const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
     const { state } = editor;
     const { tr } = state;
     let changed = 0;
+    let skippedBroken = 0;
     state.doc.descendants((node, pos) => {
       if (node.type.name !== 'sceneHeading') return true;
       const text = node.textContent;
+      // A heading containing a hard break can't be rewritten: insertText over
+      // the inline range would flatten the break into plain text. Skip it and
+      // report, rather than silently reformatting the writer's content.
+      if (text.includes('\n')) {
+        if (parseLocationFromHeading(singleLine(text)) === oldName) skippedBroken++;
+        return true;
+      }
       const parsed = parseLocationFromHeading(text);
       if (parsed !== oldName) return true;
       // Replace the location portion in the heading
       const newText = text.replace(new RegExp(oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), canonical);
       if (newText === text) return true;
-      tr.insertText(newText, pos + 1, pos + 1 + text.length);
+      // Derive the range from nodeSize, never `pos + 1 + text.length` — the
+      // latter is short by one per inline atom, leaving the heading's tail
+      // behind and duplicating it.
+      const { from, to } = blockContentRange(node, pos);
+      tr.insertText(newText, from, to);
       changed++;
       return true;
     });
     if (changed > 0) editor.view.dispatch(tr);
+    if (skippedBroken > 0) {
+      showToast(
+        `Skipped ${skippedBroken} scene heading${skippedBroken === 1 ? '' : 's'} containing a line break`,
+        'info',
+      );
+    }
     return changed;
   }, [editor]);
 

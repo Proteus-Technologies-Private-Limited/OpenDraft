@@ -772,6 +772,41 @@ export async function createLocalStorage() {
       };
     },
 
+    /**
+     * Write an asset back under its ORIGINAL id.
+     *
+     * Used when restoring a backup: the document refers to images by `assetId`,
+     * so re-importing under a fresh id (as `uploadAsset` does) would leave every
+     * image in the restored script broken. Existing rows are left alone — if
+     * the asset is already present, the bytes on disk are the same ones.
+     */
+    async importAsset(
+      projectId: string,
+      asset: { id: string; filename: string; mime_type: string; bytes: Uint8Array },
+    ): Promise<void> {
+      const existing = await db.select<any[]>(
+        'SELECT id FROM assets WHERE id = $1 AND project_id = $2',
+        [asset.id, projectId],
+      );
+
+      const dir = await ensureAssetDir(projectId);
+      await writeFile(`${dir}/${asset.filename}`, asset.bytes, {
+        baseDir: BaseDirectory.AppData,
+      });
+
+      if (existing.length === 0) {
+        await db.execute(
+          'INSERT INTO assets (id, project_id, filename, original_name, mime_type, size_bytes, tags, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+          [
+            asset.id, projectId, asset.filename, asset.filename,
+            asset.mime_type || 'application/octet-stream',
+            asset.bytes.byteLength, '[]', now(),
+          ],
+        );
+      }
+      assetFilenameCache[asset.id] = asset.filename;
+    },
+
     async getAssetBytes(projectId: string, assetId: string): Promise<Uint8Array> {
       const rows = await db.select<any[]>(
         'SELECT filename FROM assets WHERE id = $1 AND project_id = $2',

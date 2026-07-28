@@ -67,7 +67,7 @@ These features are already implemented and roughly at parity:
 | 13 | **Bookmarks** | Named bookmarks to jump to specific locations in the script. | **Missing entirely.** Has Go to Page and Scene Navigator but no arbitrary bookmarks. |
 | 14 | **Location Autocomplete** | Auto-complete for scene locations built from previously used locations. | **Missing.** Character autocomplete exists but no location/scene heading autocomplete. |
 | 15 | **Custom Keyboard Shortcuts** | Full keyboard shortcut customization in preferences. | Shortcuts are **hardcoded** (Cmd+1-8 for elements, Cmd+B/I/U for styles). No customization UI. |
-| 16 | **Auto-Save with Timestamped Backups** | Automatic periodic saves with recoverable timestamped backups. | Has manual save (Cmd+S) and project-based storage. **No automatic periodic save** or timestamped backup recovery system. |
+| 16 | **Auto-Save with Timestamped Backups** | Automatic periodic saves with recoverable timestamped backups. Backup folder is **fixed** (`~/Library/Application Support/Fade In`, `%APPDATA%\Fade In`, `~/.fadein`). | **Implemented (v0.20).** 30-second auto-save to the library, plus timed timestamped `.odraft` snapshots to a **user-chosen** folder — going further than Fade In, whose folder cannot be changed. Manual *Back Up Now*, per-script retention limits, embedded images, and File → Backups → Recover Backup. Desktop only. |
 
 ### Priority 3 — Nice to Have
 
@@ -115,6 +115,6 @@ Based on impact and complexity:
 5. **Colored Revision Pages** (P1) — Revision colors exist in UI. Needs actual page coloring in editor + PDF.
 6. **Page Locking** (P1) — Required for production workflows.
 7. **Scene Locking** (P1) — Required for production workflows.
-8. **Auto-Save** (P2) — Prevents data loss. High user trust impact.
+8. ~~**Auto-Save** (P2)~~ — **Done in v0.20.** Automatic backups to a user-chosen folder + Recover Backup.
 9. **Dialogue Tuner** (P2) — Unique professional tool. Character data already exists.
 10. **Watermarking** (P2) — Important for script distribution security.

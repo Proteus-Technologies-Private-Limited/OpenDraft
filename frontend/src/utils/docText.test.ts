@@ -77,3 +77,29 @@ describe('isDestructiveEmptyOverwrite (blank-document guard)', () => {
     expect(isDestructiveEmptyOverwrite(FULL_SAVE_PAYLOAD, BLANK_BODY)).toBe(false);
   });
 });
+
+describe('hard breaks are content, not blankness', () => {
+  // A body holding only a hard break must be saveable: the writer typed it.
+  // The case this guard exists for — a reset/remounted editor — produces an
+  // empty block with no children at all, which the test above still covers.
+  const BREAK_ONLY_BODY = {
+    type: 'doc',
+    content: [{ type: 'action', content: [{ type: 'hardBreak' }] }],
+  };
+
+  it('treats a break-only body as having content', () => {
+    expect(docHasAnyText(BREAK_ONLY_BODY)).toBe(true);
+  });
+
+  it('does not block saving a break-only body over a real one', () => {
+    const existing = { type: 'doc', content: [{ type: 'action', content: [{ type: 'text', text: 'hi' }] }] };
+    expect(isDestructiveEmptyOverwrite(BREAK_ONLY_BODY, existing)).toBe(false);
+  });
+
+  it('counts a break nested among text', () => {
+    expect(docHasAnyText({
+      type: 'doc',
+      content: [{ type: 'action', content: [{ type: 'hardBreak' }, { type: 'text', text: '   ' }] }],
+    })).toBe(true);
+  });
+});

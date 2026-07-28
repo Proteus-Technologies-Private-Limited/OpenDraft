@@ -349,7 +349,10 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     let hasContent = false;
 
     textElements.forEach((textEl) => {
-      const content = textEl.textContent || '';
+      // FDX carries an in-paragraph line break as a newline inside <Text>
+      // (written as &#10; by our exporter). Normalize CRLF/CR first so the
+      // split below sees a single form.
+      const content = (textEl.textContent || '').replace(/\r\n?/g, '\n');
       if (content === '') return;
       hasContent = true;
 
@@ -384,9 +387,17 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
         }
       }
 
-      const textNode: TipTapNode = { type: 'text', text: content };
-      if (marks.length > 0) textNode.marks = marks;
-      textNodes.push(textNode);
+      // Split on newlines and interleave hard breaks, so an in-paragraph break
+      // comes back as a real hardBreak node rather than a literal newline
+      // trapped inside a text node (which no exporter would round-trip).
+      const segments = content.split('\n');
+      segments.forEach((segment, i) => {
+        if (i > 0) textNodes.push({ type: 'hardBreak' });
+        if (segment === '') return;
+        const textNode: TipTapNode = { type: 'text', text: segment };
+        if (marks.length > 0) textNode.marks = marks.map((m) => ({ ...m }));
+        textNodes.push(textNode);
+      });
     });
 
     const node: TipTapNode = { type: nodeType };

@@ -1,22 +1,48 @@
 // Fountain format exporter
 import type { JSONContent } from '@tiptap/react';
+import { jsonBlockRuns, singleLine } from './nodeText';
 
+/**
+ * Marked-up text of a node. A hard break becomes a real newline: the Fountain
+ * spec takes "every carriage return as intent", so a newline inside Action,
+ * Dialogue, General or Lyrics is exactly the right encoding. Break runs are
+ * never wrapped in emphasis delimiters.
+ */
 function getTextContent(node: JSONContent): string {
   if (!node.content) return '';
-  return node.content
-    .filter((c) => c.type === 'text')
-    .map((c) => {
-      let text = c.text || '';
-      if (c.marks) {
-        for (const mark of c.marks) {
-          if (mark.type === 'bold') text = `**${text}**`;
-          if (mark.type === 'italic') text = `*${text}*`;
-          if (mark.type === 'underline') text = `_${text}_`;
-        }
-      }
+  return jsonBlockRuns(node)
+    .map((run) => {
+      if (run.isBreak) return '\n';
+      let text = run.text;
+      if (run.bold) text = `**${text}**`;
+      if (run.italic) text = `*${text}*`;
+      if (run.underline) text = `_${text}_`;
       return text;
     })
     .join('');
+}
+
+/**
+ * Text for an element that must occupy exactly one line. A newline in a scene
+ * heading, character cue, transition or act marker changes how Fountain parses
+ * the block — a transition's `> ` prefix would stop applying, and a second line
+ * under a cue would be read as dialogue. Collapse instead.
+ */
+function lineText(node: JSONContent): string {
+  return singleLine(getTextContent(node));
+}
+
+/**
+ * Text for a dialogue-family element. A hard break that produces an *empty*
+ * line would terminate the dialogue block, because Fountain ends dialogue at a
+ * blank line. Two trailing spaces is the spec's convention for "this blank line
+ * is intentional, keep the block going".
+ */
+function dialogueText(node: JSONContent): string {
+  return getTextContent(node)
+    .split('\n')
+    .map((line) => (line.trim() === '' ? '  ' : line))
+    .join('\n');
 }
 
 export function exportFountain(doc: JSONContent): string {
@@ -56,7 +82,7 @@ export function exportFountain(doc: JSONContent): string {
         break;
       case 'sceneHeading':
         lines.push('');
-        lines.push(text.toUpperCase());
+        lines.push(lineText(node).toUpperCase());
         if (node.attrs?.synopsis) {
           lines.push(`= ${node.attrs.synopsis}`);
         }
@@ -71,30 +97,32 @@ export function exportFountain(doc: JSONContent): string {
         break;
       case 'character':
         lines.push('');
-        lines.push(text.toUpperCase());
+        lines.push(lineText(node).toUpperCase());
         break;
-      case 'parenthetical':
-        lines.push(text.startsWith('(') ? text : `(${text})`);
+      case 'parenthetical': {
+        const p = lineText(node);
+        lines.push(p.startsWith('(') ? p : `(${p})`);
         break;
+      }
       case 'dialogue':
-        lines.push(text);
+        lines.push(dialogueText(node));
         lines.push('');
         break;
       case 'transition':
         lines.push('');
-        lines.push(`> ${text}`);
+        lines.push(`> ${lineText(node)}`);
         lines.push('');
         break;
       case 'shot':
         lines.push('');
-        lines.push(text.toUpperCase());
+        lines.push(lineText(node).toUpperCase());
         lines.push('');
         break;
       case 'newAct':
       case 'endOfAct':
       case 'showEpisode':
         lines.push('');
-        lines.push(text.toUpperCase());
+        lines.push(lineText(node).toUpperCase());
         lines.push('');
         break;
       case 'lyrics':
@@ -105,15 +133,17 @@ export function exportFountain(doc: JSONContent): string {
           node.content.forEach((col, colIndex) => {
             if (col.type === 'dualDialogueColumn' && col.content) {
               for (const child of col.content) {
-                const childText = getTextContent(child);
                 if (child.type === 'character') {
+                  const cue = lineText(child).toUpperCase();
                   lines.push('');
-                  // Second column character gets ^ marker
-                  lines.push(colIndex === 1 ? `${childText.toUpperCase()} ^` : childText.toUpperCase());
+                  // Second column character gets ^ marker — it must stay on the
+                  // character line, which is why the cue is collapsed first.
+                  lines.push(colIndex === 1 ? `${cue} ^` : cue);
                 } else if (child.type === 'parenthetical') {
-                  lines.push(childText.startsWith('(') ? childText : `(${childText})`);
+                  const p = lineText(child);
+                  lines.push(p.startsWith('(') ? p : `(${p})`);
                 } else if (child.type === 'dialogue') {
-                  lines.push(childText);
+                  lines.push(dialogueText(child));
                   lines.push('');
                 }
               }

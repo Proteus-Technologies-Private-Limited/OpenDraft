@@ -3,7 +3,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 export const General = Node.create({
   name: 'general',
   group: 'block',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
 
   parseHTML() {

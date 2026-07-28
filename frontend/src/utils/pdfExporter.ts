@@ -5,6 +5,8 @@ import type { JSONContent } from '@tiptap/react';
 import { DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT, resolveMoresContds } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
 import { resolveImageUrl, loadImageData } from './imageAsset';
+import { jsonBlockRuns } from './nodeText';
+import { wordWrapRuns, type WrapRun } from './wrapText';
 
 // --- Constants matching pagination.ts ---
 
@@ -56,12 +58,12 @@ const DIALOGUE_BLOCK_TYPES = new Set(['dialogue', 'parenthetical', 'lyrics']);
 
 // --- Text run types ---
 
-interface TextRun {
-  text: string;
-  bold: boolean;
-  italic: boolean;
-  underline: boolean;
-}
+/**
+ * Line breaking lives in utils/wrapText, shared with editor pagination — the
+ * two must produce identical line counts or the PDF paginates differently from
+ * the editor.
+ */
+type TextRun = WrapRun;
 
 interface NodeInfo {
   typeName: string;
@@ -72,22 +74,15 @@ interface NodeInfo {
 
 // --- Helpers ---
 
-function extractRuns(node: JSONContent): TextRun[] {
-  if (!node.content || node.content.length === 0) {
-    return [{ text: '', bold: false, italic: false, underline: false }];
-  }
-  return node.content.map((child) => {
-    const text = child.text || '';
-    let bold = false, italic = false, underline = false;
-    if (child.marks) {
-      for (const mark of child.marks) {
-        if (mark.type === 'bold') bold = true;
-        if (mark.type === 'italic') italic = true;
-        if (mark.type === 'underline') underline = true;
-      }
-    }
-    return { text, bold, italic, underline };
-  });
+/** Styled runs for a node, with hard breaks flagged. See utils/nodeText. */
+export function extractRuns(node: JSONContent): TextRun[] {
+  return jsonBlockRuns(node).map((r) => ({
+    text: r.text,
+    bold: r.bold,
+    italic: r.italic,
+    underline: r.underline,
+    isBreak: r.isBreak,
+  }));
 }
 
 /** Apply type-level CSS styles (bold, italic, underline) to runs */
@@ -105,7 +100,9 @@ function applyTypeStyles(runs: TextRun[], typeName: string): TextRun[] {
 }
 
 function getPlainText(runs: TextRun[]): string {
-  return runs.map((r) => r.text).join('');
+  // A break contributes a newline, matching `leafText` on the editor side, so
+  // the plain text this produces agrees with pagination's line counting.
+  return runs.map((r) => (r.isBreak ? '\n' : r.text)).join('');
 }
 
 function setFontStyle(pdf: jsPDF, bold: boolean, italic: boolean): void {
@@ -118,84 +115,6 @@ function setFontStyle(pdf: jsPDF, bold: boolean, italic: boolean): void {
   } else {
     pdf.setFont('courier', 'normal');
   }
-}
-
-/**
- * Word-wrap text runs using character counting (monospace).
- * Uses CHARS_PER_LINE to match editor pagination exactly.
- */
-function wordWrapRuns(
-  runs: TextRun[],
-  maxChars: number,
-  forceUppercase: boolean,
-): TextRun[][] {
-  interface Word {
-    text: string;
-    bold: boolean;
-    italic: boolean;
-    underline: boolean;
-  }
-
-  const words: Word[] = [];
-  for (const run of runs) {
-    const text = forceUppercase ? run.text.toUpperCase() : run.text;
-    const parts = text.split(' ');
-    for (let i = 0; i < parts.length; i++) {
-      if (i > 0 && words.length > 0) {
-        words[words.length - 1].text += ' ';
-      }
-      if (parts[i].length > 0) {
-        words.push({
-          text: parts[i],
-          bold: run.bold,
-          italic: run.italic,
-          underline: run.underline,
-        });
-      }
-    }
-  }
-
-  if (words.length === 0) {
-    return [[{ text: '', bold: false, italic: false, underline: false }]];
-  }
-
-  const lines: TextRun[][] = [];
-  let currentLine: TextRun[] = [];
-  let currentLineChars = 0;
-
-  for (const word of words) {
-    const wordLen = word.text.length;
-
-    if (currentLine.length === 0) {
-      currentLine.push({ text: word.text, bold: word.bold, italic: word.italic, underline: word.underline });
-      currentLineChars = wordLen;
-    } else if (currentLineChars + wordLen <= maxChars) {
-      const last = currentLine[currentLine.length - 1];
-      if (last.bold === word.bold && last.italic === word.italic && last.underline === word.underline) {
-        last.text += word.text;
-      } else {
-        currentLine.push({ text: word.text, bold: word.bold, italic: word.italic, underline: word.underline });
-      }
-      currentLineChars += wordLen;
-    } else {
-      if (currentLine.length > 0) {
-        const lastRun = currentLine[currentLine.length - 1];
-        lastRun.text = lastRun.text.replace(/ +$/, '');
-      }
-      lines.push(currentLine);
-      const trimmedWord = word.text.replace(/^ +/, '');
-      currentLine = [{ text: trimmedWord, bold: word.bold, italic: word.italic, underline: word.underline }];
-      currentLineChars = trimmedWord.length;
-    }
-  }
-
-  if (currentLine.length > 0) {
-    const lastRun = currentLine[currentLine.length - 1];
-    lastRun.text = lastRun.text.replace(/ +$/, '');
-    lines.push(currentLine);
-  }
-
-  return lines.length > 0 ? lines : [[{ text: '', bold: false, italic: false, underline: false }]];
 }
 
 /**

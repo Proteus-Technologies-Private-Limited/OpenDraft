@@ -101,14 +101,32 @@ export function parseFountain(text: string): TipTapNode {
   };
 }
 
+/**
+ * Build a screenplay node from text.
+ *
+ * Multi-line text becomes one node with `hardBreak` nodes between the lines,
+ * rather than a text node containing literal newlines — only the former
+ * survives a round-trip through the exporters.
+ *
+ * Note this does not change how the parser *groups* lines into blocks; it only
+ * handles text that already arrives with newlines in it. Fountain's "every
+ * carriage return is intent" rule arguably means consecutive action lines
+ * should become one node with breaks rather than N nodes, but changing the
+ * grouping strategy would alter existing imports and is left alone here.
+ */
 function makeNode(type: string, text: string): TipTapNode {
   if (text === '') {
     return { type, content: [] };
   }
-  return {
-    type,
-    content: [{ type: 'text', text }],
-  };
+  if (!text.includes('\n')) {
+    return { type, content: [{ type: 'text', text }] };
+  }
+  const content: TipTapNode[] = [];
+  text.split('\n').forEach((segment, i) => {
+    if (i > 0) content.push({ type: 'hardBreak' });
+    if (segment !== '') content.push({ type: 'text', text: segment });
+  });
+  return { type, content };
 }
 
 function isCharacterLine(line: string): boolean {

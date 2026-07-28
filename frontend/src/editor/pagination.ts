@@ -3,6 +3,10 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import type { PageLayout } from '../stores/editorStore';
 import { resolveMoresContds } from '../stores/editorStore';
+import { singleLine } from '../utils/nodeText';
+// Line counting lives with the PDF exporter's word wrapper — the two must
+// agree exactly or the editor paginates differently from the exported file.
+import { getTextLines } from '../utils/wrapText';
 
 export const paginationPluginKey = new PluginKey('pagination');
 
@@ -134,10 +138,6 @@ export function createPaginationPlugin(
   });
 }
 
-function getTextLines(text: string, cpl: number): number {
-  return text.length === 0 ? 1 : Math.ceil(text.length / cpl);
-}
-
 function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHints = EMPTY_HINTS): PaginationState {
   const { linesPerPage } = getPageMetrics(layout);
 
@@ -264,7 +264,9 @@ function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHints = E
               offset: splitNode.offset, nodeSize: splitNode.nodeSize,
               pageNumber, linesOnPage: lineCount,
               isDialogueSplit: true,
-              characterName: node.text.trim(),
+              // One line by definition — this becomes the (MORE)/(CONT'D)
+              // page-break label, which a newline would break.
+              characterName: singleLine(node.text),
               isTitlePage: false,
             });
             pageNumber++;

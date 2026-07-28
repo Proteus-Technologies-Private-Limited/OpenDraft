@@ -10,6 +10,7 @@
  * - General: 60s/page (default)
  */
 import type { JSONContent } from '@tiptap/react';
+import { jsonBlockText } from './nodeText';
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -62,11 +63,9 @@ function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-function getTextContent(node: JSONContent): string {
-  if (node.text) return node.text;
-  if (!node.content) return '';
-  return node.content.map(getTextContent).join('');
-}
+// Hard breaks count as newlines so words either side stay separate — gluing
+// them would deflate the word counts these runtime estimates are built on.
+const getTextContent = jsonBlockText;
 
 // ── Main computation ─────────────────────────────────────────────────
 

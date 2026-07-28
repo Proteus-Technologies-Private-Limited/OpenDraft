@@ -15,6 +15,7 @@
 // paragraphs that fell back to 'action' so the caller can show a summary.
 
 import JSZip from 'jszip';
+import { singleLine } from './nodeText';
 
 interface TipTapMark {
   type: string;
@@ -226,6 +227,8 @@ interface RunInfo {
   italic: boolean;
   underline: boolean;
   strike: boolean;
+  /** A `<w:br/>` line break — becomes a hardBreak node, carries no text. */
+  isBreak?: boolean;
 }
 
 interface ParaInfo {
@@ -243,11 +246,39 @@ interface ParaInfo {
   dualColumn?: 'left' | 'right';
 }
 
-function readRun(r: Element, paraStyle: StyleProps): RunInfo {
+/**
+ * Read a `<w:r>` into one or more runs.
+ *
+ * Returns an array rather than a single run because a `<w:br/>` splits the run:
+ * a Word line break becomes a real `hardBreak` node, not a newline character
+ * stuffed inside a text node. The old behaviour rendered (ProseMirror styles
+ * the editor `white-space: pre-wrap`) but round-tripped through no exporter,
+ * so re-exporting a Word import silently merged the lines back together.
+ *
+ * `<w:br w:type="page">` and `"column"` are NOT line breaks — they are handled
+ * separately by the paragraph-level page-break detection, so they are skipped
+ * here rather than becoming a spurious hardBreak.
+ */
+function readRun(r: Element, paraStyle: StyleProps): RunInfo[] {
   const rPr = firstChildNS(r, 'rPr');
   const flags = parseRPrFlags(rPr);
-  // Concatenate <w:t>, <w:tab>, <w:br> text content
+  const caps = flags.caps || paraStyle.caps;
+
+  const style = {
+    bold: !!(flags.bold ?? paraStyle.bold),
+    italic: !!(flags.italic ?? paraStyle.italic),
+    underline: !!flags.underline,
+    strike: !!flags.strike,
+  };
+
+  const out: RunInfo[] = [];
   let text = '';
+  const flush = () => {
+    if (!text) return;
+    out.push({ text: caps ? text.toUpperCase() : text, ...style });
+    text = '';
+  };
+
   for (const child of Array.from(r.childNodes)) {
     if (child.nodeType !== 1) continue;
     const el = child as Element;
@@ -257,19 +288,18 @@ function readRun(r: Element, paraStyle: StyleProps): RunInfo {
     } else if (local === 'tab') {
       text += '\t';
     } else if (local === 'br') {
-      text += '\n';
+      const brType = (getAttrNS(el, 'type') || '').toLowerCase();
+      if (brType === 'page' || brType === 'column') continue;
+      flush();
+      out.push({ text: '', ...style, isBreak: true });
     }
   }
-  // Apply caps via paragraph or run setting
-  const caps = flags.caps || paraStyle.caps;
-  if (caps && text) text = text.toUpperCase();
-  return {
-    text,
-    bold: !!(flags.bold ?? paraStyle.bold),
-    italic: !!(flags.italic ?? paraStyle.italic),
-    underline: !!flags.underline,
-    strike: !!flags.strike,
-  };
+  flush();
+
+  // A run with no text and no break still needs to exist so callers that count
+  // runs behave as before.
+  if (out.length === 0) out.push({ text: '', ...style });
+  return out;
 }
 
 function readParagraph(p: Element, styleMap: StyleMap): ParaInfo {
@@ -298,7 +328,7 @@ function readParagraph(p: Element, styleMap: StyleMap): ParaInfo {
     if (child.nodeType !== 1) continue;
     const el = child as Element;
     if (el.localName === 'r') {
-      runs.push(readRun(el, { ...inherited, bold: paragraphBold, italic: paragraphItalic, caps: paragraphCaps, name: inherited.name }));
+      runs.push(...readRun(el, { ...inherited, bold: paragraphBold, italic: paragraphItalic, caps: paragraphCaps, name: inherited.name }));
     }
   }
 
@@ -309,7 +339,10 @@ function readParagraph(p: Element, styleMap: StyleMap): ParaInfo {
     if ((getAttrNS(b, 'type') || '').toLowerCase() === 'page') runHasPageBreak = true;
   }
 
-  const plainText = runs.map((r) => r.text).join('').replace(/ /g, ' ').trim();
+  // Breaks contribute a newline here so the style/type-detection heuristics
+  // downstream see the same shape they did when a <w:br/> was flattened into
+  // the run text — their behaviour is unchanged by the split above.
+  const plainText = runs.map((r) => (r.isBreak ? '\n' : r.text)).join('').replace(/ /g, ' ').trim();
 
   return {
     styleName: inherited.name,
@@ -537,6 +570,10 @@ function runsToTextNodes(runs: RunInfo[], typeName: string): TipTapNode[] {
   const stripUnderline = TYPE_PROVIDED_UNDERLINE.has(typeName);
   const out: TipTapNode[] = [];
   for (const r of runs) {
+    if (r.isBreak) {
+      out.push({ type: 'hardBreak' });
+      continue;
+    }
     if (!r.text) continue;
     const marks: TipTapMark[] = [];
     if (r.bold && !stripBold) marks.push({ type: 'bold' });
@@ -552,13 +589,17 @@ function runsToTextNodes(runs: RunInfo[], typeName: string): TipTapNode[] {
 
 function buildNode(typeName: string, runs: RunInfo[], plainText: string): TipTapNode {
   const node: TipTapNode = { type: typeName };
-  // Empty paragraphs: emit an empty content array so Tiptap renders a blank line.
-  if (!plainText) {
+  // Empty paragraphs: emit an empty content array so Tiptap renders a blank
+  // line. A paragraph whose only content is a line break is NOT empty — its
+  // plainText trims to '' but the break is real content the writer typed.
+  if (!plainText && !runs.some((r) => r.isBreak)) {
     node.content = [];
     return node;
   }
   const textNodes = runsToTextNodes(runs, typeName);
-  node.content = textNodes.length > 0 ? textNodes : [{ type: 'text', text: plainText }];
+  // The fallback would reintroduce a literal newline inside a text node, which
+  // no exporter round-trips; collapse it to a space instead.
+  node.content = textNodes.length > 0 ? textNodes : [{ type: 'text', text: singleLine(plainText) }];
   return node;
 }
 

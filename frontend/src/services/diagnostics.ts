@@ -46,7 +46,7 @@ function detectOs(): string {
  * SQLite WAL/journal files don't survive cloud sync — OneDrive can grab
  * the .db-wal mid-write, causing silent save failures. Worth flagging.
  */
-function isUnderOneDrive(path: string | null): boolean {
+export function isUnderOneDrive(path: string | null): boolean {
   if (!path) return false;
   // Common OneDrive path patterns on Windows:
   //   C:\Users\<name>\OneDrive\...

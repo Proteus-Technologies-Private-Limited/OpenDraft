@@ -14,6 +14,7 @@ import { exportPDF } from '../utils/pdfExporter';
 import { downloadDocx } from '../utils/docxExporter';
 import { parseDocx } from '../utils/docxImporter';
 import { downloadOdraft, parseOdraft } from '../utils/odraftFormat';
+import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
 import { trackChangesPluginKey } from '../editor/trackChanges';
 import PageSetupDialog from './PageSetupDialog';
 import TemplateSelectDialog from './TemplateSelectDialog';
@@ -29,7 +30,11 @@ import { useNavigate } from 'react-router-dom';
 import { scriptApi } from '../services/scriptApi';
 import { useSettingsStore } from '../stores/settingsStore';
 import { clearEditorHistory } from '../editor/clearHistory';
-import { spellChecker } from '../editor/spellchecker';
+import { clearSessionDoc } from '../utils/sessionDoc';
+import { buildSaveContent as buildSaveContentShared } from '../utils/saveContent';
+import { backupsAvailable, writeSnapshot, revealSnapshot } from '../services/backupService';
+import { useBackupStatusStore, describeBackupError } from '../stores/backupStatusStore';
+import RecoverBackupDialog from './RecoverBackupDialog';
 import { openTextFile, openBinaryFile } from '../utils/fileOps';
 import { isDesktopTauri } from '../services/platform';
 import { getCompatEntries } from '../services/compat';
@@ -45,6 +50,7 @@ import {
   FaEllipsisH,
   FaFileImport,
   FaFolderOpen,
+  FaArchive,
   FaSave,
   FaFileExport,
   FaFileCode,
@@ -216,33 +222,14 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     setVersionHistoryOpen,
   } = useProjectStore();
 
-  // Build a saveable content object: editor JSON + store metadata at top level
-  // IMPORTANT: keep in sync with ScreenplayEditor.buildSaveContent — both must
-  // serialize the same set of metadata fields or a manual save will strip data.
-  const buildSaveContent = useCallback((): Record<string, unknown> | undefined => {
-    if (!editor || editor.isDestroyed) return undefined;
-    const store = useEditorStore.getState();
-    const tplStore = useFormattingTemplateStore.getState();
-    const doc = editor.getJSON();
-    return {
-      ...doc,
-      _notes: store.notes,
-      _generalNotes: store.generalNotes,
-      _tags: store.tags,
-      _tagCategories: store.tagCategories,
-      _characterProfiles: store.characterProfiles,
-      _characterRelationships: store.characterRelationships,
-      _beats: store.beats,
-      _beatColumns: store.beatColumns,
-      _beatArrangeMode: store.beatArrangeMode,
-      _templateId: tplStore.activeTemplateId,
-      _ignoredWords: spellChecker.getIgnoredWords(),
-      _ignoredOnce: spellChecker.getIgnoredOnce(),
-      _sceneNumbersVisible: store.sceneNumbersVisible,
-      _sceneNumbersLocked: store.sceneNumbersLocked,
-      _pageLayout: store.pageLayout,
-    };
-  }, [editor]);
+  // Build a saveable content object: editor JSON + store metadata at top level.
+  // This used to be a hand-maintained copy of ScreenplayEditor's version and had
+  // drifted, omitting the spelling/grammar keys — so a manual Cmd+S silently
+  // reset those settings on the next load. Both now share utils/saveContent.
+  const buildSaveContent = useCallback(
+    (): Record<string, unknown> | undefined => buildSaveContentShared(editor),
+    [editor],
+  );
 
   // ── Save current editor content to backend ──
   const handleSave = useCallback(async () => {
@@ -355,6 +342,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   const locked = getLockedFormatting(editorRule, isEnforceMode);
 
   // ── About / What's New ──
+  const [recoverBackupOpen, setRecoverBackupOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
 
   // ── Diagnostics (Help menu) ──
@@ -610,6 +598,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         try {
           const parsed = parseOdraft(text);
           doc = parsed.content;
+          // Restore the script's notes, tags, beats and character profiles —
+          // otherwise an imported .odraft loses everything but the text.
+          hydrateEditorStoresFromContent(parsed.content);
           if (parsed.meta.title) {
             store.setDocumentTitle(parsed.meta.title);
           }
@@ -709,6 +700,10 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     if (!editor) return;
     clearTrackChanges();
     clearEditorHistory(editor);
+    // The document being replaced must not come back on the next route change:
+    // a fresh screenplay has the same (null) project/script ids the stash of an
+    // imported or never-saved document carries.
+    clearSessionDoc();
     setCurrentProject(null);
     setCurrentScriptId(null);
     setScripts([]);
@@ -883,6 +878,54 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     }
   }, [editor, documentTitle, pageLayout]);
 
+  // ── Backups ────────────────────────────────────────────────────────────
+  // "Back Up Now" writes a snapshot into the configured folder immediately,
+  // with no dialog. That is what makes it different from File → Export →
+  // .odraft: Export is "give me a file to send somewhere", Back Up Now is "pin
+  // this moment in my safety net". Same bytes, different lifecycle — manual
+  // snapshots are never pruned by the retention limit.
+  const handleBackupNow = useCallback(async () => {
+    if (!backupsAvailable()) {
+      showToast('Choose a backup folder first', 'info');
+      navigate('/settings');
+      return;
+    }
+    const content = buildSaveContent();
+    if (!content) return;
+    try {
+      const store = useEditorStore.getState();
+      const result = await writeSnapshot({
+        content,
+        title: store.documentTitle || 'Untitled',
+        projectId: currentProject?.id ?? null,
+        scriptId: currentScriptId ?? null,
+        projectTitle: currentProject?.name,
+        kind: 'manual',
+      });
+      // A successful manual backup also clears a paused scheduler — the user
+      // has just demonstrated the folder works.
+      useBackupStatusStore.getState().resume();
+      showToast(`Backed up to ${result.filename}`, 'success');
+    } catch (err) {
+      const reason = describeBackupError(err instanceof Error ? err.message : String(err));
+      showToast(`Backup failed — ${reason}`, 'error');
+    }
+  }, [buildSaveContent, currentProject, currentScriptId, navigate]);
+
+  const handleOpenBackupFolder = useCallback(async () => {
+    const folder = useSettingsStore.getState().backupFolder;
+    if (!folder) {
+      showToast('Choose a backup folder first', 'info');
+      navigate('/settings');
+      return;
+    }
+    try {
+      await revealSnapshot(folder);
+    } catch {
+      showToast('Could not open the backup folder', 'error');
+    }
+  }, [navigate]);
+
   const handleExportOdraft = useCallback(async () => {
     if (!editor) return;
     try {
@@ -892,12 +935,22 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         created_at: '', updated_at: '', page_count: store.pageCount,
         size_bytes: 0, color: '', pinned: false, sort_order: 0, preview: '',
       };
-      await downloadOdraft(meta, editor.getJSON());
+      // Must be the full save payload, not the bare editor JSON: the latter
+      // drops notes, tags, beats, character profiles and every other
+      // `_`-prefixed store key, so the exported file could never restore the
+      // script it came from.
+      const content = buildSaveContent();
+      if (!content) return;
+      await downloadOdraft(meta, content, {
+        projectId: currentProject?.id ?? null,
+        scriptId: currentScriptId ?? null,
+        projectTitle: currentProject?.name,
+      });
     } catch (err) {
       console.error('OpenDraft export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
-  }, [editor, documentTitle]);
+  }, [editor, documentTitle, buildSaveContent, currentProject, currentScriptId]);
 
   const handleMenuClick = (label: string) => {
     setActiveMenu((prev) => (prev === label ? null : label));
@@ -990,6 +1043,23 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             { icon: <FaFileSignature />, label: 'Compare with Version\u2026', action: () => setCompareVersionOpen(true) },
           ],
         },
+        // Desktop only: mobile and web sandboxes cannot hold a persistent
+        // handle to a user-chosen folder. Omitted rather than disabled — a
+        // permanently greyed submenu just invites bug reports.
+        ...(isDesktopTauri() ? [
+          { separator: true, label: '' },
+          {
+            icon: <FaArchive />, label: 'Backups',
+            disabled: isCollabGuest,
+            children: [
+              { icon: <FaArchive />, label: 'Back Up Now', action: handleBackupNow, disabled: isCollabGuest },
+              { icon: <FaHistory />, label: 'Recover Backup\u2026', action: () => setRecoverBackupOpen(true) },
+              { separator: true, label: '' },
+              { icon: <FaFolderOpen />, label: 'Open Backup Folder', action: handleOpenBackupFolder },
+              { icon: <FaCog />, label: 'Backup Settings\u2026', action: () => navigate('/settings') },
+            ],
+          },
+        ] : []),
         { separator: true, label: '' },
         { icon: <FaCog />, label: 'Page Setup...', action: () => setPageSetupOpen(true) },
         { icon: <FaPrint />, label: 'Print...', shortcut: `${mod}P`, action: () => window.print() },
@@ -1708,6 +1778,18 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         onCancel={() => setFormatPickerOpen(false)}
       />
     )}
+    <RecoverBackupDialog
+      open={recoverBackupOpen}
+      onClose={() => setRecoverBackupOpen(false)}
+      // Lets the dialog save a safety copy of what's on screen before a
+      // destructive "Replace Current Script".
+      onBeforeReplace={() => {
+        const content = buildSaveContent();
+        if (!content) return undefined;
+        return { content, title: useEditorStore.getState().documentTitle || 'Untitled' };
+      }}
+    />
+
     {aboutOpen && (
       <div className="dialog-overlay" onClick={() => setAboutOpen(false)}>
         <div className="dialog-box about-dialog" onClick={(e) => e.stopPropagation()}>
@@ -1718,8 +1800,15 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.19</div>
+              <div className="about-section-title">What's New in 0.20</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.20.0</div>
+              <ul className="about-list">
+                <li><strong>Automatic Backups</strong> — Choose a folder and OpenDraft saves timestamped copies of your script there while you write. Back up on demand with File → Backups → Back Up Now, and bring any snapshot back with Recover Backup. Backups include your notes, tags, beats, characters and images, and live outside the app's database — so they survive even if something happens to it. (Desktop only.)</li>
+                <li><strong>Hard Line Breaks</strong> — Shift+Enter starts a new line inside a screenplay element without creating a new element. Breaks are preserved in PDF, Word, Final Draft and Fountain exports, and counted correctly when paginating.</li>
+                <li><strong>More Reliable Saving</strong> — Manual saves no longer drop per-script spelling and grammar settings, and exported <code>.odraft</code> files now carry all of a script's notes, tags, beats and character profiles.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.19.0</div>
               <ul className="about-list">
                 <li><strong>Mobile-Friendly Title Page</strong> — The Title Page editor now adapts to small screens: the form and live preview stack vertically and the dialog fits the viewport, so there's no more horizontal scrolling on phones.</li>

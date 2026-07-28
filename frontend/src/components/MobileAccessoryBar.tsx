@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import type { Editor } from '@tiptap/react';
 import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorStore';
 import { useEditorStore } from '../stores/editorStore';
+import { singleLine } from '../utils/nodeText';
 
 // Element types for the picker sheet
 const ELEMENT_TYPES: ElementType[] = [
@@ -139,7 +140,7 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
       return true;
     });
 
-    const contextLabel = $from.parent.textContent.trim().slice(0, 60);
+    const contextLabel = singleLine($from.parent.textContent).slice(0, 60);
     const defaultColor = NOTE_COLORS[0];
     const noteId = addNote({
       content: '',

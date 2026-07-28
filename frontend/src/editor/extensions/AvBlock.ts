@@ -41,7 +41,7 @@ declare module '@tiptap/core' {
 
 export const AvPara = Node.create({
   name: 'avPara',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
   parseHTML() { return [{ tag: 'p[data-type="av-para"]' }]; },
   renderHTML({ HTMLAttributes }) {
@@ -51,7 +51,7 @@ export const AvPara = Node.create({
 
 export const AvShot = Node.create({
   name: 'avShot',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
   parseHTML() { return [{ tag: 'p[data-type="av-shot"]' }]; },
   renderHTML({ HTMLAttributes }) {
@@ -61,7 +61,7 @@ export const AvShot = Node.create({
 
 export const AvDirection = Node.create({
   name: 'avDirection',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
   parseHTML() { return [{ tag: 'p[data-type="av-direction"]' }]; },
   renderHTML({ HTMLAttributes }) {

@@ -3,71 +3,9 @@ import { Editor } from '@tiptap/react';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { useEditorStore } from '../stores/editorStore';
+import { findAllMatches, type MatchResult } from '../editor/searchMap';
 
 const searchPluginKey = new PluginKey('searchHighlight');
-
-interface MatchResult {
-  from: number;
-  to: number;
-}
-
-/** Walk the ProseMirror doc and build a flat text string + a position map
- *  so we can do plain-string search and map results back to PM positions. */
-function buildTextMap(doc: import('@tiptap/pm/state').EditorState['doc']) {
-  let text = '';
-  const map: number[] = []; // map[flatIndex] → PM position
-
-  doc.descendants((node, pos) => {
-    if (node.isText) {
-      const t = node.text!;
-      for (let i = 0; i < t.length; i++) {
-        map.push(pos + i);
-      }
-      text += t;
-    } else if (node.isBlock && text.length > 0) {
-      // Insert a sentinel so searches don't span across blocks
-      map.push(-1);
-      text += '\n';
-    }
-  });
-
-  return { text, map };
-}
-
-function findAllMatches(
-  doc: import('@tiptap/pm/state').EditorState['doc'],
-  searchTerm: string,
-  matchCase: boolean,
-  wholeWord: boolean,
-): MatchResult[] {
-  if (!searchTerm) return [];
-
-  const { text, map } = buildTextMap(doc);
-  const haystack = matchCase ? text : text.toLowerCase();
-  const needle = matchCase ? searchTerm : searchTerm.toLowerCase();
-  const results: MatchResult[] = [];
-
-  if (wholeWord) {
-    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp(`\\b${escaped}\\b`, matchCase ? 'g' : 'gi');
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(haystack)) !== null) {
-      const from = map[m.index];
-      const to = map[m.index + needle.length - 1] + 1;
-      if (from >= 0 && to > from) results.push({ from, to });
-    }
-  } else {
-    let idx = 0;
-    while ((idx = haystack.indexOf(needle, idx)) !== -1) {
-      const from = map[idx];
-      const to = map[idx + needle.length - 1] + 1;
-      if (from >= 0 && to > from) results.push({ from, to });
-      idx += 1;
-    }
-  }
-
-  return results;
-}
 
 /** Create the search-highlight ProseMirror plugin (once). */
 export function createSearchPlugin() {

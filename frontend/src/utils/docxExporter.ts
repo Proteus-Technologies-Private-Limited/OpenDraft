@@ -26,6 +26,7 @@ import {
 } from 'docx';
 import type { ISectionOptions } from 'docx';
 import { resolveImageUrl, loadImageBytes } from './imageAsset';
+import { jsonBlockRuns, jsonBlockText, type Run } from './nodeText';
 import type { JSONContent } from '@tiptap/react';
 import { DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
@@ -63,31 +64,11 @@ const UNDERLINE_TYPES = new Set(['newAct']);
 
 // --- Run extraction ---
 
-interface RunStyle {
-  text: string;
-  bold: boolean;
-  italic: boolean;
-  underline: boolean;
-  strike: boolean;
-}
+type RunStyle = Run;
 
+/** Styled runs for a node, with hard breaks flagged. See utils/nodeText. */
 function extractRuns(node: JSONContent): RunStyle[] {
-  if (!node.content || node.content.length === 0) {
-    return [{ text: '', bold: false, italic: false, underline: false, strike: false }];
-  }
-  return node.content.map((child) => {
-    const text = child.text || '';
-    let bold = false, italic = false, underline = false, strike = false;
-    if (child.marks) {
-      for (const mark of child.marks) {
-        if (mark.type === 'bold') bold = true;
-        if (mark.type === 'italic') italic = true;
-        if (mark.type === 'underline') underline = true;
-        if (mark.type === 'strike') strike = true;
-      }
-    }
-    return { text, bold, italic, underline, strike };
-  });
+  return jsonBlockRuns(node);
 }
 
 function applyTypeStyles(runs: RunStyle[], typeName: string): RunStyle[] {
@@ -105,23 +86,35 @@ function applyTypeStyles(runs: RunStyle[], typeName: string): RunStyle[] {
   }));
 }
 
-function buildTextRuns(runs: RunStyle[]): TextRun[] {
-  if (runs.length === 0 || (runs.length === 1 && runs[0].text === '')) {
+/**
+ * Turn styled runs into docx TextRuns.
+ *
+ * A hard break becomes an empty run carrying `break: 1`, which the docx package
+ * emits as `<w:br/>` — Word's native in-paragraph line break, so the exported
+ * document breaks exactly where the editor does. The `!runs[0].isBreak` guard on
+ * the empty-node early-out matters: a node whose only child is a break has one
+ * run with `text === ''`, and without it the break would be swallowed.
+ *
+ * Exported for tests.
+ */
+export function buildTextRuns(runs: RunStyle[]): TextRun[] {
+  if (runs.length === 0 || (runs.length === 1 && runs[0].text === '' && !runs[0].isBreak)) {
     return [new TextRun({ text: '', font: FONT_FAMILY, size: FONT_SIZE_HALFPT })];
   }
   return runs
-    .filter((r) => r.text.length > 0)
-    .map(
-      (r) =>
-        new TextRun({
-          text: r.text,
-          font: FONT_FAMILY,
-          size: FONT_SIZE_HALFPT,
-          bold: r.bold || undefined,
-          italics: r.italic || undefined,
-          underline: r.underline ? {} : undefined,
-          strike: r.strike || undefined,
-        }),
+    .filter((r) => r.isBreak || r.text.length > 0)
+    .map((r) =>
+      r.isBreak
+        ? new TextRun({ text: '', break: 1, font: FONT_FAMILY, size: FONT_SIZE_HALFPT })
+        : new TextRun({
+            text: r.text,
+            font: FONT_FAMILY,
+            size: FONT_SIZE_HALFPT,
+            bold: r.bold || undefined,
+            italics: r.italic || undefined,
+            underline: r.underline ? {} : undefined,
+            strike: r.strike || undefined,
+          }),
     );
 }
 
@@ -247,11 +240,12 @@ function buildHFParagraph(
 
 // --- Title page ---
 
-/** Plain text of a node (joins text children, honoring nested content). */
-function nodeText(node: JSONContent): string {
-  if (!node.content) return '';
-  return node.content.map((c) => (c.type === 'text' ? (c.text || '') : nodeText(c))).join('');
-}
+/**
+ * Plain text of a node. Hard breaks come through as newlines, which the title
+ * page builder below already splits on to emit `break: 1` runs — so a break in
+ * a title-page field renders as a real line break in the DOCX.
+ */
+const nodeText = jsonBlockText;
 
 /**
  * Build the title-page paragraphs in DOCUMENT ORDER (free-flow / WYSIWYG):

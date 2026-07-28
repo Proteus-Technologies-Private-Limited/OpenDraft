@@ -7,6 +7,8 @@ import { computeSceneLengths, computePageBlocks, type PageContentInfo } from '..
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
 import { computeScriptStructure, sceneActLabel, type ScriptStructure } from '../utils/scriptStructure';
 import SynopsisModal from './SynopsisModal';
+import { showToast } from './Toast';
+import { blockContentRange, characterKey, singleLine } from '../utils/nodeText';
 
 interface SceneNavigatorProps {
   editor: Editor | null;
@@ -310,12 +312,13 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
             pageLength: lengths[details.length] || 0,
           });
         }
-        currentHeading = node.textContent || '';
+        // Headings are single-line by definition here — collapse any break so
+        // parseHeading sees one line and the displayed label doesn't wrap.
+        currentHeading = singleLine(node.textContent || '');
         currentChars = new Set();
         inScene = true;
       } else if (node.type.name === 'character' && inScene) {
-        const raw = node.textContent.trim().toUpperCase();
-        const base = raw.replace(/\s*\([^)]*\)\s*/g, '').trim();
+        const base = characterKey(node.textContent);
         if (base) currentChars.add(base);
       }
     });
@@ -606,9 +609,20 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     const sceneHeadingType = schema.nodes.sceneHeading;
     if (!sceneHeadingType) { setRenamingLocation(null); return; }
 
+    let skippedBroken = 0;
     doc.descendants((node, pos) => {
       if (node.type.name !== 'sceneHeading') return true;
       const heading = node.textContent;
+      // A heading containing a hard break can't be rewritten: insertText over
+      // the inline range would flatten the break into plain text. Such a
+      // heading is a formatting mistake; silently reformatting it is worse
+      // than leaving it, so count it and tell the user.
+      if (heading.includes('\n')) {
+        if (parseHeading(singleLine(heading)).location.toUpperCase() === oldName.toUpperCase()) {
+          skippedBroken++;
+        }
+        return true;
+      }
       const parsed = parseHeading(heading);
       if (parsed.location.toUpperCase() !== oldName.toUpperCase()) return true;
       let newHeading = parsed.preamble;
@@ -618,9 +632,20 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         const usesDot = /\.\s*\w+\.?\s*$/.test(heading) && !/\s-\s/.test(heading);
         newHeading += usesDot ? '. ' + parsed.timeOfDay + '.' : ' - ' + parsed.timeOfDay;
       }
-      tr.insertText(newHeading, pos + 1, pos + 1 + heading.length);
+      // Derive the range from nodeSize, never `pos + 1 + heading.length` —
+      // the latter is short by one per inline atom and would leave the tail
+      // of the heading behind, duplicating it.
+      const { from, to } = blockContentRange(node, pos);
+      tr.insertText(newHeading, from, to);
       return true;
     });
+
+    if (skippedBroken > 0) {
+      showToast(
+        `Skipped ${skippedBroken} scene heading${skippedBroken === 1 ? '' : 's'} containing a line break`,
+        'info',
+      );
+    }
 
     if (tr.steps.length > 0) editor.view.dispatch(tr);
     setRenamingLocation(null);

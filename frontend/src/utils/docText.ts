@@ -17,6 +17,11 @@ export function docHasAnyText(doc: unknown): boolean {
   if (!doc || typeof doc !== 'object') return false;
   const node = doc as { type?: string; text?: string; content?: unknown[] };
   if (node.type === 'text' && typeof node.text === 'string' && node.text.trim().length > 0) return true;
+  // A hard break is content the writer deliberately typed, so a body holding
+  // only breaks is not "blank" and must be saveable. The case this guard
+  // actually exists for — a reset editor — produces an empty `action` with no
+  // children at all, which is unaffected.
+  if (node.type === 'hardBreak') return true;
   if (Array.isArray(node.content)) {
     for (const child of node.content) if (docHasAnyText(child)) return true;
   }

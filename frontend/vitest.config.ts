@@ -8,5 +8,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // Shims the handful of browser globals that stores read at module scope
+    // (localStorage). Keeps the node environment instead of pulling in jsdom.
+    setupFiles: ['./src/test/setup.ts'],
   },
 })

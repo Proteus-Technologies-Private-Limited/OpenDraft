@@ -2,6 +2,7 @@
 import type { JSONContent } from '@tiptap/react';
 import type { CharacterProfile, TagCategory, TagItem, BeatInfo, BeatColumn, PageLayout } from '../stores/editorStore';
 import { CUSTOM_TYPE_TO_FDX } from './fdxParser';
+import { jsonBlockText } from './nodeText';
 
 const NODE_TO_FDX: Record<string, string> = {
   sceneHeading: 'Scene Heading',
@@ -36,7 +37,12 @@ const ALIGNMENT_TO_FDX: Record<string, string> = {
 
 function esc(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+    // A newline inside <Text> is how an in-paragraph line break is carried.
+    // Encoding it as a numeric entity keeps it intact through XML
+    // pretty-printers and whitespace-normalizing readers, which would
+    // otherwise collapse a raw newline to a space and lose the break.
+    .replace(/\r\n?|\n/g, '&#10;');
 }
 
 /** Strip HTML tags to plain text (for FDX export — CastMember Description is plain text only) */
@@ -323,8 +329,19 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
         lines.push(`${indent}    </Summary>`);
         lines.push(`${indent}  </SceneProperties>`);
       }
+      // A Character paragraph must stay on one line — a break there would
+      // read as a second, phantom speaker. Collapse rather than encode.
+      const collapseBreaks = fdxType === 'Character';
       for (const child of node.content) {
-        if (child.type === 'text' && child.text) {
+        if (child.type === 'hardBreak') {
+          if (!collapseBreaks) {
+            // A standalone Text run holding just the break, so the encoding
+            // is unambiguous and the neighbouring runs keep their own styling.
+            lines.push(`${indent}  <Text>&#10;</Text>`);
+          } else if (lines[lines.length - 1]?.includes('<Text')) {
+            lines.push(`${indent}  <Text> </Text>`);
+          }
+        } else if (child.type === 'text' && child.text) {
           const ta = getTextAttributes(child.marks as MarkInfo[] | undefined);
           lines.push(`${indent}  <Text${ta}>${esc(child.text)}</Text>`);
         }
@@ -365,11 +382,9 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
               if (cell.type !== 'avCell' || !cell.content) continue;
               const side = (cell.attrs as { side?: string } | undefined)?.side || 'video';
               for (const para of cell.content) {
-                // Build text content (joining all text children of the inner para)
-                let text = '';
-                if (para.content) {
-                  for (const t of para.content) text += (t as { text?: string }).text || '';
-                }
+                // Hard breaks come through as newlines, which esc() encodes as
+                // &#10; — the same in-paragraph break encoding used above.
+                const text = jsonBlockText(para);
                 lines.push(`    <Paragraph Type="General" data-av-side="${esc(side)}" data-av-row-id="${esc(rowId)}"><Text>${esc(text)}</Text></Paragraph>`);
               }
             }

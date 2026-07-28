@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore, type CharacterProfile, type CharacterRelationship } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
+import { characterKey, singleLine } from '../utils/nodeText';
 import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
 import { showToast } from './Toast';
@@ -181,7 +182,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     const names = new Set<string>();
     doc.descendants((node) => {
       if (node.type.name === 'character') {
-        const base = node.textContent.trim().replace(/\s*\([^)]*\)\s*/g, '').toUpperCase();
+        const base = characterKey(node.textContent);
         if (base) names.add(base);
       }
       return true;
@@ -282,10 +283,12 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     let orderCounter = 0;
     editor.state.doc.descendants((node) => {
       if (node.type.name === 'sceneHeading') {
-        currentScene = node.textContent.trim();
+        // Normalized identically to the lookup below — both sides must agree or
+        // the scene match silently fails.
+        currentScene = singleLine(node.textContent);
       }
       if (node.type.name === 'character') {
-        currentChar = node.textContent.trim().replace(/\s*\([^)]*\)\s*/g, '').toUpperCase();
+        currentChar = characterKey(node.textContent);
         if (!stats.has(currentChar)) {
           stats.set(currentChar, { dialogueCount: 0, scenes: new Set(), appearanceOrder: orderCounter++ });
         }
@@ -316,7 +319,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
       editor.state.doc.descendants((node, pos) => {
         if (targetPos !== null) return false;
         if (node.type.name === 'character') {
-          const base = node.textContent.trim().replace(/\s*\([^)]*\)\s*/g, '').toUpperCase();
+          const base = characterKey(node.textContent);
           if (base === upper) {
             targetPos = pos + 1; // inside the node
             return false;
@@ -348,7 +351,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
       editor.state.doc.descendants((node, pos) => {
         if (targetPos !== null) return false;
         if (node.type.name === 'sceneHeading') {
-          if (node.textContent.trim() === sceneText) {
+          if (singleLine(node.textContent) === sceneText) {
             targetPos = pos + 1;
             return false;
           }
@@ -429,7 +432,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     if (!editor) return names;
     editor.state.doc.descendants((node) => {
       if (node.type.name === 'character') {
-        const base = node.textContent.trim().replace(/\s*\([^)]*\)\s*/g, '').toUpperCase();
+        const base = characterKey(node.textContent);
         if (base) names.add(base);
       }
       return true;

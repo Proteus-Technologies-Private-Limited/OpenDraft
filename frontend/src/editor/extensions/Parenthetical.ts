@@ -3,7 +3,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 export const Parenthetical = Node.create({
   name: 'parenthetical',
   group: 'block',
-  content: 'text*',
+  content: 'inline*',
   defining: true,
 
   addAttributes() {

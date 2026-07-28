@@ -1978,6 +1978,9 @@ body {
 .page-thumb-el {
   word-break: break-word;
   overflow-wrap: break-word;
+  /* Block text carries hard breaks as newlines; render them so the thumbnail's
+     line count matches the page it previews. */
+  white-space: pre-wrap;
 }
 .page-thumb-sceneHeading {
   font-weight: bold;
@@ -9986,6 +9989,13 @@ html.android .version-history-panel {
   font-style: italic;
 }
 
+/* A caution the user can act on but doesn't have to — e.g. a backup folder
+   inside a cloud-synced directory. Deliberately not styled as an error. */
+.settings-hint-warning {
+  color: #e0a800;
+  font-style: normal;
+}
+
 /* ── Demo notice ── */
 
 .settings-demo-notice {
@@ -11080,4 +11090,129 @@ html.android .version-history-panel {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;
+}
+
+/* ── Recover Backup dialog ────────────────────────────────────────────── */
+
+.recover-backup-dialog {
+  width: min(900px, 92vw);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.recover-backup-body {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  margin: 12px 0;
+}
+
+.recover-backup-list {
+  flex: 0 0 320px;
+  overflow-y: auto;
+  border: 1px solid var(--fd-border);
+  border-radius: 6px;
+  padding: 6px;
+}
+
+.recover-backup-group-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fd-text-muted);
+  padding: 8px 6px 4px;
+}
+
+.recover-backup-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recover-backup-item:hover {
+  background: var(--fd-hover-bg, rgba(127, 127, 127, 0.12));
+}
+
+.recover-backup-item.selected {
+  background: var(--fd-accent, #4a90d9);
+  color: #fff;
+}
+
+.recover-backup-when {
+  font-size: 14px;
+}
+
+.recover-backup-meta {
+  font-size: 12px;
+  opacity: 0.75;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.recover-backup-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+.recover-backup-preview {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  border: 1px solid var(--fd-border);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.recover-backup-preview-meta {
+  margin-bottom: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.recover-backup-preview-text {
+  font-family: 'Courier Prime', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  opacity: 0.85;
+}
+
+.recover-backup-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--fd-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.recover-backup-confirm {
+  border-top: 1px solid var(--fd-border);
+  padding-top: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .recover-backup-body { flex-direction: column; }
+  .recover-backup-list { flex: 1 1 auto; max-height: 40vh; }
 }

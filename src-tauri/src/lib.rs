@@ -647,6 +647,209 @@ fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
     std::fs::read(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
 }
 
+// ── Backup folder commands ────────────────────────────────────────────────
+// The automatic-backup feature writes timestamped .odraft snapshots to a folder
+// the user picks, which is outside the fs plugin scope in
+// capabilities/default.json. Like the commands above, these go through Rust
+// deliberately rather than widening that scope.
+
+#[derive(serde::Serialize)]
+struct DirEntryInfo {
+    name: String,
+    path: String,
+    is_dir: bool,
+    size: u64,
+    /// Milliseconds since the Unix epoch; 0 when the platform won't say.
+    modified_ms: u64,
+}
+
+/// List a directory, without recursing.
+///
+/// Entries whose metadata can't be read (a broken symlink, a file that vanished
+/// mid-listing, a stale handle on a network share) are skipped rather than
+/// failing the whole call — a single bad entry must not make the backup folder
+/// look empty.
+#[tauri::command]
+fn list_dir_entries(path: String, extension: Option<String>) -> Result<Vec<DirEntryInfo>, String> {
+    let want_ext = extension.map(|e| e.trim_start_matches('.').to_lowercase());
+    let read = std::fs::read_dir(&path).map_err(|e| format!("Failed to read {}: {}", path, e))?;
+
+    let mut out = Vec::new();
+    for entry in read.flatten() {
+        let Ok(meta) = entry.metadata() else { continue };
+        let name = entry.file_name().to_string_lossy().into_owned();
+
+        if let Some(ref ext) = want_ext {
+            let matches = std::path::Path::new(&name)
+                .extension()
+                .map(|e| e.to_string_lossy().to_lowercase() == *ext)
+                .unwrap_or(false);
+            if !matches {
+                continue;
+            }
+        }
+
+        let modified_ms = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+
+        out.push(DirEntryInfo {
+            name,
+            path: entry.path().to_string_lossy().into_owned(),
+            is_dir: meta.is_dir(),
+            size: meta.len(),
+            modified_ms,
+        });
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+fn ensure_dir(path: String) -> Result<(), String> {
+    std::fs::create_dir_all(&path).map_err(|e| format!("Failed to create {}: {}", path, e))
+}
+
+/// Delete a single file. Refuses directories outright — the pruner runs
+/// unattended against a user-chosen folder, so it must never be able to remove
+/// a directory tree.
+#[tauri::command]
+fn delete_file(path: String) -> Result<(), String> {
+    let meta = std::fs::metadata(&path).map_err(|e| format!("Failed to stat {}: {}", path, e))?;
+    if meta.is_dir() {
+        return Err(format!("Refusing to delete directory {}", path));
+    }
+    std::fs::remove_file(&path).map_err(|e| format!("Failed to delete {}: {}", path, e))
+}
+
+/// Write a text file atomically: write a sibling temp file, flush it to disk,
+/// then rename over the target.
+///
+/// Used for snapshots instead of `save_text_to_path`. A backup truncated by a
+/// crash, a full disk, or a yanked USB drive is worse than no backup at all —
+/// the rename means a reader sees either the old snapshot or the new one, never
+/// a half-written file. The temp file is created in the same directory so the
+/// rename stays within one filesystem.
+#[tauri::command]
+fn save_text_atomic(path: String, contents: String) -> Result<(), String> {
+    use std::io::Write;
+
+    let target = std::path::Path::new(&path);
+    let dir = target
+        .parent()
+        .ok_or_else(|| format!("Invalid path: {}", path))?;
+    let tmp = target.with_extension(format!(
+        "{}.tmp",
+        target.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default()
+    ));
+
+    std::fs::create_dir_all(dir).map_err(|e| format!("Failed to create {}: {}", dir.display(), e))?;
+
+    let write_result = (|| -> std::io::Result<()> {
+        let mut f = std::fs::File::create(&tmp)?;
+        f.write_all(contents.as_bytes())?;
+        f.sync_all()
+    })();
+
+    if let Err(e) = write_result {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(format!("Failed to write {}: {}", tmp.display(), e));
+    }
+
+    if let Err(e) = std::fs::rename(&tmp, target) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(format!("Failed to finalize {}: {}", path, e));
+    }
+    Ok(())
+}
+
+#[derive(serde::Serialize)]
+struct PathProbe {
+    exists: bool,
+    is_dir: bool,
+    writable: bool,
+    error: Option<String>,
+}
+
+/// Report whether a directory exists and can actually be written to.
+///
+/// Writability is determined by writing and deleting a probe file rather than
+/// by inspecting permission bits, which lie on network mounts and under macOS
+/// TCC. A missing or unwritable folder is *data*, not an error — the settings
+/// UI needs to describe the problem, so `Err` is reserved for genuinely
+/// unexpected failures.
+#[tauri::command]
+fn probe_directory(path: String) -> Result<PathProbe, String> {
+    let p = std::path::Path::new(&path);
+    let meta = match std::fs::metadata(p) {
+        Ok(m) => m,
+        Err(e) => {
+            return Ok(PathProbe {
+                exists: false,
+                is_dir: false,
+                writable: false,
+                error: Some(e.to_string()),
+            })
+        }
+    };
+
+    if !meta.is_dir() {
+        return Ok(PathProbe {
+            exists: true,
+            is_dir: false,
+            writable: false,
+            error: Some("Not a folder".into()),
+        });
+    }
+
+    let probe = p.join(format!(".opendraft-write-test-{}", std::process::id()));
+    match std::fs::write(&probe, b"ok") {
+        Ok(_) => {
+            let _ = std::fs::remove_file(&probe);
+            Ok(PathProbe { exists: true, is_dir: true, writable: true, error: None })
+        }
+        Err(e) => Ok(PathProbe {
+            exists: true,
+            is_dir: true,
+            writable: false,
+            error: Some(e.to_string()),
+        }),
+    }
+}
+
+/// Reveal a file or folder in the OS file manager.
+#[tauri::command]
+fn reveal_path(path: String) -> Result<(), String> {
+    // Same sanitation as open_url: reject control characters, and always pass
+    // the path as a separate argument so nothing reaches a shell.
+    if path.is_empty() || path.chars().any(|c| c.is_control()) {
+        return Err("Invalid path".into());
+    }
+
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open").arg("-R").arg(&path).spawn();
+
+    #[cfg(target_os = "windows")]
+    let result = std::process::Command::new("explorer")
+        .arg(format!("/select,{}", path))
+        .spawn();
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let result = {
+        let dir = std::path::Path::new(&path)
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| std::path::PathBuf::from(&path));
+        std::process::Command::new("xdg-open").arg(dir).spawn()
+    };
+
+    result
+        .map(|_| ())
+        .map_err(|e| format!("Failed to reveal {}: {}", path, e))
+}
+
 // ── Generic HTTP fetch command ────────────────────────────────────────────
 // Makes HTTP requests from Rust, bypassing WebView mixed-content restrictions.
 // The Tauri WebView loads from https://tauri.localhost, so browser fetch() to
@@ -1044,6 +1247,12 @@ pub fn run() {
             save_binary_to_path,
             read_text_file,
             read_binary_file,
+            list_dir_entries,
+            ensure_dir,
+            delete_file,
+            save_text_atomic,
+            probe_directory,
+            reveal_path,
             http_fetch,
             fetch_link_preview,
             get_opened_file,

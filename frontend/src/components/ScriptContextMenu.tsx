@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Editor } from '@tiptap/react';
 import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorStore';
 import { useEditorStore } from '../stores/editorStore';
+import { singleLine } from '../utils/nodeText';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { grammarPluginKey } from '../editor/extensions/Grammar';
@@ -288,7 +289,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
 
   /** Derive a meaningful context label from the element under cursor */
   const deriveContextLabel = (): string => {
-    const text = $from.parent.textContent.trim();
+    const text = singleLine($from.parent.textContent);
     switch (currentNodeType) {
       case 'character':
         // Strip extensions like (CONT'D), (V.O.) etc.
@@ -303,7 +304,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
         const pos = $from.before($from.depth);
         doc.nodesBetween(0, pos, (node) => {
           if (node.type.name === 'character') {
-            charName = node.textContent.trim().replace(/\s*\([^)]*\)\s*/g, '').trim();
+            charName = singleLine(node.textContent).replace(/\s*\([^)]*\)\s*/g, '').trim();
           }
           return true;
         });

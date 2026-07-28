@@ -103,9 +103,12 @@ function collectTextNodes(
       if (child.isText && child.text) {
         blockText += child.text;
       } else if (child.isInline) {
-        // Atom (1 PM position wide) — use a space so the offset mapping
-        // stays linear.
-        blockText += ' ';
+        // Atom (1 PM position wide) — substitute exactly one character so the
+        // offset mapping stays linear. A newline rather than a space, matching
+        // the `leafText` a hard break carries elsewhere: it gives the grammar
+        // engine a real clause boundary instead of running two lines into one
+        // sentence.
+        blockText += '\n';
       }
     });
     if (blockText.trim().length > 0) {

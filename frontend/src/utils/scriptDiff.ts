@@ -4,6 +4,7 @@
  * changes are shown in terms of screenplay elements.
  */
 import type { JSONContent } from '@tiptap/react';
+import { jsonBlockText } from './nodeText';
 
 export type ChangeType = 'added' | 'deleted' | 'modified' | 'unchanged';
 
@@ -36,11 +37,10 @@ export interface ScriptDiffResult {
   summary: DiffSummary;
 }
 
-function getText(node: JSONContent): string {
-  if (node.text) return node.text;
-  if (!node.content) return '';
-  return node.content.map(getText).join('');
-}
+// Hard breaks must appear in the extracted text, or two revisions differing
+// only in where a break sits produce identical strings and the LCS below
+// reports "no change" for an edit the writer really made.
+const getText = jsonBlockText;
 
 function flattenBlocks(doc: JSONContent): Array<{ type: string; text: string }> {
   const blocks: Array<{ type: string; text: string }> = [];

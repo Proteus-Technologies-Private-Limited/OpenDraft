@@ -197,6 +197,103 @@
       </tbody>
     </table>
 
+    <h2 id="backups">Backups &amp; Recovery</h2>
+
+    <p>
+      Version History lives <em>inside</em> OpenDraft&rsquo;s database. Backups are
+      ordinary files <em>outside</em> it, so they survive even if something happens
+      to the app&rsquo;s data. Use both: check in at milestones, and let backups run
+      quietly in the background.
+    </p>
+
+    <div class="note">
+      Backups are a desktop feature. In the browser and on phones and tablets,
+      use <strong>File &rarr; Export &rarr; OpenDraft (.odraft)</strong> to save a
+      copy wherever you like &mdash; on mobile that opens the system share sheet.
+    </div>
+
+    <h3 id="automatic-backups">Turning on automatic backups</h3>
+
+    <ol>
+      <li>Open <strong>Settings</strong> (File &rarr; Backups &rarr; Backup Settings&hellip;).</li>
+      <li>Under <strong>Automatic Backups</strong>, click <strong>Browse&hellip;</strong> and pick a folder,
+          or click <strong>Use Default</strong> for <em>Documents/OpenDraft Backups</em>.</li>
+      <li>Tick <strong>Back up my work automatically</strong>.</li>
+      <li>Choose how often to back up (5&ndash;60 minutes) and how many backups to keep per script.</li>
+    </ol>
+
+    <p>
+      OpenDraft writes a file each interval, but only when the script has actually
+      changed &mdash; leaving the app open without typing creates nothing. Filenames
+      look like <code>The Long Goodbye_2026-07-27_143205_a1b2c3d4.odraft</code>, so
+      the folder sorts chronologically in Finder or Explorer.
+    </p>
+
+    <div class="note">
+      Avoid putting the backup folder inside OneDrive, Dropbox or iCloud Drive.
+      Cloud sync can interfere with files as they&rsquo;re written. OpenDraft warns
+      you if it spots a OneDrive path.
+    </div>
+
+    <h3 id="back-up-now">Back Up Now</h3>
+
+    <p>
+      <strong>File &rarr; Backups &rarr; Back Up Now</strong> writes a snapshot
+      immediately, with no dialog. Manual backups are marked as such and are
+      <strong>never</strong> deleted by the retention limit &mdash; use it before a
+      risky rewrite.
+    </p>
+
+    <table>
+      <thead>
+        <tr><th>Action</th><th>Where it goes</th><th>Deleted automatically?</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Automatic backup</strong></td>
+          <td>Your backup folder, on a timer</td>
+          <td>Yes, past the retention limit</td>
+        </tr>
+        <tr>
+          <td><strong>Back Up Now</strong></td>
+          <td>Your backup folder, immediately</td>
+          <td>Never</td>
+        </tr>
+        <tr>
+          <td><strong>File &rarr; Export &rarr; .odraft</strong></td>
+          <td>Anywhere you choose, via a Save dialog</td>
+          <td>Never</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 id="recover-backup">Recovering a backup</h3>
+
+    <p>
+      <strong>File &rarr; Backups &rarr; Recover Backup&hellip;</strong> lists every
+      snapshot with its date and size, grouped by script. Select one to preview
+      the opening of the script, then choose:
+    </p>
+
+    <ul>
+      <li><strong>Open as New Script</strong> &mdash; creates a new script from the
+          backup and leaves everything else untouched. This is the safe default.</li>
+      <li><strong>Replace Current Script&hellip;</strong> &mdash; overwrites the script
+          you have open. OpenDraft saves a backup of the current state first, so
+          you can undo it.</li>
+    </ul>
+
+    <p>
+      <strong>Import from a file&hellip;</strong> opens an <code>.odraft</code> from
+      anywhere &mdash; useful for a backup you&rsquo;ve moved or been sent.
+    </p>
+
+    <p>
+      Backups include your notes, tags, beats, character profiles and images, so a
+      restored script comes back complete. If a backup was taken with images
+      turned off, the preview says so.
+    </p>
+
     <div class="page-nav">
       <a href="projects.html">
         <span class="nav-label">&larr; Previous</span>

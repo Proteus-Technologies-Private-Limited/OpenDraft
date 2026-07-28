@@ -5,6 +5,7 @@
  * array in the document's top-level attrs.
  */
 import type { JSONContent } from '@tiptap/react';
+import { jsonBlockText, singleLine } from './nodeText';
 
 export interface StructureScene {
   sceneIndex: number;          // 0-based index within the whole document
@@ -52,11 +53,9 @@ export function defaultActName(actNumber: number): string {
   return `ACT ${actNumber}`;
 }
 
-function getText(node: JSONContent): string {
-  if (node.text) return node.text;
-  if (!node.content) return '';
-  return node.content.map(getText).join('');
-}
+// Hard breaks come through as newlines; callers that need a display label
+// collapse them with singleLine().
+const getText = jsonBlockText;
 
 /**
  * Compute full document structure. Called on demand (not memoized here).
@@ -131,7 +130,8 @@ export function computeScriptStructure(doc: JSONContent): ScriptStructure {
     }
 
     if (node.type === 'sceneHeading') {
-      const heading = getText(node);
+      // Displayed as a single-line label in the structure panel and navigator.
+      const heading = singleLine(getText(node));
       const sequenceId = (node.attrs?.sequenceId as string | undefined) || null;
       const scene: StructureScene = {
         sceneIndex,
