@@ -43,6 +43,8 @@ export function useBackupScheduler(opts: BackupSchedulerOptions): void {
   const intervalMinutes = useSettingsStore((s) => s.backupIntervalMinutes);
   const backupUnsavedDocs = useSettingsStore((s) => s.backupUnsavedDocs);
   const pausedByError = useBackupStatusStore((s) => s.pausedByError);
+  // Opening a document re-runs the effect below, which snapshots straight away.
+  const documentOpenSeq = useBackupStatusStore((s) => s.documentOpenSeq);
 
   // Latest values, so the interval doesn't need re-creating on every keystroke.
   const optsRef = useRef(opts);
@@ -52,10 +54,13 @@ export function useBackupScheduler(opts: BackupSchedulerOptions): void {
   const lastSnapshotKeyRef = useRef<string>('');
   const isWritingRef = useRef(false);
 
-  // Switching scripts must always produce a first snapshot for the new one.
+  // Opening a document must always produce a snapshot for it, even when the
+  // content happens to match what was last written (re-opening the same script,
+  // or two scripts with identical bodies). Declared before the scheduling effect
+  // so the key is already cleared by the time that effect's initial run fires.
   useEffect(() => {
     lastSnapshotKeyRef.current = '';
-  }, [opts.scriptId]);
+  }, [opts.scriptId, documentOpenSeq]);
 
   useEffect(() => {
     if (!isDesktopTauri()) return;
@@ -120,10 +125,11 @@ export function useBackupScheduler(opts: BackupSchedulerOptions): void {
       return true;
     };
 
-    // An initial snapshot the moment backups are switched on (and on launch
-    // when they already are). Waiting a full interval for the first copy is the
-    // one window where the feature looks enabled but protects nothing — and it
-    // is exactly when the writer goes looking in the folder to check it works.
+    // An initial snapshot the moment backups are switched on, a document is
+    // opened, or the app launches with backups already on. Waiting a full
+    // interval for the first copy is the one window where the feature looks
+    // enabled but protects nothing — and it is exactly when the writer goes
+    // looking in the folder to check it works.
     // Unchanged documents are deduped by lastSnapshotKeyRef, so this never
     // doubles up with the interval or with a settings tweak.
     let cancelled = false;
@@ -146,5 +152,5 @@ export function useBackupScheduler(opts: BackupSchedulerOptions): void {
       if (retryId) clearTimeout(retryId);
       clearInterval(id);
     };
-  }, [backupEnabled, backupFolder, intervalMinutes, backupUnsavedDocs, pausedByError]);
+  }, [backupEnabled, backupFolder, intervalMinutes, backupUnsavedDocs, pausedByError, documentOpenSeq]);
 }

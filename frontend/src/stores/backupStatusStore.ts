@@ -20,8 +20,19 @@ interface BackupStatusState {
   consecutiveFailures: number;
   /** True once the scheduler has stopped trying; cleared by resume(). */
   pausedByError: boolean;
+  /**
+   * Bumped every time a document is opened — from the library, from a URL, or
+   * imported from disk. The scheduler watches it and snapshots immediately
+   * rather than leaving the newly opened script unprotected until the next
+   * interval, which with a 60-minute setting is a long time to be exposed.
+   *
+   * A counter rather than a flag so re-opening the same script still registers.
+   */
+  documentOpenSeq: number;
 
   noteSuccess: (path: string) => void;
+  /** Called by the editor once an opened document's content is in place. */
+  noteDocumentOpened: () => void;
   /** Returns the new consecutive-failure count so callers can decide to toast. */
   noteFailure: (message: string) => number;
   /** Clear the failure state — a settings change or a successful manual backup. */
@@ -34,6 +45,9 @@ export const useBackupStatusStore = create<BackupStatusState>((set, get) => ({
   lastError: null,
   consecutiveFailures: 0,
   pausedByError: false,
+  documentOpenSeq: 0,
+
+  noteDocumentOpened: () => set((s) => ({ documentOpenSeq: s.documentOpenSeq + 1 })),
 
   noteSuccess: (path) =>
     set({

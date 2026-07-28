@@ -627,6 +627,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         : ext === 'odraft' ? 'OpenDraft (.odraft)'
         : ext ? `.${ext}` : 'imported file';
       store.setImportedSource({ name, format: fmtLabel });
+      // Imported files have no library copy — snapshot immediately.
+      useBackupStatusStore.getState().noteDocumentOpened();
     } catch (err) {
       console.error('Import failed:', err);
       showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');

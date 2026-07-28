@@ -73,6 +73,7 @@ import { buildSaveContent as buildSaveContentShared } from '../utils/saveContent
 import { characterKey } from '../utils/nodeText';
 import { computeContdChanges, type ContdBlock } from '../editor/contdAuto';
 import { useBackupScheduler } from '../hooks/useBackupScheduler';
+import { useBackupStatusStore } from '../stores/backupStatusStore';
 import { runRetext, RETEXT_CATEGORIES, type RetextCategory } from '../editor/grammar/retextProvider';
 import { runHarper } from '../editor/grammar/harperProvider';
 import { clearEditorHistory } from '../editor/clearHistory';
@@ -2548,6 +2549,9 @@ const ScreenplayEditor: React.FC = () => {
         useEditorStore.getState().setSaveStatus('idle');
         lastSavedJsonRef.current = '';
         requestAnimationFrame(() => updateScenes());
+        // Snapshot the script we just opened; see handleOpenFile. History mode
+        // is read-only and must never write a backup of an old version.
+        if (!isHistoryMode) useBackupStatusStore.getState().noteDocumentOpened();
       } catch (err) {
         console.error('Failed to load script:', err);
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -2906,6 +2910,9 @@ const ScreenplayEditor: React.FC = () => {
         }
         setDocumentTitle(scriptTitle);
         requestAnimationFrame(() => updateScenes());
+        // Back the newly opened script up right away rather than leaving it
+        // unprotected until the next interval tick.
+        useBackupStatusStore.getState().noteDocumentOpened();
       } catch (err) {
         console.error('Failed to open script:', err);
         showToast('Failed to open script. Make sure the backend server is running on port 8000.', 'error');
@@ -3083,6 +3090,9 @@ const ScreenplayEditor: React.FC = () => {
         : ext === 'odraft' ? 'OpenDraft (.odraft)'
         : ext ? `.${ext}` : 'imported file';
       useEditorStore.getState().setImportedSource({ name: filename, format: fmtLabel });
+      // A file opened from disk has no library copy at all, so it is the one
+      // that most needs an immediate snapshot.
+      useBackupStatusStore.getState().noteDocumentOpened();
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       console.error('Failed to open external file:', filePath, detail, err);
@@ -3275,6 +3285,7 @@ const ScreenplayEditor: React.FC = () => {
         : ext === 'odraft' ? 'OpenDraft (.odraft)'
         : ext ? `.${ext}` : 'imported file';
       useEditorStore.getState().setImportedSource({ name: file.name, format: fmtLabel });
+      useBackupStatusStore.getState().noteDocumentOpened();
     } catch (err) {
       console.error('Failed to import dropped file:', err);
       showToast(`Failed to import file: ${err instanceof Error ? err.message : String(err)}`, 'error');
