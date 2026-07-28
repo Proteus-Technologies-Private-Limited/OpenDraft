@@ -157,6 +157,7 @@ jobs:
 
       - name: Build Tauri app
         id: tauri_build
+        if: runner.os != 'macOS'
         timeout-minutes: 30
         continue-on-error: true
         uses: tauri-apps/tauri-action@v0
@@ -216,15 +217,11 @@ jobs:
           includeUpdaterJson: false
 
       - name: Build Tauri app (retry)
-        if: steps.tauri_build.outcome == 'failure'
+        if: steps.tauri_build.outcome == 'failure' && runner.os != 'macOS'
         timeout-minutes: 30
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
         with:
           tauriScript: npx --prefix frontend tauri
           tagName: ${{ github.ref_name }}
@@ -233,6 +230,46 @@ jobs:
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: false
+
+      # macOS calls the Tauri CLI directly instead of going through
+      # tauri-action. In v0.20.0 both tauri-action macOS jobs hung inside
+      # codesign until the step timed out — twice each, on two different runner
+      # images — while every macOS job that runs the CLI from a plain `run:`
+      # step (Intel Legacy, App Store) signed and notarized in 3-6 minutes.
+      # Same certificate, same keychain setup, same signing identity: the
+      # action was the only difference. The runner had to kill the orphaned
+      # codesign processes at job cleanup, which is also why the retry never
+      # helped — the orphan still held the keychain.
+      - name: Build Tauri app (macOS)
+        if: runner.os == 'macOS'
+        timeout-minutes: 30
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+        run: npx --prefix frontend tauri build
+
+      - name: Stage macOS DMG
+        if: runner.os == 'macOS'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          DMG=$(find src-tauri/target/release/bundle/dmg -name "*.dmg" | head -1)
+          if [ -z "$DMG" ]; then
+            echo "::error::No DMG produced for ${{ matrix.target }}"
+            exit 1
+          fi
+          mkdir -p mac-artifacts
+          cp "$DMG" "mac-artifacts/OpenDraft_${VERSION}_aarch64.dmg"
+          ls -la mac-artifacts/
+
+      - name: Upload macOS DMG to release
+        if: runner.os == 'macOS'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: mac-artifacts/*
+          draft: true
 
   build-android:
     runs-on: ubuntu-latest
@@ -568,46 +605,34 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
         run: .github/scripts/check-notarization-access.sh
 
+      # Direct CLI call, not tauri-action — see the matrix job for why.
       - name: Build Tauri app
-        id: tauri_build
         timeout-minutes: 30
-        continue-on-error: true
-        uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-        with:
-          tauriScript: npx --prefix frontend tauri
-          args: --target x86_64-apple-darwin
-          tagName: ${{ github.ref_name }}
-          releaseName: 'OpenDraft ${{ github.ref_name }}'
-          releaseBody: ''
-          releaseDraft: true
-          prerelease: false
-          includeUpdaterJson: false
+        run: npx --prefix frontend tauri build --target x86_64-apple-darwin
 
-      - name: Build Tauri app (retry)
-        if: steps.tauri_build.outcome == 'failure'
-        timeout-minutes: 30
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      - name: Stage Intel DMG
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          DMG=$(find src-tauri/target/x86_64-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
+          if [ -z "$DMG" ]; then
+            echo "::error::No DMG produced for the Intel build"
+            exit 1
+          fi
+          mkdir -p intel-artifacts
+          cp "$DMG" "intel-artifacts/OpenDraft_${VERSION}_x64.dmg"
+          ls -la intel-artifacts/
+
+      - name: Upload Intel DMG to release
+        uses: softprops/action-gh-release@v2
         with:
-          tauriScript: npx --prefix frontend tauri
-          args: --target x86_64-apple-darwin
-          tagName: ${{ github.ref_name }}
-          releaseName: 'OpenDraft ${{ github.ref_name }}'
-          releaseBody: ''
-          releaseDraft: true
-          prerelease: false
-          includeUpdaterJson: false
+          tag_name: ${{ github.ref_name }}
+          files: intel-artifacts/*
+          draft: true
 
   build-intel-mac-legacy:
     # Pinned to macos-15 — see build-mac-appstore. codesign/notarize
