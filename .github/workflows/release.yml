@@ -23,7 +23,12 @@ jobs:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             label: Windows-x64
-          - platform: macos-26
+          # Pinned to macos-15 for the same reason as build-mac-appstore:
+          # codesign/notarize hangs on macos-26 until the step times out. In
+          # v0.20.0 all three notarizing macOS jobs burned 60 minutes and
+          # retried for 60 more, while the macos-15 App Store job finished in
+          # under five. Revisit when the macos-26 codesign issue is fixed.
+          - platform: macos-15
             target: aarch64-apple-darwin
             label: macOS-arm64
 
@@ -490,7 +495,9 @@ jobs:
           path: android-artifacts/*.aab
 
   build-intel-mac:
-    runs-on: macos-26
+    # Pinned to macos-15 — see build-mac-appstore. codesign/notarize
+    # hangs on macos-26 until the step times out.
+    runs-on: macos-15
     name: Build (macOS Intel)
 
     steps:
@@ -603,7 +610,9 @@ jobs:
           includeUpdaterJson: false
 
   build-intel-mac-legacy:
-    runs-on: macos-26
+    # Pinned to macos-15 — see build-mac-appstore. codesign/notarize
+    # hangs on macos-26 until the step times out.
+    runs-on: macos-15
     name: Build (macOS Intel Legacy)
 
     env:
