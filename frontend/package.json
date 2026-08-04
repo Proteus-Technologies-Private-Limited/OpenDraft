@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint . --ext .js,.jsx",
+    "test": "echo 'No tests yet'",
     "preview": "vite preview"
   },
   "dependencies": {
