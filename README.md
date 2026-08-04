@@ -1,294 +1,104 @@
-<p align="center">
-  <img src="images/OpenDraft-1024x1024.png" alt="OpenDraft Logo" width="120">
-</p>
+# News Website
 
-<h1 align="center">OpenDraft</h1>
-
-<p align="center">
-  <strong>Write professional screenplays for free</strong><br>
-  No subscription. No cloud lock-in. Own your scripts forever.
-</p>
-
-<p align="center">
-  <a href="https://open-draft.com">
-    <img src="https://img.shields.io/badge/%E2%96%B6_Try_OpenDraft_Now-c455ce?style=for-the-badge&labelColor=4a154b" alt="Try OpenDraft Now">
-  </a>
-</p>
-<p align="center"><em>No account needed. Opens in your browser in seconds.</em></p>
-
-<p align="center">
-  <a href="https://proteus-technologies-private-limited.github.io/OpenDraft/">Website</a> &bull;
-  <a href="#download">Download</a> &bull;
-  <a href="#screenshots">Screenshots</a> &bull;
-  <a href="#features">Features</a> &bull;
-  <a href="#comparison">Compare</a>
-</p>
-
-<p align="center">
-  <img src="images/opendraft-demo.gif" alt="OpenDraft in action — writing a screenplay" width="80%"><br>
-  <em>Professional screenplay formatting, planning, collaboration, and version history — all in one app.</em>
-</p>
-
-<p align="center">
-  <strong>Free forever</strong> &bull;
-  <strong>Works 100% offline</strong> &bull;
-  <strong>Your scripts never leave your machine</strong> &bull;
-  <strong>Import from Final Draft in seconds</strong>
-</p>
-
-<p align="center">
-  <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Proteus-Technologies-Private-Limited/OpenDraft?label=Download&style=flat-square&color=blue&cacheSeconds=300&v=0174" alt="Download">
-  </a>
-  <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/stargazers">
-    <img src="https://img.shields.io/github/stars/Proteus-Technologies-Private-Limited/OpenDraft?style=flat-square&cacheSeconds=600" alt="GitHub Stars">
-  </a>
-  <a href="LICENSE">
-    <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT">
-  </a>
-</p>
-
----
-
-## Why OpenDraft?
-
-Your script is your intellectual property. Cloud-based screenwriting tools store your work on corporate servers — where it can be mined, leaked, or used to train AI. OpenDraft keeps every word on your machine.
-
-- **Never pay for your own words** — Free forever under the MIT license. No trial, no subscription, no feature gating.
-- **Switch without starting over** — Import from Final Draft (.fdx), Fountain, or PDF. Export anytime. Your scripts are never locked in.
-- **Write anywhere, even offline** — Desktop apps for Mac, Windows, and Linux. Mobile apps for iOS and Android. No internet required.
-- **Collaborate when you want to** — Invite co-writers with a link. Real-time cursors and permissions. When the session ends, nothing stays on any server.
-
----
-
-## Screenshots
-
-<p align="center">
-  <img src="images/macos/editor.png" alt="Screenplay Editor" width="80%"><br>
-  <em>Industry-standard screenplay formatting with scene navigator</em>
-</p>
-
-<p align="center">
-  <img src="images/macos/beatboard.png" alt="Beat Board" width="80%"><br>
-  <em>Visual story planning with drag-and-drop index cards</em>
-</p>
-
-<p align="center">
-  <img src="images/macos/collaboration_1.png" alt="Real-time Collaboration" width="80%"><br>
-  <em>Real-time collaboration — multiple writers editing simultaneously</em>
-</p>
-
-<p align="center">
-  <img src="images/version_history.png" alt="Version History" width="80%"><br>
-  <em>Built-in version history with check-in, diff, and restore</em>
-</p>
-
----
+A modern, full-stack news website built with React, Node.js, and PostgreSQL.
 
 ## Features
 
-**Screenplay Editor**
-Industry-standard formatting with autocomplete for character names, scene headings, and transitions.
+- 📰 Article management and publishing
+- 🏷️ Categories and tags
+- ⭐ Featured articles
+- 🔍 Search functionality
+- 👤 User authentication & profiles
+- 💬 Comments on articles
+- 📧 Newsletter subscription
+- 📱 Responsive design
+- 🌙 Dark mode support
 
-**Beat Board**
-Plan your story visually with drag-and-drop index cards before you write a single page.
+## Tech Stack
 
-**Real-Time Collaboration**
-Write with your partner simultaneously — live cursors, presence indicators, and edit/view permissions.
+**Frontend:**
+- React 18+ with Vite
+- Tailwind CSS for styling
+- React Router for navigation
+- Axios for API calls
 
-**Version History**
-Check in drafts, compare versions side-by-side, and restore any previous draft instantly.
+**Backend:**
+- Node.js + Express
+- PostgreSQL database
+- JWT authentication
+- bcryptjs for password hashing
 
-**Character Profiles**
-Track characters with descriptions, role types, and color-coded highlighting in your script.
+**Database:**
+- PostgreSQL with Sequelize ORM
 
-**Import & Export**
-Move freely between Final Draft (.fdx), Fountain, and PDF — never locked into one tool.
+## Project Structure
 
-**iOS & Android Apps**
-Full-featured mobile apps with 100% of the desktop functionality — write, edit, and manage scripts on the go.
-
-> See the [full feature list](docs/FEATURES.md) for scene navigator, spell check, search & replace, script notes, asset management, and more.
-
----
-
-## Comparison
-
-How does OpenDraft stack up against commercial screenwriting software?
-
-| Feature | OpenDraft | Final Draft | WriterDuet | Fade In |
-|---------|:---------:|:-----------:|:----------:|:-------:|
-| **Price** | Free | $250 | Free / $12/mo | $80 |
-| **Open Source** | Yes (MIT) | No | No | No |
-| **Offline Desktop App** | Yes | Yes | Limited | Yes |
-| **Real-time Collaboration** | Yes | Yes | Yes | Yes |
-| **Beat Board / Index Cards** | Yes | Yes | Yes | Yes |
-| **Version History with Diff** | Yes | Limited | Limited | Limited |
-| **Self-Hostable** | Yes | No | No | No |
-| **Linux Support** | Yes | No | Yes (paid) | Yes |
-| **No Account Required** | Yes | No | No | Yes |
-| **Privacy-First (No Tracking)** | Yes | No | No | No |
-| **Character Profiles** | Yes | Limited | No | No |
-| **Casting / Reference Images** | Yes | No | No | No |
-| **iOS App** | Yes | Yes | Yes | Yes |
-| **Android App** | Yes | No | Yes | Yes |
-| **Production Tags** | Yes | Limited | Yes | Yes |
-| **Fountain Import/Export** | Yes | No | Yes | Yes |
-| **Web Browser Access** | Yes | No | Yes | Limited |
-| **Plugin Architecture** | Yes | No | No | No |
-
-<sub>Comparison based on publicly available product information as of April 2026. If you spot an inaccuracy, please <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/issues/new/choose">open an issue</a>.</sub>
-
----
-
-## Download
-
-Get the latest version — no account required, just install and start writing. Most users are writing in under 2 minutes.
-
-### Desktop
-
-| Platform | Download |
-|----------|----------|
-| **macOS** (Apple Silicon) | [Download .dmg](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.20.0_aarch64.dmg) |
-| **macOS** (Intel) | [Download .dmg](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.20.0_x64.dmg) |
-| **Windows** (64-bit) | [Download .exe](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.20.0_x64-setup.exe) |
-| **Windows** (MSI) | [Download .msi](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.20.0_x64_en-US.msi) |
-| **Linux** (Debian/Ubuntu) | [Download .deb](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.20.0_amd64.deb) |
-| **Linux** (AppImage) | [Download .AppImage](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_0.20.0_amd64.AppImage) |
-| **Linux** (RPM/Fedora) | [Download .rpm](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft-0.20.0-1.x86_64.rpm) |
-
-### Mobile
-
-<p>
-  <a href="https://apps.apple.com/us/app/open-draft-screenwriting/id6761807809">
-    <img src="images/badges/app-store-badge.png" alt="Download on the App Store" height="48">
-  </a>
-  &nbsp;&nbsp;
-  <a href="https://play.google.com/store/apps/details?id=com.proteus.opendraft">
-    <img src="images/badges/google-play-badge.png" alt="Get it on Google Play" height="48">
-  </a>
-</p>
-
-> The app is fully standalone — everything you need is bundled inside. No account, no setup.
-
-For all versions and platforms, visit the [Releases](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases) page.
-
----
+```
+NewsWebsite/
+├── frontend/                 # React app
+│   ├── src/
+│   │   ├── components/       # Reusable components
+│   │   ├── pages/            # Page components
+│   │   ├── services/         # API services
+│   │   ├── utils/            # Utility functions
+│   │   └── App.jsx
+│   └── package.json
+├── backend/                  # Node.js API
+│   ├── config/               # Database & environment config
+│   ├── models/               # Database models
+│   ├── routes/               # API routes
+│   ├── controllers/          # Route handlers
+│   ├── middleware/           # Custom middleware
+│   ├── server.js
+│   └── package.json
+├── docs/                     # Documentation
+└── README.md
+```
 
 ## Getting Started
 
-New to OpenDraft? Here's everything you need:
+### Prerequisites
+- Node.js 16+
+- PostgreSQL 12+
+- npm or yarn
 
-- **Just want to try it?** [Open the demo](https://open-draft.com) — no account, no install, opens in seconds.
-- **Ready to install?** Grab the [latest download](#download) for your platform.
-- **Need a walkthrough?** Read the [User Manual](https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/).
-- **Want to learn more?** Visit the [OpenDraft website](https://proteus-technologies-private-limited.github.io/OpenDraft/).
-- **Have a question?** Start a [Discussion](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions) — the community is happy to help.
+### Installation
 
----
+1. **Clone the repository**
+```bash
+cd NewsWebsite
+```
+
+2. **Setup Backend**
+```bash
+cd backend
+npm install
+cp .env.example .env
+# Edit .env with your database credentials
+npm run dev
+```
+
+3. **Setup Frontend**
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
+
+The app will be available at `http://localhost:5173`
+
+## API Documentation
+
+See [docs/API.md](docs/API.md) for complete API reference.
+
+## Database Schema
+
+See [docs/DATABASE.md](docs/DATABASE.md) for database schema details.
 
 ## Contributing
 
-We welcome contributions from everyone! Whether you're fixing a typo, reporting a bug, or building a new feature — every contribution matters.
-
-- **New here?** Check out issues labeled [`good first issue`](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/labels/good%20first%20issue).
-- **Have a question?** Start a [Discussion](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions).
-- **Found a bug?** [Open an issue](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/issues/new/choose).
-- **Want to contribute code?** See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
-
----
-
-## For Developers
-
-<details>
-<summary>Tech Stack, Project Structure, and Development Setup</summary>
-
-### Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19, TypeScript, Vite, TipTap editor |
-| Backend | Python 3.12, FastAPI, Uvicorn |
-| Desktop | Tauri 2 (Rust) with bundled Python backend |
-| Collaboration | Hocuspocus WebSocket server, Yjs CRDT |
-| State Management | Zustand |
-| Version Control | Git (per-project, built-in) |
-
-### Project Structure
-
-```
-OpenDraft/
-├── frontend/          # React + TypeScript web UI
-├── backend/           # FastAPI Python API server
-├── collab-server/     # Real-time collaboration server (Node.js)
-├── src-tauri/         # Tauri 2 desktop app shell (Rust)
-├── docs/              # Documentation
-├── images/            # Logos and assets
-├── setup.sh           # One-click browser setup script
-├── build.sh           # Web build script
-└── build-desktop.sh   # Desktop app build script
-```
-
-### Development
-
-```bash
-# Clone and install
-git clone https://github.com/Proteus-Technologies-Private-Limited/OpenDraft.git
-cd OpenDraft
-
-# Backend
-python3.12 -m venv venv
-source venv/bin/activate
-pip install -r backend/requirements.txt
-
-# Frontend
-cd frontend && npm install && cd ..
-
-# Start development servers (in separate terminals)
-./start_backend.sh    # API server on http://localhost:8000
-./start_frontend.sh   # Dev server on http://localhost:5173
-```
-
-### Building Desktop App
-
-```bash
-./build-desktop.sh
-# Output: src-tauri/target/release/bundle/
-```
-
-See [docs/desktop-build.md](docs/desktop-build.md) for detailed desktop build instructions.
-
-### Run in Browser (Self-Hosted) — For Developers / Advanced Users
-
-To run your own instance of OpenDraft in a browser:
-
-```bash
-git clone https://github.com/Proteus-Technologies-Private-Limited/OpenDraft.git
-cd OpenDraft
-./setup.sh
-```
-
-Installs dependencies, builds the app, and opens it at **http://localhost:8000**.
-
-Requires Python 3.12+, Node.js 18+, and Git. See [docs/INSTALLATION.md](docs/INSTALLATION.md) for details.
-
-> **Note:** This is for developers who want to self-host or contribute. If you just want to use OpenDraft, [download the desktop app](#download) or [try the demo](https://open-draft.com).
-
-</details>
-
----
+Pull requests welcome! Please follow the existing code style.
 
 ## License
 
-OpenDraft is open-source software licensed under the [MIT License](LICENSE). Free to use, modify, and distribute.
-
----
-
-<p align="center">
-  Built by screenwriters and engineers at <a href="https://github.com/Proteus-Technologies-Private-Limited">Proteus Technologies</a>
-</p>
-
-<p align="center">
-  <em>Write screenplays, not subscriptions.</em><br>
-  If OpenDraft helps your writing, a <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft">star on GitHub</a> helps others discover it.
-</p>
+MIT
