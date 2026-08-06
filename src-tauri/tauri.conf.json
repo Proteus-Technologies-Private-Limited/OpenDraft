@@ -74,6 +74,16 @@
         "description": "Fountain Screenplay"
       },
       {
+        "ext": ["fadein"],
+        "mimeType": "application/zip",
+        "description": "Fade In Screenplay"
+      },
+      {
+        "ext": ["osf"],
+        "mimeType": "application/xml",
+        "description": "Open Screenplay Format"
+      },
+      {
         "ext": ["odraft"],
         "mimeType": "application/json",
         "description": "OpenDraft Screenplay"

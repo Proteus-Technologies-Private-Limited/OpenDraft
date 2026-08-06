@@ -1,10 +1,16 @@
 // Fountain markup format parser
 // Spec: https://fountain.io/syntax
 
+interface TipTapMark {
+  type: string;
+  attrs?: Record<string, unknown>;
+}
+
 interface TipTapNode {
   type: string;
   content?: TipTapNode[];
   text?: string;
+  marks?: TipTapMark[];
   attrs?: Record<string, unknown>;
 }
 
@@ -12,6 +18,16 @@ export function parseFountain(text: string): TipTapNode {
   const lines = text.split('\n');
   const nodes: TipTapNode[] = [];
   let i = 0;
+  // A `===` page break applies to whatever element comes next.
+  let pendingPageBreak = false;
+
+  const push = (node: TipTapNode) => {
+    if (pendingPageBreak) {
+      node.attrs = { ...node.attrs, startsNewPage: true };
+      pendingPageBreak = false;
+    }
+    nodes.push(node);
+  };
 
   while (i < lines.length) {
     const line = lines[i];
@@ -19,6 +35,13 @@ export function parseFountain(text: string): TipTapNode {
 
     // Skip empty lines
     if (trimmed === '') {
+      i++;
+      continue;
+    }
+
+    // Page break: a line of three or more equals signs
+    if (/^={3,}$/.test(trimmed)) {
+      pendingPageBreak = true;
       i++;
       continue;
     }
@@ -32,30 +55,54 @@ export function parseFountain(text: string): TipTapNode {
       continue;
     }
 
+    // Forced action: line starts with !.  Checked before every other rule so
+    // it can override the ALL-CAPS character and scene-heading heuristics.
+    if (trimmed.startsWith('!')) {
+      push(makeNode('action', trimmed.substring(1)));
+      i++;
+      continue;
+    }
+
+    // Lyrics: line starts with ~
+    if (trimmed.startsWith('~')) {
+      push(makeNode('lyrics', trimmed.substring(1)));
+      i++;
+      continue;
+    }
+
     // Forced scene heading: line starts with .
     if (trimmed.startsWith('.') && trimmed.length > 1 && trimmed[1] !== '.') {
-      nodes.push(makeNode('sceneHeading', trimmed.substring(1).trim()));
+      push(makeNode('sceneHeading', trimmed.substring(1).trim()));
       i++;
       continue;
     }
 
     // Scene heading: starts with INT., EXT., EST., INT/EXT., I/E.
     if (/^(INT\.|EXT\.|EST\.|INT\.\/EXT\.|I\/E\.)/.test(trimmed.toUpperCase())) {
-      nodes.push(makeNode('sceneHeading', trimmed));
+      push(makeNode('sceneHeading', trimmed));
+      i++;
+      continue;
+    }
+
+    // Centered text: >text<
+    if (trimmed.startsWith('>') && trimmed.endsWith('<') && trimmed.length > 1) {
+      const centered = makeNode('action', trimmed.slice(1, -1).trim());
+      centered.attrs = { ...centered.attrs, textAlign: 'center' };
+      push(centered);
       i++;
       continue;
     }
 
     // Forced transition: line starts with >
-    if (trimmed.startsWith('>') && !trimmed.endsWith('<')) {
-      nodes.push(makeNode('transition', trimmed.substring(1).trim()));
+    if (trimmed.startsWith('>')) {
+      push(makeNode('transition', trimmed.substring(1).trim()));
       i++;
       continue;
     }
 
     // Transition: all caps ending with TO:
     if (/^[A-Z\s]+TO:$/.test(trimmed)) {
-      nodes.push(makeNode('transition', trimmed));
+      push(makeNode('transition', trimmed));
       i++;
       continue;
     }
@@ -68,9 +115,9 @@ export function parseFountain(text: string): TipTapNode {
       if (isDual) charName = charName.replace(/\s*\^$/, '');
       const charNode = makeNode('character', charName);
       if (isDual) charNode.attrs = { ...charNode.attrs, dualDialogue: true };
-      nodes.push(charNode);
+      push(charNode);
       i++;
-      i = collectDialogueBlock(lines, i, nodes);
+      i = collectDialogueBlock(lines, i, push);
       continue;
     }
 
@@ -81,14 +128,14 @@ export function parseFountain(text: string): TipTapNode {
       if (isDual) charName = charName.replace(/\s*\^$/, '').trim();
       const charNode = makeNode('character', charName);
       if (isDual) charNode.attrs = { ...charNode.attrs, dualDialogue: true };
-      nodes.push(charNode);
+      push(charNode);
       i++;
-      i = collectDialogueBlock(lines, i, nodes);
+      i = collectDialogueBlock(lines, i, push);
       continue;
     }
 
     // Default: action
-    nodes.push(makeNode('action', trimmed));
+    push(makeNode('action', trimmed));
     i++;
   }
 
@@ -99,6 +146,85 @@ export function parseFountain(text: string): TipTapNode {
     type: 'doc',
     content: merged.length > 0 ? merged : [makeNode('action', '')],
   };
+}
+
+// ── Inline emphasis ─────────────────────────────────────────────────────────
+
+/**
+ * Fountain escapes a delimiter with a backslash.  Swapping escaped delimiters
+ * for control characters before matching keeps them out of the emphasis
+ * regexes entirely; {@link restoreEscapes} puts the literal character back.
+ */
+const ESCAPE_SENTINELS: Record<string, string> = {
+  '*': '\u0011',
+  '_': '\u0012',
+  '\\': '\u0013',
+};
+const SENTINEL_TO_CHAR: Record<string, string> = Object.fromEntries(
+  Object.entries(ESCAPE_SENTINELS).map(([char, sentinel]) => [sentinel, char]),
+);
+
+function protectEscapes(text: string): string {
+  return text.replace(/\\([*_\\])/g, (_, char: string) => ESCAPE_SENTINELS[char] ?? char);
+}
+
+// Built rather than written as a regex literal, so the sentinels are declared
+// in exactly one place (and so control characters stay out of a literal).
+const SENTINEL_PATTERN = new RegExp(`[${Object.values(ESCAPE_SENTINELS).join('')}]`, 'g');
+
+function restoreEscapes(text: string): string {
+  return text.replace(SENTINEL_PATTERN, (s) => SENTINEL_TO_CHAR[s] ?? s);
+}
+
+/**
+ * Emphasis delimiters, most specific first.  Each pattern requires the run to
+ * start and end on a non-space character, which is what keeps arithmetic
+ * ("2 * 3") and unpaired delimiters from being read as markup.
+ */
+const EMPHASIS_RULES: { re: RegExp; marks: string[] }[] = [
+  { re: /\*\*\*(\S(?:[\s\S]*?\S)?)\*\*\*/, marks: ['bold', 'italic'] },
+  { re: /\*\*(\S(?:[\s\S]*?\S)?)\*\*/, marks: ['bold'] },
+  { re: /\*(\S(?:[\s\S]*?\S)?)\*/, marks: ['italic'] },
+  { re: /_(\S(?:[\s\S]*?\S)?)_/, marks: ['underline'] },
+];
+
+/** Emit text (and hard breaks for embedded newlines) carrying `marks`. */
+function pushText(text: string, marks: string[], out: TipTapNode[]): void {
+  if (text === '') return;
+  restoreEscapes(text)
+    .split('\n')
+    .forEach((segment, i) => {
+      if (i > 0) out.push({ type: 'hardBreak' });
+      if (segment === '') return;
+      const node: TipTapNode = { type: 'text', text: segment };
+      if (marks.length > 0) node.marks = marks.map((type) => ({ type }));
+      out.push(node);
+    });
+}
+
+/**
+ * Split text on the first emphasis run found, recursing into the run itself so
+ * nested emphasis (`**bold *and italic* **`) keeps both marks.  Text with no
+ * well-formed run is emitted verbatim, so stray asterisks survive as
+ * characters rather than swallowing the rest of the line.
+ */
+function splitEmphasis(text: string, marks: string[], out: TipTapNode[]): void {
+  for (const rule of EMPHASIS_RULES) {
+    const match = rule.re.exec(text);
+    if (!match) continue;
+    splitEmphasis(text.slice(0, match.index), marks, out);
+    splitEmphasis(match[1], [...marks, ...rule.marks], out);
+    splitEmphasis(text.slice(match.index + match[0].length), marks, out);
+    return;
+  }
+  pushText(text, marks, out);
+}
+
+/** Parse Fountain inline emphasis into marked text nodes. */
+function parseInline(text: string): TipTapNode[] {
+  const out: TipTapNode[] = [];
+  splitEmphasis(protectEscapes(text), [], out);
+  return out;
 }
 
 /**
@@ -118,15 +244,7 @@ function makeNode(type: string, text: string): TipTapNode {
   if (text === '') {
     return { type, content: [] };
   }
-  if (!text.includes('\n')) {
-    return { type, content: [{ type: 'text', text }] };
-  }
-  const content: TipTapNode[] = [];
-  text.split('\n').forEach((segment, i) => {
-    if (i > 0) content.push({ type: 'hardBreak' });
-    if (segment !== '') content.push({ type: 'text', text: segment });
-  });
-  return { type, content };
+  return { type, content: parseInline(text) };
 }
 
 function isCharacterLine(line: string): boolean {
@@ -200,7 +318,11 @@ function mergeDualDialogue(nodes: TipTapNode[]): TipTapNode[] {
   return result;
 }
 
-function collectDialogueBlock(lines: string[], i: number, nodes: TipTapNode[]): number {
+function collectDialogueBlock(
+  lines: string[],
+  i: number,
+  push: (node: TipTapNode) => void,
+): number {
   while (i < lines.length) {
     const line = lines[i];
     const trimmed = line.trim();
@@ -211,13 +333,20 @@ function collectDialogueBlock(lines: string[], i: number, nodes: TipTapNode[]): 
 
     // Parenthetical
     if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
-      nodes.push(makeNode('parenthetical', trimmed));
+      push(makeNode('parenthetical', trimmed));
+      i++;
+      continue;
+    }
+
+    // Lyrics sung inside a dialogue block
+    if (trimmed.startsWith('~')) {
+      push(makeNode('lyrics', trimmed.substring(1)));
       i++;
       continue;
     }
 
     // Dialogue
-    nodes.push(makeNode('dialogue', trimmed));
+    push(makeNode('dialogue', trimmed));
     i++;
   }
   return i;

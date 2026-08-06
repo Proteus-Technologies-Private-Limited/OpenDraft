@@ -28,6 +28,11 @@ Thumbs.db
 # Test output
 test-script/output/
 
+# Downloaded third-party sample scripts used for manual import testing.
+# Kept out of the repo on purpose: the .fadein/.osf samples come from
+# rsdoiel/scripttool, which is AGPL-3.0, and OpenDraft is MIT.
+test-script/samples/
+
 # Database
 *.db
 *.sqlite3

@@ -10,6 +10,8 @@ import { grammarIgnore, GrammarIgnore } from '../editor/grammar/grammarIgnore';
 import { RETEXT_CATEGORY_META } from '../editor/grammar/retextProvider';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
+import { pasteAsFountain } from '../utils/pasteFountain';
+import { showToast } from './Toast';
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -251,6 +253,11 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       editor.commands.focus();
       document.execCommand('paste');
     }
+    onClose();
+  };
+  const handlePasteAsFountain = async () => {
+    const result = await pasteAsFountain(editor);
+    if (!result.ok && result.error) showToast(result.error, 'error');
     onClose();
   };
 
@@ -628,6 +635,9 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       </div>
       <div className="ctx-item" onClick={handlePasteWithoutFormatting}>
         <span>Paste Without Formatting</span>
+      </div>
+      <div className="ctx-item" onClick={handlePasteAsFountain}>
+        <span>Paste as Fountain</span>
         <span className="ctx-shortcut">{shift}{mod}V</span>
       </div>
       <div className="ctx-separator" />

@@ -90,10 +90,17 @@ import { useParams, useNavigate } from 'react-router-dom';
 import OpenFile from './OpenFile';
 import type { OpenSource } from './OpenFile';
 import WelcomeDialog, { type WelcomeChoice } from './WelcomeDialog';
-import { parseFountain } from '../utils/fountainParser';
-import { parseFDXFull } from '../utils/fdxParser';
-import { parseOdraft, downloadOdraft } from '../utils/odraftFormat';
-import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
+import { downloadOdraft } from '../utils/odraftFormat';
+import { pasteAsFountain } from '../utils/pasteFountain';
+import {
+  parseScreenplayImport,
+  extensionOf,
+  isBinaryImportExtension,
+  isImportableExtension,
+  SCREENPLAY_IMPORT_EXTENSIONS,
+  SCREENPLAY_IMPORT_FILTERS,
+  BINARY_IMPORT_EXTENSIONS,
+} from '../utils/importScreenplay';
 import { stashSessionDoc, takeSessionDoc, clearSessionDoc } from '../utils/sessionDoc';
 import SaveAsDialog from './SaveAsDialog';
 import TitlePageEditor from './TitlePageEditor';
@@ -1289,6 +1296,27 @@ const ScreenplayEditor: React.FC = () => {
     })
   );
 
+  // Paste as Fountain: Mod-Shift-V runs the clipboard through the Fountain
+  // parser so a pasted script arrives as real elements, not one block of text.
+  const [PasteFountainExtension] = React.useState(() =>
+    Extension.create({
+      name: 'pasteFountain',
+      priority: 999,
+      addKeyboardShortcuts() {
+        return {
+          'Mod-Shift-v': ({ editor }) => {
+            // Clipboard reads are async; the handler still claims the key so
+            // the browser's own paste-as-plain-text doesn't also fire.
+            pasteAsFountain(editor).then((result) => {
+              if (!result.ok && result.error) showToast(result.error, 'error');
+            });
+            return true;
+          },
+        };
+      },
+    })
+  );
+
   // Centralized Tab handler — reads nextOnTab from active template
   const [TabHandlerExtension] = React.useState(() =>
     Extension.create({
@@ -1404,7 +1432,7 @@ const ScreenplayEditor: React.FC = () => {
       ContdCaseExtension,
       SearchExtension,
       TrackChangesExtension,
-      ...(isHistoryMode ? [] : [EnforceGuardExtension, EnterHandlerExtension, TabHandlerExtension, ElementShortcutExtension]),
+      ...(isHistoryMode ? [] : [EnforceGuardExtension, EnterHandlerExtension, TabHandlerExtension, ElementShortcutExtension, PasteFountainExtension]),
       SpellCheck,
       Grammar,
       ...pluginRegistry.getEditorExtensions(),
@@ -2932,61 +2960,24 @@ const ScreenplayEditor: React.FC = () => {
       if (editor) clearEditorHistory(editor);
     } else if (choice === 'import') {
       if (!editor) return;
-      const { openTextFile } = await import('../utils/fileOps');
-      const result = await openTextFile([
-        { name: 'Screenplay', extensions: ['fountain', 'fdx', 'txt'] },
-      ]);
-      if (!result) return;
+      try {
+        const { openTextOrBinaryFile } = await import('../utils/fileOps');
+        const result = await openTextOrBinaryFile(SCREENPLAY_IMPORT_FILTERS, BINARY_IMPORT_EXTENSIONS);
+        if (!result) return;
 
-      const { name, content: text } = result;
-      const ext = name.split('.').pop()?.toLowerCase();
-      let doc;
-      if (ext === 'fdx') {
-        const parsed = parseFDXFull(text);
-        doc = parsed.doc;
-        if (parsed.pageLayout) {
-          useEditorStore.getState().setPageLayout({
-            ...useEditorStore.getState().pageLayout,
-            ...parsed.pageLayout,
-          });
-        }
-        if (parsed.beats.length > 0) {
-          const store = useEditorStore.getState();
-          store.setBeats(parsed.beats);
-          if (parsed.beatColumns.length > 0) {
-            store.setBeatColumns(parsed.beatColumns);
-          }
-        }
-        if (parsed.castList.length > 0 || parsed.characterHighlighting.length > 0) {
-          const store = useEditorStore.getState();
-          const highlightMap = new Map(parsed.characterHighlighting.map((h) => [h.name.toUpperCase(), h]));
-          for (const member of parsed.castList) {
-            const hl = highlightMap.get(member.name.toUpperCase());
-            store.upsertCharacterProfile(member.name, {
-              description: member.description,
-              color: hl?.color || '',
-              highlighted: hl?.highlighted || false,
-            });
-            highlightMap.delete(member.name.toUpperCase());
-          }
-          for (const [, hl] of highlightMap) {
-            store.upsertCharacterProfile(hl.name, {
-              color: hl.color,
-              highlighted: hl.highlighted,
-            });
-          }
-        }
-      } else {
-        doc = parseFountain(text);
+        const { name } = result;
+        const imported = await parseScreenplayImport(name, result.bytes ?? result.text ?? '');
+
+        editor.commands.setContent(imported.doc, true);
+        clearEditorHistory(editor);
+        const scriptTitle = imported.title || name.replace(/\.\w+$/, '') || 'Untitled';
+        useEditorStore.getState().setDocumentTitle(scriptTitle);
+        useEditorStore.getState().setImportedSource({ name, format: imported.formatLabel });
+        for (const w of imported.warnings) console.warn('[Import]', w);
+      } catch (err) {
+        console.error('Import failed:', err);
+        showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
       }
-      editor.commands.setContent(doc, true);
-      clearEditorHistory(editor);
-      const scriptTitle = name.replace(/\.\w+$/, '') || 'Untitled';
-      useEditorStore.getState().setDocumentTitle(scriptTitle);
-      const fmtLabel = ext === 'fdx' ? 'Final Draft (.fdx)'
-        : ext === 'fountain' ? 'Fountain (.fountain)'
-        : ext ? `.${ext}` : 'imported file';
-      useEditorStore.getState().setImportedSource({ name, format: fmtLabel });
     }
     // 'blank' — editor already has empty content, nothing to do
   }, [editor]);
@@ -3002,11 +2993,14 @@ const ScreenplayEditor: React.FC = () => {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
 
-      let text: string;
+      let text: string | null = null;
+      let bytes: ArrayBuffer | null = null;
       let filename: string;
 
       if (filePath.startsWith('content://')) {
-        // Android content URI — read via ContentResolver (JNI)
+        // Android content URI — read via ContentResolver (JNI).  This path is
+        // text-only; an archive format lands in parseScreenplayImport's
+        // "cannot be opened on this platform" branch.
         console.log('[file-assoc] reading content URI via JNI...');
         const result = await invoke<{ content: string; filename: string }>('read_content_uri', { uri: filePath });
         text = result.content;
@@ -3016,80 +3010,32 @@ const ScreenplayEditor: React.FC = () => {
         }
         console.log('[file-assoc] content URI read', text.length, 'chars, filename:', filename);
       } else {
-        console.log('[file-assoc] reading file path via read_text_file...');
-        text = await invoke<string>('read_text_file', { path: filePath });
         filename = filePath.replace(/^.*[\\/]/, '') || 'Untitled';
-        console.log('[file-assoc] read', text.length, 'chars from', filePath);
+        if (isBinaryImportExtension(extensionOf(filename))) {
+          console.log('[file-assoc] reading archive via read_binary_file...');
+          const data = await invoke<number[]>('read_binary_file', { path: filePath });
+          bytes = new Uint8Array(data).buffer;
+          console.log('[file-assoc] read', data.length, 'bytes from', filePath);
+        } else {
+          console.log('[file-assoc] reading file path via read_text_file...');
+          text = await invoke<string>('read_text_file', { path: filePath });
+          console.log('[file-assoc] read', text.length, 'chars from', filePath);
+        }
       }
 
-      const ext = filename.split('.').pop()?.toLowerCase();
       const title = filename.replace(/\.\w+$/, '');
+      const imported = await parseScreenplayImport(filename, bytes ?? text ?? '');
 
-      let doc: any;
-      if (ext === 'fdx') {
-        const parsed = parseFDXFull(text);
-        doc = parsed.doc;
-        if (parsed.pageLayout) {
-          useEditorStore.getState().setPageLayout({
-            ...useEditorStore.getState().pageLayout,
-            ...parsed.pageLayout,
-          });
-        }
-        if (parsed.beats.length > 0) {
-          const store = useEditorStore.getState();
-          store.setBeats(parsed.beats);
-          if (parsed.beatColumns.length > 0) store.setBeatColumns(parsed.beatColumns);
-        }
-        if (parsed.castList.length > 0 || parsed.characterHighlighting.length > 0) {
-          const store = useEditorStore.getState();
-          const highlightMap = new Map(parsed.characterHighlighting.map((h) => [h.name.toUpperCase(), h]));
-          for (const member of parsed.castList) {
-            const hl = highlightMap.get(member.name.toUpperCase());
-            store.upsertCharacterProfile(member.name, {
-              description: member.description,
-              color: hl?.color || '',
-              highlighted: hl?.highlighted || false,
-            });
-            highlightMap.delete(member.name.toUpperCase());
-          }
-          for (const [, hl] of highlightMap) {
-            store.upsertCharacterProfile(hl.name, { color: hl.color, highlighted: hl.highlighted });
-          }
-        }
-      } else if (ext === 'odraft') {
-        const parsed = parseOdraft(text);
-        doc = parsed.content;
-        // Bring back notes, tags, beats, character profiles and layout. Without
-        // this an imported .odraft — including a restored backup — came back as
-        // bare text with all of that silently dropped.
-        hydrateEditorStoresFromContent(parsed.content);
-        if (parsed.meta.title) {
-          setDocumentTitle(parsed.meta.title);
-          setShowWelcome(false);
-          setCurrentProject(null);
-          setCurrentScriptId(null);
-          editor.commands.setContent(doc, true);
-          clearEditorHistory(editor);
-          return;
-        }
-      } else {
-        // .fountain, .txt — parse as Fountain
-        doc = parseFountain(text);
-      }
-
-      editor.commands.setContent(doc, true);
+      editor.commands.setContent(imported.doc, true);
       clearEditorHistory(editor);
-      setDocumentTitle(title);
+      setDocumentTitle(imported.title || title);
       setShowWelcome(false);
       // Clear project context — this is a standalone opened file
       setCurrentProject(null);
       setCurrentScriptId(null);
       // Mark as imported so Save As shows the "saved to OpenDraft library" notice.
-      const fmtLabel = ext === 'fdx' ? 'Final Draft (.fdx)'
-        : ext === 'fountain' ? 'Fountain (.fountain)'
-        : ext === 'odraft' ? 'OpenDraft (.odraft)'
-        : ext ? `.${ext}` : 'imported file';
-      useEditorStore.getState().setImportedSource({ name: filename, format: fmtLabel });
+      useEditorStore.getState().setImportedSource({ name: filename, format: imported.formatLabel });
+      for (const w of imported.warnings) console.warn('[Import]', w);
       // A file opened from disk has no library copy at all, so it is the one
       // that most needs an immediate snapshot.
       useBackupStatusStore.getState().noteDocumentOpened();
@@ -3206,7 +3152,6 @@ const ScreenplayEditor: React.FC = () => {
   }, [editor, handleExternalFile]);
 
   // ── Drag-and-drop file import ─────────────────────────────────────────
-  const IMPORTABLE_EXTENSIONS = ['fdx', 'fountain', 'odraft', 'txt'];
 
   const hasUnsavedChanges = useCallback((): boolean => {
     if (!editor || !currentProject || !currentScriptId) return false;
@@ -3219,73 +3164,21 @@ const ScreenplayEditor: React.FC = () => {
   const importDroppedFile = useCallback(async (file: File) => {
     if (!editor) return;
     try {
-      const text = await file.text();
-      const ext = file.name.split('.').pop()?.toLowerCase();
+      const ext = extensionOf(file.name);
+      const data = isBinaryImportExtension(ext) ? await file.arrayBuffer() : await file.text();
       const title = file.name.replace(/\.\w+$/, '') || 'Untitled';
 
-      let doc: any;
-      if (ext === 'fdx') {
-        const parsed = parseFDXFull(text);
-        doc = parsed.doc;
-        if (parsed.pageLayout) {
-          useEditorStore.getState().setPageLayout({
-            ...useEditorStore.getState().pageLayout,
-            ...parsed.pageLayout,
-          });
-        }
-        if (parsed.beats.length > 0) {
-          const store = useEditorStore.getState();
-          store.setBeats(parsed.beats);
-          if (parsed.beatColumns.length > 0) store.setBeatColumns(parsed.beatColumns);
-        }
-        if (parsed.castList.length > 0 || parsed.characterHighlighting.length > 0) {
-          const store = useEditorStore.getState();
-          const highlightMap = new Map(parsed.characterHighlighting.map((h) => [h.name.toUpperCase(), h]));
-          for (const member of parsed.castList) {
-            const hl = highlightMap.get(member.name.toUpperCase());
-            store.upsertCharacterProfile(member.name, {
-              description: member.description,
-              color: hl?.color || '',
-              highlighted: hl?.highlighted || false,
-            });
-            highlightMap.delete(member.name.toUpperCase());
-          }
-          for (const [, hl] of highlightMap) {
-            store.upsertCharacterProfile(hl.name, { color: hl.color, highlighted: hl.highlighted });
-          }
-        }
-      } else if (ext === 'odraft') {
-        const parsed = parseOdraft(text);
-        doc = parsed.content;
-        // Bring back notes, tags, beats, character profiles and layout. Without
-        // this an imported .odraft — including a restored backup — came back as
-        // bare text with all of that silently dropped.
-        hydrateEditorStoresFromContent(parsed.content);
-        if (parsed.meta.title) {
-          setDocumentTitle(parsed.meta.title);
-          setCurrentProject(null);
-          setCurrentScriptId(null);
-          editor.commands.setContent(doc, true);
-          clearEditorHistory(editor);
-          setShowWelcome(false);
-          return;
-        }
-      } else {
-        doc = parseFountain(text);
-      }
+      const imported = await parseScreenplayImport(file.name, data);
 
-      editor.commands.setContent(doc, true);
+      editor.commands.setContent(imported.doc, true);
       clearEditorHistory(editor);
-      setDocumentTitle(title);
+      setDocumentTitle(imported.title || title);
       setCurrentProject(null);
       setCurrentScriptId(null);
       setShowWelcome(false);
-      const fmtLabel = ext === 'fdx' ? 'Final Draft (.fdx)'
-        : ext === 'fountain' ? 'Fountain (.fountain)'
-        : ext === 'odraft' ? 'OpenDraft (.odraft)'
-        : ext ? `.${ext}` : 'imported file';
-      useEditorStore.getState().setImportedSource({ name: file.name, format: fmtLabel });
+      useEditorStore.getState().setImportedSource({ name: file.name, format: imported.formatLabel });
       useBackupStatusStore.getState().noteDocumentOpened();
+      for (const w of imported.warnings) console.warn('[Import]', w);
     } catch (err) {
       console.error('Failed to import dropped file:', err);
       showToast(`Failed to import file: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -3312,9 +3205,11 @@ const ScreenplayEditor: React.FC = () => {
     const file = e.dataTransfer.files[0];
     if (!file) return;
 
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (!ext || !IMPORTABLE_EXTENSIONS.includes(ext)) {
-      showToast('Unsupported file type. Drop a .fdx, .fountain, .odraft, or .txt file.', 'error');
+    if (!isImportableExtension(extensionOf(file.name))) {
+      showToast(
+        `Unsupported file type. Drop a ${SCREENPLAY_IMPORT_EXTENSIONS.map((e) => `.${e}`).join(', ')} file.`,
+        'error',
+      );
       return;
     }
 
@@ -3405,18 +3300,27 @@ const ScreenplayEditor: React.FC = () => {
             const paths = payload.paths;
             if (!paths || paths.length === 0) return;
             const filePath = paths[0];
-            const ext = filePath.split('.').pop()?.toLowerCase();
-            if (!ext || !IMPORTABLE_EXTENSIONS.includes(ext)) {
-              showToast('Unsupported file type. Drop a .fdx, .fountain, .odraft, or .txt file.', 'error');
+            if (!isImportableExtension(extensionOf(filePath))) {
+              showToast(
+                `Unsupported file type. Drop a ${SCREENPLAY_IMPORT_EXTENSIONS.map((e) => `.${e}`).join(', ')} file.`,
+                'error',
+              );
               return;
             }
 
-            // Read the file using Tauri's read_text_file command and import it
+            // Read the file through Tauri and hand it to the same importer the
+            // browser drop path uses — archives have to be read as bytes.
             const importTauriFile = async (path: string) => {
               try {
-                const text = await invoke<string>('read_text_file', { path });
                 const filename = path.replace(/^.*[\\/]/, '') || 'Untitled';
-                const file = new File([text], filename, { type: 'text/plain' });
+                let file: File;
+                if (isBinaryImportExtension(extensionOf(filename))) {
+                  const data = await invoke<number[]>('read_binary_file', { path });
+                  file = new File([new Uint8Array(data)] as BlobPart[], filename, { type: 'application/zip' });
+                } else {
+                  const text = await invoke<string>('read_text_file', { path });
+                  file = new File([text], filename, { type: 'text/plain' });
+                }
 
                 if (hasUnsavedChanges()) {
                   pendingDropPathRef.current = path;

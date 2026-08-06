@@ -290,6 +290,98 @@ function waitForAndroidPickResult(
   });
 }
 
+// ── Open (text or binary, chosen by extension) ──────────────────────────────
+
+export interface OpenedFile {
+  name: string;
+  /** Set for text formats. */
+  text: string | null;
+  /** Set for the formats listed in `binaryExtensions` (archives). */
+  bytes: ArrayBuffer | null;
+}
+
+function extensionOf(name: string): string {
+  const match = /\.([^.\\/]+)$/.exec(name);
+  return match ? match[1].toLowerCase() : '';
+}
+
+/**
+ * Open a file whose reading mode depends on its extension.
+ *
+ * Screenplay import accepts both plain-text formats (.fountain, .fdx) and
+ * archives (.fadein), but which one the user picks isn't known until the
+ * dialog closes — so the read mode has to be decided from the chosen name.
+ *
+ * Note: on Android Tauri the native picker reads through ContentResolver as
+ * text only, so archives come back with `bytes: null`; callers should report
+ * that rather than trying to parse the string.
+ */
+export async function openTextOrBinaryFile(
+  filters: FileFilter[] | undefined,
+  binaryExtensions: string[],
+): Promise<OpenedFile | null> {
+  const isBinary = (name: string) => binaryExtensions.includes(extensionOf(name));
+
+  if (isAndroidTauri()) {
+    const result = await openTextFileAndroid();
+    if (!result) return null;
+    return { name: result.name, text: result.content, bytes: null };
+  }
+
+  // iOS passes no filters for the same reason openTextFile() doesn't:
+  // mobile document pickers only understand MIME types.
+  if (isTauri() && !isIOSTauri()) {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const { invoke } = await import('@tauri-apps/api/core');
+
+    const selected = await open({ multiple: false, filters });
+    if (!selected) return null;
+
+    const path = selected as string;
+    const name = path.split(/[/\\]/).pop() || 'file';
+    if (isBinary(name)) {
+      const data: number[] = await invoke('read_binary_file', { path });
+      return { name, text: null, bytes: new Uint8Array(data).buffer };
+    }
+    const text: string = await invoke('read_text_file', { path });
+    return { name, text, bytes: null };
+  }
+
+  return openTextOrBinaryFileBrowser(isIOSTauri() ? undefined : filters, isBinary);
+}
+
+function openTextOrBinaryFileBrowser(
+  filters: FileFilter[] | undefined,
+  isBinary: (name: string) => boolean,
+): Promise<OpenedFile | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    if (filters) {
+      input.accept = filters.flatMap((f) => f.extensions.map((e) => `.${e}`)).join(',');
+    }
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      const reader = new FileReader();
+      const binary = isBinary(file.name);
+      reader.onload = () =>
+        resolve(
+          binary
+            ? { name: file.name, text: null, bytes: reader.result as ArrayBuffer }
+            : { name: file.name, text: reader.result as string, bytes: null },
+        );
+      reader.onerror = () => resolve(null);
+      if (binary) reader.readAsArrayBuffer(file);
+      else reader.readAsText(file);
+    };
+    input.click();
+  });
+}
+
 // ── Open (binary) ───────────────────────────────────────────────────────────
 
 /**

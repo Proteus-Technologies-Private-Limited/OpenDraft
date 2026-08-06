@@ -92,7 +92,7 @@
     </div>
 
     <h1>Import &amp; Export</h1>
-    <p class="page-subtitle">Work with Final Draft, Fountain, PDF, and plain text formats.</p>
+    <p class="page-subtitle">Work with Final Draft, Fountain, Fade In, PDF, and plain text formats.</p>
 
     <h2 id="import">Importing Scripts</h2>
 
@@ -108,7 +108,17 @@
     </ul>
 
     <h3 id="import-fountain">Fountain (.fountain)</h3>
-    <p>Import scripts written in Fountain format. Fountain is an open, plain-text markup language for screenwriting. Many free tools can create Fountain files.</p>
+    <p>Import scripts written in Fountain format. Fountain is an open, plain-text markup language for screenwriting. Many free tools can create Fountain files. Emphasis markup (<code>*italic*</code>, <code>**bold**</code>, <code>_underline_</code>), forced elements (<code>!</code>, <code>~</code>, <code>.</code>, <code>&gt;</code>, <code>@</code>), centred text (<code>&gt;text&lt;</code>) and page breaks (<code>===</code>) are all recognised.</p>
+
+    <h3 id="import-fadein">Fade In (.fadein) and Open Screenplay Format (.osf)</h3>
+    <p>Open scripts saved by <a href="https://www.fadeinpro.com/" target="_blank" rel="noopener">Fade In</a> directly &mdash; there is no need to export to another format first. A <code>.fadein</code> file is a compressed Open Screenplay Format document, and OpenDraft reads both it and plain <code>.osf</code> files. Imported:</p>
+    <ul>
+      <li>All screenplay elements &mdash; scene headings, action, character, parenthetical, dialogue, transition and shot</li>
+      <li>Custom element styles, mapped to whichever built-in element they are based on</li>
+      <li>Bold, italic, underline, strikethrough, highlighting, fonts and sizes</li>
+      <li>Title page, scene numbers, dual dialogue, centring and page breaks</li>
+      <li>Scene synopses and paragraph notes</li>
+    </ul>
 
     <h3 id="import-txt">Plain Text (.txt)</h3>
     <p>Import plain text files. OpenDraft will attempt to detect screenplay element types based on formatting conventions (indentation, capitalization, etc.).</p>
@@ -117,6 +127,16 @@
       <span class="callout-icon">&#8505;&#65039;</span>
       <div class="callout-content">
         <p><strong>Tip:</strong> For best results when importing plain text, make sure your text follows standard screenplay formatting conventions (scene headings in all caps starting with INT./EXT., character names in all caps and centered, etc.).</p>
+      </div>
+    </div>
+
+    <h3 id="paste-fountain">Paste as Fountain</h3>
+    <p>To bring in part of a script rather than a whole file, copy the Fountain text and use <strong>Edit &gt; Paste as Fountain</strong> (or <kbd>Shift</kbd>+<kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>V</kbd>, also on the right-click menu). The pasted text is run through the Fountain parser and inserted at the cursor as real screenplay elements, instead of landing as one block of whatever element you were already in.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Tip:</strong> This is the quickest way to move a scene from a forum post, an email, a notes app or another screenwriting tool into your script.</p>
       </div>
     </div>
 

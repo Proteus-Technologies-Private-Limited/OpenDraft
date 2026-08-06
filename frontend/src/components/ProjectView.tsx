@@ -20,12 +20,16 @@ import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
 import { projectApi } from '../services/projectApi';
 import type { ProjectInfo, ScriptMeta, VersionInfo } from '../services/api';
-import { parseFountain } from '../utils/fountainParser';
-import { parseFDXFull } from '../utils/fdxParser';
+import {
+  parseScreenplayImport,
+  extensionOf,
+  isBinaryImportExtension,
+  SCREENPLAY_IMPORT_ACCEPT,
+} from '../utils/importScreenplay';
 import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
 import { exportPDF } from '../utils/pdfExporter';
-import { downloadOdraft, parseOdraft } from '../utils/odraftFormat';
+import { downloadOdraft } from '../utils/odraftFormat';
 import { exportProjectAsZip } from '../utils/zipExport';
 import { DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES, useEditorStore } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
@@ -823,38 +827,39 @@ const ProjectView: React.FC = () => {
   const handleImportScript = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.fountain,.fdx,.txt,.odraft';
+    input.accept = SCREENPLAY_IMPORT_ACCEPT;
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file || !projectId) return;
-      let title = file.name.replace(/\.\w+$/, '') || 'Untitled';
+      const fallbackTitle = file.name.replace(/\.\w+$/, '') || 'Untitled';
+      const binary = isBinaryImportExtension(extensionOf(file.name));
       const reader = new FileReader();
+      reader.onerror = () => {
+        console.error('Failed to read script file:', reader.error);
+        showToast('Could not read that file.', 'error');
+      };
       reader.onload = async () => {
-        const text = reader.result as string;
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        let doc;
-        if (ext === 'odraft') {
-          const parsed = parseOdraft(text);
-          title = parsed.meta.title || title;
-          doc = parsed.content;
-        } else if (ext === 'fdx') {
-          const result = parseFDXFull(text);
-          doc = result.doc;
-        } else {
-          doc = parseFountain(text);
-        }
         try {
+          // The script goes into the project, not into the open editor, so
+          // the file's beats/notes must not overwrite the current document.
+          const imported = await parseScreenplayImport(
+            file.name,
+            binary ? (reader.result as ArrayBuffer) : (reader.result as string),
+            { hydrateStores: false },
+          );
           const resp = await client.createScript(projectId, {
-            title,
-            content: doc,
+            title: imported.title || fallbackTitle,
+            content: imported.doc as Record<string, unknown>,
           });
           await fetchScripts();
           navigate(`/project/${projectId}/edit/${resp.meta.id}`);
         } catch (err) {
           console.error('Failed to import script:', err);
+          showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
         }
       };
-      reader.readAsText(file);
+      if (binary) reader.readAsArrayBuffer(file);
+      else reader.readAsText(file);
     };
     input.click();
   };

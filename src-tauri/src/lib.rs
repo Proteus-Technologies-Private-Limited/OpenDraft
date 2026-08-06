@@ -588,7 +588,7 @@ fn ios_save_and_share_binary(filename: String, contents: Vec<u8>) -> Result<(), 
 struct PendingFile(Mutex<Option<String>>);
 
 /// Extensions that OpenDraft can open via file association.
-const OPENABLE_EXTENSIONS: &[&str] = &["fdx", "fountain", "odraft", "txt"];
+const OPENABLE_EXTENSIONS: &[&str] = &["fdx", "fountain", "fadein", "osf", "odraft", "txt"];
 
 fn is_openable_file(path: &str) -> bool {
     let ext = path.rsplit('.').next().unwrap_or("");

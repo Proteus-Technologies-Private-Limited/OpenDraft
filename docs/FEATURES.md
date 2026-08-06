@@ -46,6 +46,8 @@ A complete list of features in OpenDraft.
 
 - **Final Draft (.fdx)** -- Import and export
 - **Fountain (.fountain)** -- Import and export
+- **Fade In (.fadein) / Open Screenplay Format (.osf)** -- Import
+- **Paste as Fountain** -- Paste Fountain markup straight into the script as real elements
 - **PDF** -- Export with proper screenplay formatting
 
 ## Editing Tools

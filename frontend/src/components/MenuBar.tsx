@@ -1,20 +1,24 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
-import { useEditorStore, DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
+import { useEditorStore, DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
 import { showToast } from './Toast';
-import { parseFountain } from '../utils/fountainParser';
-import { parseFDXFull } from '../utils/fdxParser';
 import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
 import { exportPDF } from '../utils/pdfExporter';
 import { downloadDocx } from '../utils/docxExporter';
 import { parseDocx } from '../utils/docxImporter';
-import { downloadOdraft, parseOdraft } from '../utils/odraftFormat';
-import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
+import { downloadOdraft } from '../utils/odraftFormat';
+import { pasteAsFountain } from '../utils/pasteFountain';
+import {
+  parseScreenplayImport,
+  resetStoresForImport,
+  SCREENPLAY_IMPORT_FILTERS,
+  BINARY_IMPORT_EXTENSIONS,
+} from '../utils/importScreenplay';
 import { trackChangesPluginKey } from '../editor/trackChanges';
 import PageSetupDialog from './PageSetupDialog';
 import TemplateSelectDialog from './TemplateSelectDialog';
@@ -35,7 +39,7 @@ import { buildSaveContent as buildSaveContentShared } from '../utils/saveContent
 import { backupsAvailable, writeSnapshot, revealSnapshot } from '../services/backupService';
 import { useBackupStatusStore, describeBackupError } from '../stores/backupStatusStore';
 import RecoverBackupDialog from './RecoverBackupDialog';
-import { openTextFile, openBinaryFile } from '../utils/fileOps';
+import { openBinaryFile, openTextOrBinaryFile } from '../utils/fileOps';
 import { isDesktopTauri } from '../services/platform';
 import { getCompatEntries } from '../services/compat';
 import { reportSaveError } from '../stores/saveErrorStore';
@@ -537,98 +541,45 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     editor.chain().focus().setNode(type).run();
   };
 
+  const handlePasteAsFountain = useCallback(async () => {
+    if (!editor) return;
+    const result = await pasteAsFountain(editor);
+    if (!result.ok && result.error) showToast(result.error, 'error');
+  }, [editor]);
+
   const handleImport = useCallback(async () => {
     if (!editor) return;
     try {
-      const result = await openTextFile([
-        { name: 'Screenplay', extensions: ['fountain', 'fdx', 'odraft', 'txt'] },
-      ]);
+      const result = await openTextOrBinaryFile(SCREENPLAY_IMPORT_FILTERS, BINARY_IMPORT_EXTENSIONS);
       if (!result) return;
 
-      const { name, content: text } = result;
-      const ext = name.split('.').pop()?.toLowerCase();
+      const { name } = result;
 
       // Clear previous document state before importing
       clearTrackChanges();
-      const store = useEditorStore.getState();
-      store.setBeats([]);
-      store.setBeatColumns([]);
-      store.setBeatArrangeMode('auto');
-      store.setNotes([]);
-      store.setTags([]);
-      store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
-      store.setCharacterProfiles([]);
-      store.setScenes([]);
 
-      let doc;
-      if (ext === 'fdx') {
-        const parsed = parseFDXFull(text);
-        doc = parsed.doc;
-        if (parsed.pageLayout) {
-          store.setPageLayout({
-            ...store.pageLayout,
-            ...parsed.pageLayout,
-          });
-        }
-        // Import beats from Outline elements
-        if (parsed.beats.length > 0) {
-          store.setBeats(parsed.beats);
-          if (parsed.beatColumns.length > 0) {
-            store.setBeatColumns(parsed.beatColumns);
-          }
-        }
-        // Import character profiles from CastList + CharacterHighlighting
-        if (parsed.castList.length > 0 || parsed.characterHighlighting.length > 0) {
-          const highlightMap = new Map(parsed.characterHighlighting.map((h) => [h.name.toUpperCase(), h]));
-          for (const member of parsed.castList) {
-            const hl = highlightMap.get(member.name.toUpperCase());
-            store.upsertCharacterProfile(member.name, {
-              description: member.description,
-              color: hl?.color || '',
-              highlighted: hl?.highlighted || false,
-            });
-            highlightMap.delete(member.name.toUpperCase());
-          }
-          // Remaining highlights without cast entries
-          for (const [, hl] of highlightMap) {
-            store.upsertCharacterProfile(hl.name, { color: hl.color, highlighted: hl.highlighted });
-          }
-        }
-      } else if (ext === 'odraft') {
-        try {
-          const parsed = parseOdraft(text);
-          doc = parsed.content;
-          // Restore the script's notes, tags, beats and character profiles —
-          // otherwise an imported .odraft loses everything but the text.
-          hydrateEditorStoresFromContent(parsed.content);
-          if (parsed.meta.title) {
-            store.setDocumentTitle(parsed.meta.title);
-          }
-        } catch (parseErr) {
-          showToast(`Invalid .odraft file: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`, 'error');
-          return;
-        }
-      } else {
-        doc = parseFountain(text);
-      }
-      editor.commands.setContent(doc, true);
+      const imported = await parseScreenplayImport(name, result.bytes ?? result.text ?? '');
+      const store = useEditorStore.getState();
+
+      editor.commands.setContent(imported.doc, true);
       clearEditorHistory(editor);
 
       // Open as unsaved document — user can save later via Cmd+S
-      const scriptTitle = ext === 'odraft' ? (store.documentTitle || name.replace(/\.\w+$/, '') || 'Untitled') : (name.replace(/\.\w+$/, '') || 'Untitled');
+      const scriptTitle = imported.title || name.replace(/\.\w+$/, '') || 'Untitled';
       store.setDocumentTitle(scriptTitle);
       setCurrentProject(null);
       setCurrentScriptId(null);
       setScripts([]);
       // Track that this is an imported document so Save As can warn the user
       // that the save goes to OpenDraft's library, not back to the source file.
-      const fmtLabel = ext === 'fdx' ? 'Final Draft (.fdx)'
-        : ext === 'fountain' ? 'Fountain (.fountain)'
-        : ext === 'odraft' ? 'OpenDraft (.odraft)'
-        : ext ? `.${ext}` : 'imported file';
-      store.setImportedSource({ name, format: fmtLabel });
+      store.setImportedSource({ name, format: imported.formatLabel });
       // Imported files have no library copy — snapshot immediately.
       useBackupStatusStore.getState().noteDocumentOpened();
+
+      if (imported.warnings.length > 0) {
+        showToast(`Imported with ${imported.warnings.length} note(s). See console for details.`, 'info');
+        for (const w of imported.warnings) console.warn('[Import]', w);
+      }
     } catch (err) {
       console.error('Import failed:', err);
       showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -650,15 +601,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
 
       // Clear previous document state
       clearTrackChanges();
+      resetStoresForImport();
       const store = useEditorStore.getState();
-      store.setBeats([]);
-      store.setBeatColumns([]);
-      store.setBeatArrangeMode('auto');
-      store.setNotes([]);
-      store.setTags([]);
-      store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
-      store.setCharacterProfiles([]);
-      store.setScenes([]);
 
       editor.commands.setContent(parsed.doc, true);
       clearEditorHistory(editor);
@@ -1009,7 +953,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         {
           icon: <FaFileImport />, label: 'Import',
           children: [
-            { icon: <FaFileCode />, label: 'Final Draft / Fountain / OpenDraft...', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
+            { icon: <FaFileCode />, label: 'Final Draft / Fountain / Fade In / OpenDraft...', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
             { icon: <FaFileWord />, label: 'Microsoft Word (.docx)...', action: handleImportDocx, disabled: isCollabGuest },
           ],
         },
@@ -1076,6 +1020,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         { icon: <FaCut />, label: 'Cut', shortcut: `${mod}X`, action: () => document.execCommand('cut') },
         { icon: <FaCopy />, label: 'Copy', shortcut: `${mod}C`, action: () => document.execCommand('copy') },
         { icon: <FaPaste />, label: 'Paste', shortcut: `${mod}V`, action: () => document.execCommand('paste') },
+        { icon: <FaPaste />, label: 'Paste as Fountain', shortcut: `⇧${mod}V`, action: handlePasteAsFountain, disabled: !editor },
         { icon: <FaMousePointer />, label: 'Select All', shortcut: `${mod}A`, action: () => editor?.chain().focus().selectAll().run() },
         { separator: true, label: '' },
         { icon: <FaSearch />, label: 'Find & Replace...', shortcut: `${mod}F`, action: () => setSearchOpen(true) },
