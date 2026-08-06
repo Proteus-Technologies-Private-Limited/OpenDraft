@@ -1747,8 +1747,15 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.20</div>
+              <div className="about-section-title">What's New in 0.21</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.21.0</div>
+              <ul className="about-list">
+                <li><strong>Open Fade In Scripts</strong> — Import <code>.fadein</code> files straight from Fade In, along with Open Screenplay Format (<code>.osf</code>) files. Use File → Import, drag one onto the editor, or just double-click the file. Elements, custom element styles, bold/italic/underline, highlighting, fonts, the title page, scene numbers, synopses, dual dialogue, centred text and page breaks all come across.</li>
+                <li><strong>Paste as Fountain</strong> — Copy Fountain text from anywhere and use Edit → Paste as Fountain (⇧⌘V, or Ctrl+Shift+V on Windows and Linux) to drop it in as real scene headings, character cues, dialogue and transitions instead of one undifferentiated block. Also on the right-click menu.</li>
+                <li><strong>Better Fountain Import</strong> — Emphasis (<code>*italic*</code>, <code>**bold**</code>, <code>_underline_</code>) now arrives as formatting rather than literal asterisks, and forced action (<code>!</code>), lyrics (<code>~</code>), centred text (<code>&gt;text&lt;</code>) and page breaks (<code>===</code>) are recognised.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.20.0</div>
               <ul className="about-list">
                 <li><strong>Automatic Backups</strong> — Choose a folder and OpenDraft saves timestamped copies of your script there while you write. Each project gets its own folder and the first copy is written the moment you turn backups on. Back up on demand with File → Backups → Back Up Now, and bring any snapshot back with Recover Backup. Backups include your notes, tags, beats, characters and images, and live outside the app's database — so they survive even if something happens to it. (Desktop only.)</li>
