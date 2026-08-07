@@ -4,12 +4,30 @@ on:
   push:
     tags:
       - 'v*'
+  # Manual re-run for an existing tag. Without this, a single failed platform
+  # job could only be retried by deleting and re-pushing the tag, which rebuilds
+  # all nine platforms — including the slow macOS notarization — instead of the
+  # one that failed. (Learned the hard way during the Actions outage that broke
+  # the v0.21.0 build.)
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to rebuild, e.g. v0.21.0'
+        required: true
+        type: string
 
 permissions:
   contents: write
   actions: write
   pull-requests: write
   packages: write
+
+env:
+  # The tag being released. A tag push supplies it through github.ref_name; a
+  # manual re-run supplies it explicitly. Every job reads this rather than
+  # github.ref_name, which on a manual run is the branch the workflow was
+  # dispatched from, not the tag.
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   build-desktop:
@@ -38,6 +56,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # A manual re-run is dispatched from a branch, so the tag has to
+          # be checked out explicitly or we would build the wrong commit.
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -136,7 +158,7 @@ jobs:
 
       - name: Get version number
         id: get_version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${RELEASE_TAG#v}" >> $GITHUB_OUTPUT
 
       # Notarization is the slowest, most fragile part of the macOS build, and
       # it runs at the very END of it. When Apple rejects the request — an
@@ -170,10 +192,10 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
         with:
           tauriScript: npx --prefix frontend tauri
-          tagName: ${{ github.ref_name }}
-          releaseName: 'OpenDraft ${{ github.ref_name }}'
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: 'OpenDraft ${{ env.RELEASE_TAG }}'
           releaseBody: |
-            ## OpenDraft ${{ github.ref_name }}
+            ## OpenDraft ${{ env.RELEASE_TAG }}
 
             A free, open-source screenwriting application. Professional screenplay editing with real-time collaboration — no subscription required.
 
@@ -224,8 +246,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tauriScript: npx --prefix frontend tauri
-          tagName: ${{ github.ref_name }}
-          releaseName: 'OpenDraft ${{ github.ref_name }}'
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: 'OpenDraft ${{ env.RELEASE_TAG }}'
           releaseBody: ''
           releaseDraft: true
           prerelease: false
@@ -253,7 +275,7 @@ jobs:
       - name: Stage macOS DMG
         if: runner.os == 'macOS'
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           DMG=$(find src-tauri/target/release/bundle/dmg -name "*.dmg" | head -1)
           if [ -z "$DMG" ]; then
             echo "::error::No DMG produced for ${{ matrix.target }}"
@@ -267,7 +289,7 @@ jobs:
         if: runner.os == 'macOS'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
           files: mac-artifacts/*
           draft: true
 
@@ -278,6 +300,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # A manual re-run is dispatched from a branch, so the tag has to
+          # be checked out explicitly or we would build the wrong commit.
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup JDK 17
         uses: actions/setup-java@v5
@@ -493,7 +519,7 @@ jobs:
 
       - name: Prepare artifacts
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           mkdir -p android-artifacts
 
           # Find and rename APK
@@ -521,7 +547,7 @@ jobs:
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
           files: android-artifacts/*
           draft: true
 
@@ -540,6 +566,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # A manual re-run is dispatched from a branch, so the tag has to
+          # be checked out explicitly or we would build the wrong commit.
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -617,7 +647,7 @@ jobs:
 
       - name: Stage Intel DMG
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           DMG=$(find src-tauri/target/x86_64-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
           if [ -z "$DMG" ]; then
             echo "::error::No DMG produced for the Intel build"
@@ -630,7 +660,7 @@ jobs:
       - name: Upload Intel DMG to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
           files: intel-artifacts/*
           draft: true
 
@@ -646,6 +676,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # A manual re-run is dispatched from a branch, so the tag has to
+          # be checked out explicitly or we would build the wrong commit.
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -740,7 +774,7 @@ jobs:
       - name: Stage legacy DMG artifact
         id: stage_legacy
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           DMG=$(find src-tauri/target/x86_64-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
           if [ -z "$DMG" ]; then
             echo "::error::No DMG found for legacy Intel build"
@@ -753,7 +787,7 @@ jobs:
       - name: Upload legacy DMG to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
           files: legacy-artifacts/*
           draft: true
 
@@ -764,6 +798,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # A manual re-run is dispatched from a branch, so the tag has to
+          # be checked out explicitly or we would build the wrong commit.
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -1025,7 +1063,7 @@ jobs:
 
       - name: Prepare artifact
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           mkdir -p ios-artifacts
           IPA=$(find src-tauri/gen/apple/build -name "*.ipa" ! -path "*/patched-export/*" | head -1)
           if [ -n "$IPA" ]; then
@@ -1037,7 +1075,7 @@ jobs:
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
           files: ios-artifacts/*
           draft: true
 
@@ -1062,6 +1100,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # A manual re-run is dispatched from a branch, so the tag has to
+          # be checked out explicitly or we would build the wrong commit.
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -1243,6 +1285,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          # A manual re-run is dispatched from a branch, so the tag has to
+          # be checked out explicitly or we would build the wrong commit.
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up QEMU (for arm64 cross-build)
         uses: docker/setup-qemu-action@v3
@@ -1443,14 +1489,14 @@ jobs:
 
       - name: Get version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${RELEASE_TAG#v}" >> $GITHUB_OUTPUT
 
       - name: Verify release assets exist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
-          TAG="${{ github.ref_name }}"
+          TAG="${{ env.RELEASE_TAG }}"
           REPO="${{ github.repository }}"
 
           EXPECTED_ASSETS=(
@@ -1489,10 +1535,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release edit "${{ github.ref_name }}" \
+          gh release edit "${{ env.RELEASE_TAG }}" \
             --repo "${{ github.repository }}" \
             --draft=false
-          echo "Release ${{ github.ref_name }} published"
+          echo "Release ${{ env.RELEASE_TAG }} published"
 
       # Download links are updated in the version bump commit (release.sh)
       # before the tag is pushed, so they're already on main by this point.
