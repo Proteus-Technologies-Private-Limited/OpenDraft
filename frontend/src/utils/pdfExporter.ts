@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import type { JSONContent } from '@tiptap/react';
 import { DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT, resolveMoresContds } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
+import { getForceBreakIds, startsOwnPage } from './pageBreaks';
 import { resolveImageUrl, loadImageData } from './imageAsset';
 import { jsonBlockRuns } from './nodeText';
 import { wordWrapRuns, type WrapRun } from './wrapText';
@@ -74,6 +75,7 @@ interface NodeInfo {
 
 // --- Helpers ---
 
+
 /** Styled runs for a node, with hard breaks flagged. See utils/nodeText. */
 export function extractRuns(node: JSONContent): TextRun[] {
   return jsonBlockRuns(node).map((r) => ({
@@ -82,6 +84,7 @@ export function extractRuns(node: JSONContent): TextRun[] {
     italic: r.italic,
     underline: r.underline,
     isBreak: r.isBreak,
+    fontFamily: r.fontFamily,
   }));
 }
 
@@ -105,16 +108,50 @@ function getPlainText(runs: TextRun[]): string {
   return runs.map((r) => (r.isBreak ? '\n' : r.text)).join('');
 }
 
-function setFontStyle(pdf: jsPDF, bold: boolean, italic: boolean): void {
+/**
+ * Which of jsPDF's built-in faces to draw a family in.
+ *
+ * jsPDF embeds only the PDF Standard 14 — Courier, Times and Helvetica — so an
+ * arbitrary family is rendered in the closest of those rather than shipping
+ * megabytes of TTFs with the app.  Courier is the important one: a script in
+ * any Courier must keep going through the untouched Final Draft path below.
+ */
+export function pdfFontFor(family: string | undefined): 'courier' | 'times' | 'helvetica' {
+  const name = (family || '').toLowerCase();
+  if (name === '' || /courier|mono/.test(name)) return 'courier';
+  if (/times|roman|serif|georgia|garamond|palatino|book|minion|cambria/.test(name)) return 'times';
+  return 'helvetica';
+}
+
+/** The face a run is drawn in: its own, else the document's. */
+function runFont(run: TextRun, documentFont: string | undefined): 'courier' | 'times' | 'helvetica' {
+  return pdfFontFor(run.fontFamily || documentFont);
+}
+
+function setFontStyle(pdf: jsPDF, bold: boolean, italic: boolean, face = 'courier'): void {
   if (bold && italic) {
-    pdf.setFont('courier', 'bolditalic');
+    pdf.setFont(face, 'bolditalic');
   } else if (bold) {
-    pdf.setFont('courier', 'bold');
+    pdf.setFont(face, 'bold');
   } else if (italic) {
-    pdf.setFont('courier', 'italic');
+    pdf.setFont(face, 'italic');
   } else {
-    pdf.setFont('courier', 'normal');
+    pdf.setFont(face, 'normal');
   }
+}
+
+/**
+ * How wide a run draws.
+ *
+ * Courier keeps Final Draft's fixed 10.33-CPI cell, which is what every
+ * indent, centre and page-break calculation in the app is built on.  A
+ * proportional face has no such cell, so it is measured — it still sits in the
+ * line box the monospace layout assigned, and since Times and Helvetica are
+ * narrower than Courier at the same size, it fits inside it.
+ */
+function runWidth(pdf: jsPDF, run: TextRun, face: string): number {
+  if (face === 'courier') return run.text.length * FD_CHAR_WIDTH_PT;
+  return pdf.getTextWidth(run.text);
 }
 
 /**
@@ -126,13 +163,17 @@ function renderLine(
   x: number,
   y: number,
   charSpace: number,
+  documentFont?: string,
 ): void {
   let cursorX = x;
   for (const run of lineRuns) {
     if (run.text.length === 0) continue;
-    setFontStyle(pdf, run.bold, run.italic);
-    pdf.text(run.text, cursorX, y, { charSpace });
-    const w = run.text.length * FD_CHAR_WIDTH_PT;
+    const face = runFont(run, documentFont);
+    setFontStyle(pdf, run.bold, run.italic, face);
+    // charSpace stretches Courier to Final Draft's cell; a proportional face
+    // must be drawn at its own advances or the letters come out scattered.
+    pdf.text(run.text, cursorX, y, { charSpace: face === 'courier' ? charSpace : 0 });
+    const w = runWidth(pdf, run, face);
     if (run.underline) {
       const ulY = y + 1.5;
       pdf.setLineWidth(0.5);
@@ -140,6 +181,19 @@ function renderLine(
     }
     cursorX += w;
   }
+}
+
+/** Width of a whole line, for centring and right alignment. */
+function measureLine(pdf: jsPDF, lineRuns: TextRun[], documentFont?: string): number {
+  let total = 0;
+  for (const run of lineRuns) {
+    if (run.text.length === 0) continue;
+    const face = runFont(run, documentFont);
+    // getTextWidth reads the current font, so it has to be set first.
+    if (face !== 'courier') setFontStyle(pdf, run.bold, run.italic, face);
+    total += runWidth(pdf, run, face);
+  }
+  return total;
 }
 
 // --- Main export function ---
@@ -150,6 +204,12 @@ export interface PDFExportOptions {
   documentTitle?: string;
   /** Current revision color for {revision} field */
   revisionColor?: string;
+  /**
+   * The document's typeface.  Omitted or any Courier keeps the Final Draft
+   * Courier output untouched; anything else is what the writer chose, and the
+   * script is drawn in the closest face jsPDF embeds.
+   */
+  documentFont?: string;
 }
 
 /** Resolve dynamic field placeholders in header/footer text */
@@ -195,7 +255,8 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     format: [pageWidthPt, pageHeightPt],
   });
 
-  pdf.setFont('courier', 'normal');
+  const documentFont = options?.documentFont;
+  pdf.setFont(pdfFontFor(documentFont), 'normal');
   pdf.setFontSize(12);
 
   // Character spacing adjustment: make jsPDF Courier match FD Courier (10.33 CPI)
@@ -288,7 +349,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
         const align: 'left' | 'center' | 'right' =
           it.field === 'draft' ? 'left' : (it.field === 'contact' || it.field === 'copyright') ? 'right' : 'center';
         const lineH = isTitle ? (it.titleSize || 12) : LINE_HEIGHT_PT;
-        pdf.setFont('courier', isTitle ? 'bold' : 'normal');
+        pdf.setFont(pdfFontFor(documentFont), isTitle ? 'bold' : 'normal');
         pdf.setFontSize(isTitle ? (it.titleSize || 12) : 12);
         const x = align === 'left' ? leftX : align === 'right' ? rightX : centerX;
         const lines = (it.text || '').split('\n');
@@ -330,18 +391,30 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     imageMap.set(k, { dataUrl: d.dataUrl, wPt, hPt, align: (attrs.align as string) || 'center' });
   }
 
+  // Element ids the active template requires to start a new page (e.g. TV newAct).
+  const forceBreakIds = getForceBreakIds();
+
+  /** True when this node must open a fresh page (template rule or manual flag). */
+  function mustStartNewPage(node: NodeInfo): boolean {
+    if (isFirstElement || currentY <= topMarginPt) return false;
+    return startsOwnPage({ type: node.typeName, attrs: node.attrs }, forceBreakIds);
+  }
+
   // Process each node
   let i = 0;
   while (i < nodes.length) {
     const node = nodes[i];
     const typeName = node.typeName;
+    const forcedBreak = mustStartNewPage(node);
 
     // Inserted image — place it, paginating if it doesn't fit.
     if (typeName === 'screenplayImage') {
       const img = imageMap.get(i);
       if (img) {
         const sbPt = isFirstElement ? 0 : LINE_HEIGHT_PT;
-        if (currentY + sbPt + img.hPt > pageHeightPt - bottomMarginPt && currentY > topMarginPt) {
+        if (forcedBreak) {
+          newPage();
+        } else if (currentY + sbPt + img.hPt > pageHeightPt - bottomMarginPt && currentY > topMarginPt) {
           newPage();
         } else {
           currentY += sbPt;
@@ -380,7 +453,10 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
       isDialogueBlock = true;
       dialogueBlockNodes = [i];
       let j = i + 1;
-      while (j < nodes.length && DIALOGUE_BLOCK_TYPES.has(nodes[j].typeName)) {
+      // Never absorb an element that opens its own page — it has to be laid out
+      // separately so its forced break is honoured.
+      while (j < nodes.length && DIALOGUE_BLOCK_TYPES.has(nodes[j].typeName)
+             && !startsOwnPage({ type: nodes[j].typeName, attrs: nodes[j].attrs }, forceBreakIds)) {
         const dNode = nodes[j];
         const dMaxChars = CHARS_PER_LINE[dNode.typeName] || 36;
         const dSb = (SPACE_BEFORE[dNode.typeName] ?? 0) * LINE_HEIGHT_PT;
@@ -394,7 +470,8 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     // Scene heading: try to keep with the next element
     let keepWithNext = false;
     let nextElementHeight = 0;
-    if (typeName === 'sceneHeading' && i + 1 < nodes.length) {
+    if (typeName === 'sceneHeading' && i + 1 < nodes.length
+        && !startsOwnPage({ type: nodes[i + 1].typeName, attrs: nodes[i + 1].attrs }, forceBreakIds)) {
       keepWithNext = true;
       const nNode = nodes[i + 1];
       const nMaxChars = CHARS_PER_LINE[nNode.typeName] || 62;
@@ -406,7 +483,10 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     // Determine if we need a page break
     const projectedY = currentY + spaceBeforePt + elementHeightPt;
 
-    if (isDialogueBlock && currentY + dialogueBlockHeight > usableBottomPt && currentY > topMarginPt + LINE_HEIGHT_PT) {
+    if (forcedBreak) {
+      // Template rule or manual "start on new page" flag — unconditional break.
+      newPage();
+    } else if (isDialogueBlock && currentY + dialogueBlockHeight > usableBottomPt && currentY > topMarginPt + LINE_HEIGHT_PT) {
       // Try to split dialogue block across pages
       const remaining = usableBottomPt - currentY;
 
@@ -418,7 +498,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
       if (remaining >= minSplitHeight) {
         // Render character name
         currentY += spaceBeforePt;
-        renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, charSpace);
+        renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, charSpace, documentFont);
         currentY += elementHeightPt;
         isFirstElement = false;
 
@@ -441,7 +521,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
           }
 
           currentY += dSb;
-          renderElement(pdf, dWrapped, dLeftPt, dRightPt, currentY, dNode.typeName, charSpace);
+          renderElement(pdf, dWrapped, dLeftPt, dRightPt, currentY, dNode.typeName, charSpace, documentFont);
           currentY += dWrapped.length * LINE_HEIGHT_PT;
           dIdx++;
         }
@@ -495,7 +575,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
             }
 
             currentY += dSb;
-            renderElement(pdf, dWrapped, dLeftPt, dRightPt, currentY, dNode.typeName, charSpace);
+            renderElement(pdf, dWrapped, dLeftPt, dRightPt, currentY, dNode.typeName, charSpace, documentFont);
             currentY += dWrapped.length * LINE_HEIGHT_PT;
             dIdx++;
           }
@@ -516,27 +596,33 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
       newPage();
     }
 
-    // Apply space before
-    if (!isFirstElement) {
+    // Apply space before. An element that was forced onto its own page sits at
+    // the very top of it — matching the editor, which drops the space-before of
+    // any element pushed to a new page.
+    if (!isFirstElement && !forcedBreak) {
       currentY += spaceBeforePt;
     }
 
     // Render the element
-    renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, charSpace);
+    renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, charSpace, documentFont);
 
     // Render scene numbers on both sides if enabled
     if (typeName === 'sceneHeading' && options?.sceneNumbersVisible && node.attrs?.sceneNumber) {
       const sceneNum = String(node.attrs.sceneNumber);
       const y = currentY + LINE_HEIGHT_PT; // baseline of first line
-      setFontStyle(pdf, true, false); // bold like scene heading
+      const numFace = pdfFontFor(documentFont);
+      setFontStyle(pdf, true, false, numFace); // bold like scene heading
       pdf.setFontSize(12);
+      const numSpace = numFace === 'courier' ? charSpace : 0;
       // Left side: just inside left margin
       const leftNumX = 1.0 * PTS_PER_INCH;
-      pdf.text(sceneNum, leftNumX, y, { charSpace });
+      pdf.text(sceneNum, leftNumX, y, { charSpace: numSpace });
       // Right side: near right margin, right-aligned
-      const numWidth = sceneNum.length * FD_CHAR_WIDTH_PT;
+      const numWidth = numFace === 'courier'
+        ? sceneNum.length * FD_CHAR_WIDTH_PT
+        : pdf.getTextWidth(sceneNum);
       const rightNumX = 7.75 * PTS_PER_INCH - numWidth;
-      pdf.text(sceneNum, rightNumX, y, { charSpace });
+      pdf.text(sceneNum, rightNumX, y, { charSpace: numSpace });
     }
 
     currentY += elementHeightPt;
@@ -555,7 +641,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
         const dWrapped = wordWrapRuns(dNode.runs, dMaxChars, UPPERCASE_TYPES.has(dNode.typeName));
 
         currentY += dSb;
-        renderElement(pdf, dWrapped, dLeftPt, dRightPt, currentY, dNode.typeName, charSpace);
+        renderElement(pdf, dWrapped, dLeftPt, dRightPt, currentY, dNode.typeName, charSpace, documentFont);
         currentY += dWrapped.length * LINE_HEIGHT_PT;
       }
       i = dialogueBlockNodes[dialogueBlockNodes.length - 1] + 1;
@@ -579,12 +665,12 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     // Header
     if (p >= hStart && (hContent.left || hContent.center || hContent.right)) {
       const headerY = layout.headerMargin + 12;
-      renderHFLine(pdf, hContent, p, totalPages, docTitle, revColor, headerY, layout, charSpace);
+      renderHFLine(pdf, hContent, p, totalPages, docTitle, revColor, headerY, layout, charSpace, documentFont);
     }
     // Footer
     if (p >= fStart && (fContent.left || fContent.center || fContent.right)) {
       const footerY = pageHeightPt - layout.footerMargin;
-      renderHFLine(pdf, fContent, p, totalPages, docTitle, revColor, footerY, layout, charSpace);
+      renderHFLine(pdf, fContent, p, totalPages, docTitle, revColor, footerY, layout, charSpace, documentFont);
     }
   }
 
@@ -604,32 +690,37 @@ function renderHFLine(
   y: number,
   layout: PageLayout,
   charSpace: number,
+  documentFont?: string,
 ): void {
   const leftMarginPt = layout.leftMargin * PTS_PER_INCH;
   const rightMarginPt = (layout.pageWidth - layout.rightMargin) * PTS_PER_INCH;
   const centerPt = (leftMarginPt + rightMarginPt) / 2;
 
-  setFontStyle(pdf, false, false);
+  // Page furniture is set in the script's own face, as Final Draft does.
+  const face = pdfFontFor(documentFont);
+  const hfSpace = face === 'courier' ? charSpace : 0;
+  const widthOf = (text: string) =>
+    face === 'courier' ? text.length * FD_CHAR_WIDTH_PT : pdf.getTextWidth(text);
+
+  setFontStyle(pdf, false, false, face);
   pdf.setFontSize(12);
 
   // Left
   const leftText = resolveFields(content.left, pageNum, totalPages, title, revisionColor);
   if (leftText) {
-    pdf.text(leftText, leftMarginPt, y, { charSpace });
+    pdf.text(leftText, leftMarginPt, y, { charSpace: hfSpace });
   }
 
   // Center
   const centerText = resolveFields(content.center, pageNum, totalPages, title, revisionColor);
   if (centerText) {
-    const cWidth = centerText.length * FD_CHAR_WIDTH_PT;
-    pdf.text(centerText, centerPt - cWidth / 2, y, { charSpace });
+    pdf.text(centerText, centerPt - widthOf(centerText) / 2, y, { charSpace: hfSpace });
   }
 
   // Right
   const rightText = resolveFields(content.right, pageNum, totalPages, title, revisionColor);
   if (rightText) {
-    const rWidth = rightText.length * FD_CHAR_WIDTH_PT;
-    pdf.text(rightText, rightMarginPt - rWidth, y, { charSpace });
+    pdf.text(rightText, rightMarginPt - widthOf(rightText), y, { charSpace: hfSpace });
   }
 }
 
@@ -642,6 +733,7 @@ function renderElement(
   startY: number,
   typeName: string,
   charSpace: number,
+  documentFont?: string,
 ): void {
   const isCentered = CENTERED_TYPES.has(typeName);
   const isRightAligned = RIGHT_ALIGNED_TYPES.has(typeName);
@@ -652,17 +744,15 @@ function renderElement(
     const y = startY + (lineIdx + 1) * LINE_HEIGHT_PT; // +1 because jsPDF text baseline
 
     if (isCentered) {
-      const totalChars = lineRuns.reduce((sum, r) => sum + r.text.length, 0);
-      const totalWidth = totalChars * FD_CHAR_WIDTH_PT;
+      const totalWidth = measureLine(pdf, lineRuns, documentFont);
       const centerX = leftPt + (maxWidthPt - totalWidth) / 2;
-      renderLine(pdf, lineRuns, centerX, y, charSpace);
+      renderLine(pdf, lineRuns, centerX, y, charSpace, documentFont);
     } else if (isRightAligned) {
-      const totalChars = lineRuns.reduce((sum, r) => sum + r.text.length, 0);
-      const totalWidth = totalChars * FD_CHAR_WIDTH_PT;
+      const totalWidth = measureLine(pdf, lineRuns, documentFont);
       const rightX = rightPt - totalWidth;
-      renderLine(pdf, lineRuns, rightX, y, charSpace);
+      renderLine(pdf, lineRuns, rightX, y, charSpace, documentFont);
     } else {
-      renderLine(pdf, lineRuns, leftPt, y, charSpace);
+      renderLine(pdf, lineRuns, leftPt, y, charSpace, documentFont);
     }
   }
 }

@@ -30,12 +30,18 @@ import { jsonBlockRuns, jsonBlockText, type Run } from './nodeText';
 import type { JSONContent } from '@tiptap/react';
 import { DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
+import { getForceBreakIds, jsonStartsOwnPage } from './pageBreaks';
 
 // --- Layout constants (mirror pdfExporter.ts) ---
 
 const TWIPS_PER_INCH = 1440;
 const TWIPS_PER_POINT = 20;
 const LINE_HEIGHT_PT = 12;
+/**
+ * The face a screenplay is written in unless the document says otherwise.
+ * Word does its own line breaking, so unlike the PDF exporter nothing here
+ * depends on the font being monospace — the family is simply passed through.
+ */
 const FONT_FAMILY = 'Courier Prime';
 const FONT_SIZE_HALFPT = 24; // 12pt
 
@@ -97,18 +103,20 @@ function applyTypeStyles(runs: RunStyle[], typeName: string): RunStyle[] {
  *
  * Exported for tests.
  */
-export function buildTextRuns(runs: RunStyle[]): TextRun[] {
+export function buildTextRuns(runs: RunStyle[], docFont: string = FONT_FAMILY): TextRun[] {
   if (runs.length === 0 || (runs.length === 1 && runs[0].text === '' && !runs[0].isBreak)) {
-    return [new TextRun({ text: '', font: FONT_FAMILY, size: FONT_SIZE_HALFPT })];
+    return [new TextRun({ text: '', font: docFont, size: FONT_SIZE_HALFPT })];
   }
   return runs
     .filter((r) => r.isBreak || r.text.length > 0)
     .map((r) =>
       r.isBreak
-        ? new TextRun({ text: '', break: 1, font: FONT_FAMILY, size: FONT_SIZE_HALFPT })
+        ? new TextRun({ text: '', break: 1, font: docFont, size: FONT_SIZE_HALFPT })
         : new TextRun({
             text: r.text,
-            font: FONT_FAMILY,
+            // A run styled with its own face keeps it; everything else follows
+            // the document.
+            font: r.fontFamily || docFont,
             size: FONT_SIZE_HALFPT,
             bold: r.bold || undefined,
             italics: r.italic || undefined,
@@ -154,6 +162,7 @@ function templateToChildren(
   template: string,
   title: string,
   revisionColor: string,
+  docFont: string = FONT_FAMILY,
 ): TextRun[] {
   if (!template) return [];
   const tokenRe = /(\{page\}|\{pages\}|\{title\}|\{date\}|\{revision\})/gi;
@@ -163,7 +172,7 @@ function templateToChildren(
 
   const pushText = (txt: string) => {
     if (txt.length === 0) return;
-    out.push(new TextRun({ text: txt, font: FONT_FAMILY, size: FONT_SIZE_HALFPT }));
+    out.push(new TextRun({ text: txt, font: docFont, size: FONT_SIZE_HALFPT }));
   };
 
   while ((m = tokenRe.exec(template)) !== null) {
@@ -175,7 +184,7 @@ function templateToChildren(
       out.push(
         new TextRun({
           children: [PageNumber.CURRENT],
-          font: FONT_FAMILY,
+          font: docFont,
           size: FONT_SIZE_HALFPT,
         }),
       );
@@ -183,7 +192,7 @@ function templateToChildren(
       out.push(
         new TextRun({
           children: [PageNumber.TOTAL_PAGES],
-          font: FONT_FAMILY,
+          font: docFont,
           size: FONT_SIZE_HALFPT,
         }),
       );
@@ -212,21 +221,22 @@ function buildHFParagraph(
   contentWidthTwips: number,
   title: string,
   revisionColor: string,
+  docFont: string = FONT_FAMILY,
 ): Paragraph {
   const centerTab = Math.round(contentWidthTwips / 2);
   const rightTab = contentWidthTwips;
 
   const children: TextRun[] = [];
   if (content.left) {
-    children.push(...templateToChildren(content.left, title, revisionColor));
+    children.push(...templateToChildren(content.left, title, revisionColor, docFont));
   }
   if (content.center) {
-    children.push(new TextRun({ text: '\t', font: FONT_FAMILY, size: FONT_SIZE_HALFPT }));
-    children.push(...templateToChildren(content.center, title, revisionColor));
+    children.push(new TextRun({ text: '\t', font: docFont, size: FONT_SIZE_HALFPT }));
+    children.push(...templateToChildren(content.center, title, revisionColor, docFont));
   }
   if (content.right) {
-    children.push(new TextRun({ text: '\t', font: FONT_FAMILY, size: FONT_SIZE_HALFPT }));
-    children.push(...templateToChildren(content.right, title, revisionColor));
+    children.push(new TextRun({ text: '\t', font: docFont, size: FONT_SIZE_HALFPT }));
+    children.push(...templateToChildren(content.right, title, revisionColor, docFont));
   }
 
   return new Paragraph({
@@ -255,6 +265,7 @@ const nodeText = jsonBlockText;
 function buildTitlePageFlow(
   nodes: JSONContent[],
   images: Map<number, { data: Uint8Array; w: number; h: number; align: string }>,
+  docFont: string = FONT_FAMILY,
 ): Paragraph[] {
   const paras: Paragraph[] = [];
   nodes.forEach((node, i) => {
@@ -276,7 +287,7 @@ function buildTitlePageFlow(
     const lines = nodeText(node).split('\n');
     const children = lines.map((line, idx) => new TextRun({
       text: isTitle ? line.toUpperCase() : line,
-      font: FONT_FAMILY,
+      font: docFont,
       size,
       bold: isTitle || undefined,
       break: idx > 0 ? 1 : undefined,
@@ -284,7 +295,7 @@ function buildTitlePageFlow(
     paras.push(new Paragraph({
       alignment: align,
       spacing: { line: size * 10, lineRule: LineRuleType.EXACT },
-      children: children.length ? children : [new TextRun({ text: '', font: FONT_FAMILY, size: FONT_SIZE_HALFPT })],
+      children: children.length ? children : [new TextRun({ text: '', font: docFont, size: FONT_SIZE_HALFPT })],
     }));
   });
   return paras;
@@ -297,13 +308,14 @@ function buildElementParagraph(
   layout: PageLayout,
   isFirst: boolean,
   pageBreakBefore = false,
+  docFont: string = FONT_FAMILY,
 ): Paragraph {
   const typeName = node.type || 'general';
   const indent = indentForType(typeName, layout);
   const alignment = alignmentForType(typeName);
   const sb = isFirst ? 0 : (SPACE_BEFORE[typeName] ?? 0) * LINE_HEIGHT_PT;
   const styledRuns = applyTypeStyles(extractRuns(node), typeName);
-  const children = buildTextRuns(styledRuns);
+  const children = buildTextRuns(styledRuns, docFont);
 
   return new Paragraph({
     alignment,
@@ -326,6 +338,8 @@ function buildElementParagraph(
 export interface DocxExportOptions {
   documentTitle?: string;
   revisionColor?: string;
+  /** The document's typeface; defaults to the screenplay Courier. */
+  documentFont?: string;
 }
 
 function sanitizeFilename(name: string): string {
@@ -378,6 +392,7 @@ export async function exportDocx(
 
   const docTitle = options?.documentTitle || title;
   const revColor = options?.revisionColor || '';
+  const docFont = options?.documentFont || FONT_FAMILY;
   const headerContent = layout.headerContent || DEFAULT_HEADER_CONTENT;
   const footerContent = layout.footerContent || DEFAULT_FOOTER_CONTENT;
   const showHeader = !!(headerContent.left || headerContent.center || headerContent.right);
@@ -420,13 +435,19 @@ export async function exportDocx(
     titleImageMap.set(i, { data: b.data, w, h, align: (attrs.align as string) || 'center' });
   }
 
+  // Element ids the active template requires to start a new page (e.g. TV newAct).
+  const forceBreakIds = getForceBreakIds();
+
   const bodyParagraphs: Paragraph[] = [];
   for (let i = 0; i < bodyNodes.length; i++) {
     // When a title page precedes the body, force the screenplay's first
     // paragraph to start on a new page.  This is belt-and-suspenders on top
     // of the section break and prevents Word from rendering the screenplay
     // partway down page 2 if the title page didn't fully consume page 1.
-    const forcePageBreak = i === 0 && hasTitlePage;
+    // Beyond the first paragraph, the template's forced-break elements and the
+    // per-element "start on new page" flag each open a page of their own.
+    const forcePageBreak = (i === 0 && hasTitlePage)
+      || (i > 0 && jsonStartsOwnPage(bodyNodes[i], forceBreakIds));
     const img = imageMap.get(i);
     if (img) {
       bodyParagraphs.push(new Paragraph({
@@ -437,7 +458,7 @@ export async function exportDocx(
       continue;
     }
     bodyParagraphs.push(
-      buildElementParagraph(bodyNodes[i], layout, i === 0, forcePageBreak),
+      buildElementParagraph(bodyNodes[i], layout, i === 0, forcePageBreak, docFont),
     );
   }
   if (bodyParagraphs.length === 0) {
@@ -453,10 +474,10 @@ export async function exportDocx(
   // and footers can be suppressed on the title page.  Otherwise a single
   // section covers everything; "different first page" handles headerStartPage=2.
   const headerPara = showHeader
-    ? buildHFParagraph(headerContent, contentWidthTw, docTitle, revColor)
+    ? buildHFParagraph(headerContent, contentWidthTw, docTitle, revColor, docFont)
     : null;
   const footerPara = showFooter
-    ? buildHFParagraph(footerContent, contentWidthTw, docTitle, revColor)
+    ? buildHFParagraph(footerContent, contentWidthTw, docTitle, revColor, docFont)
     : null;
 
   const sectionPageProps = {
@@ -500,7 +521,7 @@ export async function exportDocx(
       headers: Object.keys(headers).length > 0 ? headers : undefined,
       footers: Object.keys(footers).length > 0 ? footers : undefined,
       children: [
-        ...buildTitlePageFlow(titleRegionNodes, titleImageMap),
+        ...buildTitlePageFlow(titleRegionNodes, titleImageMap, docFont),
         ...bodyParagraphs,
       ],
     });
@@ -551,7 +572,7 @@ export async function exportDocx(
     styles: {
       default: {
         document: {
-          run: { font: FONT_FAMILY, size: FONT_SIZE_HALFPT },
+          run: { font: docFont, size: FONT_SIZE_HALFPT },
           paragraph: {
             spacing: { line: LINE_HEIGHT_PT * TWIPS_PER_POINT, lineRule: LineRuleType.EXACT },
           },

@@ -55,6 +55,20 @@ describe('Fountain export with hard breaks', () => {
     expect(out).toContain('**bold text**');
   });
 
+  it('writes a forced page break as ===', () => {
+    const out = exportFountain(doc(
+      block('action', 'Before'),
+      { ...block('newAct', 'ACT TWO'), attrs: { startsNewPage: true } },
+    ));
+    expect(out).toContain('===');
+    // The marker must precede the element it belongs to.
+    expect(out.indexOf('===')).toBeLessThan(out.indexOf('ACT TWO'));
+  });
+
+  it('omits === for elements without the flag', () => {
+    expect(exportFountain(doc(block('newAct', 'ACT TWO')))).not.toContain('===');
+  });
+
   it('does not wrap a break in mark delimiters', () => {
     const out = exportFountain(doc({
       type: 'action',

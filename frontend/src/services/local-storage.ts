@@ -40,6 +40,24 @@ import type {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Read the `force_break_before` column (JSON array of element ids). */
+function parseForceBreakBefore(raw: unknown): string[] | undefined {
+  if (typeof raw !== 'string' || !raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : undefined;
+  } catch {
+    // Corrupt value — treat as "no forced breaks" rather than failing the load.
+    return undefined;
+  }
+}
+
+/** Serialize forced page-break element ids for storage; NULL when empty. */
+function serializeForceBreakBefore(ids: unknown): string | null {
+  if (!Array.isArray(ids) || ids.length === 0) return null;
+  return JSON.stringify(ids.filter((x) => typeof x === 'string'));
+}
+
 function uuid(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     try { return crypto.randomUUID(); } catch { /* secure context required */ }
@@ -877,6 +895,7 @@ export async function createLocalStorage() {
         description: r.description,
         mode: r.mode,
         rules: JSON.parse(r.rules),
+        forceBreakBefore: parseForceBreakBefore(r.force_break_before),
         createdAt: r.created_at,
         updatedAt: r.updated_at,
       }));
@@ -884,14 +903,15 @@ export async function createLocalStorage() {
 
     async createFormattingTemplate(template: any): Promise<void> {
       await db.execute(
-        `INSERT INTO formatting_templates (id, name, description, mode, rules, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO formatting_templates (id, name, description, mode, rules, force_break_before, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           template.id,
           template.name,
           template.description,
           template.mode,
           JSON.stringify(template.rules),
+          serializeForceBreakBefore(template.forceBreakBefore),
           template.createdAt,
           template.updatedAt,
         ],
@@ -900,8 +920,16 @@ export async function createLocalStorage() {
 
     async updateFormattingTemplate(id: string, template: any): Promise<void> {
       await db.execute(
-        `UPDATE formatting_templates SET name = $1, description = $2, mode = $3, rules = $4, updated_at = $5 WHERE id = $6`,
-        [template.name, template.description, template.mode, JSON.stringify(template.rules), template.updatedAt, id],
+        `UPDATE formatting_templates SET name = $1, description = $2, mode = $3, rules = $4, force_break_before = $5, updated_at = $6 WHERE id = $7`,
+        [
+          template.name,
+          template.description,
+          template.mode,
+          JSON.stringify(template.rules),
+          serializeForceBreakBefore(template.forceBreakBefore),
+          template.updatedAt,
+          id,
+        ],
       );
     },
 

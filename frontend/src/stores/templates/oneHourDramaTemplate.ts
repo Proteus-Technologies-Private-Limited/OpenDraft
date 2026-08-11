@@ -36,6 +36,8 @@ export const ONE_HOUR_DRAMA_TEMPLATE: FormattingTemplate = {
   scriptTypeGroup: 'TV',
   scriptTypeTagline: '1-hour single-camera drama (Breaking Bad, Stranger Things)',
   pageTimeSeconds: 60,
+  // TV convention: every act opens on a fresh page.
+  forceBreakBefore: ['newAct'],
   starterDocument: STARTER,
   rules: {
     sceneHeading: rule('sceneHeading', 'Scene Heading', true, {

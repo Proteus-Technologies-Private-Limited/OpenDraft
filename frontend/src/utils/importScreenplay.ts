@@ -14,7 +14,8 @@
 import type { JSONContent } from '@tiptap/react';
 import { parseFountain } from './fountainParser';
 import { parseFDXFull } from './fdxParser';
-import { parseOSF, parseFadeIn } from './osfParser';
+import { parseOSF, parseFadeIn, type DocumentFont } from './osfParser';
+import { COURIER_FONTS } from './fonts';
 import { parseOdraft } from './odraftFormat';
 import { hydrateEditorStoresFromContent } from './hydrateStores';
 import { useEditorStore, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
@@ -128,6 +129,27 @@ function applyFdxSideEffects(parsed: ReturnType<typeof parseFDXFull>): void {
   }
 }
 
+/**
+ * Put the file's own typeface on the page.
+ *
+ * A Fade In stage play set in Times New Roman, a BBC radio script in Arial, or
+ * a Final Draft script in anything but Courier all carry the typeface on their
+ * element settings rather than their text, so without this the script imports
+ * in whatever the editor already had — Courier Prime — and the format the
+ * writer chose is lost.
+ *
+ * Courier variants are left alone deliberately: Courier Prime is OpenDraft's
+ * own screenplay face and is metric-compatible with the Couriers files name,
+ * so switching to a worse one would be a downgrade, not fidelity.
+ */
+function applyDocumentFont(font: DocumentFont): void {
+  const store = useEditorStore.getState();
+  if (font.family && !COURIER_FONTS.includes(font.family)) store.setFontFamily(font.family);
+
+  const size = parseInt(font.size, 10);
+  if (Number.isFinite(size) && size > 0 && size !== store.fontSize) store.setFontSize(size);
+}
+
 export interface ParseScreenplayOptions {
   /**
    * Whether to push the file's beats, cast, page layout, notes and tags into
@@ -168,6 +190,7 @@ export async function parseScreenplayImport(
 
   if (ext === 'fadein') {
     const parsed = await parseFadeIn(data as ArrayBuffer);
+    if (hydrateStores) applyDocumentFont(parsed.documentFont);
     return { doc: parsed.doc, title: parsed.scriptTitle, formatLabel, warnings: parsed.warnings };
   }
 
@@ -175,12 +198,16 @@ export async function parseScreenplayImport(
 
   if (ext === 'osf') {
     const parsed = parseOSF(text);
+    if (hydrateStores) applyDocumentFont(parsed.documentFont);
     return { doc: parsed.doc, title: parsed.scriptTitle, formatLabel, warnings: parsed.warnings };
   }
 
   if (ext === 'fdx') {
     const parsed = parseFDXFull(text);
-    if (hydrateStores) applyFdxSideEffects(parsed);
+    if (hydrateStores) {
+      applyFdxSideEffects(parsed);
+      applyDocumentFont(parsed.documentFont);
+    }
     return { doc: parsed.doc, title: '', formatLabel, warnings: [] };
   }
 

@@ -1,5 +1,6 @@
 // Final Draft XML (.fdx) parser — full formatting & layout support
 import { uuid } from './uuid';
+import { isDocumentFont, isDocumentSize } from './fonts';
 
 interface TipTapMark {
   type: string;
@@ -134,6 +135,12 @@ export interface FDXBeat {
 export interface FDXParseResult {
   doc: TipTapNode;
   pageLayout: FDXPageLayout | null;
+  /**
+   * The typeface the script is written in, from the element settings.  Final
+   * Draft records it per element rather than on the text, so a script set in
+   * anything but Courier arrives with no font on a single run.
+   */
+  documentFont: { family: string; size: string };
   castList: FDXCastMember[];
   characterHighlighting: FDXCharacterHighlight[];
   tagCategories: FDXTagCategory[];
@@ -152,6 +159,19 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
   const nodes: TipTapNode[] = [];
 
   // --- Parse PageLayout ---
+  /**
+   * Final Draft writes the typeface on every element's FontSpec, not on the
+   * text.  Action is the base screenplay element, so it is the document's
+   * font; Scene Heading covers the odd file that omits Action.
+   */
+  const fontSpec =
+    xmlDoc.querySelector('ElementSettings[Type="Action"] > FontSpec') ||
+    xmlDoc.querySelector('ElementSettings[Type="Scene Heading"] > FontSpec');
+  const documentFont = {
+    family: fontSpec?.getAttribute('Font') || '',
+    size: fontSpec?.getAttribute('Size') || '',
+  };
+
   let pageLayout: FDXPageLayout | null = null;
   const layoutEl = xmlDoc.querySelector('PageLayout');
   if (layoutEl) {
@@ -227,7 +247,7 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
   // Use 'FinalDraft > Content' to skip the TitlePage > Content element
   const contentEl = xmlDoc.querySelector('FinalDraft > Content');
   if (!contentEl) {
-    return { doc: { type: 'doc', content: [{ type: 'action', content: [] }] }, pageLayout, castList: [], characterHighlighting: [], tagCategories: [], tagItems: [], beats: [], beatColumns: [] };
+    return { doc: { type: 'doc', content: [{ type: 'action', content: [] }] }, pageLayout, documentFont, castList: [], characterHighlighting: [], tagCategories: [], tagItems: [], beats: [], beatColumns: [] };
   }
 
   // Iterate direct children (Paragraph and DualDialogue elements)
@@ -372,9 +392,8 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
       const fontSizeVal = textEl.getAttribute('Size');
       const fontColor = textEl.getAttribute('Color');
 
-      const DEFAULT_FONTS = ['Courier Final Draft', 'Courier Prime', 'Courier New', 'Courier'];
-      const isDefaultFont = !fontName || DEFAULT_FONTS.includes(fontName);
-      const isDefaultSize = !fontSizeVal || fontSizeVal === '12';
+      const isDefaultFont = isDocumentFont(fontName, documentFont.family);
+      const isDefaultSize = isDocumentSize(fontSizeVal, documentFont.size);
       const hasColor = fontColor && normalizeColor(fontColor) !== '#000000';
 
       if ((!isDefaultFont) || (!isDefaultSize) || hasColor) {
@@ -519,6 +538,7 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
       content: [...titlePageNodes, ...(nodes.length > 0 ? nodes : [{ type: 'action', content: [] }])],
     },
     pageLayout,
+    documentFont,
     castList,
     characterHighlighting,
     tagCategories: parsedTagCategories,

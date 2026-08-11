@@ -18,4 +18,5 @@ export { ScriptNoteMark } from './ScriptNoteMark';
 export { TagMark } from './TagMark';
 export { FormatOverride } from './FormatOverride';
 export { CustomElement } from './CustomElement';
+export { StartsNewPage, selectionStartsNewPage, PAGE_BREAKABLE_TYPES } from './StartsNewPage';
 export { AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvKeymap, AvBlockExtensions } from './AvBlock';

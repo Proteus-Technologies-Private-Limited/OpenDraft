@@ -5,17 +5,23 @@
  * entry is `document.xml`.  A `.osf` file is that same XML, unzipped.  One
  * parser therefore covers both.
  *
- * Four OSF revisions exist in the wild and they do not agree on casing:
+ * Five OSF revisions exist in the wild and they do not agree on how a
+ * paragraph names the style it uses:
  *
- *   version="12"  attributes lowercase, title page carried on <info>
- *   version="20"  attributes lowercase, title page is a <titlepage> block
- *   version="21"  attributes camelCase (baseStyleName, dualDialogue, …)
- *   version="30"  written by Fade In 3.x — lowercase, like 20
+ *   version="12"  basestylename, lowercase attributes, title page on <info>
+ *   version="20"  basestylename, title page is a <titlepage> block
+ *   version="21"  baseStyleName — the one camelCase revision
+ *   version="30"  basestylename, written by Fade In 3.x
+ *   version="40"  basestyle — shortened, and scene numbers moved to `number`
  *
- * Fade In never adopted the 2.1 camelCase revision, so lowercase is the
- * common case; every attribute read here accepts both spellings anyway.
+ * Every attribute read here accepts all the spellings, because getting this
+ * wrong is not a small loss: a paragraph whose style cannot be identified
+ * falls back to Action, so one unrecognized spelling flattens an entire
+ * script to the left margin (issue #61, a 4.0 file read by a 3.x-only
+ * reader).  That fallback now warns for exactly this reason.
  */
 import JSZip from 'jszip';
+import { isDocumentFont, isDocumentSize } from './fonts';
 
 interface TipTapMark {
   type: string;
@@ -30,11 +36,25 @@ interface TipTapNode {
   attrs?: Record<string, unknown>;
 }
 
+/**
+ * The typeface a document is written in.  OSF keeps it on the *styles*, not on
+ * the text — a Times New Roman script has `font="Times New Roman"` once per
+ * style and nothing on its runs — so it has to be read from there and applied
+ * to the page, or the script imports in whatever font the editor defaults to.
+ */
+export interface DocumentFont {
+  /** Empty when the file names no font. */
+  family: string;
+  /** Point size as written, e.g. "12".  Empty when the file names none. */
+  size: string;
+}
+
 export interface OSFParseResult {
   doc: TipTapNode;
   /** Title recovered from the file, if it carries one. */
   scriptTitle: string;
   warnings: string[];
+  documentFont: DocumentFont;
 }
 
 /**
@@ -79,8 +99,14 @@ const OSF_STYLE_NAME_TO_TYPE: Record<string, string> = {
 
 const ALIGNMENT_VALUES = new Set(['left', 'center', 'right', 'justify']);
 
-/** Fonts OSF files use for ordinary screenplay text — not worth a textStyle mark. */
-const DEFAULT_FONTS = ['Courier', 'Courier Screenplay', 'Courier Final Draft', 'Courier Prime', 'Courier New'];
+/**
+ * Every spelling of "the style this is based on", newest revision first.
+ * 4.0 shortened `basestylename` to `basestyle`; 2.1 camelCased it.
+ */
+const BASE_STYLE_ATTRS = ['basestylename', 'baseStyleName', 'basestyle', 'baseStyle'];
+
+// The Courier family lives in utils/fonts, shared with the FDX side.
+export { COURIER_FONTS } from './fonts';
 
 /**
  * Read an attribute that may be spelled either lowercase (OSF 1.2 / 2.0 /
@@ -142,6 +168,8 @@ interface StyleDef {
   name: string;
   builtinIndex: number | null;
   baseName: string | null;
+  font: string;
+  size: string;
 }
 
 function collectStyles(root: Element): Map<string, StyleDef> {
@@ -157,10 +185,40 @@ function collectStyles(root: Element): Map<string, StyleDef> {
     table.set(name.toLowerCase(), {
       name,
       builtinIndex: Number.isFinite(idx) ? idx : null,
-      baseName: attr(el, 'basestylename', 'baseStyleName'),
+      baseName: attr(el, ...BASE_STYLE_ATTRS),
+      font: attr(el, 'font') ?? '',
+      size: attr(el, 'size') ?? '',
     });
   }
   return table;
+}
+
+/**
+ * The document's own typeface: whatever Normal Text (built-in index 0) is set
+ * in, since every other style inherits from it.
+ *
+ * Warns when the styles disagree, because OpenDraft carries one font for the
+ * page and per-element typefaces would be silently levelled otherwise.
+ */
+function documentFontOf(styles: Map<string, StyleDef>, warnings: string[]): DocumentFont {
+  const defs = Array.from(styles.values()).filter((s) => s.font !== '');
+  if (defs.length === 0) return { family: '', size: '' };
+
+  const base =
+    defs.find((s) => s.builtinIndex === 0) ??
+    styles.get('normal text') ??
+    defs[0];
+
+  const others = new Set(defs.map((s) => s.font));
+  others.delete(base.font);
+  if (others.size > 0) {
+    warnings.push(
+      `The file sets a different font on some elements (${Array.from(others).join(', ')}); ` +
+        `the whole script was imported in ${base.font}.`,
+    );
+  }
+
+  return { family: base.font, size: base.size };
 }
 
 /**
@@ -176,7 +234,12 @@ function resolveStyleType(
   styles: Map<string, StyleDef>,
   warnings: string[],
 ): string {
-  if (!styleName) return 'action';
+  if (!styleName) {
+    // Silence here is what made issue #61 hard to see: every paragraph of a
+    // 4.0 file landed on Action and the import reported success.
+    warnings.push('A paragraph named no element style and was imported as Action.');
+    return 'action';
+  }
 
   const seen = new Set<string>();
   let current: string | null = styleName;
@@ -229,7 +292,7 @@ function legacyMarks(state: {
   font: string[];
   size: string[];
   bg: string[];
-}): TipTapMark[] {
+}, base: DocumentFont): TipTapMark[] {
   const marks: TipTapMark[] = [];
   if (state.bold > 0) marks.push({ type: 'bold' });
   if (state.italic > 0) marks.push({ type: 'italic' });
@@ -242,18 +305,18 @@ function legacyMarks(state: {
   const font = state.font[state.font.length - 1];
   const size = state.size[state.size.length - 1];
   const styleAttrs: Record<string, string> = {};
-  if (font && !DEFAULT_FONTS.includes(font)) styleAttrs.fontFamily = font;
-  if (size && size !== '12') styleAttrs.fontSize = `${size}pt`;
+  if (font && !isDocumentFont(font, base.family)) styleAttrs.fontFamily = font;
+  if (size && !isDocumentSize(size, base.size)) styleAttrs.fontSize = `${size}pt`;
   if (Object.keys(styleAttrs).length > 0) marks.push({ type: 'textStyle', attrs: styleAttrs });
 
   return marks;
 }
 
-function parseLegacyInline(content: string, into: TipTapNode[]): void {
+function parseLegacyInline(content: string, into: TipTapNode[], base: DocumentFont): void {
   const state = { bold: 0, italic: 0, underline: 0, strike: 0, font: [] as string[], size: [] as string[], bg: [] as string[] };
   const push = (segment: string) => {
     if (segment === '') return;
-    const marks = legacyMarks(state);
+    const marks = legacyMarks(state, base);
     segment.split('\n').forEach((part, i) => {
       if (i > 0) into.push({ type: 'hardBreak' });
       if (part === '') return;
@@ -292,12 +355,17 @@ function parseLegacyInline(content: string, into: TipTapNode[]): void {
 }
 
 /** Turn one <text> run into text nodes, splitting any embedded soft returns. */
-function parseTextRun(textEl: Element, into: TipTapNode[], legacyInline: boolean): boolean {
+function parseTextRun(
+  textEl: Element,
+  into: TipTapNode[],
+  legacyInline: boolean,
+  base: DocumentFont,
+): boolean {
   const content = (textEl.textContent || '').replace(/\r\n?/g, '\n');
   if (content === '') return false;
 
   if (legacyInline && hasLegacyInline(content)) {
-    parseLegacyInline(content, into);
+    parseLegacyInline(content, into, base);
     return true;
   }
 
@@ -314,8 +382,8 @@ function parseTextRun(textEl: Element, into: TipTapNode[], legacyInline: boolean
   const size = attr(textEl, 'size');
   const color = normalizeColor(attr(textEl, 'color'));
   const styleAttrs: Record<string, string> = {};
-  if (font && !DEFAULT_FONTS.includes(font)) styleAttrs.fontFamily = font;
-  if (size && size !== '12') styleAttrs.fontSize = `${size}pt`;
+  if (font && !isDocumentFont(font, base.family)) styleAttrs.fontFamily = font;
+  if (size && !isDocumentSize(size, base.size)) styleAttrs.fontSize = `${size}pt`;
   if (color && color !== '#000000') styleAttrs.color = color;
   if (Object.keys(styleAttrs).length > 0) marks.push({ type: 'textStyle', attrs: styleAttrs });
 
@@ -331,6 +399,28 @@ function parseTextRun(textEl: Element, into: TipTapNode[], legacyInline: boolean
   return true;
 }
 
+/**
+ * OSF stores a parenthetical bare — `<text>excited</text>`, not "(excited)" —
+ * and leaves the brackets to whoever renders it.  OpenDraft keeps them in the
+ * text, as Fountain and Final Draft do, so they have to be put back or every
+ * parenthetical imports unbracketed.
+ *
+ * Left alone when either end already carries one, so "(beat)" written out in
+ * full, and oddities like "(to Bob) quietly", are not double-bracketed.
+ */
+function bracketParenthetical(nodes: TipTapNode[]): void {
+  const runs = nodes.filter((n) => n.type === 'text' && typeof n.text === 'string');
+  if (runs.length === 0) return;
+
+  const flat = runs.map((n) => n.text).join('').trim();
+  if (flat === '' || flat.startsWith('(') || flat.endsWith(')')) return;
+
+  const first = runs[0];
+  const last = runs[runs.length - 1];
+  first.text = `(${first.text}`;
+  last.text = `${last.text})`;
+}
+
 interface ParsedPara {
   node: TipTapNode;
   /** True when the paragraph's style carries dualdialogue="1". */
@@ -342,18 +432,28 @@ function parseParagraph(
   styles: Map<string, StyleDef>,
   warnings: string[],
   legacyInline: boolean,
+  base: DocumentFont,
 ): ParsedPara | null {
   const styleEl = firstChildNamed(para, 'style');
-  // `basestylename` is what a paragraph normally carries; Fade In writes a
-  // bare `name` on the document's trailing paragraph instead.
+  // A base-style name is what a paragraph normally carries; Fade In writes a
+  // bare `name` on the document's trailing paragraph instead.  The built-in
+  // index is a last resort — no file in the corpus references a style that
+  // way, but it is the format's own unambiguous identifier, and reaching it
+  // beats flattening the paragraph to Action.
   const styleName = styleEl
-    ? attr(styleEl, 'basestylename', 'baseStyleName') ?? attr(styleEl, 'name')
+    ? attr(styleEl, ...BASE_STYLE_ATTRS) ?? attr(styleEl, 'name')
     : null;
+  const styleIndex = styleEl ? parseInt(attr(styleEl, 'builtin_index', 'builtInIndex') ?? '', 10) : NaN;
+  const byIndex = styleName ? undefined : BUILTIN_INDEX_TO_TYPE[styleIndex];
 
-  const nodeType = resolveStyleType(styleName, styles, warnings);
+  const nodeType = byIndex ?? resolveStyleType(styleName, styles, warnings);
   const attrs: Record<string, unknown> = {};
 
-  const sceneNumber = attr(para, 'scene_number', 'sceneNumber');
+  // OSF 4.0 renamed `scene_number` to plain `number`.  Only a scene heading's
+  // is a scene number — 4.0 numbers dialogue through the same attribute.
+  const sceneNumber =
+    attr(para, 'scene_number', 'sceneNumber') ??
+    (nodeType === 'sceneHeading' ? attr(para, 'number') : null);
   if (sceneNumber) attrs.sceneNumber = sceneNumber;
 
   // Both note and synopsis land on the scene heading's synopsis field — the
@@ -378,8 +478,10 @@ function parseParagraph(
   const textNodes: TipTapNode[] = [];
   let hasContent = false;
   for (const el of childrenNamed(para, 'text')) {
-    if (parseTextRun(el, textNodes, legacyInline)) hasContent = true;
+    if (parseTextRun(el, textNodes, legacyInline, base)) hasContent = true;
   }
+
+  if (nodeType === 'parenthetical' && hasContent) bracketParenthetical(textNodes);
 
   const node: TipTapNode = { type: nodeType };
   if (Object.keys(attrs).length > 0) node.attrs = attrs;
@@ -571,6 +673,17 @@ function trimTrailingEmpty(nodes: TipTapNode[]): TipTapNode[] {
   return out;
 }
 
+/**
+ * Collapse repeats, counting them.  A file whose styles we cannot read hits
+ * the same warning on every paragraph; hundreds of identical lines bury the
+ * others and say nothing that the count does not.
+ */
+function summarizeWarnings(raw: string[]): string[] {
+  const counts = new Map<string, number>();
+  for (const w of raw) counts.set(w, (counts.get(w) ?? 0) + 1);
+  return Array.from(counts, ([message, n]) => (n > 1 ? `${message} (${n} paragraphs)` : message));
+}
+
 /** Parse Open Screenplay Format XML (the contents of a .osf or a Fade In document.xml). */
 export function parseOSF(xmlString: string): OSFParseResult {
   const warnings: string[] = [];
@@ -595,13 +708,14 @@ export function parseOSF(xmlString: string): OSFParseResult {
   const legacyInline = !Number.isFinite(version) || version < 20;
 
   const styles = collectStyles(root);
+  const documentFont = documentFontOf(styles, warnings);
   const { node: titlePageNode, title } = parseTitlePage(root, legacyInline);
 
   const paragraphsEl = firstChildNamed(root, 'paragraphs');
   const parsed: ParsedPara[] = [];
   if (paragraphsEl) {
     for (const para of childrenNamed(paragraphsEl, 'para')) {
-      const item = parseParagraph(para, styles, warnings, legacyInline);
+      const item = parseParagraph(para, styles, warnings, legacyInline, documentFont);
       if (item) parsed.push(item);
     }
   } else {
@@ -614,7 +728,12 @@ export function parseOSF(xmlString: string): OSFParseResult {
   content.push(...body);
   if (content.length === 0) content.push({ type: 'action', content: [] });
 
-  return { doc: { type: 'doc', content }, scriptTitle: title, warnings };
+  return {
+    doc: { type: 'doc', content },
+    scriptTitle: title,
+    warnings: summarizeWarnings(warnings),
+    documentFont,
+  };
 }
 
 /** The single entry a Fade In archive holds. */

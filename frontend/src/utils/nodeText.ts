@@ -75,6 +75,12 @@ export interface Run {
   underline: boolean;
   strike: boolean;
   isBreak: boolean;
+  /**
+   * Typeface this run was explicitly given, from the `textStyle` mark.
+   * Absent — the common case — means the run follows the document's font,
+   * which is what every exporter should fall back to.
+   */
+  fontFamily?: string;
 }
 
 const EMPTY_RUN: Run = { text: '', bold: false, italic: false, underline: false, strike: false, isBreak: false };
@@ -86,15 +92,19 @@ export function jsonBlockRuns(node: JSONContent | null | undefined): Run[] {
   return node.content.map((child): Run => {
     if (child.type === BREAK_TYPE) return { ...EMPTY_RUN, isBreak: true };
     let bold = false, italic = false, underline = false, strike = false;
+    let fontFamily: string | undefined;
     if (child.marks) {
       for (const mark of child.marks) {
         if (mark.type === 'bold') bold = true;
         if (mark.type === 'italic') italic = true;
         if (mark.type === 'underline') underline = true;
         if (mark.type === 'strike') strike = true;
+        if (mark.type === 'textStyle' && typeof mark.attrs?.fontFamily === 'string') {
+          fontFamily = mark.attrs.fontFamily;
+        }
       }
     }
-    return { text: child.text || '', bold, italic, underline, strike, isBreak: false };
+    return { text: child.text || '', bold, italic, underline, strike, isBreak: false, fontFamily };
   });
 }
 

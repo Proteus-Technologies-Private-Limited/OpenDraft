@@ -1,3 +1,35 @@
+/**
+ * The interchangeable Couriers.
+ *
+ * A script written in any of these is already what OpenDraft renders — Courier
+ * Prime, which is metric-compatible with them — so importers leave the page
+ * font alone for these, and exporters keep to the Final Draft Courier path.
+ */
+export const COURIER_FONTS = [
+  'Courier', 'Courier Screenplay', 'Courier Final Draft', 'Courier Prime', 'Courier New',
+];
+
+/**
+ * Whether a run's font is simply the document's, and so needs no mark of its
+ * own.
+ *
+ * Both Final Draft and Fade In repeat the document font on individual runs, so
+ * without this every character of an imported script would carry a redundant
+ * textStyle mark — burying the runs that genuinely differ, and pinning text to
+ * a face it never chose.  Files that name no font at all fall back to the
+ * Courier family, which is what a screenplay is unless it says otherwise.
+ */
+export function isDocumentFont(font: string | null | undefined, documentFamily: string): boolean {
+  if (!font) return true;
+  return documentFamily ? font === documentFamily : COURIER_FONTS.includes(font);
+}
+
+/** The same, for point size. Screenplays are 12pt unless the file says otherwise. */
+export function isDocumentSize(size: string | null | undefined, documentSize: string): boolean {
+  if (!size) return true;
+  return size === (documentSize || '12');
+}
+
 export interface FontEntry {
   name: string;
   category: string;
@@ -9,6 +41,7 @@ export interface FontEntry {
 
 export const FONT_CATEGORIES = [
   'Screenplay Standard',
+  'System',
   'Latin Extended',
   'Indian / Indic',
   'Arabic & Hebrew',
@@ -21,6 +54,16 @@ export const FONT_REGISTRY: FontEntry[] = [
   { name: 'Courier Prime', category: 'Screenplay Standard', scripts: ['latin'], source: 'local', direction: 'ltr' },
   { name: 'Courier New', category: 'Screenplay Standard', scripts: ['latin'], source: 'system', direction: 'ltr' },
   { name: 'Arial', category: 'Screenplay Standard', scripts: ['latin'], source: 'system', direction: 'ltr' },
+
+  // System — fonts shipped with Windows/macOS. Listed so writers can pick them
+  // outright, rather than only seeing them after importing a file that uses one.
+  // Linux and Android may substitute a metric-compatible face.
+  { name: 'Times New Roman', category: 'System', scripts: ['latin'], source: 'system', direction: 'ltr' },
+  { name: 'Georgia', category: 'System', scripts: ['latin'], source: 'system', direction: 'ltr' },
+  { name: 'Helvetica', category: 'System', scripts: ['latin'], source: 'system', direction: 'ltr' },
+  { name: 'Verdana', category: 'System', scripts: ['latin'], source: 'system', direction: 'ltr' },
+  { name: 'Tahoma', category: 'System', scripts: ['latin'], source: 'system', direction: 'ltr' },
+  { name: 'Trebuchet MS', category: 'System', scripts: ['latin'], source: 'system', direction: 'ltr' },
 
   // Latin Extended
   { name: 'Noto Sans', category: 'Latin Extended', scripts: ['latin', 'cyrillic', 'greek'], source: 'google', direction: 'ltr' },

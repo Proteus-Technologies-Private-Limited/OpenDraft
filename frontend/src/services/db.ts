@@ -153,6 +153,8 @@ async function migrate(db: Database): Promise<void> {
       description   TEXT NOT NULL DEFAULT '',
       mode          TEXT NOT NULL DEFAULT 'enforce',
       rules         TEXT NOT NULL,
+      -- JSON array of element ids that must start on a new page (may be NULL)
+      force_break_before TEXT DEFAULT NULL,
       created_at    TEXT NOT NULL,
       updated_at    TEXT NOT NULL
     );
@@ -269,6 +271,14 @@ async function migrateFromOldSchema(db: Database): Promise<void> {
   }
   if (!scriptColNames.has('template_id')) {
     await db.execute(`ALTER TABLE scripts ADD COLUMN template_id TEXT DEFAULT NULL`);
+  }
+
+  // Formatting templates gained per-element page-break rules (JSON array of
+  // element ids that must start a new page).
+  const tplCols = await db.select<any[]>(`PRAGMA table_info(formatting_templates)`);
+  const tplColNames = new Set(tplCols.map((c: any) => c.name));
+  if (!tplColNames.has('force_break_before')) {
+    await db.execute(`ALTER TABLE formatting_templates ADD COLUMN force_break_before TEXT DEFAULT NULL`);
   }
 }
 

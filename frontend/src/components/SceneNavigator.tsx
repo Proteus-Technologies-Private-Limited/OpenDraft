@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore } from '../stores/editorStore';
-import { computeSceneLengths, computePageBlocks, type PageContentInfo } from '../editor/pagination';
+import { computeSceneLengths, computePageBlocks, buildTemplateHints, type PageContentInfo } from '../editor/pagination';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
 import { computeScriptStructure, sceneActLabel, type ScriptStructure } from '../utils/scriptStructure';
 import SynopsisModal from './SynopsisModal';
@@ -383,7 +384,11 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
 
   const pageContent = useMemo((): PageContentInfo[] => {
     if (!editor) return [];
-    return computePageBlocks(editor.state.doc, pageLayout);
+    return computePageBlocks(
+      editor.state.doc,
+      pageLayout,
+      buildTemplateHints(useFormattingTemplateStore.getState().getActiveTemplate()),
+    );
   }, [editor, scenes, pageLayout]);
 
   // ── Exact-match page layout for thumbnails ──

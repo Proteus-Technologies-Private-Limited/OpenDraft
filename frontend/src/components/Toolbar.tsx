@@ -62,9 +62,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     zoomPanelOpen,
     setZoomPanelOpen,
     fontFamily,
-    setFontFamily,
     fontSize,
-    setFontSize,
     setSearchOpen,
     setGoToPageOpen,
     scriptNotesOpen,
@@ -514,11 +512,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           extraFonts={extraFonts}
           onChange={(val) => {
             if (locked.fontFamily) return;
-            setFontFamily(val);
             const entry = FONT_REGISTRY.find(f => f.name === val);
             if (entry) loadFont(entry);
-            const DEFAULT_FONTS = ['Courier Final Draft', 'Courier Prime', 'Courier New', 'Courier'];
-            if (DEFAULT_FONTS.includes(val)) {
+            // Picking a font styles the selection — it must not rewrite the
+            // document's own font, or every local change would redefine what
+            // unstyled text elsewhere renders as (and what this picker reports
+            // for it).  Choosing the document font clears the mark instead, so
+            // the text goes back to following the page.
+            if (val === fontFamily) {
               editor?.chain().focus(undefined, { scrollIntoView: false }).setMark('textStyle', { fontFamily: null }).removeEmptyTextStyle().run();
             } else {
               editor?.chain().focus(undefined, { scrollIntoView: false }).setMark('textStyle', { fontFamily: val }).run();
@@ -536,8 +537,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             if (locked.fontSize) return;
             if (e.target.value === '') return; // user clicked the mixed placeholder — no-op
             const val = Number(e.target.value);
-            setFontSize(val);
-            if (val === 12) {
+            // Selection-scoped, like the font picker above.
+            if (val === fontSize) {
               editor?.chain().focus(undefined, { scrollIntoView: false }).setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
             } else {
               editor?.chain().focus(undefined, { scrollIntoView: false }).setFontSize(`${val}pt`).run();
@@ -561,7 +562,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         </select>
       </div>
     </React.Fragment>
-  ), [cursorFont, cursorSize, extraFonts, editor, setFontFamily, setFontSize, locked]);
+  ), [cursorFont, cursorSize, extraFonts, editor, fontFamily, fontSize, locked]);
 
   // showPopups: when false, only render buttons (no ColorPicker popups).
   // This prevents the hidden inline copy from stealing popup state from the overflow copy.

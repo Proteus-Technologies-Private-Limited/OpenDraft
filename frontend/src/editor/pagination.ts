@@ -1,5 +1,6 @@
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import type { EditorView } from '@tiptap/pm/view';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import type { PageLayout } from '../stores/editorStore';
 import { resolveMoresContds } from '../stores/editorStore';
@@ -22,6 +23,29 @@ const EMPTY_HINTS: TemplateHints = {
   forceBreakBefore: new Set(),
   lineHeightMultiplier: {},
 };
+
+/** Source shape for hints — the subset of FormattingTemplate pagination cares about. */
+export interface HintSource {
+  forceBreakBefore?: string[];
+  lineHeightMultiplier?: Record<string, number>;
+}
+
+// computeBreaks runs on every doc change, so cache the derived Set per template
+// object rather than rebuilding it on each keystroke.
+const hintCache = new WeakMap<object, TemplateHints>();
+
+/** Derive pagination hints from a formatting template (memoized per template object). */
+export function buildTemplateHints(tpl: HintSource | null | undefined): TemplateHints {
+  if (!tpl) return EMPTY_HINTS;
+  const cached = hintCache.get(tpl as object);
+  if (cached) return cached;
+  const hints: TemplateHints = {
+    forceBreakBefore: new Set(tpl.forceBreakBefore ?? []),
+    lineHeightMultiplier: tpl.lineHeightMultiplier ?? {},
+  };
+  hintCache.set(tpl as object, hints);
+  return hints;
+}
 
 /** Resolve the effective element id for a top-level node (built-in name or customTypeId). */
 function getElementId(node: PmNode): string {
@@ -91,11 +115,55 @@ export interface PaginationState {
   breaks: BreakInfo[];
 }
 
+/** True when two break sets would place content differently on the page. */
+function breaksDiffer(a: PaginationState, b: PaginationState): boolean {
+  if (a.breaks.length !== b.breaks.length) return true;
+  for (let i = 0; i < a.breaks.length; i++) {
+    if (a.breaks[i].offset !== b.breaks[i].offset) return true;
+    if (a.breaks[i].linesOnPage !== b.breaks[i].linesOnPage) return true;
+  }
+  return false;
+}
+
+/** Nearest scrollable ancestor — the editor scrolls inside a pane, not the window. */
+function scrollParent(el: HTMLElement | null): HTMLElement | null {
+  let node = el?.parentElement || null;
+  while (node) {
+    const { overflowY } = getComputedStyle(node);
+    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
+/** Is the caret inside the visible area of the scrolling pane? */
+function caretVisible(view: EditorView): boolean {
+  try {
+    const coords = view.coordsAtPos(view.state.selection.head);
+    const pane = scrollParent(view.dom as HTMLElement);
+    const box = pane
+      ? pane.getBoundingClientRect()
+      : { top: 0, bottom: window.innerHeight } as DOMRect;
+    return coords.top >= box.top && coords.bottom <= box.bottom;
+  } catch {
+    // Position not renderable yet — treat as visible so we never scroll blindly.
+    return true;
+  }
+}
+
 export function createPaginationPlugin(
   onUpdate: (state: PaginationState) => void,
   getLayout: () => PageLayout,
   getHints: () => TemplateHints = () => EMPTY_HINTS,
 ) {
+  // An edit that introduces a page break moves the caret a whole page down, but
+  // the transaction's own scrollIntoView ran before these decorations existed —
+  // so ProseMirror measured the pre-break position and stayed put. Re-reveal the
+  // caret once the margins are actually in the DOM.
+  let revealCaret = false;
+
   return new Plugin({
     key: paginationPluginKey,
     state: {
@@ -107,9 +175,27 @@ export function createPaginationPlugin(
       apply(tr, oldState, _oldEditorState, newEditorState) {
         if (!tr.docChanged && !tr.getMeta('forceRepaginate')) return oldState;
         const result = computeBreaks(newEditorState.doc, getLayout(), getHints());
+        // Only for real edits: a template or page-layout repagination must not
+        // yank the view around while the writer is looking somewhere else.
+        if (tr.docChanged && breaksDiffer(oldState, result)) revealCaret = true;
         onUpdate(result);
         return result;
       },
+    },
+
+    view() {
+      return {
+        update(view: EditorView) {
+          if (!revealCaret) return;
+          revealCaret = false;
+          // Wait for the decoration margins to be laid out before measuring.
+          requestAnimationFrame(() => {
+            if (view.isDestroyed || caretVisible(view)) return;
+            // docChanged is false here, so this dispatch cannot re-arm the flag.
+            view.dispatch(view.state.tr.setMeta('addToHistory', false).scrollIntoView());
+          });
+        },
+      };
     },
     props: {
       decorations(state) {
@@ -138,12 +224,13 @@ export function createPaginationPlugin(
   });
 }
 
-function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHints = EMPTY_HINTS): PaginationState {
+export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHints = EMPTY_HINTS): PaginationState {
   const { linesPerPage } = getPageMetrics(layout);
 
   interface NodeInfo {
     typeName: string; elementId: string; spaceBefore: number; text: string;
     offset: number; nodeSize: number; lineMul: number; fixedLines?: number;
+    startsNewPage: boolean;
   }
   const nodes: NodeInfo[] = [];
   let isFirst = true;
@@ -156,7 +243,11 @@ function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHints = E
     const fixedLines = typeName === 'screenplayImage'
       ? Math.max(1, Number(node.attrs?.heightLines) || 8)
       : undefined;
-    nodes.push({ typeName, elementId, spaceBefore: sb, text: node.textContent || '', offset, nodeSize: node.nodeSize, lineMul, fixedLines });
+    nodes.push({
+      typeName, elementId, spaceBefore: sb, text: node.textContent || '',
+      offset, nodeSize: node.nodeSize, lineMul, fixedLines,
+      startsNewPage: node.attrs?.startsNewPage === true,
+    });
     isFirst = false;
   });
 
@@ -196,34 +287,44 @@ function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHints = E
       : getTextLines(node.text, cpl) * node.lineMul;
     const totalLines = node.spaceBefore + textLines;
 
+    // An element that must open its own page can never be absorbed into the
+    // block above it — doing so would skip past it and its break would never be
+    // evaluated (e.g. a scene heading swallowing the act that follows it).
+    const opensOwnPage = (n: NodeInfo) =>
+      n.startsNewPage || hints.forceBreakBefore.has(n.elementId);
+
     // Build character+dialogue block
     let blockLines = totalLines;
     let blockEnd = i;
 
     if (node.typeName === 'character' && i + 1 < nodes.length) {
       let j = i + 1;
-      while (j < nodes.length && DIALOGUE_BLOCK_TYPES.has(nodes[j].typeName)) {
+      while (j < nodes.length && DIALOGUE_BLOCK_TYPES.has(nodes[j].typeName) && !opensOwnPage(nodes[j])) {
         const dn = nodes[j];
         const dc = CHARS_PER_LINE[dn.typeName] || 36;
         blockLines += dn.spaceBefore + getTextLines(dn.text, dc) * dn.lineMul;
         j++;
       }
       blockEnd = j - 1;
-    } else if (node.typeName === 'sceneHeading' && i + 1 < nodes.length) {
+    } else if (node.typeName === 'sceneHeading' && i + 1 < nodes.length && !opensOwnPage(nodes[i + 1])) {
       const nn = nodes[i + 1];
       const nc = CHARS_PER_LINE[nn.typeName] || 62;
       blockLines += nn.spaceBefore + getTextLines(nn.text, nc) * nn.lineMul;
       blockEnd = i + 1;
     }
 
-    // Force break: template can require certain elements to start a new page (e.g. sitcom sceneHeading).
-    const forceBreak = lineCount > 0 && hints.forceBreakBefore.has(node.elementId);
+    // Force break: the template can require certain elements to start a new page
+    // (e.g. sitcom sceneHeading, TV newAct), or the writer can flag a single
+    // element manually via Format → Start On New Page.
+    const forceBreak = lineCount > 0
+      && (node.startsNewPage || hints.forceBreakBefore.has(node.elementId));
 
     if ((forceBreak || lineCount + blockLines > linesPerPage) && lineCount > 0) {
       const remaining = linesPerPage - lineCount;
 
-      // Try to split character+dialogue blocks
-      if (node.typeName === 'character' && blockEnd > i) {
+      // Try to split character+dialogue blocks. A forced break is never split —
+      // the whole point is that the element opens a page of its own.
+      if (!forceBreak && node.typeName === 'character' && blockEnd > i) {
         const charLines = node.spaceBefore + getTextLines(node.text, CHARS_PER_LINE[node.typeName] || 41);
 
         const MIN_DL = 2; // FD: at least 2 lines of dialogue on each side of split
@@ -354,9 +455,13 @@ export interface PageContentInfo {
  * Compute content blocks per page for page-preview thumbnails.
  * Uses the same break algorithm as the pagination plugin for accuracy.
  */
-export function computePageBlocks(doc: PmNode, layout: PageLayout): PageContentInfo[] {
+export function computePageBlocks(
+  doc: PmNode,
+  layout: PageLayout,
+  hints: TemplateHints = EMPTY_HINTS,
+): PageContentInfo[] {
   const { linesPerPage } = getPageMetrics(layout);
-  const { breaks } = computeBreaks(doc, layout);
+  const { breaks } = computeBreaks(doc, layout, hints);
 
   // Collect top-level nodes
   const nodes: { typeName: string; text: string; offset: number }[] = [];

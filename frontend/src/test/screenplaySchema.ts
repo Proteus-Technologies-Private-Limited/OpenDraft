@@ -26,6 +26,7 @@ import {
   TitlePage, CustomElement,
   DualDialogue, DualDialogueColumn,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection,
+  StartsNewPage,
 } from '../editor/extensions';
 
 export const testSchema = getSchema([
@@ -39,6 +40,7 @@ export const testSchema = getSchema([
   TitlePage, CustomElement,
   DualDialogue, DualDialogueColumn,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection,
+  StartsNewPage,
 ]);
 
 /** A hard break, for use in the `block()` builder. */

@@ -124,6 +124,7 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
       mode: data.mode || 'enforce',
       category: data.category || 'user',
       rules: data.rules || { ...INDUSTRY_STANDARD_TEMPLATE.rules },
+      ...(data.forceBreakBefore?.length ? { forceBreakBefore: [...data.forceBreakBefore] } : {}),
       createdAt: ts,
       updatedAt: ts,
     };
@@ -168,6 +169,9 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
       description: source.description,
       mode: source.mode,
       rules: JSON.parse(JSON.stringify(source.rules)),
+      // Carry the source's page-break rules so a duplicated TV/sitcom template
+      // keeps its act/scene page breaks.
+      forceBreakBefore: source.forceBreakBefore ? [...source.forceBreakBefore] : undefined,
     });
   },
 

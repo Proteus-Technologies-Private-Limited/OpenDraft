@@ -24,6 +24,12 @@ export interface WrapRun {
   underline: boolean;
   /** A hard break: forces a line boundary, contributes no characters. */
   isBreak?: boolean;
+  /**
+   * Typeface the run was given, carried through for renderers.  Line breaking
+   * deliberately ignores it: the character grid is what the editor paginates
+   * on, so a font change must not move a page break.
+   */
+  fontFamily?: string;
 }
 
 const emptyRun = (): WrapRun => ({ text: '', bold: false, italic: false, underline: false });
@@ -65,6 +71,7 @@ export function wordWrapRuns(
           bold: run.bold,
           italic: run.italic,
           underline: run.underline,
+          fontFamily: run.fontFamily,
         });
       }
     }
@@ -99,14 +106,17 @@ export function wordWrapRuns(
     const wordLen = word.text.length;
 
     if (currentLine.length === 0) {
-      currentLine.push({ text: word.text, bold: word.bold, italic: word.italic, underline: word.underline });
+      currentLine.push({ text: word.text, bold: word.bold, italic: word.italic, underline: word.underline, fontFamily: word.fontFamily });
       currentLineChars = wordLen;
     } else if (currentLineChars + wordLen <= maxChars) {
       const last = currentLine[currentLine.length - 1];
-      if (last.bold === word.bold && last.italic === word.italic && last.underline === word.underline) {
+      // Runs merge only when they render identically — a differing typeface
+      // keeps them apart, or the second would be drawn in the first's font.
+      if (last.bold === word.bold && last.italic === word.italic
+        && last.underline === word.underline && last.fontFamily === word.fontFamily) {
         last.text += word.text;
       } else {
-        currentLine.push({ text: word.text, bold: word.bold, italic: word.italic, underline: word.underline });
+        currentLine.push({ text: word.text, bold: word.bold, italic: word.italic, underline: word.underline, fontFamily: word.fontFamily });
       }
       currentLineChars += wordLen;
     } else {
@@ -114,7 +124,7 @@ export function wordWrapRuns(
       lastRun.text = lastRun.text.replace(/ +$/, '');
       lines.push(currentLine);
       const trimmedWord = word.text.replace(/^ +/, '');
-      currentLine = [{ text: trimmedWord, bold: word.bold, italic: word.italic, underline: word.underline }];
+      currentLine = [{ text: trimmedWord, bold: word.bold, italic: word.italic, underline: word.underline, fontFamily: word.fontFamily }];
       currentLineChars = trimmedWord.length;
     }
   }

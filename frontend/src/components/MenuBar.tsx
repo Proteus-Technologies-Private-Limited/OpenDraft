@@ -28,6 +28,7 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { applyScriptFormat } from '../utils/applyScriptFormat';
 import { INDUSTRY_STANDARD_ID } from '../stores/formattingTypes';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
+import { selectionStartsNewPage } from '../editor/extensions';
 import { pluginRegistry } from '../plugins/registry';
 import AuthIndicator from './AuthIndicator';
 import { useNavigate } from 'react-router-dom';
@@ -344,6 +345,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   const isEnforceMode = activeTemplate.mode === 'enforce';
   const editorRule = editor ? getCurrentElementRule(editor, activeTemplate) : null;
   const locked = getLockedFormatting(editorRule, isEnforceMode);
+  // Manual "start on a new page" flag for the element(s) under the cursor.
+  const selectionOnNewPage = selectionStartsNewPage(editor);
 
   // ── About / What's New ──
   const [recoverBackupOpen, setRecoverBackupOpen] = useState(false);
@@ -778,7 +781,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     if (!editor) return;
     try {
       const s = useEditorStore.getState();
-      await downloadFDX(editor.getJSON(), documentTitle, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns, s.pageLayout);
+      await downloadFDX(editor.getJSON(), documentTitle, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns, s.pageLayout,
+        { family: s.fontFamily, size: s.fontSize });
     } catch (err) {
       console.error('FDX export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -803,6 +807,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         sceneNumbersVisible: store.sceneNumbersVisible,
         documentTitle: store.documentTitle,
         revisionColor: store.revisionMode ? store.revisionColor : '',
+        documentFont: store.fontFamily,
       });
     } catch (err) {
       console.error('PDF export failed:', err);
@@ -817,6 +822,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       await downloadDocx(editor.getJSON(), documentTitle, pageLayout, {
         documentTitle: store.documentTitle,
         revisionColor: store.revisionMode ? store.revisionColor : '',
+        documentFont: store.fontFamily,
       });
     } catch (err) {
       console.error('Word export failed:', err);
@@ -1077,6 +1083,15 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         },
         { separator: true, label: '' },
         { icon: <FaColumns />, label: 'Dual Dialogue', shortcut: `${mod}D`, action: () => (editor as any)?.commands?.toggleDualDialogue() },
+        {
+          icon: <FaFileAlt />,
+          label: selectionOnNewPage ? '✓ Start On New Page' : 'Start On New Page',
+          action: () => {
+            if (!editor) return;
+            editor.chain().focus(undefined, { scrollIntoView: false }).toggleStartsNewPage().run();
+          },
+          disabled: !editor,
+        },
         { separator: true, label: '' },
         { icon: <FaCommentDots />, label: 'Mores & Continueds...', action: () => useEditorStore.getState().setMoresContdsOpen(true) },
         { icon: <FaImage />, label: 'Insert Image...', action: () => useEditorStore.getState().imageInsertHandler?.() },
@@ -1747,8 +1762,18 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.21</div>
+              <div className="about-section-title">What's New in 0.22</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.22.0</div>
+              <ul className="about-list">
+                <li><strong>Start Any Element On A New Page</strong> — Put the cursor in an element and choose Format → Start On New Page to force a page break before it. A tick shows while it's on. The flag is saved with the script, exports to Final Draft and Fountain (as <code>===</code>), and is read back from <code>.fdx</code>, <code>.osf</code> and <code>.fountain</code> files you import.</li>
+                <li><strong>Acts On Their Own Page</strong> — Templates can now require an element to open a fresh page. Tick <em>Starts on a new page</em> against any element in the template editor. The 1-Hour TV Drama, Multi-Cam Sitcom and Stage Play formats break before every New Act out of the box, on screen and in PDF/Word exports.</li>
+                <li><strong>Fonts In Exports</strong> — The typeface you choose now survives export: PDF, Word and Final Draft carry the document font and any per-selection font, and Final Draft files bring their own typeface in on import.</li>
+                <li><strong>More Fonts In The Picker</strong> — Times New Roman, Georgia, Helvetica, Verdana, Tahoma and Trebuchet MS are now listed under a new System group, instead of appearing only after you imported a document that used one.</li>
+                <li><strong>Font Picker Styles The Selection</strong> — Choosing a font or size now styles just the selected text rather than redefining the document's own font; picking the document font clears the override again.</li>
+                <li><strong>Page Break Fixes</strong> — A scene heading no longer swallows the act that follows it, which had put every act on one page until you typed inside the scene. Changing formatting template now repaginates straight away instead of waiting for your next keystroke, and pressing Enter into a new page now scrolls there.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.21.0</div>
               <ul className="about-list">
                 <li><strong>Open Fade In Scripts</strong> — Import <code>.fadein</code> files straight from Fade In, along with Open Screenplay Format (<code>.osf</code>) files. Use File → Import, drag one onto the editor, or just double-click the file. Elements, custom element styles, bold/italic/underline, highlighting, fonts, the title page, scene numbers, synopses, dual dialogue, centred text and page breaks all come across.</li>

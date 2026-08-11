@@ -43,6 +43,10 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   const [selectedId, setSelectedId] = useState<string | null>(
     Object.keys(rules)[0] || null,
   );
+  /** Element ids that must open a new page (e.g. New Act in TV formats). */
+  const [forceBreakBefore, setForceBreakBefore] = useState<string[]>(
+    () => [...(initial.forceBreakBefore ?? [])],
+  );
 
   const selectedRule = selectedId ? rules[selectedId] : null;
 
@@ -55,6 +59,12 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     },
     [],
   );
+
+  const toggleForceBreak = useCallback((id: string, on: boolean) => {
+    setForceBreakBefore((prev) => (on
+      ? (prev.includes(id) ? prev : [...prev, id])
+      : prev.filter((x) => x !== id)));
+  }, []);
 
   const addCustomElement = useCallback(() => {
     const id = uuid();
@@ -84,6 +94,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       description,
       mode,
       rules,
+      // Only keep break rules for elements that still exist in the template.
+      forceBreakBefore: forceBreakBefore.filter((id) => rules[id]),
       updatedAt: new Date().toISOString(),
     });
   };
@@ -437,6 +449,23 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     onChange={(e) => updateRule(selectedId!, { placeholder: e.target.value })}
                     placeholder="Shown when element is empty"
                   />
+                </div>
+
+                {/* Pagination */}
+                <div className="template-editor-field">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={forceBreakBefore.includes(selectedId!)}
+                      onChange={(e) => toggleForceBreak(selectedId!, e.target.checked)}
+                    />
+                    Starts on a new page
+                  </label>
+                  <span className="template-editor-hint">
+                    {forceBreakBefore.includes(selectedId!)
+                      ? `Every “${selectedRule.label}” begins at the top of a fresh page, on screen and in PDF/Word exports.`
+                      : 'This element flows with the rest of the page.'}
+                  </span>
                 </div>
 
                 {/* Format override */}

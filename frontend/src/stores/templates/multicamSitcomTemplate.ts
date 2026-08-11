@@ -43,7 +43,7 @@ export const MULTICAM_SITCOM_TEMPLATE: FormattingTemplate = {
   scriptTypeGroup: 'TV',
   scriptTypeTagline: 'Live-audience sitcom (Big Bang Theory, Mom)',
   pageTimeSeconds: 30,
-  forceBreakBefore: ['sceneHeading'],
+  forceBreakBefore: ['newAct', 'sceneHeading'],
   lineHeightMultiplier: { dialogue: 2.0 },
   starterDocument: STARTER,
   rules: {

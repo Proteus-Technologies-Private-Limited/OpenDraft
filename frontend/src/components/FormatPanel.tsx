@@ -107,16 +107,16 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
       const { from, to } = selectionRef.current;
       const sel = { from, to };
 
-      // Font
-      const DEFAULT_FONTS = ['Courier Final Draft', 'Courier Prime', 'Courier New', 'Courier'];
-      if (DEFAULT_FONTS.includes(opts.f)) {
+      // Font.  Choosing the document's own font clears the mark rather than
+      // pinning it, so the text keeps following the page if that ever changes.
+      if (opts.f === pageFont) {
         editor.chain().focus().setTextSelection(sel).setMark('textStyle', { fontFamily: null }).run();
       } else {
         editor.chain().focus().setTextSelection(sel).setMark('textStyle', { fontFamily: opts.f }).run();
       }
 
       // Size
-      if (opts.s === 12) {
+      if (opts.s === pageFontSize) {
         editor.chain().focus().setTextSelection(sel).setMark('textStyle', { fontSize: null }).run();
       } else {
         editor.chain().focus().setTextSelection(sel).setFontSize(`${opts.s}pt`).run();
@@ -150,7 +150,7 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
         editor.chain().focus().setTextSelection(sel).unsetHighlight().run();
       }
     },
-    [editor],
+    [editor, pageFont, pageFontSize],
   );
 
   const preview = (overrides: Partial<{

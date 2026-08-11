@@ -27,6 +27,7 @@ import {
   FormatOverride, CustomElement, DualDialogue, DualDialogueColumn,
   TitlePage,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvKeymap,
+  StartsNewPage,
 } from '../editor/extensions';
 import { registerAvCellPicker } from '../editor/extensions/AvBlock';
 import Strike from '@tiptap/extension-strike';
@@ -37,7 +38,7 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
-import { createPaginationPlugin, getPageMetrics } from '../editor/pagination';
+import { createPaginationPlugin, getPageMetrics, buildTemplateHints } from '../editor/pagination';
 import { createContdCasePlugin } from '../editor/contdCase';
 import { ScreenplayImage } from '../editor/extensions/ScreenplayImage';
 import { insertImageNode } from '../utils/insertImage';
@@ -1076,6 +1077,8 @@ const ScreenplayEditor: React.FC = () => {
               requestAnimationFrame(() => requestAnimationFrame(measureOverlays));
             },
             () => pageLayoutRef.current,
+            // Template-driven page rules (e.g. "every New Act starts a page").
+            () => buildTemplateHints(useFormattingTemplateStore.getState().getActiveTemplate()),
           ),
         ];
       },
@@ -1428,6 +1431,7 @@ const ScreenplayEditor: React.FC = () => {
       ShowEpisode, CastList, DualDialogue, DualDialogueColumn, TitlePage,
       AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvKeymap,
       ScriptNoteMark, TagMark,
+      StartsNewPage,
       PaginationExtension,
       ContdCaseExtension,
       SearchExtension,
@@ -1825,7 +1829,11 @@ const ScreenplayEditor: React.FC = () => {
     return () => { editor.off('update', run); timers.forEach(clearTimeout); };
   }, [editor, measureOverlays]);
 
-  // Re-paginate when page layout changes (e.g., after FDX import)
+  // Re-paginate when the page layout changes (e.g. after FDX import) or when the
+  // active formatting template changes. Neither touches the document, and the
+  // pagination plugin only recomputes on doc changes — so without this nudge a
+  // template's page rules (forceBreakBefore, lineHeightMultiplier) would not take
+  // effect until the writer's next keystroke.
   useEffect(() => {
     if (!editor) return;
     const t = setTimeout(() => {
@@ -1834,7 +1842,7 @@ const ScreenplayEditor: React.FC = () => {
       editor.view.dispatch(tr);
     }, 300);
     return () => clearTimeout(t);
-  }, [editor, pageLayout]);
+  }, [editor, pageLayout, activeTemplateId, templates, templatesLoaded]);
 
   // --- Initialize spell checker on mount ---
   useEffect(() => {
@@ -3858,6 +3866,15 @@ const ScreenplayEditor: React.FC = () => {
                     ...{ '--pl': `${pageLayout.leftMargin}in` } as React.CSSProperties,
                     ...{ '--pr': `${pageLayout.rightMargin}in` } as React.CSSProperties,
                     ...{ '--pw': `${pageLayout.pageWidth}in` } as React.CSSProperties,
+                    // The document's typeface.  .screenplay-content sets its own
+                    // font-family from --screenplay-font, so the inline
+                    // fontFamily above never reaches the script text; the
+                    // variable has to be overridden here for the page to
+                    // actually render in the font the document is set in.
+                    ...{
+                      '--screenplay-font': `'${fontFamily}', 'Courier New', Courier, monospace`,
+                      '--screenplay-font-size': `${fontSize}pt`,
+                    } as React.CSSProperties,
                   }}
                 >
                   {/* Page break separators — absolutely positioned, full page width */}

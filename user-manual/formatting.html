@@ -140,22 +140,23 @@
 
     <h2 id="fonts">Fonts</h2>
 
-    <p>Screenplays traditionally use a <strong>Courier</strong> font at <strong>12pt</strong> size. OpenDraft supports several industry-standard fonts:</p>
+    <p>Screenplays traditionally use a <strong>Courier</strong> font at <strong>12pt</strong> size. The font dropdown groups what&rsquo;s available:</p>
 
     <ul>
-      <li><strong>Courier Prime</strong> (default) &mdash; A modern, highly readable Courier variant designed for screenwriters.</li>
-      <li><strong>Courier New</strong> &mdash; The classic monospaced font.</li>
-      <li><strong>Courier Final Draft</strong> &mdash; The font used by Final Draft software.</li>
+      <li><strong>Screenplay Standard</strong> &mdash; Courier Prime (the default: a modern, highly readable Courier designed for screenwriters), Courier New, and Arial.</li>
+      <li><strong>System</strong> &mdash; Times New Roman, Georgia, Helvetica, Verdana, Tahoma and Trebuchet MS. These come from your operating system; Linux and Android may substitute a similar face.</li>
+      <li><strong>Latin Extended, Indic, Arabic &amp; Hebrew, CJK and more</strong> &mdash; Noto families covering most writing systems, downloaded on demand.</li>
     </ul>
+
+    <p>Any font used by a document you import is listed too, under <strong>Document Fonts</strong>.</p>
 
     <h3 id="change-font">Changing the Font</h3>
 
-    <p>You can change fonts at two levels:</p>
+    <p>The font and size dropdowns style <strong>the text you have selected</strong>, leaving the rest of the script alone. Picking the document&rsquo;s own font again clears the override, so that text goes back to following the page.</p>
 
-    <ul>
-      <li><strong>Page-level default:</strong> Use the font dropdown in the toolbar to change the default font for the entire screenplay.</li>
-      <li><strong>Character-level:</strong> Select specific text and change its font independently from the rest.</li>
-    </ul>
+    <p>Unstyled text renders in the document font &mdash; Courier Prime for a new script, or whatever typeface came with a file you imported. Final Draft, Fade In and Open Screenplay Format files all bring their own font across.</p>
+
+    <p>Your choices survive export: PDF, Word and Final Draft all carry the document font and any per-selection font you applied.</p>
 
     <h3 id="font-size">Font Size</h3>
 
@@ -252,6 +253,10 @@
         <tr>
           <td><strong>Placeholder</strong></td>
           <td>Custom placeholder text shown when the element is empty</td>
+        </tr>
+        <tr>
+          <td><strong>Pagination</strong></td>
+          <td><strong>Starts on a new page</strong> &mdash; every instance of this element begins at the top of a fresh page</td>
         </tr>
       </tbody>
     </table>
@@ -400,6 +405,22 @@
     </ul>
 
     <p>The automatic (CONT'D) is scene-aware: it is <em>not</em> carried across a new scene heading, and if you delete it at a particular cue, OpenDraft remembers that choice. A (CONT'D) you type manually is always left untouched.</p>
+
+    <h2 id="page-breaks">Page Breaks</h2>
+
+    <p>Sometimes an element has to open a page of its own &mdash; most often a new act. OpenDraft offers two ways to arrange that, and both are honoured on screen and in PDF and Word exports.</p>
+
+    <h3 id="manual-page-break">One element at a time</h3>
+
+    <p>Put the cursor in the element you want to push down, then choose <strong>Format &gt; Start On New Page</strong>. A tick appears next to the menu item while the element is flagged; choose it again to remove the break. The element immediately jumps to the top of a fresh page, and everything after it reflows.</p>
+
+    <p>This flag travels with the script: it survives save and reload, exports to Final Draft (<code>.fdx</code>) and Fountain (as the <code>===</code> marker), and is read back in from <code>.fdx</code>, <code>.osf</code>, and <code>.fountain</code> files you import.</p>
+
+    <h3 id="template-page-break">Every act, automatically</h3>
+
+    <p>If you want <em>every</em> act to start on a new page, set the rule once in the template instead of flagging acts one by one. In the template editor, select the <strong>New Act</strong> element and tick <strong>Starts on a new page</strong>.</p>
+
+    <p>The <strong>One-Hour Drama</strong>, <strong>Multi-Cam Sitcom</strong>, and <strong>Stage Play</strong> templates already break before every act (the sitcom template also breaks before every scene heading, as that format requires). The <strong>Industry Standard</strong> film template does not, since feature screenplays traditionally run acts continuously &mdash; if you want the behaviour there, duplicate the template and tick the box on your copy.</p>
 
     <h2 id="zoom">Zoom</h2>
 

@@ -46,6 +46,7 @@ def create_template(data: dict) -> dict:
         "description": data.get("description", ""),
         "mode": data.get("mode", "enforce"),
         "rules": data.get("rules", {}),
+        "forceBreakBefore": data.get("forceBreakBefore") or [],
         "createdAt": data.get("createdAt", now),
         "updatedAt": data.get("updatedAt", now),
     }
@@ -63,7 +64,7 @@ def update_template(template_id: str, data: dict) -> dict:
     now = datetime.now(timezone.utc).isoformat()
     existing.update({
         k: v for k, v in data.items()
-        if k in ("name", "description", "mode", "rules")
+        if k in ("name", "description", "mode", "rules", "forceBreakBefore")
     })
     existing["updatedAt"] = now
     path.write_text(json.dumps(existing, indent=2), encoding="utf-8")

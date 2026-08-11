@@ -55,11 +55,15 @@ function stripHtml(html: string): string {
 }
 
 /**
- * Generate ElementSettings using the document's actual margins.
+ * Generate ElementSettings using the document's actual margins and typeface.
  * FDX indents are absolute positions (inches from left page edge).
  * We shift all element indents relative to the Action baseline.
+ *
+ * The font goes on every element's FontSpec, which is where Final Draft keeps
+ * a script's typeface — writing it only on the runs would leave the file
+ * claiming Courier while its text says otherwise.
  */
-function buildElementSettings(lm: number, ri: number): string {
+function buildElementSettings(lm: number, ri: number, font: string, size: string): string {
   // lm = left margin (Action LeftIndent), ri = Action RightIndent
   const f = (n: number) => n.toFixed(2);
   // Offsets from the standard Action indent (1.25/7.25) for each element type
@@ -70,82 +74,82 @@ function buildElementSettings(lm: number, ri: number): string {
 
   return `
   <ElementSettings Type="Scene Heading">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="AllCaps"/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Scene Heading" ReturnKey="Action" Shortcut="1"/>
   </ElementSettings>
   <ElementSettings Type="Action">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style=""/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="2"/>
   </ElementSettings>
   <ElementSettings Type="Character">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="AllCaps"/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(character_l)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Character" ReturnKey="Dialogue" Shortcut="3"/>
   </ElementSettings>
   <ElementSettings Type="Parenthetical">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style=""/>
     <ParagraphSpec Alignment="Left" FirstIndent="-0.10" Leading="Regular" LeftIndent="${f(parenthetical_l)}" RightIndent="${f(parenthetical_r)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Parenthetical" ReturnKey="Dialogue" Shortcut="4"/>
   </ElementSettings>
   <ElementSettings Type="Dialogue">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style=""/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(dialogue_l)}" RightIndent="${f(dialogue_r)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Dialogue" ReturnKey="Action" Shortcut="5"/>
   </ElementSettings>
   <ElementSettings Type="Transition">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="AllCaps"/>
     <ParagraphSpec Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(transition_l)}" RightIndent="${f(transition_r)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Transition" ReturnKey="Scene Heading" Shortcut="6"/>
   </ElementSettings>
   <ElementSettings Type="Shot">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="AllCaps"/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Scene Heading" ReturnKey="Action" Shortcut="7"/>
   </ElementSettings>
   <ElementSettings Type="General">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style=""/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="General" ReturnKey="General" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Cast List">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="AllCaps"/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(castList_l)}" RightIndent="${f(castList_r)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="8"/>
   </ElementSettings>
   <ElementSettings Type="Lyrics">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Italic"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="Italic"/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(dialogue_l)}" RightIndent="${f(dialogue_r)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Dialogue" ReturnKey="Action" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="New Act">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold+Underline+AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="Bold+Underline+AllCaps"/>
     <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="1" StartsNewPage="Yes"/>
     <Behavior PaginateAs="Action" ReturnKey="Scene Heading" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="End of Act">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold+AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="Bold+AllCaps"/>
     <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="New Act" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Show/Episode">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold+AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="Bold+AllCaps"/>
     <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Outline 1">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold+AllCaps"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="Bold+AllCaps"/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="24" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Outline Body" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Outline 2">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="Bold"/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style="Bold"/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(outline2_l)}" RightIndent="${f(ri)}" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Outline Body" Shortcut="0"/>
   </ElementSettings>
   <ElementSettings Type="Outline Body">
-    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style=""/>
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(font)}" RevisionID="0" Size="${esc(size)}" Style=""/>
     <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="${f(lm)}" RightIndent="${f(ri)}" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
     <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="0"/>
   </ElementSettings>`;
@@ -178,7 +182,17 @@ function getTextAttributes(marks?: MarkInfo[]): string {
   return parts.length > 0 ? ' ' + parts.join(' ') : '';
 }
 
-export function exportFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout): string {
+/** The typeface a script is written in, for the element settings. */
+export interface FDXDocumentFont {
+  family?: string;
+  size?: number;
+}
+
+export function exportFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont): string {
+  // Final Draft keeps the typeface on each element's FontSpec; the screenplay
+  // Courier is the default a file gets when the writer has not changed it.
+  const docFont = documentFont?.family || 'Courier Prime';
+  const docFontSize = String(documentFont?.size ?? 12);
   const lines: string[] = [];
   lines.push('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>');
   lines.push('<FinalDraft DocumentType="Script" Template="No" Version="5">');
@@ -199,7 +213,7 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   // Element settings — use actual margins so re-import round-trips correctly
   const leftIndent = pageLayout?.leftMargin ?? 1.25;
   const rightIndent = pageLayout ? (pageLayout.pageWidth - pageLayout.rightMargin) : 7.25;
-  lines.push(buildElementSettings(leftIndent, rightIndent));
+  lines.push(buildElementSettings(leftIndent, rightIndent, docFont, docFontSize));
   lines.push('');
 
   // Header
@@ -207,7 +221,7 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   lines.push('    <Header>');
   lines.push('      <Paragraph Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="-1.00" SpaceBefore="0" Spacing="1" StartsNewPage="No">');
   lines.push('        <DynamicLabel Type="Page #"/>');
-  lines.push('        <Text AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier Prime" RevisionID="0" Size="12" Style="">.</Text>');
+  lines.push(`        <Text AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(docFont)}" RevisionID="0" Size="${esc(docFontSize)}" Style="">.</Text>`);
   lines.push('      </Paragraph>');
   lines.push('    </Header>');
   lines.push('  </HeaderAndFooter>');
@@ -458,8 +472,8 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   return lines.join('\n');
 }
 
-export async function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout) {
-  const xml = exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns, pageLayout);
+export async function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont) {
+  const xml = exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns, pageLayout, documentFont);
   const filename = `${title.replace(/[^a-zA-Z0-9_\- ]/g, '')}.fdx`;
   const { saveFile } = await import('./fileOps');
   await saveFile(xml, filename, [{ name: 'Final Draft', extensions: ['fdx'] }]);

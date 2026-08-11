@@ -126,6 +126,159 @@ describe('parseOSF — element mapping', () => {
     const nodes = parseOSF(xml).doc.content as Node[];
     expect(nodes.map((n) => n.type)).toEqual(['action', 'sceneHeading']);
   });
+
+  // Issue #61: OSF 4.0 shortened `basestylename` to `basestyle`, so a reader
+  // that knows only the older spelling identifies no element at all and lands
+  // every paragraph of the script on Action, at the left margin.
+  it('accepts the OSF 4.0 basestyle spelling', () => {
+    const xml = osfDocument(
+      [
+        '<para><style basestyle="Scene Heading"/><text>EXT. PIER - DUSK</text></para>',
+        '<para><style basestyle="Action"/><text>Gulls scatter.</text></para>',
+        '<para><style basestyle="Character"/><text>MARGUERITE</text></para>',
+        '<para><style basestyle="Parenthetical"/><text>under her breath</text></para>',
+        '<para><style basestyle="Dialogue"/><text>Not again.</text></para>',
+        '<para><style basestyle="Transition"/><text>CUT TO:</text></para>',
+      ].join(''),
+      { version: '40' },
+    );
+
+    const { doc, warnings } = parseOSF(xml);
+    expect((doc.content as Node[]).map((n) => n.type)).toEqual([
+      'sceneHeading',
+      'action',
+      'character',
+      'parenthetical',
+      'dialogue',
+      'transition',
+    ]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('resolves a 4.0 user-defined style through its basestyle chain', () => {
+    const xml = osfDocument(para('Sound Effect', 'A DOOR SLAMS.'), { version: '40' })
+      .replace('</styles>', '<style name="Sound Effect" basestyle="Action"/></styles>')
+      .replace('basestylename="Sound Effect"', 'basestyle="Sound Effect"');
+
+    const { doc, warnings } = parseOSF(xml);
+    expect((doc.content as Node[])[0].type).toBe('action');
+    expect(warnings).toEqual([]);
+  });
+
+  it('identifies a paragraph by its built-in index when it names no style', () => {
+    const xml = osfDocument(
+      '<para><style builtin_index="3"/><text>MARGUERITE</text></para>' +
+        '<para><style builtin_index="5"/><text>Not again.</text></para>',
+    );
+    const { doc, warnings } = parseOSF(xml);
+    expect((doc.content as Node[]).map((n) => n.type)).toEqual(['character', 'dialogue']);
+    expect(warnings).toEqual([]);
+  });
+
+  it('warns rather than silently flattening when no style can be read', () => {
+    const xml = osfDocument(
+      '<para><text>One.</text></para>' +
+        '<para><text>Two.</text></para>' +
+        '<para><text>Three.</text></para>',
+    );
+    const { doc, warnings } = parseOSF(xml);
+
+    expect((doc.content as Node[]).map((n) => n.type)).toEqual(['action', 'action', 'action']);
+    // One line for the file, not one per paragraph.
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('3 paragraphs');
+  });
+});
+
+describe('parseOSF — document font', () => {
+  /** The same styles block, rewritten in another typeface. */
+  function inFont(font: string, size = '12'): string {
+    return BUILTIN_STYLES.replace(/font="Courier" size="12"/g, `font="${font}" size="${size}"`)
+      .replace(/basestylename="Normal Text"/g, `basestylename="Normal Text" font="${font}" size="${size}"`);
+  }
+
+  it('reads the typeface from the styles, where OSF keeps it', () => {
+    const xml = osfDocument(para('Action', 'A stage, bare.')).replace(BUILTIN_STYLES, inFont('Times New Roman'));
+    expect(parseOSF(xml).documentFont).toEqual({ family: 'Times New Roman', size: '12' });
+  });
+
+  it('reports no font for a file that names none', () => {
+    const xml = osfDocument(para('Action', 'Plain.')).replace(BUILTIN_STYLES, '<styles/>');
+    expect(parseOSF(xml).documentFont).toEqual({ family: '', size: '' });
+  });
+
+  it('does not mark runs that merely repeat the document font', () => {
+    const xml = osfDocument(
+      '<para><style basestylename="Action"/><text font="Times New Roman">Body.</text></para>',
+    ).replace(BUILTIN_STYLES, inFont('Times New Roman'));
+
+    const runs = (parseOSF(xml).doc.content as Node[])[0].content as Node[];
+    expect(runs[0].marks).toBeUndefined();
+  });
+
+  it('still marks a run that departs from the document font', () => {
+    const xml = osfDocument(
+      '<para><style basestylename="Action"/><text font="Courier">Typed.</text></para>',
+    ).replace(BUILTIN_STYLES, inFont('Times New Roman'));
+
+    const runs = (parseOSF(xml).doc.content as Node[])[0].content as Node[];
+    expect(runs[0].marks?.[0]).toEqual({ type: 'textStyle', attrs: { fontFamily: 'Courier' } });
+  });
+
+  it('measures run sizes against the document size, not a hardcoded 12', () => {
+    const xml = osfDocument(
+      '<para><style basestylename="Action"/><text size="11">Body.</text>' +
+        '<text size="12">Bigger.</text></para>',
+    ).replace(BUILTIN_STYLES, inFont('Times New Roman', '11'));
+
+    const runs = (parseOSF(xml).doc.content as Node[])[0].content as Node[];
+    expect(runs[0].marks).toBeUndefined();
+    expect(runs[1].marks?.[0]).toEqual({ type: 'textStyle', attrs: { fontSize: '12pt' } });
+  });
+
+  it('warns when elements disagree on the typeface', () => {
+    const xml = osfDocument(para('Action', 'Body.')).replace(
+      'name="Dialogue" builtin="1" builtin_index="5"',
+      'name="Dialogue" font="Helvetica" builtin="1" builtin_index="5"',
+    );
+    const { warnings, documentFont } = parseOSF(xml);
+
+    expect(documentFont.family).toBe('Courier');
+    expect(warnings.some((w) => w.includes('Helvetica'))).toBe(true);
+  });
+});
+
+describe('parseOSF — parentheticals', () => {
+  // OSF stores the text bare and draws the brackets itself; OpenDraft keeps
+  // them in the text, as Fountain and Final Draft do.
+  it('brackets a parenthetical stored without them', () => {
+    const nodes = parseOSF(osfDocument(para('Parenthetical', 'excited'))).doc.content as Node[];
+    expect(textOf(nodes[0])).toBe('(excited)');
+  });
+
+  it('keeps the marks on a bracketed run', () => {
+    const xml = osfDocument(
+      '<para><style basestylename="Parenthetical"/><text italic="1">sotto voce</text></para>',
+    );
+    const runs = (parseOSF(xml).doc.content as Node[])[0].content as Node[];
+    expect(runs.map((r) => r.text).join('')).toBe('(sotto voce)');
+    expect(runs.every((r) => r.marks?.some((m) => m.type === 'italic'))).toBe(true);
+  });
+
+  it('does not double-bracket one that already carries them', () => {
+    const nodes = parseOSF(osfDocument(para('Parenthetical', '(beat)'))).doc.content as Node[];
+    expect(textOf(nodes[0])).toBe('(beat)');
+  });
+
+  it('leaves a half-bracketed oddity alone', () => {
+    const nodes = parseOSF(osfDocument(para('Parenthetical', '(to Bob) quietly'))).doc.content as Node[];
+    expect(textOf(nodes[0])).toBe('(to Bob) quietly');
+  });
+
+  it('leaves an empty parenthetical empty', () => {
+    const nodes = parseOSF(osfDocument(para('Parenthetical', ''))).doc.content as Node[];
+    expect(textOf(nodes[0])).toBe('');
+  });
 });
 
 describe('parseOSF — formatting', () => {
@@ -234,6 +387,19 @@ ${BUILTIN_STYLES}
 
     expect(nodes[0].attrs).toEqual({ textAlign: 'center' });
     expect(nodes[1].attrs).toEqual({ sceneNumber: '12', startsNewPage: true });
+  });
+
+  it('reads the OSF 4.0 scene number, which moved to a bare `number`', () => {
+    const xml = osfDocument(
+      '<para number="7"><style basestyle="Scene Heading"/><text>INT. LAB - NIGHT</text></para>' +
+        // 4.0 numbers dialogue through the same attribute — not a scene number.
+        '<para number="3"><style basestyle="Dialogue"/><text>Careful.</text></para>',
+      { version: '40' },
+    );
+    const nodes = parseOSF(xml).doc.content as Node[];
+
+    expect(nodes[0].attrs).toEqual({ sceneNumber: '7' });
+    expect(nodes[1].attrs).toBeUndefined();
   });
 
   it('applies a non-default font and size as a textStyle mark', () => {

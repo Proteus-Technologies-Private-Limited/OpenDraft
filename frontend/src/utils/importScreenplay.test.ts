@@ -10,6 +10,7 @@ import {
   SCREENPLAY_IMPORT_ACCEPT,
   SCREENPLAY_IMPORT_EXTENSIONS,
 } from './importScreenplay';
+import { useEditorStore } from '../stores/editorStore';
 
 beforeAll(() => {
   if (typeof globalThis.DOMParser === 'undefined') {
@@ -102,6 +103,37 @@ describe('parseScreenplayImport', () => {
     expect(typesOf(result.doc)).toEqual(['titlePage', 'sceneHeading', 'action']);
     expect(result.title).toBe('Troubled Sleep');
     expect(result.formatLabel).toBe('Fade In (.fadein)');
+  });
+
+  describe('document font', () => {
+    /** OSF_XML rewritten in another typeface, as Fade In writes a template. */
+    const inFont = (font: string, size = '12') =>
+      OSF_XML.replace(
+        '<styles>',
+        `<styles><style name="Normal Text" builtin="1" builtin_index="0" font="${font}" size="${size}"/>`,
+      );
+
+    it('puts the file’s typeface on the page', async () => {
+      await parseScreenplayImport('Stage Play.osf', inFont('Times New Roman'));
+      expect(useEditorStore.getState().fontFamily).toBe('Times New Roman');
+    });
+
+    it('keeps Courier Prime for a file written in any Courier', async () => {
+      useEditorStore.getState().setFontFamily('Courier Prime');
+      await parseScreenplayImport('Screenplay.osf', inFont('Courier Screenplay'));
+      expect(useEditorStore.getState().fontFamily).toBe('Courier Prime');
+    });
+
+    it('carries the point size across', async () => {
+      await parseScreenplayImport('Manuscript.osf', inFont('Times New Roman', '11'));
+      expect(useEditorStore.getState().fontSize).toBe(11);
+    });
+
+    it('leaves the open document alone when not hydrating stores', async () => {
+      useEditorStore.getState().setFontFamily('Courier Prime');
+      await parseScreenplayImport('Stage Play.osf', inFont('Arial'), { hydrateStores: false });
+      expect(useEditorStore.getState().fontFamily).toBe('Courier Prime');
+    });
   });
 
   it('explains why a .fadein cannot be read from text content', async () => {

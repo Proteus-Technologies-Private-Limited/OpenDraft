@@ -73,6 +73,13 @@ export function exportFountain(doc: JSONContent): string {
   for (const node of doc.content) {
     const text = getTextContent(node);
 
+    // A manual page break before this element — Fountain spells it `===`.
+    if (node.attrs?.startsNewPage && node.type !== 'titlePage') {
+      lines.push('');
+      lines.push('===');
+      lines.push('');
+    }
+
     switch (node.type) {
       case 'titlePage':
         // Already handled above

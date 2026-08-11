@@ -14,6 +14,8 @@ class TemplateCreate(BaseModel):
     description: str = ""
     mode: str = "enforce"
     rules: dict = {}
+    # Element ids that must start on a new page (e.g. ["newAct"]).
+    forceBreakBefore: list[str] | None = None
     createdAt: str | None = None
     updatedAt: str | None = None
 
@@ -23,6 +25,7 @@ class TemplateUpdate(BaseModel):
     description: str | None = None
     mode: str | None = None
     rules: dict | None = None
+    forceBreakBefore: list[str] | None = None
 
 
 @router.get("/")

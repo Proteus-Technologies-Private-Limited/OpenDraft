@@ -168,6 +168,16 @@
 
     <h2 id="whats-new">What's New</h2>
 
+    <h3>v0.22.0</h3>
+    <ul>
+      <li><strong>Start Any Element On A New Page</strong> &mdash; Put the cursor in an element and choose <em>Format &gt; Start On New Page</em> to force a page break before it. A tick shows while it&rsquo;s on. The flag is saved with the script, exports to Final Draft and Fountain (as <code>===</code>), and is read back from <code>.fdx</code>, <code>.osf</code> and <code>.fountain</code> files you import. See <a href="formatting.html#page-breaks">Page Breaks</a>.</li>
+      <li><strong>Acts On Their Own Page</strong> &mdash; Templates can require an element to open a fresh page: tick <em>Starts on a new page</em> against any element in the template editor. The 1-Hour TV Drama, Multi-Cam Sitcom and Stage Play formats break before every New Act out of the box, on screen and in PDF/Word exports. See <a href="formatting.html#template-page-break">Every act, automatically</a>.</li>
+      <li><strong>Fonts In Exports</strong> &mdash; The typeface you choose now survives export: PDF, Word and Final Draft carry the document font and any per-selection font, and Final Draft files bring their own typeface in on import.</li>
+      <li><strong>More Fonts In The Picker</strong> &mdash; Times New Roman, Georgia, Helvetica, Verdana, Tahoma and Trebuchet MS are now listed under a new System group, instead of appearing only after you imported a document that used one.</li>
+      <li><strong>Font Picker Styles The Selection</strong> &mdash; Choosing a font or size styles just the selected text rather than redefining the document&rsquo;s own font; picking the document font clears the override again.</li>
+      <li><strong>Page Break Fixes</strong> &mdash; A scene heading no longer swallows the act that follows it, which had put every act on one page until you typed inside the scene. Changing formatting template now repaginates straight away instead of waiting for your next keystroke, and pressing Enter into a new page now scrolls there.</li>
+    </ul>
+
     <h3>v0.21.0</h3>
     <ul>
       <li><strong>Open Fade In Scripts</strong> &mdash; Import <code>.fadein</code> files straight from Fade In, along with Open Screenplay Format (<code>.osf</code>) files. Use <em>File &gt; Import</em>, drag one onto the editor, or just double-click the file. Elements, custom element styles, bold/italic/underline, highlighting, fonts, the title page, scene numbers, synopses, dual dialogue, centred text and page breaks all come across. See <a href="import-export.html#import-fadein">Import &amp; Export</a>.</li>

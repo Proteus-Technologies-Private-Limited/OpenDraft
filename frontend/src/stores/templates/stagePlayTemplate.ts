@@ -30,6 +30,8 @@ export const STAGE_PLAY_TEMPLATE: FormattingTemplate = {
   scriptTypeGroup: 'Stage',
   scriptTypeTagline: 'Theater script (acts, scenes, centered characters)',
   pageTimeSeconds: 60,
+  // Stage convention: each act starts on its own page.
+  forceBreakBefore: ['newAct'],
   starterDocument: STARTER,
   titlePageFields: ['tpTitle', 'tpWrittenBy', 'tpDraft', 'tpDraftDate', 'tpContact', 'tpCopyright', 'tpNotes'],
   rules: {
