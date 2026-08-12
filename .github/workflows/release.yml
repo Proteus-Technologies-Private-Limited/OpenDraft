@@ -180,7 +180,7 @@ jobs:
       - name: Build Tauri app
         id: tauri_build
         if: runner.os != 'macOS'
-        timeout-minutes: 30
+        timeout-minutes: 90
         continue-on-error: true
         uses: tauri-apps/tauri-action@v0
         env:
@@ -240,7 +240,7 @@ jobs:
 
       - name: Build Tauri app (retry)
         if: steps.tauri_build.outcome == 'failure' && runner.os != 'macOS'
-        timeout-minutes: 30
+        timeout-minutes: 90
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -264,7 +264,7 @@ jobs:
       # helped — the orphan still held the keychain.
       - name: Build Tauri app (macOS)
         if: runner.os == 'macOS'
-        timeout-minutes: 30
+        timeout-minutes: 90
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -327,6 +327,9 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          # Keep what compiled before a failure. Without this the cache is dropped,
+          # so every retry restarts cold and re-hits whatever limit it just missed.
+          cache-on-failure: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -587,6 +590,9 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          # Keep what compiled before a failure. Without this the cache is dropped,
+          # so every retry restarts cold and re-hits whatever limit it just missed.
+          cache-on-failure: true
 
       - name: Install frontend dependencies
         run: cd frontend && npm ci
@@ -637,7 +643,7 @@ jobs:
 
       # Direct CLI call, not tauri-action — see the matrix job for why.
       - name: Build Tauri app
-        timeout-minutes: 30
+        timeout-minutes: 90
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -697,6 +703,9 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          # Keep what compiled before a failure. Without this the cache is dropped,
+          # so every retry restarts cold and re-hits whatever limit it just missed.
+          cache-on-failure: true
 
       - name: Install frontend dependencies
         run: cd frontend && npm ci
@@ -750,7 +759,7 @@ jobs:
 
       - name: Build Tauri app
         id: tauri_build_legacy
-        timeout-minutes: 30
+        timeout-minutes: 90
         continue-on-error: true
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -762,7 +771,7 @@ jobs:
 
       - name: Build Tauri app (retry)
         if: steps.tauri_build_legacy.outcome == 'failure'
-        timeout-minutes: 30
+        timeout-minutes: 90
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -819,6 +828,9 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          # Keep what compiled before a failure. Without this the cache is dropped,
+          # so every retry restarts cold and re-hits whatever limit it just missed.
+          cache-on-failure: true
 
       - name: Install frontend dependencies
         run: cd frontend && npm ci
@@ -1121,6 +1133,9 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          # Keep what compiled before a failure. Without this the cache is dropped,
+          # so every retry restarts cold and re-hits whatever limit it just missed.
+          cache-on-failure: true
 
       - name: Install frontend dependencies
         run: cd frontend && npm ci
