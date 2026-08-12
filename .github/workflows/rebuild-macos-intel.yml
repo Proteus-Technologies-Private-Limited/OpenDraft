@@ -1,0 +1,249 @@
+name: Rebuild macOS Intel
+
+# Ad-hoc recovery build for the two Intel macOS artifacts.
+#
+# Both Intel jobs in release.yml cap `tauri build` at 30 minutes, which the
+# slower Intel runners cannot meet from a cold Rust cache — v0.22.0 lost four
+# consecutive attempts to that limit (the in-job retry plus two re-runs), and
+# `swatinem/rust-cache` defaults to discarding the cache when a job fails, so
+# every attempt started cold and hit the same wall.
+#
+# Re-running the tagged workflow cannot help: a re-run replays release.yml as it
+# exists at the tag. This runs from the default branch instead, so it carries a
+# workable timeout while still checking out the tagged commit, and rebuilds only
+# the two platforms that failed rather than all nine.
+#
+# Artifacts land on the existing (draft) release for the tag, matching the names
+# release.yml would have produced.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to build, e.g. v0.22.0'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ inputs.tag }}
+
+jobs:
+  intel:
+    # Pinned to macos-15 to match release.yml — codesign/notarize hangs on
+    # macos-26 until the step times out.
+    runs-on: macos-15
+    name: Rebuild (macOS Intel)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # Dispatched from a branch, so the tag must be checked out explicitly
+          # or we would build the branch head instead of the released commit.
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          # Keep whatever compiled before a timeout, so a second attempt starts
+          # warm instead of repeating the cold build that caused the timeout.
+          cache-on-failure: true
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+        env:
+          VITE_API_BASE: http://localhost:18321/api
+
+      - name: Import Apple Developer certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "No Apple certificate configured — build will be unsigned"
+            exit 0
+          fi
+          echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import $RUNNER_TEMP/certificate.p12 -k build.keychain \
+            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+          rm $RUNNER_TEMP/certificate.p12
+
+      - name: Patch tauri.conf.json for CI
+        run: |
+          cd src-tauri
+          node -e "
+          const fs = require('fs');
+          const cfg = JSON.parse(fs.readFileSync('tauri.conf.json', 'utf8'));
+          cfg.build.beforeBuildCommand = '';
+          cfg.build.beforeDevCommand = '';
+          fs.writeFileSync('tauri.conf.json', JSON.stringify(cfg, null, 2));
+          "
+
+      - name: Verify Apple notarization access
+        timeout-minutes: 5
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+        run: .github/scripts/check-notarization-access.sh
+
+      - name: Build Tauri app
+        # 90 rather than release.yml's 30: a cold Intel build plus notarization
+        # has repeatedly needed more than half an hour.
+        timeout-minutes: 90
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+        run: npx --prefix frontend tauri build --target x86_64-apple-darwin
+
+      - name: Stage Intel DMG
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          DMG=$(find src-tauri/target/x86_64-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
+          if [ -z "$DMG" ]; then
+            echo "::error::No DMG produced for the Intel build"
+            exit 1
+          fi
+          mkdir -p intel-artifacts
+          cp "$DMG" "intel-artifacts/OpenDraft_${VERSION}_x64.dmg"
+          ls -la intel-artifacts/
+
+      - name: Upload Intel DMG to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: intel-artifacts/*
+          draft: true
+
+  intel-legacy:
+    runs-on: macos-15
+    name: Rebuild (macOS Intel Legacy)
+
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '10.13'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          # Separate key from the non-legacy job: same target triple, but a
+          # different deployment target, so the object files are not shared.
+          prefix-key: rust-legacy
+          cache-on-failure: true
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+        env:
+          VITE_API_BASE: http://localhost:18321/api
+
+      - name: Import Apple Developer certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "No Apple certificate configured — build will be unsigned"
+            exit 0
+          fi
+          echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import $RUNNER_TEMP/certificate.p12 -k build.keychain \
+            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+          rm $RUNNER_TEMP/certificate.p12
+
+      - name: Patch tauri.conf.json for CI
+        run: |
+          cd src-tauri
+          node -e "
+          const fs = require('fs');
+          const cfg = JSON.parse(fs.readFileSync('tauri.conf.json', 'utf8'));
+          cfg.build.beforeBuildCommand = '';
+          cfg.build.beforeDevCommand = '';
+          fs.writeFileSync('tauri.conf.json', JSON.stringify(cfg, null, 2));
+          "
+
+      - name: Verify Apple notarization access
+        timeout-minutes: 5
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+        run: .github/scripts/check-notarization-access.sh
+
+      - name: Build Tauri app
+        timeout-minutes: 90
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          MACOSX_DEPLOYMENT_TARGET: '10.13'
+        run: npx --prefix frontend tauri build --target x86_64-apple-darwin
+
+      - name: Stage legacy DMG artifact
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          DMG=$(find src-tauri/target/x86_64-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
+          if [ -z "$DMG" ]; then
+            echo "::error::No DMG found for legacy Intel build"
+            exit 1
+          fi
+          mkdir -p legacy-artifacts
+          cp "$DMG" "legacy-artifacts/OpenDraft_${VERSION}_x86_64-legacy.dmg"
+          ls -la legacy-artifacts/
+
+      - name: Upload legacy DMG to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: legacy-artifacts/*
+          draft: true
