@@ -518,9 +518,14 @@
           <ul>
             <li><strong>Final Draft (.fdx)</strong> &mdash; Import and export</li>
             <li><strong>Fountain (.fountain)</strong> &mdash; Import and export (with title page metadata)</li>
+            <li><strong>Fade In (.fadein)</strong> &mdash; Import and export</li>
+            <li><strong>Open Screenplay Format (.osf)</strong> &mdash; Import</li>
+            <li><strong>Plain text (.txt)</strong> &mdash; Import</li>
             <li><strong>PDF</strong> &mdash; Export with industry-standard formatting and title page</li>
+            <li><strong>Microsoft Word (.docx)</strong> &mdash; Export</li>
             <li><strong>OpenDraft (.odraft)</strong> &mdash; Native format for lossless round-tripping</li>
           </ul>
+          <p>Files you open from disk are edited <em>in place</em> &mdash; Save writes back to the original file rather than filing a copy in the library. See the user manual&rsquo;s <a href="user-manual/import-export.html">Import &amp; Export</a> page for what each format carries.</p>
         </div>
       </div>
 
@@ -531,6 +536,7 @@
         </button>
         <div class="faq-answer">
           <p>If your current app can export to Final Draft (.fdx) or Fountain format, you can import directly into OpenDraft. Most screenwriting apps support at least one of these formats. Go to <strong>File &gt; Import</strong> and select your file.</p>
+          <p>Coming from Fade In, there is no need to export first &mdash; OpenDraft opens <code>.fadein</code> files (and plain <code>.osf</code> files) directly, and can export back to Fade In too.</p>
         </div>
       </div>
     </div>
@@ -556,6 +562,28 @@
         </button>
         <div class="faq-answer">
           <p>OpenDraft uses built-in Git-based version control. Use <strong>File &gt; Check In</strong> to save a named version with a message (e.g., &ldquo;Finished Act 2 rewrite&rdquo;). You can view all versions in <strong>File &gt; Version History</strong>, compare any two versions, and restore a previous version at any time. Restoring creates a new version, so you never lose work.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Does OpenDraft back up my work automatically?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes, on every platform &mdash; desktop, iPad, iPhone and Android. Go to <strong>File &gt; Backups &gt; Backup Settings</strong>, choose a folder and tick <strong>Back up my work automatically</strong>. OpenDraft then writes timestamped copies while you write, every 5 to 60 minutes, with each project in its own folder.</p>
+          <p>On a phone or tablet, pick a folder outside the app &mdash; in Files, iCloud Drive, Google Drive or Dropbox &mdash; and a copy is also written whenever you leave OpenDraft, before the system can suspend it. The filenames and folders match the desktop, so a backup made on your Mac restores on your iPad.</p>
+          <p>Backups live outside the app&rsquo;s database, so they survive even if something happens to it. See the user manual&rsquo;s <a href="user-manual/backups.html">Backups &amp; Recovery</a> page.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+          Can I have two scripts open at once?
+          <span class="faq-arrow">&#9654;</span>
+        </button>
+        <div class="faq-answer">
+          <p>Yes. <strong>File &gt; New Window</strong> opens a second window on the desktop, on iPad, and on Android 12L and later, so you can write in one script while reading another. Opening a screenplay that is already open in another window offers to switch to it rather than open a second copy. See <a href="user-manual/getting-started.html#multiple-windows">Working In More Than One Window</a>.</p>
         </div>
       </div>
     </div>
