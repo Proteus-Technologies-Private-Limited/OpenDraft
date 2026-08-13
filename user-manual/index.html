@@ -75,6 +75,7 @@
     <div class="sidebar-section-title">Projects &amp; Files</div>
     <a href="projects.html" class="sidebar-link">Managing Projects</a>
     <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="backups.html" class="sidebar-link">Backups &amp; Recovery</a>
     <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
   </div>
   <div class="sidebar-section">
@@ -149,10 +150,15 @@
         <h3>Version History</h3>
         <p>Check in drafts, compare versions, and restore previous work with built-in version control.</p>
       </a>
+      <a href="backups.html" class="feature-card">
+        <div class="feature-card-icon">&#128190;</div>
+        <h3>Backups &amp; Recovery</h3>
+        <p>Timestamped copies in a folder you choose, on every device &mdash; and getting your work back.</p>
+      </a>
       <a href="import-export.html" class="feature-card">
         <div class="feature-card-icon">&#128196;</div>
         <h3>Import &amp; Export</h3>
-        <p>Work with Final Draft, Fountain, PDF, and plain text formats.</p>
+        <p>Work with Final Draft, Fountain, Fade In, PDF, and plain text formats.</p>
       </a>
       <a href="collaboration.html" class="feature-card">
         <div class="feature-card-icon">&#128101;</div>
@@ -167,6 +173,17 @@
     </div>
 
     <h2 id="whats-new">What's New</h2>
+
+    <h3>v0.23.0</h3>
+    <ul>
+      <li><strong>Automatic Backups On iPad, iPhone And Android</strong> &mdash; Timed backups are no longer desktop-only. Choose a folder in Files, iCloud Drive, Google Drive or Dropbox and OpenDraft writes the same timestamped copies it writes on the desktop &mdash; same filenames, same per-project folders, so a backup made on your Mac restores on your iPad. On phones and tablets a copy is also written whenever you leave the app, before the system can suspend it. See <a href="backups.html">Backups &amp; Recovery</a>.</li>
+      <li><strong>More Than One Window</strong> &mdash; <em>File &gt; New Window</em> opens a second window on iPad, on Android 12L and later, and on the desktop. Opening a screenplay that is already open in another window offers to switch to it rather than open a second copy that would save over the first. See <a href="getting-started.html#multiple-windows">Working In More Than One Window</a>.</li>
+      <li><strong>Open And Save Files Where They Live</strong> &mdash; <em>File &gt; Open File from Disk</em> (<em>Open from Files</em> on mobile) edits a <code>.fdx</code>, <code>.fountain</code>, <code>.fadein</code>, <code>.osf</code>, <code>.odraft</code> or <code>.txt</code> in place: Save writes back to the original file instead of filing a copy in the library. See <a href="import-export.html#open-in-place">Open A File Where It Lives</a>.</li>
+      <li><strong>Export To Fade In</strong> &mdash; <em>File &gt; Export &gt; Fade In (.fadein)</em> writes a real Fade In file, carrying elements, emphasis, colour and highlighting, fonts, forced page breaks, scene numbers, synopses, dual dialogue and the title page. See <a href="import-export.html#export-fadein">Fade In</a>.</li>
+      <li><strong>Recovering Unsaved Work Is Safer</strong> &mdash; The recovery prompt appears only when the document really was edited, asks once per launch before anything else, and keeps a separate snapshot per window so two windows cannot overwrite each other&rsquo;s protection.</li>
+      <li><strong>Close, And A Way Back</strong> &mdash; <em>File &gt; Close</em> on every platform, a back button on the projects screen at last, and every close control is now big enough to hit with a thumb.</li>
+      <li><strong>Fixes</strong> &mdash; Saving a file opened in place no longer leaves it asking to be recovered on the next launch. Starting a new screenplay while a file is open no longer leaves Save aimed at that file.</li>
+    </ul>
 
     <h3>v0.22.0</h3>
     <ul>

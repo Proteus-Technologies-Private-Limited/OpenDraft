@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Backups &amp; Recovery - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="../">Home</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="title-page.html" class="sidebar-link">Title Page</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Analysis</div>
+    <a href="script-statistics.html" class="sidebar-link">Script Statistics &amp; Timing</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="backups.html" class="sidebar-link active">Backups &amp; Recovery</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Backups &amp; Recovery
+    </div>
+
+    <h1>Backups &amp; Recovery</h1>
+    <p class="page-subtitle">Timestamped copies of your script in a folder you choose, and getting your work back when something goes wrong.</p>
+
+    <h2 id="what-are-backups">What Backups Are</h2>
+
+    <p>While you write, OpenDraft can save timestamped copies of your script into a folder you pick &mdash; on your computer, or in Files, iCloud Drive, Google Drive or Dropbox on a phone or tablet. Each copy is a complete <code>.odraft</code> file holding the script and its notes, tags, beats, character profiles and images.</p>
+
+    <p>Backups live <em>outside</em> the app&rsquo;s database, which is the whole point: they survive even if something happens to the app itself.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Backups vs <a href="version-history.html">Version History</a>:</strong> Version History stores checkpoints <em>inside</em> OpenDraft, covers a whole project, and is something you create deliberately with a message. Backups are ordinary files <em>outside</em> the app, one per script, written on a timer without you doing anything. Use both.</p>
+      </div>
+    </div>
+
+    <h2 id="turn-on">Turning Backups On</h2>
+
+    <ol class="steps">
+      <li>Go to <strong>File &gt; Backups &gt; Backup Settings</strong> (or open <strong>Settings</strong> and scroll to <strong>Automatic Backups</strong>).</li>
+      <li>Choose a folder. On the desktop, use <strong>Browse&hellip;</strong> to pick one or <strong>Use Default</strong> for an <em>OpenDraft Backups</em> folder in Documents. On iPad, iPhone and Android, tap <strong>Choose Folder&hellip;</strong> and pick a folder in Files (iCloud Drive, Google Drive and Dropbox all work).</li>
+      <li>Tick <strong>Back up my work automatically</strong>.</li>
+    </ol>
+
+    <p>The first copy is written the moment you turn it on, so you can look in the folder straight away and see that it works. Underneath the folder box, OpenDraft tells you whether it can write there and how many backups are already in it.</p>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>On a phone or tablet, pick a folder outside the app</strong> &mdash; somewhere in Files, iCloud Drive, Google Drive or Dropbox. A folder inside the app would be deleted with it if OpenDraft were ever removed or reinstalled, which is exactly the situation backups are for.</p>
+      </div>
+    </div>
+
+    <h2 id="settings">What You Can Change</h2>
+
+    <table>
+      <thead>
+        <tr><th>Setting</th><th>What it does</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Back up every</td><td>How often a copy is written, from 5 to 60 minutes. Nothing is written when the script has not changed since the last copy.</td></tr>
+        <tr><td>Keep</td><td>How many automatic copies to keep <em>per script</em> &mdash; older ones are deleted as new ones arrive. Choose <strong>All backups</strong> to keep every copy. Backups you make yourself with <strong>Back Up Now</strong> are never deleted automatically.</td></tr>
+        <tr><td>Include images in backups</td><td>Embeds the images your script references, so a restored script comes back complete. Backups are larger; without it, images in a restored script are missing.</td></tr>
+        <tr><td>Also back up documents I haven&rsquo;t saved yet</td><td>Covers screenplays you imported or started but never saved into a project &mdash; the ones nothing else is protecting.</td></tr>
+      </tbody>
+    </table>
+
+    <p>On phones and tablets a copy is also written whenever you leave OpenDraft, before the system suspends the app. The timer alone is not enough there, because a suspended app can be shut down without ever running another one.</p>
+
+    <h2 id="where">Where Backups Are Written</h2>
+
+    <p>Inside the folder you chose, each project gets its own folder, so you can find the right script without reading filenames. Screenplays that do not belong to a project go in <em>Unfiled Documents</em>. Filenames carry the title, the date and time, and whether you made the copy yourself:</p>
+
+    <pre><code>OpenDraft Backups/
+  Silent Sonata/
+    The Long Goodbye_2026-07-27_143205_a1b2c3d4.odraft
+    The Long Goodbye_2026-07-27_150000_a1b2c3d4.manual.odraft</code></pre>
+
+    <p>The naming is the same on every platform, so a backup written on a Mac can be restored on an iPad and the other way round.</p>
+
+    <div class="callout callout-warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>On the desktop, prefer a local folder</strong> to one inside OneDrive, Dropbox or iCloud Drive: cloud sync can interfere with files as they are being written. OpenDraft warns you if it spots a OneDrive path. On phones and tablets the trade-off runs the other way &mdash; a cloud folder is the one place the files are safely outside the app.</p>
+      </div>
+    </div>
+
+    <h2 id="back-up-now">Backing Up On Demand</h2>
+
+    <p><strong>File &gt; Backups &gt; Back Up Now</strong> writes a copy immediately, with no dialog. That is what makes it different from an export: an export is a file to send somewhere, while <strong>Back Up Now</strong> pins this moment in your safety net. Copies made this way are never deleted by the <strong>Keep</strong> limit.</p>
+
+    <table>
+      <thead>
+        <tr><th>Action</th><th>Where it goes</th><th>Deleted automatically?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Automatic backup</strong></td><td>Your backup folder, on a timer</td><td>Yes, past the <strong>Keep</strong> limit</td></tr>
+        <tr><td><strong>Back Up Now</strong></td><td>Your backup folder, immediately</td><td>Never</td></tr>
+        <tr><td><strong>File &gt; Export &gt; OpenDraft (.odraft)</strong></td><td>Anywhere you choose</td><td>Never</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="recover">Recovering A Backup</h2>
+
+    <p>Go to <strong>File &gt; Backups &gt; Recover Backup</strong>. Backups are grouped by script, newest first, and selecting one shows a preview of what is in it before you commit to anything.</p>
+
+    <ul>
+      <li><strong>Open as New Script</strong> &mdash; creates a new script in the current project from the backup. Nothing is overwritten; this is the safe choice.</li>
+      <li><strong>Replace Current Script</strong> &mdash; overwrites the script you have open, behind a confirmation. A copy of the current state is saved first, so this can itself be undone.</li>
+      <li><strong>Import from a file</strong> &mdash; recovers a <code>.odraft</code> you moved somewhere else, or one that came from another machine.</li>
+      <li><strong>Delete</strong> &mdash; removes the selected backup.</li>
+      <li><strong>Reveal</strong> (desktop only) &mdash; shows the file in Finder or Explorer.</li>
+    </ul>
+
+    <h2 id="unsaved">Recovering Unsaved Work</h2>
+
+    <p>Separately from all of the above, OpenDraft keeps a snapshot of the document you are editing &mdash; even one that was never saved into a project &mdash; and offers it back if the app closes unexpectedly or the system shuts it down. You will see <strong>Recover unsaved changes?</strong> the next time you open OpenDraft, with the choice to <strong>Restore</strong> or <strong>Discard</strong>.</p>
+
+    <p>Restoring replaces what is currently in the editor; your last saved version stays untouched until you save again. Each window keeps its own snapshot, and you are asked at most once per launch.</p>
+
+    <h2 id="troubleshooting">If Something Goes Wrong</h2>
+
+    <table>
+      <thead>
+        <tr><th>What you see</th><th>What to do</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><em>Folder not found</em></td><td>The folder was moved, renamed or deleted. Choose it again, or use <strong>Create it</strong> on the desktop.</td></tr>
+        <tr><td><em>OpenDraft can&rsquo;t write here</em></td><td>Pick a folder you own. On Android this usually means the permission was cleared &mdash; tap <strong>Choose Folder&hellip;</strong> and grant it again.</td></tr>
+        <tr><td><em>Automatic backups are paused</em></td><td>Several backups in a row failed, so OpenDraft stopped trying rather than nagging. Fix the folder and press <strong>Resume</strong>.</td></tr>
+        <tr><td>A warning about OneDrive</td><td>Cloud sync can interfere with files as they are written. A local folder is safer for backups.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="version-history.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Version History</span>
+      </a>
+      <a href="import-export.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Import &amp; Export</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.22.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

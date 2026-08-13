@@ -46,15 +46,24 @@ A complete list of features in OpenDraft.
 
 - **Final Draft (.fdx)** -- Import and export
 - **Fountain (.fountain)** -- Import and export
-- **Fade In (.fadein) / Open Screenplay Format (.osf)** -- Import
+- **Fade In (.fadein) / Open Screenplay Format (.osf)** -- Import and export, carrying elements, emphasis, colour, fonts, page breaks, scene numbers, synopses, dual dialogue and the title page
+- **Microsoft Word (.docx)** -- Import and export
+- **OpenDraft (.odraft)** -- Lossless export: the script plus its notes, tags, beats, character profiles and images
 - **Paste as Fountain** -- Paste Fountain markup straight into the script as real elements
 - **PDF** -- Export with proper screenplay formatting
+- **Open in place** -- Edit a `.fdx`, `.fountain`, `.fadein`, `.osf`, `.odraft` or `.txt` where it lives and save straight back to it, on desktop and mobile
 
 ## Editing Tools
 
 - **Search & Replace** -- Find and replace across your screenplay
 - **Spell Check** -- Built-in spell checker with custom dictionary support
 - **Production Tags** -- Tag elements for production planning
+
+## Windows & Files
+
+- **Multiple Windows** -- A second window on the desktop, on iPad, and on Android 12L and later, for writing in one script while reading another
+- **One script, one window** -- Opening a screenplay that is already open elsewhere offers to switch to that window rather than open a copy that would save over it
+- **Recover unsaved work** -- A per-window snapshot of the document you are editing, offered back if the app is closed or shut down before you saved
 
 ## Platform Support
 

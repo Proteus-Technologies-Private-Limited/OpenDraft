@@ -2164,8 +2164,19 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.22</div>
+              <div className="about-section-title">What's New in 0.23</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.23.0</div>
+              <ul className="about-list">
+                <li><strong>Automatic Backups On iPad, iPhone And Android</strong> — Timed backups are no longer desktop-only. Choose a folder in Files, iCloud Drive, Google Drive or Dropbox and OpenDraft writes the same timestamped copies it writes on the desktop — same filenames, same per-project folders, so a backup made on your Mac restores on your iPad. On phones and tablets a copy is also written whenever you leave the app, before the system can suspend it.</li>
+                <li><strong>More Than One Window</strong> — File → New Window opens a second window on iPad, on Android 12L and later, and on the desktop, so you can write in one script while reading another. Opening a screenplay that is already open in another window offers to switch to it rather than open a second copy that would save over the first.</li>
+                <li><strong>Open And Save Files Where They Live</strong> — File → Open File from Disk (Open from Files on mobile) edits a <code>.fdx</code>, <code>.fountain</code>, <code>.fadein</code>, <code>.osf</code>, <code>.odraft</code> or <code>.txt</code> in place: Save writes back to the original file, wherever it lives, instead of filing a copy in the library. Opening a foreign format explains what saving back to it can and cannot carry.</li>
+                <li><strong>Export To Fade In</strong> — File → Export → Fade In (.fadein) writes a real Fade In file: elements, bold/italic/underline/strikethrough, colour and highlighting, fonts, forced page breaks, scene numbers, synopses, dual dialogue and the title page all make the trip.</li>
+                <li><strong>Recovering Unsaved Work Is Safer</strong> — The recovery prompt now appears only when the document really was edited, asks once per launch before anything else, and keeps a separate snapshot per window so two windows can no longer overwrite each other's protection.</li>
+                <li><strong>Close, And A Way Back</strong> — File → Close on every platform, the projects screen has a back button at last, and every close control is now big enough to hit with a thumb.</li>
+                <li><strong>Fixes</strong> — Saving a file opened in place no longer leaves it asking to be recovered on the next launch (and no longer risks an older copy replacing your saved work). Starting a new screenplay while a file is open no longer leaves Save aimed at that file.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.22.0</div>
               <ul className="about-list">
                 <li><strong>Start Any Element On A New Page</strong> — Put the cursor in an element and choose Format → Start On New Page to force a page break before it. A tick shows while it's on. The flag is saved with the script, exports to Final Draft and Fountain (as <code>===</code>), and is read back from <code>.fdx</code>, <code>.osf</code> and <code>.fountain</code> files you import.</li>

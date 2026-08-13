@@ -70,6 +70,7 @@
     <div class="sidebar-section-title">Projects &amp; Files</div>
     <a href="projects.html" class="sidebar-link">Managing Projects</a>
     <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="backups.html" class="sidebar-link">Backups &amp; Recovery</a>
     <a href="import-export.html" class="sidebar-link active">Import &amp; Export</a>
   </div>
   <div class="sidebar-section">
@@ -140,10 +141,31 @@
       </div>
     </div>
 
+    <h2 id="open-in-place">Open A File Where It Lives</h2>
+
+    <p>Importing brings a copy of a screenplay into your library. <strong>Opening in place</strong> does something different: it edits the file itself, wherever it is, and <strong>Save</strong> writes back to it.</p>
+
+    <ol class="steps">
+      <li>Go to <strong>File &gt; Open File from Disk</strong> on the desktop, or <strong>File &gt; Open from Files</strong> on iPad, iPhone and Android.</li>
+      <li>Pick a <code>.odraft</code>, <code>.fdx</code>, <code>.fountain</code>, <code>.fadein</code>, <code>.osf</code> or <code>.txt</code> file.</li>
+      <li>Write. <kbd>&#8984;</kbd><kbd>S</kbd> saves straight back to the original file &mdash; including files in iCloud Drive, Google Drive or Dropbox.</li>
+    </ol>
+
+    <p>On the desktop, a screenplay you open by double-clicking it in Finder or Explorer stays attached to itself the same way, so Save updates that file rather than filing a copy in your library.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Opening another application&rsquo;s format?</strong> OpenDraft says what saving back to it can and cannot carry before you start. Notes, tags, beats and character profiles have nowhere to live in a <code>.fdx</code> or <code>.fountain</code> file, so use <strong>File &gt; Save As</strong> to keep a lossless <code>.odraft</code> copy alongside it.</p>
+      </div>
+    </div>
+
     <h2 id="export">Exporting Scripts</h2>
 
-    <h3 id="export-fdx">Save as Final Draft (.fdx)</h3>
-    <p>Go to <strong>File &gt; Save as Final Draft</strong>. This creates a <code>.fdx</code> file that can be opened in Final Draft or any software that supports the format. Preserved data includes:</p>
+    <p>Everything below is under <strong>File &gt; Export</strong>. On phones and tablets, exporting opens the system share sheet so you can put the file in Files, Drive, Dropbox, or send it straight to someone.</p>
+
+    <h3 id="export-fdx">Final Draft (.fdx)</h3>
+    <p>Go to <strong>File &gt; Export &gt; Final Draft (.fdx)</strong>. This creates a <code>.fdx</code> file that can be opened in Final Draft or any software that supports the format. Preserved data includes:</p>
     <ul>
       <li>All screenplay elements and formatting</li>
       <li>Character names and descriptions (rich text descriptions are converted to plain text, since FDX only supports plain text in character bios)</li>
@@ -158,11 +180,28 @@
       </div>
     </div>
 
-    <h3 id="export-fountain">Save as Fountain (.fountain)</h3>
-    <p>Go to <strong>File &gt; Save as Fountain</strong>. This creates a plain-text Fountain file that can be opened in any Fountain-compatible editor or version control system.</p>
+    <h3 id="export-fountain">Fountain (.fountain)</h3>
+    <p>Go to <strong>File &gt; Export &gt; Fountain (.fountain)</strong>. This creates a plain-text Fountain file that can be opened in any Fountain-compatible editor or version control system.</p>
 
-    <h3 id="export-pdf">Export as PDF</h3>
-    <p>Go to <strong>File &gt; Save as PDF</strong> or press <kbd>&#8984;</kbd><kbd>P</kbd>. The PDF is formatted to industry-standard screenplay specifications.</p>
+    <h3 id="export-fadein">Fade In (.fadein)</h3>
+    <p>Go to <strong>File &gt; Export &gt; Fade In (.fadein)</strong>. This writes a Fade In document &mdash; an Open Screenplay Format archive that Fade In 3 and 4 both open. It carries a great deal more than Fountain does:</p>
+    <ul>
+      <li>All screenplay elements, and custom element styles</li>
+      <li>Bold, italic, underline and strikethrough, colour and highlighting</li>
+      <li>Per-selection font and size, and hard line breaks</li>
+      <li>Forced page breaks, scene numbers, synopses and dual dialogue</li>
+      <li>The title page</li>
+    </ul>
+    <p>Notes, tags, beats and character profiles have no home in the format, so they are left out rather than written as something Fade In would misread. Keep a <code>.odraft</code> copy if you need them.</p>
+
+    <h3 id="export-docx">Microsoft Word (.docx)</h3>
+    <p>Go to <strong>File &gt; Export &gt; Microsoft Word (.docx)</strong> for a formatted document to share with people who do not use screenwriting software.</p>
+
+    <h3 id="export-odraft">OpenDraft (.odraft)</h3>
+    <p>Go to <strong>File &gt; Export &gt; OpenDraft (.odraft)</strong>. This is the lossless one: the script plus its notes, tags, beats, character profiles and images, in a single file. Use it to move a screenplay between machines, or to keep a complete copy of your own. It is the same format <a href="backups.html">backups</a> are written in.</p>
+
+    <h3 id="export-pdf">PDF</h3>
+    <p>Go to <strong>File &gt; Export &gt; PDF</strong>. The PDF is formatted to industry-standard screenplay specifications.</p>
 
     <p>Before exporting to PDF, you may want to:</p>
     <ul>
@@ -178,23 +217,24 @@
 
     <table>
       <thead>
-        <tr><th>Feature</th><th>.fdx</th><th>.fountain</th><th>.pdf</th><th>.txt</th></tr>
+        <tr><th>Feature</th><th>.odraft</th><th>.fdx</th><th>.fadein</th><th>.fountain</th><th>.pdf</th><th>.txt</th></tr>
       </thead>
       <tbody>
-        <tr><td>Screenplay elements</td><td>Yes</td><td>Yes</td><td>Visual only</td><td>Basic</td></tr>
-        <tr><td>Text formatting (bold/italic)</td><td>Yes</td><td>Yes</td><td>Visual only</td><td>No</td></tr>
-        <tr><td>Character profiles (name, description)</td><td>Yes (plain text)</td><td>No</td><td>No</td><td>No</td></tr>
-        <tr><td>Extended profiles (role, backstory, images)</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
-        <tr><td>Production tags</td><td>Yes</td><td>No</td><td>No</td><td>No</td></tr>
-        <tr><td>Editable in other software</td><td>Final Draft</td><td>Many editors</td><td>No</td><td>Any editor</td></tr>
-        <tr><td>Best for</td><td>Collaboration with FD users</td><td>Open format, version control</td><td>Reading, printing, submission</td><td>Simple import</td></tr>
+        <tr><td>Screenplay elements</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Visual only</td><td>Basic</td></tr>
+        <tr><td>Text formatting (bold/italic)</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Visual only</td><td>No</td></tr>
+        <tr><td>Colour, highlighting, fonts</td><td>Yes</td><td>Partly</td><td>Yes</td><td>No</td><td>Visual only</td><td>No</td></tr>
+        <tr><td>Character profiles (name, description)</td><td>Yes</td><td>Yes (plain text)</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+        <tr><td>Extended profiles (role, backstory, images)</td><td>Yes</td><td>No</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+        <tr><td>Notes, tags and beats</td><td>Yes</td><td>Tags only</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+        <tr><td>Editable in other software</td><td>OpenDraft</td><td>Final Draft</td><td>Fade In</td><td>Many editors</td><td>No</td><td>Any editor</td></tr>
+        <tr><td>Best for</td><td>Complete copies, backups, moving between machines</td><td>Collaboration with FD users</td><td>Collaboration with Fade In users</td><td>Open format, version control</td><td>Reading, printing, submission</td><td>Simple import</td></tr>
       </tbody>
     </table>
 
     <div class="page-nav">
-      <a href="version-history.html">
+      <a href="backups.html">
         <span class="nav-label">&larr; Previous</span>
-        <span class="nav-title">Version History</span>
+        <span class="nav-title">Backups &amp; Recovery</span>
       </a>
       <a href="collaboration.html" class="nav-next">
         <span class="nav-label">Next &rarr;</span>
