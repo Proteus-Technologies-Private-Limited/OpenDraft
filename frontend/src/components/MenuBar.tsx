@@ -164,6 +164,13 @@ interface MenuBarProps {
   onJoinCollab?: () => void;
   isCollabActive?: boolean;
   isCollabGuest?: boolean;
+  /**
+   * Called with the payload that was just written, so the editor's own idea of
+   * "what is on disk" keeps up. Without it a document saved from this menu
+   * still looked unsaved to the crash-recovery loop, which then offered it back
+   * on the next launch.
+   */
+  onDocumentSaved?: (savedJson: string) => void;
 }
 
 interface MenuItem {
@@ -197,7 +204,14 @@ const DiagRow: React.FC<{ label: string; value: string; mono?: boolean }> = ({ l
   </tr>
 );
 
-const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, isCollabActive, isCollabGuest }) => {
+const MenuBar: React.FC<MenuBarProps> = ({
+  editor,
+  onCollaborate,
+  onJoinCollab,
+  isCollabActive,
+  isCollabGuest,
+  onDocumentSaved,
+}) => {
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
@@ -338,6 +352,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       try {
         await saveDocumentInPlace(origin.bookmark, await serializeForOrigin(origin.format));
         setSaveStatus('saved');
+        // The file now holds this document, so the editor's auto-save and the
+        // recovery snapshot must both stop treating it as unsaved work. An
+        // in-place document has no auto-save tick to correct them later.
+        const savedPayload = buildSaveContent();
+        if (savedPayload) onDocumentSaved?.(JSON.stringify(savedPayload));
         clearRecoverySnapshot();
       } catch (err) {
         console.error('Save in place failed:', err);
@@ -376,7 +395,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       // get the blocking modal so the user can't miss them.
       reportSaveError(err, 'manual-save');
     }
-  }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen, serializeForOrigin]);
+  }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen, serializeForOrigin, onDocumentSaved]);
 
   /** Save As: always opens the destination/project/filename picker, even when
    *  the current document is already saved. Use this to fork a local script
@@ -395,10 +414,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
 
   /**
    * Set when a file in someone else's format has been opened in place, so the
-   * writer is told what saving back to it can and cannot carry.
+   * writer is told what saving back to it can and cannot carry. In the store,
+   * so a file handed over by the operating system raises the same notice.
    */
-  const [foreignFormatNotice, setForeignFormatNotice] =
-    useState<{ name: string; extension: string } | null>(null);
+  const foreignFormatNotice = useEditorStore((s) => s.foreignFormatNotice);
+  const setForeignFormatNotice = useEditorStore((s) => s.setForeignFormatNotice);
 
   /**
    * Set when the file just picked is already open in another window: the

@@ -673,6 +673,14 @@ interface EditorState {
    *  the user for a script format (without wiping the project context that
    *  ProjectView just established). */
   pendingFormatPromptInProject: boolean;
+  /**
+   * A file in another application's format was just opened in place, and the
+   * writer has not yet been told what saving back to it can carry. Lives here
+   * rather than in MenuBar because a file can be opened from the menu *or* by
+   * the operating system handing one over, and both deserve the explanation.
+   */
+  foreignFormatNotice: { name: string; extension: string } | null;
+  setForeignFormatNotice: (v: { name: string; extension: string } | null) => void;
   setPendingFormatPromptInProject: (v: boolean) => void;
   /** Optional callback to run after save-as completes (e.g. deferred import). */
   postSaveAction: (() => void) | null;
@@ -1293,6 +1301,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSaveAsOpen: (open) => set({ saveAsOpen: open }),
   pendingFormatPromptInProject: false,
   setPendingFormatPromptInProject: (v) => set({ pendingFormatPromptInProject: v }),
+  foreignFormatNotice: null,
+  setForeignFormatNotice: (v) => set({ foreignFormatNotice: v }),
   postSaveAction: null,
   setPostSaveAction: (action) => set({ postSaveAction: action }),
   importedSource: null,

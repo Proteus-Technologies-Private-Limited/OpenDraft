@@ -3280,13 +3280,21 @@ const ScreenplayEditor: React.FC = () => {
         IN_PLACE_ORIGIN_EXTENSIONS.includes(extensionOf(filename));
 
       if (inPlace) {
+        const format = extensionOf(filename);
         useEditorStore.getState().setImportedSource(null);
         useEditorStore.getState().setDocumentOrigin({
           bookmark: filePath,
           name: filename,
-          format: extensionOf(filename),
+          format,
         });
-        showToast(`Editing ${filename} — Save writes back to this file.`, 'success');
+        if (format === 'odraft') {
+          showToast(`Editing ${filename} — Save writes back to this file.`, 'success');
+        } else {
+          // Same explanation the menu's own open gives: this file is in another
+          // application's format, Save rewrites it, and the library is where
+          // the whole screenplay can live.
+          useEditorStore.getState().setForeignFormatNotice({ name: filename, extension: format });
+        }
       } else {
         // Mark as imported so Save As shows the "saved to OpenDraft library" notice.
         useEditorStore.getState().setImportedSource({ name: filename, format: imported.formatLabel });
@@ -4057,7 +4065,7 @@ const ScreenplayEditor: React.FC = () => {
           </button>
         </div>
       )}
-      {!isHistoryMode && <MenuBar editor={editor} onCollaborate={() => {
+      {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={(json) => { lastSavedJsonRef.current = json; }} onCollaborate={() => {
         if (!currentProject || !currentScriptId) {
           showToast('Save your screenplay to a project first — opening Save As...', 'info');
           useEditorStore.getState().setSaveAsOpen(true);
