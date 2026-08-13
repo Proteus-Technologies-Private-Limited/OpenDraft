@@ -315,7 +315,13 @@ jobs:
         run: |
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager --install "ndk;27.0.12077973" "build-tools;35.0.0" "platforms;android-35"
+          # API 36 because that is what the Tauri 2.11 template sets for
+          # compileSdk and targetSdk in the build.gradle.kts it generates below.
+          # Installing an older platform here left the build depending on
+          # whatever the runner image happened to ship, or on Gradle's SDK
+          # auto-download — neither of which is something to discover during a
+          # release. Keep this in step when the Tauri CLI is bumped.
+          sdkmanager --install "ndk;27.0.12077973" "build-tools;36.0.0" "platforms;android-36"
           echo "NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> $GITHUB_ENV
 
       - name: Setup Rust
@@ -393,6 +399,13 @@ jobs:
           python3 << 'PYEOF'
           # Tauri already generates launchMode="singleTask" and FileProvider.
           # We only need to add intent-filters for file association.
+          #
+          # Every failure below exits non-zero. These patches key off the shape
+          # of a manifest the Tauri CLI generates, so a CLI upgrade can stop
+          # them matching — and the build would otherwise sail on and publish an
+          # app that silently cannot open files or open a second window.
+          import sys
+
           manifest_path = "src-tauri/gen/android/app/src/main/AndroidManifest.xml"
           with open(manifest_path) as f:
               content = f.read()
@@ -428,11 +441,14 @@ jobs:
                       <data android:host="*" />
                   </intent-filter>"""
 
-          if "</activity>" in content:
-              content = content.replace("</activity>", intent_filters + "\n            </activity>", 1)
-              print("Android manifest patched with file association intent-filters")
-          else:
-              print("WARNING: Could not find </activity> in manifest — skipping")
+          if "</activity>" not in content:
+              sys.exit(
+                  "::error::No </activity> in the generated AndroidManifest.xml — "
+                  "file associations cannot be declared. The Tauri template has "
+                  "changed shape; update this patch."
+              )
+          content = content.replace("</activity>", intent_filters + "\n            </activity>", 1)
+          print("Android manifest patched with file association intent-filters")
 
           # ── Extra windows (issue #63) ────────────────────────────────────
           # One <activity> per class in android-src/WindowActivities.kt. Their
@@ -446,7 +462,12 @@ jobs:
               r'<activity\b([^>]*?android:name="\.MainActivity"[^>]*?)>', content
           )
           if not main_activity:
-              print("WARNING: MainActivity not found in manifest — no extra windows declared")
+              sys.exit(
+                  "::error::MainActivity not found in the generated "
+                  "AndroidManifest.xml — the extra window activities cannot be "
+                  "declared, and File > New Window would fail on every device. "
+                  "The Tauri template has changed shape; update this patch."
+              )
           else:
               attrs = main_activity.group(1)
               # Everything that has to differ per window, or that only the
@@ -471,14 +492,28 @@ jobs:
                       '            android:documentLaunchMode="always" />' % (attrs, n)
                   )
 
-              if "</application>" in content:
-                  content = content.replace("</application>", extra + "\n    </application>", 1)
-                  print("Android manifest patched with 3 extra window activities")
-              else:
-                  print("WARNING: Could not find </application> in manifest — skipping windows")
+              if "</application>" not in content:
+                  sys.exit(
+                      "::error::No </application> in the generated "
+                      "AndroidManifest.xml — the extra window activities cannot "
+                      "be declared. The Tauri template has changed shape; update "
+                      "this patch."
+                  )
+              content = content.replace("</application>", extra + "\n    </application>", 1)
+              print("Android manifest patched with 3 extra window activities")
 
           with open(manifest_path, "w") as f:
               f.write(content)
+
+          # Read back what was written rather than trusting the replaces above.
+          written = open(manifest_path).read()
+          missing = [n for n in (1, 2, 3) if 'android:name=".WindowActivity%d"' % n not in written]
+          if missing:
+              sys.exit(
+                  "::error::WindowActivity%s missing from the patched manifest."
+                  % ", ".join(str(n) for n in missing)
+              )
+          print("Verified: WindowActivity1-3 declared in the source manifest")
           PYEOF
 
       - name: Patch tauri.conf.json for Android CI
@@ -561,6 +596,44 @@ jobs:
           KEY_ALIAS: ${{ env.KEY_ALIAS }}
           KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
         run: npx --prefix frontend tauri android build --apk
+
+      # The source manifest is checked above, but the artifact is what ships:
+      # the Tauri CLI rewrites the manifest during the build (it injects the
+      # file-association intent-filters then), and the manifest merger and R8
+      # run after that. This reads the APK itself, so "multi-window shipped
+      # broken" cannot get past a green build. The AAB is built from the same
+      # merged manifest, so checking one artifact covers both.
+      - name: Verify the shipped APK declares every window
+        run: |
+          set -euo pipefail
+          APK=$(find src-tauri/gen/android -name "*.apk" -path "*/release/*" ! -name "*unsigned*" | head -1)
+          if [ -z "$APK" ]; then
+            APK=$(find src-tauri/gen/android -name "*.apk" -path "*/release/*" | head -1)
+          fi
+          if [ -z "$APK" ]; then
+            echo "::error::No release APK found to verify"
+            exit 1
+          fi
+
+          AAPT2=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -r | head -1)
+          if [ -z "$AAPT2" ]; then
+            echo "::error::aapt2 not found in $ANDROID_HOME/build-tools"
+            exit 1
+          fi
+
+          MANIFEST=$("$AAPT2" dump xmltree --file AndroidManifest.xml "$APK")
+          for n in 1 2 3; do
+            if ! echo "$MANIFEST" | grep -q "com.proteus.opendraft.WindowActivity$n"; then
+              echo "::error::WindowActivity$n is not in the built APK — File > New Window would fail for users. See the manifest patch step."
+              exit 1
+            fi
+          done
+          # One file-association filter proves the CLI's injection ran too.
+          if ! echo "$MANIFEST" | grep -q "fountain"; then
+            echo "::error::No file-association intent-filter in the built APK — opening a screenplay from another app would fail."
+            exit 1
+          fi
+          echo "Verified: WindowActivity1-3 and file associations are in $(basename "$APK")"
 
       - name: Build Android AAB
         env:
