@@ -1,0 +1,190 @@
+name: Submit to App Stores
+
+# Ad-hoc store submission for a release whose builds are already done.
+#
+# In release.yml, `submit-stores` needs every build job — including the two
+# Intel macOS ones — so a single failed or cancelled Intel build takes the
+# store submissions down with it, even though neither store wants a DMG. That
+# happened on v0.23.0: iOS, Android and the Mac App Store package were all
+# built and uploaded as artifacts, and none of them reached a store.
+#
+# This runs the same three uploads against artifacts from an existing run,
+# so the Intel DMG can be rebuilt on its own schedule (rebuild-macos-intel.yml)
+# without holding up a submission.
+#
+# Every upload treats "this version was already uploaded" as success, so
+# running it twice is safe.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Run ID of the release build whose artifacts to submit, e.g. 31717066904'
+        required: true
+        type: string
+      ios:
+        description: 'Upload the iOS IPA to App Store Connect'
+        required: false
+        type: boolean
+        default: true
+      macos:
+        description: 'Upload the Mac App Store pkg to App Store Connect'
+        required: false
+        type: boolean
+        default: true
+      android:
+        description: 'Upload the AAB to Google Play (production)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  submit:
+    runs-on: macos-latest
+    name: Submit to App Stores
+
+    steps:
+      # `run-id` needs a token with actions:read — the default GITHUB_TOKEN
+      # has it here via the permissions block above.
+      - name: Download iOS IPA artifact
+        if: inputs.ios
+        uses: actions/download-artifact@v5
+        with:
+          name: ios-ipa
+          path: ios-artifacts
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download macOS pkg artifact
+        if: inputs.macos
+        uses: actions/download-artifact@v5
+        with:
+          name: macos-pkg
+          path: macos-artifacts
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Android AAB artifact
+        if: inputs.android
+        uses: actions/download-artifact@v5
+        with:
+          name: android-aab
+          path: android-artifacts
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload iOS IPA to App Store Connect
+        if: inputs.ios
+        env:
+          APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+        continue-on-error: true
+        run: |
+          if [ -z "$APPSTORE_API_KEY" ]; then
+            echo "::warning::APPSTORE_API_KEY not configured — skipping iOS App Store upload"
+            exit 0
+          fi
+
+          mkdir -p ~/.private_keys
+          echo "$APPSTORE_API_KEY" | base64 --decode > ~/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8
+
+          IPA=$(find ios-artifacts -name "*.ipa" | head -1)
+          if [ -z "$IPA" ]; then
+            echo "::error::No IPA file found in the downloaded artifact"
+            exit 1
+          fi
+
+          echo "Uploading $IPA to App Store Connect..."
+          ALTOOL_LOG=$(mktemp)
+          if xcrun altool --upload-app \
+            --file "$IPA" \
+            --type ios \
+            --apiKey "$APPSTORE_API_KEY_ID" \
+            --apiIssuer "$APPSTORE_API_ISSUER_ID" 2>&1 | tee "$ALTOOL_LOG"; then
+            echo "iOS upload complete"
+          elif grep -q "ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE\|already been used" "$ALTOOL_LOG"; then
+            echo "::warning::iOS build for this version was already uploaded — treating as success"
+          else
+            echo "::error::iOS upload failed"
+            exit 1
+          fi
+
+      - name: Upload macOS pkg to App Store Connect
+        if: always() && !cancelled() && inputs.macos
+        continue-on-error: true
+        env:
+          APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+        run: |
+          if [ -z "$APPSTORE_API_KEY" ]; then
+            echo "::warning::APPSTORE_API_KEY not configured — skipping macOS App Store upload"
+            exit 0
+          fi
+
+          mkdir -p ~/.private_keys
+          echo "$APPSTORE_API_KEY" | base64 --decode > ~/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8
+
+          PKG=$(find macos-artifacts -name "*.pkg" 2>/dev/null | head -1)
+          if [ -z "$PKG" ]; then
+            echo "::error::No pkg file found in the downloaded artifact"
+            exit 1
+          fi
+
+          echo "Uploading $PKG to App Store Connect..."
+          ALTOOL_LOG=$(mktemp)
+          if xcrun altool --upload-app \
+            --file "$PKG" \
+            --type macos \
+            --apiKey "$APPSTORE_API_KEY_ID" \
+            --apiIssuer "$APPSTORE_API_ISSUER_ID" 2>&1 | tee "$ALTOOL_LOG"; then
+            echo "macOS upload complete"
+          elif grep -q "ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE\|already been used" "$ALTOOL_LOG"; then
+            echo "::warning::macOS pkg for this version was already uploaded — treating as success"
+          else
+            echo "::error::macOS pkg upload failed"
+            exit 1
+          fi
+
+      - name: Upload Android AAB to Google Play (production)
+        if: always() && !cancelled() && inputs.android
+        continue-on-error: true
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
+        run: |
+          if [ -z "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64" ]; then
+            echo "::warning::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 not configured — skipping Play Store upload"
+            exit 0
+          fi
+
+          AAB=$(find android-artifacts -name "*.aab" | head -1)
+          if [ -z "$AAB" ]; then
+            echo "::error::No AAB file found in the downloaded artifact"
+            exit 1
+          fi
+
+          echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64" | base64 --decode > /tmp/play-service-account.json
+
+          gem install fastlane --no-document
+
+          echo "Uploading $AAB to Google Play production track..."
+          if ! fastlane supply \
+            --aab "$AAB" \
+            --track production \
+            --package_name com.proteus.opendraft \
+            --json_key /tmp/play-service-account.json \
+            --skip_upload_metadata \
+            --skip_upload_images \
+            --skip_upload_screenshots \
+            --skip_upload_changelogs \
+            --skip_upload_apk; then
+            echo "::warning::Play Store upload failed — submit manually as a follow-up"
+          fi
+
+          rm /tmp/play-service-account.json
+          echo "Google Play upload complete — check Play Console for review status"
