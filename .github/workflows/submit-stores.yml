@@ -37,6 +37,15 @@ on:
         required: false
         type: boolean
         default: true
+      release_notes:
+        description: "Set the iOS What's New text from fastlane/metadata/ios"
+        required: false
+        type: boolean
+        default: true
+      version:
+        description: "Marketing version to set What's New on, e.g. 0.23.0 (defaults to the newest editable version)"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -48,6 +57,12 @@ jobs:
     name: Submit to App Stores
 
     steps:
+      # Needed for the release notes, which live in the repo. The artifact
+      # downloads below do not need a checkout.
+      - name: Checkout
+        if: inputs.release_notes
+        uses: actions/checkout@v5
+
       # `run-id` needs a token with actions:read — the default GITHUB_TOKEN
       # has it here via the permissions block above.
       - name: Download iOS IPA artifact
@@ -150,6 +165,78 @@ jobs:
             echo "::error::macOS pkg upload failed"
             exit 1
           fi
+
+      # altool uploads a binary and nothing else, so the App Store version's
+      # "What's New" had to be typed into App Store Connect by hand on every
+      # release — and an iOS release lands several app versions at once, so
+      # that text is not the same as any one changelog entry. It lives in
+      # fastlane/metadata/ios/en-US/release_notes.txt instead, and deliver
+      # pushes it here.
+      #
+      # Deliberately narrow: binary, screenshots and pricing are all skipped,
+      # and the metadata folder holds release notes only, so nothing else on
+      # the listing can be touched by this step.
+      - name: Set the iOS What's New in App Store Connect
+        if: always() && !cancelled() && inputs.release_notes
+        env:
+          APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          APP_VERSION: ${{ inputs.version }}
+        run: |
+          if [ -z "$APPSTORE_API_KEY" ]; then
+            echo "::warning::APPSTORE_API_KEY not configured — skipping What's New update"
+            exit 0
+          fi
+
+          NOTES="fastlane/metadata/ios/en-US/release_notes.txt"
+          if [ ! -s "$NOTES" ]; then
+            echo "::error::$NOTES is missing or empty"
+            exit 1
+          fi
+          # App Store Connect rejects anything longer, and it is easier to
+          # find out here than after a five-minute upload.
+          CHARS=$(wc -m < "$NOTES" | tr -d ' ')
+          if [ "$CHARS" -gt 4000 ]; then
+            echo "::error::Release notes are $CHARS characters; App Store Connect allows 4000"
+            exit 1
+          fi
+          echo "Release notes: $CHARS characters"
+
+          mkdir -p ~/.private_keys
+          echo "$APPSTORE_API_KEY" | base64 --decode > ~/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8
+
+          cat > /tmp/asc-api-key.json <<JSON
+          {
+            "key_id": "${APPSTORE_API_KEY_ID}",
+            "issuer_id": "${APPSTORE_API_ISSUER_ID}",
+            "key_filepath": "$HOME/.private_keys/AuthKey_${APPSTORE_API_KEY_ID}.p8",
+            "in_house": false
+          }
+          JSON
+
+          gem install fastlane --no-document
+
+          VERSION_ARG=()
+          if [ -n "$APP_VERSION" ]; then
+            VERSION_ARG=(--app_version "$APP_VERSION")
+          fi
+
+          fastlane deliver \
+            --api_key_path /tmp/asc-api-key.json \
+            --app_identifier com.proteus.opendraft \
+            --metadata_path fastlane/metadata/ios \
+            "${VERSION_ARG[@]}" \
+            --skip_binary_upload true \
+            --skip_screenshots true \
+            --skip_app_version_update false \
+            --overwrite_screenshots false \
+            --precheck_include_in_app_purchases false \
+            --run_precheck_before_submit false \
+            --force true
+
+          rm -f /tmp/asc-api-key.json
+          echo "What's New updated — review it in App Store Connect before submitting"
 
       - name: Upload Android AAB to Google Play (production)
         if: always() && !cancelled() && inputs.android

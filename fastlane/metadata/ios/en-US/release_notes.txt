@@ -1,0 +1,31 @@
+Everything new since the last App Store release, for iPad and iPhone.
+
+WRITE IN TWO WINDOWS (iPad)
+File > New Window opens a second window, so you can keep an outline, an earlier draft or another script beside the one you are writing. Open a screenplay that is already open in another window and OpenDraft offers to switch to it rather than open a copy that would save over your work.
+
+OPEN AND SAVE FILES WHERE THEY LIVE
+File > Open from Files now edits a screenplay in place, wherever it lives — Files, iCloud Drive, Google Drive or Dropbox. Save writes straight back to the original file instead of importing a copy and exporting a new one. Works with .odraft, .fdx, .fountain, .fadein, .osf and .txt.
+
+AUTOMATIC BACKUPS
+Choose a folder and OpenDraft writes timestamped copies of your script while you write — complete with notes, tags, beats, characters and images. A copy is also saved whenever you leave the app, before iOS suspends it. Bring any of them back from File > Backups > Recover Backup. Backups use the same format on every platform, so one written on a Mac restores on your iPad.
+
+NEVER LOSE UNSAVED WORK
+If iOS shuts OpenDraft down, the next launch offers your unsaved changes back — including for a screenplay you never saved into a project. Each window keeps its own copy.
+
+FADE IN AND OPEN SCREENPLAY FORMAT
+Open .fadein and .osf files directly, and now export to Fade In as well, carrying elements, emphasis, colour and highlighting, fonts, page breaks, scene numbers, synopses, dual dialogue and the title page.
+
+PAGE BREAKS THAT DO WHAT YOU MEAN
+Force any element onto a new page with Format > Start On New Page. Templates can require it too: the 1-Hour TV Drama, Multi-Cam Sitcom and Stage Play formats break before every New Act, on screen and in PDF and Word exports.
+
+FONTS
+The typeface you choose now survives export to PDF, Word and Final Draft. The picker lists Times New Roman, Georgia, Helvetica, Verdana, Tahoma and Trebuchet MS, and styles just the text you selected.
+
+FOUNTAIN
+Paste Fountain from anywhere as real scene headings, characters and dialogue with Edit > Paste as Fountain. On import, emphasis, forced action, lyrics, centred text and page breaks are all recognised.
+
+GETTING AROUND
+A back button on the projects screen at last, File > Close everywhere, and every close control is now big enough to hit with a thumb.
+
+FIXES
+Choosing Take Photo to add an image no longer closes OpenDraft — it asks for the camera and returns your photo. Fade In (.fadein) and Open Screenplay Format (.osf) files now offer Open in OpenDraft from the Files app. Saving a file opened in place no longer asks to recover it on the next launch. Shift+Enter line breaks survive every export. Manual saves keep per-script spelling settings. Opening Settings and coming back no longer leaves the editor blank.
