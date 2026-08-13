@@ -70,14 +70,27 @@ import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck
 import { Grammar, grammarPluginKey } from '../editor/extensions/Grammar';
 import { spellChecker, BUILTIN_LANGUAGE } from '../editor/spellchecker';
 import { grammarIgnore } from '../editor/grammar/grammarIgnore';
-import { buildSaveContent as buildSaveContentShared } from '../utils/saveContent';
+import { buildSaveContent as buildSaveContentShared, stripSaveMetadata } from '../utils/saveContent';
+import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
 import { characterKey } from '../utils/nodeText';
 import { computeContdChanges, type ContdBlock } from '../editor/contdAuto';
 import { useBackupScheduler } from '../hooks/useBackupScheduler';
+import { useRecoverySnapshot } from '../hooks/useRecoverySnapshot';
+import { useOpenDocumentGuard } from '../hooks/useOpenDocumentGuard';
+/** Formats Save can write back, so a file opened from the OS can stay attached. */
+const IN_PLACE_ORIGIN_EXTENSIONS = ['odraft', 'fdx', 'fountain', 'fadein', 'osf', 'txt'];
+import { documentKey } from '../services/openDocuments';
+import RecoveryPromptDialog from './RecoveryPromptDialog';
+import DocumentOpenElsewhereDialog from './DocumentOpenElsewhereDialog';
+import {
+  clearRecoverySnapshot,
+  hasRecoverableSnapshot,
+  type RecoverySnapshot,
+} from '../services/recoveryService';
 import { useBackupStatusStore } from '../stores/backupStatusStore';
 import { runRetext, RETEXT_CATEGORIES, type RetextCategory } from '../editor/grammar/retextProvider';
 import { runHarper } from '../editor/grammar/harperProvider';
-import { clearEditorHistory } from '../editor/clearHistory';
+import { clearEditorHistory, hasEditsSinceLoad } from '../editor/clearHistory';
 import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
@@ -88,6 +101,7 @@ import { showToast } from './Toast';
 import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useGoBack } from '../hooks/useGoBack';
 import OpenFile from './OpenFile';
 import type { OpenSource } from './OpenFile';
 import WelcomeDialog, { type WelcomeChoice } from './WelcomeDialog';
@@ -115,7 +129,7 @@ import { useIsTouchDevice, useSwipeEdge, usePinchZoom } from '../hooks/useTouch'
 import { useSettingsStore } from '../stores/settingsStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
 import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, isCollabAuthenticated } from '../services/collabAuth';
-import { platformFetch, isTauri } from '../services/platform';
+import { platformFetch, isTauri, isDesktopTauri } from '../services/platform';
 import { reportSaveError } from '../stores/saveErrorStore';
 import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
@@ -250,6 +264,7 @@ function resolveHFFields(
 const ScreenplayEditor: React.FC = () => {
   const { projectId: urlProjectId, scriptId: urlScriptId, commitHash: urlCommitHash, collabToken: urlCollabToken } = useParams<{ projectId?: string; scriptId?: string; commitHash?: string; collabToken?: string }>();
   const navigate = useNavigate();
+  const goBack = useGoBack();
   const isHistoryMode = Boolean(urlCommitHash);
 
   const {
@@ -2035,6 +2050,181 @@ const ScreenplayEditor: React.FC = () => {
     isHistoryMode,
   });
 
+  /**
+   * True while the recovery prompt has the screen. The snapshot loop pauses on
+   * it, so the work being offered cannot be overwritten by whatever the editor
+   * holds behind the dialog while the writer decides.
+   */
+  const [recoveryPromptOpen, setRecoveryPromptOpen] = useState(false);
+
+  /**
+   * True while unsaved work from a previous session is still waiting to be
+   * offered back — read synchronously, before the first paint.
+   *
+   * Launch has two modals wanting the same moment: "how would you like to
+   * start?" and "recover unsaved changes?". Asked in that order, the writer
+   * picks a blank page or a sample and is *then* told there was unsaved work,
+   * which is both alarming and backwards. Recovery goes first; the welcome
+   * dialog waits its turn, and only appears if there was nothing to recover or
+   * the writer decided against it.
+   */
+  const [recoveryPending, setRecoveryPending] = useState(() => {
+    try {
+      return hasRecoverableSnapshot();
+    } catch (err) {
+      console.warn('[recovery] could not check for recoverable work:', err);
+      return false;
+    }
+  });
+
+  const handleRecoveryChecked = useCallback((found: boolean) => {
+    if (!found) setRecoveryPending(false);
+  }, []);
+
+  const handleRecoveryOpenChange = useCallback((open: boolean) => {
+    setRecoveryPromptOpen(open);
+    // Closed means the writer has decided, so the welcome dialog can have the
+    // screen if the document is still empty.
+    if (!open) setRecoveryPending(false);
+  }, []);
+
+  // Two windows on one screenplay auto-save over each other, so say so rather
+  // than let the writer find out later (issue #63).
+  const documentOriginPath = useEditorStore((s) => s.documentOrigin?.bookmark ?? null);
+  const {
+    openElsewhere,
+    promptTitle: openElsewhereTitle,
+    promptIsPreflight: openElsewhereIsPreflight,
+    guardOpen,
+    openAnyway: openDuplicateAnyway,
+    dismiss: dismissOpenElsewhere,
+  } = useOpenDocumentGuard({
+    projectId: currentProject?.id ?? null,
+    scriptId: currentScriptId,
+    originPath: documentOriginPath,
+    documentTitle: backupDocumentTitle,
+    ready: !!editor && !isHistoryMode,
+  });
+
+  /**
+   * Hand the document back to the window that already had it.
+   *
+   * Bringing the other window forward is only half of it: this window has the
+   * same screenplay loaded, and leaving it there is the very thing the prompt
+   * exists to prevent — two editors auto-saving one document. So it steps back
+   * to an empty screenplay and lets go of its claim.
+   *
+   * The route matters as much as the content: on a /project/:id/edit/:scriptId
+   * URL the script would simply be loaded again on the next render.
+   */
+  const switchToOtherWindow = useCallback(async () => {
+    if (!openElsewhere) return;
+    const target = openElsewhere.window;
+    // Captured before dismissing: a pre-flight prompt means this window never
+    // loaded the document, so whatever it *is* showing must be left alone.
+    const wasPreflight = openElsewhereIsPreflight;
+    dismissOpenElsewhere();
+
+    try {
+      const { focusWindow, releaseOpenDocument } = await import('../services/openDocuments');
+      await focusWindow(target);
+      releaseOpenDocument();
+    } catch (err) {
+      // Reported, but this window still steps away: the other window has the
+      // document either way, and two live copies is the outcome to avoid.
+      showToast(
+        `Could not switch windows: ${err instanceof Error ? err.message : String(err)}`,
+        'error',
+      );
+    }
+
+    // Only when this window actually loaded the duplicate. Asked before the
+    // load, there is nothing here to step away from — and clearing would throw
+    // away the screenplay the writer already had open.
+    if (wasPreflight) return;
+
+    navigate('/', { replace: true });
+    setCurrentProject(null);
+    setCurrentScriptId(null);
+    useEditorStore.getState().setImportedSource(null);
+    setDocumentTitle('Untitled Screenplay');
+    if (editor) {
+      // See File ▸ Close: an emptied document has no block to type into.
+      editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] }, true);
+      clearEditorHistory(editor);
+    }
+    // Nothing here is worth auto-saving or snapshotting now.
+    lastSavedJsonRef.current = '';
+    useEditorStore.getState().setSaveStatus('saved');
+  }, [
+    openElsewhere,
+    openElsewhereIsPreflight,
+    dismissOpenElsewhere,
+    editor,
+    navigate,
+    setCurrentProject,
+    setCurrentScriptId,
+    setDocumentTitle,
+  ]);
+
+  /**
+   * Put a recovered session back into the editor.
+   *
+   * Mirrors the import path rather than the script-load path: the snapshot is
+   * content, not a stored script, so it is applied to the editor and left for
+   * the user to save. When it came from a *different* document than the one
+   * open, the project/script association is dropped as well, so saving cannot
+   * write one screenplay's recovered text over another's stored copy — the
+   * dialog says as much before the user commits.
+   */
+  const handleRecoveryRestore = useCallback((snapshot: RecoverySnapshot) => {
+    if (!editor || editor.isDestroyed) return;
+
+    const { pmDoc } = stripSaveMetadata(snapshot.content);
+    const sameDocument =
+      snapshot.projectId === (currentProject?.id ?? null) &&
+      snapshot.scriptId === currentScriptId;
+
+    editor.commands.setContent(pmDoc, true);
+    clearEditorHistory(editor);
+    hydrateEditorStoresFromContent(snapshot.content);
+    setDocumentTitle(snapshot.title || 'Untitled Screenplay');
+    // Recovered content is not the file any in-place origin points at, and the
+    // snapshot does not carry the origin's security-scoped bookmark. Clearing
+    // it stops Save from writing recovered text over an unrelated document.
+    useEditorStore.getState().setImportedSource(null);
+
+    if (!sameDocument) {
+      setCurrentProject(null);
+      setCurrentScriptId(null);
+    }
+
+    // The restored body is unsaved by definition — clear the auto-save
+    // comparison so the next tick writes it rather than deciding nothing
+    // changed against whatever was loaded before.
+    lastSavedJsonRef.current = '';
+    setShowWelcome(false);
+    useBackupStatusStore.getState().noteDocumentOpened();
+    useEditorStore.getState().setSaveStatus('unsaved');
+    showToast('Unsaved changes restored from your last session.', 'success');
+  }, [editor, currentProject, currentScriptId, setDocumentTitle, setCurrentProject, setCurrentScriptId]);
+
+  // Crash-recovery copy. Unlike the two above it covers every platform and
+  // every document, including one that was never saved to the library — which
+  // on iPad is the only thing standing between a terminated app and lost work.
+  useRecoverySnapshot({
+    buildSaveContent,
+    documentTitle: backupDocumentTitle,
+    projectId: currentProject?.id ?? null,
+    scriptId: currentScriptId,
+    lastSavedJsonRef,
+    scriptSwitchingRef,
+    isCollabGuest,
+    isHistoryMode,
+    isPaused: recoveryPromptOpen || recoveryPending,
+    hasEdits: () => (editor ? hasEditsSinceLoad(editor) : false),
+  });
+
   useEffect(() => {
     if (!editor || !currentProject || !currentScriptId || isCollabGuest) return;
     const { setSaveStatus } = useEditorStore.getState();
@@ -2763,7 +2953,8 @@ const ScreenplayEditor: React.FC = () => {
     editor?.commands.focus();
   }, [editor]);
 
-  const handleOpenFile = useCallback(
+  /** Loads a stored script into this window. Guarded by handleOpenFile. */
+  const openScriptInThisWindow = useCallback(
     async (
       projectId: string,
       project: import('../services/api').ProjectInfo,
@@ -2775,7 +2966,6 @@ const ScreenplayEditor: React.FC = () => {
         console.error('Editor not available');
         return;
       }
-      setOpenFileOpen(false);
       // Cloud files must be tagged before the load so scriptApi routes reads
       // and subsequent saves to cloudApi rather than the local SQLite.
       if (source === 'cloud') markCloudScript(projectId, scriptId);
@@ -2956,7 +3146,31 @@ const ScreenplayEditor: React.FC = () => {
         scriptSwitchingRef.current = false;
       }
     },
-    [editor, collabMode, collabUserName, switchCollabDocument, setOpenFileOpen, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes, currentProject, currentScriptId, buildSaveContent, markCloudScript],
+    [editor, collabMode, collabUserName, switchCollabDocument, setCurrentProject, setCurrentScriptId, setDocumentTitle, updateScenes, currentProject, currentScriptId, buildSaveContent, markCloudScript],
+  );
+
+  /**
+   * Open a stored script, unless another window already has it.
+   *
+   * The check happens before the load rather than after, so a duplicate is
+   * never put on screen and then taken away again — being shown a screenplay
+   * and immediately asked whether you meant to open it reads as if opening it
+   * caused the problem.
+   */
+  const handleOpenFile = useCallback(
+    async (
+      projectId: string,
+      project: import('../services/api').ProjectInfo,
+      scriptId: string,
+      scriptTitle: string,
+      source: OpenSource = 'local',
+    ) => {
+      setOpenFileOpen(false);
+      await guardOpen(documentKey(projectId, scriptId, null), scriptTitle, () =>
+        openScriptInThisWindow(projectId, project, scriptId, scriptTitle, source),
+      );
+    },
+    [guardOpen, openScriptInThisWindow, setOpenFileOpen],
   );
 
   const handleWelcomeChoice = useCallback(async (choice: WelcomeChoice) => {
@@ -3006,17 +3220,25 @@ const ScreenplayEditor: React.FC = () => {
       let filename: string;
 
       if (filePath.startsWith('content://')) {
-        // Android content URI — read via ContentResolver (JNI).  This path is
-        // text-only; an archive format lands in parseScreenplayImport's
-        // "cannot be opened on this platform" branch.
+        // Android content URI — read via ContentResolver (JNI), as bytes.
+        // Reading as text would decode the file through UTF-8 and destroy an
+        // archive, which is why opening a .fadein from a file manager used to
+        // fail. The extension is only known once the provider reports the
+        // display name, so decode to text afterwards for the text formats.
         console.log('[file-assoc] reading content URI via JNI...');
-        const result = await invoke<{ content: string; filename: string }>('read_content_uri', { uri: filePath });
-        text = result.content;
+        const result = await invoke<{ bytes: number[]; filename: string }>(
+          'read_content_uri_bytes',
+          { uri: filePath },
+        );
         filename = result.filename;
-        if (!text && text !== '') {
-          throw new Error(`ContentResolver returned empty content for ${filename}`);
+        const buffer = new Uint8Array(result.bytes).buffer;
+        if (isBinaryImportExtension(extensionOf(filename))) {
+          bytes = buffer;
+          console.log('[file-assoc] content URI read', result.bytes.length, 'bytes:', filename);
+        } else {
+          text = new TextDecoder('utf-8').decode(buffer);
+          console.log('[file-assoc] content URI read', text.length, 'chars:', filename);
         }
-        console.log('[file-assoc] content URI read', text.length, 'chars, filename:', filename);
       } else {
         filename = filePath.replace(/^.*[\\/]/, '') || 'Untitled';
         if (isBinaryImportExtension(extensionOf(filename))) {
@@ -3041,8 +3263,34 @@ const ScreenplayEditor: React.FC = () => {
       // Clear project context — this is a standalone opened file
       setCurrentProject(null);
       setCurrentScriptId(null);
-      // Mark as imported so Save As shows the "saved to OpenDraft library" notice.
-      useEditorStore.getState().setImportedSource({ name: filename, format: imported.formatLabel });
+
+      // Opened *from* a file, so it stays attached to that file where the
+      // platform allows it: double-clicking a screenplay and pressing Save
+      // should update the screenplay, not file a copy into the library.
+      //
+      // Desktop only for now. A path is a durable handle there; on iOS the
+      // system hands over a copy in the sandbox (the original is reachable
+      // only through a security-scoped bookmark taken at the picker), and on
+      // Android a VIEW intent's content URI carries a grant that dies with the
+      // task. Claiming an origin OpenDraft cannot write back to would fail at
+      // Save, which is later and worse than importing a copy.
+      const inPlace =
+        isDesktopTauri() &&
+        !filePath.startsWith('content://') &&
+        IN_PLACE_ORIGIN_EXTENSIONS.includes(extensionOf(filename));
+
+      if (inPlace) {
+        useEditorStore.getState().setImportedSource(null);
+        useEditorStore.getState().setDocumentOrigin({
+          bookmark: filePath,
+          name: filename,
+          format: extensionOf(filename),
+        });
+        showToast(`Editing ${filename} — Save writes back to this file.`, 'success');
+      } else {
+        // Mark as imported so Save As shows the "saved to OpenDraft library" notice.
+        useEditorStore.getState().setImportedSource({ name: filename, format: imported.formatLabel });
+      }
       for (const w of imported.warnings) console.warn('[Import]', w);
       // A file opened from disk has no library copy at all, so it is the one
       // that most needs an immediate snapshot.
@@ -3405,6 +3653,9 @@ const ScreenplayEditor: React.FC = () => {
           navigate(`/project/${projectId}/edit/${scriptId}`, { replace: true });
         }
         showToast(destination === 'cloud' ? 'Saved to cloud' : 'Saved', 'success');
+        // Save As is how a recovered or imported document becomes a real
+        // script, so it is the point at which there is nothing left to recover.
+        clearRecoverySnapshot();
       } catch (err) {
         console.error('Failed to finalize save:', err);
       }
@@ -3663,7 +3914,7 @@ const ScreenplayEditor: React.FC = () => {
               if (urlProjectId && urlScriptId) {
                 navigate(`/project/${urlProjectId}/edit/${urlScriptId}`);
               } else {
-                navigate(-1);
+                goBack();
               }
             }}
           >
@@ -4048,7 +4299,25 @@ const ScreenplayEditor: React.FC = () => {
           onClose={() => setOpenFileOpen(false)}
         />
       )}
-      {!isHistoryMode && showWelcome && <WelcomeDialog onChoice={handleWelcomeChoice} />}
+      {!isHistoryMode && showWelcome && !recoveryPending && <WelcomeDialog onChoice={handleWelcomeChoice} />}
+      {!isHistoryMode && !collabMode && (
+        <RecoveryPromptDialog
+          editorReady={!!editor}
+          currentProjectId={currentProject?.id ?? null}
+          currentScriptId={currentScriptId}
+          onRestore={handleRecoveryRestore}
+          onOpenChange={handleRecoveryOpenChange}
+          onChecked={handleRecoveryChecked}
+        />
+      )}
+      {openElsewhere && (
+        <DocumentOpenElsewhereDialog
+          other={openElsewhere}
+          documentTitle={openElsewhereTitle || backupDocumentTitle}
+          onSwitch={switchToOtherWindow}
+          onOpenAnyway={openDuplicateAnyway}
+        />
+      )}
       {!isHistoryMode && saveAsOpen && (
         <SaveAsDialog
           defaultProjectName={currentProject?.name || 'My Project'}

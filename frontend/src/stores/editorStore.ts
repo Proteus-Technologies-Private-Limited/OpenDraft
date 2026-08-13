@@ -683,6 +683,27 @@ interface EditorState {
    *  writing back to the source file. Cleared on successful save. */
   importedSource: { name: string; format: string } | null;
   setImportedSource: (src: { name: string; format: string } | null) => void;
+  /**
+   * The external file this document was opened from *in place* — currently
+   * iOS only, via the Files/Dropbox document picker (issue #62).
+   *
+   * Distinct from {@link importedSource}, which records where an imported
+   * *copy* came from and never gets written back to. When this is set, Save
+   * writes over the original file rather than exporting a new one.
+   *
+   * `bookmark` is an opaque security-scoped bookmark, not a path.
+   */
+  documentOrigin: DocumentOrigin | null;
+  setDocumentOrigin: (origin: DocumentOrigin | null) => void;
+}
+
+export interface DocumentOrigin {
+  /** Opaque security-scoped bookmark identifying the file. */
+  bookmark: string;
+  /** File name, shown in the status bar and used to pick the exporter. */
+  name: string;
+  /** Lowercase extension: the format to write back in. */
+  format: string;
 }
 
 const BEAT_UNDO_MAX = 50;
@@ -1275,5 +1296,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   postSaveAction: null,
   setPostSaveAction: (action) => set({ postSaveAction: action }),
   importedSource: null,
-  setImportedSource: (src) => set({ importedSource: src }),
+  // Also drops documentOrigin. The two are mutually exclusive answers to
+  // "where did this document come from" — an in-place file, an imported copy,
+  // or a library script — and every path that swaps the open document already
+  // goes through here. Without this an origin could outlive its document and
+  // Save would write the *new* screenplay over the user's original file.
+  setImportedSource: (src) => set({ importedSource: src, documentOrigin: null }),
+
+  // Deliberately NOT persisted across launches, unlike most view state. A
+  // restored origin without the document that belongs to it would point Save
+  // at the user's real file while the editor held a blank "Untitled
+  // Screenplay" — one keystroke away from overwriting their screenplay in
+  // Dropbox with nothing. Re-opening the file from Files re-establishes it.
+  documentOrigin: null,
+  setDocumentOrigin: (origin) => set({ documentOrigin: origin }),
 }));

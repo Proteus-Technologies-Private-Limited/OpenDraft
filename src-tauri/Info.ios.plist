@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Merged into the generated iOS Info.plist by the Tauri CLI, which looks for
+	  this file next to tauri.conf.json.  It has to live here rather than in
+	  gen/apple, because every `tauri ios build` regenerates that Info.plist.
+
+	  Multiple windows on iPad (issue #63).  tao only installs its scene
+	  delegate — and so only ever requests a second window — when this manifest
+	  declares multiple scenes, so without this key `open_new_window` silently
+	  does nothing on iOS.
+
+	  UISceneConfigurations is deliberately absent: tao answers
+	  application:configurationForConnectingSceneSession:options: at runtime with
+	  its own delegate class, and that answer takes precedence over anything
+	  named here.  Listing a configuration would only invite the two to disagree.
+
+	  Note this changes how the system delivers a file tapped in the Files app:
+	  with a scene manifest UIKit stops calling application:openURL:options: and
+	  passes the URL in the scene's connection options instead.  See the launch
+	  hook in FileHelpers.m, which is what keeps cold-start file association
+	  working.
+	-->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

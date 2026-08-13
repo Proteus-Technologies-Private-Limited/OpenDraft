@@ -372,6 +372,12 @@ jobs:
           cp src-tauri/android-src/MainActivity.kt "$MAIN_ACT"
           echo "Custom MainActivity.kt copied"
 
+          # Extra activities, one per additional window (issue #63). Started by
+          # name from Rust, so they must also be declared in the manifest below.
+          JAVA_DIR="src-tauri/gen/android/app/src/main/java/com/proteus/opendraft"
+          cp src-tauri/android-src/WindowActivities.kt "$JAVA_DIR/WindowActivities.kt"
+          echo "WindowActivities.kt copied"
+
           # Create file_paths.xml for FileProvider (needed for export share intent)
           XML_DIR="src-tauri/gen/android/app/src/main/res/xml"
           mkdir -p "$XML_DIR"
@@ -424,11 +430,55 @@ jobs:
 
           if "</activity>" in content:
               content = content.replace("</activity>", intent_filters + "\n            </activity>", 1)
-              with open(manifest_path, "w") as f:
-                  f.write(content)
               print("Android manifest patched with file association intent-filters")
           else:
               print("WARNING: Could not find </activity> in manifest — skipping")
+
+          # ── Extra windows (issue #63) ────────────────────────────────────
+          # One <activity> per class in android-src/WindowActivities.kt. Their
+          # attributes are cloned from MainActivity rather than written out
+          # here, so they keep whatever configChanges and theme Tauri's template
+          # declares — a configChanges mismatch would have Android recreate the
+          # activity on rotation and throw the WebView away with it.
+          import re
+
+          main_activity = re.search(
+              r'<activity\b([^>]*?android:name="\.MainActivity"[^>]*?)>', content
+          )
+          if not main_activity:
+              print("WARNING: MainActivity not found in manifest — no extra windows declared")
+          else:
+              attrs = main_activity.group(1)
+              # Everything that has to differ per window, or that only the
+              # launcher activity should carry.
+              for key in ("name", "launchMode", "exported", "documentLaunchMode",
+                          "resizeableActivity", "taskAffinity"):
+                  attrs = re.sub(r'\s*android:%s="[^"]*"' % key, "", attrs)
+              attrs = attrs.rstrip()
+
+              extra = ""
+              for n in (1, 2, 3):
+                  # documentLaunchMode="always" is what makes the window its own
+                  # entry in Recents; without it the activity lands on top of the
+                  # first one in the same task and cannot be tiled beside it.
+                  # taskAffinity is cleared for the same reason.
+                  extra += (
+                      '\n        <activity%s\n'
+                      '            android:name=".WindowActivity%d"\n'
+                      '            android:exported="false"\n'
+                      '            android:taskAffinity=""\n'
+                      '            android:resizeableActivity="true"\n'
+                      '            android:documentLaunchMode="always" />' % (attrs, n)
+                  )
+
+              if "</application>" in content:
+                  content = content.replace("</application>", extra + "\n    </application>", 1)
+                  print("Android manifest patched with 3 extra window activities")
+              else:
+                  print("WARNING: Could not find </application> in manifest — skipping windows")
+
+          with open(manifest_path, "w") as f:
+              f.write(content)
           PYEOF
 
       - name: Patch tauri.conf.json for Android CI

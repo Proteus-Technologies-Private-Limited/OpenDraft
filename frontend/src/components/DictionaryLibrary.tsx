@@ -101,7 +101,10 @@ const DictionaryLibrary: React.FC<DictionaryLibraryProps> = ({ onClose }) => {
       <div
         className="dialog-box"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 720, minWidth: 560, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
+        // min-width wins over max-width in CSS, so a fixed one made this dialog
+        // wider than a phone or a Split View pane — pushing "Done", the only
+        // way out of it, off the edge of the screen (issue #65).
+        style={{ maxWidth: 720, minWidth: 'min(560px, 100%)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
       >
         <div className="dialog-header">Dictionary Library</div>
         <div className="dialog-body" style={{ display: 'flex', gap: 12, padding: 16, overflow: 'hidden', flex: 1, minHeight: 360 }}>

@@ -6,12 +6,13 @@ import { useProjectStore } from '../stores/projectStore';
 import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
 import { showToast } from './Toast';
-import { downloadFDX } from '../utils/fdxExporter';
-import { downloadFountain } from '../utils/fountainExporter';
+import { downloadFDX, exportFDX } from '../utils/fdxExporter';
+import { downloadFountain, exportFountain } from '../utils/fountainExporter';
+import { exportFadeIn, exportOSF } from '../utils/osfExporter';
 import { exportPDF } from '../utils/pdfExporter';
 import { downloadDocx } from '../utils/docxExporter';
 import { parseDocx } from '../utils/docxImporter';
-import { downloadOdraft } from '../utils/odraftFormat';
+import { serializeOdraft, downloadOdraft } from '../utils/odraftFormat';
 import { pasteAsFountain } from '../utils/pasteFountain';
 import {
   parseScreenplayImport,
@@ -37,17 +38,54 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { clearSessionDoc } from '../utils/sessionDoc';
 import { buildSaveContent as buildSaveContentShared } from '../utils/saveContent';
+import { clearRecoverySnapshot } from '../services/recoveryService';
+import {
+  releaseOpenDocument,
+  findWindowWithDocument,
+  documentKey,
+  focusWindow,
+  type OpenElsewhere,
+} from '../services/openDocuments';
+import DocumentOpenElsewhereDialog from './DocumentOpenElsewhereDialog';
+
+/**
+ * Formats that can be *edited* in place, as against merely opened.
+ *
+ * Narrower than the import list on purpose: promising "Save writes back to
+ * this file" for a format with no writer would strand the user's edits. Fade
+ * In's .fadein is an OSF archive and OpenDraft has no OSF writer, so it stays
+ * an import-only format until one exists.
+ */
+/**
+ * What Save can write back, and so what may be opened in place.
+ *
+ * .fadein and .osf joined the list once OpenDraft gained a writer for them
+ * (utils/osfExporter); before that, opening one would have promised a Save it
+ * could not honour.
+ */
+const IN_PLACE_EDITABLE_EXTENSIONS = ['odraft', 'fdx', 'fountain', 'fadein', 'osf', 'txt'];
+
+/** Of those, the ones that are containers rather than text. */
+const IN_PLACE_BINARY_EXTENSIONS = ['fadein'];
 import { backupsAvailable, writeSnapshot, revealSnapshot } from '../services/backupService';
 import { useBackupStatusStore, describeBackupError } from '../stores/backupStatusStore';
 import RecoverBackupDialog from './RecoverBackupDialog';
-import { openBinaryFile, openTextOrBinaryFile } from '../utils/fileOps';
-import { isDesktopTauri } from '../services/platform';
+import {
+  openBinaryFile,
+  openTextOrBinaryFile,
+  openDocumentInPlace,
+  saveDocumentInPlace,
+  supportsOpenInPlace,
+  type InPlaceDocument,
+} from '../utils/fileOps';
+import { isDesktopTauri, supportsMultipleWindows } from '../services/platform';
 import { getCompatEntries } from '../services/compat';
 import { reportSaveError } from '../stores/saveErrorStore';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
 import {
   FaFile,
   FaPlus,
+  FaTimes,
   FaPencilAlt,
   FaPalette,
   FaEye,
@@ -236,9 +274,83 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     [editor],
   );
 
+  /**
+   * Serialize the open document in the format its origin file uses.
+   *
+   * Bytes for the archive formats, text for the rest; the caller passes
+   * whichever comes back straight to the platform's writer.
+   *
+   * Declared above handleSave because that hook lists it as a dependency —
+   * a later `const` would be in its temporal dead zone at render time.
+   */
+  const serializeForOrigin = useCallback(
+    async (format: string): Promise<string | Uint8Array> => {
+      if (!editor) throw new Error('No document is open.');
+      const doc = editor.getJSON();
+      const s = useEditorStore.getState();
+
+      if (format === 'fdx') {
+        return exportFDX(doc, s.documentTitle, s.characterProfiles, s.tagCategories, s.tags,
+          s.beats, s.beatColumns, s.pageLayout, { family: s.fontFamily, size: s.fontSize });
+      }
+      if (format === 'fountain' || format === 'txt') {
+        return exportFountain(doc);
+      }
+      const font = { family: s.fontFamily, size: String(s.fontSize) };
+      if (format === 'fadein') {
+        return exportFadeIn(doc, { font });
+      }
+      if (format === 'osf') {
+        return exportOSF(doc, { font });
+      }
+      if (format === 'odraft') {
+        // The native format, and the only one that carries everything: the
+        // notes, tags, beats and profiles the others have nowhere to put. It
+        // therefore saves the whole payload, not the bare editor JSON.
+        const content = buildSaveContent();
+        if (!content) throw new Error('No document is open.');
+        return serializeOdraft(
+          {
+            id: '', title: s.documentTitle, author: '', format: 'json',
+            created_at: '', updated_at: '', page_count: s.pageCount,
+            size_bytes: 0, color: '', pinned: false, sort_order: 0, preview: '',
+          },
+          content,
+        );
+      }
+      throw new Error(`OpenDraft cannot write .${format} files.`);
+    },
+    [editor, buildSaveContent],
+  );
+
   // ── Save current editor content to backend ──
   const handleSave = useCallback(async () => {
     if (!editor) return;
+
+    // A document opened in place belongs to the user's file, not the library —
+    // Save means "update that file". Checked before the project branch so it
+    // works for a Dropbox screenplay that was never added to a project, which
+    // is the whole point of opening in place.
+    const origin = useEditorStore.getState().documentOrigin;
+    if (origin) {
+      const { setSaveStatus } = useEditorStore.getState();
+      setSaveStatus('saving');
+      try {
+        await saveDocumentInPlace(origin.bookmark, await serializeForOrigin(origin.format));
+        setSaveStatus('saved');
+        clearRecoverySnapshot();
+      } catch (err) {
+        console.error('Save in place failed:', err);
+        const msg = err instanceof Error ? err.message : String(err);
+        // Left in the error state on purpose: the file did NOT receive this
+        // text, and showing "saved" would be telling the writer their work is
+        // safe somewhere it is not.
+        setSaveStatus('error', msg);
+        showToast(`Could not save to ${origin.name}: ${msg}`, 'error');
+      }
+      return;
+    }
+
     if (!currentProject || !currentScriptId) {
       // No project yet — prompt user for project & file name
       setSaveAsOpen(true);
@@ -250,6 +362,11 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       const content = buildSaveContent();
       await scriptApi.saveScript(currentProject.id, currentScriptId, { content });
       setSaveStatus('saved');
+      // The user's real copy now holds this text, so there is nothing left to
+      // recover. Done here as well as in the snapshot hook because an explicit
+      // save goes through this path without touching the auto-save bookkeeping
+      // the hook compares against.
+      clearRecoverySnapshot();
     } catch (err) {
       console.error('Save failed:', err);
       const msg = err instanceof Error ? err.message : String(err);
@@ -259,7 +376,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       // get the blocking modal so the user can't miss them.
       reportSaveError(err, 'manual-save');
     }
-  }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen]);
+  }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen, serializeForOrigin]);
 
   /** Save As: always opens the destination/project/filename picker, even when
    *  the current document is already saved. Use this to fork a local script
@@ -276,6 +393,30 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   // ── Word import: best-effort warning shown before opening the file picker ──
   const [docxImportWarningOpen, setDocxImportWarningOpen] = useState(false);
 
+  /**
+   * Set when a file in someone else's format has been opened in place, so the
+   * writer is told what saving back to it can and cannot carry.
+   */
+  const [foreignFormatNotice, setForeignFormatNotice] =
+    useState<{ name: string; extension: string } | null>(null);
+
+  /**
+   * Set when the file just picked is already open in another window: the
+   * document is held here, unopened, until the writer says what to do with it.
+   */
+  const [inPlaceElsewhere, setInPlaceElsewhere] =
+    useState<{ other: OpenElsewhere; document: InPlaceDocument } | null>(null);
+
+  /**
+   * Applies an opened-in-place document. Held in a ref because the callback
+   * that uses it is declared first — the alternative is reordering two hundred
+   * lines of hooks around a two-line dependency.
+   */
+  const applyInPlaceRef = useRef<(doc: InPlaceDocument) => void>(() => {});
+  const applyInPlaceDocument = useCallback((doc: InPlaceDocument) => {
+    applyInPlaceRef.current(doc);
+  }, []);
+
   /** Returns true if the editor has unsaved changes worth prompting about.
    *  - If never saved to a project: true when editor has any meaningful text.
    *  - If saved to a project: true when auto-save hasn't caught up yet
@@ -284,6 +425,16 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
    *    the editor in that window would silently discard them. */
   const editorHasUnsavedChanges = useCallback((): boolean => {
     if (!editor) return false;
+    // A document opened in place has somewhere to be saved just as much as a
+    // project script does, and Save keeps its status up to date. Without this
+    // it fell through to the never-saved branch below, where any content at
+    // all counts as unsaved — so a file that had *just* been written back
+    // still claimed to have unsaved changes, and offering to save it aimed at
+    // the library instead of the writer's own file.
+    if (useEditorStore.getState().documentOrigin) {
+      const status = useEditorStore.getState().saveStatus;
+      return status === 'unsaved' || status === 'saving' || status === 'error';
+    }
     if (currentProject && currentScriptId) {
       const status = useEditorStore.getState().saveStatus;
       return status === 'unsaved' || status === 'saving' || status === 'error';
@@ -304,6 +455,15 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
 
   const handleDiscardConfirmSave = useCallback(async () => {
     setDiscardConfirmOpen(false);
+    // An in-place document is saved by writing its own file, which is exactly
+    // what handleSave does when an origin is set. Sending it to Save As would
+    // offer to file the writer's Dropbox screenplay into the library instead.
+    if (useEditorStore.getState().documentOrigin) {
+      await handleSave();
+      pendingAction?.();
+      setPendingAction(null);
+      return;
+    }
     if (!currentProject || !currentScriptId) {
       // No project yet — open save-as dialog; the pending action will run
       // after save-as completes (via postSaveAction in the store).
@@ -351,6 +511,27 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
   // ── About / What's New ──
   const [recoverBackupOpen, setRecoverBackupOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  // Asked of the platform rather than assumed: iPad can tile a second window
+  // but iPhone cannot, and Android needs API 32+ (issue #63). Desktop answers
+  // true immediately, so the item never flickers in there.
+  const [canOpenWindow, setCanOpenWindow] = useState(isDesktopTauri());
+
+  useEffect(() => {
+    if (canOpenWindow) return;
+    let cancelled = false;
+    supportsMultipleWindows()
+      .then((supported) => {
+        if (!cancelled) setCanOpenWindow(supported);
+      })
+      .catch((err) => {
+        // supportsMultipleWindows swallows its own failures; this is only here
+        // so a rejected promise can never surface as an unhandled rejection.
+        console.warn('[menu] multi-window check failed:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canOpenWindow]);
 
   // ── Diagnostics (Help menu) ──
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
@@ -550,6 +731,99 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     if (!result.ok && result.error) showToast(result.error, 'error');
   }, [editor]);
 
+  /**
+   * Open a screenplay from Files/Dropbox and keep editing *that* file, so Save
+   * updates it rather than producing a fresh export the user has to file away
+   * themselves (issue #62).
+   */
+  const handleOpenInPlace = useCallback(async () => {
+    if (!editor) return;
+    try {
+      const outcome = await openDocumentInPlace(
+        IN_PLACE_EDITABLE_EXTENSIONS,
+        IN_PLACE_BINARY_EXTENSIONS,
+      );
+      if (outcome.status === 'cancelled') return;
+
+      // Checked before the file is read, so an unsupported one is described as
+      // what it is. Reading it first meant a .docx or a photo failed inside the
+      // text decoder and surfaced as "could not open the file — it may have
+      // been moved, renamed or deleted", which sends the writer looking for a
+      // problem with their file rather than with the format.
+      if (outcome.status === 'unsupported') {
+        const ext = outcome.extension;
+        showToast(
+          ext
+            ? `OpenDraft cannot edit .${ext} files in place. Use File ▸ Import to bring a copy in.`
+            : 'OpenDraft cannot edit that kind of file. Use File ▸ Import to bring a copy in.',
+          'error',
+        );
+        return;
+      }
+
+      const opened = outcome.document;
+
+      // Asked before the document is put on screen. The editor notices a
+      // duplicate after the fact as well, but being shown a screenplay and
+      // then asked whether you meant to open it reads as if opening it caused
+      // the problem — see useOpenDocumentGuard.
+      const other = await findWindowWithDocument(documentKey(null, null, opened.bookmark) ?? '');
+      if (other) {
+        setInPlaceElsewhere({ other, document: opened });
+        return;
+      }
+
+      applyInPlaceDocument(opened);
+    } catch (err) {
+      console.error('Open in place failed:', err);
+      showToast(`Could not open the file: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, applyInPlaceDocument]);
+
+  /** Put an opened-in-place document into the editor. */
+  const applyInPlaceDocumentImpl = useCallback(async (opened: InPlaceDocument) => {
+    if (!editor) return;
+    try {
+      const ext = opened.name.toLowerCase().match(/\.([^.]+)$/)?.[1] || '';
+
+      clearTrackChanges();
+      const imported = await parseScreenplayImport(
+        opened.name,
+        opened.bytes ?? opened.text ?? '',
+      );
+      const store = useEditorStore.getState();
+
+      editor.commands.setContent(imported.doc, true);
+      clearEditorHistory(editor);
+
+      const scriptTitle = imported.title || opened.name.replace(/\.\w+$/, '') || 'Untitled';
+      store.setDocumentTitle(scriptTitle);
+      setCurrentProject(null);
+      setCurrentScriptId(null);
+      setScripts([]);
+      // Not setImportedSource: this is not a copy. Save writes back here.
+      store.setImportedSource(null);
+      store.setDocumentOrigin({ bookmark: opened.bookmark, name: opened.name, format: ext });
+      useBackupStatusStore.getState().noteDocumentOpened();
+
+      for (const w of imported.warnings) console.warn('[Open in place]', w);
+
+      // Every format but OpenDraft's own loses something on the way back out,
+      // and the writer should hear that when they open the file rather than
+      // discover it later in a file that no longer has their notes.
+      if (ext === 'odraft') {
+        showToast(`Editing ${opened.name} — Save writes back to this file.`, 'success');
+      } else {
+        setForeignFormatNotice({ name: opened.name, extension: ext });
+      }
+    } catch (err) {
+      console.error('Opening the document failed:', err);
+      showToast(`Could not open the file: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
+
+  applyInPlaceRef.current = applyInPlaceDocumentImpl;
+
   const handleImport = useCallback(async () => {
     if (!editor) return;
     try {
@@ -657,6 +931,10 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     setCurrentScriptId(null);
     setScripts([]);
     const store = useEditorStore.getState();
+    // Also drops documentOrigin, which is the point: without it, starting a new
+    // screenplay while a file was open in place left Save still aimed at that
+    // file — so the next ⌘S wrote a blank document over the writer's script.
+    store.setImportedSource(null);
     store.setDocumentTitle('Untitled Screenplay');
     store.setBeats([]);
     store.setBeatColumns([]);
@@ -671,6 +949,29 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
       window.history.replaceState(null, '', '/');
     }
   }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
+
+  /**
+   * File ▸ Close — put the document away and go back to an empty editor.
+   *
+   * Wrapped in confirmOrRun, so unsaved work is offered a save first rather
+   * than being dropped. Closing is also a statement that the document is
+   * finished with, so the crash-recovery snapshot goes with it: there is
+   * nothing left to offer back on the next launch.
+   */
+  const handleCloseDocument = useCallback(() => {
+    confirmOrRun(() => {
+      if (!editor) return;
+      resetForNewScreenplay();
+      // A single empty element, not clearContent(): an empty document has no
+      // block to put a cursor in, so the editor came back blank *and*
+      // untypeable — no placeholder, no caret, nothing to click into.
+      editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] }, true);
+      clearEditorHistory(editor);
+      clearRecoverySnapshot();
+      releaseOpenDocument();
+      showToast('Document closed', 'success');
+    });
+  }, [confirmOrRun, editor, resetForNewScreenplay]);
 
   /** Picker mode: 'reset' clears project context (top-level New Screenplay);
    *  'apply-only' just applies the template, leaving the current project intact
@@ -729,6 +1030,49 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
     promptForNewScreenplayFormat('apply-only');
   }, [pendingFormatPromptInProject, editor, promptForNewScreenplayFormat]);
 
+  /**
+   * The window's own close button.
+   *
+   * Closing a window is the same decision as File ▸ Close, so it asks the same
+   * question — without this, the title-bar X and ⌘W threw away unsaved work
+   * with no warning at all.
+   *
+   * Desktop only: iPadOS and Android give an app no say in the matter. What
+   * covers those is the recovery snapshot, which is written on the way out.
+   */
+  useEffect(() => {
+    if (!isDesktopTauri()) return;
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const appWindow = getCurrentWindow();
+        const stop = await appWindow.onCloseRequested((event) => {
+          if (!editorHasUnsavedChanges()) return;
+          // Held open until the writer has answered; the dialog's Save and
+          // Discard both end in destroy(), and Cancel simply leaves it open.
+          event.preventDefault();
+          confirmOrRun(() => {
+            void appWindow.destroy();
+          });
+        });
+        if (cancelled) stop();
+        else unlisten = stop;
+      } catch (err) {
+        // Without the hook the window closes as it always did; losing the
+        // prompt is not a reason to break the editor.
+        console.warn('[window] could not watch for the close button:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [editorHasUnsavedChanges, confirmOrRun]);
+
   // ── Global keyboard shortcuts ──
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -785,6 +1129,20 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
         { family: s.fontFamily, size: s.fontSize });
     } catch (err) {
       console.error('FDX export failed:', err);
+      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, documentTitle]);
+
+  const handleExportFadeIn = useCallback(async () => {
+    if (!editor) return;
+    try {
+      const s = useEditorStore.getState();
+      const { downloadFadeIn } = await import('../utils/osfExporter');
+      await downloadFadeIn(editor.getJSON(), documentTitle, {
+        font: { family: s.fontFamily, size: String(s.fontSize) },
+      });
+    } catch (err) {
+      console.error('Fade In export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
   }, [editor, documentTitle]);
@@ -943,7 +1301,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           disabled: isCollabGuest,
           action: handleNewScreenplay,
         },
-        ...(isDesktopTauri() ? [{
+        ...(canOpenWindow ? [{
           icon: <FaFile />,
           label: 'New Window',
           action: async () => {
@@ -964,6 +1322,23 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           ],
         },
         { icon: <FaFolderOpen />, label: 'Open...', action: () => confirmOrRun(() => setOpenFileOpen(true)), disabled: isCollabGuest },
+        // Mobile only: edit a screenplay where it lives — Files/iCloud/Dropbox
+        // on iOS, the Storage Access Framework on Android — instead of
+        // importing a copy and exporting it back afterwards.
+        ...(supportsOpenInPlace() ? [{
+          icon: <FaFolderOpen />,
+          // "Files" is the app on iOS and Android; on desktop the same action
+          // is just opening a file from disk.
+          label: isDesktopTauri() ? 'Open File from Disk…' : 'Open from Files…',
+          action: () => confirmOrRun(handleOpenInPlace),
+          disabled: isCollabGuest,
+        }] : []),
+        {
+          icon: <FaTimes />,
+          label: 'Close',
+          action: handleCloseDocument,
+          disabled: isCollabGuest,
+        },
         { icon: <FaSave />, label: 'Save', shortcut: `${mod}S`, action: handleSave, disabled: isCollabGuest },
         { icon: <FaSave />, label: 'Save As…', shortcut: `⇧${mod}S`, action: handleSaveAs, disabled: isCollabGuest },
         { separator: true, label: '' },
@@ -972,6 +1347,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
           children: [
             { icon: <FaFileCode />, label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
             { icon: <FaFileAlt />, label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
+            { icon: <FaFileCode />, label: 'Fade In (.fadein)', action: handleExportFadeIn, disabled: isCollabGuest },
             { icon: <FaFilePdf />, label: 'PDF', action: handleExportPDF },
             { icon: <FaFileWord />, label: 'Microsoft Word (.docx)', action: handleExportDocx },
             { icon: <FaFile />, label: 'OpenDraft (.odraft)', action: handleExportOdraft, disabled: isCollabGuest },
@@ -2008,6 +2384,72 @@ const MenuBar: React.FC<MenuBarProps> = ({ editor, onCollaborate, onJoinCollab, 
             <button onClick={handleDiscardConfirmCancel}>Cancel</button>
             <button onClick={handleDiscardConfirmDiscard}>Discard</button>
             <button className="dialog-primary" onClick={handleDiscardConfirmSave}>Save &amp; Continue</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {inPlaceElsewhere && (
+      <DocumentOpenElsewhereDialog
+        other={inPlaceElsewhere.other}
+        documentTitle={inPlaceElsewhere.document.name}
+        onSwitch={async () => {
+          const target = inPlaceElsewhere.other.window;
+          setInPlaceElsewhere(null);
+          try {
+            await focusWindow(target);
+          } catch (err) {
+            showToast(
+              `Could not switch windows: ${err instanceof Error ? err.message : String(err)}`,
+              'error',
+            );
+          }
+        }}
+        onOpenAnyway={() => {
+          const pending = inPlaceElsewhere.document;
+          setInPlaceElsewhere(null);
+          applyInPlaceDocument(pending);
+        }}
+      />
+    )}
+    {foreignFormatNotice && (
+      <div className="dialog-overlay" onClick={() => setForeignFormatNotice(null)}>
+        <div className="dialog-box" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+          <div className="dialog-header">Editing a .{foreignFormatNotice.extension} file</div>
+          <div className="dialog-body">
+            <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
+              Save now writes straight back to <strong>{foreignFormatNotice.name}</strong>.
+            </p>
+            <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
+              That file is in another application&apos;s format, and it can only hold
+              what that format defines. Saving to it rewrites the file from
+              OpenDraft&apos;s copy of the screenplay, so layout details it does not
+              describe may come back slightly differently — and anything OpenDraft
+              keeps alongside the script has nowhere to go:
+            </p>
+            <ul style={{ margin: '0 0 8px 18px', fontSize: 13, color: 'var(--fd-text)' }}>
+              <li>notes, tags and beats</li>
+              <li>character profiles and relationships</li>
+              <li>revision marks and version history</li>
+            </ul>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-muted, #888)' }}>
+              To keep all of it, use <strong>Save As</strong> to store the screenplay in
+              OpenDraft&apos;s own library instead. The original file stays where it is,
+              untouched.
+            </p>
+          </div>
+          <div className="dialog-actions">
+            <button onClick={() => setForeignFormatNotice(null)}>
+              Keep editing the file
+            </button>
+            <button
+              className="dialog-primary"
+              onClick={() => {
+                setForeignFormatNotice(null);
+                handleSaveAs();
+              }}
+            >
+              Save As…
+            </button>
           </div>
         </div>
       </div>

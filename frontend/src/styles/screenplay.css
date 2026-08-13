@@ -2446,6 +2446,8 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .status-project { color: var(--fd-text); font-weight: 500; }
 .status-sep { color: var(--fd-text-muted); font-size: 10px; margin: 0 -6px; opacity: .5; }
 .status-element { color: var(--fd-accent); font-weight: 500; }
+/* The external file an in-place document saves back to. */
+.status-origin { color: var(--fd-text-muted); font-style: italic; }
 .status-revision { color: #f0ad4e; }
 .status-page { font-variant-numeric: tabular-nums; }
 /* Save failure recovery banner */
@@ -3188,6 +3190,33 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   border-bottom: 1px solid var(--fd-border);
   background: var(--fd-navigator-bg);
   flex-shrink: 0;
+}
+
+/* Shared close control for the views that take over the editor area.  Sized to
+   the 44px minimum touch target so it stays usable on iPad, where the menu
+   command that opened the view is not an obvious way back out. */
+.panel-close-btn,
+.stats-close {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fd-text-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.panel-close-btn:hover,
+.stats-close:hover {
+  background: var(--fd-hover-bg, rgba(255,255,255,.08));
+  color: var(--fd-text);
 }
 .beat-board-title {
   font-weight: 600;
@@ -6363,10 +6392,35 @@ html.android .version-history-panel {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 40px;
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* Leading "back" control for a screen that is a route of its own.
+   Top-left, icon-only, and the same size and shape wherever it appears, so
+   leaving a screen looks the same as leaving any other one (issue #65). */
+.screen-back-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--fd-border);
+  border-radius: 6px;
+  background: var(--fd-toolbar-bg);
+  color: var(--fd-text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.screen-back-btn:hover {
+  background: var(--fd-hover-bg, rgba(255,255,255,.08));
+  color: var(--fd-text);
 }
 .project-list-title-area {
   display: flex;
@@ -8642,6 +8696,31 @@ html.android .version-history-panel {
     padding-top: max(env(safe-area-inset-top), 28px);
     padding-bottom: max(env(safe-area-inset-bottom), 24px);
   }
+
+  /* iOS/iPadOS: the insets above only started reporting real values once
+     viewport-fit=cover was added to the viewport tag, so the home indicator
+     needs clearing too — the generic rule sets top/left/right only. */
+  html.ios .app-container {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* iPadOS windowed mode: reserve the top-leading corner for the system's
+     window-management control, which draws over the app and is not covered by
+     any inset.  --ios-window-gutter is the width of that control plus a
+     comfortable tap margin; it collapses to 0 in full-screen because the
+     class is only present while windowed. */
+  html.ios {
+    --ios-window-gutter: 0px;
+  }
+  html.ios.ios-windowed {
+    --ios-window-gutter: 76px;
+  }
+  html.ios .menu-bar {
+    padding-left: calc(6px + var(--ios-window-gutter));
+  }
+  html.ios .menu-bar.chrome-comfortable {
+    padding-left: calc(10px + var(--ios-window-gutter));
+  }
 }
 
 /* Large screens (≤1400px): narrow side panels */
@@ -8796,6 +8875,23 @@ html.android .version-history-panel {
   /* Show mobile zoom button, hide desktop zoom group */
   .zoom-group { display: none !important; }
   .zoom-mobile-group { display: flex !important; }
+
+  /* The "…" button is the only route to everything the rules above hide, so it
+     must survive any width the app can be resized to — an iPad Slide Over pane
+     is narrow enough that the always-visible controls alone can push it off
+     the edge, which is how formatting became unreachable rather than merely
+     collapsed.  Let the element selector give up its width first and pin the
+     overflow button so it cannot be squeezed out. */
+  .toolbar .element-selector {
+    min-width: 0;
+    flex: 1 1 auto;
+    max-width: 140px;
+  }
+  /* Kept as its own rule: pairing it with a :has() selector would take the
+     whole block down on any engine that does not support :has(). */
+  .toolbar-overflow-wrap { flex-shrink: 0; }
+  .toolbar > .toolbar-group { flex-shrink: 0; }
+  .toolbar > .toolbar-group:has(.element-selector) { flex-shrink: 1; }
   /* Comfortable toolbar: bigger than compact */
   .toolbar.toolbar-comfortable .toolbar-btn { width: 30px; height: 28px; font-size: 13px; }
 
@@ -9314,15 +9410,27 @@ html.android .version-history-panel {
 
 /* ── Interaction hints for touch devices ── */
 @media (hover: none) and (pointer: coarse) {
-  /* Larger close buttons on panels */
+  /* Larger close buttons on panels.
+     Every way out of a view belongs here: a close control that is technically
+     present but a 20px tap target is the same problem as no close control at
+     all, which is what #65 reported. */
   .navigator-close, .script-notes-close, .version-history-close, .search-close-btn,
-  .asset-manager-close, .format-panel-close, .ic-close-btn {
+  .asset-manager-close, .format-panel-close, .ic-close-btn,
+  .tags-panel-close, .char-profiles-close, .char-lightbox-close,
+  .location-db-close, .script-diff-close, .version-diff-close {
     min-width: 44px;
     min-height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 22px;
+  }
+
+  /* The same floor for the back controls on full-screen routes, which are
+     laid out as ordinary text buttons and end up around 30px tall. */
+  .settings-back-btn, .project-back-btn, .treatment-back-btn, .screen-back-btn {
+    min-height: 44px;
+    min-width: 44px;
   }
 
   /* Larger tap targets for scene navigator items */

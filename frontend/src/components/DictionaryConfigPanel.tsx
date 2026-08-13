@@ -234,7 +234,9 @@ const LanguageInstallerDialog: React.FC<{ onClose: () => void }> = ({ onClose })
       <div
         className="dialog-box"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 560, minWidth: 440, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
+        // See DictionaryLibrary: a fixed min-width beats the mobile max-width
+        // and takes the dialog's own buttons off screen at narrow widths.
+        style={{ maxWidth: 560, minWidth: 'min(440px, 100%)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
       >
         <div className="dialog-header">Add Language</div>
         <div className="dialog-body" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 16 }}>

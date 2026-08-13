@@ -3,7 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- viewport-fit=cover is what makes env(safe-area-inset-*) report real
+         values.  Without it iOS/iPadOS resolve every inset to 0 and the app
+         chrome renders underneath the notch and the iPadOS window controls.
+         It is inert where there are no insets, so desktop and web are
+         unaffected. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Open Draft - Screenwriting</title>
   </head>
   <body>

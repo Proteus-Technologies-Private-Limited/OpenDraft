@@ -221,7 +221,7 @@ function openTextFileBrowser(
  * selected file through ContentResolver.  The picker result is delivered
  * asynchronously via MainActivity.onActivityResult(), so we poll for it.
  */
-async function openTextFileAndroid(): Promise<{ name: string; content: string } | null> {
+async function openTextFileAndroid(): Promise<{ name: string; content: string; uri: string } | null> {
   const { invoke } = await import('@tauri-apps/api/core');
 
   // Launch the native file picker
@@ -233,7 +233,9 @@ async function openTextFileAndroid(): Promise<{ name: string; content: string } 
 
   // Read the file via ContentResolver
   const result = await invoke<{ content: string; filename: string }>('read_content_uri', { uri });
-  return { name: result.filename, content: result.content };
+  // The URI is returned as well as the text: with a persisted grant it is the
+  // handle open-in-place saves back through.
+  return { name: result.filename, content: result.content, uri };
 }
 
 /**
@@ -290,6 +292,27 @@ function waitForAndroidPickResult(
   });
 }
 
+/**
+ * Android: launch the document picker and read the chosen file as raw bytes.
+ *
+ * Separate from {@link openTextFileAndroid}, which reads through a UTF-8
+ * decoder and is still the right thing for the callers that only ever handle
+ * text.
+ */
+async function pickAndroidFileBytes(): Promise<{ name: string; bytes: ArrayBuffer } | null> {
+  const { invoke } = await import('@tauri-apps/api/core');
+
+  await invoke('android_pick_file');
+  const uri = await waitForAndroidPickResult(invoke);
+  if (!uri) return null;
+
+  const result = await invoke<{ bytes: number[]; filename: string }>(
+    'read_content_uri_bytes',
+    { uri },
+  );
+  return { name: result.filename, bytes: new Uint8Array(result.bytes).buffer };
+}
+
 // ── Open (text or binary, chosen by extension) ──────────────────────────────
 
 export interface OpenedFile {
@@ -323,9 +346,20 @@ export async function openTextOrBinaryFile(
   const isBinary = (name: string) => binaryExtensions.includes(extensionOf(name));
 
   if (isAndroidTauri()) {
-    const result = await openTextFileAndroid();
-    if (!result) return null;
-    return { name: result.name, text: result.content, bytes: null };
+    // Read bytes, not text. The text path decodes as UTF-8, which destroys an
+    // archive — .fadein is a zip, and reading it as text is why it could never
+    // be imported on Android. Text formats are decoded from the same bytes
+    // below, so one read serves both.
+    const picked = await pickAndroidFileBytes();
+    if (!picked) return null;
+    if (isBinary(picked.name)) {
+      return { name: picked.name, text: null, bytes: picked.bytes };
+    }
+    return {
+      name: picked.name,
+      text: new TextDecoder('utf-8').decode(picked.bytes),
+      bytes: null,
+    };
   }
 
   // iOS passes no filters for the same reason openTextFile() doesn't:
@@ -380,6 +414,270 @@ function openTextOrBinaryFileBrowser(
     };
     input.click();
   });
+}
+
+// ── Open in place ───────────────────────────────────────────────────────────
+
+/**
+ * A document being edited where it lives, rather than as an imported copy.
+ *
+ * `bookmark` is an opaque handle, never something to show a person — each
+ * platform has its own idea of "a file I am still allowed to touch tomorrow":
+ *
+ *   iOS      a security-scoped bookmark. A picker path is readable only while
+ *            its scope grant is held, and the grant dies with the process.
+ *   Android  a `content://` URI with a persisted read/write grant taken via
+ *            takePersistableUriPermission().
+ *   Desktop  the path. There is no sandbox to satisfy, and a path is already
+ *            durable, so the same model costs nothing here.
+ *
+ * All three survive a relaunch, which is what lets the same Dropbox file be
+ * opened on Monday and saved on Tuesday (issue #62).
+ */
+export interface InPlaceDocument {
+  name: string;
+  /** Set for the text formats. */
+  text: string | null;
+  /** Set for the archive formats — .fadein is a zip. */
+  bytes: ArrayBuffer | null;
+  bookmark: string;
+}
+
+/**
+ * What came back from the picker.
+ *
+ * `unsupported` is a real outcome rather than an error: the picker cannot
+ * filter by extension on iOS (a .fdx has no system-declared type, so filtering
+ * would hide exactly the files this is for), which means the check has to
+ * happen after the choice — and it has to happen *before* the read, or an
+ * unsupported file surfaces as "could not open the file", which reads as if it
+ * were missing rather than simply not a screenplay.
+ */
+export type OpenInPlaceOutcome =
+  | { status: 'cancelled' }
+  | { status: 'unsupported'; name: string; extension: string }
+  | { status: 'opened'; document: InPlaceDocument };
+
+/**
+ * What the desktop dialog offers. Mobile pickers cannot filter this way — iOS
+ * matches on declared system types, and .fdx and .fountain have none — so this
+ * is the one platform where the wrong file can be kept out of reach rather than
+ * refused after the fact.
+ */
+const SCREENPLAY_IN_PLACE_FILTERS: FileFilter[] = [
+  { name: 'Screenplay', extensions: ['odraft', 'fdx', 'fountain', 'fadein', 'osf', 'txt'] },
+];
+
+/** True where {@link openDocumentInPlace} can be used — everywhere but the web. */
+export function supportsOpenInPlace(): boolean {
+  return isTauri();
+}
+
+/** The picker runs as a separate view controller, so its result is polled. */
+const PICK_POLL_INTERVAL_MS = 400;
+const PICK_TIMEOUT_MS = 120_000;
+
+interface PickResult {
+  status: 'pending' | 'cancelled' | 'picked';
+  bookmark?: string;
+  name?: string;
+}
+
+/**
+ * Present the platform's document picker and open the chosen file in place.
+ *
+ * The chosen file is validated before it is read: `editable` lists what the
+ * caller can write back, `binary` says which of those are containers rather
+ * than text. Throws with a user-facing message when a supported file could not
+ * be read — a provider like Dropbox may be offline, or the document may have
+ * been moved since.
+ */
+export async function openDocumentInPlace(
+  editable: string[],
+  binary: string[] = [],
+): Promise<OpenInPlaceOutcome> {
+  const picked = await pickInPlaceDocument();
+  if (!picked) return { status: 'cancelled' };
+
+  const extension = extensionOf(picked.name);
+  if (!editable.includes(extension)) {
+    return { status: 'unsupported', name: picked.name, extension };
+  }
+
+  const document = await readInPlaceDocument(picked, binary.includes(extension));
+  return { status: 'opened', document };
+}
+
+interface PickedFile {
+  name: string;
+  bookmark: string;
+}
+
+/** The picker, per platform. Returns null when the writer cancelled. */
+async function pickInPlaceDocument(): Promise<PickedFile | null> {
+  if (isAndroidTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('android_pick_file');
+    const uri = await waitForAndroidPickResult(invoke);
+    if (!uri) return null;
+    // The display name only arrives with the content, so it is read here and
+    // the bytes are read again below — cheap next to a round trip through the
+    // picker, and it keeps the validation in one place.
+    const result = await invoke<{ bytes: number[]; filename: string }>(
+      'read_content_uri_bytes',
+      { uri },
+    );
+    return { name: result.filename, bookmark: uri };
+  }
+
+  if (isIOSTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('ios_start_document_pick');
+    const picked = await pollForPick(invoke);
+    return picked ? { name: picked.name, bookmark: picked.bookmark } : null;
+  }
+
+  if (isTauri()) {
+    // Desktop: the path is the handle, and the native dialog can filter by
+    // extension properly, so an unsupported file is hard to pick in the first
+    // place — the check still runs, for a path typed by hand.
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const selected = await open({ multiple: false, filters: SCREENPLAY_IN_PLACE_FILTERS });
+    if (!selected) return null;
+    const path = selected as string;
+    return { name: path.split(/[/\\]/).pop() || 'Untitled', bookmark: path };
+  }
+
+  throw new Error('Opening a file in place is not available in the browser.');
+}
+
+/** Read a picked file, as bytes for the archive formats and text otherwise. */
+async function readInPlaceDocument(
+  picked: PickedFile,
+  asBytes: boolean,
+): Promise<InPlaceDocument> {
+  const { invoke } = await import('@tauri-apps/api/core');
+
+  if (isAndroidTauri()) {
+    const result = await invoke<{ bytes: number[]; filename: string }>(
+      'read_content_uri_bytes',
+      { uri: picked.bookmark },
+    );
+    const buffer = new Uint8Array(result.bytes).buffer;
+    return asBytes
+      ? { name: picked.name, text: null, bytes: buffer, bookmark: picked.bookmark }
+      : {
+          name: picked.name,
+          text: new TextDecoder('utf-8').decode(buffer),
+          bytes: null,
+          bookmark: picked.bookmark,
+        };
+  }
+
+  if (isIOSTauri()) {
+    if (asBytes) {
+      const data = await invoke<number[]>('ios_read_in_place_bytes', {
+        bookmark: picked.bookmark,
+      });
+      return {
+        name: picked.name,
+        text: null,
+        bytes: new Uint8Array(data).buffer,
+        bookmark: picked.bookmark,
+      };
+    }
+    const text = await invoke<string>('ios_read_in_place', { bookmark: picked.bookmark });
+    return { name: picked.name, text, bytes: null, bookmark: picked.bookmark };
+  }
+
+  // Desktop
+  if (asBytes) {
+    const data = await invoke<number[]>('read_binary_file', { path: picked.bookmark });
+    return {
+      name: picked.name,
+      text: null,
+      bytes: new Uint8Array(data).buffer,
+      bookmark: picked.bookmark,
+    };
+  }
+  const text = await invoke<string>('read_text_file', { path: picked.bookmark });
+  return { name: picked.name, text, bytes: null, bookmark: picked.bookmark };
+}
+
+function pollForPick(
+  invoke: <T>(cmd: string) => Promise<T>,
+): Promise<{ bookmark: string; name: string } | null> {
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+
+    const timer = setInterval(async () => {
+      try {
+        const result = await invoke<PickResult>('ios_poll_document_pick');
+        if (result.status === 'pending') {
+          if (Date.now() - started > PICK_TIMEOUT_MS) {
+            clearInterval(timer);
+            resolve(null);
+          }
+          return;
+        }
+        clearInterval(timer);
+        if (result.status === 'cancelled' || !result.bookmark) {
+          resolve(null);
+        } else {
+          resolve({ bookmark: result.bookmark, name: result.name || 'Untitled' });
+        }
+      } catch (err) {
+        clearInterval(timer);
+        reject(err);
+      }
+    }, PICK_POLL_INTERVAL_MS);
+  });
+}
+
+/**
+ * Write text back over the document the user opened.
+ *
+ * Throws with a user-facing message on failure. Callers must treat that as
+ * "not saved" and keep the editor dirty — silently swallowing it would tell
+ * the writer their work is safe on a file that never received it.
+ */
+export async function saveDocumentInPlace(
+  bookmark: string,
+  contents: string | Uint8Array,
+): Promise<void> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  // Tauri's IPC carries a byte array as a plain number array.
+  const bytes = typeof contents === 'string' ? null : Array.from(contents);
+
+  if (isAndroidTauri()) {
+    // On Android the bookmark is the content:// URI the picker returned.
+    if (bytes) {
+      await invoke('write_content_uri_bytes', { uri: bookmark, contents: bytes });
+    } else {
+      await invoke('write_content_uri', { uri: bookmark, contents });
+    }
+    return;
+  }
+  if (isIOSTauri()) {
+    if (bytes) {
+      await invoke('ios_write_in_place_bytes', { bookmark, contents: bytes });
+    } else {
+      await invoke('ios_write_in_place', { bookmark, contents });
+    }
+    return;
+  }
+  if (!isTauri()) {
+    throw new Error('Saving a file in place is not available in the browser.');
+  }
+
+  // Desktop: the bookmark is the path. save_text_atomic writes through a
+  // temporary file, which is what keeps a half-written screenplay from
+  // replacing a whole one if the machine gives up mid-save.
+  if (bytes) {
+    await invoke('save_binary_to_path', { path: bookmark, contents: bytes });
+  } else {
+    await invoke('save_text_atomic', { path: bookmark, contents });
+  }
 }
 
 // ── Open (binary) ───────────────────────────────────────────────────────────

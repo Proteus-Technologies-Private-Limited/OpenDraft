@@ -48,6 +48,28 @@ export function getOS(): 'macos' | 'windows' | 'linux' | 'android' | 'ios' | 'un
   return 'unknown';
 }
 
+/**
+ * Whether this device can show more than one OpenDraft window (issue #63).
+ *
+ * Always true on desktop. On mobile it has to be asked of the platform: iPadOS
+ * can tile a second scene but iPhone cannot, and Android needs API 32+. Where
+ * the answer is no, a second window would simply cover the document the writer
+ * was editing with no way back, so "New Window" is hidden instead.
+ */
+export async function supportsMultipleWindows(): Promise<boolean> {
+  if (!isTauri()) return false;
+  if (isDesktopTauri()) return true;
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke<boolean>('supports_multiple_windows');
+  } catch (err) {
+    // An older build without the command, or the check failed: offering a
+    // window that cannot open is worse than not offering one.
+    console.warn('[platform] could not check multi-window support:', err);
+    return false;
+  }
+}
+
 /** True when the window uses a custom titlebar (decorations: false).
  *  On Tauri desktop the MenuBar acts as the titlebar with window controls. */
 export function hasCustomTitlebar(): boolean {

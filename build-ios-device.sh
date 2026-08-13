@@ -111,6 +111,14 @@ plist["CFBundleDocumentTypes"] = [
      "LSHandlerRank": "Default", "LSItemContentTypes": ["com.proteus.opendraft.fountain"]},
     {"CFBundleTypeName": "OpenDraft Screenplay", "CFBundleTypeRole": "Editor",
      "LSHandlerRank": "Owner", "LSItemContentTypes": ["com.proteus.opendraft.document"]},
+    # Fade In and OSF. iOS matches document types by UTI alone — a
+    # CFBundleTypeExtensions entry with no LSItemContentTypes, which is all
+    # Tauri generates for these two, does nothing here. Without them "Open in
+    # OpenDraft" never appears for a .fadein in Files (issue #64).
+    {"CFBundleTypeName": "Fade In Screenplay", "CFBundleTypeRole": "Editor",
+     "LSHandlerRank": "Alternate", "LSItemContentTypes": ["com.kentt.fadein"]},
+    {"CFBundleTypeName": "Open Screenplay Format", "CFBundleTypeRole": "Editor",
+     "LSHandlerRank": "Alternate", "LSItemContentTypes": ["com.proteus.opendraft.osf"]},
     {"CFBundleTypeName": "Text File", "CFBundleTypeRole": "Editor",
      "LSHandlerRank": "Alternate", "LSItemContentTypes": ["public.plain-text"]},
 ]
@@ -125,6 +133,15 @@ plist["UTImportedTypeDeclarations"] = [
     {"UTTypeIdentifier": "com.proteus.opendraft.document", "UTTypeDescription": "OpenDraft Screenplay",
      "UTTypeConformsTo": ["public.json"],
      "UTTypeTagSpecification": {"public.filename-extension": ["odraft"], "public.mime-type": "application/json"}},
+    # Imported, not exported: the format belongs to Fade In. It is a zip
+    # container, so it conforms to the archive type rather than to text — which
+    # is also why it has to be read as bytes on the way in.
+    {"UTTypeIdentifier": "com.kentt.fadein", "UTTypeDescription": "Fade In Screenplay",
+     "UTTypeConformsTo": ["public.zip-archive"],
+     "UTTypeTagSpecification": {"public.filename-extension": ["fadein"], "public.mime-type": "application/zip"}},
+    {"UTTypeIdentifier": "com.proteus.opendraft.osf", "UTTypeDescription": "Open Screenplay Format",
+     "UTTypeConformsTo": ["public.xml"],
+     "UTTypeTagSpecification": {"public.filename-extension": ["osf"], "public.mime-type": "application/xml"}},
 ]
 
 with open(plist_path, "wb") as f:

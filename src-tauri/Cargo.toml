@@ -10,25 +10,54 @@ name = "opendraft_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
-# Pinned: tauri 2.11 / wry 0.55 introduced an Android startup crash. These
-# pins match the v0.16.1 build (last release known to run on Android).
-tauri-build = { version = "=2.5.6", features = [] }
+# See the note on `tauri` below for the history behind these versions.
+tauri-build = { version = "=2.6.3", features = [] }
 
 [dependencies]
-# Pinned: see comment on tauri-build above. wry 0.54 (transitive via
-# tauri 2.10.3) works on Android; wry 0.55 (tauri 2.11) does not.
-tauri = { version = "=2.10.3", features = [] }
+# Was pinned to 2.10.3 (commit c1a5dd1) because v0.17.0 cold-started and died on
+# Android 15 — a SIGABRT from a panic in the Rust .so, traced to wry 0.55 / tao
+# 0.35, which tauri 2.11 pulled in.
+#
+# Unpinned to 2.11.x because that crash appears to be fixed upstream: wry 0.55.1
+# shipped `fix(android): ProGuard keep getId` (wry#1721), closing tauri#15311,
+# "panic in tao 0.35.0 on Samsung A9+ Android Tablet". The symptom matches — a
+# tao 0.35 panic that only appears in a *minified release* build, which
+# `panic = "abort"` below turns into exactly that SIGABRT. The v0.17.0 build
+# that crashed used wry 0.55.0, before the fix; 0.55.1 was never tried here.
+#
+# 2.11 is also the release that added mobile multi-window (tauri#14484), which
+# issue #63 needs.
+#
+# BEFORE BUMPING, re-check the iOS scene workaround in FileHelpers.m. tao's
+# `configuration_for_connecting_scene_session` returns a raw pointer to a
+# UISceneConfiguration whose objc2 `Retained` it drops on the way out, so the
+# object is deallocated before UIKit retains it: SIGSEGV in
+# -[UIApplication _connectUISceneFromFBSScene:] on every launch of a device
+# build with a scene manifest. It does not reproduce in the simulator.
+# OpenDraft works around it by swizzling that delegate method and returning a
+# live configuration. If a later tao fixes this, the workaround can go — but
+# until then it is load-bearing: without it, iOS multi-window cannot launch.
+#
+# Still exact-pinned so a transitive bump cannot silently reintroduce this on
+# users' phones. Before shipping: cold-start a MINIFIED RELEASE Android APK on a
+# physical Android 15 device. A debug build will not reproduce a ProGuard bug.
+tauri = { version = "=2.11.5", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-sql = { version = "=2.4.0", features = ["sqlite"] }
-tauri-plugin-fs = "=2.5.0"
-tauri-plugin-dialog = "=2.7.0"
+tauri-plugin-fs = "=2.5.1"
+tauri-plugin-dialog = "=2.7.2"
 reqwest = { version = "0.12", features = ["rustls-tls"], default-features = false }
 percent-encoding = "2"
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
-ndk-context = "0.1"
+# ndk-context was removed deliberately. tao 0.35 (tauri 2.11) stopped
+# initializing it, so android_context() panicked unconditionally and
+# `panic = "abort"` turned that into a cold-start SIGABRT. The JavaVM and
+# Activity now come from tao's own per-activity registry via
+# `tauri::tao::platform::android::prelude::main_android_context()`, which
+# returns an Option rather than panicking. Do not add it back.
 
 [profile.release]
 panic = "abort"

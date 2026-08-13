@@ -308,6 +308,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   // Hide order: "1" first, then "2" (matches "2" and "2b"), "3", "4", "5" last
   const HIDE_ORDER = ['1', '2', '3', '4', '5'];
 
+  /**
+   * True while the narrow-layout single zoom button is on screen.  Below the
+   * mobile breakpoint the CSS swaps the desktop zoom controls for that button,
+   * so repeating zoom inside the overflow menu would offer the same control
+   * twice.
+   */
+  const [mobileZoomVisible, setMobileZoomVisible] = useState(false);
+
   // Measure toolbar overflow and determine which priority groups to hide
   useEffect(() => {
     const toolbar = toolbarRef.current;
@@ -317,6 +325,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       const containerWidth = toolbar.clientWidth;
       const groups = toolbar.querySelectorAll<HTMLElement>('[data-priority]');
       if (groups.length === 0) return;
+
+      const mobileZoom = toolbar.querySelector<HTMLElement>('.zoom-mobile-group');
+      setMobileZoomVisible(!!mobileZoom && mobileZoom.offsetWidth > 0);
 
       // Show all groups to measure natural widths
       groups.forEach(g => g.style.display = '');
@@ -364,6 +375,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
     let rafId = 0;
     let lastWidth = 0;
+    const remeasure = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(measure);
+    };
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry) return;
@@ -371,15 +386,25 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       // Only re-measure if container width actually changed (not just internal reflow)
       if (w === lastWidth) return;
       lastWidth = w;
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(measure);
+      remeasure();
     });
     ro.observe(toolbar);
-    requestAnimationFrame(measure);
-    return () => { ro.disconnect(); cancelAnimationFrame(rafId); };
-  }, []);
 
-  const hasOverflow = hiddenPriorities.size > 0;
+    // Crossing the mobile breakpoint changes which groups the stylesheet hides,
+    // and on iPad that can happen without the toolbar's own width changing —
+    // rotating the device, or a Split View divider drag that lands on the same
+    // pane width the toolbar already had.  The width-guard above would swallow
+    // those, leaving the overflow menu describing the previous layout.
+    const breakpoint = window.matchMedia('(max-width: 768px)');
+    breakpoint.addEventListener('change', remeasure);
+
+    requestAnimationFrame(measure);
+    return () => {
+      ro.disconnect();
+      breakpoint.removeEventListener('change', remeasure);
+      cancelAnimationFrame(rafId);
+    };
+  }, []);
 
   // ── Notes handler (shared between inline and overflow) ──
   const handleNotesClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
@@ -817,6 +842,19 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     return false;
   }, [hiddenPriorities]);
 
+  /**
+   * Exact-key test, as against {@link isHidden}'s prefix test.
+   *
+   * The zoom controls carry priorities "1" and "2b", so a prefix test for "2"
+   * also matches "2b" — which made the narrow layout report Search & Go to as
+   * hidden (it is not; only the desktop zoom group is) and offer a second copy
+   * of it in the overflow menu.
+   */
+  const isHiddenExact = useCallback(
+    (key: string) => hiddenPriorities.has(key),
+    [hiddenPriorities],
+  );
+
   // Build overflow menu content from hidden priorities
   const overflowContent = useMemo(() => {
     if (hiddenPriorities.size === 0) return null;
@@ -824,14 +862,25 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     const addSep = () => { if (items.length > 0) items.push(<div className="toolbar-overflow-sep" key={`sep-${items.length}`} />); };
 
     // Show items in logical order (most important first within overflow)
-    if (isHidden('5')) { addSep(); items.push(renderFontFaceSize(true)); }
-    if (isHidden('4')) { addSep(); items.push(renderFontStyleColors(true)); }
-    if (isHidden('3')) { addSep(); items.push(renderAlignment(true)); }
-    if (isHidden('2')) { addSep(); items.push(renderSearchGoto(true)); items.push(renderZoom(true)); }
-    if (isHidden('1') && !isHidden('2')) { addSep(); items.push(renderZoomMin(true)); }
+    if (isHiddenExact('5')) { addSep(); items.push(renderFontFaceSize(true)); }
+    if (isHiddenExact('4')) { addSep(); items.push(renderFontStyleColors(true)); }
+    if (isHiddenExact('3')) { addSep(); items.push(renderAlignment(true)); }
+    if (isHiddenExact('2')) { addSep(); items.push(renderSearchGoto(true)); }
 
-    return items;
-  }, [hiddenPriorities, isHidden, renderZoomMin, renderZoom, renderSearchGoto, renderAlignment, renderFontStyleColors, renderFontFaceSize]);
+    // Zoom: skip entirely when the narrow layout's own zoom button is on screen.
+    if (!mobileZoomVisible) {
+      if (isHiddenExact('2b')) { addSep(); items.push(renderZoom(true)); }
+      else if (isHiddenExact('1')) { addSep(); items.push(renderZoomMin(true)); }
+    }
+
+    return items.length > 0 ? items : null;
+  }, [hiddenPriorities, isHiddenExact, mobileZoomVisible, renderZoomMin, renderZoom, renderSearchGoto, renderAlignment, renderFontStyleColors, renderFontFaceSize]);
+
+  // Derived from the menu's contents, not from the hidden set: a group can be
+  // hidden and still have nothing to offer here (zoom, when the narrow layout
+  // shows its own zoom button), and a "…" that opens an empty popup is worse
+  // than no "…" at all.
+  const hasOverflow = overflowContent !== null;
 
   if (toolbarMode === 'hidden') return null;
 

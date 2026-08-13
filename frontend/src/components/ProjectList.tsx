@@ -14,7 +14,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { FaCloud, FaDesktop } from 'react-icons/fa';
+import { FaCloud, FaDesktop, FaArrowLeft } from 'react-icons/fa';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
 import { isWeb } from '../services/platform';
@@ -24,6 +24,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import type { ProjectInfo } from '../services/api';
 import { importProjectFromZip } from '../utils/zipImport';
 import { showToast } from './Toast';
+import { useGoBack } from '../hooks/useGoBack';
 
 type ProjectSource = 'local' | 'cloud';
 
@@ -254,6 +255,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
 
 const ProjectList: React.FC = () => {
   const navigate = useNavigate();
+  const goBack = useGoBack();
   const [projects, setProjects] = useState<ProjectWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -523,6 +525,21 @@ const ProjectList: React.FC = () => {
       )}
 
       <div className="project-list-header">
+        {/*
+          The projects screen is a route of its own, so leaving it needs a
+          control of its own. Without one the only ways out were the browser
+          chrome, which a Tauri window does not have, and the Android hardware
+          Back button — leaving iPad users stuck here (issue #65).
+        */}
+        <button
+          type="button"
+          className="screen-back-btn"
+          onClick={goBack}
+          title="Back to the screenplay"
+          aria-label="Back to the screenplay"
+        >
+          <FaArrowLeft />
+        </button>
         <div className="project-list-title-area">
           <h1 className="project-list-title">Projects</h1>
           <span className="project-list-subtitle">

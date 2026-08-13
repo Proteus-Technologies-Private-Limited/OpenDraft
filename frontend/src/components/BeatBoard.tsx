@@ -640,7 +640,7 @@ const BeatBoard: React.FC = () => {
     beats, beatBoardOpen, beatColumns, beatArrangeMode,
     addBeat, updateBeat, deleteBeat, setBeats,
     addBeatColumn, updateBeatColumn, deleteBeatColumn,
-    setBeatArrangeMode,
+    setBeatArrangeMode, toggleBeatBoard,
     beatUndo, beatRedo,
   } = useEditorStore();
 
@@ -782,6 +782,17 @@ const BeatBoard: React.FC = () => {
         ) : (
           <button className="beat-board-add-col-btn" onClick={handleAddBeatFree}>+ Add Beat</button>
         )}
+
+        {/* The board replaces the script, and on a touch device the Tools menu
+            that opened it is not an obvious way back out. */}
+        <button
+          className="panel-close-btn"
+          onClick={toggleBeatBoard}
+          title="Close Beat Board"
+          aria-label="Close Beat Board"
+        >
+          &times;
+        </button>
       </div>
 
       {beatArrangeMode === 'auto' ? (

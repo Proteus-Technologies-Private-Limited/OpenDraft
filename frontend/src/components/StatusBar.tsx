@@ -26,6 +26,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
     revisionColor,
     documentTitle,
     saveStatus,
+    documentOrigin,
   } = useEditorStore();
 
   const { currentProject } = useProjectStore();
@@ -74,6 +75,20 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
         )}
         {currentProject && <span className="status-sep">/</span>}
         <span className="status-item">{documentTitle}</span>
+        {/* Save overwrites this file rather than the library, so say which one
+            — a writer editing a Dropbox screenplay needs to know that before
+            they press Save, not after. */}
+        {documentOrigin && (
+          <>
+            <span className="status-sep">&middot;</span>
+            <span
+              className="status-item status-origin"
+              title={`Save writes back to ${documentOrigin.name}`}
+            >
+              {documentOrigin.name}
+            </span>
+          </>
+        )}
         {saveDisplay.label && (
           <>
             <span className="status-sep">&middot;</span>

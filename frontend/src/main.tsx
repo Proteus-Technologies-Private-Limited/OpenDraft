@@ -4,18 +4,63 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import { initStorage } from './services/api';
 import { initDemoInfo } from './services/demoInfo';
+import { getOS, isTauri } from './services/platform';
+
+/**
+ * Keep the `ios-windowed` class in sync with whether the app is running in an
+ * iPadOS window rather than full-screen.
+ *
+ * iPadOS draws its own window-management control — the three-dot pill — inside
+ * the top-leading corner of a windowed app, on top of the app's own content,
+ * and it is not reported through the safe-area insets.  The menu bar has to
+ * reserve room for it or the File menu sits underneath it and cannot be
+ * tapped.  Full-screen apps have no such control, so the gutter is applied
+ * only where it is needed.
+ *
+ * iPadOS exposes no "am I in a window" API, so infer it from geometry: a
+ * full-screen app spans the screen in one axis or the other, while Split View,
+ * Slide Over and a free-floating window never do.
+ */
+function trackIpadWindowMode(): void {
+  const TOLERANCE_PX = 2;
+
+  const isWindowed = (): boolean => {
+    const screenW = window.screen?.width || 0;
+    const screenH = window.screen?.height || 0;
+    // No screen metrics to compare against — assume full-screen rather than
+    // indenting the menu bar on every iPhone for a control that is not there.
+    if (!screenW || !screenH) return false;
+    const w = window.innerWidth;
+    const spansScreen =
+      Math.abs(w - screenW) <= TOLERANCE_PX || Math.abs(w - screenH) <= TOLERANCE_PX;
+    return !spansScreen;
+  };
+
+  const apply = () => {
+    document.documentElement.classList.toggle('ios-windowed', isWindowed());
+  };
+
+  window.addEventListener('resize', apply);
+  window.addEventListener('orientationchange', apply);
+  apply();
+}
 
 async function init() {
   // Apply saved theme before first render to avoid flash
   const savedTheme = localStorage.getItem('opendraft:theme') || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
 
-  // Android needs viewport-fit=cover and explicit safe-area padding
-  if (/android/i.test(navigator.userAgent)) {
-    document.documentElement.classList.add('android');
-    const vp = document.querySelector('meta[name="viewport"]');
-    if (vp) vp.setAttribute('content', vp.getAttribute('content') + ', viewport-fit=cover');
-  }
+  // Platform class for the safe-area rules in screenplay.css.  viewport-fit
+  // now lives in the static meta tag in index.html — patching it here ran too
+  // late on iOS, which reads the tag once at first layout.
+  const platformOS = getOS();
+  if (platformOS === 'android') document.documentElement.classList.add('android');
+  if (platformOS === 'ios') document.documentElement.classList.add('ios');
+
+  // Only the native app has iPadOS window controls drawn over it — a Split
+  // View Safari tab showing the web build has the browser's chrome instead,
+  // and would get an indented menu bar for a control that is not there.
+  if (platformOS === 'ios' && isTauri()) trackIpadWindowMode();
 
   // Track the visual viewport height as a CSS variable so dialogs/overlays can
   // shrink when the soft keyboard appears. Android WebView's `dvh` unit is

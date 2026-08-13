@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '../hooks/useGoBack';
 import { useSettingsStore } from '../stores/settingsStore';
 import { collabAuthApi, handleAuthResponse, performLogout, isDeviceChallenge } from '../services/collabAuth';
 import type { CollabServerConfig, DeviceRecord } from '../services/collabAuth';
@@ -21,7 +21,7 @@ const EXPIRY_OPTIONS = [
 ];
 
 const SettingsPage: React.FC = () => {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const {
     collabServerUrl, setCollabServerUrl,
     collabAuth, defaultInviteExpiry, setDefaultInviteExpiry,
@@ -509,7 +509,7 @@ const SettingsPage: React.FC = () => {
   return (
     <div className="settings-page">
       <div className="settings-header">
-        <button className="settings-back-btn" onClick={() => navigate(-1)} title="Go back">
+        <button className="settings-back-btn" onClick={goBack} title="Go back">
           &larr;
         </button>
         <h1>System Settings</h1>
