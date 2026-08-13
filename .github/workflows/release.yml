@@ -590,6 +590,10 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          # Shared with .github/workflows/rebuild-macos-intel.yml so the
+          # ad-hoc recovery build and this one warm the same cache. Without
+          # it the key includes the job name and the two never share.
+          shared-key: macos-intel
           # Keep what compiled before a failure. Without this the cache is dropped,
           # so every retry restarts cold and re-hits whatever limit it just missed.
           cache-on-failure: true
@@ -703,6 +707,10 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          # Shared with .github/workflows/rebuild-macos-intel.yml so the
+          # ad-hoc recovery build and this one warm the same cache. Without
+          # it the key includes the job name and the two never share.
+          shared-key: macos-intel-legacy
           # Keep what compiled before a failure. Without this the cache is dropped,
           # so every retry restarts cold and re-hits whatever limit it just missed.
           cache-on-failure: true
@@ -1104,7 +1112,9 @@ jobs:
     # a runner image update. Revisit when the macos-26 codesign issue is fixed.
     runs-on: macos-15
     name: Build (macOS App Store)
-    timeout-minutes: 60
+    # Job-level, so it caps the whole job rather than one step. 60 was not
+    # enough for a cold build: v0.22.0 cancelled here at exactly 60 minutes.
+    timeout-minutes: 120
     # Keep going even if the App Store .pkg fails — store submission is a
     # follow-up step that should not block the public release.
     continue-on-error: true

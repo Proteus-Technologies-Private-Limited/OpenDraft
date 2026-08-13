@@ -61,6 +61,10 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          # Same key as release.yml's build-intel-mac, so a recovery build warms
+          # the cache the real release job will restore (the default key includes
+          # the job name, which kept the two apart during the v0.22.0 recovery).
+          shared-key: macos-intel
           # Keep whatever compiled before a timeout, so a second attempt starts
           # warm instead of repeating the cold build that caused the timeout.
           cache-on-failure: true
@@ -169,9 +173,10 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
-          # Separate key from the non-legacy job: same target triple, but a
-          # different deployment target, so the object files are not shared.
-          prefix-key: rust-legacy
+          # Same key as release.yml's build-intel-mac-legacy. Kept distinct from
+          # macos-intel: same target triple, but a different deployment target,
+          # so the object files are not interchangeable.
+          shared-key: macos-intel-legacy
           cache-on-failure: true
 
       - name: Install frontend dependencies
