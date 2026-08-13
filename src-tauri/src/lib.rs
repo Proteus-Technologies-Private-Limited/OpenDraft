@@ -826,6 +826,22 @@ extern "C" {
         bookmark: *const std::ffi::c_char,
         contents: *const std::ffi::c_char,
     ) -> i32;
+    fn ios_pick_folder();
+    fn ios_folder_write(
+        bookmark: *const std::ffi::c_char,
+        relative: *const std::ffi::c_char,
+        contents: *const std::ffi::c_char,
+    ) -> i32;
+    fn ios_folder_list(bookmark: *const std::ffi::c_char) -> *mut std::ffi::c_char;
+    fn ios_folder_read(
+        bookmark: *const std::ffi::c_char,
+        relative: *const std::ffi::c_char,
+    ) -> *mut std::ffi::c_char;
+    fn ios_folder_delete(
+        bookmark: *const std::ffi::c_char,
+        relative: *const std::ffi::c_char,
+    ) -> i32;
+    fn ios_folder_probe(bookmark: *const std::ffi::c_char) -> *mut std::ffi::c_char;
     fn ios_take_launch_file() -> *mut std::ffi::c_char;
     fn ios_discard_empty_scene();
     fn ios_activate_other_scene() -> i32;
@@ -1063,6 +1079,418 @@ fn ios_save_and_share_binary(filename: String, contents: Vec<u8>) -> Result<(), 
     {
         let _ = (filename, contents);
         Err("This command is only available on iOS".to_string())
+    }
+}
+
+// ── Automatic backups on mobile ───────────────────────────────────────────
+// Timed snapshots need a folder the app can keep writing to for months, which
+// neither mobile sandbox grants by way of a path: iOS needs a security-scoped
+// bookmark and Android a persisted SAF tree.  Both are handles the writer
+// creates once, in a picker, and both survive a relaunch — which is what makes
+// the desktop feature portable rather than a separate, lesser one.
+//
+// The two platforms therefore identify a snapshot differently: on iOS by its
+// path relative to the backup folder, on Android by its document URI.  Neither
+// is a filesystem path, so every operation goes through the folder handle
+// rather than through std::fs.
+
+/// One snapshot in the backup folder, as the frontend's listing needs it.
+///
+/// `path` is whatever that platform can later read, delete and prune with — a
+/// relative path on iOS, a `content://` document URI on Android.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct MobileBackupEntry {
+    name: String,
+    path: String,
+    /// Project subfolder the snapshot sits in; empty for the folder root.
+    project: String,
+    size: u64,
+    modified_ms: u64,
+}
+
+/// The mobile counterpart of {@link PathProbe}, with the folder's display name
+/// — a bookmark or tree URI is not something to show a writer.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct FolderProbe {
+    exists: bool,
+    is_dir: bool,
+    writable: bool,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    error: Option<String>,
+}
+
+/// Message for the commands below when they are called on the wrong platform.
+/// They are registered everywhere — the frontend dispatches on the platform it
+/// detects, and a missing command would surface as an opaque IPC error.
+#[cfg_attr(all(not(target_os = "ios"), not(target_os = "android")), allow(dead_code))]
+const WRONG_BACKUP_PLATFORM: &str = "Backups to a chosen folder are not available here";
+
+// ── iOS ───────────────────────────────────────────────────────────────────
+
+/// Present the folder picker.  The outcome is polled for with
+/// `ios_poll_document_pick`, which the two pickers share.
+#[tauri::command]
+fn ios_start_folder_pick() -> Result<(), String> {
+    #[cfg(target_os = "ios")]
+    {
+        unsafe { ios_pick_folder() };
+        Ok(())
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        Err(WRONG_BACKUP_PLATFORM.to_string())
+    }
+}
+
+/// Write one snapshot into `<backup folder>/<folder>/<filename>`.
+/// Returns the path it can be read back by, relative to the backup folder.
+#[tauri::command]
+fn ios_backup_write(
+    bookmark: String,
+    folder: String,
+    filename: String,
+    contents: String,
+) -> Result<String, String> {
+    let relative = format!("{}/{}", folder, filename);
+    #[cfg(target_os = "ios")]
+    {
+        let c_bookmark = std::ffi::CString::new(bookmark.as_bytes())
+            .map_err(|_| "Invalid backup folder".to_string())?;
+        let c_relative = std::ffi::CString::new(relative.as_bytes())
+            .map_err(|_| "Invalid backup filename".to_string())?;
+        let c_contents = std::ffi::CString::new(contents.as_bytes())
+            .map_err(|_| "Document contains a null byte and cannot be written".to_string())?;
+        let ok = unsafe {
+            ios_folder_write(c_bookmark.as_ptr(), c_relative.as_ptr(), c_contents.as_ptr())
+        };
+        if ok == 1 {
+            Ok(relative)
+        } else {
+            Err("Could not write to the backup folder. It may have been moved or deleted, \
+                 or its provider (such as iCloud Drive) may be offline."
+                .to_string())
+        }
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = (bookmark, relative, contents);
+        Err(WRONG_BACKUP_PLATFORM.to_string())
+    }
+}
+
+#[tauri::command]
+fn ios_backup_list(bookmark: String) -> Result<Vec<MobileBackupEntry>, String> {
+    #[cfg(target_os = "ios")]
+    {
+        let c_bookmark = std::ffi::CString::new(bookmark.as_bytes())
+            .map_err(|_| "Invalid backup folder".to_string())?;
+        let json = unsafe { take_ios_string(ios_folder_list(c_bookmark.as_ptr())) }
+            .ok_or_else(|| {
+                "Could not read the backup folder. It may have been moved or deleted, \
+                 or its provider (such as iCloud Drive) may be offline."
+                    .to_string()
+            })?;
+        serde_json::from_str(&json).map_err(|e| format!("Malformed backup listing: {}", e))
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = bookmark;
+        Err(WRONG_BACKUP_PLATFORM.to_string())
+    }
+}
+
+#[tauri::command]
+fn ios_backup_read(bookmark: String, path: String) -> Result<String, String> {
+    #[cfg(target_os = "ios")]
+    {
+        let c_bookmark = std::ffi::CString::new(bookmark.as_bytes())
+            .map_err(|_| "Invalid backup folder".to_string())?;
+        let c_path = std::ffi::CString::new(path.as_bytes())
+            .map_err(|_| "Invalid backup filename".to_string())?;
+        unsafe { take_ios_string(ios_folder_read(c_bookmark.as_ptr(), c_path.as_ptr())) }
+            .ok_or_else(|| {
+                "Could not read that backup. It may have been moved or deleted.".to_string()
+            })
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = (bookmark, path);
+        Err(WRONG_BACKUP_PLATFORM.to_string())
+    }
+}
+
+#[tauri::command]
+fn ios_backup_delete(bookmark: String, path: String) -> Result<(), String> {
+    #[cfg(target_os = "ios")]
+    {
+        let c_bookmark = std::ffi::CString::new(bookmark.as_bytes())
+            .map_err(|_| "Invalid backup folder".to_string())?;
+        let c_path = std::ffi::CString::new(path.as_bytes())
+            .map_err(|_| "Invalid backup filename".to_string())?;
+        let ok = unsafe { ios_folder_delete(c_bookmark.as_ptr(), c_path.as_ptr()) };
+        if ok == 1 {
+            Ok(())
+        } else {
+            Err("Could not delete that backup.".to_string())
+        }
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = (bookmark, path);
+        Err(WRONG_BACKUP_PLATFORM.to_string())
+    }
+}
+
+#[tauri::command]
+fn ios_backup_probe(bookmark: String) -> Result<FolderProbe, String> {
+    #[cfg(target_os = "ios")]
+    {
+        let c_bookmark = std::ffi::CString::new(bookmark.as_bytes())
+            .map_err(|_| "Invalid backup folder".to_string())?;
+        let json = unsafe { take_ios_string(ios_folder_probe(c_bookmark.as_ptr())) }
+            .ok_or_else(|| "Could not check the backup folder".to_string())?;
+        serde_json::from_str(&json).map_err(|e| format!("Malformed folder probe: {}", e))
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = bookmark;
+        Err(WRONG_BACKUP_PLATFORM.to_string())
+    }
+}
+
+// ── Android ───────────────────────────────────────────────────────────────
+
+/// Call one of MainActivity's backup helpers.
+///
+/// All of them take the Context followed by strings and return a nullable
+/// String, so one helper covers the lot; `None` is the helper's own failure,
+/// which each caller turns into a message in the writer's terms.
+#[cfg(target_os = "android")]
+fn android_backup_call(method: &str, args: &[&str]) -> Result<Option<String>, String> {
+    use jni::objects::{JObject, JString, JValue};
+    use jni::JavaVM;
+
+    let ctx = android_context().ok_or(NO_ANDROID_CONTEXT)?;
+    let vm = unsafe { JavaVM::from_raw(ctx.vm().cast()) }
+        .map_err(|e| format!("Failed to get JVM: {}", e))?;
+    let mut env = vm
+        .attach_current_thread()
+        .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+    let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
+
+    // Built up front: JValue borrows each string, so they have to outlive the
+    // argument list.
+    let mut strings = Vec::with_capacity(args.len());
+    for arg in args {
+        strings.push(
+            env.new_string(arg)
+                .map_err(|e| format!("JNI new_string: {}", e))?,
+        );
+    }
+    let mut values = Vec::with_capacity(args.len() + 1);
+    values.push(JValue::Object(&activity));
+    for s in &strings {
+        values.push(JValue::Object(s));
+    }
+
+    let signature = format!(
+        "(Landroid/content/Context;{})Ljava/lang/String;",
+        "Ljava/lang/String;".repeat(args.len())
+    );
+    let call = env.call_static_method(
+        "com/proteus/opendraft/MainActivity",
+        method,
+        &signature,
+        &values,
+    );
+
+    // A pending Java exception would poison the next JNI call on this thread.
+    if env.exception_check().unwrap_or(false) {
+        let _ = env.exception_describe();
+        let _ = env.exception_clear();
+    }
+
+    let result = call
+        .map_err(|e| format!("{}: {}", method, e))?
+        .l()
+        .map_err(|e| format!("{} cast: {}", method, e))?;
+    if result.is_null() {
+        return Ok(None);
+    }
+
+    // Copied into an owned String before returning: the JNI string borrows both
+    // `env` and the local it came from, neither of which outlives this block.
+    let text: JString = result.into();
+    let owned = env
+        .get_string(&text)
+        .map_err(|e| format!("{} string: {}", method, e))?
+        .to_string_lossy()
+        .into_owned();
+    Ok(Some(owned))
+}
+
+/// Launch the folder picker (ACTION_OPEN_DOCUMENT_TREE).  The result lands in
+/// MainActivity.pickedBackupFolderUri, which `android_get_picked_backup_folder`
+/// polls for.
+#[tauri::command]
+fn android_pick_backup_folder() -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    {
+        use jni::objects::{JObject, JValue};
+        use jni::JavaVM;
+
+        let ctx = android_context().ok_or(NO_ANDROID_CONTEXT)?;
+        let vm = unsafe { JavaVM::from_raw(ctx.vm().cast()) }
+            .map_err(|e| format!("Failed to get JVM: {}", e))?;
+        let mut env = vm
+            .attach_current_thread()
+            .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+        let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
+
+        // Clear any previous result, so a stale one is never mistaken for this
+        // pick's outcome.
+        let null_obj = JObject::null();
+        let _ = env.call_static_method(
+            "com/proteus/opendraft/MainActivity",
+            "setPickedBackupFolderUri",
+            "(Ljava/lang/String;)V",
+            &[JValue::Object(&null_obj)],
+        );
+
+        let action_str = env
+            .new_string("android.intent.action.OPEN_DOCUMENT_TREE")
+            .map_err(|e| format!("JNI new_string: {}", e))?;
+        let intent = env
+            .new_object(
+                "android/content/Intent",
+                "(Ljava/lang/String;)V",
+                &[JValue::Object(&JObject::from(action_str))],
+            )
+            .map_err(|e| format!("new Intent: {}", e))?;
+
+        //   FLAG_GRANT_READ_URI_PERMISSION        = 0x00000001
+        //   FLAG_GRANT_WRITE_URI_PERMISSION       = 0x00000002
+        //   FLAG_GRANT_PERSISTABLE_URI_PERMISSION = 0x00000040
+        // Without the persistable flag the grant dies with the activity, and
+        // backups would stop the first time the app was reopened.
+        let _ = env
+            .call_method(
+                &intent,
+                "addFlags",
+                "(I)Landroid/content/Intent;",
+                &[JValue::Int(0x01 | 0x02 | 0x40)],
+            )
+            .map_err(|e| format!("addFlags: {}", e))?;
+
+        env.call_method(
+            &activity,
+            "startActivityForResult",
+            "(Landroid/content/Intent;I)V",
+            &[JValue::Object(&intent), JValue::Int(44)],
+        )
+        .map_err(|e| format!("startActivityForResult: {}", e))?;
+
+        eprintln!("[backup] Launched folder picker");
+        Ok(())
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        Err(WRONG_BACKUP_PLATFORM.to_string())
+    }
+}
+
+/// The picked tree URI, "" when the user cancelled, or None while the picker is
+/// still open — the same three-state shape the file picker uses.
+#[tauri::command]
+fn android_get_picked_backup_folder() -> Option<String> {
+    #[cfg(target_os = "android")]
+    {
+        android_read_and_clear_companion_field(
+            "getPickedBackupFolderUri",
+            "setPickedBackupFolderUri",
+        )
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        None
+    }
+}
+
+/// Write one snapshot into `<tree>/<folder>/<filename>`.  Returns the document
+/// URI it can be read back by.
+#[tauri::command]
+fn android_backup_write(
+    tree_uri: String,
+    folder: String,
+    filename: String,
+    contents: String,
+) -> Result<String, String> {
+    #[cfg(target_os = "android")]
+    {
+        android_backup_call(
+            "backupWriteFile",
+            &[&tree_uri, &folder, &filename, &contents],
+        )?
+        .ok_or_else(|| {
+            "Could not write to the backup folder. OpenDraft may have lost permission to it — \
+             choose the folder again in Settings."
+                .to_string()
+        })
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (tree_uri, folder, filename, contents);
+        Err(WRONG_BACKUP_PLATFORM.to_string())
+    }
+}
+
+#[tauri::command]
+fn android_backup_list(tree_uri: String) -> Result<Vec<MobileBackupEntry>, String> {
+    #[cfg(target_os = "android")]
+    {
+        let json = android_backup_call("backupList", &[&tree_uri])?.ok_or_else(|| {
+            "Could not read the backup folder. OpenDraft may have lost permission to it — \
+             choose the folder again in Settings."
+                .to_string()
+        })?;
+        serde_json::from_str(&json).map_err(|e| format!("Malformed backup listing: {}", e))
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = tree_uri;
+        Err(WRONG_BACKUP_PLATFORM.to_string())
+    }
+}
+
+#[tauri::command]
+fn android_backup_delete(doc_uri: String) -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    {
+        android_backup_call("backupDeleteFile", &[&doc_uri])?
+            .map(|_| ())
+            .ok_or_else(|| "Could not delete that backup.".to_string())
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = doc_uri;
+        Err(WRONG_BACKUP_PLATFORM.to_string())
+    }
+}
+
+#[tauri::command]
+fn android_backup_probe(tree_uri: String) -> Result<FolderProbe, String> {
+    #[cfg(target_os = "android")]
+    {
+        let json = android_backup_call("backupProbeFolder", &[&tree_uri])?
+            .ok_or_else(|| "Could not check the backup folder".to_string())?;
+        serde_json::from_str(&json).map_err(|e| format!("Malformed folder probe: {}", e))
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = tree_uri;
+        Err(WRONG_BACKUP_PLATFORM.to_string())
     }
 }
 
@@ -2108,11 +2536,23 @@ pub fn run() {
             ios_write_in_place,
             ios_read_in_place_bytes,
             ios_write_in_place_bytes,
+            ios_start_folder_pick,
+            ios_backup_write,
+            ios_backup_list,
+            ios_backup_read,
+            ios_backup_delete,
+            ios_backup_probe,
             android_save_and_share,
             android_save_and_share_binary,
             android_pick_file,
             android_get_picked_file,
             android_check_new_intent,
+            android_pick_backup_folder,
+            android_get_picked_backup_folder,
+            android_backup_write,
+            android_backup_list,
+            android_backup_delete,
+            android_backup_probe,
             open_new_window,
             supports_multiple_windows,
             list_windows,

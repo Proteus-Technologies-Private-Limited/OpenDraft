@@ -2038,7 +2038,8 @@ const ScreenplayEditor: React.FC = () => {
 
   // Timed snapshots to the user's backup folder. Separate from the auto-save
   // below — different cadence, and it also covers documents that were never
-  // saved to the library. No-ops unless enabled on desktop.
+  // saved to the library. No-ops unless the writer has turned backups on and
+  // chosen a folder.
   useBackupScheduler({
     buildSaveContent,
     documentTitle: backupDocumentTitle,

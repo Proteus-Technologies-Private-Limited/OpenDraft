@@ -11323,4 +11323,18 @@ html.android .version-history-panel {
 @media (max-width: 720px) {
   .recover-backup-body { flex-direction: column; }
   .recover-backup-list { flex: 1 1 auto; max-height: 40vh; }
+  /* Five actions in one row do not fit across a phone, and the row does not
+     wrap by default — the first button was pushed off the left edge, where it
+     could not be tapped at all. Only reachable since backups came to mobile. */
+  .recover-backup-dialog .dialog-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 12px;
+  }
+  .recover-backup-dialog .dialog-actions .dialog-btn {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 34px;
+    padding: 6px 12px;
+  }
 }

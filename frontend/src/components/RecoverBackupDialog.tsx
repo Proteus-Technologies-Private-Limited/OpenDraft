@@ -22,6 +22,7 @@ import { scriptApi } from '../services/scriptApi';
 import { api } from '../services/api';
 import {
   listSnapshots, readSnapshot, deleteSnapshot, revealSnapshot, writeSnapshot,
+  supportsRevealBackup,
   type BackupEntry,
 } from '../services/backupService';
 import { unpackAssets } from '../services/snapshotAssets';
@@ -322,13 +323,17 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
         ) : (
           <div className="dialog-actions">
             <button className="dialog-btn" onClick={() => void handleImportFile()}>Import from a file…</button>
-            <button
-              className="dialog-btn"
-              disabled={!selected || selected.kind === 'external'}
-              onClick={() => selected && void revealSnapshot(selected.path)}
-            >
-              Reveal
-            </button>
+            {/* Desktop only — neither mobile platform can open Files at a
+                particular document. */}
+            {supportsRevealBackup() && (
+              <button
+                className="dialog-btn"
+                disabled={!selected || selected.kind === 'external'}
+                onClick={() => selected && void revealSnapshot(selected.path)}
+              >
+                Reveal
+              </button>
+            )}
             <button
               className="dialog-btn dialog-btn-danger"
               disabled={!selected || selected.kind === 'external'}

@@ -1,13 +1,24 @@
 /**
  * Reading and writing backup snapshots in the user's chosen folder.
  *
- * Desktop Tauri only. Mobile sandboxes cannot hold a persistent handle to an
- * arbitrary folder (that needs Android SAF tree URIs / iOS security-scoped
- * bookmarks), and writing snapshots into the app sandbox where the user can
- * never retrieve them would be worse than not offering the feature.
+ * Every Tauri platform, which means the folder is named three different ways:
+ *
+ *   - **Desktop** — an absolute path, and each snapshot is a path too.
+ *   - **iOS/iPadOS** — a security-scoped bookmark for the folder, and each
+ *     snapshot is a path *relative* to it. An absolute path is unreadable once
+ *     the scope grant that came with it is gone, so the bookmark is re-resolved
+ *     on every call.
+ *   - **Android** — a persisted SAF tree URI, and each snapshot is a
+ *     `content://` document URI.
+ *
+ * That is the whole of the platform difference: filenames, retention, the
+ * project subfolders and the .odraft payload are identical everywhere, so the
+ * Recover dialog can open a backup written on a Mac from an iPad.
+ *
+ * Not available in the browser, where there is nothing that survives a reload.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { isDesktopTauri } from './platform';
+import { isTauri, isDesktopTauri, getOS } from './platform';
 import { useSettingsStore } from '../stores/settingsStore';
 import {
   buildBackupFilename, buildProjectFolderName, parseBackupFilename, selectForPruning,
@@ -23,7 +34,12 @@ import type { ScriptMeta } from './api';
 /** A slow or disconnected network share must not leave a promise pending forever. */
 const WRITE_TIMEOUT_MS = 10_000;
 
+/** The mobile pickers run as a separate view controller, so they are polled. */
+const PICK_POLL_INTERVAL_MS = 400;
+const PICK_TIMEOUT_MS = 120_000;
+
 export interface BackupEntry {
+  /** How this platform names the file: a path, a relative path, or a URI. */
   path: string;
   name: string;
   title: string;
@@ -47,9 +63,49 @@ interface DirEntryInfo {
   modified_ms: number;
 }
 
+/** What the mobile listing commands return, before filenames are parsed. */
+interface MobileBackupEntry {
+  name: string;
+  path: string;
+  project: string;
+  size: number;
+  modified_ms: number;
+}
+
+/** A file in the backup folder, however this platform happens to name it. */
+interface RawBackupFile {
+  name: string;
+  path: string;
+  project: string;
+  sizeBytes: number;
+  modifiedMs: number;
+}
+
+type BackupPlatform = 'desktop' | 'ios' | 'android' | 'none';
+
+function backupPlatform(): BackupPlatform {
+  if (!isTauri()) return 'none';
+  if (isDesktopTauri()) return 'desktop';
+  return getOS() === 'android' ? 'android' : 'ios';
+}
+
+/** True where a backup folder can be chosen at all — every app build. */
+export function backupsSupported(): boolean {
+  return backupPlatform() !== 'none';
+}
+
+/**
+ * True where a snapshot can be shown to the user in a file manager. Desktop
+ * only: neither mobile platform lets an app reveal a file in Files, and the
+ * writer can reach the folder there themselves anyway.
+ */
+export function supportsRevealBackup(): boolean {
+  return backupPlatform() === 'desktop';
+}
+
 /** True when snapshots can actually be written right now. */
 export function backupsAvailable(): boolean {
-  if (!isDesktopTauri()) return false;
+  if (!backupsSupported()) return false;
   return Boolean(useSettingsStore.getState().backupFolder);
 }
 
@@ -96,6 +152,67 @@ async function collectSnapshotFiles(
   return out;
 }
 
+/** The backup folder's contents, in the one shape the rest of this file uses. */
+async function listBackupFiles(): Promise<RawBackupFile[]> {
+  const folder = useSettingsStore.getState().backupFolder;
+  if (!folder) return [];
+
+  const platform = backupPlatform();
+  if (platform === 'none') return [];
+
+  if (platform === 'desktop') {
+    const entries = await collectSnapshotFiles(folder);
+    return entries.map((e) => ({
+      name: e.name, path: e.path, project: e.project,
+      sizeBytes: e.size, modifiedMs: e.modified_ms,
+    }));
+  }
+
+  const entries = platform === 'ios'
+    ? await invoke<MobileBackupEntry[]>('ios_backup_list', { bookmark: folder })
+    : await invoke<MobileBackupEntry[]>('android_backup_list', { treeUri: folder });
+  return entries.map((e) => ({
+    name: e.name, path: e.path, project: e.project,
+    sizeBytes: e.size, modifiedMs: e.modified_ms,
+  }));
+}
+
+/** Write one file into `<backup folder>/<project>/<filename>`. */
+async function writeBackupFile(
+  folder: string,
+  project: string,
+  filename: string,
+  contents: string,
+): Promise<string> {
+  switch (backupPlatform()) {
+    case 'desktop': {
+      const targetDir = joinPath(folder, project);
+      await invoke('ensure_dir', { path: targetDir });
+      const path = joinPath(targetDir, filename);
+      await withTimeout(
+        invoke('save_text_atomic', { path, contents }),
+        WRITE_TIMEOUT_MS,
+        'Writing the backup',
+      );
+      return path;
+    }
+    case 'ios':
+      return withTimeout(
+        invoke<string>('ios_backup_write', { bookmark: folder, folder: project, filename, contents }),
+        WRITE_TIMEOUT_MS,
+        'Writing the backup',
+      );
+    case 'android':
+      return withTimeout(
+        invoke<string>('android_backup_write', { treeUri: folder, folder: project, filename, contents }),
+        WRITE_TIMEOUT_MS,
+        'Writing the backup',
+      );
+    default:
+      throw new Error('Backups are not available in the browser.');
+  }
+}
+
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     p,
@@ -126,21 +243,20 @@ export interface WriteSnapshotResult {
 /**
  * Write one snapshot, then prune old ones.
  *
- * The write is atomic (temp file + rename on the Rust side) because a snapshot
- * truncated by a crash or a yanked drive is worse than no snapshot. Pruning is
- * fire-and-forget: failing to delete an old file never deserves the user's
- * attention, and must not fail the backup that just succeeded.
+ * The write is atomic (temp file + rename on desktop, an atomic replace through
+ * the file coordinator on iOS) because a snapshot truncated by a crash or a
+ * yanked drive is worse than no snapshot. Pruning is fire-and-forget: failing
+ * to delete an old file never deserves the user's attention, and must not fail
+ * the backup that just succeeded.
  */
 export async function writeSnapshot(opts: WriteSnapshotOptions): Promise<WriteSnapshotResult> {
   const { backupFolder, backupIncludeImages, backupRetentionCount } = useSettingsStore.getState();
-  if (!isDesktopTauri()) throw new Error('Backups are only available in the desktop app.');
+  if (!backupsSupported()) throw new Error('Backups are only available in the OpenDraft app.');
   if (!backupFolder) throw new Error('No backup folder is configured.');
 
   // One folder per project inside the chosen folder, so a writer with a dozen
   // projects can find the right script in Finder without reading filenames.
   const projectFolder = buildProjectFolderName(opts.projectTitle);
-  const targetDir = joinPath(backupFolder, projectFolder);
-  await invoke('ensure_dir', { path: targetDir });
 
   let assets: Awaited<ReturnType<typeof packAssets>>['assets'] = [];
   let assetsOmitted = false;
@@ -176,13 +292,8 @@ export async function writeSnapshot(opts: WriteSnapshotOptions): Promise<WriteSn
     date: opts.now || new Date(),
     kind: opts.kind,
   });
-  const path = joinPath(targetDir, filename);
 
-  await withTimeout(
-    invoke('save_text_atomic', { path, contents: text }),
-    WRITE_TIMEOUT_MS,
-    'Writing the backup',
-  );
+  const path = await writeBackupFile(backupFolder, projectFolder, filename, text);
 
   void pruneSnapshots(backupRetentionCount).catch((err) =>
     console.warn('[backup] prune failed', err),
@@ -193,10 +304,9 @@ export async function writeSnapshot(opts: WriteSnapshotOptions): Promise<WriteSn
 
 /** Every .odraft in the backup folder and its project folders, newest first. */
 export async function listSnapshots(): Promise<BackupEntry[]> {
-  const { backupFolder } = useSettingsStore.getState();
-  if (!isDesktopTauri() || !backupFolder) return [];
+  if (!backupsAvailable()) return [];
 
-  const entries = await collectSnapshotFiles(backupFolder);
+  const entries = await listBackupFiles();
 
   const out: BackupEntry[] = [];
   for (const e of entries) {
@@ -204,7 +314,7 @@ export async function listSnapshots(): Promise<BackupEntry[]> {
     if (parsed) {
       out.push({
         path: e.path, name: e.name, title: parsed.title, scriptKey: parsed.scriptKey,
-        date: parsed.timestamp, kind: parsed.kind, sizeBytes: e.size, project: e.project,
+        date: parsed.timestamp, kind: parsed.kind, sizeBytes: e.sizeBytes, project: e.project,
       });
     } else {
       // An .odraft the user put here themselves (an export, a copy). Listed so
@@ -212,7 +322,7 @@ export async function listSnapshots(): Promise<BackupEntry[]> {
       out.push({
         path: e.path, name: e.name, title: e.name.replace(/\.odraft$/i, ''),
         scriptKey: 'external',
-        date: new Date(e.modified_ms || 0), kind: 'external', sizeBytes: e.size,
+        date: new Date(e.modifiedMs || 0), kind: 'external', sizeBytes: e.sizeBytes,
         project: e.project,
       });
     }
@@ -228,9 +338,9 @@ export async function listSnapshots(): Promise<BackupEntry[]> {
 export async function pruneSnapshots(keep?: number): Promise<number> {
   const state = useSettingsStore.getState();
   const limit = keep ?? state.backupRetentionCount;
-  if (!isDesktopTauri() || !state.backupFolder || limit <= 0) return 0;
+  if (!backupsAvailable() || limit <= 0) return 0;
 
-  const entries = await collectSnapshotFiles(state.backupFolder);
+  const entries = await listBackupFiles();
 
   // Only files this module's naming scheme recognizes are candidates — a user
   // who points the setting at their Documents folder can never lose anything.
@@ -244,7 +354,7 @@ export async function pruneSnapshots(keep?: number): Promise<number> {
   let removed = 0;
   for (const f of doomed) {
     try {
-      await invoke('delete_file', { path: f.path });
+      await deleteSnapshot(f.path);
       removed++;
     } catch (err) {
       console.warn('[backup] could not delete', f.path, err);
@@ -255,7 +365,25 @@ export async function pruneSnapshots(keep?: number): Promise<number> {
 
 /** Read and parse one snapshot. Accepts legacy envelope-less backups. */
 export async function readSnapshot(path: string): Promise<ParsedOdraft> {
-  const text = await invoke<string>('read_text_file', { path });
+  const folder = useSettingsStore.getState().backupFolder;
+  let text: string;
+  switch (backupPlatform()) {
+    case 'ios':
+      text = await invoke<string>('ios_backup_read', { bookmark: folder, path });
+      break;
+    case 'android': {
+      // The path is a document URI, which the Android reader takes directly —
+      // the backup folder is not involved.
+      const result = await invoke<{ content: string; filename: string }>('read_content_uri', {
+        uri: path,
+      });
+      text = result.content;
+      break;
+    }
+    default:
+      text = await invoke<string>('read_text_file', { path });
+  }
+
   try {
     return parseOdraft(text);
   } catch {
@@ -265,10 +393,23 @@ export async function readSnapshot(path: string): Promise<ParsedOdraft> {
 }
 
 export async function deleteSnapshot(path: string): Promise<void> {
-  await invoke('delete_file', { path });
+  const folder = useSettingsStore.getState().backupFolder;
+  switch (backupPlatform()) {
+    case 'ios':
+      await invoke('ios_backup_delete', { bookmark: folder, path });
+      return;
+    case 'android':
+      await invoke('android_backup_delete', { docUri: path });
+      return;
+    default:
+      await invoke('delete_file', { path });
+  }
 }
 
 export async function revealSnapshot(path: string): Promise<void> {
+  if (!supportsRevealBackup()) {
+    throw new Error('Showing a backup in a file manager is only available on the desktop.');
+  }
   await invoke('reveal_path', { path });
 }
 
@@ -277,8 +418,121 @@ export interface PathProbe {
   is_dir: boolean;
   writable: boolean;
   error: string | null;
+  /** The folder's display name, where the handle itself is not readable. */
+  name?: string | null;
 }
 
-export async function probeBackupFolder(path: string): Promise<PathProbe> {
-  return invoke<PathProbe>('probe_directory', { path });
+export async function probeBackupFolder(handle: string): Promise<PathProbe> {
+  switch (backupPlatform()) {
+    case 'ios':
+      return invoke<PathProbe>('ios_backup_probe', { bookmark: handle });
+    case 'android':
+      return invoke<PathProbe>('android_backup_probe', { treeUri: handle });
+    default:
+      return invoke<PathProbe>('probe_directory', { path: handle });
+  }
+}
+
+/**
+ * The backup folder as the writer chose it.
+ *
+ * `handle` is what every command above takes; `label` is the only part fit to
+ * show, since a bookmark is base64 and a tree URI is a provider's internal id.
+ */
+export interface PickedBackupFolder {
+  handle: string;
+  label: string;
+}
+
+/** Present the platform's folder picker. Null when the user cancelled. */
+export async function pickBackupFolder(current?: string): Promise<PickedBackupFolder | null> {
+  switch (backupPlatform()) {
+    case 'desktop': {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const picked = await open({ directory: true, multiple: false, defaultPath: current || undefined });
+      if (typeof picked !== 'string' || !picked) return null;
+      return { handle: picked, label: picked };
+    }
+
+    case 'ios': {
+      await invoke('ios_start_folder_pick');
+      const picked = await pollForPick(() =>
+        invoke<{ status: string; bookmark?: string; name?: string }>('ios_poll_document_pick'),
+      );
+      if (!picked?.bookmark) return null;
+      return { handle: picked.bookmark, label: picked.name || 'Backup folder' };
+    }
+
+    case 'android': {
+      await invoke('android_pick_backup_folder');
+      const uri = await pollForPick(async () => {
+        const result = await invoke<string | null>('android_get_picked_backup_folder');
+        // null = still open, '' = cancelled, anything else = the tree URI.
+        if (result === null || result === undefined) return { status: 'pending' };
+        return result === '' ? { status: 'cancelled' } : { status: 'picked', bookmark: result };
+      });
+      if (!uri?.bookmark) return null;
+      // The tree URI says nothing a writer would recognize, so the folder's own
+      // display name is asked for; the URI's last segment is the fallback.
+      let label = '';
+      try {
+        const probe = await probeBackupFolder(uri.bookmark);
+        label = probe.name || '';
+      } catch (err) {
+        console.warn('[backup] could not read the folder name', err);
+      }
+      return { handle: uri.bookmark, label: label || describeTreeUri(uri.bookmark) };
+    }
+
+    default:
+      throw new Error('Choosing a backup folder is not available in the browser.');
+  }
+}
+
+/** A readable-ish name for a SAF tree URI, when the provider gave none. */
+function describeTreeUri(uri: string): string {
+  try {
+    const encoded = uri.split('/tree/').pop() || uri;
+    const decoded = decodeURIComponent(encoded);
+    // "primary:Documents/Backups" — the part after the volume is the folder.
+    const afterVolume = decoded.includes(':') ? decoded.split(':').slice(1).join(':') : decoded;
+    return afterVolume.split('/').filter(Boolean).pop() || 'Backup folder';
+  } catch {
+    return 'Backup folder';
+  }
+}
+
+interface PollResult {
+  status: string;
+  bookmark?: string;
+  name?: string;
+}
+
+/**
+ * Poll a picker that runs as a separate view controller.
+ *
+ * Resolves null on cancellation and on timeout: a picker the writer walked away
+ * from must not leave a timer running for the life of the app.
+ */
+function pollForPick(check: () => Promise<PollResult>): Promise<PollResult | null> {
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+    const timer = setInterval(async () => {
+      try {
+        const result = await check();
+        if (result.status === 'pending') {
+          if (Date.now() - started > PICK_TIMEOUT_MS) {
+            clearInterval(timer);
+            resolve(null);
+          }
+          return;
+        }
+        clearInterval(timer);
+        resolve(result.status === 'picked' ? result : null);
+      } catch (err) {
+        clearInterval(timer);
+        reject(err);
+      }
+    }, PICK_POLL_INTERVAL_MS);
+  });
 }

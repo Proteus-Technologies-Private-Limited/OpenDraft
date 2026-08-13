@@ -20,4 +20,10 @@
     public static *** getExportSourcePath();
     public static *** setExportSourcePath(java.lang.String);
     public static byte[] readUriBytes(android.content.Context, java.lang.String);
+    public static *** getPickedBackupFolderUri();
+    public static *** setPickedBackupFolderUri(java.lang.String);
+    public static java.lang.String backupWriteFile(android.content.Context, java.lang.String, java.lang.String, java.lang.String, java.lang.String);
+    public static java.lang.String backupList(android.content.Context, java.lang.String);
+    public static java.lang.String backupDeleteFile(android.content.Context, java.lang.String);
+    public static java.lang.String backupProbeFolder(android.content.Context, java.lang.String);
 }

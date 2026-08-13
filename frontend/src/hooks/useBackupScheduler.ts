@@ -15,8 +15,8 @@
 import { useEffect, useRef } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useBackupStatusStore, describeBackupError, BACKUP_FAILURE_LIMIT } from '../stores/backupStatusStore';
-import { writeSnapshot } from '../services/backupService';
-import { isDesktopTauri } from '../services/platform';
+import { writeSnapshot, backupsSupported } from '../services/backupService';
+import { isMobileTauri } from '../services/platform';
 import { docHasAnyText } from '../utils/docText';
 import { showToast } from '../components/Toast';
 
@@ -63,7 +63,7 @@ export function useBackupScheduler(opts: BackupSchedulerOptions): void {
   }, [opts.scriptId, documentOpenSeq]);
 
   useEffect(() => {
-    if (!isDesktopTauri()) return;
+    if (!backupsSupported()) return;
     if (!backupEnabled || !backupFolder) return;
     if (pausedByError) return;
 
@@ -147,10 +147,27 @@ export function useBackupScheduler(opts: BackupSchedulerOptions): void {
     void runInitial(0);
 
     const id = setInterval(() => void tick(), Math.max(1, intervalMinutes) * 60_000);
+
+    // On phones and tablets the interval is not the whole story: the system
+    // suspends a backgrounded app and can terminate it later without ever
+    // running another timer, so leaving OpenDraft is the last moment a snapshot
+    // can be taken. Desktop windows are left alone — being minimised is not
+    // remotely the same risk, and a snapshot per window switch would be noise.
+    const backupOnLeave = () => {
+      if (document.visibilityState === 'hidden') void tick();
+    };
+    const watchesBackground = isMobileTauri();
+    if (watchesBackground) {
+      document.addEventListener('visibilitychange', backupOnLeave);
+    }
+
     return () => {
       cancelled = true;
       if (retryId) clearTimeout(retryId);
       clearInterval(id);
+      if (watchesBackground) {
+        document.removeEventListener('visibilitychange', backupOnLeave);
+      }
     };
   }, [backupEnabled, backupFolder, intervalMinutes, backupUnsavedDocs, pausedByError, documentOpenSeq]);
 }

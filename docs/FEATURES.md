@@ -29,7 +29,7 @@ A complete list of features in OpenDraft.
 
 ## Backups
 
-- **Automatic Backups** -- Timestamped copies of your script written to a folder you choose, on an interval you set (desktop only)
+- **Automatic Backups** -- Timestamped copies of your script written to a folder you choose, on an interval you set (desktop, iPad/iPhone and Android; on mobile a copy is also written whenever you leave the app)
 - **Back Up Now** -- Pin the current moment on demand; manual backups are never deleted by the retention limit
 - **Recover Backup** -- Browse every snapshot, preview it, and restore it as a new script or over the current one
 - **Complete snapshots** -- Backups carry notes, tags, beats, character profiles and images, so a restore brings the script back whole

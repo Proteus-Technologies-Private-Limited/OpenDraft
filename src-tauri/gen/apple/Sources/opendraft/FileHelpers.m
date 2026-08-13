@@ -303,17 +303,18 @@ static void od_set_pick_result(NSString *result, BOOL pending) {
 // holds its delegate weakly.
 static ODDocumentPickerDelegate *gPickerDelegate = nil;
 
-/// Present the system document picker.  Returns immediately; poll
+/// Present a picker for the given content types.  Returns immediately; poll
 /// ios_get_picked_document() for the result.
-void ios_pick_document(void) {
+///
+/// One picker at a time, by construction: both callers publish into the same
+/// pair of statics.  That matches what the platform allows anyway — each of
+/// them is a modal sheet the writer has to dismiss before doing anything else.
+static void od_present_picker(NSArray<UTType *> *types) {
     od_set_pick_result(nil, YES);
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        // Deliberately UTTypeItem rather than the screenplay types: iOS filters
-        // the picker by declared UTI, and .fdx/.fountain have no system type,
-        // so a narrower list hides exactly the files this is for.
         UIDocumentPickerViewController *picker =
-            [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[UTTypeItem]
+            [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:types
                                                                        asCopy:NO];
 
         if (!gPickerDelegate) {
@@ -332,7 +333,7 @@ void ios_pick_document(void) {
             }
         }
         if (!rootVC) {
-            NSLog(@"[FileHelpers] document picker: no root view controller found");
+            NSLog(@"[FileHelpers] picker: no root view controller found");
             od_set_pick_result(@"", NO);
             return;
         }
@@ -342,6 +343,20 @@ void ios_pick_document(void) {
 
         [rootVC presentViewController:picker animated:YES completion:nil];
     });
+}
+
+/// Present the system document picker.  Returns immediately; poll
+/// ios_get_picked_document() for the result.
+void ios_pick_document(void) {
+    // Deliberately UTTypeItem rather than the screenplay types: iOS filters the
+    // picker by declared UTI, and .fdx/.fountain have no system type, so a
+    // narrower list hides exactly the files this is for.
+    od_present_picker(@[UTTypeItem]);
+}
+
+/// Present the picker in folder mode, for choosing a backup folder.
+void ios_pick_folder(void) {
+    od_present_picker(@[UTTypeFolder]);
 }
 
 /// NULL while the picker is still open, "" when cancelled, otherwise
@@ -553,6 +568,346 @@ int ios_write_bookmarked_file(const char* bookmark_cstr, const char* contents_cs
             return 0;
         }
         return 1;
+    }
+}
+
+// ── Backup folder ───────────────────────────────────────────────────────────
+// Automatic backups need somewhere the app can keep writing for months: a
+// folder the writer picks once, in iCloud Drive, Dropbox, or On My iPad.
+//
+// The folder picker hands back a security-scoped URL exactly as the document
+// picker does, so the durable handle is again a bookmark, resolved per call.
+// Everything below therefore takes (folder bookmark, path relative to it)
+// rather than an absolute path — a path on its own is unreadable once the
+// scope grant that came with it is gone.
+
+/// Resolve a path inside the backup folder, refusing anything that would climb
+/// out of it.  The names come from backupNaming.ts, which sanitizes them
+/// already; this is the second lock on the door, because these paths reach a
+/// delete.
+static NSURL* od_child_url(NSURL *folder, NSString *relative) {
+    if (relative.length == 0) return nil;
+
+    NSURL *url = folder;
+    for (NSString *component in [relative componentsSeparatedByString:@"/"]) {
+        if (component.length == 0 ||
+            [component isEqualToString:@"."] ||
+            [component isEqualToString:@".."] ||
+            [component containsString:@"\\"]) {
+            NSLog(@"[FileHelpers] rejecting backup path %@", relative);
+            return nil;
+        }
+        url = [url URLByAppendingPathComponent:component];
+    }
+    return url;
+}
+
+/// Write a snapshot into the backup folder, creating the project subfolder on
+/// the way.  Returns 1 on success.
+int ios_folder_write(const char* bookmark_cstr,
+                     const char* relative_cstr,
+                     const char* contents_cstr) {
+    if (!bookmark_cstr || !relative_cstr || !contents_cstr) return 0;
+
+    @autoreleasepool {
+        BOOL accessing = NO;
+        NSURL *folder = od_resolve_bookmark(@(bookmark_cstr), &accessing);
+        if (!folder) return 0;
+
+        int result = 0;
+        NSURL *target = od_child_url(folder, @(relative_cstr));
+        if (target) {
+            NSError *dirError = nil;
+            BOOL haveDir = [[NSFileManager defaultManager]
+                createDirectoryAtURL:[target URLByDeletingLastPathComponent]
+                withIntermediateDirectories:YES
+                                 attributes:nil
+                                      error:&dirError];
+            if (!haveDir) {
+                NSLog(@"[FileHelpers] could not create %@: %@",
+                      [target URLByDeletingLastPathComponent], dirError);
+            } else {
+                NSString *contents = @(contents_cstr);
+                __block BOOL ok = NO;
+                __block NSError *writeError = nil;
+                NSFileCoordinator *coordinator =
+                    [[NSFileCoordinator alloc] initWithFilePresenter:nil];
+                NSError *coordError = nil;
+                [coordinator coordinateWritingItemAtURL:target
+                                                options:NSFileCoordinatorWritingForReplacing
+                                                  error:&coordError
+                                             byAccessor:^(NSURL *newURL) {
+                    // Atomically, like the desktop writer: a snapshot truncated
+                    // by the app being killed mid-write is worse than none.
+                    ok = [contents writeToURL:newURL
+                                   atomically:YES
+                                     encoding:NSUTF8StringEncoding
+                                        error:&writeError];
+                }];
+                if (coordError) {
+                    NSLog(@"[FileHelpers] backup write coordination failed for %@: %@",
+                          target, coordError);
+                } else if (!ok) {
+                    NSLog(@"[FileHelpers] backup write failed for %@: %@", target, writeError);
+                } else {
+                    result = 1;
+                }
+            }
+        }
+
+        if (accessing) {
+            [folder stopAccessingSecurityScopedResource];
+        }
+        return result;
+    }
+}
+
+/// Describe one file for ios_folder_list.  Keys match the Rust struct.
+static NSDictionary* od_backup_entry(NSURL *url, NSString *project, NSString *relative) {
+    NSError *error = nil;
+    NSDictionary *values = [url resourceValuesForKeys:@[NSURLFileSizeKey,
+                                                        NSURLContentModificationDateKey]
+                                                error:&error];
+    NSNumber *size = values[NSURLFileSizeKey] ?: @0;
+    NSDate *modified = values[NSURLContentModificationDateKey];
+    double modifiedMs = modified ? modified.timeIntervalSince1970 * 1000.0 : 0;
+
+    return @{
+        @"name": url.lastPathComponent ?: @"",
+        @"path": relative,
+        @"project": project,
+        @"size": size,
+        @"modified_ms": @((unsigned long long)modifiedMs),
+    };
+}
+
+/// Every .odraft in the backup folder and its project subfolders, as JSON.
+///
+/// Descends exactly one level, matching the desktop listing: the folder belongs
+/// to the writer, who may well have a deep tree of their own in there.
+///
+/// Returns a malloc'd C string the caller owns, or NULL when the folder could
+/// not be read at all.  An empty folder is "[]", not NULL — the difference is
+/// "no backups yet" versus "the folder has gone".
+char* ios_folder_list(const char* bookmark_cstr) {
+    if (!bookmark_cstr) return NULL;
+
+    @autoreleasepool {
+        BOOL accessing = NO;
+        NSURL *folder = od_resolve_bookmark(@(bookmark_cstr), &accessing);
+        if (!folder) return NULL;
+
+        NSFileManager *fm = [NSFileManager defaultManager];
+        NSArray<NSURLResourceKey> *keys = @[NSURLIsDirectoryKey, NSURLFileSizeKey,
+                                            NSURLContentModificationDateKey];
+        NSError *error = nil;
+        NSArray<NSURL *> *top = [fm contentsOfDirectoryAtURL:folder
+                                  includingPropertiesForKeys:keys
+                                                     options:NSDirectoryEnumerationSkipsHiddenFiles
+                                                       error:&error];
+        char *result = NULL;
+        if (!top) {
+            NSLog(@"[FileHelpers] could not list backup folder %@: %@", folder, error);
+        } else {
+            NSMutableArray<NSDictionary *> *entries = [NSMutableArray array];
+            for (NSURL *item in top) {
+                NSNumber *isDir = nil;
+                [item getResourceValue:&isDir forKey:NSURLIsDirectoryKey error:NULL];
+
+                if (![isDir boolValue]) {
+                    if ([item.pathExtension caseInsensitiveCompare:@"odraft"] == NSOrderedSame) {
+                        [entries addObject:od_backup_entry(item, @"", item.lastPathComponent)];
+                    }
+                    continue;
+                }
+
+                NSString *project = item.lastPathComponent ?: @"";
+                NSArray<NSURL *> *inner =
+                    [fm contentsOfDirectoryAtURL:item
+                      includingPropertiesForKeys:keys
+                                         options:NSDirectoryEnumerationSkipsHiddenFiles
+                                           error:NULL];
+                // An unreadable subfolder must not make the rest vanish.
+                for (NSURL *file in inner) {
+                    if ([file.pathExtension caseInsensitiveCompare:@"odraft"] != NSOrderedSame) {
+                        continue;
+                    }
+                    NSString *relative =
+                        [NSString stringWithFormat:@"%@/%@", project, file.lastPathComponent];
+                    [entries addObject:od_backup_entry(file, project, relative)];
+                }
+            }
+
+            NSError *jsonError = nil;
+            NSData *json = [NSJSONSerialization dataWithJSONObject:entries
+                                                          options:0
+                                                            error:&jsonError];
+            if (!json) {
+                NSLog(@"[FileHelpers] could not encode backup listing: %@", jsonError);
+            } else {
+                NSString *text = [[NSString alloc] initWithData:json
+                                                       encoding:NSUTF8StringEncoding];
+                result = text ? strdup(text.UTF8String) : NULL;
+            }
+        }
+
+        if (accessing) {
+            [folder stopAccessingSecurityScopedResource];
+        }
+        return result;
+    }
+}
+
+/// Read one snapshot out of the backup folder.  Malloc'd C string, or NULL.
+char* ios_folder_read(const char* bookmark_cstr, const char* relative_cstr) {
+    if (!bookmark_cstr || !relative_cstr) return NULL;
+
+    @autoreleasepool {
+        BOOL accessing = NO;
+        NSURL *folder = od_resolve_bookmark(@(bookmark_cstr), &accessing);
+        if (!folder) return NULL;
+
+        char *result = NULL;
+        NSURL *target = od_child_url(folder, @(relative_cstr));
+        if (target) {
+            __block NSString *content = nil;
+            __block NSError *readError = nil;
+            NSFileCoordinator *coordinator = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
+            NSError *coordError = nil;
+            [coordinator coordinateReadingItemAtURL:target
+                                            options:0
+                                              error:&coordError
+                                         byAccessor:^(NSURL *newURL) {
+                content = [NSString stringWithContentsOfURL:newURL
+                                                   encoding:NSUTF8StringEncoding
+                                                      error:&readError];
+            }];
+            if (coordError) {
+                NSLog(@"[FileHelpers] backup read coordination failed for %@: %@",
+                      target, coordError);
+            } else if (!content) {
+                NSLog(@"[FileHelpers] backup read failed for %@: %@", target, readError);
+            } else {
+                result = strdup(content.UTF8String);
+            }
+        }
+
+        if (accessing) {
+            [folder stopAccessingSecurityScopedResource];
+        }
+        return result;
+    }
+}
+
+/// Delete one snapshot.  Refuses directories: the pruner runs unattended
+/// against a folder full of the writer's own files.
+int ios_folder_delete(const char* bookmark_cstr, const char* relative_cstr) {
+    if (!bookmark_cstr || !relative_cstr) return 0;
+
+    @autoreleasepool {
+        BOOL accessing = NO;
+        NSURL *folder = od_resolve_bookmark(@(bookmark_cstr), &accessing);
+        if (!folder) return 0;
+
+        int result = 0;
+        NSURL *target = od_child_url(folder, @(relative_cstr));
+        if (target) {
+            NSNumber *isDir = nil;
+            [target getResourceValue:&isDir forKey:NSURLIsDirectoryKey error:NULL];
+            if ([isDir boolValue]) {
+                NSLog(@"[FileHelpers] refusing to delete directory %@", target);
+            } else {
+                __block BOOL ok = NO;
+                __block NSError *deleteError = nil;
+                NSFileCoordinator *coordinator =
+                    [[NSFileCoordinator alloc] initWithFilePresenter:nil];
+                NSError *coordError = nil;
+                [coordinator coordinateWritingItemAtURL:target
+                                                options:NSFileCoordinatorWritingForDeleting
+                                                  error:&coordError
+                                             byAccessor:^(NSURL *newURL) {
+                    ok = [[NSFileManager defaultManager] removeItemAtURL:newURL
+                                                                   error:&deleteError];
+                }];
+                if (!ok) {
+                    NSLog(@"[FileHelpers] could not delete %@: %@", target,
+                          coordError ?: deleteError);
+                }
+                result = ok ? 1 : 0;
+            }
+        }
+
+        if (accessing) {
+            [folder stopAccessingSecurityScopedResource];
+        }
+        return result;
+    }
+}
+
+/// Whether the backup folder is still there and still writable, as JSON.
+///
+/// Writability is proven by writing and deleting a probe file rather than by
+/// inspecting attributes, exactly as the desktop probe does: a bookmark can
+/// resolve long after the provider stopped honouring it (a Dropbox folder that
+/// was unshared, an external drive that was ejected).
+///
+/// Returns a malloc'd C string, or NULL only when the JSON could not be built.
+char* ios_folder_probe(const char* bookmark_cstr) {
+    if (!bookmark_cstr) return NULL;
+
+    @autoreleasepool {
+        BOOL accessing = NO;
+        NSURL *folder = od_resolve_bookmark(@(bookmark_cstr), &accessing);
+
+        NSMutableDictionary *probe = [@{
+            @"exists": @NO,
+            @"is_dir": @NO,
+            @"writable": @NO,
+        } mutableCopy];
+
+        if (!folder) {
+            probe[@"error"] = @"The backup folder could not be opened. It may have been "
+                               "moved or deleted, or its provider may be offline.";
+        } else {
+            probe[@"name"] = folder.lastPathComponent ?: @"";
+
+            NSNumber *isDir = nil;
+            NSError *dirError = nil;
+            BOOL known = [folder getResourceValue:&isDir forKey:NSURLIsDirectoryKey
+                                            error:&dirError];
+            BOOL exists = known || [[NSFileManager defaultManager] fileExistsAtPath:folder.path];
+            probe[@"exists"] = @(exists);
+            probe[@"is_dir"] = @([isDir boolValue]);
+
+            if (!exists) {
+                probe[@"error"] = dirError.localizedDescription ?: @"Folder not found";
+            } else if (![isDir boolValue]) {
+                probe[@"error"] = @"Not a folder";
+            } else {
+                NSURL *test = [folder URLByAppendingPathComponent:@".opendraft-write-test"];
+                NSError *writeError = nil;
+                BOOL ok = [@"ok" writeToURL:test
+                                 atomically:YES
+                                   encoding:NSUTF8StringEncoding
+                                      error:&writeError];
+                if (ok) {
+                    [[NSFileManager defaultManager] removeItemAtURL:test error:NULL];
+                    probe[@"writable"] = @YES;
+                } else {
+                    probe[@"error"] = writeError.localizedDescription
+                        ?: @"OpenDraft cannot write to this folder";
+                }
+            }
+
+            if (accessing) {
+                [folder stopAccessingSecurityScopedResource];
+            }
+        }
+
+        NSData *json = [NSJSONSerialization dataWithJSONObject:probe options:0 error:NULL];
+        if (!json) return NULL;
+        NSString *text = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
+        return text ? strdup(text.UTF8String) : NULL;
     }
 }
 

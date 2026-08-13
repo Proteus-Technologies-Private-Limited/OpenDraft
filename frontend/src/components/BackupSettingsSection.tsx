@@ -1,10 +1,11 @@
 /**
  * Settings → Automatic Backups.
  *
- * On web and mobile the section still renders, but as an explanation rather
- * than controls. Hiding it entirely would leave users hunting for a feature
- * they read about; saying why it isn't there — and what to use instead — costs
- * one paragraph and prevents a bug report.
+ * The same controls on every platform the app runs on. Only the folder row
+ * differs: the desktop knows a path, where mobile only ever shows the folder's
+ * name, because the handle behind it is a bookmark or a content URI (see
+ * backupService). On the web the section renders as an explanation instead —
+ * nothing there can hold on to a folder across a reload.
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -13,7 +14,10 @@ import {
 import { useBackupStatusStore } from '../stores/backupStatusStore';
 import { isDesktopTauri } from '../services/platform';
 import { isUnderOneDrive } from '../services/diagnostics';
-import { probeBackupFolder, listSnapshots, revealSnapshot } from '../services/backupService';
+import {
+  probeBackupFolder, listSnapshots, revealSnapshot, pickBackupFolder,
+  backupsSupported, supportsRevealBackup,
+} from '../services/backupService';
 import { showToast } from './Toast';
 
 function formatBytes(n: number): string {
@@ -25,7 +29,7 @@ function formatBytes(n: number): string {
 const BackupSettingsSection: React.FC = () => {
   const {
     backupEnabled, setBackupEnabled,
-    backupFolder, setBackupFolder,
+    backupFolder, backupFolderLabel, setBackupFolder,
     backupIntervalMinutes, setBackupIntervalMinutes,
     backupRetentionCount, setBackupRetentionCount,
     backupIncludeImages, setBackupIncludeImages,
@@ -35,20 +39,22 @@ const BackupSettingsSection: React.FC = () => {
   const pausedByError = useBackupStatusStore((s) => s.pausedByError);
   const lastError = useBackupStatusStore((s) => s.lastError);
 
+  const supported = backupsSupported();
   const desktop = isDesktopTauri();
+  const canReveal = supportsRevealBackup();
   const [folderStatus, setFolderStatus] = useState<'unknown' | 'ok' | 'missing' | 'unwritable'>('unknown');
   const [folderDetail, setFolderDetail] = useState('');
   const [stats, setStats] = useState<{ count: number; bytes: number } | null>(null);
 
   /** Probe the folder and, if usable, summarise what is already in it. */
-  const refreshFolder = useCallback(async (path: string) => {
-    if (!desktop || !path) {
+  const refreshFolder = useCallback(async (handle: string) => {
+    if (!supported || !handle) {
       setFolderStatus('unknown');
       setStats(null);
       return;
     }
     try {
-      const probe = await probeBackupFolder(path);
+      const probe = await probeBackupFolder(handle);
       if (!probe.exists) {
         setFolderStatus('missing');
         setFolderDetail(probe.error || 'Folder not found');
@@ -70,27 +76,22 @@ const BackupSettingsSection: React.FC = () => {
       setFolderDetail(err instanceof Error ? err.message : String(err));
       setStats(null);
     }
-  }, [desktop]);
+  }, [supported]);
 
   useEffect(() => { void refreshFolder(backupFolder); }, [backupFolder, refreshFolder]);
 
-  const applyFolder = useCallback(async (path: string) => {
-    setBackupFolder(path);
+  const applyFolder = useCallback(async (handle: string, label: string) => {
+    setBackupFolder(handle, label);
     // Any settings change is treated as "the user has addressed it", so a
     // scheduler that gave up starts trying again.
     resumeBackups();
-    await refreshFolder(path);
+    await refreshFolder(handle);
   }, [setBackupFolder, resumeBackups, refreshFolder]);
 
   const handleBrowse = useCallback(async () => {
     try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const picked = await open({
-        directory: true,
-        multiple: false,
-        defaultPath: backupFolder || undefined,
-      });
-      if (typeof picked === 'string' && picked) await applyFolder(picked);
+      const picked = await pickBackupFolder(backupFolder);
+      if (picked) await applyFolder(picked.handle, picked.label);
     } catch (err) {
       showToast(`Could not open the folder picker: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
@@ -102,7 +103,7 @@ const BackupSettingsSection: React.FC = () => {
       const dir = await join(await documentDir(), 'OpenDraft Backups');
       // Not created here — it appears when the first snapshot is written, so
       // enabling and then changing your mind leaves nothing behind.
-      await applyFolder(dir);
+      await applyFolder(dir, dir);
     } catch (err) {
       showToast(`Could not resolve a default folder: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
@@ -133,16 +134,15 @@ const BackupSettingsSection: React.FC = () => {
     resumeBackups();
   }, [backupFolder, folderStatus, handleBrowse, setBackupEnabled, resumeBackups]);
 
-  if (!desktop) {
+  if (!supported) {
     return (
       <section className="settings-section">
         <h2 className="settings-section-title">Automatic Backups</h2>
         <p className="settings-section-desc">
-          Timed backups write files to a folder on your computer, which the
-          desktop app can do. In the browser and on phones and tablets, use{' '}
-          <strong>File → Export → OpenDraft (.odraft)</strong> to save a copy
-          wherever you like — on mobile that opens the system share sheet, so you
-          can put it in Files, Drive, or Dropbox.
+          Timed backups write files to a folder you choose, which needs the
+          OpenDraft app — a browser tab cannot hold on to a folder. In the
+          browser, use <strong>File → Export → OpenDraft (.odraft)</strong> to
+          save a copy wherever you like.
         </p>
       </section>
     );
@@ -176,24 +176,36 @@ const BackupSettingsSection: React.FC = () => {
         <div className="settings-url-row">
           <input
             className="dialog-input settings-url-input"
-            value={backupFolder}
+            value={backupFolderLabel || backupFolder}
             readOnly
             placeholder="No folder chosen"
           />
           <button className="dialog-btn dialog-btn-primary" onClick={() => void handleBrowse()}>
-            Browse…
+            {desktop ? 'Browse…' : 'Choose Folder…'}
           </button>
-          <button className="dialog-btn" onClick={() => void handleUseDefault()}>
-            Use Default
-          </button>
-          <button
-            className="dialog-btn"
-            disabled={!backupFolder || folderStatus !== 'ok'}
-            onClick={() => void revealSnapshot(backupFolder).catch(() => showToast('Could not open the folder', 'error'))}
-          >
-            Open
-          </button>
+          {desktop && (
+            <button className="dialog-btn" onClick={() => void handleUseDefault()}>
+              Use Default
+            </button>
+          )}
+          {canReveal && (
+            <button
+              className="dialog-btn"
+              disabled={!backupFolder || folderStatus !== 'ok'}
+              onClick={() => void revealSnapshot(backupFolder).catch(() => showToast('Could not open the folder', 'error'))}
+            >
+              Open
+            </button>
+          )}
         </div>
+
+        {!desktop && (
+          <div className="settings-hint">
+            Pick somewhere outside the app — a folder in Files, iCloud Drive,
+            Google Drive or Dropbox — so your backups survive if OpenDraft is
+            ever removed or reinstalled.
+          </div>
+        )}
 
         {folderStatus === 'ok' && stats && (
           <div className="settings-status settings-status-ok">
@@ -203,7 +215,9 @@ const BackupSettingsSection: React.FC = () => {
         {folderStatus === 'missing' && backupFolder && (
           <div className="settings-status settings-status-fail">
             Folder not found — {folderDetail}{' '}
-            <button className="dialog-btn" onClick={() => void handleCreateFolder()}>Create it</button>
+            {desktop && (
+              <button className="dialog-btn" onClick={() => void handleCreateFolder()}>Create it</button>
+            )}
           </div>
         )}
         {folderStatus === 'unwritable' && (
@@ -238,6 +252,12 @@ const BackupSettingsSection: React.FC = () => {
             <option key={m} value={m}>{m} minutes</option>
           ))}
         </select>
+        {!desktop && (
+          <div className="settings-hint">
+            A copy is also written whenever you leave OpenDraft, so work is
+            saved before the system suspends the app.
+          </div>
+        )}
       </div>
 
       <div className="settings-row">

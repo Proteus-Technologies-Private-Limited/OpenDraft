@@ -50,13 +50,21 @@ interface SettingsState {
   formatPreferencesInitialized: boolean;
   setFormatPreferencesInitialized: (v: boolean) => void;
 
-  // ── Automatic backups (desktop only) ──────────────────────────────────
+  // ── Automatic backups ─────────────────────────────────────────────────
   /** Master switch for timed snapshots to `backupFolder`. */
   backupEnabled: boolean;
   setBackupEnabled: (v: boolean) => void;
-  /** Absolute path to the folder snapshots are written to. '' = not chosen. */
+  /**
+   * Handle for the folder snapshots are written to; '' = not chosen.
+   *
+   * An absolute path on desktop, a security-scoped bookmark on iOS, a SAF tree
+   * URI on Android — see backupService. Only the first of those is fit to show
+   * a writer, which is what `backupFolderLabel` is for.
+   */
   backupFolder: string;
-  setBackupFolder: (path: string) => void;
+  setBackupFolder: (handle: string, label?: string) => void;
+  /** Human-readable name of the backup folder, for the settings screen. */
+  backupFolderLabel: string;
   /** Minutes between automatic snapshots. */
   backupIntervalMinutes: number;
   setBackupIntervalMinutes: (m: number) => void;
@@ -78,6 +86,7 @@ const STORAGE_KEY_FORMATS = 'opendraft:enabledScriptFormats';
 const STORAGE_KEY_FORMATS_INIT = 'opendraft:formatPreferencesInitialized';
 const STORAGE_KEY_BACKUP_ENABLED = 'opendraft:backupEnabled';
 const STORAGE_KEY_BACKUP_FOLDER = 'opendraft:backupFolder';
+const STORAGE_KEY_BACKUP_FOLDER_LABEL = 'opendraft:backupFolderLabel';
 const STORAGE_KEY_BACKUP_INTERVAL = 'opendraft:backupIntervalMinutes';
 const STORAGE_KEY_BACKUP_RETENTION = 'opendraft:backupRetentionCount';
 const STORAGE_KEY_BACKUP_IMAGES = 'opendraft:backupIncludeImages';
@@ -188,9 +197,18 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   },
 
   backupFolder: localStorage.getItem(STORAGE_KEY_BACKUP_FOLDER) || '',
-  setBackupFolder: (path) => {
-    try { localStorage.setItem(STORAGE_KEY_BACKUP_FOLDER, path); } catch { /* ignore */ }
-    set({ backupFolder: path });
+  backupFolderLabel:
+    localStorage.getItem(STORAGE_KEY_BACKUP_FOLDER_LABEL) ||
+    // Folders chosen before mobile backups existed are desktop paths, which are
+    // their own label.
+    localStorage.getItem(STORAGE_KEY_BACKUP_FOLDER) || '',
+  setBackupFolder: (handle, label) => {
+    const shown = label ?? handle;
+    try {
+      localStorage.setItem(STORAGE_KEY_BACKUP_FOLDER, handle);
+      localStorage.setItem(STORAGE_KEY_BACKUP_FOLDER_LABEL, shown);
+    } catch { /* ignore */ }
+    set({ backupFolder: handle, backupFolderLabel: shown });
   },
 
   backupIntervalMinutes: loadClampedInt(STORAGE_KEY_BACKUP_INTERVAL, DEFAULT_BACKUP_INTERVAL_MINUTES, 1, 240),

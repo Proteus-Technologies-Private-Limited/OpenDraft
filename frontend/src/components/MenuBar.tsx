@@ -67,7 +67,9 @@ const IN_PLACE_EDITABLE_EXTENSIONS = ['odraft', 'fdx', 'fountain', 'fadein', 'os
 
 /** Of those, the ones that are containers rather than text. */
 const IN_PLACE_BINARY_EXTENSIONS = ['fadein'];
-import { backupsAvailable, writeSnapshot, revealSnapshot } from '../services/backupService';
+import {
+  backupsAvailable, backupsSupported, supportsRevealBackup, writeSnapshot, revealSnapshot,
+} from '../services/backupService';
 import { useBackupStatusStore, describeBackupError } from '../stores/backupStatusStore';
 import RecoverBackupDialog from './RecoverBackupDialog';
 import {
@@ -1391,10 +1393,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaFileSignature />, label: 'Compare with Version\u2026', action: () => setCompareVersionOpen(true) },
           ],
         },
-        // Desktop only: mobile and web sandboxes cannot hold a persistent
-        // handle to a user-chosen folder. Omitted rather than disabled — a
-        // permanently greyed submenu just invites bug reports.
-        ...(isDesktopTauri() ? [
+        // App builds only: a browser tab has nothing that can hold on to a
+        // folder across a reload. Omitted rather than disabled — a permanently
+        // greyed submenu just invites bug reports.
+        ...(backupsSupported() ? [
           { separator: true, label: '' },
           {
             icon: <FaArchive />, label: 'Backups',
@@ -1403,7 +1405,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
               { icon: <FaArchive />, label: 'Back Up Now', action: handleBackupNow, disabled: isCollabGuest },
               { icon: <FaHistory />, label: 'Recover Backup\u2026', action: () => setRecoverBackupOpen(true) },
               { separator: true, label: '' },
-              { icon: <FaFolderOpen />, label: 'Open Backup Folder', action: handleOpenBackupFolder },
+              // No mobile equivalent: neither platform lets an app open the
+              // Files browser at a particular folder.
+              ...(supportsRevealBackup() ? [
+                { icon: <FaFolderOpen />, label: 'Open Backup Folder', action: handleOpenBackupFolder },
+              ] : []),
               { icon: <FaCog />, label: 'Backup Settings\u2026', action: () => navigate('/settings') },
             ],
           },

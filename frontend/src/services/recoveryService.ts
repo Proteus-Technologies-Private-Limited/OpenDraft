@@ -6,14 +6,14 @@
  *   - Auto-save writes the *real* copy, but only for a script that lives in a
  *     project. A screenplay that was imported or started and never saved to the
  *     library has nothing writing it anywhere.
- *   - Automatic backups write .odraft snapshots to a folder the user picks, and
- *     are desktop-only by construction (see backupService) because neither
- *     mobile sandbox can hold a durable handle to an arbitrary folder.
+ *   - Automatic backups write .odraft snapshots to a folder the user picks, on
+ *     every platform the app runs on (see backupService) — but only once the
+ *     writer has chosen that folder, and only on the interval they set.
  *
- * Which left mobile with no protection at all against the thing that actually
- * happens there: iPadOS suspending and then terminating the app, or the user
- * force-quitting to escape a screen (issue #68). This snapshot fills that gap
- * on every platform.
+ * Which leaves a gap against the thing that actually happens on mobile: iPadOS
+ * suspending and then terminating the app, or the user force-quitting to escape
+ * a screen (issue #68). This snapshot fills it on every platform, with no setup
+ * at all.
  *
  * It is deliberately NOT the user's file. Restoring is always an explicit
  * choice, so a recovered draft can never silently overwrite a version the
