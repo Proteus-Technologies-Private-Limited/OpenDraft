@@ -117,6 +117,10 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>OpenDraft uses the camera when you choose Take Photo to add an image to a script, title page, character profile or beat board.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OpenDraft needs access to your photos so you can add an image to a script, title page, character profile or beat board.</string>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<false/>
 	<key>UILaunchStoryboardName</key>

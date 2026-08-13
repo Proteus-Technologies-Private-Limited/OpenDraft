@@ -104,6 +104,19 @@ with open(plist_path, "rb") as f:
 
 plist["LSSupportsOpeningDocumentsInPlace"] = True
 
+# Tauri's template carries no privacy usage strings. The image inputs (Insert
+# Image, title page, character profiles, beat board) are accept="image/*", so
+# WKWebView offers "Take Photo" — and iOS kills the app outright the moment the
+# camera is touched without this key.
+plist["NSCameraUsageDescription"] = (
+    "OpenDraft uses the camera when you choose Take Photo to add an image to "
+    "a script, title page, character profile or beat board."
+)
+plist["NSPhotoLibraryUsageDescription"] = (
+    "OpenDraft needs access to your photos so you can add an image to a "
+    "script, title page, character profile or beat board."
+)
+
 plist["CFBundleDocumentTypes"] = [
     {"CFBundleTypeName": "Final Draft Screenplay", "CFBundleTypeRole": "Editor",
      "LSHandlerRank": "Default", "LSItemContentTypes": ["com.finaldraft.fdx"]},

@@ -2166,6 +2166,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.23</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.23.1</div>
+              <ul className="about-list">
+                <li><strong>Taking A Photo No Longer Closes The App</strong> — On iPhone and iPad, choosing <em>Take Photo</em> when adding an image to a script, title page, character profile or beat board shut OpenDraft down on the spot. It now asks for the camera and returns your photo.</li>
+                <li><strong>Fade In Files Open From Files Again</strong> — <code>.fadein</code> and <code>.osf</code> files offer <em>Open in OpenDraft</em> on iPhone and iPad, as they were always meant to. App Store builds had been shipping without the declarations that make the two formats visible to the Files app.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.23.0</div>
               <ul className="about-list">
                 <li><strong>Automatic Backups On iPad, iPhone And Android</strong> — Timed backups are no longer desktop-only. Choose a folder in Files, iCloud Drive, Google Drive or Dropbox and OpenDraft writes the same timestamped copies it writes on the desktop — same filenames, same per-project folders, so a backup made on your Mac restores on your iPad. On phones and tablets a copy is also written whenever you leave the app, before the system can suspend it.</li>
