@@ -1110,6 +1110,12 @@ jobs:
           echo "iOS signing configured for manual distribution"
 
       - name: Build iOS app
+        # Matches the macOS jobs. codesign can wedge indefinitely reaching
+        # Apple's timestamp service — without a cap this step rode the 6-hour
+        # runner default while the macOS jobs gave up after 90 minutes, so one
+        # flake held a release for an afternoon instead of failing fast enough
+        # to re-run. See the v0.23.1 build.
+        timeout-minutes: 90
         env:
           APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: npx --prefix frontend tauri ios build --export-method app-store-connect
