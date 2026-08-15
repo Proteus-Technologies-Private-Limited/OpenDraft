@@ -2160,12 +2160,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 0.23.1</div>
+            <div className="about-version">Version 0.23.2</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.23</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.23.2</div>
+              <ul className="about-list">
+                <li><strong>Cyrillic Scripts Export To PDF</strong> — A screenplay written in Cyrillic came out of PDF export as a run of unrelated Latin letters. Cyrillic, Greek, Armenian and Georgian are now written into the PDF properly — on the same page layout as before, and searchable and copyable out of the file. Title pages, headers and footers too.</li>
+                <li><strong>Exports Keep The Title In The Filename</strong> — A script whose title was not written in English was saved as <em>Untitled</em>. The title now survives into the filename, in any alphabet, for PDF, Word, Final Draft, Fountain and Fade In exports.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.23.1</div>
               <ul className="about-list">
                 <li><strong>Taking A Photo No Longer Closes The App</strong> — On iPhone and iPad, choosing <em>Take Photo</em> when adding an image to a script, title page, character profile or beat board shut OpenDraft down on the spot. It now asks for the camera and returns your photo.</li>
