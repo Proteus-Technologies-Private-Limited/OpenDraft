@@ -31,6 +31,7 @@ import type { JSONContent } from '@tiptap/react';
 import { DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
 import { getForceBreakIds, jsonStartsOwnPage } from './pageBreaks';
+import { sanitizeExportFilename } from './exportFilename';
 
 // --- Layout constants (mirror pdfExporter.ts) ---
 
@@ -342,10 +343,6 @@ export interface DocxExportOptions {
   documentFont?: string;
 }
 
-function sanitizeFilename(name: string): string {
-  return name.replace(/[^a-zA-Z0-9_\- ]/g, '') || 'Untitled';
-}
-
 export async function exportDocx(
   doc: JSONContent,
   title: string,
@@ -353,7 +350,7 @@ export async function exportDocx(
   options?: DocxExportOptions,
 ): Promise<void> {
   const { saveFile } = await import('./fileOps');
-  const filename = `${sanitizeFilename(title)}.docx`;
+  const filename = `${sanitizeExportFilename(title)}.docx`;
 
   // Separate the title-page region (the leading run of titlePage + image nodes)
   // from the body. The title page renders its nodes in DOCUMENT ORDER (free-flow),

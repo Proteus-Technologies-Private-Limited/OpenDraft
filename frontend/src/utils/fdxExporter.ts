@@ -3,6 +3,7 @@ import type { JSONContent } from '@tiptap/react';
 import type { CharacterProfile, TagCategory, TagItem, BeatInfo, BeatColumn, PageLayout } from '../stores/editorStore';
 import { CUSTOM_TYPE_TO_FDX } from './fdxParser';
 import { jsonBlockText } from './nodeText';
+import { sanitizeExportFilename } from './exportFilename';
 
 const NODE_TO_FDX: Record<string, string> = {
   sceneHeading: 'Scene Heading',
@@ -474,7 +475,7 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
 
 export async function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont) {
   const xml = exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns, pageLayout, documentFont);
-  const filename = `${title.replace(/[^a-zA-Z0-9_\- ]/g, '')}.fdx`;
+  const filename = `${sanitizeExportFilename(title)}.fdx`;
   const { saveFile } = await import('./fileOps');
   await saveFile(xml, filename, [{ name: 'Final Draft', extensions: ['fdx'] }]);
 }
