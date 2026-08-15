@@ -19,6 +19,7 @@
  */
 import JSZip from 'jszip';
 import type { JSONContent } from '@tiptap/react';
+import { sanitizeExportFilename } from './exportFilename';
 
 /** Element type → the OSF style a paragraph is based on. */
 const NODE_TO_OSF_STYLE: Record<string, string> = {
@@ -368,7 +369,7 @@ export async function downloadFadeIn(
   options: OSFExportOptions = {},
 ): Promise<void> {
   const bytes = await exportFadeIn(doc, options);
-  const filename = `${title.replace(/[^a-zA-Z0-9_\- ]/g, '') || 'Untitled'}.fadein`;
+  const filename = `${sanitizeExportFilename(title)}.fadein`;
   const { saveFile } = await import('./fileOps');
   await saveFile(bytes, filename, [{ name: 'Fade In', extensions: ['fadein'] }]);
 }

@@ -1,6 +1,7 @@
 // Fountain format exporter
 import type { JSONContent } from '@tiptap/react';
 import { jsonBlockRuns, singleLine } from './nodeText';
+import { sanitizeExportFilename } from './exportFilename';
 
 /**
  * Marked-up text of a node. A hard break becomes a real newline: the Fountain
@@ -169,7 +170,7 @@ export function exportFountain(doc: JSONContent): string {
 
 export async function downloadFountain(doc: JSONContent, title: string = 'Untitled') {
   const text = exportFountain(doc);
-  const filename = `${title.replace(/[^a-zA-Z0-9_\- ]/g, '')}.fountain`;
+  const filename = `${sanitizeExportFilename(title)}.fountain`;
   const { saveFile } = await import('./fileOps');
   await saveFile(text, filename, [{ name: 'Fountain', extensions: ['fountain'] }]);
 }

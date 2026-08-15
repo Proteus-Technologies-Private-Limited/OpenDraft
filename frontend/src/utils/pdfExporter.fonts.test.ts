@@ -37,6 +37,8 @@ const draws: DrawCall[] = [];
 const STUB_PROPORTIONAL_WIDTH_PER_CHAR = 5;
 /** What jsPDF's own Courier measures 'M' at, before charSpace correction. */
 const STUB_COURIER_M = 7.2;
+/** And the embedded fallback, at a width of its own so the correction is visibly measured. */
+const STUB_UNICODE_M = 7.5;
 
 vi.mock('jspdf', () => {
   class FakeJsPDF {
@@ -44,6 +46,9 @@ vi.mock('jspdf', () => {
     private style = 'normal';
     constructor() {}
     setFont(font: string, style = 'normal') { this.font = font; this.style = style; }
+    getFont() { return { fontName: this.font, fontStyle: this.style }; }
+    addFileToVFS() {}
+    addFont() {}
     setFontSize() {}
     setLineWidth() {}
     line() {}
@@ -51,9 +56,9 @@ vi.mock('jspdf', () => {
     setPage() {}
     addImage() {}
     getTextWidth(text: string) {
-      return this.font === 'courier'
-        ? STUB_COURIER_M * text.length
-        : STUB_PROPORTIONAL_WIDTH_PER_CHAR * text.length;
+      if (this.font === 'courier') return STUB_COURIER_M * text.length;
+      if (this.font === UNICODE_FONT_ID) return STUB_UNICODE_M * text.length;
+      return STUB_PROPORTIONAL_WIDTH_PER_CHAR * text.length;
     }
     text(text: string, x: number, y: number, opts?: { charSpace?: number }) {
       draws.push({ text, x, y, charSpace: opts?.charSpace ?? 0, font: this.font, style: this.style });
@@ -65,6 +70,14 @@ vi.mock('jspdf', () => {
 
 // saveFile reaches for Tauri; the bytes are irrelevant here.
 vi.mock('./fileOps', () => ({ saveFile: vi.fn(async () => {}) }));
+
+// The fallback is fetched from public/fonts; its bytes do not matter to the stub.
+vi.stubGlobal('fetch', vi.fn(async () => ({
+  ok: true,
+  arrayBuffer: async () => new Uint8Array([0, 1, 0, 0]).buffer,
+})));
+
+const { UNICODE_FONT_ID } = await import('./pdfUnicodeFont');
 
 const { exportPDF } = await import('./pdfExporter');
 const { pdfFontFor } = await import('./pdfExporter');
@@ -201,6 +214,83 @@ describe('a section styled with its own font', () => {
       content: [{ type: 'action', content: [text('Sans run.', 'Arial')] }],
     });
     expect(calls.find((c) => c.text === 'Sans run.')!.font).toBe('helvetica');
+  });
+});
+
+
+/**
+ * A script in Cyrillic (issue #71).
+ *
+ * The built-in faces cannot encode it, so it is drawn in the embedded
+ * fallback — and, since that fallback is monospace, on the very same Final
+ * Draft cell.  The proof is the Latin script above: character for character,
+ * the two must land in identical places.
+ */
+describe('a script the built-in faces cannot write', () => {
+  const cyrillic: JSONContent = {
+    type: 'doc',
+    content: [
+      { type: 'sceneHeading', content: [text('ИНТ. БИБЛИОТЕКА')] },
+      { type: 'action', content: [text('ПРОГРАММИСТ печатает.')] },
+      { type: 'transition', content: [text('УХОД:')] },
+    ],
+  };
+  /** The same script, character for character, in Latin. */
+  const transliterated: JSONContent = {
+    type: 'doc',
+    content: [
+      { type: 'sceneHeading', content: [text('INT. BIBLIOTEKAA')] },
+      { type: 'action', content: [text('PROGRAMMIST pechataet.')] },
+      { type: 'transition', content: [text('UHOD:')] },
+    ],
+  };
+  const drawnText = (calls: DrawCall[]) => calls.filter((c) => c.text.trim().length > 0);
+
+  it('draws it in the embedded face, at that face\'s own cell correction', async () => {
+    const calls = drawnText(await run(undefined, cyrillic));
+
+    expect(calls.length).toBe(3);
+    for (const call of calls) {
+      expect(call.font).toBe(UNICODE_FONT_ID);
+      expect(call.charSpace).toBeCloseTo(FD_CHAR_WIDTH_PT - STUB_UNICODE_M, 10);
+    }
+  });
+
+  it('lands on exactly the Final Draft geometry the Latin script does', async () => {
+    const cyr = drawnText(await run(undefined, cyrillic));
+    const lat = drawnText(await run(undefined, transliterated));
+
+    expect(cyr.map((c) => c.x)).toEqual(lat.map((c) => c.x));
+    expect(cyr.map((c) => c.y)).toEqual(lat.map((c) => c.y));
+  });
+
+  it('keeps the type styles — a scene heading is still bold', async () => {
+    const heading = drawnText(await run(undefined, cyrillic))[0];
+    expect(heading.style).toBe('bold');
+  });
+
+  it('leaves the Latin parts of a mixed script in the document face', async () => {
+    const mixed: JSONContent = {
+      type: 'doc',
+      content: [
+        { type: 'action', content: [text('A Latin line.')] },
+        { type: 'action', content: [text('Строка кириллицей.')] },
+      ],
+    };
+    const calls = await run(undefined, mixed);
+    const latin = calls.find((c) => c.text === 'A Latin line.')!;
+    const cyr = calls.find((c) => c.text === 'Строка кириллицей.')!;
+
+    expect(latin.font).toBe('courier');
+    expect(latin.charSpace).toBeCloseTo(FD_CHAR_WIDTH_PT - STUB_COURIER_M, 10);
+    expect(cyr.font).toBe(UNICODE_FONT_ID);
+    expect(cyr.x).toBeCloseTo(latin.x, 10);
+  });
+
+  it('right-aligns a Cyrillic transition on the cell, as Final Draft does', async () => {
+    const transition = drawnText(await run(undefined, cyrillic)).find((c) => c.text === 'УХОД:')!;
+    const expected = 7.50 * PTS_PER_INCH - 'УХОД:'.length * FD_CHAR_WIDTH_PT;
+    expect(transition.x).toBeCloseTo(expected, 10);
   });
 });
 
