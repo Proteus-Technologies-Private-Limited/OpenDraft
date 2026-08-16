@@ -83,7 +83,7 @@ export const ONE_HOUR_DRAMA_TEMPLATE: FormattingTemplate = {
       nextOnEnter: 'sceneHeading',
       placeholder: 'CUT TO:',
     }),
-    general: rule('general', 'General', true, { nextOnEnter: 'general' }),
+    general: rule('general', 'General (Unformatted text)', true, { nextOnEnter: 'general' }),
     shot: rule('shot', 'Shot', true, {
       textTransform: 'uppercase',
       marginTop: 12,

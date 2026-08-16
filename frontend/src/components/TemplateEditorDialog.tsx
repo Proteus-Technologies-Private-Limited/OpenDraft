@@ -376,13 +376,20 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
                 {/* Layout: margin, indents */}
                 <div className="template-editor-field-row">
+                  {/* "Space Before", counted in blank lines, is what Final Draft
+                      and Fade In both call this. It was labelled "Margin Top (pt)"
+                      and took points, which meant reading a screenplay measurement
+                      in a unit no screenplay format is specified in. Stored in
+                      points still — only the input is in lines. */}
                   <div className="template-editor-field">
-                    <label>Margin Top (pt)</label>
+                    <label>Space Before (lines)</label>
                     <input
                       type="number"
                       className="dialog-input template-num-input"
-                      value={selectedRule.marginTop}
-                      onChange={(e) => updateRule(selectedId!, { marginTop: Number(e.target.value) || 0 })}
+                      value={Math.round(selectedRule.marginTop / 12)}
+                      onChange={(e) => updateRule(selectedId!, {
+                        marginTop: Math.max(0, Number(e.target.value) || 0) * 12,
+                      })}
                       min={0}
                       step={1}
                     />

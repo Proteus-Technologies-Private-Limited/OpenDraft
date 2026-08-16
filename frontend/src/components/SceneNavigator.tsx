@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore } from '../stores/editorStore';
-import { computeSceneLengths, computePageBlocks, buildTemplateHints, type PageContentInfo } from '../editor/pagination';
-import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { computeSceneLengths, computePageBlocks, activeTemplateHints, type PageContentInfo } from '../editor/pagination';
+import { getSpaceBefore } from '../utils/elementSpacing';
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
 import { computeScriptStructure, sceneActLabel, type ScriptStructure } from '../utils/scriptStructure';
 import SynopsisModal from './SynopsisModal';
@@ -183,11 +183,9 @@ const FD_INDENTS: Record<string, [number, number]> = {
   castList: [1.50, 7.50],
 };
 
-const SPACE_BEFORE: Record<string, number> = {
-  sceneHeading: 1, action: 1, character: 1, dialogue: 0,
-  parenthetical: 0, transition: 1, general: 0, shot: 1,
-  newAct: 2, endOfAct: 2, lyrics: 0, showEpisode: 1, castList: 0,
-};
+// Space before each element comes from the active template — see
+// utils/elementSpacing.ts. The thumbnail must use the same values as
+// pagination, or the preview shows a different layout from the page.
 
 const LINE_HEIGHT_PX = 12 * (96 / 72); // 16px — matches pagination LINE_HEIGHT_PT
 
@@ -295,7 +293,11 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   const sceneDetails = useMemo((): SceneDetail[] => {
     if (!editor) return [];
     const doc = editor.state.doc;
-    const lengths = computeSceneLengths(doc, pageLayout);
+    const lengths = computeSceneLengths(
+      doc,
+      pageLayout,
+      activeTemplateHints(),
+    );
     const details: SceneDetail[] = [];
     let currentChars = new Set<string>();
     let currentHeading = '';
@@ -387,7 +389,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     return computePageBlocks(
       editor.state.doc,
       pageLayout,
-      buildTemplateHints(useFormattingTemplateStore.getState().getActiveTemplate()),
+      activeTemplateHints(),
     );
   }, [editor, scenes, pageLayout]);
 
@@ -409,17 +411,18 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   }), [refWidthPx, pageLayout, fontFamily, fontSize]);
 
   // Per-element inline style — same indentation as the editor
+  const spaceBefore = useMemo(() => getSpaceBefore(), []);
   const getBlockStyle = useCallback((typeName: string, isFirst: boolean): React.CSSProperties => {
     const [left, right] = FD_INDENTS[typeName] || [1.50, 7.50];
     const padL = Math.max(0, (left - pageLayout.leftMargin) * 96);
     const padR = Math.max(0, (pageLayout.pageWidth - right - pageLayout.rightMargin) * 96);
-    const sb = isFirst ? 0 : (SPACE_BEFORE[typeName] ?? 0);
+    const sb = isFirst ? 0 : (spaceBefore[typeName] ?? 0);
     return {
       paddingLeft: padL > 0 ? `${padL}px` : undefined,
       paddingRight: padR > 0 ? `${padR}px` : undefined,
       marginTop: sb > 0 ? `${sb * LINE_HEIGHT_PX}px` : undefined,
     };
-  }, [pageLayout]);
+  }, [pageLayout, spaceBefore]);
 
   // ── ResizeObserver for thumbnail scaling ──
 

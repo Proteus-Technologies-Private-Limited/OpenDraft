@@ -1,27 +1,79 @@
 // Fountain format exporter
 import type { JSONContent } from '@tiptap/react';
-import { jsonBlockRuns, singleLine } from './nodeText';
+import { jsonBlockRuns, mergeRuns, singleLine } from './nodeText';
 import { sanitizeExportFilename } from './exportFilename';
+
+/**
+ * Escape the characters Fountain reads as emphasis markup, so text the writer
+ * actually typed survives a re-import. Without this a line like `5 * 3 * 2`
+ * comes back italic, and a stray `**` re-parses as bold.
+ *
+ * The spec's convention is the Markdown one — a leading backslash. The backslash
+ * itself is escaped first, or escaping `*` would corrupt an existing `\`.
+ */
+function escapeFountain(text: string): string {
+  return text.replace(/[\\*_]/g, (char) => `\\${char}`);
+}
+
+/**
+ * Wrap `text` in emphasis delimiters, keeping any leading or trailing
+ * whitespace *outside* them.
+ *
+ * Fountain requires the character adjacent to a delimiter to be non-space —
+ * `**word **` is not bold, it is four literal asterisks around some text. A mark
+ * applied over a selection that happened to include its trailing space must
+ * therefore emit `**word** `, never `**word **`.
+ *
+ * A run that is entirely whitespace carries no emphasis worth encoding, so it is
+ * returned untouched rather than becoming an empty `****`.
+ */
+function wrapEmphasis(text: string, delimiter: string): string {
+  const match = /^(\s*)([\s\S]*?)(\s*)$/.exec(text);
+  if (!match) return text;
+  const [, lead, core, trail] = match;
+  if (core === '') return text;
+  return `${lead}${delimiter}${core}${delimiter}${trail}`;
+}
 
 /**
  * Marked-up text of a node. A hard break becomes a real newline: the Fountain
  * spec takes "every carriage return as intent", so a newline inside Action,
  * Dialogue, General or Lyrics is exactly the right encoding. Break runs are
  * never wrapped in emphasis delimiters.
+ *
+ * Runs are merged before marking up, so a block that arrived from FDX or OSF as
+ * several same-styled runs emits one `**…**` pair rather than several abutting
+ * ones. Bold is applied before italic so the two together produce the spec's
+ * `***bold italic***`.
  */
-function getTextContent(node: JSONContent): string {
+function getTextContent(node: JSONContent, stripBold = false): string {
   if (!node.content) return '';
-  return jsonBlockRuns(node)
+  return mergeRuns(jsonBlockRuns(node))
     .map((run) => {
       if (run.isBreak) return '\n';
-      let text = run.text;
-      if (run.bold) text = `**${text}**`;
-      if (run.italic) text = `*${text}*`;
-      if (run.underline) text = `_${text}_`;
+      let text = escapeFountain(run.text);
+      if (run.bold && !stripBold) text = wrapEmphasis(text, '**');
+      if (run.italic) text = wrapEmphasis(text, '*');
+      if (run.underline) text = wrapEmphasis(text, '_');
       return text;
     })
     .join('');
 }
+
+/**
+ * Elements whose formatting template already renders them bold.
+ *
+ * Fountain cannot express "a bold scene heading": `**INT. HOUSE**` is no longer
+ * a scene heading, because the spec allows nothing before the `INT`. FDX and
+ * Fade In bold their headings by default, so their importers attach a real bold
+ * mark to every one — emitting it would force a `.` onto every heading in the
+ * file, and any reader that lost the force would see character cues instead.
+ *
+ * The boldness is presentational and the receiving application restores it from
+ * its own element settings, so it is dropped rather than encoded. Mirrors
+ * `TYPE_PROVIDED_BOLD` in docxImporter, which already made this call.
+ */
+const TYPE_PROVIDED_BOLD = new Set(['sceneHeading', 'newAct', 'endOfAct', 'showEpisode', 'shot']);
 
 /**
  * Text for an element that must occupy exactly one line. A newline in a scene
@@ -30,7 +82,7 @@ function getTextContent(node: JSONContent): string {
  * under a cue would be read as dialogue. Collapse instead.
  */
 function lineText(node: JSONContent): string {
-  return singleLine(getTextContent(node));
+  return singleLine(getTextContent(node, TYPE_PROVIDED_BOLD.has(node.type ?? '')));
 }
 
 /**
@@ -44,6 +96,98 @@ function dialogueText(node: JSONContent): string {
     .split('\n')
     .map((line) => (line.trim() === '' ? '  ' : line))
     .join('\n');
+}
+
+// ── Forcing syntax ──────────────────────────────────────────────────────────
+//
+// Fountain infers an element's type from the shape of its line, so a line whose
+// shape disagrees with the type we mean must carry a forcing character. These
+// mirror the rules in fountainParser — keep the two in step.
+
+/** Scene-heading prefixes the parser recognises without a forcing `.`. */
+const SCENE_HEADING_RE = /^(INT\.|EXT\.|EST\.|INT\.\/EXT\.|I\/E\.)/;
+
+/** The parser's all-caps-ending-in-`TO:` transition heuristic. */
+const TRANSITION_RE = /^[A-Z\s]+TO:$/;
+
+/** Leading characters the parser reads as a forcing sigil or block marker. */
+const SIGIL_RE = /^[!~.>@=]/;
+
+/** Mirrors `isCharacterLine` in fountainParser. */
+function parsesAsCharacter(line: string): boolean {
+  const cleaned = line.replace(/\(.*\)/, '').trim();
+  return cleaned.length > 0 && cleaned === cleaned.toUpperCase() && /[A-Z]/.test(cleaned);
+}
+
+/**
+ * Prefix `!` when a line of Action would otherwise be re-read as something
+ * else. An all-caps line of description is the common case — without the force
+ * it comes back as a character cue and everything under it becomes dialogue.
+ *
+ * Applied per line, because a hard break inside Action produces several lines
+ * and the parser judges each one on its own.
+ */
+function actionText(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim();
+      if (trimmed === '') return line;
+      const ambiguous =
+        SIGIL_RE.test(trimmed) ||
+        SCENE_HEADING_RE.test(trimmed.toUpperCase()) ||
+        TRANSITION_RE.test(trimmed) ||
+        parsesAsCharacter(trimmed);
+      return ambiguous ? `!${line}` : line;
+    })
+    .join('\n');
+}
+
+/**
+ * A scene heading the parser would not recognise on its own — `47 EXT. FOO`,
+ * `BLACK SCREEN` — needs the forcing period, or it re-imports as a character
+ * cue and drags the following action into dialogue. The scene number is
+ * re-attached in the spec's trailing `#…#` form rather than being dropped.
+ */
+function sceneHeadingLine(node: JSONContent): string {
+  let heading = lineText(node).toUpperCase();
+  const sceneNumber = node.attrs?.sceneNumber;
+  if (typeof sceneNumber === 'string' && sceneNumber.trim() !== '') {
+    heading = `${heading} #${sceneNumber.trim()}#`;
+  }
+  // `..X` is not a forced heading — the parser reads a second dot as literal —
+  // so a heading that already opens with a period is left for the `!`-free path.
+  if (!SCENE_HEADING_RE.test(heading) && !heading.startsWith('.')) {
+    heading = `.${heading}`;
+  }
+  return heading;
+}
+
+/**
+ * Fountain has no General element. Forced Action is the closest fit: Action is
+ * the one element whose leading whitespace the spec says to retain ("tabs and
+ * spaces are retained in Action elements"), and forcing every line stops
+ * indented or all-caps General text being re-read as a cue.
+ *
+ * Unconditional rather than the `actionText` "only if ambiguous" test, because
+ * General exists precisely to hold text that does not follow screenplay shape —
+ * guessing which of its lines are safe is the behaviour the element opts out of.
+ */
+function generalText(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => (line.trim() === '' ? line : `!${line}`))
+    .join('\n');
+}
+
+/**
+ * Prefix `@` when a cue would not be recognised as one — a name with no letters
+ * (`5`), or one shaped like a transition (`CUT TO:`).
+ */
+function characterLine(node: JSONContent, suffix = ''): string {
+  const cue = lineText(node).toUpperCase();
+  const needsForce = !parsesAsCharacter(cue) || TRANSITION_RE.test(cue) || SIGIL_RE.test(cue);
+  return `${needsForce ? '@' : ''}${cue}${suffix}`;
 }
 
 export function exportFountain(doc: JSONContent): string {
@@ -90,22 +234,23 @@ export function exportFountain(doc: JSONContent): string {
         break;
       case 'sceneHeading':
         lines.push('');
-        lines.push(lineText(node).toUpperCase());
+        lines.push(sceneHeadingLine(node));
         if (node.attrs?.synopsis) {
           lines.push(`= ${node.attrs.synopsis}`);
         }
         lines.push('');
         break;
       case 'action':
-        lines.push(text);
+        lines.push(actionText(text));
         lines.push('');
         break;
       case 'general':
-        lines.push(text);
+        lines.push(generalText(text));
+        lines.push('');
         break;
       case 'character':
         lines.push('');
-        lines.push(lineText(node).toUpperCase());
+        lines.push(characterLine(node));
         break;
       case 'parenthetical': {
         const p = lineText(node);
@@ -121,16 +266,16 @@ export function exportFountain(doc: JSONContent): string {
         lines.push(`> ${lineText(node)}`);
         lines.push('');
         break;
+      // Fountain has no Shot or act-marker element, so these round-trip as
+      // Action either way. Forcing them keeps that downgrade honest: an
+      // unforced all-caps line preceded by a blank one is a *character cue*,
+      // which would silently pull the following paragraph into dialogue.
       case 'shot':
-        lines.push('');
-        lines.push(lineText(node).toUpperCase());
-        lines.push('');
-        break;
       case 'newAct':
       case 'endOfAct':
       case 'showEpisode':
         lines.push('');
-        lines.push(lineText(node).toUpperCase());
+        lines.push(actionText(lineText(node).toUpperCase()));
         lines.push('');
         break;
       case 'lyrics':
@@ -142,11 +287,10 @@ export function exportFountain(doc: JSONContent): string {
             if (col.type === 'dualDialogueColumn' && col.content) {
               for (const child of col.content) {
                 if (child.type === 'character') {
-                  const cue = lineText(child).toUpperCase();
                   lines.push('');
                   // Second column character gets ^ marker — it must stay on the
                   // character line, which is why the cue is collapsed first.
-                  lines.push(colIndex === 1 ? `${cue} ^` : cue);
+                  lines.push(characterLine(child, colIndex === 1 ? ' ^' : ''));
                 } else if (child.type === 'parenthetical') {
                   const p = lineText(child);
                   lines.push(p.startsWith('(') ? p : `(${p})`);

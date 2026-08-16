@@ -27,7 +27,7 @@ import ScriptFormatPreferencesDialog from './ScriptFormatPreferencesDialog';
 import ScriptFormatPickerDialog from './ScriptFormatPickerDialog';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { applyScriptFormat } from '../utils/applyScriptFormat';
-import { INDUSTRY_STANDARD_ID } from '../stores/formattingTypes';
+import { INDUSTRY_STANDARD_ID, ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { selectionStartsNewPage } from '../editor/extensions';
 import { pluginRegistry } from '../plugins/registry';
@@ -183,6 +183,8 @@ interface MenuItem {
   disabled?: boolean;
   children?: MenuItem[];
   icon?: React.ReactNode;
+  /** Hover explanation, for items whose label does not say what they do. */
+  title?: string;
 }
 
 interface MenuSection {
@@ -419,6 +421,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
    * writer is told what saving back to it can and cannot carry. In the store,
    * so a file handed over by the operating system raises the same notice.
    */
+  /**
+   * True when the open document came from a file the user picked, rather than
+   * from the library. Save writes back to that file, so the File menu says so
+   * — see the Save items below. Read reactively, not through `getState()`, so
+   * the labels change the moment a file is opened or closed.
+   */
+  const hasFileOrigin = useEditorStore((s) => s.documentOrigin !== null);
+
   const foreignFormatNotice = useEditorStore((s) => s.foreignFormatNotice);
   const setForeignFormatNotice = useEditorStore((s) => s.setForeignFormatNotice);
 
@@ -1318,7 +1328,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
       items: [
         {
           icon: <FaPlus />,
-          label: 'New Screenplay',
+          // "Script", not "Screenplay": this opens the format picker, where the
+          // choice includes Stage Play, Radio Play, AV Script and two TV
+          // formats. Only one of the six is a screenplay. "Script" is already
+          // the app's word for the general thing — Script Notes, Script
+          // Statistics, Script Format Preferences.
+          label: 'New Script',
           shortcut: `${mod}N`,
           disabled: isCollabGuest,
           action: handleNewScreenplay,
@@ -1339,11 +1354,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {
           icon: <FaFileImport />, label: 'Import',
           children: [
-            { icon: <FaFileCode />, label: 'Final Draft / Fountain / Fade In / OpenDraft...', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
-            { icon: <FaFileWord />, label: 'Microsoft Word (.docx)...', action: handleImportDocx, disabled: isCollabGuest },
+            { icon: <FaFileCode />, label: 'Final Draft / Fountain / Fade In / OpenDraft…', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
+            { icon: <FaFileWord />, label: 'Microsoft Word (.docx)…', action: handleImportDocx, disabled: isCollabGuest },
           ],
         },
-        { icon: <FaFolderOpen />, label: 'Open...', action: () => confirmOrRun(() => setOpenFileOpen(true)), disabled: isCollabGuest },
+        // Opens the library — projects and scripts held by OpenDraft, on this
+        // device or in the cloud. Deliberately NOT "Open File…", which would sit
+        // directly above "Open from Files…" and claim the very thing that item
+        // does. Naming the object rather than the source keeps the common action
+        // short and lets the qualified one below carry the explanation.
+        { icon: <FaFolderOpen />, label: 'Open Script…', action: () => confirmOrRun(() => setOpenFileOpen(true)), disabled: isCollabGuest },
         // Mobile only: edit a screenplay where it lives — Files/iCloud/Dropbox
         // on iOS, the Storage Access Framework on Android — instead of
         // importing a copy and exporting it back afterwards.
@@ -1356,13 +1376,36 @@ const MenuBar: React.FC<MenuBarProps> = ({
           disabled: isCollabGuest,
         }] : []),
         {
+          // "Close Script", not "Close": the menu bar lives inside the window on
+          // touch platforms, with no window chrome around it to make plain
+          // "Close" mean the document rather than the app (issue #78). Naming
+          // the script removes that reading entirely. Named the same way on
+          // every platform — one label set is easier to document and support
+          // than one that changes per device.
           icon: <FaTimes />,
-          label: 'Close',
+          label: 'Close Script',
           action: handleCloseDocument,
           disabled: isCollabGuest,
         },
-        { icon: <FaSave />, label: 'Save', shortcut: `${mod}S`, action: handleSave, disabled: isCollabGuest },
-        { icon: <FaSave />, label: 'Save As…', shortcut: `⇧${mod}S`, action: handleSaveAs, disabled: isCollabGuest },
+        // Both Save items name their destination when the two differ. A
+        // document opened in place has an origin file, so ⌘S overwrites it while
+        // Save As still files a copy in the library and never touches it — the
+        // one moment where saying where each one goes actually matters. With no
+        // origin both go to the library, so the qualifier would be noise.
+        {
+          icon: <FaSave />,
+          label: hasFileOrigin ? 'Save to File' : 'Save Script',
+          shortcut: `${mod}S`,
+          action: handleSave,
+          disabled: isCollabGuest,
+        },
+        {
+          icon: <FaSave />,
+          label: hasFileOrigin ? 'Save to Library As…' : 'Save Script As…',
+          shortcut: `⇧${mod}S`,
+          action: handleSaveAs,
+          disabled: isCollabGuest,
+        },
         { separator: true, label: '' },
         {
           icon: <FaFileExport />, label: 'Export',
@@ -1380,7 +1423,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           icon: <FaCodeBranch />, label: 'Versions',
           disabled: isCollabGuest,
           children: [
-            { icon: <FaUpload />, label: 'Check In...', action: handleCheckinOpen, disabled: isCollabGuest },
+            { icon: <FaUpload />, label: 'Check In…', action: handleCheckinOpen, disabled: isCollabGuest },
             { icon: <FaHistory />, label: 'Version History', action: () => setVersionHistoryOpen(true), disabled: isCollabGuest },
             { separator: true, label: '' },
             {
@@ -1415,8 +1458,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
           },
         ] : []),
         { separator: true, label: '' },
-        { icon: <FaCog />, label: 'Page Setup...', action: () => setPageSetupOpen(true) },
-        { icon: <FaPrint />, label: 'Print...', shortcut: `${mod}P`, action: () => window.print() },
+        { icon: <FaCog />, label: 'Page Setup…', action: () => setPageSetupOpen(true) },
+        { icon: <FaPrint />, label: 'Print…', shortcut: `${mod}P`, action: () => window.print() },
       ],
     },
     {
@@ -1431,8 +1474,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { icon: <FaPaste />, label: 'Paste as Fountain', shortcut: `⇧${mod}V`, action: handlePasteAsFountain, disabled: !editor },
         { icon: <FaMousePointer />, label: 'Select All', shortcut: `${mod}A`, action: () => editor?.chain().focus().selectAll().run() },
         { separator: true, label: '' },
-        { icon: <FaSearch />, label: 'Find & Replace...', shortcut: `${mod}F`, action: () => setSearchOpen(true) },
-        { icon: <FaHashtag />, label: 'Go to Page...', shortcut: `${mod}G`, action: () => setGoToPageOpen(true) },
+        { icon: <FaSearch />, label: 'Find & Replace…', shortcut: `${mod}F`, action: () => setSearchOpen(true) },
+        { icon: <FaHashtag />, label: 'Go to Page…', shortcut: `${mod}G`, action: () => setGoToPageOpen(true) },
         {
           icon: <FaSpellCheck />, label: 'Spelling & Grammar',
           children: [
@@ -1457,7 +1500,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 sceneHeading: `${mod}1`, action: `${mod}2`, character: `${mod}3`, dialogue: `${mod}4`,
                 parenthetical: `${mod}5`, transition: `${mod}6`, general: `${mod}7`, shot: `${mod}8`,
               };
-              return { label: r.label, shortcut: shortcuts[r.id], action: () => setElement(r.id as any) };
+              return {
+                label: r.label,
+                shortcut: shortcuts[r.id],
+                title: ELEMENT_DESCRIPTIONS[r.id],
+                action: () => setElement(r.id as any),
+              };
             }),
           ],
         },
@@ -1495,12 +1543,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
           disabled: !editor,
         },
         { separator: true, label: '' },
-        { icon: <FaCommentDots />, label: 'Mores & Continueds...', action: () => useEditorStore.getState().setMoresContdsOpen(true) },
-        { icon: <FaImage />, label: 'Insert Image...', action: () => useEditorStore.getState().imageInsertHandler?.() },
+        { icon: <FaCommentDots />, label: 'Mores & Continueds…', action: () => useEditorStore.getState().setMoresContdsOpen(true) },
+        { icon: <FaImage />, label: 'Insert Image…', action: () => useEditorStore.getState().imageInsertHandler?.() },
         { separator: true, label: '' },
-        { icon: <FaFileAlt />, label: 'Title Page...', action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
+        { icon: <FaFileAlt />, label: 'Title Page…', action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
         { icon: <FaFileAlt />, label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true) },
-        { icon: <FaFileAlt />, label: 'Script Format Preferences...', action: () => setFormatPrefsOpen({ firstRun: false, afterSave: null }) },
+        { icon: <FaFileAlt />, label: 'Script Format Preferences…', action: () => setFormatPrefsOpen({ firstRun: false, afterSave: null }) },
       ],
     },
     {
@@ -1573,11 +1621,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
           icon: <FaUserFriends />, label: 'Collaboration',
           children: [
             { icon: <FaUserFriends />, label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate, disabled: isCollabGuest },
-            { icon: <FaSignInAlt />, label: 'Join Collaboration...', action: onJoinCollab, disabled: isCollabGuest },
+            { icon: <FaSignInAlt />, label: 'Join Collaboration…', action: onJoinCollab, disabled: isCollabGuest },
           ],
         },
         { separator: true, label: '' },
-        { icon: <FaProjectDiagram />, label: 'Manage Projects...', action: () => { window.location.href = '/projects'; }, disabled: isCollabGuest },
+        { icon: <FaProjectDiagram />, label: 'Manage Projects…', action: () => { window.location.href = '/projects'; }, disabled: isCollabGuest },
         { icon: <FaBoxes />, label: 'Asset Manager', action: () => useAssetStore.getState().toggleAssetManager() },
         { separator: true, label: '' },
         {
@@ -1596,7 +1644,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           ],
         },
         { separator: true, label: '' },
-        { icon: <FaCog />, label: 'System Settings...', action: () => navigate('/settings') },
+        { icon: <FaCog />, label: 'System Settings…', action: () => navigate('/settings') },
         { separator: true, label: '' },
         {
           icon: <FaFilm />, label: 'Production',
@@ -1682,7 +1730,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (el) {
       const rect = el.getBoundingClientRect();
       const dropdownWidth = 260; // min-width of .menu-dropdown
-      const left = Math.min(rect.left, window.innerWidth - dropdownWidth - 8);
+      // Clamped at both ends. Without the lower bound a viewport narrower than
+      // the dropdown pushes `left` negative and the menu hangs off the leading
+      // edge. Not reachable at the 320pt minimum this app supports, but the
+      // expression should not be the thing standing between here and there.
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - dropdownWidth - 8));
 
       // In floating mode, position relative to the panel edges (not individual items)
       // so the dropdown clears the rounded, padded floating menu panel.
@@ -2014,6 +2066,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                     <div
                       key={child.label}
                       className={`menu-dropdown-item ${child.disabled ? 'disabled' : ''}`}
+                      title={child.title}
                       onTouchEnd={(e) => e.stopPropagation()}
                       onClick={(e) => handleItemClick(child, e)}
                     >
@@ -2164,8 +2217,17 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.23</div>
+              <div className="about-section-title">What's New in 0.24</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.24.0</div>
+              <ul className="about-list">
+                <li><strong>Fountain Files Survive Being Saved</strong> — A screenplay opened from a <code>.fountain</code> file could come back with <code>**</code> around its scene headings, and the action beneath them turned into dialogue. Emphasis, scene numbers and headings that don't start with INT./EXT. are now written the way the Fountain specification asks, so a script reopens as the script you saved. Asterisks and underscores you typed yourself stay literal instead of turning into italics.</li>
+                <li><strong>Two Blank Lines Before Scene Headings</strong> — The industry standard, and Final Draft's default. OpenDraft already wrote two into every Final Draft and Fade In export while showing one on screen, so exported scripts came out longer than the app said. Scripts written under the old spacing open unchanged and ask once whether to adopt it.</li>
+                <li><strong>Space Before Is A Real Setting</strong> — Format → Formatting Template sets the blank lines before any element, counted in lines. It now reaches page breaks, PDF and Word as well as the screen — before, changing it moved the gap on screen only, and the page count stayed where it was.</li>
+                <li><strong>General Keeps Your Indentation</strong> — Text you deliberately indent in a General element stays indented, in the editor, in PDF and through Fountain and Word round-trips. Pressing Enter on an indented line adds a line instead of asking you to pick an element type and quietly changing it.</li>
+                <li><strong>Clearer Element And Menu Names</strong> — <em>General</em> is now <em>General (Unformatted text)</em>, and the element pickers explain what the less obvious elements are for. The File menu now says <em>Script</em> rather than <em>Screenplay</em>, because five of the six formats you can choose are not screenplays: <em>New Script</em>, <em>Open Script…</em>, <em>Close Script</em>. And Save names where it is going — a script you opened from a file says <em>Save to File</em>, so it is clear ⌘S overwrites that file rather than filing a copy.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.23.2</div>
               <ul className="about-list">
                 <li><strong>Cyrillic Scripts Export To PDF</strong> — A screenplay written in Cyrillic came out of PDF export as a run of unrelated Latin letters. Cyrillic, Greek, Armenian and Georgian are now written into the PDF properly — on the same page layout as before, and searchable and copyable out of the file. Title pages, headers and footers too.</li>

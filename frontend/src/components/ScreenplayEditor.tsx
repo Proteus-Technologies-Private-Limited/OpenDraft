@@ -38,7 +38,7 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
-import { createPaginationPlugin, getPageMetrics, buildTemplateHints } from '../editor/pagination';
+import { createPaginationPlugin, getPageMetrics, activeTemplateHints } from '../editor/pagination';
 import { createContdCasePlugin } from '../editor/contdCase';
 import { ScreenplayImage } from '../editor/extensions/ScreenplayImage';
 import { insertImageNode } from '../utils/insertImage';
@@ -81,6 +81,8 @@ import { useOpenDocumentGuard } from '../hooks/useOpenDocumentGuard';
 const IN_PLACE_ORIGIN_EXTENSIONS = ['odraft', 'fdx', 'fountain', 'fadein', 'osf', 'txt'];
 import { documentKey } from '../services/openDocuments';
 import RecoveryPromptDialog from './RecoveryPromptDialog';
+import SceneSpacingPromptDialog from './SceneSpacingPromptDialog';
+import { resolveSceneHeadingSpaceBefore, predatesStandardSceneSpacing } from '../utils/elementSpacing';
 import DocumentOpenElsewhereDialog from './DocumentOpenElsewhereDialog';
 import {
   clearRecoverySnapshot,
@@ -1093,7 +1095,7 @@ const ScreenplayEditor: React.FC = () => {
             },
             () => pageLayoutRef.current,
             // Template-driven page rules (e.g. "every New Act starts a page").
-            () => buildTemplateHints(useFormattingTemplateStore.getState().getActiveTemplate()),
+            () => activeTemplateHints(),
           ),
         ];
       },
@@ -1162,7 +1164,15 @@ const ScreenplayEditor: React.FC = () => {
             const { $from } = editor.state.selection;
             const currentNode = $from.parent;
             const currentType = currentNode.type.name;
-            const isEmpty = currentNode.textContent.trim() === '';
+            // A line of nothing but spaces counts as blank for the element
+            // picker — except in General, whose whole purpose is text that does
+            // not follow screenplay shape. Indentation there is content, and
+            // calling it blank meant Enter opened the picker instead of adding a
+            // line, so whatever the writer picked replaced the General type they
+            // had deliberately set, and the spacing went with it (issue #74).
+            const isEmpty = currentType === 'general'
+              ? currentNode.textContent.length === 0
+              : currentNode.textContent.trim() === '';
 
             // A non-text selection (e.g. a selected image atom) — let ProseMirror's
             // default Enter handle it. Computing block positions below would throw
@@ -1243,16 +1253,21 @@ const ScreenplayEditor: React.FC = () => {
             if (atBlockStart) {
               // Cursor was at position 0: user is inserting a blank line above.
               // The second block (with content) should keep the original type.
-              // The first block (empty, above) becomes action for a clean blank line.
+              // The first block (empty, above) becomes action for a clean blank
+              // line — except in General, which stays General. A blank Action
+              // above a screenplay element is the right neutral default, but in
+              // General it silently converted a line the writer had explicitly
+              // set, and the new line could no longer hold indentation (#74).
               const origNodeType = schema.nodes[currentType];
               if (origNodeType && tr.doc.nodeAt(newBlockStart)?.type.name !== currentType) {
                 tr.setNodeMarkup(newBlockStart, origNodeType);
               }
               const prevResolved = tr.doc.resolve(newBlockStart - 1);
               const prevBlockStart = prevResolved.before(prevResolved.depth);
-              const actionType = schema.nodes['action'];
-              if (actionType && tr.doc.nodeAt(prevBlockStart)?.type.name !== 'action') {
-                tr.setNodeMarkup(prevBlockStart, actionType);
+              const blankTypeName = currentType === 'general' ? 'general' : 'action';
+              const blankType = schema.nodes[blankTypeName];
+              if (blankType && tr.doc.nodeAt(prevBlockStart)?.type.name !== blankTypeName) {
+                tr.setNodeMarkup(prevBlockStart, blankType);
               }
             } else {
               // Cursor was in the middle/end: apply normal type transition.
@@ -1505,6 +1520,7 @@ const ScreenplayEditor: React.FC = () => {
   const activeTemplateId = useFormattingTemplateStore((s) => s.activeTemplateId);
   const templatesLoaded = useFormattingTemplateStore((s) => s.loaded);
   const templates = useFormattingTemplateStore((s) => s.templates);
+  const sceneHeadingSpaceBefore = useEditorStore((s) => s.sceneHeadingSpaceBefore);
 
   useEffect(() => {
     // Load templates on mount
@@ -1513,16 +1529,25 @@ const ScreenplayEditor: React.FC = () => {
 
   useEffect(() => {
     const template = useFormattingTemplateStore.getState().getActiveTemplate();
+    // A document pinned to its original scene-heading spacing overrides whatever
+    // the template says, including the static industry-standard stylesheet.
+    // Without this the editor would show the new two-line gap while pagination
+    // and the exporters used the pinned one — the exact desync this whole
+    // change exists to remove.
+    const overrideCss = typeof sceneHeadingSpaceBefore === 'number'
+      ? `.screenplay-content .scene-heading { margin-top: ${sceneHeadingSpaceBefore}pt; }\n`
+        + '.screenplay-content .scene-heading:first-child { margin-top: 0; }'
+      : '';
     // If the resolved template is industry standard, use static CSS
     if (template.id === '__industry_standard__') {
-      injectTemplateCss(null);
+      injectTemplateCss(overrideCss || null);
       return;
     }
     const css = generateTemplateCss(template, pageLayout);
-    injectTemplateCss(css);
+    injectTemplateCss(overrideCss ? `${css}\n${overrideCss}` : css);
 
     return () => { injectTemplateCss(null); };
-  }, [activeTemplateId, templatesLoaded, templates, pageLayout]);
+  }, [activeTemplateId, templatesLoaded, templates, pageLayout, sceneHeadingSpaceBefore]);
 
   // ── Owner starts collaboration — save current content, create own token, switch to collab mode ──
   const handleStartCollab = useCallback(async (guestSession: import('../services/api').CollabSession) => {
@@ -1857,7 +1882,7 @@ const ScreenplayEditor: React.FC = () => {
       editor.view.dispatch(tr);
     }, 300);
     return () => clearTimeout(t);
-  }, [editor, pageLayout, activeTemplateId, templates, templatesLoaded]);
+  }, [editor, pageLayout, activeTemplateId, templates, templatesLoaded, sceneHeadingSpaceBefore]);
 
   // --- Initialize spell checker on mount ---
   useEffect(() => {
@@ -2057,6 +2082,8 @@ const ScreenplayEditor: React.FC = () => {
    * holds behind the dialog while the writer decides.
    */
   const [recoveryPromptOpen, setRecoveryPromptOpen] = useState(false);
+  /** Whether the script just loaded predates the two-line scene-heading standard. */
+  const [sceneSpacingPrompt, setSceneSpacingPrompt] = useState(false);
 
   /**
    * True while unsaved work from a previous session is still waiting to be
@@ -2087,6 +2114,21 @@ const ScreenplayEditor: React.FC = () => {
     // Closed means the writer has decided, so the welcome dialog can have the
     // screen if the document is still empty.
     if (!open) setRecoveryPending(false);
+  }, []);
+
+  /**
+   * Record the writer's answer to the scene-heading spacing offer (issue #76).
+   *
+   * Either answer is persisted: `null` follows the template's standard two
+   * lines, `12` pins this script to the one it was written with. Marking the
+   * document dirty is deliberate — the choice is only durable once saved, and
+   * without it the prompt would return on the next open.
+   */
+  const handleSceneSpacingAnswer = useCallback((adoptStandard: boolean) => {
+    setSceneSpacingPrompt(false);
+    const store = useEditorStore.getState();
+    store.setSceneHeadingSpaceBefore(adoptStandard ? null : 12);
+    store.setSaveStatus('unsaved');
   }, []);
 
   // Two windows on one screenplay auto-save over each other, so say so rather
@@ -2769,6 +2811,11 @@ const ScreenplayEditor: React.FC = () => {
             if (c._pageLayout && typeof c._pageLayout === 'object') {
               store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT, ...(c._pageLayout as Record<string, unknown>) });
             }
+            // Scene-heading spacing: a script written before the two-line
+            // standard opens on the spacing it was composed against, and is
+            // offered the change once (issue #76).
+            store.setSceneHeadingSpaceBefore(resolveSceneHeadingSpaceBefore(c));
+            setSceneSpacingPrompt(predatesStandardSceneSpacing(c));
           }
         }
 
@@ -3089,6 +3136,11 @@ const ScreenplayEditor: React.FC = () => {
           if (c._pageLayout && typeof c._pageLayout === 'object') {
             store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT, ...(c._pageLayout as Record<string, unknown>) });
           }
+          // Scene-heading spacing: a script written before the two-line
+          // standard opens on the spacing it was composed against, and is
+          // offered the change once (issue #76).
+          store.setSceneHeadingSpaceBefore(resolveSceneHeadingSpaceBefore(c));
+          setSceneSpacingPrompt(predatesStandardSceneSpacing(c));
           // Restore per-document spell/grammar check toggles
           store.setSpellCheckEnabled(c._spellCheckEnabled === true);
           store.setGrammarCheckEnabled(c._grammarCheckEnabled === true);
@@ -4309,6 +4361,12 @@ const ScreenplayEditor: React.FC = () => {
         />
       )}
       {!isHistoryMode && showWelcome && !recoveryPending && <WelcomeDialog onChoice={handleWelcomeChoice} />}
+      {/* After the recovery prompt, never alongside it — two launch dialogs at
+          once is what #68 warned about. */}
+      {!isHistoryMode && !collabMode && sceneSpacingPrompt
+        && !recoveryPending && !recoveryPromptOpen && (
+        <SceneSpacingPromptDialog onAnswer={handleSceneSpacingAnswer} />
+      )}
       {!isHistoryMode && !collabMode && (
         <RecoveryPromptDialog
           editorReady={!!editor}

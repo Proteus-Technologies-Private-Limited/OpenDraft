@@ -14,10 +14,84 @@ interface TipTapNode {
   attrs?: Record<string, unknown>;
 }
 
+/**
+ * Fountain title-page keys, mapped to the attributes of OpenDraft's titlePage
+ * node. These mirror what {@link exportFountain} writes.
+ *
+ * Without this the exporter's own output could not be read back: `Title:` and
+ * `Author:` fell through to the default Action rule, so a script with a title
+ * page reopened with two stray lines of Action at the top and no title page —
+ * on every save of a `.fountain` opened in place.
+ */
+const TITLE_PAGE_KEYS: Record<string, string> = {
+  title: 'tpTitle',
+  credit: 'tpBasedOn',
+  author: 'tpWrittenBy',
+  authors: 'tpWrittenBy',
+  'written by': 'tpWrittenBy',
+  source: 'tpBasedOn',
+  'draft date': 'tpDraftDate',
+  contact: 'tpContact',
+  copyright: 'tpCopyright',
+  notes: 'tpNotes',
+};
+
+/**
+ * Consume the title page, if the document opens with one.
+ *
+ * Per the spec it is `key: value` pairs at the very top, ending at the first
+ * blank line, with indented continuation lines. Returns the line index to carry
+ * on from, and the node if anything was found.
+ */
+function parseTitlePage(lines: string[]): { next: number; node: TipTapNode | null } {
+  // A title page has to start on the first line and its first line has to be a
+  // key. Anything else and this is an ordinary script.
+  if (!/^[A-Za-z][A-Za-z ]*:/.test(lines[0] ?? '')) return { next: 0, node: null };
+
+  const attrs: Record<string, unknown> = { field: 'title' };
+  let found = false;
+  let i = 0;
+  let currentKey: string | null = null;
+
+  for (; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim() === '') { i++; break; }
+
+    const m = /^([A-Za-z][A-Za-z ]*):\s*(.*)$/.exec(line);
+    if (m) {
+      currentKey = TITLE_PAGE_KEYS[m[1].trim().toLowerCase()] ?? null;
+      if (currentKey && m[2].trim() !== '') {
+        attrs[currentKey] = m[2].trim();
+        found = true;
+      }
+      continue;
+    }
+    // An indented continuation of the previous key — the spec allows the value
+    // to run onto following lines.
+    if (currentKey && /^\s+\S/.test(line)) {
+      const prev = typeof attrs[currentKey] === 'string' ? `${attrs[currentKey]}\n` : '';
+      attrs[currentKey] = `${prev}${line.trim()}`;
+      found = true;
+      continue;
+    }
+    // Not a key and not a continuation — this was never a title page.
+    return { next: 0, node: null };
+  }
+
+  if (!found) return { next: 0, node: null };
+  return { next: i, node: { type: 'titlePage', attrs, content: [] } };
+}
+
 export function parseFountain(text: string): TipTapNode {
   const lines = text.split('\n');
   const nodes: TipTapNode[] = [];
   let i = 0;
+
+  const titlePage = parseTitlePage(lines);
+  if (titlePage.node) {
+    nodes.push(titlePage.node);
+    i = titlePage.next;
+  }
   // A `===` page break applies to whatever element comes next.
   let pendingPageBreak = false;
 
@@ -58,7 +132,9 @@ export function parseFountain(text: string): TipTapNode {
     // Forced action: line starts with !.  Checked before every other rule so
     // it can override the ALL-CAPS character and scene-heading heuristics.
     if (trimmed.startsWith('!')) {
-      push(makeNode('action', trimmed.substring(1)));
+      // Indentation after the `!` is content — this is how General and any
+      // hand-aligned Action block carry their alignment through Fountain.
+      push(makeNode('action', actionIndent(trimmed.substring(1))));
       i++;
       continue;
     }
@@ -72,14 +148,14 @@ export function parseFountain(text: string): TipTapNode {
 
     // Forced scene heading: line starts with .
     if (trimmed.startsWith('.') && trimmed.length > 1 && trimmed[1] !== '.') {
-      push(makeNode('sceneHeading', trimmed.substring(1).trim()));
+      push(makeSceneHeading(trimmed.substring(1).trim()));
       i++;
       continue;
     }
 
     // Scene heading: starts with INT., EXT., EST., INT/EXT., I/E.
     if (/^(INT\.|EXT\.|EST\.|INT\.\/EXT\.|I\/E\.)/.test(trimmed.toUpperCase())) {
-      push(makeNode('sceneHeading', trimmed));
+      push(makeSceneHeading(trimmed));
       i++;
       continue;
     }
@@ -121,8 +197,11 @@ export function parseFountain(text: string): TipTapNode {
       continue;
     }
 
-    // Character: all uppercase, preceded by empty line
-    if (isCharacterLine(trimmed.replace(/\s*\^$/, '')) && isPrecededByEmptyLine(lines, i)) {
+    // Character: all uppercase, preceded by an empty line, and followed by the
+    // dialogue it introduces.
+    if (isCharacterLine(trimmed.replace(/\s*\^$/, ''))
+      && isPrecededByEmptyLine(lines, i)
+      && isFollowedByText(lines, i)) {
       let charName = trimmed;
       const isDual = charName.endsWith('^');
       if (isDual) charName = charName.replace(/\s*\^$/, '').trim();
@@ -134,8 +213,8 @@ export function parseFountain(text: string): TipTapNode {
       continue;
     }
 
-    // Default: action
-    push(makeNode('action', trimmed));
+    // Default: action — the one element that keeps the writer's indentation.
+    push(makeNode('action', actionIndent(line)));
     i++;
   }
 
@@ -180,12 +259,17 @@ function restoreEscapes(text: string): string {
  * Emphasis delimiters, most specific first.  Each pattern requires the run to
  * start and end on a non-space character, which is what keeps arithmetic
  * ("2 * 3") and unpaired delimiters from being read as markup.
+ *
+ * The trailing `??` on the optional tail matters.  A greedy `?` makes the engine
+ * prefer a *longer* run, so `**A** and **B**` matched from the first `**` to the
+ * last one and swallowed the middle delimiters as literal text.  Made lazy, the
+ * shortest well-formed run wins and each pair closes where it should.
  */
 const EMPHASIS_RULES: { re: RegExp; marks: string[] }[] = [
-  { re: /\*\*\*(\S(?:[\s\S]*?\S)?)\*\*\*/, marks: ['bold', 'italic'] },
-  { re: /\*\*(\S(?:[\s\S]*?\S)?)\*\*/, marks: ['bold'] },
-  { re: /\*(\S(?:[\s\S]*?\S)?)\*/, marks: ['italic'] },
-  { re: /_(\S(?:[\s\S]*?\S)?)_/, marks: ['underline'] },
+  { re: /\*\*\*(\S(?:[\s\S]*?\S)??)\*\*\*/, marks: ['bold', 'italic'] },
+  { re: /\*\*(\S(?:[\s\S]*?\S)??)\*\*/, marks: ['bold'] },
+  { re: /\*(\S(?:[\s\S]*?\S)??)\*/, marks: ['italic'] },
+  { re: /_(\S(?:[\s\S]*?\S)??)_/, marks: ['underline'] },
 ];
 
 /** Emit text (and hard breaks for embedded newlines) carrying `marks`. */
@@ -203,21 +287,33 @@ function pushText(text: string, marks: string[], out: TipTapNode[]): void {
 }
 
 /**
- * Split text on the first emphasis run found, recursing into the run itself so
+ * Split text on the *leftmost* emphasis run, recursing into the run itself so
  * nested emphasis (`**bold *and italic* **`) keeps both marks.  Text with no
  * well-formed run is emitted verbatim, so stray asterisks survive as
  * characters rather than swallowing the rest of the line.
+ *
+ * Leftmost, not first-rule-that-matches: whichever delimiter *opens* first is
+ * the outer one.  Taking the rules in order instead stranded the outer pair of
+ * `_**bold**_` as two literal underscores, because the `**` rule was consulted
+ * before the `_` rule even though its delimiter starts a character later.
+ * Ties — `***x***`, where all three asterisk rules match at the same index —
+ * go to the earlier rule, which is why they are listed longest-delimiter first.
  */
 function splitEmphasis(text: string, marks: string[], out: TipTapNode[]): void {
+  let best: { match: RegExpExecArray; marks: string[] } | null = null;
   for (const rule of EMPHASIS_RULES) {
     const match = rule.re.exec(text);
     if (!match) continue;
-    splitEmphasis(text.slice(0, match.index), marks, out);
-    splitEmphasis(match[1], [...marks, ...rule.marks], out);
-    splitEmphasis(text.slice(match.index + match[0].length), marks, out);
+    if (!best || match.index < best.match.index) best = { match, marks: rule.marks };
+  }
+  if (!best) {
+    pushText(text, marks, out);
     return;
   }
-  pushText(text, marks, out);
+  const { match } = best;
+  splitEmphasis(text.slice(0, match.index), marks, out);
+  splitEmphasis(match[1], [...marks, ...best.marks], out);
+  splitEmphasis(text.slice(match.index + match[0].length), marks, out);
 }
 
 /** Parse Fountain inline emphasis into marked text nodes. */
@@ -247,6 +343,48 @@ function makeNode(type: string, text: string): TipTapNode {
   return { type, content: parseInline(text) };
 }
 
+/**
+ * Action is the one element whose indentation the spec preserves: "tabs and
+ * spaces are retained in Action elements, allowing writers to indent a line.
+ * Tabs are converted to four spaces."
+ *
+ * Every other rule matches on the trimmed line, because a scene heading or cue
+ * is recognised by its text rather than its position. Only what actually
+ * becomes Action comes through here, so deliberately aligned material — onscreen
+ * records, archival entries, the General blocks this app writes as forced
+ * Action — survives the round trip instead of being flattened to the margin.
+ *
+ * Trailing whitespace is dropped: it is never content, and the two-trailing-
+ * spaces "intentional blank line" convention belongs to dialogue blocks, which
+ * do not come through this path.
+ */
+function actionIndent(line: string): string {
+  return line.replace(/\t/g, '    ').replace(/\s+$/, '');
+}
+
+/**
+ * Split a trailing `#47#` scene number off a heading line.
+ *
+ * Fountain writes the number at the end of the heading wrapped in hashes, and
+ * it belongs in the node's attribute rather than its text. Left in the text it
+ * is re-emitted as literal characters and the exporter appends the attribute's
+ * number as well, so the heading grows another `#47#` on every save.
+ *
+ * Per the spec the number is "any alphanumerics (plus dashes and periods)".
+ */
+function splitSceneNumber(text: string): { text: string; sceneNumber?: string } {
+  const match = /^(.*?)\s*#([A-Za-z0-9\-.]+)#$/.exec(text);
+  if (!match) return { text };
+  return { text: match[1], sceneNumber: match[2] };
+}
+
+function makeSceneHeading(text: string): TipTapNode {
+  const { text: heading, sceneNumber } = splitSceneNumber(text);
+  const node = makeNode('sceneHeading', heading);
+  if (sceneNumber) node.attrs = { ...node.attrs, sceneNumber };
+  return node;
+}
+
 function isCharacterLine(line: string): boolean {
   // All uppercase, not empty, no lowercase letters
   const cleaned = line.replace(/\(.*\)/, '').trim();
@@ -256,6 +394,20 @@ function isCharacterLine(line: string): boolean {
 function isPrecededByEmptyLine(lines: string[], index: number): boolean {
   if (index === 0) return true;
   return lines[index - 1].trim() === '';
+}
+
+/**
+ * The other half of the spec's character rule: "A Character element is any line
+ * entirely in uppercase, with one empty line before it **and without an empty
+ * line after it**."
+ *
+ * Only the "before" half was checked, so any all-caps line standing on its own
+ * became a cue — `FADE IN:` most visibly, which then made the paragraph under
+ * it dialogue. A cue with nothing after it is not a cue; it is Action.
+ */
+function isFollowedByText(lines: string[], index: number): boolean {
+  const next = lines[index + 1];
+  return next !== undefined && next.trim() !== '';
 }
 
 const DIALOGUE_TYPES = new Set(['character', 'dialogue', 'parenthetical']);

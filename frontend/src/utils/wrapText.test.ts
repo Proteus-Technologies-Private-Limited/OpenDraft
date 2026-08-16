@@ -63,26 +63,70 @@ describe('getTextLines agrees with the PDF word wrapper', () => {
   });
 });
 
-describe('known divergence: a single word longer than the line', () => {
-  // PRE-EXISTING, not introduced with hard breaks: `wordWrapRuns` only ever
-  // splits on spaces, so a word longer than the line stays on one line and
-  // overflows the margin, while `getTextLines` counts it as ceil(len / cpl).
-  //
-  // Left as-is deliberately. Making the wrapper break mid-word would change
-  // the line count of existing scripts and shift everyone's page breaks, which
-  // does not belong in a hard-break change. Recorded here so the divergence is
-  // visible rather than lurking, and so the agreement suite above is honest
-  // about what it does and does not cover.
-  it('counts differently for an unbroken 130-character token', () => {
+describe('a single word longer than the line', () => {
+  // Used to be a documented divergence: `wordWrapRuns` only split on spaces, so
+  // an unbroken token stayed on one line and ran past the right margin, while
+  // `getTextLines` counted it as ceil(len / cpl). The editor overflowed too,
+  // though the page thumbnail did not. The wrapper now breaks at the margin, so
+  // all three agree and nothing overflows.
+  const plain = (lines: ReturnType<typeof wordWrapRuns>) =>
+    lines.map((l) => l.map((r) => r.text).join(''));
+
+  it('breaks an unbroken 130-character token at the line width', () => {
     const node = block('action', 'y'.repeat(130));
     expect(getTextLines(jsonBlockText(node), 60)).toBe(3);
-    expect(wordWrapRuns(extractRuns(node), 60, false).length).toBe(1);
+    expect(wordWrapRuns(extractRuns(node), 60, false).length).toBe(3);
   });
 
-  it('still agrees on where the hard breaks fall around such a token', () => {
+  it('never emits a line wider than the limit', () => {
+    const node = block('action', 'y'.repeat(130));
+    for (const line of plain(wordWrapRuns(extractRuns(node), 60, false))) {
+      expect(line.length).toBeLessThanOrEqual(60);
+    }
+  });
+
+  it('loses no characters when breaking', () => {
+    const node = block('action', 'y'.repeat(130));
+    expect(plain(wordWrapRuns(extractRuns(node), 60, false)).join('')).toBe('y'.repeat(130));
+  });
+
+  it('agrees around hard breaks', () => {
     const node = block('action', 'y'.repeat(130), BR, 'z'.repeat(130));
-    // Two over-long tokens → two wrapped lines, one per break-delimited segment.
-    expect(wordWrapRuns(extractRuns(node), 60, false).length).toBe(2);
+    expect(wordWrapRuns(extractRuns(node), 60, false).length)
+      .toBe(getTextLines(jsonBlockText(node), 60));
+  });
+
+  it('breaks a token that starts partway along a line', () => {
+    const node = block('action', `short ${'y'.repeat(130)}`);
+    const lines = plain(wordWrapRuns(extractRuns(node), 60, false));
+    expect(lines[0]).toBe('short');
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(60);
+    expect(lines.join('').replace(/\s/g, '')).toBe(`short${'y'.repeat(130)}`);
+  });
+
+  it('lets a following word share the remainder line', () => {
+    // The tail of a broken token is 10 characters, so "tail" fits beside it —
+    // which is what keeps the count equal to ceil(total / cpl).
+    const node = block('action', `${'y'.repeat(130)} tail`);
+    const lines = plain(wordWrapRuns(extractRuns(node), 60, false));
+    expect(lines).toHaveLength(3);
+    expect(lines[2]).toBe(`${'y'.repeat(10)} tail`);
+  });
+
+  it('carries the token\'s marks onto every broken line', () => {
+    const node = {
+      type: 'action',
+      content: [{ type: 'text', text: 'y'.repeat(130), marks: [{ type: 'bold' }] }],
+    };
+    const lines = wordWrapRuns(extractRuns(node), 60, false);
+    expect(lines).toHaveLength(3);
+    for (const line of lines) expect(line.every((r) => r.bold)).toBe(true);
+  });
+
+  it('handles a token that is an exact multiple of the line width', () => {
+    const node = block('action', 'y'.repeat(120));
+    expect(wordWrapRuns(extractRuns(node), 60, false).length)
+      .toBe(getTextLines(jsonBlockText(node), 60));
   });
 });
 
@@ -112,5 +156,51 @@ describe('wordWrapRuns with breaks', () => {
   it('does not uppercase a break run', () => {
     const lines = wordWrapRuns(extractRuns(block('character', 'jo', BR, 'hn')), 60, true);
     expect(plain(lines)).toEqual(['JO', 'HN']);
+  });
+});
+
+describe('wordWrapRuns keeps deliberate indentation', () => {
+  const plain = (lines: ReturnType<typeof wordWrapRuns>) =>
+    lines.map((l) => l.map((r) => r.text).join(''));
+
+  it('preserves leading spaces at the start of a block', () => {
+    // General exists to hold hand-aligned text — onscreen records, archival
+    // entries. The PDF used to print this flush left while the editor showed it
+    // indented.
+    expect(plain(wordWrapRuns(extractRuns(block('general', '    Hello')), 60, false)))
+      .toEqual(['    Hello']);
+  });
+
+  it('preserves leading spaces after a hard break', () => {
+    expect(plain(wordWrapRuns(extractRuns(block('general', 'one', BR, '    two')), 60, false)))
+      .toEqual(['one', '    two']);
+  });
+
+  it('preserves an indent split across runs', () => {
+    // Marks fragment a line into several runs, so the indent and the first word
+    // can arrive separately.
+    const node = {
+      type: 'general',
+      content: [
+        { type: 'text', text: '   ' },
+        { type: 'text', text: 'Indented', marks: [{ type: 'bold' }] },
+      ],
+    };
+    expect(plain(wordWrapRuns(extractRuns(node), 60, false))).toEqual(['   Indented']);
+  });
+
+  it('agrees with getTextLines once the indent counts toward the line', () => {
+    // The two must not disagree, or the editor and the PDF break pages
+    // differently. A 55-space indent plus "aaa bbb" is 62 characters, so it has
+    // to wrap — and it only wraps if the indent is counted, which is the bug.
+    const text = `${' '.repeat(55)}aaa bbb`;
+    const lines = wordWrapRuns(extractRuns(block('general', text)), 60, false);
+    expect(lines.length).toBe(2);
+    expect(lines.length).toBe(getTextLines(text, 60));
+  });
+
+  it('still collapses a single separating space between words', () => {
+    expect(plain(wordWrapRuns(extractRuns(block('action', 'one two')), 60, false)))
+      .toEqual(['one two']);
   });
 });

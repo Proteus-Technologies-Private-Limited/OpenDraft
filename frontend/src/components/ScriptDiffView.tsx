@@ -12,6 +12,14 @@ interface Props {
 
 type ViewMode = 'side-by-side' | 'unified' | 'changes-only';
 
+/**
+ * Deliberately *not* `ELEMENT_LABELS` from editorStore.
+ *
+ * These are abbreviated for the diff gutter, which is a narrow column beside
+ * every block: "Scene" rather than "Scene Heading", "Act Break" rather than
+ * "New Act", and plain "General" rather than the picker's more explanatory
+ * "General (Unformatted text)". The picker has room to teach; this does not.
+ */
 const ELEMENT_LABEL: Record<string, string> = {
   sceneHeading: 'Scene',
   action: 'Action',

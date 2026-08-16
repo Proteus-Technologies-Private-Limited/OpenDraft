@@ -17,6 +17,7 @@
 import { useEditorStore, DEFAULT_TAG_CATEGORIES, DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { hasSaveMetadata } from './saveContent';
+import { resolveSceneHeadingSpaceBefore } from './elementSpacing';
 
 /**
  * Some payloads store these as JSON strings rather than arrays/objects,
@@ -69,6 +70,7 @@ export function hydrateEditorStoresFromContent(
   if (c._pageLayout !== undefined) {
     store.setPageLayout(parseAttr(c._pageLayout, DEFAULT_PAGE_LAYOUT));
   }
+  store.setSceneHeadingSpaceBefore(resolveSceneHeadingSpaceBefore(content));
 
   if (typeof c._templateId === 'string' && c._templateId) {
     try {

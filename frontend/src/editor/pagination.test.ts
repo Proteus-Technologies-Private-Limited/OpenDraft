@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeBreaks, buildTemplateHints } from './pagination';
+import { computeBreaks, buildTemplateHints, getPageMetrics } from './pagination';
 import { DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { block, doc, pmDoc } from '../test/screenplaySchema';
 
@@ -100,5 +100,52 @@ describe('forced page breaks before acts', () => {
       DEFAULT_PAGE_LAYOUT,
     ).breaks;
     expect(b.map((x) => x.nodeIndex)).toEqual([1]);
+  });
+});
+
+describe('space before comes from the template', () => {
+  /**
+   * A page filled to the point where the scene heading's own spacing decides
+   * whether it fits.
+   *
+   * The default A4 page holds 58 lines. 27 action blocks cost 53 (the first
+   * gets no space before, the other 26 cost 2 each) and the General adds 1 more
+   * with no space of its own — 54 used, 4 left. The heading is grouped with the
+   * action after it so it is not orphaned at the page foot, so the group needs
+   * `space + 1` for the heading plus 2 for the action.
+   *
+   * At two blank lines that is 5 and the group moves to the next page; at one it
+   * is 4 and it stays. This document is exactly the difference between the old
+   * default and the standard, which is what makes it worth pinning.
+   */
+  const atTheSpacingBoundary = () => doc(
+    ...Array.from({ length: 27 }, (_, i) => block('action', `Line ${i}.`)),
+    block('general', 'x'),
+    block('sceneHeading', 'INT. LAB - DAY'),
+    block('action', 'After.'),
+  );
+
+  it('holds 58 lines on the default page', () => {
+    expect(getPageMetrics(DEFAULT_PAGE_LAYOUT).linesPerPage).toBe(58);
+  });
+
+  it('gives a scene heading two blank lines by default', () => {
+    const b = computeBreaks(pmDoc(atTheSpacingBoundary()), DEFAULT_PAGE_LAYOUT).breaks;
+    expect(b.map((x) => x.nodeIndex)).toEqual([28]);
+  });
+
+  it('lets a template shrink the spacing back to one line', () => {
+    const oneLine = buildTemplateHints({ rules: { sceneHeading: { marginTop: 12 } } });
+    const b = computeBreaks(pmDoc(atTheSpacingBoundary()), DEFAULT_PAGE_LAYOUT, oneLine).breaks;
+    expect(b).toHaveLength(0);
+  });
+
+  it('lets a template widen the spacing', () => {
+    const body = () => doc(...Array.from({ length: 26 }, (_, i) => block('action', `Line ${i}.`)));
+    const wide = buildTemplateHints({ rules: { action: { marginTop: 24 } } });
+    const tight = computeBreaks(pmDoc(body()), DEFAULT_PAGE_LAYOUT).breaks;
+    const loose = computeBreaks(pmDoc(body()), DEFAULT_PAGE_LAYOUT, wide).breaks;
+    // Same document, more space per element — so it needs more pages.
+    expect(loose.length).toBeGreaterThan(tight.length);
   });
 });

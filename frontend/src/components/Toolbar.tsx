@@ -27,7 +27,7 @@ import { useEditorStore, NOTE_COLORS } from '../stores/editorStore';
 import type { ElementType } from '../stores/editorStore';
 import { singleLine } from '../utils/nodeText';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
-import { BUILT_IN_ELEMENT_IDS } from '../stores/formattingTypes';
+import { BUILT_IN_ELEMENT_IDS, ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
 import {
   getCurrentElementRule,
   getLockedFormatting,
@@ -921,7 +921,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             // sceneHeading/action/etc. silently fails the schema check anyway.
             .filter((r) => isInsideAvCell ? AV_CELL_ELEMENT_IDS.includes(r.id) : !AV_CELL_ELEMENT_IDS.includes(r.id))
             .map((r) => (
-              <option key={r.id} value={r.id}>
+              <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]}>
                 {r.label}
               </option>
             ))}

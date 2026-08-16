@@ -8,6 +8,8 @@ import { singleLine } from '../utils/nodeText';
 // Line counting lives with the PDF exporter's word wrapper — the two must
 // agree exactly or the editor paginates differently from the exported file.
 import { getTextLines } from '../utils/wrapText';
+import { DEFAULT_SPACE_BEFORE, buildSpaceBefore, getSpaceBefore, type SpaceBeforeSource } from '../utils/elementSpacing';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 
 export const paginationPluginKey = new PluginKey('pagination');
 
@@ -17,15 +19,22 @@ export interface TemplateHints {
   forceBreakBefore: Set<string>;
   /** Per-element line-height multiplier (e.g. dialogue: 2.0 for double-spaced sitcom). */
   lineHeightMultiplier: Record<string, number>;
+  /**
+   * Blank lines before each element, from the template's per-element
+   * `marginTop`. Previously pagination used a hardcoded map, so a template that
+   * changed an element's spacing moved it on screen but not in the page count.
+   */
+  spaceBefore: Record<string, number>;
 }
 
 const EMPTY_HINTS: TemplateHints = {
   forceBreakBefore: new Set(),
   lineHeightMultiplier: {},
+  spaceBefore: DEFAULT_SPACE_BEFORE,
 };
 
 /** Source shape for hints — the subset of FormattingTemplate pagination cares about. */
-export interface HintSource {
+export interface HintSource extends SpaceBeforeSource {
   forceBreakBefore?: string[];
   lineHeightMultiplier?: Record<string, number>;
 }
@@ -42,9 +51,28 @@ export function buildTemplateHints(tpl: HintSource | null | undefined): Template
   const hints: TemplateHints = {
     forceBreakBefore: new Set(tpl.forceBreakBefore ?? []),
     lineHeightMultiplier: tpl.lineHeightMultiplier ?? {},
+    spaceBefore: buildSpaceBefore(tpl),
   };
   hintCache.set(tpl as object, hints);
   return hints;
+}
+
+/**
+ * Hints for the active template with any per-document spacing override applied.
+ *
+ * Use this, not `buildTemplateHints`, anywhere a real open document is being
+ * paginated. `buildTemplateHints` is memoized on the template object and
+ * deliberately knows nothing about document state, so an override would never
+ * invalidate its cache.
+ */
+export function activeTemplateHints(): TemplateHints {
+  try {
+    const tpl = useFormattingTemplateStore.getState().getActiveTemplate();
+    return { ...buildTemplateHints(tpl), spaceBefore: getSpaceBefore() };
+  } catch (err) {
+    console.warn('[pagination] could not read template hints', err);
+    return EMPTY_HINTS;
+  }
 }
 
 /** Resolve the effective element id for a top-level node (built-in name or customTypeId). */
@@ -75,12 +103,8 @@ for (const [type, [l, r]] of Object.entries(FD_INDENTS)) {
   CHARS_PER_LINE[type] = Math.round((r - l) * FD_CPI);
 }
 
-// Space before each element type in lines
-const SPACE_BEFORE: Record<string, number> = {
-  sceneHeading: 1, action: 1, character: 1, dialogue: 0,
-  parenthetical: 0, transition: 1, general: 0, shot: 1,
-  newAct: 2, endOfAct: 2, lyrics: 0, showEpisode: 1, castList: 0,
-};
+// Space before each element now comes from the template, via
+// hints.spaceBefore — see utils/elementSpacing.ts for the defaults.
 
 const DIALOGUE_BLOCK_TYPES = new Set(['dialogue', 'parenthetical', 'lyrics']);
 
@@ -237,7 +261,7 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
   doc.forEach((node, offset) => {
     const typeName = node.type.name;
     const elementId = getElementId(node);
-    const sb = isFirst ? 0 : (SPACE_BEFORE[typeName] ?? 0);
+    const sb = isFirst ? 0 : (hints.spaceBefore[elementId] ?? 0);
     const lineMul = hints.lineHeightMultiplier[elementId] ?? 1;
     // Images occupy a fixed estimated number of lines (no text to wrap).
     const fixedLines = typeName === 'screenplayImage'
@@ -409,7 +433,11 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
  * Compute the length of each scene in pages (decimal).
  * Returns an array of page lengths, one per scene heading in document order.
  */
-export function computeSceneLengths(doc: PmNode, layout: PageLayout): number[] {
+export function computeSceneLengths(
+  doc: PmNode,
+  layout: PageLayout,
+  hints: TemplateHints = EMPTY_HINTS,
+): number[] {
   const { linesPerPage } = getPageMetrics(layout);
   const lengths: number[] = [];
   let sceneLines = 0;
@@ -420,7 +448,7 @@ export function computeSceneLengths(doc: PmNode, layout: PageLayout): number[] {
     const typeName = node.type.name;
     const cpl = CHARS_PER_LINE[typeName] || 62;
     const textLines = getTextLines(node.textContent || '', cpl);
-    const sb = nodeIdx === 0 ? 0 : (SPACE_BEFORE[typeName] ?? 0);
+    const sb = nodeIdx === 0 ? 0 : (hints.spaceBefore[typeName] ?? 0);
 
     if (typeName === 'sceneHeading') {
       if (inScene) lengths.push(sceneLines / linesPerPage);
@@ -506,7 +534,7 @@ export function computePageBlocks(
       const node = nodes[i];
       const cpl = CHARS_PER_LINE[node.typeName] || 62;
       const textLines = getTextLines(node.text, cpl);
-      const sb = firstOnPage ? 0 : (SPACE_BEFORE[node.typeName] ?? 0);
+      const sb = firstOnPage ? 0 : (hints.spaceBefore[node.typeName] ?? 0);
       firstOnPage = false;
 
       blocks.push({

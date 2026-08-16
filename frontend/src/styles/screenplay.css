@@ -2043,13 +2043,24 @@ body {
 .screenplay-element {
   margin: 0; padding: 0;
   font-family: inherit; font-size: inherit; line-height: 1;
+  /* Break a token with no spaces in it — a URL, a long file path — at the
+     margin rather than letting it run off the page. Pagination has always
+     counted such a token as ceil(length / chars-per-line), and the page
+     thumbnail already broke it (`.page-thumb-el`); without this the editor was
+     the odd one out, showing one overflowing line where it counted three. */
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
-/* Scene Heading: FDX SpaceBefore=12pt (1 line) */
+/* Scene Heading: FDX SpaceBefore=24pt (2 lines) — the Final Draft Screenplay
+   default, and what fdxExporter/osfExporter have always written. The active
+   template overrides this through templateCss.ts; a document kept on the older
+   one-line spacing overrides it per document (see editorStore
+   `sceneHeadingSpaceBefore`). */
 .scene-heading {
   text-transform: uppercase;
   font-weight: bold;
-  margin-top: 12pt;
+  margin-top: 24pt;
   position: relative;
 }
 .scene-heading:first-child { margin-top: 0; }
@@ -8348,7 +8359,9 @@ html.android .version-history-panel {
 }
 .mob-acc-sheet-item {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   padding: 10px 16px;
   border: none;
   background: transparent;
@@ -8366,8 +8379,22 @@ html.android .version-history-panel {
   color: var(--fd-accent);
   font-weight: 600;
 }
-.mob-acc-sheet-item.active::before {
+/* On the label, not the item: the item is now a column, so a ::before on it
+   would take a row of its own above the name. */
+.mob-acc-sheet-item.active .mob-acc-sheet-item-label::before {
   content: '\2713\00a0';
+}
+/* What each element is for, spelled out where the choice is made — there is no
+   hover on touch to hide it behind (issue #77). */
+.mob-acc-sheet-item-desc {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--fd-text-muted);
+  white-space: normal;
+}
+.mob-acc-sheet-item:active .mob-acc-sheet-item-desc {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* ============ SCRIPT CONTEXT MENU ============ */

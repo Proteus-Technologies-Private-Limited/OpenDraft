@@ -108,6 +108,39 @@ export function jsonBlockRuns(node: JSONContent | null | undefined): Run[] {
   });
 }
 
+/**
+ * Coalesce neighbouring runs that carry identical formatting.
+ *
+ * {@link jsonBlockRuns} returns one run per inline child, and importers routinely
+ * produce several children with the same marks — an FDX scene heading arrives as
+ * `<Text Style="Bold">47 </Text><Text Style="Bold">EXT. FOO</Text>`. A delimiter-based
+ * exporter must not emit those separately, or the output reads `**47 ****EXT. FOO**`,
+ * which no longer parses back as one bold run.
+ *
+ * Breaks are never merged — they are boundaries, not text.
+ */
+export function mergeRuns(runs: Run[]): Run[] {
+  const merged: Run[] = [];
+  for (const run of runs) {
+    const prev = merged[merged.length - 1];
+    if (
+      prev &&
+      !prev.isBreak &&
+      !run.isBreak &&
+      prev.bold === run.bold &&
+      prev.italic === run.italic &&
+      prev.underline === run.underline &&
+      prev.strike === run.strike &&
+      prev.fontFamily === run.fontFamily
+    ) {
+      merged[merged.length - 1] = { ...prev, text: prev.text + run.text };
+      continue;
+    }
+    merged.push({ ...run });
+  }
+  return merged;
+}
+
 // ── ProseMirror side ────────────────────────────────────────────────────────
 
 /**

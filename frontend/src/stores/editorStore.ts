@@ -158,7 +158,11 @@ export const ELEMENT_LABELS: Record<string, string> = {
   dialogue: 'Dialogue',
   parenthetical: 'Parenthetical',
   transition: 'Transition',
-  general: 'General',
+  // "General" is Final Draft's own term and stays the interchange key, but on
+  // its own it says nothing about what the element is for. Fade In calls the
+  // same thing "Normal Text", which is why writers coming from it could not
+  // find this (issue #77). The suffix is display only — the id stays `general`.
+  general: 'General (Unformatted text)',
   shot: 'Shot',
   newAct: 'New Act',
   endOfAct: 'End of Act',
@@ -509,6 +513,19 @@ interface EditorState {
   setSceneNumbersVisible: (v: boolean) => void;
   sceneNumbersLocked: boolean;
   setSceneNumbersLocked: (v: boolean) => void;
+
+  /**
+   * Per-document override for the space before a scene heading, in points.
+   * `null` — the normal case — means "follow the formatting template".
+   *
+   * Exists so that raising the industry-standard default from one blank line to
+   * two does not silently repaginate scripts written under the old default. A
+   * document saved before the change is loaded with this pinned to 12 and the
+   * writer is asked once whether to adopt the standard; choosing to keep the old
+   * spacing records 12 here for good.
+   */
+  sceneHeadingSpaceBefore: number | null;
+  setSceneHeadingSpaceBefore: (v: number | null) => void;
 
   // Revision
   revisionMode: boolean;
@@ -963,6 +980,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSceneNumbersVisible: (v) => set({ sceneNumbersVisible: v }),
   sceneNumbersLocked: false,
   setSceneNumbersLocked: (v) => set({ sceneNumbersLocked: v }),
+
+  sceneHeadingSpaceBefore: null,
+  setSceneHeadingSpaceBefore: (v) => set({ sceneHeadingSpaceBefore: v }),
 
   revisionMode: false,
   revisionColor: 'White',

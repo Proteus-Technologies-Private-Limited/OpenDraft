@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { Editor } from '@tiptap/react';
 import { useEditorStore, type SceneInfo } from '../stores/editorStore';
-import { computeSceneLengths } from '../editor/pagination';
+import { computeSceneLengths, activeTemplateHints } from '../editor/pagination';
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
 import SynopsisModal from './SynopsisModal';
 
@@ -133,7 +133,13 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
   // Scene page lengths and timing
   const sceneLengths = useMemo(() => {
     if (!editor) return [];
-    try { return computeSceneLengths(editor.state.doc, pageLayout); } catch { return []; }
+    try {
+      return computeSceneLengths(
+        editor.state.doc,
+        pageLayout,
+        activeTemplateHints(),
+      );
+    } catch { return []; }
   }, [editor, scenes, pageLayout]);
 
   const sceneTimings = useMemo(() => {

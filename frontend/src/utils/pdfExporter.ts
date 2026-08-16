@@ -5,6 +5,7 @@ import type { JSONContent } from '@tiptap/react';
 import { DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT, resolveMoresContds } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
 import { getForceBreakIds, startsOwnPage } from './pageBreaks';
+import { getSpaceBefore } from './elementSpacing';
 import { resolveImageUrl, loadImageData } from './imageAsset';
 import { jsonBlockRuns } from './nodeText';
 import { wordWrapRuns, type WrapRun } from './wrapText';
@@ -36,12 +37,9 @@ for (const [type, [l, r]] of Object.entries(FD_INDENTS)) {
   CHARS_PER_LINE[type] = Math.round((r - l) * FD_CPI);
 }
 
-// Space before each element type (in lines) — matches pagination.ts & CSS margin-top values
-const SPACE_BEFORE: Record<string, number> = {
-  sceneHeading: 1, action: 1, character: 1, dialogue: 0,
-  parenthetical: 0, transition: 1, general: 0, shot: 1,
-  newAct: 2, endOfAct: 2, lyrics: 0, showEpisode: 1, castList: 0,
-};
+// Space before each element (in lines) now comes from the active formatting
+// template via getSpaceBefore() — see utils/elementSpacing.ts, which pagination
+// and the DOCX exporter read too.
 
 // Types that render in uppercase (CSS text-transform: uppercase)
 const UPPERCASE_TYPES = new Set([
@@ -494,6 +492,9 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
 
   // Element ids the active template requires to start a new page (e.g. TV newAct).
   const forceBreakIds = getForceBreakIds();
+  // Blank lines before each element, from the same template the editor
+  // paginates with — resolved once so the whole document uses one answer.
+  const spaceBeforeLines = getSpaceBefore();
 
   /** True when this node must open a fresh page (template rule or manual flag). */
   function mustStartNewPage(node: NodeInfo): boolean {
@@ -538,7 +539,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     const maxChars = CHARS_PER_LINE[typeName] || 62;
     const forceUpper = UPPERCASE_TYPES.has(typeName);
 
-    const spaceBefore = isFirstElement ? 0 : (SPACE_BEFORE[typeName] ?? 0);
+    const spaceBefore = isFirstElement ? 0 : (spaceBeforeLines[typeName] ?? 0);
     const spaceBeforePt = spaceBefore * LINE_HEIGHT_PT;
 
     const wrappedLines = wordWrapRuns(node.runs, maxChars, forceUpper);
@@ -560,7 +561,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
              && !startsOwnPage({ type: nodes[j].typeName, attrs: nodes[j].attrs }, forceBreakIds)) {
         const dNode = nodes[j];
         const dMaxChars = CHARS_PER_LINE[dNode.typeName] || 36;
-        const dSb = (SPACE_BEFORE[dNode.typeName] ?? 0) * LINE_HEIGHT_PT;
+        const dSb = (spaceBeforeLines[dNode.typeName] ?? 0) * LINE_HEIGHT_PT;
         const dLines = wordWrapRuns(dNode.runs, dMaxChars, UPPERCASE_TYPES.has(dNode.typeName));
         dialogueBlockHeight += dSb + dLines.length * LINE_HEIGHT_PT;
         dialogueBlockNodes.push(j);
@@ -576,7 +577,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
       keepWithNext = true;
       const nNode = nodes[i + 1];
       const nMaxChars = CHARS_PER_LINE[nNode.typeName] || 62;
-      const nSb = (SPACE_BEFORE[nNode.typeName] ?? 0) * LINE_HEIGHT_PT;
+      const nSb = (spaceBeforeLines[nNode.typeName] ?? 0) * LINE_HEIGHT_PT;
       const nLines = wordWrapRuns(nNode.runs, nMaxChars, UPPERCASE_TYPES.has(nNode.typeName));
       nextElementHeight = nSb + nLines.length * LINE_HEIGHT_PT;
     }
@@ -613,7 +614,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
           const dLeftPt = dIndents[0] * PTS_PER_INCH;
           const dRightPt = dIndents[1] * PTS_PER_INCH;
           const dMaxChars = CHARS_PER_LINE[dNode.typeName] || 36;
-          const dSb = (SPACE_BEFORE[dNode.typeName] ?? 0) * LINE_HEIGHT_PT;
+          const dSb = (spaceBeforeLines[dNode.typeName] ?? 0) * LINE_HEIGHT_PT;
           const dWrapped = wordWrapRuns(dNode.runs, dMaxChars, UPPERCASE_TYPES.has(dNode.typeName));
           const dHeight = dSb + dWrapped.length * LINE_HEIGHT_PT;
 
@@ -655,7 +656,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
             const dLeftPt = dIndents[0] * PTS_PER_INCH;
             const dRightPt = dIndents[1] * PTS_PER_INCH;
             const dMaxChars = CHARS_PER_LINE[dNode.typeName] || 36;
-            const dSb = (SPACE_BEFORE[dNode.typeName] ?? 0) * LINE_HEIGHT_PT;
+            const dSb = (spaceBeforeLines[dNode.typeName] ?? 0) * LINE_HEIGHT_PT;
             const dWrapped = wordWrapRuns(dNode.runs, dMaxChars, UPPERCASE_TYPES.has(dNode.typeName));
             const dHeight = dSb + dWrapped.length * LINE_HEIGHT_PT;
 
@@ -729,7 +730,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
         const dLeftPt = dIndents[0] * PTS_PER_INCH;
         const dRightPt = dIndents[1] * PTS_PER_INCH;
         const dMaxChars = CHARS_PER_LINE[dNode.typeName] || 36;
-        const dSb = (SPACE_BEFORE[dNode.typeName] ?? 0) * LINE_HEIGHT_PT;
+        const dSb = (spaceBeforeLines[dNode.typeName] ?? 0) * LINE_HEIGHT_PT;
         const dWrapped = wordWrapRuns(dNode.runs, dMaxChars, UPPERCASE_TYPES.has(dNode.typeName));
 
         currentY += dSb;

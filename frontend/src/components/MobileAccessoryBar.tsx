@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import type { Editor } from '@tiptap/react';
 import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorStore';
+import { ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
 import { useEditorStore } from '../stores/editorStore';
 import { singleLine } from '../utils/nodeText';
 
@@ -206,7 +207,13 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
                   className={`mob-acc-sheet-item${currentElement === type ? ' active' : ''}`}
                   onPointerDown={(e) => { e.preventDefault(); handleElementSelect(type); }}
                 >
-                  {ELEMENT_LABELS[type]}
+                  <span className="mob-acc-sheet-item-label">{ELEMENT_LABELS[type]}</span>
+                  {/* Shown outright rather than behind a press-and-hold: there is
+                      no hover on touch, and a gesture nobody knows about teaches
+                      nobody anything. The sheet has the room. */}
+                  {ELEMENT_DESCRIPTIONS[type] && (
+                    <span className="mob-acc-sheet-item-desc">{ELEMENT_DESCRIPTIONS[type]}</span>
+                  )}
                 </button>
               ))}
             </div>

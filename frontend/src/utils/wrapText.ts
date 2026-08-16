@@ -53,6 +53,14 @@ export function wordWrapRuns(
   forceUppercase: boolean,
 ): WrapRun[][] {
   const words: WrapRun[] = [];
+  // Spaces with no preceding word to hang them on — i.e. at the very start of a
+  // block, or straight after a hard break. That is exactly where deliberate
+  // indentation lives, and it used to be dropped: the empty token was skipped
+  // and the "put the space back on the previous word" branch had no previous
+  // word to use. `getTextLines` counted those spaces all along, so the PDF came
+  // out both unindented and, at a wrap boundary, a line out of step with the
+  // editor. Held here and prepended to the next real word instead.
+  let pendingIndent = '';
   for (const run of runs) {
     if (run.isBreak) {
       // Never uppercased, never merged into a neighbouring word.
@@ -62,17 +70,23 @@ export function wordWrapRuns(
     const text = forceUppercase ? run.text.toUpperCase() : run.text;
     const parts = text.split(' ');
     for (let i = 0; i < parts.length; i++) {
-      if (i > 0 && words.length > 0 && !words[words.length - 1].isBreak) {
-        words[words.length - 1].text += ' ';
+      if (i > 0) {
+        const prev = words[words.length - 1];
+        if (prev && !prev.isBreak) {
+          prev.text += ' ';
+        } else {
+          pendingIndent += ' ';
+        }
       }
       if (parts[i].length > 0) {
         words.push({
-          text: parts[i],
+          text: pendingIndent + parts[i],
           bold: run.bold,
           italic: run.italic,
           underline: run.underline,
           fontFamily: run.fontFamily,
         });
+        pendingIndent = '';
       }
     }
   }
@@ -100,6 +114,28 @@ export function wordWrapRuns(
   for (const word of words) {
     if (word.isBreak) {
       flush();
+      continue;
+    }
+
+    // A token longer than the line — a URL, a file path, an unbroken string of
+    // dashes — cannot be placed by splitting on spaces. Emitting it whole left
+    // it running past the right margin, and made this function disagree with
+    // `getTextLines`, which has always counted it as ceil(length / cpl). The
+    // editor's own page thumbnail broke it too (`.page-thumb-el`), so the PDF
+    // was the last place a script could still overflow its margin.
+    if (word.text.length > maxChars) {
+      if (currentLine.length > 0) flush();
+      let rest = word.text;
+      while (rest.length > maxChars) {
+        lines.push([{ ...word, text: rest.slice(0, maxChars) }]);
+        rest = rest.slice(maxChars);
+      }
+      // Whatever is left starts the next line, so a following word can still
+      // share it — `getTextLines` counts the segment as one run of characters.
+      if (rest.length > 0) {
+        currentLine = [{ ...word, text: rest }];
+        currentLineChars = rest.length;
+      }
       continue;
     }
 

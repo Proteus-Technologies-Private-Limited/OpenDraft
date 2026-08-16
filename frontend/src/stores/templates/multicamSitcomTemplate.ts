@@ -96,7 +96,7 @@ export const MULTICAM_SITCOM_TEMPLATE: FormattingTemplate = {
       nextOnEnter: 'sceneHeading',
       placeholder: 'CUT TO:',
     }),
-    general: rule('general', 'General', true, { nextOnEnter: 'general' }),
+    general: rule('general', 'General (Unformatted text)', true, { nextOnEnter: 'general' }),
     shot: disabled('shot', 'Shot'),
     newAct: rule('newAct', 'Act/Scene Heading', true, {
       bold: true,

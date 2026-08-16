@@ -51,7 +51,12 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
     sceneHeading: rule('sceneHeading', 'Scene Heading', {
       bold: true,
       textTransform: 'uppercase',
-      marginTop: 12,
+      // Two blank lines, matching Final Draft's Screenplay template default
+      // (Space Before = 2) and what OpenDraft's own FDX and OSF exporters have
+      // always written. Documents saved under the previous one-line default are
+      // pinned to it on load and offered the change — see
+      // `sceneHeadingSpaceBefore` in editorStore.
+      marginTop: 24,
       nextOnEnter: 'action',
       nextOnTab: 'action',
       placeholder: 'INT./EXT. LOCATION - TIME',
@@ -92,7 +97,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       nextOnEnter: 'sceneHeading',
       placeholder: 'TRANSITION:',
     }),
-    general: rule('general', 'General', {
+    general: rule('general', 'General (Unformatted text)', {
       nextOnEnter: 'general',
       placeholder: 'Text...',
     }),

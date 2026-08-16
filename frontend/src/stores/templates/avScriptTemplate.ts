@@ -75,7 +75,7 @@ export const AV_SCRIPT_TEMPLATE: FormattingTemplate = {
       nextOnEnter: 'action',
       placeholder: 'CUT TO:',
     }),
-    general: rule('general', 'General', true, { nextOnEnter: 'general' }),
+    general: rule('general', 'General (Unformatted text)', true, { nextOnEnter: 'general' }),
     shot: disabled('shot', 'Shot'),
     newAct: rule('newAct', 'Section', true, {
       bold: true,

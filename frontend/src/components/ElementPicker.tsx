@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { ELEMENT_LABELS, type ElementType } from '../stores/editorStore';
+import { ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 
 // Context-aware element ordering: most likely choices first per current type
@@ -144,6 +145,7 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
           className={`element-picker-item${i === selectedIndex ? ' selected' : ''}`}
           onMouseDown={(e) => { e.preventDefault(); onSelect(type); }}
           onMouseEnter={() => setSelectedIndex(i)}
+          title={ELEMENT_DESCRIPTIONS[type]}
         >
           <span className="element-picker-label">{labelFor(type)}</span>
         </div>

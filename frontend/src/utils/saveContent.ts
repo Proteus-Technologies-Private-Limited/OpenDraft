@@ -49,6 +49,7 @@ export const SAVE_METADATA_KEYS = [
   '_sceneNumbersVisible',
   '_sceneNumbersLocked',
   '_pageLayout',
+  '_sceneHeadingSpaceBefore',
 ] as const;
 
 export type SaveMetadataKey = (typeof SAVE_METADATA_KEYS)[number];
@@ -90,6 +91,11 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
     _sceneNumbersVisible: store.sceneNumbersVisible,
     _sceneNumbersLocked: store.sceneNumbersLocked,
     _pageLayout: store.pageLayout,
+    // Always written, even when null. Its *absence* is the signal that a
+    // document predates the two-line scene-heading default, which is what the
+    // spacing prompt keys off — so writing it unconditionally is what stops the
+    // prompt reappearing after the writer has answered it.
+    _sceneHeadingSpaceBefore: store.sceneHeadingSpaceBefore,
   };
 }
 

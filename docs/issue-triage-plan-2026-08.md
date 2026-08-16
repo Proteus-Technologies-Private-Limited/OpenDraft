@@ -1,5 +1,10 @@
 # Open Issue Triage & Remediation Plan — August 2026
 
+> **Second batch (2026-08-17).** `ServerBaby` filed #74–#78 on 2026-08-16, after
+> the v0.23 work below. All five were validated against the code and against the
+> Fountain specification, Final Draft's knowledge base and the OSF 2.1 schema;
+> all five held up. See **Second batch** at the end of this document.
+
 > **Status update (2026-08-12).** #65, #66, #67, #68 and #62 Phase 1 are
 > implemented on `main`; see "Implementation notes" at the end of this document
 > for what shipped and what still needs on-device verification. #64 needs no
@@ -360,9 +365,14 @@ take the existing snapshot down with it. Covered by
   rather than reporting a save that did not happen.
 - `StatusBar` — shows the file Save will overwrite.
 
-**Deliberately excluded:** `.fadein`. It is an OSF archive and OpenDraft has no
-OSF writer, so `IN_PLACE_EDITABLE_EXTENSIONS` is `fdx`/`fountain`/`txt` and
-picking a `.fadein` explains why rather than promising a Save it cannot honour.
+**Deliberately excluded at the time:** `.fadein`. It is an OSF archive and
+OpenDraft had no OSF writer, so `IN_PLACE_EDITABLE_EXTENSIONS` was
+`fdx`/`fountain`/`txt` and picking a `.fadein` explained why rather than
+promising a Save it could not honour.
+
+> **Superseded (2026-08-17).** `utils/osfExporter.ts` shipped in `0483837`
+> ("Add a Fade In (.fadein / OSF) writer") and File ▸ Export ▸ Fade In works, so
+> the "no OSF writer" reasoning below and under #62 Phase 2 no longer holds.
 
 **Data-loss guard:** `setImportedSource()` now also clears `documentOrigin` —
 they are mutually exclusive answers to "where did this document come from", and
@@ -560,3 +570,63 @@ and a `takePersistableUriPermission` call for READ). What was missing:
 A provider that refuses a write grant will fail at Save time with a clear
 message, and the editor stays in the error state rather than claiming a save
 that did not happen.
+
+---
+
+# Second batch — #74–#78 (2026-08-17)
+
+Filed by `ServerBaby` on 2026-08-16, on iPad, after the v0.23 release. Each claim
+was checked against the code, and each "industry standard" claim against primary
+documentation. **All five were correct**; two turned out to be worse than
+reported, and one exposed an inconsistency the reporter could not have seen.
+
+## Standards checked
+
+| Claim | Source | Verdict |
+|---|---|---|
+| Two blank lines before a Scene Heading is standard | [Final Draft KB](https://kb.finaldraft.com/hc/en-us/articles/15575271650452-Why-are-there-two-blank-lines-above-a-Scene-Heading-and-a-Shot) — "Final Draft's default Screenplay template is already set this way", Space Before = 2 | Confirmed |
+| Fade In has a configurable Space Before | Fade In element styles expose "the spacing before the paragraph" | Confirmed |
+| …but it is not a hard rule | A 2013 Black List analysis found ~18% of scripts used single spacing | Confirmed — hence configurable, not hard-coded |
+| Fountain markup should not become visible text | [Fountain spec](https://fountain.io/syntax/) — emphasis is `*`/`**`/`_`, literal delimiters are backslash-escaped; a Scene Heading may have **nothing** before `INT`/`EXT`; scene numbers go at the **end** as `#47#` | Confirmed; `**47 EXT. …**` violates the spec twice |
+| Leading spaces in unformatted text should survive | Fountain spec — "tabs and spaces are retained in Action elements" | Confirmed |
+| "General" is unclear | FDX calls it **General**; OSF 2.1 (Fade In's own format) has no `General` and calls it **Normal Text** | Confirmed as a naming gap — the reporter is a Fade In user. Kept the id, changed the label |
+
+## What was actually wrong
+
+**#75 — Fountain round trip. The most serious of the five: silent corruption on
+an ordinary ⌘S.** `MenuBar.tsx` routes Save for any in-place `.fountain`/`.txt`
+through `exportFountain`, so no user "conversion" was needed — which is exactly
+why the reporter could not identify one. Three compounding defects: the exporter
+emitted marks with no escaping, no edge-whitespace handling and no run merging
+(the FDX/OSF importers attach bold to every scene heading, so headings exported
+as `**INT. …**`); it never wrote forcing syntax, so a heading not starting with
+`INT./EXT.` could not round-trip and scene numbers were dropped; and the parser's
+emphasis regexes over-spanned (`**A** and **B**` produced literal asterisks).
+The worst symptom was not the visible `**` — a bolded heading failed the anchored
+heading regex, matched `isCharacterLine`, and **became a character cue with the
+action beneath it turning into dialogue**.
+
+The existing round-trip test was *text*-first, so it structurally could not catch
+a *doc*-first bug. Both directions are now covered, plus an on-disk harness.
+
+**#74 — General and indentation.** No live indentation-based auto-detection
+exists, so the reporter's stated mechanism was not what happened — but four real
+defects produced exactly their symptoms: a spaces-only line counted as blank, so
+Enter opened the element picker and the choice overwrote the chosen type;
+Enter-at-start hardcoded the new line to Action; the PDF word-wrapper silently
+dropped leading spaces while the line counter kept them (so editor and PDF
+disagreed on page breaks); and General round-tripped to Action through both
+Fountain and Word.
+
+**#76 — Spacing.** Confirmed, and the app already disagreed with itself:
+`fdxExporter` wrote `SpaceBefore="24"` and `osfExporter` `spacebefore="2.0"`
+while the editor, pagination, PDF and DOCX all used one line. A script exported
+to Final Draft repaginated longer than OpenDraft had shown. Separately, the
+per-element `marginTop` the Template Editor exposes reached **CSS only** — a
+control that silently did nothing outside the editor.
+
+## Housekeeping still outstanding
+
+- Label #74–#78, and create the `platform:ios` label the first batch also wanted.
+- `docs/feature-gap-analysis-fade-in.md` is written against v0.12.0 and is stale
+  in several rows beyond the Space Before one added here.

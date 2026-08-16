@@ -31,6 +31,7 @@ import type { JSONContent } from '@tiptap/react';
 import { DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
 import { getForceBreakIds, jsonStartsOwnPage } from './pageBreaks';
+import { getSpaceBefore, DEFAULT_SPACE_BEFORE } from './elementSpacing';
 import { sanitizeExportFilename } from './exportFilename';
 
 // --- Layout constants (mirror pdfExporter.ts) ---
@@ -54,10 +55,26 @@ const FD_INDENTS: Record<string, [number, number]> = {
   castList: [1.50, 7.50],
 };
 
-const SPACE_BEFORE: Record<string, number> = {
-  sceneHeading: 1, action: 1, character: 1, dialogue: 0,
-  parenthetical: 0, transition: 1, general: 0, shot: 1,
-  newAct: 2, endOfAct: 2, lyrics: 0, showEpisode: 1, castList: 0,
+// Space before each element (in lines) now comes from the active formatting
+// template via getSpaceBefore() — see utils/elementSpacing.ts, which pagination
+// and the PDF exporter read too.
+
+/**
+ * Word paragraph-style names for each element type.
+ *
+ * Without these every paragraph exported as unnamed body text, so re-importing
+ * a `.docx` OpenDraft wrote had nothing to classify by except indentation and
+ * text shape — and General, whose 1.5" indent is shared with Action, Scene
+ * Heading and the act markers, always fell through to the `action` fallback.
+ * The names deliberately match `STYLE_NAME_MAP` in docxImporter, which is also
+ * the vocabulary Final Draft and Fade In use, so their files gain the same
+ * fidelity in the other direction.
+ */
+const STYLE_NAMES: Record<string, string> = {
+  sceneHeading: 'Scene Heading', action: 'Action', character: 'Character',
+  dialogue: 'Dialogue', parenthetical: 'Parenthetical', transition: 'Transition',
+  general: 'General', shot: 'Shot', newAct: 'New Act', endOfAct: 'End of Act',
+  lyrics: 'Lyrics', showEpisode: 'Show/Episode', castList: 'Cast List',
 };
 
 const UPPERCASE_TYPES = new Set([
@@ -310,16 +327,18 @@ function buildElementParagraph(
   isFirst: boolean,
   pageBreakBefore = false,
   docFont: string = FONT_FAMILY,
+  spaceBeforeLines: Record<string, number> = DEFAULT_SPACE_BEFORE,
 ): Paragraph {
   const typeName = node.type || 'general';
   const indent = indentForType(typeName, layout);
   const alignment = alignmentForType(typeName);
-  const sb = isFirst ? 0 : (SPACE_BEFORE[typeName] ?? 0) * LINE_HEIGHT_PT;
+  const sb = isFirst ? 0 : (spaceBeforeLines[typeName] ?? 0) * LINE_HEIGHT_PT;
   const styledRuns = applyTypeStyles(extractRuns(node), typeName);
   const children = buildTextRuns(styledRuns, docFont);
 
   return new Paragraph({
     alignment,
+    style: STYLE_NAMES[typeName] ? typeName : undefined,
     indent: {
       left: indent.left,
       right: indent.right,
@@ -434,6 +453,9 @@ export async function exportDocx(
 
   // Element ids the active template requires to start a new page (e.g. TV newAct).
   const forceBreakIds = getForceBreakIds();
+  // Blank lines before each element, from the same template the editor
+  // paginates with — resolved once so the whole document uses one answer.
+  const spaceBeforeLines = getSpaceBefore();
 
   const bodyParagraphs: Paragraph[] = [];
   for (let i = 0; i < bodyNodes.length; i++) {
@@ -455,7 +477,7 @@ export async function exportDocx(
       continue;
     }
     bodyParagraphs.push(
-      buildElementParagraph(bodyNodes[i], layout, i === 0, forcePageBreak, docFont),
+      buildElementParagraph(bodyNodes[i], layout, i === 0, forcePageBreak, docFont, spaceBeforeLines),
     );
   }
   if (bodyParagraphs.length === 0) {
@@ -575,6 +597,16 @@ export async function exportDocx(
           },
         },
       },
+      // Named styles carry the element type through the file. The per-paragraph
+      // indent/spacing/run properties are still written directly, so a reader
+      // that ignores styles sees exactly what it saw before.
+      paragraphStyles: Object.entries(STYLE_NAMES).map(([id, name]) => ({
+        id,
+        name,
+        basedOn: 'Normal',
+        next: 'Normal',
+        quickFormat: true,
+      })),
     },
     sections,
   });

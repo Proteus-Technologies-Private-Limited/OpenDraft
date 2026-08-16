@@ -94,6 +94,33 @@ export interface FormattingTemplate {
   scriptTypeTagline?: string;
 }
 
+/**
+ * One-line explanations of the less obvious elements, shown as a tooltip on
+ * desktop and on press-and-hold on touch.
+ *
+ * The wording comes from the user manual, which has always explained these —
+ * it just never reached the place where the choice is actually made. A writer
+ * had to discover by experiment what "General" was for (issue #77), and the
+ * same is true of Shot, Cast List and Show/Episode.
+ *
+ * Only elements whose name does not explain them are listed; Action, Character
+ * and Dialogue need no gloss.
+ */
+export const ELEMENT_DESCRIPTIONS: Record<string, string> = {
+  general:
+    'Full-width text with no screenplay formatting, and indentation you type is kept. '
+    + 'For anything that does not fit another element — onscreen records, archival entries, notes.',
+  shot: 'A specific camera shot or angle within the current scene.',
+  lyrics: 'Sung dialogue. Set in italics and kept with the dialogue block.',
+  castList: 'The list of characters appearing in a scene or episode.',
+  showEpisode: 'The show or episode title, centred at the top of a television script.',
+  newAct: 'Marks the start of an act. Television formats start a new page here.',
+  endOfAct: 'Marks the end of an act.',
+  parenthetical: 'A short direction to the actor, in brackets inside a dialogue block.',
+  transition: 'How the film moves to the next scene — CUT TO:, DISSOLVE TO:.',
+  sceneHeading: 'Where and when a scene takes place — INT./EXT., location, time of day.',
+};
+
 /** The 13 built-in element type ids (matches ElementType union). */
 export const BUILT_IN_ELEMENT_IDS: readonly string[] = [
   'sceneHeading',
