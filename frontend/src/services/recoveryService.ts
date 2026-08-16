@@ -95,6 +95,16 @@ function storageKey(): string {
  */
 const MAX_SNAPSHOT_BYTES = 3_500_000;
 
+/**
+ * How long one window's claim on another window's snapshot holds.
+ *
+ * The claim exists only to stop two windows launching together from offering
+ * the same work twice, which they either do within moments of each other or not
+ * at all. Anything older is a window that died mid-decision, and its snapshot
+ * should go back on offer rather than stay hidden for good.
+ */
+const OFFER_CLAIM_MS = 60_000;
+
 export interface RecoverySnapshot {
   /** Bumped when the shape changes; older payloads are discarded, not migrated. */
   version: 1;
@@ -108,6 +118,8 @@ export interface RecoverySnapshot {
    * run from offering one snapshot twice.
    */
   offeredBy?: string;
+  /** When {@link offeredBy} was stamped; see OFFER_CLAIM_MS. */
+  offeredAt?: number;
   /** Epoch ms the snapshot was written. */
   savedAt: number;
   /** Document title, for naming the document in the recovery prompt. */
@@ -274,11 +286,23 @@ export function readRecoverableSnapshot(): RecoverySnapshot | null {
   }
 
   let best: { key: string; snapshot: RecoverySnapshot } | null = null;
+  const now = Date.now();
   for (const key of allSlotKeys()) {
     const snapshot = readSlot(key);
     if (!snapshot || snapshot.sessionId === SESSION_ID) continue;
-    // Another window of this run is already asking about it.
-    if (snapshot.offeredBy && snapshot.offeredBy !== SESSION_ID) continue;
+    // Another window of this run is already asking about it. The claim expires:
+    // it was written to stop two windows opening together from presenting the
+    // same snapshot twice, which is a matter of seconds, but it persisted, so a
+    // window killed while its prompt was still up left the mark behind and the
+    // work in that slot was skipped on every launch from then on.
+    if (
+      snapshot.offeredBy &&
+      snapshot.offeredBy !== SESSION_ID &&
+      typeof snapshot.offeredAt === 'number' &&
+      now - snapshot.offeredAt < OFFER_CLAIM_MS
+    ) {
+      continue;
+    }
     if (!best || snapshot.savedAt > best.snapshot.savedAt) best = { key, snapshot };
   }
   if (!best) return null;
@@ -294,7 +318,10 @@ export function readRecoverableSnapshot(): RecoverySnapshot | null {
  */
 function markOffered(key: string, snapshot: RecoverySnapshot): void {
   try {
-    localStorage.setItem(key, JSON.stringify({ ...snapshot, offeredBy: SESSION_ID }));
+    localStorage.setItem(
+      key,
+      JSON.stringify({ ...snapshot, offeredBy: SESSION_ID, offeredAt: Date.now() }),
+    );
   } catch (err) {
     console.warn('[recovery] could not mark the snapshot as offered:', err);
   }

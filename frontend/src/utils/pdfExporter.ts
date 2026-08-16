@@ -10,6 +10,7 @@ import { resolveImageUrl, loadImageData } from './imageAsset';
 import { jsonBlockRuns } from './nodeText';
 import { wordWrapRuns, type WrapRun } from './wrapText';
 import { sanitizeExportFilename } from './exportFilename';
+import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
 import {
   embedUnicodeFont, needsUnicodeFont, requiredUnicodeStyles,
   type StyledText, type UnicodeFont,
@@ -331,25 +332,47 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
   const nodes: NodeInfo[] = [];
   interface TitleItem { kind: 'text' | 'image'; field?: string; text?: string; titleSize?: number; attrs?: Record<string, unknown>; }
   const titleItems: TitleItem[] = [];
-  let inLeadingRegion = true;
-  let hasTitlePage = false;
-  for (const node of doc.content) {
+
+  // Where the title page ends. Shared with the paginator, the DOCX exporter and
+  // the Title Page dialog so all four agree even when something stray sits above
+  // the title (issue #52) — see utils/titlePageRegion.
+  const docNodes = doc.content;
+  const region = findTitlePageRegion(
+    docNodes.map((node) => ({
+      type: node.type || 'general',
+      hasText: getPlainText(extractRuns(node)).trim().length > 0,
+      hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
+    })),
+  );
+  const hasTitlePage = region.isReal;
+
+  docNodes.forEach((node, index) => {
     const typeName = node.type || 'general';
-    if (inLeadingRegion && (typeName === 'titlePage' || typeName === 'screenplayImage')) {
-      if (typeName === 'titlePage') {
-        if (node.attrs?.field === 'title' && node.attrs?.tpTitle) hasTitlePage = true;
+
+    if (hasTitlePage && index < region.length) {
+      if (typeName === 'screenplayImage') {
+        titleItems.push({ kind: 'image', attrs: (node.attrs || {}) as Record<string, unknown> });
+      } else {
         titleItems.push({
           kind: 'text',
-          field: (node.attrs?.field as string) || 'title',
+          // A node absorbed into the region that is not a title-page node is a
+          // stray blank line; render it as a spacer, never as the title.
+          field: typeName === 'titlePage' ? ((node.attrs?.field as string) || 'title') : 'blank',
           text: getPlainText(extractRuns(node)),
           titleSize: Number(node.attrs?.tpTitleFontSize) || 12,
         });
-      } else {
-        titleItems.push({ kind: 'image', attrs: (node.attrs || {}) as Record<string, unknown> });
       }
-      continue;
+      return;
     }
-    inLeadingRegion = false;
+
+    // Nothing worth a title page: the region's nodes are body content after all.
+    // Blank title-page spacers are dropped rather than printed as a screenful of
+    // empty lines, but anything carrying text is kept — the old code threw the
+    // whole region away and lost it.
+    if (!hasTitlePage && typeName === 'titlePage' && getPlainText(extractRuns(node)).trim() === '') {
+      return;
+    }
+
     const rawRuns = extractRuns(node);
     const runs = applyTypeStyles(rawRuns, typeName);
     nodes.push({
@@ -358,15 +381,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
       plainText: getPlainText(rawRuns),
       attrs: node.attrs as Record<string, unknown> | undefined,
     });
-  }
-  // No real title page → leading images are top-of-body content; restore them.
-  if (!hasTitlePage && titleItems.length > 0) {
-    const restored: NodeInfo[] = titleItems
-      .filter((it) => it.kind === 'image')
-      .map((it) => ({ typeName: 'screenplayImage', runs: [], plainText: '', attrs: it.attrs }));
-    nodes.unshift(...restored);
-    titleItems.length = 0;
-  }
+  });
 
   // Header and footer text, resolved once the page count is known but written
   // from strings that are already fixed here.
@@ -429,6 +444,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     const rightX = pageWidthPt - layout.rightMargin * PTS_PER_INCH;
     const bottom = pageHeightPt - bottomMarginPt;
     let y = topMarginPt;
+    let dropped = 0;
     for (let k = 0; k < titleItems.length; k++) {
       const it = titleItems[k];
       if (it.kind === 'image') {
@@ -453,15 +469,30 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
           // the title page has always been laid out free-flow rather than on
           // the Final Draft cell.
           selectFace(pdf, drawnLine, fonts, { bold: isTitle });
-          if (line && y + lineH <= bottom) pdf.text(drawnLine, x, y + lineH, { align });
+          if (line && y + lineH <= bottom) {
+            pdf.text(drawnLine, x, y + lineH, { align });
+          } else if (line) {
+            dropped++;
+          }
           y += lineH;
         }
         pdf.setFontSize(12);
-        y += 4; // small gap between elements
+        // No inter-element gap. The title page is built as a fixed number of
+        // 12pt lines (see buildTitlePageBlocks), and an extra 4pt per element
+        // added up to a third of a page over ~50 of them — enough that the
+        // draft, contact, copyright and notes block ran off the bottom and was
+        // silently skipped by the bounds check above (issue #52).
       }
     }
+    if (dropped > 0) {
+      console.warn(
+        `[pdf] ${dropped} title-page line(s) did not fit the page and were not drawn.`,
+      );
+    }
 
-    // Start page 2 for the screenplay
+    // Start the screenplay on a fresh sheet. This is physical page 2 of the
+    // file; it is script page 1, and the header/footer pass below numbers it
+    // that way so the PDF agrees with the page count in the editor.
     pdf.addPage([pageWidthPt, pageHeightPt]);
     pageNumber = 2;
     currentY = topMarginPt;
@@ -745,12 +776,22 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
   }
 
   // Final pass: render headers and footers on all pages (now that totalPages is known)
-  const totalPages = pageNumber;
+  //
+  // A title page is not a script page. It carries no number and does not count
+  // towards `{pages}`, which is how the editor's page count and every other
+  // exporter treat it — but this loop used the physical sheet index for both,
+  // so a script with a title page printed "2." on its own first page and
+  // reported one page more than the editor did.
+  const titleSheets = hasTitlePage ? 1 : 0;
+  const totalSheets = pageNumber;
+  const totalPages = Math.max(1, totalSheets - titleSheets);
   const hStart = layout.headerStartPage ?? 2;
   const fStart = layout.footerStartPage ?? 1;
 
-  for (let p = 1; p <= totalPages; p++) {
-    pdf.setPage(p);
+  for (let sheet = 1; sheet <= totalSheets; sheet++) {
+    if (sheet <= titleSheets) continue; // the title page is never numbered
+    const p = sheet - titleSheets;
+    pdf.setPage(sheet);
     // Header
     if (p >= hStart && (hContent.left || hContent.center || hContent.right)) {
       const headerY = layout.headerMargin + 12;

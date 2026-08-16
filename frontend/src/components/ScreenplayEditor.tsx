@@ -89,6 +89,7 @@ import {
   hasRecoverableSnapshot,
   type RecoverySnapshot,
 } from '../services/recoveryService';
+import { readLastSession, rememberLastSession, clearLastSession } from '../services/lastSession';
 import { useBackupStatusStore } from '../stores/backupStatusStore';
 import { runRetext, RETEXT_CATEGORIES, type RetextCategory } from '../editor/grammar/retextProvider';
 import { runHarper } from '../editor/grammar/harperProvider';
@@ -1264,9 +1265,19 @@ const ScreenplayEditor: React.FC = () => {
               }
               const prevResolved = tr.doc.resolve(newBlockStart - 1);
               const prevBlockStart = prevResolved.before(prevResolved.depth);
-              const blankTypeName = currentType === 'general' ? 'general' : 'action';
+              // On a title page the blank line stays a title-page node. An
+              // Action here would sit above the title page and end the region
+              // the exporters recognise, dropping the whole title page onto the
+              // top of script page 1 (issue #52).
+              const blankTypeName = currentType === 'general' || currentType === 'titlePage'
+                ? currentType
+                : 'action';
               const blankType = schema.nodes[blankTypeName];
-              if (blankType && tr.doc.nodeAt(prevBlockStart)?.type.name !== blankTypeName) {
+              if (blankTypeName === 'titlePage') {
+                // A spacer, not a second title: the split copied the title
+                // node's attrs onto both halves, structured fields and all.
+                tr.setNodeMarkup(prevBlockStart, blankType, { field: 'blank' });
+              } else if (blankType && tr.doc.nodeAt(prevBlockStart)?.type.name !== blankTypeName) {
                 tr.setNodeMarkup(prevBlockStart, blankType);
               }
             } else {
@@ -2041,6 +2052,9 @@ const ScreenplayEditor: React.FC = () => {
         store.setScenes([]);
         store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
         lastSavedJsonRef.current = '';
+        // Signing out must not leave a cloud script queued to reopen itself on
+        // the next launch, under whoever signs in next.
+        clearLastSession();
         if (window.location.pathname !== '/') {
           navigate('/', { replace: true });
         }
@@ -2260,6 +2274,7 @@ const ScreenplayEditor: React.FC = () => {
     documentTitle: backupDocumentTitle,
     projectId: currentProject?.id ?? null,
     scriptId: currentScriptId,
+    editor,
     lastSavedJsonRef,
     scriptSwitchingRef,
     isCollabGuest,
@@ -2571,6 +2586,51 @@ const ScreenplayEditor: React.FC = () => {
       showToast('Could not restore the document you had open', 'error');
     }
   }, [editor, collabMode, isHistoryMode, urlScriptId, urlCommitHash, currentProject, currentScriptId, updateScenes]);
+
+  // Reopen the script this window had open when the app last ran.
+  //
+  // The recovery snapshot returns unsaved *changes*; this returns the document
+  // they belong to. Without it a crash dropped the writer into a blank Untitled
+  // even when their script was safe in the library, which is indistinguishable
+  // from having lost the lot (issue #68).
+  //
+  // Mount-time only, and it defers to everything more specific: a URL that names
+  // a script, a script already open, a document restored from the in-memory
+  // stash. It only ever navigates to a library script — an unsaved document has
+  // no identity to reopen, and a file opened from disk needs a bookmark this
+  // cannot re-acquire on the writer's behalf.
+  const lastSessionRestoreRef = useRef(false);
+  useEffect(() => {
+    if (!editor || collabMode || isHistoryMode) return;
+    if (lastSessionRestoreRef.current) return;
+    lastSessionRestoreRef.current = true;
+    if (urlScriptId || urlCommitHash || currentScriptId) return;
+    if (useEditorStore.getState().documentOrigin) return;
+
+    const last = readLastSession();
+    if (!last) return;
+    setShowWelcome(false);
+    navigate(`/project/${last.projectId}/edit/${last.scriptId}`, { replace: true });
+  }, [editor, collabMode, isHistoryMode, urlScriptId, urlCommitHash, currentScriptId, navigate]);
+
+  // Keep that record current. Cleared for anything without a library identity,
+  // so closing a script or starting a blank one does not leave the last script
+  // queued to reappear on the next launch.
+  //
+  // The clear waits until this window has actually had a script open. On mount
+  // there is none yet — the restore above has only just asked for one — and
+  // erasing the record there would throw away the very thing being restored if
+  // the app died before the load finished.
+  const hasOpenedScriptRef = useRef(false);
+  useEffect(() => {
+    if (collabMode || isHistoryMode) return;
+    if (currentProject && currentScriptId) {
+      hasOpenedScriptRef.current = true;
+      rememberLastSession(currentProject.id, currentScriptId);
+      return;
+    }
+    if (hasOpenedScriptRef.current) rememberLastSession(null, null);
+  }, [currentProject, currentScriptId, collabMode, isHistoryMode]);
 
   // --- Load script from URL params ---
   // Reset the guard when the editor instance changes so we reload

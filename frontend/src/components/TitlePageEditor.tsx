@@ -7,6 +7,12 @@ import { useProjectStore } from '../stores/projectStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { api } from '../services/api';
 import { resolveImageUrl } from '../utils/imageAsset';
+import { getPageMetrics } from '../editor/pagination';
+import {
+  findTitlePageRegion,
+  titlePageAttrsCarryData,
+  type TitleNodeInfo,
+} from '../utils/titlePageRegion';
 import { authedFetch } from '../services/authedFetch';
 import { isTauri } from '../services/platform';
 import { showToast } from './Toast';
@@ -125,32 +131,55 @@ function deriveFields(data: TpData) {
   return { byLine, draftLine, copyrightLine };
 }
 
+/** Lines available on the open document's page, for sizing the title page. */
+function currentLinesPerPage(): number {
+  return getPageMetrics(useEditorStore.getState().pageLayout).linesPerPage;
+}
+
+/** How many of the document's leading nodes belong to the title page. */
+function titlePageRegionLength(editor: Editor): number {
+  const doc = editor.state.doc;
+  const infos: TitleNodeInfo[] = [];
+  for (let k = 0; k < doc.childCount; k++) {
+    const child = doc.child(k);
+    infos.push({
+      type: child.type.name,
+      hasText: (child.textContent || '').trim().length > 0,
+      hasTitleData: titlePageAttrsCarryData(child.attrs as Record<string, unknown>),
+    });
+  }
+  return findTitlePageRegion(infos).length;
+}
+
 /** Title-page images split by whether they sit above or below the title. */
 function classifyTitleImages(editor: Editor): { imagesAbove: Record<string, unknown>[]; imagesBelow: Record<string, unknown>[] } {
   const doc = editor.state.doc;
   const imagesAbove: Record<string, unknown>[] = [];
   const imagesBelow: Record<string, unknown>[] = [];
   let sawTitle = false;
-  for (let k = 0; k < doc.childCount; k++) {
+  const end = titlePageRegionLength(editor);
+  for (let k = 0; k < end; k++) {
     const child = doc.child(k);
     const t = child.type.name;
-    if (t === 'titlePage' || t === 'screenplayImage') {
-      if (t === 'titlePage' && child.attrs.field === 'title') sawTitle = true;
-      if (t === 'screenplayImage') (sawTitle ? imagesBelow : imagesAbove).push(child.attrs as Record<string, unknown>);
-    } else break;
+    if (t === 'titlePage' && child.attrs.field === 'title') sawTitle = true;
+    if (t === 'screenplayImage') (sawTitle ? imagesBelow : imagesAbove).push(child.attrs as Record<string, unknown>);
   }
   return { imagesAbove, imagesBelow };
 }
 
-/** End position (doc coords) of the leading title-page region. */
+/**
+ * End position (doc coords) of the leading title-page region.
+ *
+ * Uses the shared resolver rather than "the leading run of title nodes", which
+ * `findTitlePageNode` never agreed with: the dialog would find and prefill from
+ * a title page sitting one blank line down, then Apply would replace nothing and
+ * insert a *second* one at the top (issue #52).
+ */
 function titlePageRegionEnd(editor: Editor): number {
   const doc = editor.state.doc;
+  const length = titlePageRegionLength(editor);
   let end = 0;
-  for (let k = 0; k < doc.childCount; k++) {
-    const child = doc.child(k);
-    if (child.type.name === 'titlePage' || child.type.name === 'screenplayImage') end += child.nodeSize;
-    else break;
-  }
+  for (let k = 0; k < length; k++) end += doc.child(k).nodeSize;
   return end;
 }
 
@@ -159,12 +188,18 @@ function titlePageRegionEnd(editor: Editor): number {
  * top, the title ~⅓ down, the credit line below it, the draft/contact/copyright/
  * notes block pushed to the bottom (via blank spacer lines), then optional
  * images at the very bottom. Rendered identically by the flow exporters.
+ *
+ * `linesPerPage` is a parameter rather than a store read: the layout that
+ * matters is the one belonging to the document being laid out. That is the
+ * store's for the dialog, but an importer building a title page holds the
+ * incoming document's layout while the store still has the previous document's.
  */
 function buildTitlePageBlocks(
   editor: Editor,
   data: TpData,
   imagesAbove: Record<string, unknown>[],
   imagesBelow: Record<string, unknown>[],
+  linesPerPage: number,
 ): PMNode[] {
   const schema = editor.state.schema;
   const titlePageType = schema.nodes.titlePage;
@@ -175,8 +210,12 @@ function buildTitlePageBlocks(
     titlePageType.create(field === 'title' ? { field: 'title', ...data } : { field }, t ? schema.text(t) : undefined);
   const imgLines = (a: Record<string, unknown>) => Math.max(1, Number(a.heightLines) || 8);
 
-  const TITLE_LINE = 15;       // title sits ~⅓ down (line ~15 of ~54)
-  const PAGE_LINES = 50;       // bottom content ends near here
+  // Sized from the document's own page, not a hardcoded 54-line US Letter. A4 —
+  // the default — holds 58 lines, so the old constants left the bottom block
+  // four lines short of the foot of the page on every A4 script, and would have
+  // overflowed a shorter page outright.
+  const TITLE_LINE = Math.max(3, Math.round(linesPerPage / 3.6)); // title sits ~⅓ down
+  const PAGE_LINES = Math.max(TITLE_LINE + 4, linesPerPage - 4);  // bottom content ends here
   const aboveLines = imagesAbove.reduce((s, a) => s + imgLines(a), 0);
   const belowLines = imagesBelow.reduce((s, a) => s + imgLines(a), 0);
 
@@ -220,7 +259,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
   const handleApply = useCallback(() => {
     try {
       const { imagesAbove, imagesBelow } = classifyTitleImages(editor);
-      const built = buildTitlePageBlocks(editor, data, imagesAbove, imagesBelow);
+      const built = buildTitlePageBlocks(editor, data, imagesAbove, imagesBelow, currentLinesPerPage());
       const tr = editor.state.tr;
       const regionEnd = titlePageRegionEnd(editor);
       if (regionEnd > 0) tr.delete(0, regionEnd);
@@ -263,7 +302,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
       // Add to the chosen group and rebuild the page so it appears in the right place.
       const g = classifyTitleImages(editor);
       (placement === 'above' ? g.imagesAbove : g.imagesBelow).push(attrs);
-      const built = buildTitlePageBlocks(editor, data, g.imagesAbove, g.imagesBelow);
+      const built = buildTitlePageBlocks(editor, data, g.imagesAbove, g.imagesBelow, currentLinesPerPage());
       const tr = editor.state.tr;
       const end = titlePageRegionEnd(editor);
       if (end > 0) tr.delete(0, end);
@@ -313,7 +352,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
   // Rebuild the whole title page (classic layout) from the live fields + the
   // given image groups, so every image operation updates the page immediately.
   const rebuild = (above: Record<string, unknown>[], below: Record<string, unknown>[]) => {
-    const built = buildTitlePageBlocks(editor, data, above, below);
+    const built = buildTitlePageBlocks(editor, data, above, below, currentLinesPerPage());
     const tr = editor.state.tr;
     const end = titlePageRegionEnd(editor);
     if (end > 0) tr.delete(0, end);

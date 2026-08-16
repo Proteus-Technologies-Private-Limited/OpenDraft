@@ -9,6 +9,7 @@ import { singleLine } from '../utils/nodeText';
 // agree exactly or the editor paginates differently from the exported file.
 import { getTextLines } from '../utils/wrapText';
 import { DEFAULT_SPACE_BEFORE, buildSpaceBefore, getSpaceBefore, type SpaceBeforeSource } from '../utils/elementSpacing';
+import { findTitlePageRegion, titlePageAttrsCarryData } from '../utils/titlePageRegion';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 
 export const paginationPluginKey = new PluginKey('pagination');
@@ -254,7 +255,7 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
   interface NodeInfo {
     typeName: string; elementId: string; spaceBefore: number; text: string;
     offset: number; nodeSize: number; lineMul: number; fixedLines?: number;
-    startsNewPage: boolean;
+    startsNewPage: boolean; hasTitleData: boolean;
   }
   const nodes: NodeInfo[] = [];
   let isFirst = true;
@@ -271,6 +272,7 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
       typeName, elementId, spaceBefore: sb, text: node.textContent || '',
       offset, nodeSize: node.nodeSize, lineMul, fixedLines,
       startsNewPage: node.attrs?.startsNewPage === true,
+      hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
     });
     isFirst = false;
   });
@@ -279,19 +281,26 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
   let lineCount = 0;
   let pageNumber = 2;
   let i = 0;
-  // Title page handling: a leading run of `titlePage` nodes forms a separate,
-  // unnumbered page. Force the script body onto its own page after them.
-  let sawTitlePage = false;
+  // Title page handling: the leading title-page region forms a separate,
+  // unnumbered page, and the script body starts on a fresh one after it.
+  //
+  // The region is resolved by the same helper the PDF and DOCX exporters use, so
+  // the break the writer sees on screen is the break they get in the file — the
+  // two used to part company as soon as anything sat above the title (#52).
+  const titleRegion = findTitlePageRegion(
+    nodes.map((n) => ({
+      type: n.typeName,
+      hasText: n.text.trim().length > 0,
+      hasTitleData: n.hasTitleData,
+    })),
+  );
+  const titleRegionLength = titleRegion.isReal ? titleRegion.length : 0;
   let titleBroken = false;
 
   while (i < nodes.length) {
     const node = nodes[i];
 
-    if (node.typeName === 'titlePage') sawTitlePage = true;
-    // Leading images (when a title page exists) belong to the title page, so they
-    // don't trigger the body break and stay on the title page.
-    const isTitleRegionNode = node.typeName === 'titlePage' || node.typeName === 'screenplayImage';
-    if (!titleBroken && sawTitlePage && !isTitleRegionNode && lineCount > 0) {
+    if (!titleBroken && titleRegionLength > 0 && i >= titleRegionLength && lineCount > 0) {
       // First script element after the title page → start it on a fresh page.
       // pageNumber stays at its current value (the title page does not consume a
       // number); the body's first page remains the implicit unnumbered page 1.

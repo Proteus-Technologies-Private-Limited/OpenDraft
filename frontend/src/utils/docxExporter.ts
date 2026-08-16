@@ -33,6 +33,7 @@ import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
 import { getForceBreakIds, jsonStartsOwnPage } from './pageBreaks';
 import { getSpaceBefore, DEFAULT_SPACE_BEFORE } from './elementSpacing';
 import { sanitizeExportFilename } from './exportFilename';
+import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
 
 // --- Layout constants (mirror pdfExporter.ts) ---
 
@@ -296,7 +297,10 @@ function buildTitlePageFlow(
       }));
       return;
     }
-    const field = (node.attrs?.field as string) || 'title';
+    // A node absorbed into the region that is not a title-page node is a stray
+    // blank line (see utils/titlePageRegion); render it as a spacer, never as
+    // the title — which is bold, uppercased and possibly 72pt.
+    const field = node.type === 'titlePage' ? ((node.attrs?.field as string) || 'title') : 'blank';
     const isTitle = field === 'title';
     const align = field === 'draft' ? AlignmentType.LEFT
       : (field === 'contact' || field === 'copyright') ? AlignmentType.RIGHT
@@ -374,26 +378,32 @@ export async function exportDocx(
   // Separate the title-page region (the leading run of titlePage + image nodes)
   // from the body. The title page renders its nodes in DOCUMENT ORDER (free-flow),
   // matching the editor and PDF.
+  // Where the title page ends. Shared with the paginator, the PDF exporter and
+  // the Title Page dialog so all four agree even when something stray sits above
+  // the title (issue #52) — see utils/titlePageRegion.
   const bodyNodes: JSONContent[] = [];
   const titleRegionNodes: JSONContent[] = [];
-  let hasTitlePage = false;
-  let inLeadingRegion = true;
-  if (doc?.content) {
-    for (const node of doc.content) {
-      if (inLeadingRegion && (node.type === 'titlePage' || node.type === 'screenplayImage')) {
-        if (node.type === 'titlePage' && node.attrs?.field === 'title' && node.attrs?.tpTitle) hasTitlePage = true;
-        titleRegionNodes.push(node);
-        continue;
-      }
-      inLeadingRegion = false;
-      bodyNodes.push(node);
+  const docNodes = doc?.content ?? [];
+  const region = findTitlePageRegion(
+    docNodes.map((node) => ({
+      type: node.type || 'general',
+      hasText: nodeText(node).trim().length > 0,
+      hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
+    })),
+  );
+  const hasTitlePage = region.isReal;
+  docNodes.forEach((node, index) => {
+    if (hasTitlePage && index < region.length) {
+      titleRegionNodes.push(node);
+      return;
     }
-  }
-  // No real title page → leading images are top-of-body content; restore them.
-  if (!hasTitlePage && titleRegionNodes.length > 0) {
-    bodyNodes.unshift(...titleRegionNodes.filter((n) => n.type === 'screenplayImage'));
-    titleRegionNodes.length = 0;
-  }
+    // Nothing worth a title page: the region's nodes are body content after all.
+    // Blank title-page spacers are dropped rather than written as a screenful of
+    // empty lines; anything carrying text is kept, where the old code discarded
+    // the whole region.
+    if (!hasTitlePage && node.type === 'titlePage' && nodeText(node).trim() === '') return;
+    bodyNodes.push(node);
+  });
 
   // Page geometry in twips
   const pageWidthTw = Math.round(layout.pageWidth * TWIPS_PER_INCH);

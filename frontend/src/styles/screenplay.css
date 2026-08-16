@@ -2204,13 +2204,20 @@ body {
    order, top-to-bottom, identically in the editor, dialog preview and PDF/DOCX.
    Spacing is modest and uniform; writers add blank title-page lines for vertical
    space and reorder images freely. Per-field alignment only. */
-.title-page { text-align: center; margin-top: 12pt; }
+/* One node, one 12pt line — no margin and no stretched line-height.
+   `buildTitlePageBlocks` positions the title by counting blank spacer nodes, and
+   the paginator, PDF and DOCX all measure them as a single line each. The 12pt
+   margin here made every one of them 24pt on screen, so the title landed
+   halfway down instead of a third, and a fully filled title page occupied
+   getting on for two pages of real estate while the editor still drew a single
+   page break at the end of it (issue #52). */
+.title-page { text-align: center; margin-top: 0; }
 .title-page-title {
   font-weight: 700;
   text-transform: uppercase;
   text-align: center;
 }
-.title-page-author { text-align: center; line-height: 1.5; }
+.title-page-author { text-align: center; }
 .title-page-draft { text-align: left; }
 .title-page-contact,
 .title-page-copyright { text-align: right; }

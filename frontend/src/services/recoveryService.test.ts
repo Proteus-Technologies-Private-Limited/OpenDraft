@@ -278,6 +278,55 @@ describe('recoveryService', () => {
       expect(sibling.readRecoverableSnapshot()?.title).toBe('Only once');
     });
 
+    // The claim one window puts on another's snapshot stops them both offering
+    // it in the same breath. It used to be permanent, so a window killed while
+    // its prompt was still on screen left the mark behind and that work was
+    // skipped on every launch from then on (issue #68, re-opened).
+    it('re-offers a sibling snapshot whose claim went stale', async () => {
+      const lastRun = await withLabel('main');
+      lastRun.writeRecoverySnapshot({ content: CONTENT, title: 'Stranded', projectId: null, scriptId: null });
+
+      const interrupted = await withLabel('main-1');
+      expect(interrupted.readRecoverableSnapshot()?.title).toBe('Stranded');
+      // ...and that window dies before the writer answers.
+
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!) as RecoverySnapshot;
+      expect(stored.offeredBy).toBeTruthy();
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ ...stored, offeredAt: Date.now() - 10 * 60_000 }),
+      );
+
+      const nextLaunch = await withLabel('main-1');
+      expect(nextLaunch.readRecoverableSnapshot()?.title).toBe('Stranded');
+    });
+
+    it('still honours a claim made moments ago', async () => {
+      const lastRun = await withLabel('main');
+      lastRun.writeRecoverySnapshot({ content: CONTENT, title: 'Only once', projectId: null, scriptId: null });
+
+      const first = await withLabel('main-1');
+      expect(first.readRecoverableSnapshot()?.title).toBe('Only once');
+
+      // A second window of a *different* run, launching alongside the first.
+      const concurrent = await withLabel('main-2');
+      expect(concurrent.readRecoverableSnapshot()).toBeNull();
+    });
+
+    // Snapshots written before claims were timestamped must not stay hidden.
+    it('re-offers a snapshot claimed by a version that did not stamp a time', async () => {
+      const lastRun = await withLabel('main');
+      lastRun.writeRecoverySnapshot({ content: CONTENT, title: 'Legacy', projectId: null, scriptId: null });
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!) as RecoverySnapshot;
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ ...stored, offeredBy: 'a-run-that-is-long-gone' }),
+      );
+
+      const thisRun = await withLabel('main-1');
+      expect(thisRun.readRecoverableSnapshot()?.title).toBe('Legacy');
+    });
+
     it('clears the slot it offered, not just its own', async () => {
       const lastRun = await withLabel('main');
       lastRun.writeRecoverySnapshot({ content: CONTENT, title: 'Left behind', projectId: null, scriptId: null });
