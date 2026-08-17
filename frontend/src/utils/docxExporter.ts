@@ -28,7 +28,7 @@ import type { ISectionOptions } from 'docx';
 import { resolveImageUrl, loadImageBytes } from './imageAsset';
 import { jsonBlockRuns, jsonBlockText, type Run } from './nodeText';
 import type { JSONContent } from '@tiptap/react';
-import { DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT } from '../stores/editorStore';
+import { resolveHeaderFooter, printedPageNumber } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
 import { getForceBreakIds, jsonStartsOwnPage } from './pageBreaks';
 import { getSpaceBefore, DEFAULT_SPACE_BEFORE } from './elementSpacing';
@@ -173,15 +173,21 @@ function alignmentForType(typeName: string): (typeof AlignmentType)[keyof typeof
 
 /**
  * Convert a header/footer template like "Page {page} of {pages} — {title}"
- * into a list of TextRun children. {page} and {pages} become Word PAGE /
- * NUMPAGES fields (live values); {title}, {date}, {revision} are resolved
- * to static text at export time.
+ * into a list of TextRun children. {page} becomes a Word PAGE field (a live
+ * value, offset by the section's starting number); {title}, {date}, {revision}
+ * are resolved to static text at export time.
+ *
+ * {pages} is written as a literal when the caller knows the page count, because
+ * Word's NUMPAGES counts every physical sheet — including the title page, which
+ * a screenplay neither numbers nor counts. NUMPAGES is the fallback only when
+ * the count wasn't supplied.
  */
 function templateToChildren(
   template: string,
   title: string,
   revisionColor: string,
   docFont: string = FONT_FAMILY,
+  totalPages?: number,
 ): TextRun[] {
   if (!template) return [];
   const tokenRe = /(\{page\}|\{pages\}|\{title\}|\{date\}|\{revision\})/gi;
@@ -208,13 +214,17 @@ function templateToChildren(
         }),
       );
     } else if (token === '{pages}') {
-      out.push(
-        new TextRun({
-          children: [PageNumber.TOTAL_PAGES],
-          font: docFont,
-          size: FONT_SIZE_HALFPT,
-        }),
-      );
+      if (typeof totalPages === 'number') {
+        pushText(String(totalPages));
+      } else {
+        out.push(
+          new TextRun({
+            children: [PageNumber.TOTAL_PAGES],
+            font: docFont,
+            size: FONT_SIZE_HALFPT,
+          }),
+        );
+      }
     } else if (token === '{title}') {
       pushText(title);
     } else if (token === '{date}') {
@@ -241,21 +251,22 @@ function buildHFParagraph(
   title: string,
   revisionColor: string,
   docFont: string = FONT_FAMILY,
+  totalPages?: number,
 ): Paragraph {
   const centerTab = Math.round(contentWidthTwips / 2);
   const rightTab = contentWidthTwips;
 
   const children: TextRun[] = [];
   if (content.left) {
-    children.push(...templateToChildren(content.left, title, revisionColor, docFont));
+    children.push(...templateToChildren(content.left, title, revisionColor, docFont, totalPages));
   }
   if (content.center) {
     children.push(new TextRun({ text: '\t', font: docFont, size: FONT_SIZE_HALFPT }));
-    children.push(...templateToChildren(content.center, title, revisionColor, docFont));
+    children.push(...templateToChildren(content.center, title, revisionColor, docFont, totalPages));
   }
   if (content.right) {
     children.push(new TextRun({ text: '\t', font: docFont, size: FONT_SIZE_HALFPT }));
-    children.push(...templateToChildren(content.right, title, revisionColor, docFont));
+    children.push(...templateToChildren(content.right, title, revisionColor, docFont, totalPages));
   }
 
   return new Paragraph({
@@ -364,6 +375,10 @@ export interface DocxExportOptions {
   revisionColor?: string;
   /** The document's typeface; defaults to the screenplay Courier. */
   documentFont?: string;
+  /** Script pages as OpenDraft paginated them, excluding the title page. Lets
+   *  `{pages}` be written as a literal instead of Word's NUMPAGES, which counts
+   *  the title page and so is always one too high for a script that has one. */
+  scriptPageCount?: number;
 }
 
 export async function exportDocx(
@@ -419,11 +434,30 @@ export async function exportDocx(
   const docTitle = options?.documentTitle || title;
   const revColor = options?.revisionColor || '';
   const docFont = options?.documentFont || FONT_FAMILY;
-  const headerContent = layout.headerContent || DEFAULT_HEADER_CONTENT;
-  const footerContent = layout.footerContent || DEFAULT_FOOTER_CONTENT;
+  const hf = resolveHeaderFooter(layout);
+  const headerContent = hf.headerContent;
+  const footerContent = hf.footerContent;
   const showHeader = !!(headerContent.left || headerContent.center || headerContent.right);
   const showFooter = !!(footerContent.left || footerContent.center || footerContent.right);
-  const skipFirstPage = (layout.headerStartPage ?? 2) >= 2 || (layout.footerStartPage ?? 1) >= 2;
+  // The number the FIRST script page carries. Word's "different first page" is
+  // the only per-page switch available, so each band is compared against this
+  // one number — they are decided independently, never as a single shared flag.
+  const firstPrinted = hf.startingPageNumber;
+  const headerOnFirst = hf.headerStartPage <= firstPrinted;
+  const footerOnFirst = hf.footerStartPage <= firstPrinted;
+  const totalPrinted = typeof options?.scriptPageCount === 'number' && options.scriptPageCount > 0
+    ? printedPageNumber(options.scriptPageCount, hf.startingPageNumber)
+    : undefined;
+  // Word can only special-case a section's first page. A band told to start
+  // later than the second script page still appears there; say so rather than
+  // exporting a file that silently disagrees with the PDF.
+  if ((showHeader && hf.headerStartPage > firstPrinted + 1)
+    || (showFooter && hf.footerStartPage > firstPrinted + 1)) {
+    console.warn(
+      '[docx] Word can only suppress a header/footer on the first page of a section; '
+      + 'a start page beyond the second script page is exported as "skip the first page".',
+    );
+  }
 
   // Body paragraphs
   // Pre-load inserted images (async) before building paragraphs.
@@ -469,14 +503,12 @@ export async function exportDocx(
 
   const bodyParagraphs: Paragraph[] = [];
   for (let i = 0; i < bodyNodes.length; i++) {
-    // When a title page precedes the body, force the screenplay's first
-    // paragraph to start on a new page.  This is belt-and-suspenders on top
-    // of the section break and prevents Word from rendering the screenplay
-    // partway down page 2 if the title page didn't fully consume page 1.
-    // Beyond the first paragraph, the template's forced-break elements and the
-    // per-element "start on new page" flag each open a page of their own.
-    const forcePageBreak = (i === 0 && hasTitlePage)
-      || (i > 0 && jsonStartsOwnPage(bodyNodes[i], forceBreakIds));
+    // The title page lives in its own section, and a section break already
+    // starts a new page — adding `pageBreakBefore` to the body's first
+    // paragraph on top of it would leave a blank sheet in between.
+    // The template's forced-break elements and the per-element "start on new
+    // page" flag still each open a page of their own.
+    const forcePageBreak = i > 0 && jsonStartsOwnPage(bodyNodes[i], forceBreakIds);
     const img = imageMap.get(i);
     if (img) {
       bodyParagraphs.push(new Paragraph({
@@ -499,14 +531,20 @@ export async function exportDocx(
     );
   }
 
-  // Build sections.  When a title page exists, use two sections so headers
-  // and footers can be suppressed on the title page.  Otherwise a single
-  // section covers everything; "different first page" handles headerStartPage=2.
+  // Build sections.
+  //
+  // A title page needs its OWN section, not just a blanked first-page header on
+  // a shared one. Word numbers physical sheets, so with one section the title
+  // page is page 1 and the first script page is page 2 — which printed "2." on
+  // the opening page and gave the first script page a header that the layout
+  // said to suppress. A second section restarts numbering at the script's
+  // starting number and gets its own "different first page", so "first page"
+  // means the first page of the SCRIPT rather than the title page.
   const headerPara = showHeader
-    ? buildHFParagraph(headerContent, contentWidthTw, docTitle, revColor, docFont)
+    ? buildHFParagraph(headerContent, contentWidthTw, docTitle, revColor, docFont, totalPrinted)
     : null;
   const footerPara = showFooter
-    ? buildHFParagraph(footerContent, contentWidthTw, docTitle, revColor, docFont)
+    ? buildHFParagraph(footerContent, contentWidthTw, docTitle, revColor, docFont, totalPrinted)
     : null;
 
   const sectionPageProps = {
@@ -523,72 +561,66 @@ export async function exportDocx(
     },
   } as const;
 
+  const emptyP = (): Paragraph => new Paragraph({
+    children: [new TextRun({ text: '', font: FONT_FAMILY, size: FONT_SIZE_HALFPT })],
+  });
+
+  /** Header/footer set for the section that holds the screenplay. Each band's
+   *  first page is decided on its own, so a footer that starts on page 1
+   *  survives a header that starts on page 2 — they used to share one flag. */
+  const buildScriptBands = () => {
+    const differentFirst = (showHeader && !headerOnFirst) || (showFooter && !footerOnFirst);
+    const headers: { default?: Header; first?: Header } = {};
+    const footers: { default?: Footer; first?: Footer } = {};
+    if (headerPara) {
+      headers.default = new Header({ children: [headerPara] });
+      // With w:titlePg set, a band with no first-page definition renders blank.
+      // The band that DOES belong on page 1 has to repeat its content there.
+      if (differentFirst) {
+        headers.first = headerOnFirst
+          ? new Header({ children: [headerPara] })
+          : new Header({ children: [emptyP()] });
+      }
+    }
+    if (footerPara) {
+      footers.default = new Footer({ children: [footerPara] });
+      if (differentFirst) {
+        footers.first = footerOnFirst
+          ? new Footer({ children: [footerPara] })
+          : new Footer({ children: [emptyP()] });
+      }
+    }
+    return { differentFirst, headers, footers };
+  };
+
   const sections: ISectionOptions[] = [];
+  const { differentFirst, headers, footers } = buildScriptBands();
+  const scriptProps: Record<string, unknown> = {
+    ...sectionPageProps,
+    // Restart the count so the first script page carries the number the layout
+    // says it should, whatever precedes it.
+    page: { ...sectionPageProps.page, pageNumbers: { start: hf.startingPageNumber } },
+  };
+  if (differentFirst) scriptProps.titlePage = true;
 
   if (hasTitlePage) {
-    // Single section with `titlePage: true` so Word uses the empty first-page
-    // header/footer for page 1 (the title page) and the real header/footer
-    // for page 2+ (the screenplay).  The body's first paragraph carries
-    // `pageBreakBefore: true` to start the screenplay on page 2.  Using ONE
-    // section avoids the double-page-break that happens when you combine a
-    // section break (NEXT_PAGE) with a paragraph-level page break.
-    const headers: { default?: Header; first?: Header } = {};
-    const footers: { default?: Footer; first?: Footer } = {};
-    const emptyP = (): Paragraph => new Paragraph({
-      children: [new TextRun({ text: '', font: FONT_FAMILY, size: FONT_SIZE_HALFPT })],
-    });
-    if (headerPara) {
-      headers.default = new Header({ children: [headerPara] });
-      headers.first = new Header({ children: [emptyP()] });
-    }
-    if (footerPara) {
-      footers.default = new Footer({ children: [footerPara] });
-      footers.first = new Footer({ children: [emptyP()] });
-    }
+    // Section 1 — the title page: never numbered, never carries a band.
     sections.push({
-      properties: { ...sectionPageProps, titlePage: true },
+      properties: sectionPageProps as never,
+      children: buildTitlePageFlow(titleRegionNodes, titleImageMap, docFont),
+    });
+    // Section 2 — the screenplay. A section break already starts a new page, so
+    // the body's first paragraph must NOT also carry `pageBreakBefore`; the two
+    // together leave a blank sheet between the title page and the script.
+    sections.push({
+      properties: scriptProps as never,
       headers: Object.keys(headers).length > 0 ? headers : undefined,
       footers: Object.keys(footers).length > 0 ? footers : undefined,
-      children: [
-        ...buildTitlePageFlow(titleRegionNodes, titleImageMap, docFont),
-        ...bodyParagraphs,
-      ],
+      children: bodyParagraphs,
     });
   } else {
-    // Single section.  Use "different first page" to suppress HF on page 1
-    // when headerStartPage >= 2 (the default).
-    const props: Record<string, unknown> = { ...sectionPageProps };
-    if (skipFirstPage && (showHeader || showFooter)) {
-      props.titlePage = true; // docx flag enabling separate first-page header/footer
-    }
-    const headers: { default?: Header; first?: Header } = {};
-    const footers: { default?: Footer; first?: Footer } = {};
-    if (headerPara) {
-      headers.default = new Header({ children: [headerPara] });
-      if (skipFirstPage) {
-        headers.first = new Header({
-          children: [
-            new Paragraph({
-              children: [new TextRun({ text: '', font: FONT_FAMILY, size: FONT_SIZE_HALFPT })],
-            }),
-          ],
-        });
-      }
-    }
-    if (footerPara) {
-      footers.default = new Footer({ children: [footerPara] });
-      if (skipFirstPage) {
-        footers.first = new Footer({
-          children: [
-            new Paragraph({
-              children: [new TextRun({ text: '', font: FONT_FAMILY, size: FONT_SIZE_HALFPT })],
-            }),
-          ],
-        });
-      }
-    }
     sections.push({
-      properties: props as never,
+      properties: scriptProps as never,
       headers: Object.keys(headers).length > 0 ? headers : undefined,
       footers: Object.keys(footers).length > 0 ? footers : undefined,
       children: bodyParagraphs,

@@ -2,7 +2,7 @@
 // All constants match pagination.ts and screenplay.css for exact visual parity
 import jsPDF from 'jspdf';
 import type { JSONContent } from '@tiptap/react';
-import { DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT, resolveMoresContds } from '../stores/editorStore';
+import { resolveMoresContds, resolveHeaderFooter, printedPageNumber, resolveHFFields } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
 import { getForceBreakIds, startsOwnPage } from './pageBreaks';
 import { getSpaceBefore } from './elementSpacing';
@@ -274,22 +274,9 @@ export interface PDFExportOptions {
   documentFont?: string;
 }
 
-/** Resolve dynamic field placeholders in header/footer text */
-function resolveFields(
-  text: string,
-  pageNum: number,
-  totalPages: number,
-  title: string,
-  revisionColor: string,
-): string {
-  if (!text) return '';
-  return text
-    .replace(/\{page\}/gi, String(pageNum))
-    .replace(/\{pages\}/gi, String(totalPages))
-    .replace(/\{title\}/gi, title)
-    .replace(/\{date\}/gi, new Date().toLocaleDateString())
-    .replace(/\{revision\}/gi, revisionColor);
-}
+/** Resolve dynamic field placeholders in header/footer text. Shared with the
+ *  editor and the settings preview so all three render a template identically. */
+const resolveFields = resolveHFFields;
 
 export async function exportPDF(doc: JSONContent, title: string, layout: PageLayout, options?: PDFExportOptions): Promise<void> {
   const { saveFile } = await import('./fileOps');
@@ -385,8 +372,9 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
 
   // Header and footer text, resolved once the page count is known but written
   // from strings that are already fixed here.
-  const hContent = layout.headerContent || DEFAULT_HEADER_CONTENT;
-  const fContent = layout.footerContent || DEFAULT_FOOTER_CONTENT;
+  const hf = resolveHeaderFooter(layout);
+  const hContent = hf.headerContent;
+  const fContent = hf.footerContent;
   const docTitle = options?.documentTitle || title;
   const revColor = options?.revisionColor || '';
 
@@ -784,13 +772,17 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
   // reported one page more than the editor did.
   const titleSheets = hasTitlePage ? 1 : 0;
   const totalSheets = pageNumber;
-  const totalPages = Math.max(1, totalSheets - titleSheets);
-  const hStart = layout.headerStartPage ?? 2;
-  const fStart = layout.footerStartPage ?? 1;
+  const scriptPages = Math.max(1, totalSheets - titleSheets);
+  // Printed numbers, not sheet indices: the starting-number offset shifts every
+  // page, so `{pages}` has to be the number on the LAST page for "{page} of
+  // {pages}" to stay coherent.
+  const totalPages = printedPageNumber(scriptPages, hf.startingPageNumber);
+  const hStart = hf.headerStartPage;
+  const fStart = hf.footerStartPage;
 
   for (let sheet = 1; sheet <= totalSheets; sheet++) {
     if (sheet <= titleSheets) continue; // the title page is never numbered
-    const p = sheet - titleSheets;
+    const p = printedPageNumber(sheet - titleSheets, hf.startingPageNumber);
     pdf.setPage(sheet);
     // Header
     if (p >= hStart && (hContent.left || hContent.center || hContent.right)) {

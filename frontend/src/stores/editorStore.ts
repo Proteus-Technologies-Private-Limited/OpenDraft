@@ -238,9 +238,18 @@ export interface PageLayout {
   rightMargin: number;   // inches (from content end to page edge)
   headerContent: HeaderFooterContent;
   footerContent: HeaderFooterContent;
-  /** Show header/footer starting from this page number (default 2 = skip first page) */
+  /** Start showing the header/footer on this printed page number — compared
+   *  against the number the page actually carries, not its position in the file.
+   *  Default 2 for the header, so the first script page is unnumbered (the
+   *  industry standard); default 1 for the footer, which is empty by default. */
   headerStartPage: number;
   footerStartPage: number;
+  /** The number printed on the FIRST script page (the title page is never
+   *  numbered and never counted). Default 1. Raise it when the script's opening
+   *  sheet should read as a later page — e.g. a synopsis occupies page 1, so the
+   *  script itself starts at 2. Optional for back-compat with documents saved
+   *  before this existed — read via resolveHeaderFooter(). */
+  startingPageNumber?: number;
   /** Dialogue continuation ("Mores & Continueds") config. Optional for back-compat
    *  with documents saved before this existed — read via resolveMoresContds(). */
   moresContds?: MoresContds;
@@ -259,8 +268,72 @@ export const DEFAULT_PAGE_LAYOUT: PageLayout = {
   footerContent: { ...DEFAULT_FOOTER_CONTENT },
   headerStartPage: 2,
   footerStartPage: 1,
+  startingPageNumber: 1,
   moresContds: { ...DEFAULT_MORES_CONTDS },
 };
+
+/** Header/footer settings with every legacy gap filled in. Documents saved
+ *  before a given field existed read back as the default rather than NaN or
+ *  undefined, which is what every consumer (editor, PDF, DOCX) relies on. */
+export interface HeaderFooterSettings {
+  headerContent: HeaderFooterContent;
+  footerContent: HeaderFooterContent;
+  headerStartPage: number;
+  footerStartPage: number;
+  startingPageNumber: number;
+}
+
+export function resolveHeaderFooter(layout: PageLayout | undefined): HeaderFooterSettings {
+  const clampPage = (v: unknown, fallback: number): number => {
+    const n = typeof v === 'number' ? v : Number(v);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(9999, Math.max(1, Math.round(n)));
+  };
+  return {
+    headerContent: { ...DEFAULT_HEADER_CONTENT, ...(layout?.headerContent ?? {}) },
+    footerContent: { ...DEFAULT_FOOTER_CONTENT, ...(layout?.footerContent ?? {}) },
+    headerStartPage: clampPage(layout?.headerStartPage, 2),
+    footerStartPage: clampPage(layout?.footerStartPage, 1),
+    startingPageNumber: clampPage(layout?.startingPageNumber, 1),
+  };
+}
+
+/** The number printed on a script page. `index` is 1-based within the script,
+ *  ignoring the title page; the offset shifts it so the first sheet can read as
+ *  a later page. */
+export function printedPageNumber(index: number, startingPageNumber: number): number {
+  return index + startingPageNumber - 1;
+}
+
+/** Resolve the dynamic field placeholders in one header/footer slot. Shared by
+ *  the editor, the PDF exporter and the settings preview so all three agree on
+ *  what a template renders to. `pageNum`/`totalPages` are PRINTED numbers —
+ *  already shifted by the starting-number offset. */
+export function resolveHFFields(
+  text: string,
+  pageNum: number,
+  totalPages: number,
+  title: string,
+  revisionColor: string,
+): string {
+  if (!text) return '';
+  return text
+    .replace(/\{page\}/gi, String(pageNum))
+    .replace(/\{pages\}/gi, String(totalPages))
+    .replace(/\{title\}/gi, title)
+    .replace(/\{date\}/gi, new Date().toLocaleDateString())
+    .replace(/\{revision\}/gi, revisionColor);
+}
+
+/** True when a band with this content should be drawn on the given printed page. */
+export function showsHeaderFooter(
+  content: HeaderFooterContent,
+  printedPage: number,
+  startPage: number,
+): boolean {
+  if (!content.left && !content.center && !content.right) return false;
+  return printedPage >= startPage;
+}
 
 export interface SceneInfo {
   id: string;
@@ -678,6 +751,8 @@ interface EditorState {
   setTitlePageEditorOpen: (open: boolean) => void;
   moresContdsOpen: boolean;
   setMoresContdsOpen: (open: boolean) => void;
+  headerFooterOpen: boolean;
+  setHeaderFooterOpen: (open: boolean) => void;
   // Registered by ScreenplayEditor; the menu/toolbar calls it to start image insertion.
   imageInsertHandler: (() => void) | null;
   setImageInsertHandler: (fn: (() => void) | null) => void;
@@ -1313,6 +1388,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setTitlePageEditorOpen: (open) => set({ titlePageEditorOpen: open }),
   moresContdsOpen: false,
   setMoresContdsOpen: (open) => set({ moresContdsOpen: open }),
+  headerFooterOpen: false,
+  setHeaderFooterOpen: (open) => set({ headerFooterOpen: open }),
   imageInsertHandler: null,
   setImageInsertHandler: (fn) => set({ imageInsertHandler: fn }),
   openFileOpen: false,

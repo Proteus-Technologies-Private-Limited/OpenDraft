@@ -136,18 +136,10 @@
           <td>1 inch</td>
           <td>Standard right margin</td>
         </tr>
-        <tr>
-          <td><strong>Header Margin</strong></td>
-          <td>Standard</td>
-          <td>Space for page headers</td>
-        </tr>
-        <tr>
-          <td><strong>Footer Margin</strong></td>
-          <td>Standard</td>
-          <td>Space for page footers</td>
-        </tr>
       </tbody>
     </table>
+
+    <p>The header and footer margins moved to <strong>Format &gt; Header &amp; Footer</strong>, alongside the content they position.</p>
 
     <div class="callout callout-warning">
       <span class="callout-icon">&#9888;&#65039;</span>
@@ -158,35 +150,57 @@
 
     <h2 id="headers-footers">Headers &amp; Footers</h2>
 
-    <p>Configure what appears at the top and bottom of each page. Go to <strong>File &gt; Page Setup</strong> and find the <strong>Header</strong> and <strong>Footer</strong> sections.</p>
+    <p>Configure what appears at the top and bottom of each page from <strong>Format &gt; Header &amp; Footer</strong>.</p>
 
-    <p>Each header/footer has three zones: <strong>left</strong>, <strong>center</strong>, and <strong>right</strong>. You can enter plain text or use dynamic fields that are automatically replaced when the page renders:</p>
+    <p>Each header and footer has three zones: <strong>left</strong>, <strong>center</strong>, and <strong>right</strong>. Type plain text into any of them, or use dynamic fields that are replaced when the page renders. The <strong>Insert field</strong> buttons at the top of the dialog drop a field into whichever zone you were last typing in.</p>
 
     <table>
       <thead>
         <tr><th>Field</th><th>Renders as</th></tr>
       </thead>
       <tbody>
-        <tr><td><code>{page}</code></td><td>Current page number</td></tr>
-        <tr><td><code>{pages}</code></td><td>Total page count</td></tr>
+        <tr><td><code>{page}</code></td><td>The number printed on this page</td></tr>
+        <tr><td><code>{pages}</code></td><td>The number printed on the last page</td></tr>
         <tr><td><code>{title}</code></td><td>The screenplay title</td></tr>
         <tr><td><code>{date}</code></td><td>Current date</td></tr>
         <tr><td><code>{revision}</code></td><td>Current revision label</td></tr>
       </tbody>
     </table>
 
-    <p>You can also set which page the header and footer start appearing on. For example, set <strong>Header starts on page</strong> to 2 to keep the first page (title page) clean.</p>
+    <p>A preview at the bottom of the dialog shows the first script page next to the one after it, so you can see the effect of the two settings below before you apply them.</p>
+
+    <h3 id="first-page">The first page</h3>
+
+    <p>By industry convention a screenplay's <strong>first page carries no page number</strong>. The title page carries none either, and is never counted. This is why a new script shows nothing at the top of page 1 and <code>2.</code> at the top of page 2 &mdash; it is correct, not a missing number.</p>
+
+    <p>Each band has its own <strong>Show on first page</strong> checkbox. Tick it to number the opening page as well. <strong>Start showing on page</strong> underneath is the same setting written as a number, for the rarer case of starting further in &mdash; it is the printed page number the band first appears on.</p>
+
+    <h3 id="starting-number">Starting page number</h3>
+
+    <p><strong>Start numbering at</strong> sets the number printed on the first script page. Everything after it follows, and <code>{page}</code> and <code>{pages}</code> both shift with it.</p>
+
+    <p>Raise it when the script's opening sheet is front matter rather than the script proper &mdash; a synopsis on the first page, for instance, means the script should start at 2.</p>
+
+    <h3 id="in-place">Editing on the page</h3>
+
+    <p>You do not have to open the dialog to change the text. <strong>Double-click a header or footer</strong> on the page and type into it directly. You are editing the template, so <code>{page}.</code> stays a live page number instead of freezing as the number of the page you clicked.</p>
+
+    <ul>
+      <li><strong>Enter</strong> keeps the change; <strong>Escape</strong> discards it; clicking away keeps it.</li>
+      <li>There is one header and one footer per document, so a change made on any page applies to all of them &mdash; and to the Header &amp; Footer dialog.</li>
+      <li>The gear button beside the band opens the full dialog.</li>
+    </ul>
 
     <div class="callout callout-tip">
       <span class="callout-icon">&#128161;</span>
       <div class="callout-content">
-        <p><strong>Tip:</strong> A common setup is to put the page number in the top-right corner of the header, starting from page 2. Use <code>{page}.</code> in the right header field.</p>
+        <p><strong>Tip:</strong> The standard setup ships as the default &mdash; <code>{page}.</code> in the right header zone, hidden on the first page. Hover over a blank header or footer area to see where you can double-click to add your own.</p>
       </div>
     </div>
 
     <h2 id="reset">Resetting to Defaults</h2>
 
-    <p>Click <strong>Reset to Default</strong> in the Page Setup dialog to restore standard screenplay page dimensions and margins.</p>
+    <p>Click <strong>Reset to Default</strong> in either dialog to restore the standard screenplay settings &mdash; page dimensions and margins in Page Setup, header and footer content in Header &amp; Footer.</p>
 
     <div class="page-nav">
       <a href="themes.html">

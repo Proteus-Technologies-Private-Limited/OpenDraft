@@ -174,6 +174,17 @@
 
     <h2 id="whats-new">What's New</h2>
 
+    <h3>v0.24.1</h3>
+    <ul>
+      <li><strong>Header &amp; Footer Has Its Own Dialog</strong> &mdash; <em>Format &rarr; Header &amp; Footer</em>, out of the bottom of Page Setup where nobody found it. Buttons insert the page number, total pages, title, date and revision colour into whichever slot you are typing in, and a preview of the first two pages shows what you will actually get. See <a href="page-setup.html#headers-footers">Headers &amp; Footers</a>.</li>
+      <li><strong>Edit The Header Where It Prints</strong> &mdash; Double-click a header or footer on the page and type into it. You edit the template, so <code>{page}.</code> stays a live page number rather than freezing as the number of the page you happened to click. Enter keeps the change, Escape drops it, and it updates every page and the settings dialog at once. See <a href="page-setup.html#in-place">Editing On The Page</a>.</li>
+      <li><strong>Show The Page Number On Page 1</strong> &mdash; A plain <em>Show on first page</em> checkbox, instead of a <em>Start on page</em> number box you had to reason about. Off is still the default, because a screenplay's first page is not numbered &mdash; and now it says so rather than looking like a bug. See <a href="page-setup.html#first-page">The First Page</a>.</li>
+      <li><strong>Start Numbering At Any Page</strong> &mdash; For a script whose opening sheet is a synopsis or other front matter, set the number the first script page carries and everything after it follows. <code>{page}</code> and <code>{pages}</code> both shift with it, on screen and in every export. See <a href="page-setup.html#starting-number">Starting Page Number</a>.</li>
+      <li><strong>Word Exports Number Pages Correctly</strong> &mdash; With a title page, Word counted it, so the opening page of the script printed &ldquo;2.&rdquo; and carried a header the layout said to hide; <code>{pages}</code> read one page too many. A footer set to appear on page 1 also vanished whenever the header was set to skip it, because one switch decided both. Each band is now decided on its own.</li>
+      <li><strong>Final Draft Exports Carry Your Header</strong> &mdash; <code>.fdx</code> export wrote a fixed right-aligned page number whatever your document said, and never wrote a footer at all. Your own header, footer, first-page rule and starting page number now go out with the file, and come back when you open one. See <a href="import-export.html">Import &amp; Export</a>.</li>
+      <li><strong>Header And Footer Sit Where You Put Them</strong> &mdash; The header and footer margins now move the bands on screen too, instead of only in the PDF.</li>
+    </ul>
+
     <h3>v0.24.0</h3>
     <ul>
       <li><strong>Fountain Files Survive Being Saved</strong> &mdash; A screenplay opened from a <code>.fountain</code> file could come back with <code>**</code> around its scene headings, and the action beneath them turned into dialogue. Emphasis, scene numbers and headings that don't start with INT./EXT. are now written the way the Fountain specification asks, so a script reopens as the script you saved. Asterisks and underscores you typed yourself stay literal instead of turning into italics. See <a href="import-export.html">Import &amp; Export</a>.</li>
@@ -185,7 +196,7 @@
       <li><strong>Clearer Element And Menu Names</strong> &mdash; <em>General</em> is now <em>General (Unformatted text)</em>, and the element pickers explain what the less obvious elements are for. The File menu now says <em>Script</em> rather than <em>Screenplay</em>, because five of the six formats you can choose are not screenplays: <em>New Script</em>, <em>Open Script&hellip;</em>, <em>Close Script</em>. And Save names where it is going &mdash; a script you opened from a file says <em>Save to File</em>, so it is clear &#8984;S overwrites that file rather than filing a copy.</li>
     </ul>
 
-    <h3>v0.24.0</h3>
+    <h3>v0.23.2</h3>
     <ul>
       <li><strong>Cyrillic Scripts Export To PDF</strong> &mdash; A screenplay written in Cyrillic came out of PDF export as a run of unrelated Latin letters. Cyrillic, Greek, Armenian and Georgian are now written into the PDF properly &mdash; on the same page layout as before, and searchable and copyable out of the file. Title pages, headers and footers too. See <a href="import-export.html#export-pdf">PDF</a>.</li>
       <li><strong>Exports Keep The Title In The Filename</strong> &mdash; A script whose title was not written in English was saved as <em>Untitled</em>. The title now survives into the filename, in any alphabet, for PDF, Word, Final Draft, Fountain and Fade In exports.</li>

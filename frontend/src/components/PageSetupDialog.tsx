@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { useEditorStore, DEFAULT_PAGE_LAYOUT, DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT } from '../stores/editorStore';
-import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
+import { useEditorStore, DEFAULT_PAGE_LAYOUT, resolveHeaderFooter } from '../stores/editorStore';
+import type { PageLayout } from '../stores/editorStore';
 
 interface PageSetupDialogProps {
   onClose: () => void;
@@ -21,40 +21,17 @@ function inToPt(inches: number): number {
 }
 
 const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
-  const { pageLayout, setPageLayout } = useEditorStore();
+  const { pageLayout, setPageLayout, setHeaderFooterOpen } = useEditorStore();
 
-  // Backwards-compatible: fill in missing headerContent/footerContent for old layouts
-  const [layout, setLayout] = useState<PageLayout>({
+  // Backwards-compatible: fill in fields missing from layouts saved by older versions
+  const [layout, setLayout] = useState<PageLayout>(() => ({
     ...pageLayout,
-    headerContent: pageLayout.headerContent || { ...DEFAULT_HEADER_CONTENT },
-    footerContent: pageLayout.footerContent || { ...DEFAULT_FOOTER_CONTENT },
-    headerStartPage: pageLayout.headerStartPage ?? 2,
-    footerStartPage: pageLayout.footerStartPage ?? 1,
-  });
+    ...resolveHeaderFooter(pageLayout),
+  }));
 
   const setField = useCallback(
     <K extends keyof PageLayout>(key: K, value: PageLayout[K]) => {
       setLayout((prev) => ({ ...prev, [key]: value }));
-    },
-    [],
-  );
-
-  const setHeaderField = useCallback(
-    (pos: keyof HeaderFooterContent, value: string) => {
-      setLayout((prev) => ({
-        ...prev,
-        headerContent: { ...prev.headerContent, [pos]: value },
-      }));
-    },
-    [],
-  );
-
-  const setFooterField = useCallback(
-    (pos: keyof HeaderFooterContent, value: string) => {
-      setLayout((prev) => ({
-        ...prev,
-        footerContent: { ...prev.footerContent, [pos]: value },
-      }));
     },
     [],
   );
@@ -88,6 +65,14 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
   const handleReset = useCallback(() => {
     setLayout({ ...DEFAULT_PAGE_LAYOUT });
   }, []);
+
+  /** Hand off to the Header & Footer dialog, keeping whatever was typed here —
+   *  losing half-finished margin edits on the way out would be its own bug. */
+  const handleOpenHeaderFooter = useCallback(() => {
+    setPageLayout(layout);
+    onClose();
+    setHeaderFooterOpen(true);
+  }, [layout, setPageLayout, onClose, setHeaderFooterOpen]);
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
@@ -219,112 +204,17 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
             </div>
           </div>
 
-          {/* Header / Footer */}
+          {/* Header and footer content lives in its own dialog (Format → Header &
+              Footer), where it has room for field buttons and a preview. This is
+              the signpost for anyone who still looks for it here. */}
           <div className="page-setup-section">
             <div className="page-setup-section-title">Header &amp; Footer</div>
-            <div className="page-setup-row-pair">
-              <div className="page-setup-row">
-                <label>Header margin (in)</label>
-                <input
-                  type="number"
-                  step="0.05"
-                  min="0"
-                  max="2"
-                  value={ptToIn(layout.headerMargin)}
-                  onChange={(e) =>
-                    setField(
-                      'headerMargin',
-                      inToPt(parseFloat(e.target.value) || 0),
-                    )
-                  }
-                />
-              </div>
-              <div className="page-setup-row">
-                <label>Footer margin (in)</label>
-                <input
-                  type="number"
-                  step="0.05"
-                  min="0"
-                  max="2"
-                  value={ptToIn(layout.footerMargin)}
-                  onChange={(e) =>
-                    setField(
-                      'footerMargin',
-                      inToPt(parseFloat(e.target.value) || 0),
-                    )
-                  }
-                />
-              </div>
+            <div className="page-setup-hf-hint" style={{ marginBottom: 8 }}>
+              Page numbers, header and footer text, and where numbering starts.
             </div>
-
-            <div className="page-setup-hf-label">Header Content</div>
-            <div className="page-setup-hf-hint">
-              Fields: {'{page}'} {'{pages}'} {'{title}'} {'{date}'} {'{revision}'}
-            </div>
-            <div className="page-setup-hf-row">
-              <input
-                placeholder="Left"
-                value={layout.headerContent.left}
-                onChange={(e) => setHeaderField('left', e.target.value)}
-              />
-              <input
-                placeholder="Center"
-                value={layout.headerContent.center}
-                onChange={(e) => setHeaderField('center', e.target.value)}
-              />
-              <input
-                placeholder="Right"
-                value={layout.headerContent.right}
-                onChange={(e) => setHeaderField('right', e.target.value)}
-              />
-            </div>
-            <div className="page-setup-row">
-              <label>Start on page</label>
-              <input
-                type="number"
-                step="1"
-                min="1"
-                max="999"
-                value={layout.headerStartPage}
-                onChange={(e) =>
-                  setField('headerStartPage', parseInt(e.target.value, 10) || 1)
-                }
-                style={{ width: 60 }}
-              />
-            </div>
-
-            <div className="page-setup-hf-label" style={{ marginTop: 12 }}>Footer Content</div>
-            <div className="page-setup-hf-row">
-              <input
-                placeholder="Left"
-                value={layout.footerContent.left}
-                onChange={(e) => setFooterField('left', e.target.value)}
-              />
-              <input
-                placeholder="Center"
-                value={layout.footerContent.center}
-                onChange={(e) => setFooterField('center', e.target.value)}
-              />
-              <input
-                placeholder="Right"
-                value={layout.footerContent.right}
-                onChange={(e) => setFooterField('right', e.target.value)}
-              />
-            </div>
-            <div className="page-setup-row">
-              <label>Start on page</label>
-              <input
-                type="number"
-                step="1"
-                min="1"
-                max="999"
-                value={layout.footerStartPage}
-                onChange={(e) =>
-                  setField('footerStartPage', parseInt(e.target.value, 10) || 1)
-                }
-                style={{ width: 60 }}
-              />
-            </div>
+            <button type="button" className="dialog-btn page-setup-link" onClick={handleOpenHeaderFooter}>
+              Header &amp; Footer Settings…
+            </button>
           </div>
         </div>
 

@@ -127,6 +127,7 @@ import {
   FaColumns,
   FaFileAlt,
   FaCommentDots,
+  FaHeading,
   FaImage,
   FaCompass,
   FaTh,
@@ -1213,6 +1214,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
         documentTitle: store.documentTitle,
         revisionColor: store.revisionMode ? store.revisionColor : '',
         documentFont: store.fontFamily,
+        // So `{pages}` matches what the editor and the PDF report, rather than
+        // Word's NUMPAGES, which counts the title page.
+        scriptPageCount: store.pageCount,
       });
     } catch (err) {
       console.error('Word export failed:', err);
@@ -1544,6 +1548,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         },
         { separator: true, label: '' },
         { icon: <FaCommentDots />, label: 'Mores & Continueds…', action: () => useEditorStore.getState().setMoresContdsOpen(true) },
+        { icon: <FaHeading />, label: 'Header & Footer…', action: () => useEditorStore.getState().setHeaderFooterOpen(true) },
         { icon: <FaImage />, label: 'Insert Image…', action: () => useEditorStore.getState().imageInsertHandler?.() },
         { separator: true, label: '' },
         { icon: <FaFileAlt />, label: 'Title Page…', action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
@@ -2217,8 +2222,19 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 0.24</div>
+              <div className="about-section-title">What's New in 0.24.1</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.24.1</div>
+              <ul className="about-list">
+                <li><strong>Header &amp; Footer Has Its Own Dialog</strong> — Format → Header &amp; Footer, out of the bottom of Page Setup where nobody found it. Buttons insert the page number, total pages, title, date and revision colour into whichever slot you are typing in, and a preview of the first two pages shows what you will actually get.</li>
+                <li><strong>Edit The Header Where It Prints</strong> — Double-click a header or footer on the page and type into it. You edit the template, so <code>{'{page}'}.</code> stays a live page number rather than freezing as the number of the page you happened to click. Enter keeps the change, Escape drops it, and it updates every page and the settings dialog at once.</li>
+                <li><strong>Show The Page Number On Page 1</strong> — A plain <em>Show on first page</em> checkbox, instead of a <em>Start on page</em> number box you had to reason about. Off is still the default, because a screenplay's first page is not numbered — and now it says so rather than looking like a bug.</li>
+                <li><strong>Start Numbering At Any Page</strong> — For a script whose opening sheet is a synopsis or other front matter, set the number the first script page carries and everything after it follows. <code>{'{page}'}</code> and <code>{'{pages}'}</code> both shift with it, on screen and in every export.</li>
+                <li><strong>Word Exports Number Pages Correctly</strong> — With a title page, Word counted it, so the opening page of the script printed "2." and carried a header the layout said to hide; <code>{'{pages}'}</code> read one page too many. A footer set to appear on page 1 also vanished whenever the header was set to skip it, because one switch decided both. Each band is now decided on its own.</li>
+                <li><strong>Final Draft Exports Carry Your Header</strong> — <code>.fdx</code> export wrote a fixed right-aligned page number whatever your document said, and never wrote a footer at all. Your own header, footer, first-page rule and starting page number now go out with the file, and come back when you open one.</li>
+                <li><strong>Header And Footer Sit Where You Put Them</strong> — The header and footer margins now move the bands on screen too, instead of only in the PDF.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.24.0</div>
               <ul className="about-list">
                 <li><strong>Fountain Files Survive Being Saved</strong> — A screenplay opened from a <code>.fountain</code> file could come back with <code>**</code> around its scene headings, and the action beneath them turned into dialogue. Emphasis, scene numbers and headings that don't start with INT./EXT. are now written the way the Fountain specification asks, so a script reopens as the script you saved. Asterisks and underscores you typed yourself stay literal instead of turning into italics.</li>

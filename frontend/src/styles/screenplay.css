@@ -2417,6 +2417,95 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   text-align: right;
 }
 
+/* In-place header/footer editing.  The bands sit inside .page-sep, which is
+   click-through by design so the page breaks never swallow a click on the
+   script; the bands opt back in individually. */
+.page-sep-hf-editable,
+.page-sep-hf-editing {
+  pointer-events: auto;
+  user-select: text;
+  border-radius: 3px;
+  /* Reserve the hover outline's space up front so the band doesn't shift. */
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+.page-sep-hf-editable {
+  cursor: text;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+.page-sep-hf-editable:hover {
+  background: var(--fd-hf-hover, rgba(80, 130, 220, 0.08));
+  box-shadow: inset 0 0 0 1px var(--fd-hf-hover-border, rgba(80, 130, 220, 0.35));
+}
+/* An empty band has nothing to click, so it only becomes visible on hover —
+   otherwise every page would carry a permanent grey prompt. Its three slots are
+   empty and collapse to no height, so the band needs one of its own for the
+   hover outline to enclose the prompt rather than sit above it. */
+.page-sep-hf-empty {
+  min-height: 12pt;
+}
+.page-sep-hf-empty .page-sep-hf-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fd-font, system-ui, sans-serif);
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  color: #8a8a8a;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+.page-sep-hf-empty:hover .page-sep-hf-placeholder {
+  opacity: 1;
+}
+.page-sep-hf-editing {
+  background: var(--fd-hf-hover, rgba(80, 130, 220, 0.1));
+  box-shadow: inset 0 0 0 1px var(--fd-accent, #4a7fd4);
+}
+.page-sep-hf-input {
+  /* Inherit the page's typeface so what is typed sits exactly where it prints. */
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: #000;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  min-width: 0;
+}
+.page-sep-hf-input::placeholder {
+  color: #b0b0b0;
+}
+.page-sep-hf-settings {
+  position: absolute;
+  right: -26px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  line-height: 1;
+  font-size: 12px;
+  border: 1px solid var(--fd-border, #444);
+  border-radius: 4px;
+  background: var(--fd-panel, #2a2a2a);
+  color: var(--fd-text, #ddd);
+  cursor: pointer;
+}
+.page-sep-hf-settings:hover {
+  border-color: var(--fd-accent, #4a7fd4);
+}
+
+/* The first script page has no page break above it to hang a header off, so it
+   gets a band of its own anchored to the top of the page. */
+.page-sep-first {
+  z-index: 9; /* below the real separators, which own the page edges */
+}
+
 /* (MORE) marker — positioned inside the bottom margin area of the page */
 .page-sep-more {
   position: absolute;
@@ -2852,6 +2941,204 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .page-setup-hf-row input::placeholder {
   color: var(--fd-text-muted);
   opacity: 0.6;
+}
+.page-setup-link {
+  width: 100%;
+}
+
+/* ============ HEADER & FOOTER DIALOG ============ */
+.hf-dialog {
+  min-width: 460px;
+  max-width: 520px;
+}
+.hf-fields {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--fd-border);
+}
+.hf-fields-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--fd-text-muted);
+  margin-right: 2px;
+}
+.hf-field-btn {
+  height: 24px;
+  padding: 0 10px;
+  font-size: 11px;
+  border: 1px solid var(--fd-border);
+  border-radius: 12px;
+  background: var(--fd-input-bg);
+  color: var(--fd-text);
+  cursor: pointer;
+}
+.hf-field-btn:hover {
+  border-color: var(--fd-accent);
+  color: var(--fd-accent);
+}
+.hf-section {
+  margin-top: 14px;
+}
+.hf-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--fd-text-muted);
+  margin-bottom: 8px;
+}
+.hf-slot-row {
+  display: flex;
+  gap: 8px;
+}
+.hf-slot {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.hf-slot-label {
+  font-size: 10px;
+  color: var(--fd-text-muted);
+}
+.hf-slot input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  background: var(--fd-input-bg);
+  color: var(--fd-text);
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  min-width: 0;
+}
+.hf-slot input:focus {
+  border-color: var(--fd-accent);
+}
+.hf-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 0 8px;
+  font-size: 12px;
+  color: var(--fd-text);
+  cursor: pointer;
+}
+.hf-check input {
+  accent-color: var(--fd-accent);
+  cursor: pointer;
+}
+.hf-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.hf-row label {
+  font-size: 12px;
+  color: var(--fd-text);
+  flex: 1;
+}
+.hf-row input[type="number"] {
+  width: 72px;
+  height: 28px;
+  padding: 0 8px;
+  background: var(--fd-input-bg);
+  color: var(--fd-text);
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+}
+.hf-row input[type="number"]:focus {
+  border-color: var(--fd-accent);
+}
+.hf-row-pair {
+  display: flex;
+  gap: 16px;
+}
+.hf-row-pair .hf-row {
+  flex: 1;
+}
+.hf-hint {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--fd-text-muted);
+  margin-top: 2px;
+}
+
+/* Preview: two miniature sheets showing the first script page next to the one
+   after it — the pair that makes "show on first page" and the starting number
+   legible at a glance. */
+.hf-preview {
+  display: flex;
+  gap: 14px;
+}
+.hf-preview-page {
+  flex: 1;
+  min-width: 0;
+}
+.hf-preview-band {
+  display: flex;
+  height: 14px;
+  padding: 0 6px;
+  align-items: center;
+  background: #fff;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 8px;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.hf-preview-band:first-child {
+  border-radius: 3px 3px 0 0;
+  border: 1px solid var(--fd-border);
+  border-bottom: none;
+}
+.hf-preview-band:last-of-type {
+  border-radius: 0 0 3px 3px;
+  border: 1px solid var(--fd-border);
+  border-top: none;
+}
+.hf-preview-slot {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hf-preview-slot-1 {
+  text-align: center;
+}
+.hf-preview-slot-2 {
+  text-align: right;
+}
+.hf-preview-body {
+  height: 40px;
+  background: #fff;
+  border-left: 1px solid var(--fd-border);
+  border-right: 1px solid var(--fd-border);
+  /* Suggest lines of script without pretending to be real text. */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 4px,
+    #e2e2e2 4px 5px
+  );
+  background-position: 8px 0;
+  background-size: calc(100% - 16px) 100%;
+  background-repeat: no-repeat;
+}
+.hf-preview-caption {
+  margin-top: 5px;
+  font-size: 10px;
+  text-align: center;
+  color: var(--fd-text-muted);
 }
 
 /* ============ SCROLLBAR ============ */

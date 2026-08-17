@@ -87,6 +87,90 @@ export interface FDXPageLayout {
   footerMargin: number; // points
   leftMargin: number;   // inches (Action LeftIndent)
   rightMargin: number;  // inches (pageWidth - Action RightIndent)
+  // From <HeaderAndFooter>. Absent when the file carries no such block, so the
+  // importer leaves the document's own defaults in place rather than blanking
+  // a header the file never spoke about.
+  headerContent?: { left: string; center: string; right: string };
+  footerContent?: { left: string; center: string; right: string };
+  headerStartPage?: number;
+  footerStartPage?: number;
+  startingPageNumber?: number;
+}
+
+/** Final Draft's dynamic header fields, mapped back to OpenDraft's tokens. */
+const FDX_LABEL_TO_TOKEN: Record<string, string> = {
+  'page #': '{page}',
+  'last page #': '{pages}',
+  title: '{title}',
+  date: '{date}',
+};
+
+/** One header/footer paragraph as a template string, fields and all. */
+function hfParagraphTemplate(p: Element): string {
+  let out = '';
+  for (const child of Array.from(p.childNodes)) {
+    if (child.nodeType !== 1) continue;
+    const el = child as Element;
+    if (el.tagName === 'DynamicLabel') {
+      const token = FDX_LABEL_TO_TOKEN[(el.getAttribute('Type') || '').toLowerCase()];
+      if (token) out += token;
+    } else if (el.tagName === 'Text') {
+      out += el.textContent || '';
+    }
+  }
+  return out;
+}
+
+/**
+ * Read `<HeaderAndFooter>` back into the three-slot model.
+ *
+ * Final Draft aligns each paragraph rather than splitting a line into slots, so
+ * alignment is what decides which slot a paragraph lands in; an unaligned
+ * paragraph falls to the left, which is where Final Draft draws it.
+ */
+export function parseHeaderAndFooter(xmlDoc: Document): Partial<FDXPageLayout> {
+  // getElementsByTagName rather than a CSS selector: this runs against the
+  // browser DOM in the app and against a lightweight XML DOM in tests, and only
+  // the former implements querySelector.
+  const el = xmlDoc.getElementsByTagName('HeaderAndFooter')[0];
+  if (!el) return {};
+
+  const readBand = (tag: 'Header' | 'Footer') => {
+    const band = el.getElementsByTagName(tag)[0];
+    const slots = { left: '', center: '', right: '' };
+    if (!band) return slots;
+    for (const p of Array.from(band.getElementsByTagName('Paragraph'))) {
+      const align = (p.getAttribute('Alignment') || 'Left').toLowerCase();
+      const key = align === 'center' ? 'center' : align === 'right' ? 'right' : 'left';
+      const text = hfParagraphTemplate(p);
+      if (!text) continue;
+      // More than one paragraph on the same edge: keep both, on one line.
+      slots[key] = slots[key] ? `${slots[key]} ${text}` : text;
+    }
+    return slots;
+  };
+
+  const isYes = (attr: string, fallback: boolean): boolean => {
+    const v = el.getAttribute(attr);
+    if (v === null) return fallback;
+    return v.toLowerCase() === 'yes';
+  };
+  const startingPageNumber = Math.max(1, parseInt(el.getAttribute('StartingPage') || '1', 10) || 1);
+  // "…FirstPage=No" means skip the opening page, which in OpenDraft's model is
+  // a start page one past the number that page carries.
+  const startFrom = (visibleOnFirst: boolean) =>
+    visibleOnFirst ? startingPageNumber : startingPageNumber + 1;
+
+  const headerVisible = isYes('HeaderVisible', true);
+  const footerVisible = isYes('FooterVisible', false);
+
+  return {
+    headerContent: headerVisible ? readBand('Header') : { left: '', center: '', right: '' },
+    footerContent: footerVisible ? readBand('Footer') : { left: '', center: '', right: '' },
+    headerStartPage: startFrom(isYes('HeaderFirstPage', false)),
+    footerStartPage: startFrom(isYes('FooterFirstPage', true)),
+    startingPageNumber,
+  };
 }
 
 export interface FDXCastMember {
@@ -207,6 +291,7 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
       footerMargin: parseFloat(layoutEl.getAttribute('FooterMargin') || '36'),
       leftMargin: leftIndent,
       rightMargin: Math.max(0, pageWidth - rightIndent),
+      ...parseHeaderAndFooter(xmlDoc),
     };
   }
 

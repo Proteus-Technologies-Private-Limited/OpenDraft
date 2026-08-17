@@ -1,6 +1,7 @@
 // Final Draft XML (.fdx) exporter — full formatting & layout support
 import type { JSONContent } from '@tiptap/react';
 import type { CharacterProfile, TagCategory, TagItem, BeatInfo, BeatColumn, PageLayout } from '../stores/editorStore';
+import { resolveHeaderFooter } from '../stores/editorStore';
 import { CUSTOM_TYPE_TO_FDX } from './fdxParser';
 import { jsonBlockText } from './nodeText';
 import { sanitizeExportFilename } from './exportFilename';
@@ -44,6 +45,91 @@ function esc(str: string): string {
     // pretty-printers and whitespace-normalizing readers, which would
     // otherwise collapse a raw newline to a space and lose the break.
     .replace(/\r\n?|\n/g, '&#10;');
+}
+
+/**
+ * Build the `<HeaderAndFooter>` block from the document's own settings.
+ *
+ * Final Draft carries the dynamic fields as `<DynamicLabel>` elements rather
+ * than literal text, so a template is split on the tokens OpenDraft shares with
+ * it; `{revision}` has no FDX equivalent and goes out as the resolved text.
+ */
+const FDX_DYNAMIC_LABEL: Record<string, string> = {
+  '{page}': 'Page #',
+  '{pages}': 'Last Page #',
+  '{title}': 'Title',
+  '{date}': 'Date',
+};
+
+function buildHFParagraph(
+  template: string,
+  alignment: 'Left' | 'Center' | 'Right',
+  docFont: string,
+  docFontSize: string,
+): string[] {
+  if (!template) return [];
+  const out: string[] = [];
+  out.push(`      <Paragraph Alignment="${alignment}" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="-1.00" SpaceBefore="0" Spacing="1" StartsNewPage="No">`);
+  const textRun = (s: string) => {
+    if (!s) return;
+    out.push(`        <Text AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(docFont)}" RevisionID="0" Size="${esc(docFontSize)}" Style="">${esc(s)}</Text>`);
+  };
+  const tokenRe = /(\{page\}|\{pages\}|\{title\}|\{date\}|\{revision\})/gi;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = tokenRe.exec(template)) !== null) {
+    textRun(template.slice(last, m.index));
+    const label = FDX_DYNAMIC_LABEL[m[0].toLowerCase()];
+    // {revision} has no Final Draft counterpart; drop the token rather than
+    // writing a label Final Draft would reject.
+    if (label) out.push(`        <DynamicLabel Type="${label}"/>`);
+    last = tokenRe.lastIndex;
+  }
+  textRun(template.slice(last));
+  out.push('      </Paragraph>');
+  return out;
+}
+
+function buildHeaderAndFooter(
+  pageLayout: PageLayout | undefined,
+  docFont: string,
+  docFontSize: string,
+): string[] {
+  const hf = resolveHeaderFooter(pageLayout);
+  const hasContent = (c: { left: string; center: string; right: string }) =>
+    !!(c.left || c.center || c.right);
+  const headerVisible = hasContent(hf.headerContent);
+  const footerVisible = hasContent(hf.footerContent);
+  // Final Draft's first-page flags are relative to the printed number the
+  // script's opening page carries, the same comparison every OpenDraft
+  // consumer makes.
+  const first = hf.startingPageNumber;
+  const yn = (b: boolean) => (b ? 'Yes' : 'No');
+
+  const out: string[] = [];
+  out.push(
+    `  <HeaderAndFooter FooterFirstPage="${yn(hf.footerStartPage <= first)}"`
+    + ` FooterVisible="${yn(footerVisible)}"`
+    + ` HeaderFirstPage="${yn(hf.headerStartPage <= first)}"`
+    + ` HeaderVisible="${yn(headerVisible)}"`
+    + ` StartingPage="${hf.startingPageNumber}">`,
+  );
+  if (headerVisible) {
+    out.push('    <Header>');
+    out.push(...buildHFParagraph(hf.headerContent.left, 'Left', docFont, docFontSize));
+    out.push(...buildHFParagraph(hf.headerContent.center, 'Center', docFont, docFontSize));
+    out.push(...buildHFParagraph(hf.headerContent.right, 'Right', docFont, docFontSize));
+    out.push('    </Header>');
+  }
+  if (footerVisible) {
+    out.push('    <Footer>');
+    out.push(...buildHFParagraph(hf.footerContent.left, 'Left', docFont, docFontSize));
+    out.push(...buildHFParagraph(hf.footerContent.center, 'Center', docFont, docFontSize));
+    out.push(...buildHFParagraph(hf.footerContent.right, 'Right', docFont, docFontSize));
+    out.push('    </Footer>');
+  }
+  out.push('  </HeaderAndFooter>');
+  return out;
 }
 
 /** Strip HTML tags to plain text (for FDX export — CastMember Description is plain text only) */
@@ -217,15 +303,11 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   lines.push(buildElementSettings(leftIndent, rightIndent, docFont, docFontSize));
   lines.push('');
 
-  // Header
-  lines.push('  <HeaderAndFooter FooterFirstPage="Yes" FooterVisible="No" HeaderFirstPage="No" HeaderVisible="Yes" StartingPage="1">');
-  lines.push('    <Header>');
-  lines.push('      <Paragraph Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="-1.00" SpaceBefore="0" Spacing="1" StartsNewPage="No">');
-  lines.push('        <DynamicLabel Type="Page #"/>');
-  lines.push(`        <Text AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="${esc(docFont)}" RevisionID="0" Size="${esc(docFontSize)}" Style="">.</Text>`);
-  lines.push('      </Paragraph>');
-  lines.push('    </Header>');
-  lines.push('  </HeaderAndFooter>');
+  // Header and footer — the document's own settings, not a fixed page number.
+  // Final Draft models each band as aligned paragraphs plus attributes for
+  // first-page visibility and the starting number, which is close enough to
+  // OpenDraft's model to carry across without loss.
+  lines.push(...buildHeaderAndFooter(pageLayout, docFont, docFontSize));
   lines.push('');
 
   // Title page — extract structured attrs from titlePage nodes if available

@@ -43,8 +43,11 @@ import { createContdCasePlugin } from '../editor/contdCase';
 import { ScreenplayImage } from '../editor/extensions/ScreenplayImage';
 import { insertImageNode } from '../utils/insertImage';
 
-import { useEditorStore, DEFAULT_HEADER_CONTENT, DEFAULT_FOOTER_CONTENT, DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES, resolveMoresContds } from '../stores/editorStore';
-import type { ElementType } from '../stores/editorStore';
+import { useEditorStore, DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES, resolveMoresContds, resolveHeaderFooter, printedPageNumber } from '../stores/editorStore';
+import type { ElementType, HeaderFooterContent } from '../stores/editorStore';
+import HeaderFooterBand from './HeaderFooterBand';
+import HeaderFooterDialog from './HeaderFooterDialog';
+import type { BandKind } from './HeaderFooterBand';
 import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
@@ -247,22 +250,6 @@ interface OverlayInfo {
 }
 
 
-/** Resolve dynamic field placeholders in header/footer text */
-function resolveHFFields(
-  text: string,
-  pageNum: number,
-  totalPages: number,
-  title: string,
-  revisionColor: string,
-): string {
-  if (!text) return '';
-  return text
-    .replace(/\{page\}/gi, String(pageNum))
-    .replace(/\{pages\}/gi, String(totalPages))
-    .replace(/\{title\}/gi, title)
-    .replace(/\{date\}/gi, new Date().toLocaleDateString())
-    .replace(/\{revision\}/gi, revisionColor);
-}
 
 const ScreenplayEditor: React.FC = () => {
   const { projectId: urlProjectId, scriptId: urlScriptId, commitHash: urlCommitHash, collabToken: urlCollabToken } = useParams<{ projectId?: string; scriptId?: string; commitHash?: string; collabToken?: string }>();
@@ -1721,6 +1708,73 @@ const ScreenplayEditor: React.FC = () => {
   // CONT'D effect and re-renders the page-break markers.
   const moresContds = resolveMoresContds(pageLayout);
   const { characterContd, contdText } = moresContds;
+
+  // ── Header / footer ───────────────────────────────────────────────────────
+  // One template per document, drawn on every page it applies to and editable
+  // in place. `editingBand` names the single band instance holding the caret —
+  // the kind plus the printed page it was opened on, so double-clicking the
+  // header on page 4 doesn't open every other page's header at the same time.
+  const headerFooter = resolveHeaderFooter(pageLayout);
+  const [editingBand, setEditingBand] = useState<{ kind: BandKind; page: number } | null>(null);
+  const { headerFooterOpen, setHeaderFooterOpen } = useEditorStore();
+
+  const commitBand = useCallback(
+    (kind: BandKind, next: HeaderFooterContent) => {
+      const store = useEditorStore.getState();
+      const key = kind === 'header' ? 'headerContent' : 'footerContent';
+      store.setPageLayout({ ...store.pageLayout, [key]: next });
+      setEditingBand(null);
+    },
+    [],
+  );
+
+  // Which band the dialog should land in, when it was opened from one.
+  const [headerFooterFocus, setHeaderFooterFocus] = useState<BandKind | undefined>(undefined);
+  const openHeaderFooterSettings = useCallback(
+    (band?: BandKind) => {
+      setEditingBand(null);
+      setHeaderFooterFocus(band);
+      setHeaderFooterOpen(true);
+    },
+    [setHeaderFooterOpen],
+  );
+
+  const { documentTitle: hfDocTitle, revisionColor: hfRevColor, pageCount: hfPageCount } = useEditorStore();
+  // `{pages}` reads as the number on the LAST page, so it stays consistent with
+  // `{page}` once the starting number is offset.
+  const hfTotalPrinted = printedPageNumber(Math.max(1, hfPageCount || 1), headerFooter.startingPageNumber);
+
+  const renderHFBand = useCallback(
+    (kind: BandKind, printedPage: number) => (
+      <HeaderFooterBand
+        kind={kind}
+        content={kind === 'header' ? headerFooter.headerContent : headerFooter.footerContent}
+        printedPage={printedPage}
+        totalPages={hfTotalPrinted}
+        docTitle={hfDocTitle}
+        revisionColor={hfRevColor}
+        editable={!isHistoryMode && collabRole !== 'viewer'}
+        editing={editingBand?.kind === kind && editingBand.page === printedPage}
+        onStartEdit={() => setEditingBand({ kind, page: printedPage })}
+        onCommit={(next) => commitBand(kind, next)}
+        onCancel={() => setEditingBand(null)}
+        onOpenSettings={() => openHeaderFooterSettings(kind)}
+        // Follow the margin settings rather than the CSS default, so moving the
+        // header on screen moves it in the PDF by the same amount.
+        style={
+          kind === 'header'
+            ? { top: `${pageLayout.headerMargin}pt` }
+            : { bottom: `${pageLayout.footerMargin}pt` }
+        }
+      />
+    ),
+    [
+      headerFooter.headerContent, headerFooter.footerContent, hfTotalPrinted,
+      hfDocTitle, hfRevColor, isHistoryMode, collabRole, editingBand,
+      commitBand, openHeaderFooterSettings,
+      pageLayout.headerMargin, pageLayout.footerMargin,
+    ],
+  );
 
   const updateCharacters = useCallback(() => {
     if (!editor) return;
@@ -4251,17 +4305,16 @@ const ScreenplayEditor: React.FC = () => {
                 >
                   {/* Page break separators — absolutely positioned, full page width */}
                   {overlays.map((ov) => {
-                    const hContent = pageLayout.headerContent || DEFAULT_HEADER_CONTENT;
-                    const fContent = pageLayout.footerContent || DEFAULT_FOOTER_CONTENT;
-                    const hStart = pageLayout.headerStartPage ?? 2;
-                    const fStart = pageLayout.footerStartPage ?? 1;
-                    const { documentTitle: docTitle, revisionColor: revColor, pageCount: totalPages } = useEditorStore.getState();
-                    const showHeader = ov.pageNumber >= hStart && !ov.isTitlePage;
-                    // The footer belongs to the page BEFORE this break (ov.pageNumber - 1).
-                    // For the title-page break that previous page IS the title page, which
-                    // is unnumbered and carries no header/footer.
-                    const footerPage = ov.pageNumber - 1;
-                    const showFooterForPrev = footerPage >= fStart && !ov.isTitlePage;
+                    // `ov.pageNumber` counts script pages, ignoring the title page;
+                    // the band shows the PRINTED number, which the starting-number
+                    // offset can shift.
+                    const headerPrinted = printedPageNumber(ov.pageNumber, headerFooter.startingPageNumber);
+                    // The footer belongs to the page BEFORE this break. At the
+                    // title-page break that previous page IS the title page, which
+                    // is unnumbered and carries no header or footer.
+                    const footerPrinted = printedPageNumber(ov.pageNumber - 1, headerFooter.startingPageNumber);
+                    const showHeader = headerPrinted >= headerFooter.headerStartPage;
+                    const showFooterForPrev = !ov.isTitlePage && footerPrinted >= headerFooter.footerStartPage;
                     return (
                     <div
                       key={ov.pageNumber}
@@ -4272,23 +4325,11 @@ const ScreenplayEditor: React.FC = () => {
                         {ov.isDialogueSplit && moresContds.dialogueBreakContd && (
                           <div className="page-sep-more">{moresContds.moreText}</div>
                         )}
-                        {showFooterForPrev && (fContent.left || fContent.center || fContent.right) && (
-                          <div className="page-sep-footer">
-                            <span className="page-sep-hf-left">{resolveHFFields(fContent.left, footerPage, totalPages, docTitle, revColor)}</span>
-                            <span className="page-sep-hf-center">{resolveHFFields(fContent.center, footerPage, totalPages, docTitle, revColor)}</span>
-                            <span className="page-sep-hf-right">{resolveHFFields(fContent.right, footerPage, totalPages, docTitle, revColor)}</span>
-                          </div>
-                        )}
+                        {showFooterForPrev && renderHFBand('footer', footerPrinted)}
                       </div>
                       <div className="page-sep-gap" />
                       <div className="page-sep-top" style={{ height: `${pageLayout.topMargin}pt` }}>
-                        {showHeader && (
-                          <div className="page-sep-header">
-                            <span className="page-sep-hf-left">{resolveHFFields(hContent.left, ov.pageNumber, totalPages, docTitle, revColor)}</span>
-                            <span className="page-sep-hf-center">{resolveHFFields(hContent.center, ov.pageNumber, totalPages, docTitle, revColor)}</span>
-                            <span className="page-sep-hf-right">{resolveHFFields(hContent.right, ov.pageNumber, totalPages, docTitle, revColor)}</span>
-                          </div>
-                        )}
+                        {showHeader && renderHFBand('header', headerPrinted)}
                       </div>
                       {ov.isDialogueSplit && ov.characterName && moresContds.dialogueBreakContd && (
                         <div className="page-sep-contd">
@@ -4300,27 +4341,38 @@ const ScreenplayEditor: React.FC = () => {
                     );
                   })}
 
+                  {/* First script page header. Every other page's header hangs off
+                      the page break above it; page 1 has no break above it unless a
+                      title page precedes it, so without this the very first header
+                      would have nowhere to render — invisible on screen even though
+                      it printed. */}
+                  {(() => {
+                    if (overlays.some((o) => o.isTitlePage)) return null; // the title-page break carries it
+                    const printed = printedPageNumber(1, headerFooter.startingPageNumber);
+                    if (printed < headerFooter.headerStartPage) return null;
+                    return (
+                      <div className="page-sep page-sep-first" style={{ top: 0 }}>
+                        <div className="page-sep-top" style={{ height: `${pageLayout.topMargin}pt` }}>
+                          {renderHFBand('header', printed)}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Last page footer — no page break follows the last page, so render its footer separately */}
                   {(() => {
-                    const fContent = pageLayout.footerContent || DEFAULT_FOOTER_CONTENT;
-                    const fStart = pageLayout.footerStartPage ?? 1;
-                    const { documentTitle: docTitle, revisionColor: revColor, pageCount: totalPages } = useEditorStore.getState();
                     const lastPage = overlays.length > 0
                       ? overlays[overlays.length - 1].pageNumber
                       : 1;
-                    const showFooter = lastPage >= fStart && (fContent.left || fContent.center || fContent.right);
-                    if (!showFooter) return null;
+                    const printed = printedPageNumber(lastPage, headerFooter.startingPageNumber);
+                    if (printed < headerFooter.footerStartPage) return null;
                     return (
                       <div
                         className="page-sep"
                         style={{ top: `${lastPageEnd}px` }}
                       >
                         <div className="page-sep-bottom" style={{ height: `${pageLayout.bottomMargin}pt`, position: 'relative' }}>
-                          <div className="page-sep-footer">
-                            <span className="page-sep-hf-left">{resolveHFFields(fContent.left, lastPage, totalPages, docTitle, revColor)}</span>
-                            <span className="page-sep-hf-center">{resolveHFFields(fContent.center, lastPage, totalPages, docTitle, revColor)}</span>
-                            <span className="page-sep-hf-right">{resolveHFFields(fContent.right, lastPage, totalPages, docTitle, revColor)}</span>
-                          </div>
+                          {renderHFBand('footer', printed)}
                         </div>
                       </div>
                     );
@@ -4473,6 +4525,14 @@ const ScreenplayEditor: React.FC = () => {
       )}
       {!isHistoryMode && moresContdsOpen && (
         <MoresContdsDialog onClose={() => setMoresContdsOpen(false)} />
+      )}
+      {!isHistoryMode && headerFooterOpen && (
+        <HeaderFooterDialog
+          focusBand={headerFooterFocus}
+          // Clear the focus hint on the way out: the menu opens this dialog
+          // without one, and a stale band would steal the caret next time.
+          onClose={() => { setHeaderFooterOpen(false); setHeaderFooterFocus(undefined); }}
+        />
       )}
       <input
         ref={imageFileInputRef}
