@@ -1,0 +1,75 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FDX browser harness</title>
+<style>
+  body { font: 13px/1.5 ui-monospace, monospace; padding: 16px; }
+  pre { background: #f4f4f4; padding: 12px; overflow: auto; }
+</style>
+<script src="harness.js"></script>
+<body>
+<h1>FDX browser harness</h1>
+<pre id="out">Ready. window.fdx and window.h are available — drive them from javascript_tool.</pre>
+<script>
+// Helpers, kept tiny on purpose: the point is to run the real parser, not to
+// build a test framework in the page.
+window.h = {
+  /** Fixture text from ./fixtures/<name>. */
+  async load(name) {
+    const r = await fetch('fixtures/' + name);
+    if (!r.ok) throw new Error('no such fixture: ' + name + ' (' + r.status + ')');
+    return r.text();
+  },
+
+  /** Write something back to disk, for a node test to replay. */
+  async save(name, data) {
+    const body = typeof data === 'string' ? data : JSON.stringify(data);
+    const r = await fetch('save/' + name, { method: 'POST', body });
+    if (!r.ok) throw new Error('save failed: ' + r.status);
+    return Number(await r.text());
+  },
+
+  /** Parse a fixture with the real parser. */
+  async parse(name) {
+    return window.fdx.parseFDXFull(await window.h.load(name));
+  },
+
+  /**
+   * doc -> .fdx -> doc, the shape most regressions show up in.
+   *
+   * Returns both passes plus the intermediate XML, so a caller can assert the
+   * document survived and inspect what was actually written.
+   */
+  async roundTrip(name, title) {
+    const first = await window.h.parse(name);
+    const layout = { ...window.fdx.DEFAULT_PAGE_LAYOUT, ...(first.pageLayout || {}) };
+    const xml = window.fdx.exportFDX(
+      first.doc, title || 'Untitled',
+      undefined, undefined, undefined, undefined, undefined,
+      layout,
+    );
+    const second = window.fdx.parseFDXFull(xml);
+    return { first, xml, second, layout };
+  },
+
+  /** Compact view of a parsed document, for eyeballing in a tool result. */
+  summarize(parsed) {
+    const c = parsed.doc.content || [];
+    const types = c.map((n) => n.type);
+    const bodyStart = types.findIndex((t) => t !== 'titlePage' && t !== 'screenplayImage');
+    const start = bodyStart === -1 ? 0 : bodyStart;
+    return {
+      totalNodes: c.length,
+      titlePageNodes: start,
+      titleFields: c.slice(0, start)
+        .map((n, i) => ({ i, field: n.attrs && n.attrs.field, text: (n.content || []).map((x) => x.text).join('') }))
+        .filter((x) => x.text && x.text.trim()),
+      body: c.slice(start).map((n) => n.type + ': ' + (n.content || []).map((x) => x.text).join('')),
+      pageLayout: parsed.pageLayout,
+    };
+  },
+};
+
+document.getElementById('out').textContent =
+  'window.fdx exports: ' + Object.keys(window.fdx || {}).sort().join(', ');
+</script>
+</body>
