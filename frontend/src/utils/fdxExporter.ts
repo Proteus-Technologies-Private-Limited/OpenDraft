@@ -371,6 +371,12 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
     for (const node of doc.content) {
       // FDX has no representation for inserted images — skip them.
       if (node.type === 'screenplayImage') continue;
+      // The title page has already been written to <TitlePage><Content>, which
+      // is where Final Draft looks for it. Emitting these here as well put the
+      // title, credit and copyright at the top of the script body — reopening
+      // the exported file showed the title page on script page 1, which is the
+      // very thing issue #52 is about.
+      if (node.type === 'titlePage') continue;
       if (node.type === 'dualDialogue') {
         // Wrap in DualDialogue element — flatten columns into paragraphs
         lines.push('    <DualDialogue>');

@@ -1,5 +1,6 @@
 // Fountain markup format parser
 // Spec: https://fountain.io/syntax
+import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
 
 interface TipTapMark {
   type: string;
@@ -43,10 +44,10 @@ const TITLE_PAGE_KEYS: Record<string, string> = {
  * blank line, with indented continuation lines. Returns the line index to carry
  * on from, and the node if anything was found.
  */
-function parseTitlePage(lines: string[]): { next: number; node: TipTapNode | null } {
+function parseTitlePage(lines: string[]): { next: number; nodes: TipTapNode[] } {
   // A title page has to start on the first line and its first line has to be a
   // key. Anything else and this is an ordinary script.
-  if (!/^[A-Za-z][A-Za-z ]*:/.test(lines[0] ?? '')) return { next: 0, node: null };
+  if (!/^[A-Za-z][A-Za-z ]*:/.test(lines[0] ?? '')) return { next: 0, nodes: [] };
 
   const attrs: Record<string, unknown> = { field: 'title' };
   let found = false;
@@ -75,11 +76,15 @@ function parseTitlePage(lines: string[]): { next: number; node: TipTapNode | nul
       continue;
     }
     // Not a key and not a continuation — this was never a title page.
-    return { next: 0, node: null };
+    return { next: 0, nodes: [] };
   }
 
-  if (!found) return { next: 0, node: null };
-  return { next: i, node: { type: 'titlePage', attrs, content: [] } };
+  if (!found) return { next: 0, nodes: [] };
+  // Expanded into the laid-out run the paginator and exporters measure, rather
+  // than the single attrs-only node this used to return — see titlePageBlocks.
+  const blocks = buildTitlePageBlocks(attrs as TitlePageFields) as TipTapNode[];
+  if (blocks.length === 0) return { next: 0, nodes: [] };
+  return { next: i, nodes: blocks };
 }
 
 export function parseFountain(text: string): TipTapNode {
@@ -88,8 +93,8 @@ export function parseFountain(text: string): TipTapNode {
   let i = 0;
 
   const titlePage = parseTitlePage(lines);
-  if (titlePage.node) {
-    nodes.push(titlePage.node);
+  if (titlePage.nodes.length > 0) {
+    nodes.push(...titlePage.nodes);
     i = titlePage.next;
   }
   // A `===` page break applies to whatever element comes next.

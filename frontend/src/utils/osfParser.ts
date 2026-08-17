@@ -22,6 +22,7 @@
  */
 import JSZip from 'jszip';
 import { isDocumentFont, isDocumentSize } from './fonts';
+import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
 
 interface TipTapMark {
   type: string;
@@ -597,7 +598,7 @@ const BOOKMARK_TO_TP_ATTR: Record<string, string> = {
  * that with a laid-out <titlepage> whose paragraphs are identified by
  * `bookmark`.  Both are handled, 1.2 first since a file can only use one.
  */
-function parseTitlePage(root: Element, legacyInline: boolean): { node: TipTapNode | null; title: string } {
+function parseTitlePage(root: Element, legacyInline: boolean): { nodes: TipTapNode[]; title: string } {
   const tp: Record<string, string> = { ...TITLE_PAGE_ATTR_DEFAULTS };
   let found = false;
 
@@ -645,14 +646,12 @@ function parseTitlePage(root: Element, legacyInline: boolean): { node: TipTapNod
     }
   }
 
-  if (!found) return { node: null, title: '' };
+  if (!found) return { nodes: [], title: '' };
 
+  // Expanded into the laid-out run the paginator and exporters measure, rather
+  // than the single attrs-only node this used to return (issue #52).
   return {
-    node: {
-      type: 'titlePage',
-      attrs: tp,
-      content: tp.tpTitle ? [{ type: 'text', text: tp.tpTitle }] : [],
-    },
+    nodes: buildTitlePageBlocks(tp as TitlePageFields) as TipTapNode[],
     title: tp.tpTitle,
   };
 }
@@ -709,7 +708,7 @@ export function parseOSF(xmlString: string): OSFParseResult {
 
   const styles = collectStyles(root);
   const documentFont = documentFontOf(styles, warnings);
-  const { node: titlePageNode, title } = parseTitlePage(root, legacyInline);
+  const { nodes: titlePageNodes, title } = parseTitlePage(root, legacyInline);
 
   const paragraphsEl = firstChildNamed(root, 'paragraphs');
   const parsed: ParsedPara[] = [];
@@ -724,7 +723,7 @@ export function parseOSF(xmlString: string): OSFParseResult {
 
   const body = trimTrailingEmpty(mergeDualDialogue(parsed));
   const content: TipTapNode[] = [];
-  if (titlePageNode) content.push(titlePageNode);
+  content.push(...titlePageNodes);
   content.push(...body);
   if (content.length === 0) content.push({ type: 'action', content: [] });
 

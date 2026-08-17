@@ -14,6 +14,7 @@ import { describe, it, expect } from 'vitest';
 import { exportFountain } from './fountainExporter';
 import { parseFountain } from './fountainParser';
 import { doc, block, marked } from '../test/screenplaySchema';
+import { titleRegionOf, titleNodeOf, bodyTypesOf } from '../test/titlePage';
 import type { JSONContent } from '@tiptap/react';
 
 /** The element types of a parsed document, in order. */
@@ -221,11 +222,14 @@ describe('Fountain round trip: the title page', () => {
     // at the top and the title page gone. On an in-place `.fountain` that
     // happened on every save.
     const out = roundTrip(titlePage());
-    expect(types(out)).toEqual(['titlePage', 'sceneHeading']);
+    // The parser expands the title page into the laid-out run the paginator and
+    // exporters measure, so this asserts the region rather than a node count.
+    expect(titleRegionOf(out).isReal).toBe(true);
+    expect(bodyTypesOf(out)).toEqual(['sceneHeading']);
   });
 
   it('keeps the field values', () => {
-    const node = (roundTrip(titlePage()).content ?? [])[0];
+    const node = titleNodeOf(roundTrip(titlePage()));
     expect(node?.attrs?.tpTitle).toBe('My Film');
     expect(node?.attrs?.tpWrittenBy).toBe('A Writer');
   });

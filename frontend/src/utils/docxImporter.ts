@@ -16,6 +16,7 @@
 
 import JSZip from 'jszip';
 import { singleLine } from './nodeText';
+import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
 
 interface TipTapMark {
   type: string;
@@ -506,6 +507,7 @@ function detectTitlePage(paragraphs: ParaInfo[]): { tp: TitlePageData | null; co
   // must be center-aligned for it to count as a title page.
   let end = -1;
   let sawCenter = false;
+  let centerCount = 0;
   for (let i = 0; i < Math.min(paragraphs.length, 40); i++) {
     const p = paragraphs[i];
     if (p.pageBreakBefore && i > 0) {
@@ -517,11 +519,19 @@ function detectTitlePage(paragraphs: ParaInfo[]): { tp: TitlePageData | null; co
       break;
     }
     if (p.plainText) {
-      if (p.alignment === 'center') sawCenter = true;
+      if (p.alignment === 'center') { sawCenter = true; centerCount++; }
       else if (p.alignment === 'left' && i > 5) {
         // Allow a few non-center paragraphs at the very top, but a left-aligned
         // body line means we're already past the title page.
-        end = -1;
+        //
+        // It ends the title page here rather than declaring there was none.
+        // Discarding the run dropped the title, credit and copyright into the
+        // script body, so they imported as Action at the top of page 1 — issue
+        // #52 arriving from the DOCX side, for any file whose title page is not
+        // followed by a page break or a scene heading ("FADE IN:" first, say).
+        // Two centred lines are required so a lone centred transition is not
+        // mistaken for a title page.
+        end = centerCount >= 2 ? i : -1;
         break;
       }
     }
@@ -778,13 +788,10 @@ export async function parseDocx(buf: ArrayBuffer): Promise<DocxParseResult> {
   // Third pass: build TipTap nodes
   const content: TipTapNode[] = [];
 
-  // Title-page node
+  // Title page — the laid-out run the paginator and exporters measure, not the
+  // single attrs-only node this used to push (issue #52). See titlePageBlocks.
   if (tp && tp.tpTitle) {
-    content.push({
-      type: 'titlePage',
-      attrs: { ...tp, field: 'title' },
-      content: [{ type: 'text', text: tp.tpTitle }],
-    });
+    content.push(...(buildTitlePageBlocks(tp as TitlePageFields) as TipTapNode[]));
     if (!scriptTitle) scriptTitle = tp.tpTitle;
   }
 

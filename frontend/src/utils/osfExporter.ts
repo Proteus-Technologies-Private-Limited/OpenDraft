@@ -20,6 +20,7 @@
 import JSZip from 'jszip';
 import type { JSONContent } from '@tiptap/react';
 import { sanitizeExportFilename } from './exportFilename';
+import { titlePageAttrsCarryData } from './titlePageRegion';
 
 /** Element type → the OSF style a paragraph is based on. */
 const NODE_TO_OSF_STYLE: Record<string, string> = {
@@ -297,11 +298,18 @@ export function exportOSF(doc: JSONContent, options: OSFExportOptions = {}): str
     `    <style name="Lyrics" label="Lyrics" basestylename="Normal Text"${fontAttrs} italic="1"/>`,
   );
 
+  // The title page is a *run* of nodes — spacers, the title, the credit, the
+  // bottom block — and only one of them carries the structured fields
+  // `titlePageBlock` writes out. Taking the last `titlePage` node, as this used
+  // to, picked up a trailing spacer with no data on it and wrote an empty
+  // <titlepage>, silently dropping the title page from the exported file.
   let titlePageNode: JSONContent | null = null;
   const body: string[] = [];
   for (const node of doc.content ?? []) {
     if (node.type === 'titlePage') {
-      titlePageNode = node;
+      if (!titlePageNode && titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined)) {
+        titlePageNode = node;
+      }
       continue;
     }
     if (node.type === 'dualDialogue') {

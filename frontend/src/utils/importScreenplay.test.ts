@@ -11,6 +11,7 @@ import {
   SCREENPLAY_IMPORT_EXTENSIONS,
 } from './importScreenplay';
 import { useEditorStore } from '../stores/editorStore';
+import { titleRegionOf, bodyTypesOf } from '../test/titlePage';
 
 beforeAll(() => {
   if (typeof globalThis.DOMParser === 'undefined') {
@@ -88,7 +89,8 @@ describe('parseScreenplayImport', () => {
   it('dispatches .osf to the OSF parser and recovers the title', async () => {
     const result = await parseScreenplayImport('Script.osf', OSF_XML);
 
-    expect(typesOf(result.doc)).toEqual(['titlePage', 'sceneHeading', 'action']);
+    expect(titleRegionOf(result.doc).isReal).toBe(true);
+    expect(bodyTypesOf(result.doc)).toEqual(['sceneHeading', 'action']);
     expect(result.title).toBe('Troubled Sleep');
     expect(result.formatLabel).toBe('Open Screenplay Format (.osf)');
   });
@@ -100,7 +102,8 @@ describe('parseScreenplayImport', () => {
 
     const result = await parseScreenplayImport('Script.fadein', buf);
 
-    expect(typesOf(result.doc)).toEqual(['titlePage', 'sceneHeading', 'action']);
+    expect(titleRegionOf(result.doc).isReal).toBe(true);
+    expect(bodyTypesOf(result.doc)).toEqual(['sceneHeading', 'action']);
     expect(result.title).toBe('Troubled Sleep');
     expect(result.formatLabel).toBe('Fade In (.fadein)');
   });

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { DOMParser as XmlDOMParser } from '@xmldom/xmldom';
 import { exportOSF, exportFadeIn } from './osfExporter';
 import { parseOSF, parseFadeIn } from './osfParser';
+import { titleNodeOf } from '../test/titlePage';
 import type { JSONContent } from '@tiptap/react';
 
 /**
@@ -162,7 +163,9 @@ describe('osfExporter', () => {
     );
 
     const parsed = parseOSF(exportOSF(doc));
-    const tp = parsed.doc.content!.find((n) => n.type === 'titlePage');
+    // The first `titlePage` node is a blank spacer — the fields ride on the one
+    // node in the run that carries them.
+    const tp = titleNodeOf(parsed.doc as JSONContent);
     expect(tp?.attrs?.tpTitle).toBe('THE LAST DRAFT');
     expect(tp?.attrs?.tpWrittenBy).toBe('A. Writer');
     expect(tp?.attrs?.tpContact).toBe('a@example.com');

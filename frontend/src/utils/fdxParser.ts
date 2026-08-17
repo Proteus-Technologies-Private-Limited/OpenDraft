@@ -1,6 +1,8 @@
 // Final Draft XML (.fdx) parser — full formatting & layout support
 import { uuid } from './uuid';
 import { isDocumentFont, isDocumentSize } from './fonts';
+import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
+import { DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 
 interface TipTapMark {
   type: string;
@@ -236,11 +238,16 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
         tpAttrs.tpContact = tpAttrs.tpContact ? `${tpAttrs.tpContact}\n${t}` : t;
       }
     }
-    titlePageNodes.push({
-      type: 'titlePage',
-      attrs: tpAttrs,
-      content: tpAttrs.tpTitle ? [{ type: 'text', text: tpAttrs.tpTitle }] : [],
-    });
+    // Expanded into the laid-out run the paginator and exporters measure,
+    // rather than the single attrs-only node this used to push (issue #52).
+    // The file's own page height decides the spacer counts, so a Letter-sized
+    // .fdx does not import with an A4 title page.
+    titlePageNodes.push(
+      ...(buildTitlePageBlocks(
+        tpAttrs as TitlePageFields,
+        pageLayout ? { ...DEFAULT_PAGE_LAYOUT, ...pageLayout } : DEFAULT_PAGE_LAYOUT,
+      ) as TipTapNode[]),
+    );
   }
 
   // --- Parse Content ---

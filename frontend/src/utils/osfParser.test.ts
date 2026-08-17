@@ -11,6 +11,8 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { DOMParser as XmlDOMParser } from '@xmldom/xmldom';
 import JSZip from 'jszip';
 import { parseOSF, parseFadeIn } from './osfParser';
+import { titleNodeOf, bodyTypesOf } from '../test/titlePage';
+import type { JSONContent } from '@tiptap/react';
 
 // The suite runs without a DOM; the parser needs a DOMParser that produces
 // element nodes with children/attributes, which @xmldom/xmldom provides.
@@ -497,10 +499,10 @@ ${BUILTIN_STYLES}
 <paragraphs>${para('Action', 'Body.')}</paragraphs>
 </document>`;
     const { doc, scriptTitle } = parseOSF(xml);
-    const titlePage = (doc.content as Node[])[0];
+    const titlePage = titleNodeOf(doc as JSONContent);
 
-    expect(titlePage.type).toBe('titlePage');
-    expect(titlePage.attrs).toMatchObject({
+    expect(titlePage?.type).toBe('titlePage');
+    expect(titlePage?.attrs).toMatchObject({
       tpTitle: 'The Long Walk',
       tpWrittenBy: 'A. Writer',
       tpCopyright: 'Copyright (c) 2016',
@@ -520,16 +522,16 @@ ${BUILTIN_STYLES}
       </titlepage>`,
     });
     const { doc, scriptTitle } = parseOSF(xml);
-    const titlePage = (doc.content as Node[])[0];
+    const titlePage = titleNodeOf(doc as JSONContent);
 
-    expect(titlePage.attrs).toMatchObject({
+    expect(titlePage?.attrs).toMatchObject({
       tpTitle: 'The Long Walk',
       tpWrittenBy: 'A. Writer',
       tpContact: 'a@example.com',
     });
     expect(scriptTitle).toBe('The Long Walk');
     // The body still follows the title page.
-    expect((doc.content as Node[])[1].type).toBe('action');
+    expect(bodyTypesOf(doc as JSONContent)[0]).toBe('action');
   });
 
   it('emits no title page when the file carries none', () => {
