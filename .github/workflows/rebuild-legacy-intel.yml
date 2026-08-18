@@ -4,8 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag to rebuild (e.g. v0.16.1)'
+        description: 'Release tag to upload the rebuilt DMG to (e.g. v0.16.1)'
         required: true
+      ref:
+        description: 'Branch/commit to build from (defaults to the tag). Use this to ship a hotfix without moving a published tag.'
+        required: false
 
 permissions:
   contents: write
@@ -22,7 +25,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.tag }}
+          ref: ${{ github.event.inputs.ref || github.event.inputs.tag }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -109,6 +112,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ github.event.inputs.tag }}"
+          # Name the artifact after the release it lands on, not the ref it was
+          # built from — a hotfix rebuilt off main still ships as that version.
           VERSION="${TAG#v}"
           DMG=$(find src-tauri/target/x86_64-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
           if [ -z "$DMG" ]; then

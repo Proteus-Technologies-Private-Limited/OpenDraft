@@ -395,13 +395,29 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     // rotating the device, or a Split View divider drag that lands on the same
     // pane width the toolbar already had.  The width-guard above would swallow
     // those, leaving the overflow menu describing the previous layout.
-    const breakpoint = window.matchMedia('(max-width: 768px)');
-    breakpoint.addEventListener('change', remeasure);
+    // Legacy WebKit (Safari < 14, i.e. macOS 10.15 and earlier) ships a
+    // MediaQueryList without addEventListener — only the deprecated
+    // addListener/removeListener pair.  Calling the modern API there throws
+    // during mount and takes the whole app down, so feature-detect both.
+    const breakpoint = window.matchMedia?.('(max-width: 768px)');
+    if (breakpoint) {
+      if (typeof breakpoint.addEventListener === 'function') {
+        breakpoint.addEventListener('change', remeasure);
+      } else if (typeof breakpoint.addListener === 'function') {
+        breakpoint.addListener(remeasure);
+      }
+    }
 
     requestAnimationFrame(measure);
     return () => {
       ro.disconnect();
-      breakpoint.removeEventListener('change', remeasure);
+      if (breakpoint) {
+        if (typeof breakpoint.removeEventListener === 'function') {
+          breakpoint.removeEventListener('change', remeasure);
+        } else if (typeof breakpoint.removeListener === 'function') {
+          breakpoint.removeListener(remeasure);
+        }
+      }
       cancelAnimationFrame(rafId);
     };
   }, []);
