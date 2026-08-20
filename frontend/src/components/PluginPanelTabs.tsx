@@ -50,15 +50,22 @@ export const PluginPanelTabs: React.FC<Props> = ({
   );
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  // The registry has no subscribe API today, but panels are normally
-  // registered once at app boot. A short delayed re-read covers async
-  // plugin loaders.
+  // Track the registry so panels appear and disappear as plugins come and
+  // go. Plugins usually register at boot, but a lazy loader can register
+  // well after this mounts, and anything registered between the useState
+  // initializer above and this effect would otherwise be missed — hence
+  // the immediate sync before subscribing.
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      setPanels(pluginRegistry.getPanels('right-sidebar'));
-    }, 100);
-    return () => window.clearTimeout(id);
+    const sync = () => setPanels(pluginRegistry.getPanels('right-sidebar'));
+    sync();
+    return pluginRegistry.subscribe(sync);
   }, []);
+
+  // If the open panel's plugin goes away, drop the selection rather than
+  // holding an id that would re-open it should the plugin come back.
+  useEffect(() => {
+    if (activeId && !panels.some((p) => p.id === activeId)) setActiveId(null);
+  }, [panels, activeId]);
 
   // Listen for external open/close requests from plugins.
   useEffect(() => {
