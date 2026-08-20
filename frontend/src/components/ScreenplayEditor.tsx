@@ -57,6 +57,7 @@ import ScriptStatistics from './ScriptStatistics';
 import ScriptNotes from './ScriptNotes';
 import CharacterProfiles from './CharacterProfiles';
 import TagsPanel from './TagsPanel';
+import { PluginPanelTabs } from './PluginPanelTabs';
 import LocationDatabase from './LocationDatabase';
 import FormatPanel from './FormatPanel';
 import StatusBar from './StatusBar';
@@ -4392,9 +4393,13 @@ const ScreenplayEditor: React.FC = () => {
         {!isHistoryMode && <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
-        {!isHistoryMode && pluginRegistry.getPanels('right-sidebar').map((p) => (
-          <p.component key={p.id} editor={editor} />
-        ))}
+        {!isHistoryMode && (
+          <PluginPanelTabs
+            editor={editor}
+            width={rightPanelWidth}
+            onResizePointerDown={(e) => handleResizePointerDown('right', e)}
+          />
+        )}
       </div>
       {!isHistoryMode && (
         <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>

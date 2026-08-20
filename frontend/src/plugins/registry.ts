@@ -55,6 +55,14 @@ export interface PluginPanelEntry {
 export interface PluginRouteEntry {
   path: string;
   component: React.ComponentType<any>;
+  /** When true, the registry treats this entry as a REPLACEMENT for a
+   *  built-in route at the same `path` instead of an additional route.
+   *  Used by Pro to swap `ProjectView` → `ProProjectView` without
+   *  forking the App shell. Override entries are excluded from
+   *  `getRoutes()` (additions) and surfaced via `getRouteOverride(path)`
+   *  so core's App can look them up while rendering its built-in
+   *  `<Route>` table. */
+  override?: boolean;
 }
 
 export interface OpenDraftPlugin {
@@ -168,13 +176,29 @@ class PluginRegistry {
     return panels.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
   }
 
-  /** Get all plugin routes. */
+  /** Get plugin routes that ADD new paths (not overrides of built-ins). */
   getRoutes(): PluginRouteEntry[] {
     const routes: PluginRouteEntry[] = [];
     for (const plugin of this._plugins.values()) {
-      if (plugin.routes) routes.push(...plugin.routes);
+      if (plugin.routes) {
+        routes.push(...plugin.routes.filter((r) => !r.override));
+      }
     }
     return routes;
+  }
+
+  /** Look up an override for a built-in route path. Returns the
+   *  registered component, or null if no plugin overrides this path.
+   *  Last-registered wins on conflicts. */
+  getRouteOverride(path: string): React.ComponentType<any> | null {
+    let component: React.ComponentType<any> | null = null;
+    for (const plugin of this._plugins.values()) {
+      if (!plugin.routes) continue;
+      for (const r of plugin.routes) {
+        if (r.override && r.path === path) component = r.component;
+      }
+    }
+    return component;
   }
 
   /** Get all editor extensions from plugins. */

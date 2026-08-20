@@ -1,0 +1,107 @@
+/**
+ * Vertical tab strip for plugin panels in the right sidebar.
+ *
+ * Layout: ... | [active panel content] | [tab strip ~36px]
+ * Tabs always visible; active panel only when one is open.
+ */
+
+.plugin-panel-tabs__strip {
+  display: flex;
+  flex-direction: column;
+  width: 36px;
+  min-width: 36px;
+  background: var(--fd-menu-bg, #333);
+  border-left: 1px solid var(--fd-border, rgba(255, 255, 255, 0.06));
+  padding: 4px 0;
+  gap: 2px;
+}
+
+.plugin-panel-tabs__tab {
+  background: transparent;
+  color: var(--fd-text, #e0e0e0);
+  border: none;
+  border-left: 3px solid transparent;
+  padding: 14px 4px;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  opacity: 0.6;
+  transition: background 0.15s, opacity 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.plugin-panel-tabs__tab:hover {
+  background: var(--fd-overlay-subtle, rgba(255, 255, 255, 0.04));
+  opacity: 0.95;
+}
+.plugin-panel-tabs__tab--active {
+  background: var(--fd-overlay-subtle, rgba(255, 255, 255, 0.06));
+  border-left-color: var(--fd-accent, #4a9eff);
+  opacity: 1;
+}
+
+.plugin-panel-tabs__tab-label {
+  /* Rotated text so labels run vertically along the strip. */
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.plugin-panel-tabs__content {
+  display: flex;
+  flex-direction: column;
+  background: var(--fd-navigator-bg, var(--fd-bg, #2b2b2b));
+  position: relative;
+  border-left: 1px solid var(--fd-border, rgba(255, 255, 255, 0.06));
+  overflow: hidden;
+}
+
+/* Drag handle on the LEFT edge of the active plugin panel — mirrors the
+   built-in `.panel-resize-handle` so resizing feels identical whether the
+   active right-sidebar panel is a core panel or a plugin tab. */
+.plugin-panel-tabs__resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 11;
+  transition: background 0.15s;
+}
+.plugin-panel-tabs__resize:hover,
+.plugin-panel-tabs__resize:active {
+  background: var(--fd-accent, #4a9eff);
+}
+
+.plugin-panel-tabs__close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fd-text, #e0e0e0);
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  z-index: 10;
+  opacity: 0.65;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.plugin-panel-tabs__close:hover {
+  background: var(--fd-input-bg, rgba(255, 255, 255, 0.06));
+  border-color: var(--fd-border, rgba(255, 255, 255, 0.12));
+  opacity: 1;
+}
