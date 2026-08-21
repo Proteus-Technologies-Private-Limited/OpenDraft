@@ -33,7 +33,7 @@ import { registerAvCellPicker } from '../editor/extensions/AvBlock';
 import Strike from '@tiptap/extension-strike';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
-import Highlight from '@tiptap/extension-highlight';
+import { PastedHighlight } from '../editor/extensions/PastedHighlight';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
@@ -1423,7 +1423,7 @@ const ScreenplayEditor: React.FC = () => {
       Text, ScreenplayHardBreak, HardBreakLeafText,
       Bold, Italic, Underline, Strike, Dropcursor, Gapcursor,
       Subscript, Superscript,
-      Highlight.configure({ multicolor: true }),
+      PastedHighlight.configure({ multicolor: true }),
       TextStyle, Color, FontFamily, FontSize, PasteFormatting,
       FormatOverride, CustomElement, ScreenplayImage,
       // Use History in normal mode, Collaboration in collab mode
