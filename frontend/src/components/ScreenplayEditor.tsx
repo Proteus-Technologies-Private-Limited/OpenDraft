@@ -23,7 +23,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import {
   SceneHeading, Action, Character, Dialogue, Parenthetical,
   Transition, General, Shot, NewAct, EndOfAct, Lyrics,
-  ShowEpisode, CastList, FontSize, ScriptNoteMark, TagMark,
+  ShowEpisode, CastList, FontSize, PasteFormatting, ScriptNoteMark, TagMark,
   FormatOverride, CustomElement, DualDialogue, DualDialogueColumn,
   TitlePage,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvKeymap,
@@ -1421,7 +1421,7 @@ const ScreenplayEditor: React.FC = () => {
       Bold, Italic, Underline, Strike, Dropcursor, Gapcursor,
       Subscript, Superscript,
       Highlight.configure({ multicolor: true }),
-      TextStyle, Color, FontFamily, FontSize,
+      TextStyle, Color, FontFamily, FontSize, PasteFormatting,
       FormatOverride, CustomElement, ScreenplayImage,
       // Use History in normal mode, Collaboration in collab mode
       ...(collabMode ? collabExtensions : [History.configure({ newGroupDelay: 150 })]),

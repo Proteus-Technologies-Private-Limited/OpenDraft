@@ -14,6 +14,7 @@ export { CastList } from './CastList';
 export { DualDialogue, DualDialogueColumn } from './DualDialogue';
 export { TitlePage } from './TitlePage';
 export { FontSize } from './FontSize';
+export { PasteFormatting, stripPastedFonts } from './PasteFormatting';
 export { ScriptNoteMark } from './ScriptNoteMark';
 export { TagMark } from './TagMark';
 export { FormatOverride } from './FormatOverride';
