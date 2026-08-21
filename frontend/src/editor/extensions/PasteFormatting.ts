@@ -8,78 +8,96 @@
  * text ended up in a font that matched neither the source (the alias resolves
  * to whatever the web view falls back to) nor the screenplay around it.
  *
- * Stripping the font declarations before ProseMirror parses the HTML leaves the
- * pasted text with no font of its own, so it inherits the destination element's
- * — the screenplay's font and size. Emphasis is deliberately left alone: bold,
- * italic, underline and colour are the writer's meaning, not the source app's
- * house style.
+ * The fix drops the font from the parsed slice rather than from the HTML on the
+ * way in. Editing the HTML text meant a regex deciding what was markup and what
+ * was prose, and it got that wrong in both directions — body text that merely
+ * mentioned `style="…"` was deleted, a font name containing a semicolon
+ * corrupted the attribute around it. By the time ProseMirror has parsed the
+ * clipboard there is nothing to guess at: a font is a `textStyle` mark with a
+ * `fontFamily` or `fontSize` attribute, and dropping those leaves the text
+ * inheriting the destination element's font and size.
+ *
+ * Emphasis is deliberately left alone: bold, italic, underline and colour are
+ * the writer's meaning, not the source app's house style. They survive on their
+ * own marks — including emphasis written as a `font: bold 12px X` shorthand,
+ * which the browser's own CSS parsing hands to Tiptap's Bold rule as a
+ * font-weight.
  *
  * Text copied inside OpenDraft is exempt. ProseMirror stamps its own clipboard
  * HTML with `data-pm-slice`, and a font set deliberately with the toolbar has
  * to survive a copy and paste.
  */
 import { Extension } from '@tiptap/core';
+import { Fragment, Slice } from '@tiptap/pm/model';
+import type { Mark, Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 
-/** ProseMirror's marker on clipboard HTML it wrote itself. */
-const INTERNAL_SLICE = /\sdata-pm-slice\s*=/i;
-
-/** `style="…"` / `style='…'`, capturing the declarations. */
-const STYLE_ATTR = /\sstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
-
-/** The declarations that carry a font, including the `font:` shorthand. */
-const FONT_DECLARATION = /(?:^|;)\s*(?:-webkit-)?font(?:-family|-size)?\s*:[^;]*/gi;
-
-/** `face` and `size` on the deprecated `<font>` element. */
-const FONT_ELEMENT_ATTRS = /(<font\b[^>]*?)\s(?:face|size)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi;
+/** The `textStyle` attributes that carry a font, as opposed to a meaning. */
+const FONT_ATTRIBUTES = ['fontFamily', 'fontSize'];
 
 /**
- * Rewrite `font: bold italic 12px Georgia` as the weight and style it also
- * set, so dropping the shorthand does not quietly drop emphasis with it.
+ * ProseMirror's marker on clipboard HTML it wrote itself.
+ *
+ * Scoped to inside a tag, so that a pasted *article about* ProseMirror does not
+ * exempt itself from the rule by quoting the attribute in its prose.
  */
-function emphasisFromShorthand(declaration: string): string {
-  if (!/^\s*(?:;)?\s*(?:-webkit-)?font\s*:/i.test(declaration)) return '';
-  const kept: string[] = [];
-  if (/\b(bold|bolder|[5-9]00)\b/i.test(declaration)) kept.push('font-weight: bold');
-  if (/\b(italic|oblique)\b/i.test(declaration)) kept.push('font-style: italic');
-  return kept.length > 0 ? `;${kept.join(';')}` : '';
+const INTERNAL_SLICE = /<[^>]+\sdata-pm-slice\s*=/i;
+
+/** Was this clipboard HTML written by ProseMirror itself? */
+export function isInternalPaste(html: string): boolean {
+  return INTERNAL_SLICE.test(html);
 }
 
-function stripFontDeclarations(declarations: string): string {
-  return declarations
-    .replace(FONT_DECLARATION, (match) => emphasisFromShorthand(match))
-    .replace(/^\s*;+/, '')
-    .trim();
+/** Drop the font attributes from a `textStyle` mark, and the mark if it is then empty. */
+function withoutFont(marks: readonly Mark[]): Mark[] {
+  return marks.flatMap((mark) => {
+    if (mark.type.name !== 'textStyle') return [mark];
+    if (!FONT_ATTRIBUTES.some((attr) => mark.attrs[attr] != null)) return [mark];
+
+    const attrs = { ...mark.attrs };
+    for (const attr of FONT_ATTRIBUTES) attrs[attr] = null;
+    // A textStyle carrying nothing but a font has no reason to survive it.
+    const carriesSomethingElse = Object.values(attrs).some((value) => value != null);
+    return carriesSomethingElse ? [mark.type.create(attrs)] : [];
+  });
 }
 
-/**
- * Remove font-family and font-size from pasted HTML that came from outside
- * the editor. Returns the HTML unchanged for an internal ProseMirror slice.
- */
-export function stripPastedFonts(html: string): string {
-  if (INTERNAL_SLICE.test(html)) return html;
+function stripFonts(fragment: Fragment): Fragment {
+  const nodes: ProseMirrorNode[] = [];
+  fragment.forEach((node) => {
+    nodes.push(node.copy(stripFonts(node.content)).mark(withoutFont(node.marks)));
+  });
+  return Fragment.fromArray(nodes);
+}
 
-  return html
-    .replace(STYLE_ATTR, (_match, dquoted?: string, squoted?: string) => {
-      const quote = dquoted !== undefined ? '"' : "'";
-      const cleaned = stripFontDeclarations(dquoted ?? squoted ?? '');
-      return cleaned === '' ? '' : ` style=${quote}${cleaned}${quote}`;
-    })
-    // Runs twice: the pattern consumes the space before each attribute, so a
-    // `<font face="…" size="…">` needs a second pass for its second attribute.
-    .replace(FONT_ELEMENT_ATTRS, '$1')
-    .replace(FONT_ELEMENT_ATTRS, '$1');
+/** Remove every pasted font, at every depth of the slice. */
+export function stripPastedFonts(slice: Slice): Slice {
+  return new Slice(stripFonts(slice.content), slice.openStart, slice.openEnd);
 }
 
 export const PasteFormatting = Extension.create({
   name: 'pasteFormatting',
 
   addProseMirrorPlugins() {
+    // Set while parsing an internal paste, and read once by the transform that
+    // follows it in the same paste. Reset on read: a plain-text paste never
+    // reaches transformPastedHTML at all, and must not inherit the answer from
+    // whatever was pasted before it.
+    let internal = false;
+
     return [
       new Plugin({
         key: new PluginKey('pasteFormatting'),
         props: {
-          transformPastedHTML: (html) => stripPastedFonts(html),
+          transformPastedHTML: (html) => {
+            internal = isInternalPaste(html);
+            return html;
+          },
+          transformPasted: (slice) => {
+            const wasInternal = internal;
+            internal = false;
+            return wasInternal ? slice : stripPastedFonts(slice);
+          },
         },
       }),
     ];

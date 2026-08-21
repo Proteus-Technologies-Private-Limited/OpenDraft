@@ -219,6 +219,28 @@ describe('parseFountain — clipboard text', () => {
     expect(nodes.map((n) => n.type)).toEqual(['action', 'action', 'action']);
   });
 
+  it.each([
+    ['a trailing newline', `${'INT. KITCHEN - DAY\nAnna makes coffee.\nANNA\n(tired)\nMorning.\nCUT TO:'}\n`],
+    ['a leading newline', `\n${'INT. KITCHEN - DAY\nAnna makes coffee.\nANNA\n(tired)\nMorning.\nCUT TO:'}`],
+  ])('still reads single-spaced text with %s', (_label, text) => {
+    // `split` leaves an empty element for the newline clipboard text almost
+    // always ends with. Counted as a blank line, it turned the single-spaced
+    // rule off for the most ordinary paste there is.
+    expect(parse(text).map((n) => n.type)).toEqual(EXPECTED);
+  });
+
+  it('leaves FADE IN: as Action at the top of single-spaced text', () => {
+    const nodes = parse(['FADE IN:', 'INT. KITCHEN - DAY', 'Anna makes coffee.', 'ANNA', 'Morning.'].join('\n'));
+
+    expect(nodes.map((n) => n.type)).toEqual(['action', 'sceneHeading', 'action', 'character', 'dialogue']);
+  });
+
+  it('does not make a cue of an all-caps line with a scene heading under it', () => {
+    const nodes = parse(['ANNA', 'INT. HALL - DAY', 'Ben waits.'].join('\n'));
+
+    expect(nodes.map((n) => n.type)).toEqual(['action', 'sceneHeading', 'action']);
+  });
+
   it('does not read a cue by shape once the text has blank lines', () => {
     const nodes = parse(['Ben waits.', '', 'Anna arrives.', 'ANNA IS HERE', 'She waves.'].join('\n'));
 
