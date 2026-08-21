@@ -87,8 +87,63 @@ function parseTitlePage(lines: string[]): { next: number; nodes: TipTapNode[] } 
   return { next: i, nodes: blocks };
 }
 
+/**
+ * Every separator a line of text can arrive with, other than the plain `\n`
+ * this parser works in.
+ *
+ * Splitting on `\n` alone is only safe for text that was written to a file by
+ * something that agrees on newlines. Text off a clipboard is not: pasting from
+ * an iPad (and from older editors on any platform) can arrive with lone
+ * carriage returns, and rich text converted to plain text carries Unicode's
+ * own line (U+2028) and paragraph (U+2029) separators. None of those split,
+ * so the whole paste stayed one line — and one line of a screenplay, whatever
+ * it says, parses as a single Action block. That is what "Paste as Fountain
+ * inserts everything as Action" looked like from the outside.
+ */
+const LINE_SEPARATORS = /\r\n?|\u2028|\u2029|\u0085/g;
+
+/** Split text into lines, whichever separator convention it arrived with. */
+function splitLines(text: string): string[] {
+  return text.replace(/^\uFEFF/, '').replace(LINE_SEPARATORS, '\n').split('\n');
+}
+
+/**
+ * Is this text single-spaced — no blank line anywhere between its lines?
+ *
+ * Fountain marks a character cue with the blank line before it. Text that has
+ * no blank lines anywhere never lost them in transit — it never had them: rich
+ * text converted to plain text, and a script copied out of an app that lays
+ * cues out by indentation rather than by spacing, both arrive single-spaced.
+ * Read cues by their shape there, or every cue, parenthetical and line of
+ * dialogue in the paste comes through as Action.
+ *
+ * Blank lines at the ends do not count. `split` leaves an empty last element
+ * for the trailing newline that clipboard text almost always carries, and
+ * counting that as a blank line turned this off for the most ordinary paste
+ * there is — the whole point of the rule, defeated by one invisible character.
+ */
+function isSingleSpaced(lines: string[]): boolean {
+  let first = 0;
+  let last = lines.length - 1;
+  while (first <= last && lines[first].trim() === '') first++;
+  while (last >= first && lines[last].trim() === '') last--;
+  if (last - first < 1) return false;
+  return !lines.slice(first, last + 1).some((line) => line.trim() === '');
+}
+
+/** Scene heading by its opening: `INT.`, `EXT.`, `EST.`, `INT./EXT.`, `I/E.` */
+function isSceneHeadingLine(trimmed: string): boolean {
+  return /^(INT\.|EXT\.|EST\.|INT\.\/EXT\.|I\/E\.)/.test(trimmed.toUpperCase());
+}
+
+/** Transition by its shape: all caps, ending in `TO:`. */
+function isTransitionLine(trimmed: string): boolean {
+  return /^[A-Z\s]+TO:$/.test(trimmed);
+}
+
 export function parseFountain(text: string): TipTapNode {
-  const lines = text.split('\n');
+  const lines = splitLines(text);
+  const singleSpaced = isSingleSpaced(lines);
   const nodes: TipTapNode[] = [];
   let i = 0;
 
@@ -159,7 +214,7 @@ export function parseFountain(text: string): TipTapNode {
     }
 
     // Scene heading: starts with INT., EXT., EST., INT/EXT., I/E.
-    if (/^(INT\.|EXT\.|EST\.|INT\.\/EXT\.|I\/E\.)/.test(trimmed.toUpperCase())) {
+    if (isSceneHeadingLine(trimmed)) {
       push(makeSceneHeading(trimmed));
       i++;
       continue;
@@ -182,7 +237,7 @@ export function parseFountain(text: string): TipTapNode {
     }
 
     // Transition: all caps ending with TO:
-    if (/^[A-Z\s]+TO:$/.test(trimmed)) {
+    if (isTransitionLine(trimmed)) {
       push(makeNode('transition', trimmed));
       i++;
       continue;
@@ -198,15 +253,21 @@ export function parseFountain(text: string): TipTapNode {
       if (isDual) charNode.attrs = { ...charNode.attrs, dualDialogue: true };
       push(charNode);
       i++;
-      i = collectDialogueBlock(lines, i, push);
+      i = collectDialogueBlock(lines, i, push, singleSpaced);
       continue;
     }
 
     // Character: all uppercase, preceded by an empty line, and followed by the
     // dialogue it introduces.
     if (isCharacterLine(trimmed.replace(/\s*\^$/, ''))
-      && isPrecededByEmptyLine(lines, i)
-      && isFollowedByText(lines, i)) {
+      // Single-spaced text has no blank line to go on, so shape is the whole
+      // test — and it has to replace the blank-line rule rather than fall back
+      // to it, because `isPrecededByEmptyLine` is true at the first line. That
+      // exempted the opening line from the shape test, and most pasted scripts
+      // open with `FADE IN:` — which became a cue with the scene heading under
+      // it as its dialogue.
+      && (singleSpaced ? looksLikeCue(trimmed) : isPrecededByEmptyLine(lines, i))
+      && isFollowedByDialogue(lines, i, singleSpaced)) {
       let charName = trimmed;
       const isDual = charName.endsWith('^');
       if (isDual) charName = charName.replace(/\s*\^$/, '').trim();
@@ -214,7 +275,7 @@ export function parseFountain(text: string): TipTapNode {
       if (isDual) charNode.attrs = { ...charNode.attrs, dualDialogue: true };
       push(charNode);
       i++;
-      i = collectDialogueBlock(lines, i, push);
+      i = collectDialogueBlock(lines, i, push, singleSpaced);
       continue;
     }
 
@@ -396,6 +457,55 @@ function isCharacterLine(line: string): boolean {
   return cleaned.length > 0 && cleaned === cleaned.toUpperCase() && /[A-Z]/.test(cleaned);
 }
 
+/**
+ * Does an all-caps line look like a character cue rather than a line of
+ * shouted Action?
+ *
+ * Only consulted for single-spaced text, where the blank line the spec uses to
+ * tell the two apart is not available. A cue is a name: short, and not a
+ * sentence, so the length cap and the trailing punctuation are what separate
+ * `SAM` from `THE DOOR SLAMS SHUT.`
+ */
+const CUE_MAX_LENGTH = 45;
+
+function looksLikeCue(line: string): boolean {
+  const cleaned = line.replace(/\(.*\)/, '').replace(/\s*\^$/, '').trim();
+  if (cleaned.length === 0 || cleaned.length > CUE_MAX_LENGTH) return false;
+  return !/[.,!?;:—-]$/.test(cleaned);
+}
+
+/**
+ * Does this line say outright that it is not dialogue?
+ *
+ * A scene heading, a transition or a forced element is unambiguous wherever it
+ * lands: whatever came before it, it ends the block.
+ */
+function opensHardElement(trimmed: string): boolean {
+  if (trimmed === '') return true;
+  // Forced action, character, transition/centred text, and page break. `~`
+  // (lyrics) is deliberately absent: lyrics belong inside a dialogue block.
+  if (/^[!@>=]/.test(trimmed)) return true;
+  // Forced scene heading — `.INT` and not an ellipsis.
+  if (/^\.[^.]/.test(trimmed)) return true;
+  return isSceneHeadingLine(trimmed) || isTransitionLine(trimmed);
+}
+
+/**
+ * Does this line open an element of its own?
+ *
+ * The end of a dialogue block is normally the next blank line. Single-spaced
+ * text has none, so the block has to end where the next element begins —
+ * without this the first cue in a paste swallowed everything after it as
+ * dialogue.
+ */
+function opensNewElement(lines: string[], index: number): boolean {
+  const trimmed = (lines[index] ?? '').trim();
+  if (opensHardElement(trimmed)) return true;
+  return isCharacterLine(trimmed.replace(/\s*\^$/, ''))
+    && looksLikeCue(trimmed)
+    && isFollowedByText(lines, index);
+}
+
 function isPrecededByEmptyLine(lines: string[], index: number): boolean {
   if (index === 0) return true;
   return lines[index - 1].trim() === '';
@@ -413,6 +523,20 @@ function isPrecededByEmptyLine(lines: string[], index: number): boolean {
 function isFollowedByText(lines: string[], index: number): boolean {
   const next = lines[index + 1];
   return next !== undefined && next.trim() !== '';
+}
+
+/**
+ * The cue's other half, for single-spaced text: is the line under it something
+ * that can actually be its dialogue?
+ *
+ * A blank line answers this in ordinary Fountain. Single-spaced there is none,
+ * so a scene heading under an all-caps line has to be what rules the line out
+ * — otherwise a cue is emitted with a scene heading as its dialogue, or worse,
+ * with nothing under it at all.
+ */
+function isFollowedByDialogue(lines: string[], index: number, singleSpaced: boolean): boolean {
+  if (!isFollowedByText(lines, index)) return false;
+  return !singleSpaced || !opensHardElement((lines[index + 1] ?? '').trim());
 }
 
 const DIALOGUE_TYPES = new Set(['character', 'dialogue', 'parenthetical']);
@@ -479,12 +603,21 @@ function collectDialogueBlock(
   lines: string[],
   i: number,
   push: (node: TipTapNode) => void,
+  singleSpaced = false,
 ): number {
+  const first = i;
   while (i < lines.length) {
     const line = lines[i];
     const trimmed = line.trim();
 
     if (trimmed === '') {
+      break;
+    }
+
+    // The line straight after a cue is always its dialogue — a cue with
+    // nothing under it was never treated as a cue. Past that, single-spaced
+    // text ends the block at the next element rather than at a blank line.
+    if (singleSpaced && i > first && opensNewElement(lines, i)) {
       break;
     }
 
