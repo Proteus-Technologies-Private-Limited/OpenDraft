@@ -1,7 +1,10 @@
 /**
  * Pasting from another app used to bring that app's font with it — the report
  * was an iPad paste landing in a font that matched neither the source nor the
- * screenplay. These pin the transform that drops it.
+ * screenplay, because iOS tags every run with a system alias that resolves to
+ * whatever the web view falls back to. These pin the rule that removes the
+ * aliases and nothing else: a real family and every font size come through, so
+ * a paste stops reformatting the writer's text behind their back.
  *
  * The schema here is deliberately local and minimal: the font attributes live
  * on `textStyle`, so a document node, some text and the three mark extensions
@@ -19,12 +22,13 @@ import { Slice } from '@tiptap/pm/model';
 import type { JSONContent } from '@tiptap/core';
 
 import { Action } from './extensions/Action';
+import { General } from './extensions/General';
 import { FontSize } from './extensions/FontSize';
-import { stripPastedFonts, isInternalPaste } from './extensions/PasteFormatting';
+import { stripPastedFonts, isInternalPaste, retypeBlocks } from './extensions/PasteFormatting';
 
 const schema = getSchema([
   Document.extend({ content: 'block+' }),
-  Text, Bold, TextStyle, FontFamily, FontSize, Color, Action,
+  Text, Bold, TextStyle, FontFamily, FontSize, Color, Action, General,
 ]);
 
 /** A one-block slice, as a paste of whole blocks arrives. */
@@ -44,17 +48,68 @@ function runs(result: Slice): [string, unknown[]][] {
 const textStyle = (attrs: Record<string, string>) => ({ type: 'textStyle', attrs });
 
 describe('stripPastedFonts', () => {
-  it('drops the font a source app tagged its text with', () => {
+  it('drops a system alias, which names no font a web view can resolve', () => {
     const result = stripPastedFonts(slice({
       type: 'action',
       content: [{
         type: 'text',
         text: 'Anna makes coffee.',
-        marks: [textStyle({ fontFamily: '-apple-system', fontSize: '17px' })],
+        marks: [textStyle({ fontFamily: '-apple-system' })],
       }],
     }));
 
     expect(runs(result)).toEqual([['Anna makes coffee.', []]]);
+  });
+
+  it('keeps a real family the writer chose', () => {
+    const result = stripPastedFonts(slice({
+      type: 'action',
+      content: [{ type: 'text', text: 'Anna.', marks: [textStyle({ fontFamily: 'Georgia' })] }],
+    }));
+
+    expect(runs(result)).toEqual([
+      ['Anna.', [{ type: 'textStyle', attrs: { color: null, fontFamily: 'Georgia', fontSize: null } }]],
+    ]);
+  });
+
+  it('never touches a font size — a size always means what it says', () => {
+    const original = slice({
+      type: 'action',
+      content: [{ type: 'text', text: 'Big.', marks: [textStyle({ fontSize: '24px' })] }],
+    });
+
+    expect(stripPastedFonts(original).eq(original)).toBe(true);
+  });
+
+  it('drops the size along with nothing else when an alias carries one', () => {
+    const result = stripPastedFonts(slice({
+      type: 'action',
+      content: [{
+        type: 'text',
+        text: 'Anna.',
+        marks: [textStyle({ fontFamily: '.SFUI-Regular', fontSize: '17px' })],
+      }],
+    }));
+
+    // The alias goes; the size stays, because it was never the problem.
+    expect(runs(result)).toEqual([
+      ['Anna.', [{ type: 'textStyle', attrs: { color: null, fontFamily: null, fontSize: '17px' } }]],
+    ]);
+  });
+
+  it('keeps the real families standing behind an alias', () => {
+    const result = stripPastedFonts(slice({
+      type: 'action',
+      content: [{
+        type: 'text',
+        text: 'Anna.',
+        marks: [textStyle({ fontFamily: '-apple-system, BlinkMacSystemFont, Georgia, serif' })],
+      }],
+    }));
+
+    expect(runs(result)).toEqual([
+      ['Anna.', [{ type: 'textStyle', attrs: { color: null, fontFamily: 'Georgia, serif', fontSize: null } }]],
+    ]);
   });
 
   it('keeps the marks that carry meaning', () => {
@@ -63,7 +118,7 @@ describe('stripPastedFonts', () => {
       content: [{
         type: 'text',
         text: 'Loud.',
-        marks: [{ type: 'bold' }, textStyle({ fontFamily: 'Helvetica', color: 'rgb(255, 0, 0)' })],
+        marks: [{ type: 'bold' }, textStyle({ fontFamily: 'system-ui', color: 'rgb(255, 0, 0)' })],
       }],
     }));
 
@@ -73,19 +128,17 @@ describe('stripPastedFonts', () => {
     ]);
   });
 
-  it('strips every run, at every depth', () => {
+  it('reaches every run, at every depth', () => {
     const result = stripPastedFonts(slice(
-      { type: 'action', content: [{ type: 'text', text: 'One', marks: [textStyle({ fontSize: '17px' })] }] },
+      { type: 'action', content: [{ type: 'text', text: 'One', marks: [textStyle({ fontFamily: 'ui-serif' })] }] },
       { type: 'action', content: [
-        { type: 'text', text: 'Two', marks: [textStyle({ fontFamily: 'Georgia' })] },
+        { type: 'text', text: 'Two', marks: [textStyle({ fontFamily: '-apple-system' })] },
         { type: 'text', text: ' three' },
       ] },
     ));
 
-    // 'Two' and ' three' come back as one run: stripping the font left them
-    // with identical marks, and ProseMirror joins adjacent text nodes that
-    // carry the same marks. That is the point — the paste stops being a patch-
-    // work of runs and becomes ordinary screenplay text.
+    // 'Two' and ' three' come back as one run: losing the alias left them with
+    // identical marks, and ProseMirror joins adjacent text nodes that match.
     expect(runs(result)).toEqual([['One', []], ['Two three', []]]);
   });
 
@@ -99,7 +152,7 @@ describe('stripPastedFonts', () => {
     const open = new Slice(
       schema.nodeFromJSON({
         type: 'doc',
-        content: [{ type: 'action', content: [{ type: 'text', text: 'Anna', marks: [textStyle({ fontSize: '17px' })] }] }],
+        content: [{ type: 'action', content: [{ type: 'text', text: 'Anna', marks: [textStyle({ fontFamily: '-apple-system' })] }] }],
       }).content,
       1,
       1,
@@ -123,5 +176,64 @@ describe('isInternalPaste', () => {
 
   it('treats HTML from another app as external', () => {
     expect(isInternalPaste('<span style="font-family: -apple-system">Anna</span>')).toBe(false);
+  });
+});
+
+/**
+ * Choosing an element type and pasting used to produce text of some other type:
+ * the paste carried the source's blocks, so a web page's paragraphs landed as
+ * Action however the writer had set the dropdown. Assigning the type by hand
+ * afterwards worked, which is what said the content was fine and only its type
+ * was wrong.
+ */
+describe('retypeBlocks', () => {
+  const general = schema.nodes.general;
+
+  it('gives pasted blocks the type the writer is standing in', () => {
+    const result = retypeBlocks(
+      slice(
+        { type: 'action', content: [{ type: 'text', text: 'One' }] },
+        { type: 'action', content: [{ type: 'text', text: 'Two' }] },
+      ),
+      general,
+    );
+
+    expect(result.content.child(0).type.name).toBe('general');
+    expect(result.content.child(1).type.name).toBe('general');
+    expect(result.content.child(0).textContent).toBe('One');
+  });
+
+  it('keeps the marks a retyped block was carrying', () => {
+    const result = retypeBlocks(
+      slice({
+        type: 'action',
+        content: [{ type: 'text', text: 'Loud', marks: [{ type: 'bold' }] }],
+      }),
+      general,
+    );
+
+    expect(result.content.child(0).child(0).marks.map((m) => m.type.name)).toEqual(['bold']);
+  });
+
+  it('leaves a slice alone when it is already the destination type', () => {
+    const original = slice({ type: 'general', content: [{ type: 'text', text: 'One' }] });
+
+    // Same object back, not a rebuilt copy: nothing to change.
+    expect(retypeBlocks(original, general)).toBe(original);
+  });
+
+  it('keeps the open depths, so an inline paste still merges into its block', () => {
+    const open = new Slice(
+      schema.nodeFromJSON({
+        type: 'doc',
+        content: [{ type: 'action', content: [{ type: 'text', text: 'Anna' }] }],
+      }).content,
+      1,
+      1,
+    );
+    const result = retypeBlocks(open, general);
+
+    expect(result.openStart).toBe(1);
+    expect(result.openEnd).toBe(1);
   });
 });
