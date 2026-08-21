@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import { initStorage } from './services/api';
+import { initScratchAssets } from './services/scratchAssets';
+import { scheduleScratchSweep } from './services/scratchSweep';
 import { initDemoInfo } from './services/demoInfo';
 import { getOS, isTauri } from './services/platform';
 
@@ -82,6 +84,14 @@ async function init() {
   // initStorage() handles its own timeout and fallback internally —
   // no additional wrapping needed here.
   await initStorage();
+
+  // Where images go for a document that has no project yet, so the bytes never
+  // sit inside the document (and never inside a recovery snapshot). Awaited:
+  // once it resolves, image URLs resolve synchronously on Tauri.
+  await initScratchAssets();
+  // Housekeeping for images left behind by abandoned documents. Deliberately
+  // late and idle — a delayed sweep costs disk, a hasty one costs a picture.
+  scheduleScratchSweep();
 
   // Fetch the backend's demo-mode flag once so CollabLoginDialog/SettingsPage
   // can decide whether to show demo warnings. Non-blocking best-effort.

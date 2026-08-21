@@ -27,6 +27,7 @@
  */
 
 import { uuid } from '../utils/uuid';
+import { collectScratchIds } from '../utils/scratchRefs';
 
 const STORAGE_KEY_BASE = 'opendraft:recovery';
 
@@ -138,6 +139,35 @@ export interface WriteRecoveryInput {
   scriptId: string | null;
 }
 
+/** Why a snapshot could not be written. */
+export type RecoveryFailureReason = 'too-large' | 'storage' | 'serialize';
+
+let unavailableHandler: ((reason: RecoveryFailureReason) => void) | null = null;
+
+/**
+ * Be told when the document cannot be protected.
+ *
+ * A failed write used to produce a `console.warn` and nothing else, so a writer
+ * whose document was over the limit had no crash protection and no way to know
+ * it — the one state where this feature silently isn't doing its job is exactly
+ * the one they most need told about. It stays a notification rather than
+ * anything blocking: a missing snapshot is not itself data loss.
+ */
+export function setRecoveryUnavailableHandler(
+  fn: ((reason: RecoveryFailureReason) => void) | null,
+): void {
+  unavailableHandler = fn;
+}
+
+function reportUnavailable(reason: RecoveryFailureReason): false {
+  try {
+    unavailableHandler?.(reason);
+  } catch (err) {
+    console.warn('[recovery] the unavailable handler threw:', err);
+  }
+  return false;
+}
+
 /**
  * Persist the current editing state.
  *
@@ -162,7 +192,7 @@ export function writeRecoverySnapshot(input: WriteRecoveryInput): boolean {
     serialized = JSON.stringify(snapshot);
   } catch (err) {
     console.warn('[recovery] could not serialize the document:', err);
-    return false;
+    return reportUnavailable('serialize');
   }
 
   if (serialized.length > MAX_SNAPSHOT_BYTES) {
@@ -170,7 +200,7 @@ export function writeRecoverySnapshot(input: WriteRecoveryInput): boolean {
       `[recovery] document is ${Math.round(serialized.length / 1024)}KB, above the ` +
         `${Math.round(MAX_SNAPSHOT_BYTES / 1024)}KB recovery limit — not snapshotted.`,
     );
-    return false;
+    return reportUnavailable('too-large');
   }
 
   try {
@@ -179,7 +209,7 @@ export function writeRecoverySnapshot(input: WriteRecoveryInput): boolean {
   } catch (err) {
     // Quota exceeded, or storage disabled (Safari private browsing).
     console.warn('[recovery] could not write the recovery snapshot:', err);
-    return false;
+    return reportUnavailable('storage');
   }
 }
 
@@ -380,6 +410,26 @@ export function clearRecoverySnapshot(): void {
       console.warn('[recovery] could not clear the recovery snapshot:', err);
     }
   }
+}
+
+/**
+ * Every scratch blob referenced by ANY window's snapshot, not just this one's.
+ *
+ * The scratch sweeper needs this. All windows share one localStorage, so a
+ * sweep driven only by the document on screen would happily delete the images
+ * belonging to unsaved work sitting in a sibling window's slot — or in this
+ * window's own slot, waiting to be offered back after a crash. Getting the
+ * keep-set wrong here is the one way this whole mechanism can lose a writer's
+ * picture, so it reads every slot rather than assuming.
+ */
+export function collectRecoverySnapshotScratchIds(): Set<string> {
+  const out = new Set<string>();
+  for (const key of allSlotKeys()) {
+    const snapshot = readSlot(key);
+    if (!snapshot) continue;
+    for (const id of collectScratchIds(snapshot.content)) out.add(id);
+  }
+  return out;
 }
 
 /**

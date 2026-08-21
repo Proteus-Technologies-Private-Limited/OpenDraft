@@ -50,6 +50,17 @@ export function takeSessionDoc(
 }
 
 /**
+ * Look at the stashed document without consuming it.
+ *
+ * Only for read-only inspection — the scratch sweeper has to know which images
+ * a document held between routes, or visiting Settings with an unsaved
+ * screenplay open would make its pictures look unreferenced.
+ */
+export function peekSessionDoc(): SessionDoc | null {
+  return stash;
+}
+
+/**
  * Drop the stash. Called wherever the editor is deliberately reset — a new
  * screenplay, a sign-out — so an abandoned document can never reappear in a
  * blank one that happens to share its (null) ids.

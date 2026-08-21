@@ -221,6 +221,18 @@ export async function parseScreenplayImport(
     // Bring back notes, tags, beats and character profiles — without this an
     // imported .odraft comes back as bare text with all of that dropped.
     if (hydrateStores) hydrateEditorStoresFromContent(parsed.content);
+    // Images travel in the envelope's `assets` array. They were ignored here
+    // entirely, so even a backup that had carefully packed them came back with
+    // every picture broken. Restoring them under their original ids is what
+    // makes the document's own references resolve again.
+    if (parsed.assets?.length) {
+      try {
+        const { unpackScratchAssets } = await import('../services/snapshotAssets');
+        await unpackScratchAssets(parsed.assets);
+      } catch (err) {
+        console.warn('[import] could not restore images from the .odraft file:', err);
+      }
+    }
     return {
       doc: parsed.content,
       title: parsed.meta.title || '',

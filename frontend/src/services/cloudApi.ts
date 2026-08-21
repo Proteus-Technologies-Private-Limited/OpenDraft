@@ -109,4 +109,35 @@ export const cloudApi = {
       method: 'PUT',
       body: JSON.stringify({ items }),
     }),
+
+  /**
+   * Assets.
+   *
+   * Cloud had no asset methods at all, which only went unnoticed because a
+   * project-less document carried its images as base64 inside the document and
+   * they rode along with the script body. Now that images are stored by
+   * reference, saving to the cloud has to be able to take the bytes with it —
+   * otherwise every image in a cloud-saved script resolves on the authoring
+   * machine and nowhere else.
+   */
+  uploadAsset: async (projectId: string, file: File, tags: string[] = []): Promise<{ id: string; filename?: string }> => {
+    const base = getApiBase();
+    if (!base) throw new Error(NOT_CONFIGURED);
+    const formData = new FormData();
+    formData.append('file', file);
+    if (tags.length) formData.append('tags', tags.join(','));
+    // Multipart — do NOT set Content-Type; the browser adds the boundary.
+    const res = await authedFetch(`${base}/projects/${projectId}/assets/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) await handleNonOkResponse(res, 'Cloud upload');
+    return res.json();
+  },
+
+  getAssetUrl: (projectId: string, assetId: string, _filename?: string): string => {
+    const base = getApiBase();
+    if (!base) throw new Error(NOT_CONFIGURED);
+    return `${base}/projects/${projectId}/assets/${assetId}`;
+  },
 };

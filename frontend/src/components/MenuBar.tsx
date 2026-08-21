@@ -13,6 +13,7 @@ import { exportPDF } from '../utils/pdfExporter';
 import { downloadDocx } from '../utils/docxExporter';
 import { parseDocx } from '../utils/docxImporter';
 import { serializeOdraft, downloadOdraft } from '../utils/odraftFormat';
+import { packScratchAssets } from '../services/snapshotAssets';
 import { pasteAsFountain } from '../utils/pasteFountain';
 import {
   parseScreenplayImport,
@@ -1287,10 +1288,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // script it came from.
       const content = buildSaveContent();
       if (!content) return;
+      // A document with no project keeps its images in the scratch store, so
+      // they have to be packed into the file explicitly. They used to travel
+      // (as base64) simply by being inside the document; without this they
+      // would silently vanish from the export.
+      const packed = currentProject ? null : await packScratchAssets(content);
       await downloadOdraft(meta, content, {
         projectId: currentProject?.id ?? null,
         scriptId: currentScriptId ?? null,
         projectTitle: currentProject?.name,
+        ...(packed ? { assets: packed.assets, assetsOmitted: packed.truncated } : {}),
       });
     } catch (err) {
       console.error('OpenDraft export failed:', err);

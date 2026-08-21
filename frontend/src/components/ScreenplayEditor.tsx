@@ -41,7 +41,10 @@ import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFo
 import { createPaginationPlugin, getPageMetrics, activeTemplateHints } from '../editor/pagination';
 import { createContdCasePlugin } from '../editor/contdCase';
 import { ScreenplayImage } from '../editor/extensions/ScreenplayImage';
-import { insertImageNode } from '../utils/insertImage';
+import { buildImageAttrs, insertImageNode, warnIfImageDegraded } from '../utils/insertImage';
+import { demoteDataUrlsToScratch, promoteScratchImages } from '../services/promoteScratchAssets';
+import { docHasInlineImageBytes, docHasScratchImages } from '../utils/scratchRefs';
+import { setLiveScratchDocSource } from '../services/scratchSweep';
 
 import { useEditorStore, DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES, resolveMoresContds, resolveHeaderFooter, printedPageNumber } from '../stores/editorStore';
 import type { ElementType, HeaderFooterContent } from '../stores/editorStore';
@@ -1608,25 +1611,16 @@ const ScreenplayEditor: React.FC = () => {
     if (!file.type.startsWith('image/')) { showToast('Please choose an image file', 'error'); return; }
     // Insert at the captured cursor position (valid block position), not doc start.
     const pos = imageInsertPosRef.current ?? editor.state.selection.to;
-    const insertAt = (attrs: Record<string, unknown>) => insertImageNode(editor, attrs, pos);
     try {
-      if (currentProject) {
-        const asset = await api.uploadAsset(currentProject.id, file, ['inline-image']);
-        insertAt({ assetId: asset.id, projectId: currentProject.id, filename: asset.filename ?? file.name, align: 'center' });
-      } else {
-        // No project yet (unsaved local doc) — embed as a data URL.
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const r = new FileReader();
-          r.onload = () => resolve(r.result as string);
-          r.onerror = () => reject(r.error);
-          r.readAsDataURL(file);
-        });
-        insertAt({ src: dataUrl, align: 'center' });
-      }
+      // Shared with paste and drop: a project asset when there is a project, the
+      // scratch store when there isn't, and never bytes inside the document.
+      const attrs = await buildImageAttrs(file);
+      insertImageNode(editor, attrs, pos);
+      warnIfImageDegraded(attrs);
     } catch (err) {
       showToast(`Failed to insert image: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
-  }, [editor, currentProject]);
+  }, [editor]);
 
   // Helper: clear track changes when switching documents
   const clearTrackChanges = useCallback(() => {
@@ -2319,6 +2313,12 @@ const ScreenplayEditor: React.FC = () => {
     useBackupStatusStore.getState().noteDocumentOpened();
     useEditorStore.getState().setSaveStatus('unsaved');
     showToast('Unsaved changes restored from your last session.', 'success');
+
+    // A snapshot written by an older build can carry its images inline. Moving
+    // them into the scratch store shrinks the payload immediately, so the
+    // restored document is protected again rather than staying over the size
+    // limit until the writer happens to save it somewhere.
+    if (docHasInlineImageBytes(snapshot.content)) void demoteDataUrlsToScratch(editor);
   }, [editor, currentProject, currentScriptId, setDocumentTitle, setCurrentProject, setCurrentScriptId]);
 
   // Crash-recovery copy. Unlike the two above it covers every platform and
@@ -2371,6 +2371,44 @@ const ScreenplayEditor: React.FC = () => {
     }, 30000);
     return () => clearInterval(timer);
   }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
+
+  // Let the scratch sweeper see the document on screen, so it never mistakes a
+  // picture in the open screenplay for an orphan.
+  useEffect(() => {
+    if (!editor) return;
+    setLiveScratchDocSource(() => (editor.isDestroyed ? null : editor.getJSON()));
+    return () => setLiveScratchDocSource(null);
+  }, [editor]);
+
+  // --- Migrate images that predate the scratch store ---
+  // A script saved by an older build can hold its images as base64 inside the
+  // document, which is what used to push a screenplay past the recovery
+  // snapshot's size limit and silently cost it crash protection. Once, per
+  // document, move them into the project's assets; the resulting edit is picked
+  // up by the auto-save above, so the conversion is paid for exactly once
+  // rather than repeated on every open.
+  const migratedImagesForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!editor || !currentProject || !currentScriptId || isCollabGuest || isHistoryMode) return;
+    const key = `${currentProject.id}:${currentScriptId}`;
+    if (migratedImagesForRef.current === key) return;
+
+    const timer = setTimeout(() => {
+      if (scriptSwitchingRef.current || editor.isDestroyed) return;
+      const content = editor.getJSON();
+      if (!docHasInlineImageBytes(content) && !docHasScratchImages(content)) {
+        migratedImagesForRef.current = key;
+        return;
+      }
+      migratedImagesForRef.current = key;
+      void promoteScratchImages(
+        editor,
+        currentProject.id,
+        useProjectStore.getState().isCloudProject(currentProject.id) ? cloudApi : api,
+      );
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [editor, currentProject, currentScriptId, isCollabGuest, isHistoryMode]);
 
   // --- Track unsaved changes for status bar ---
   useEffect(() => {
@@ -3786,6 +3824,30 @@ const ScreenplayEditor: React.FC = () => {
     };
   }, [editor, hasUnsavedChanges, importDroppedFile]);
 
+  /**
+   * Move images that live outside a project into the one being saved to.
+   *
+   * Runs before the document is serialized (see SaveAsDialog.onProjectReady),
+   * so the first stored copy already references real assets rather than this
+   * machine's scratch store.
+   */
+  const handlePromoteImagesInto = useCallback(
+    async (projectId: string, destination: 'local' | 'cloud') => {
+      const result = await promoteScratchImages(
+        editor,
+        projectId,
+        destination === 'cloud' ? cloudApi : api,
+      );
+      if (result.failed > 0) {
+        showToast(
+          `${result.failed} image${result.failed === 1 ? '' : 's'} could not be moved into the project and may not open on another device.`,
+          'error',
+        );
+      }
+    },
+    [editor],
+  );
+
   const handleSaveAsComplete = useCallback(
     async (
       projectId: string,
@@ -4512,6 +4574,7 @@ const ScreenplayEditor: React.FC = () => {
               : 'local'
           }
           onSaved={handleSaveAsComplete}
+          onProjectReady={handlePromoteImagesInto}
           onClose={() => setSaveAsOpen(false)}
           buildContent={buildSaveContent}
         />

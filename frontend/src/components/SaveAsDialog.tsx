@@ -35,6 +35,14 @@ interface SaveAsDialogProps {
   ) => void;
   onClose: () => void;
   buildContent: () => Record<string, unknown> | undefined;
+  /**
+   * Runs once the destination project exists but BEFORE the document is
+   * serialized, so images living outside a project can be moved into it and the
+   * very first stored copy already references real assets. Doing this after the
+   * save would leave that first copy — the one another device may open — full of
+   * references only this machine can resolve.
+   */
+  onProjectReady?: (projectId: string, destination: SaveDestination) => Promise<void>;
 }
 
 /** Web is always cloud-backed; the device/cloud toggle would be misleading. */
@@ -72,6 +80,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
   defaultFileName,
   defaultDestination,
   onSaved,
+  onProjectReady,
   onClose,
   buildContent,
 }) => {
@@ -250,6 +259,17 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
             setSaving(false);
             return;
           }
+        }
+      }
+
+      // Move any images that live outside a project into this one, before the
+      // document is serialized. A failure here must not cost the writer the
+      // save: unpromoted images still resolve locally.
+      if (onProjectReady) {
+        try {
+          await onProjectReady(project.id, destination);
+        } catch (err) {
+          console.warn('[save-as] could not move images into the project:', err);
         }
       }
 

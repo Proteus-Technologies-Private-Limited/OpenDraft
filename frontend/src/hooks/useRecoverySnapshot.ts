@@ -24,7 +24,10 @@ import type { Editor } from '@tiptap/react';
 import {
   writeRecoverySnapshot,
   clearRecoverySnapshot,
+  setRecoveryUnavailableHandler,
+  type RecoveryFailureReason,
 } from '../services/recoveryService';
+import { showToast } from '../components/Toast';
 import { docHasAnyText } from '../utils/docText';
 import { useEditorStore } from '../stores/editorStore';
 
@@ -219,6 +222,33 @@ export function useRecoverySnapshot(opts: RecoverySnapshotOptions): void {
   const { projectId, scriptId } = opts;
   useEffect(() => {
     metadataDirtyRef.current = false;
+  }, [projectId, scriptId]);
+
+  /**
+   * Say so, once, when this document cannot be protected.
+   *
+   * The capture loop retries every tick by design, so this has to be told at
+   * most once per document or a writer who is over the limit gets a toast every
+   * ten seconds for as long as they keep working. Re-armed when the document
+   * changes, because the answer can differ per document.
+   */
+  const warnedRef = useRef(false);
+  useEffect(() => {
+    warnedRef.current = false;
+    setRecoveryUnavailableHandler((reason: RecoveryFailureReason) => {
+      if (warnedRef.current) return;
+      warnedRef.current = true;
+      // Point at something that does work, rather than reporting a failure the
+      // writer can do nothing with. Saving to the library hands the document to
+      // auto-save, which has no such ceiling.
+      showToast(
+        reason === 'too-large'
+          ? 'This document is too large to protect against a crash. Save it to your library so auto-save takes over.'
+          : 'Crash protection is unavailable — there is no room to store a recovery copy. Save your work to your library.',
+        'error',
+      );
+    });
+    return () => setRecoveryUnavailableHandler(null);
   }, [projectId, scriptId]);
 
   // Snapshot shortly after a change rather than up to ten seconds later.

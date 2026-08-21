@@ -1,45 +1,23 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import type { TitlePageAttrs } from '../editor/extensions/TitlePage';
 import { useEditorStore } from '../stores/editorStore';
-import { useProjectStore } from '../stores/projectStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
-import { api } from '../services/api';
-import { resolveImageUrl } from '../utils/imageAsset';
+import { buildImageAttrs, warnIfImageDegraded } from '../utils/insertImage';
+import { useImageSrc } from '../hooks/useImageSrc';
 import { getPageMetrics } from '../editor/pagination';
 import {
   findTitlePageRegion,
   titlePageAttrsCarryData,
   type TitleNodeInfo,
 } from '../utils/titlePageRegion';
-import { authedFetch } from '../services/authedFetch';
-import { isTauri } from '../services/platform';
 import { showToast } from './Toast';
 
-/** Small auth-aware image thumbnail for the title-page preview/list. Uses the
- *  same blob-fetch path as the editor NodeView so it loads reliably. */
+/** Small image thumbnail for the title-page preview/list. Shares the editor
+ *  NodeView's resolver, so scratch-backed images work here too. */
 const TpImageThumb: React.FC<{ attrs: Record<string, unknown>; align?: boolean }> = ({ attrs, align }) => {
-  const resolved = useMemo(() => resolveImageUrl(attrs) || '', [attrs]);
-  // data: URLs and Tauri asset:// load directly; web asset URLs need an authed fetch.
-  const directUrl = useMemo(() => (resolved.startsWith('data:') || isTauri() ? resolved : ''), [resolved]);
-  const [blobUrl, setBlobUrl] = useState('');
-  useEffect(() => {
-    if (!resolved || resolved.startsWith('data:') || isTauri()) return;
-    let obj: string | null = null;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await authedFetch(resolved);
-        if (!res.ok) return;
-        const blob = await res.blob();
-        obj = URL.createObjectURL(blob);
-        if (!cancelled) setBlobUrl(obj);
-      } catch { /* ignore */ }
-    })();
-    return () => { cancelled = true; if (obj) URL.revokeObjectURL(obj); };
-  }, [resolved]);
-  const url = directUrl || blobUrl;
+  const { url } = useImageSrc(attrs);
   if (!url) return null;
   const a = align ? ((attrs.align as string) || 'center') : 'center';
   const margin = a === 'left' ? '3px auto 3px 0' : a === 'right' ? '3px 0 3px auto' : '3px auto';
@@ -285,20 +263,10 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
     if (!file.type.startsWith('image/')) { showToast('Please choose an image file', 'error'); return; }
     const placement = imagePosition;
     try {
-      const currentProject = useProjectStore.getState().currentProject;
-      let attrs: Record<string, unknown>;
-      if (currentProject) {
-        const asset = await api.uploadAsset(currentProject.id, file, ['title-page-image']);
-        attrs = { assetId: asset.id, projectId: currentProject.id, filename: asset.filename ?? file.name, align: 'center' };
-      } else {
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const r = new FileReader();
-          r.onload = () => resolve(r.result as string);
-          r.onerror = () => reject(r.error);
-          r.readAsDataURL(file);
-        });
-        attrs = { src: dataUrl, align: 'center' };
-      }
+      // Shared with the body-image paths: a project asset when there is a
+      // project, the scratch store when there isn't, never bytes in the document.
+      const attrs = await buildImageAttrs(file, ['title-page-image']);
+      warnIfImageDegraded(attrs);
       // Add to the chosen group and rebuild the page so it appears in the right place.
       const g = classifyTitleImages(editor);
       (placement === 'above' ? g.imagesAbove : g.imagesBelow).push(attrs);

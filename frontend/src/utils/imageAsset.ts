@@ -1,17 +1,33 @@
 import { api } from '../services/api';
 import { authedFetch } from '../services/authedFetch';
+import { getScratchObjectUrl, getScratchUrlSync } from '../services/scratchAssets';
 
 interface ImageNodeAttrs {
   assetId?: string | null;
   projectId?: string | null;
+  scratchId?: string | null;
   filename?: string | null;
   src?: string | null;
 }
 
-/** Resolve a screenplayImage node's attrs to a loadable URL (asset or data-URL). */
+/**
+ * Marks a URL that only `toLoadableUrl` can open, because the bytes live in the
+ * scratch store rather than behind any real URL scheme.
+ *
+ * `resolveImageUrl` has to stay synchronous — every exporter call site depends
+ * on that — so a scratch image that has no synchronous URL (the web, where the
+ * bytes are in IndexedDB) is named here and opened during the load step that
+ * always follows. That keeps all four exporter call sites unchanged.
+ */
+const SCRATCH_PREFIX = 'scratch:';
+
+/** Resolve a screenplayImage node's attrs to a loadable URL. */
 export function resolveImageUrl(attrs: ImageNodeAttrs): string | null {
   if (attrs.assetId && attrs.projectId) {
     try { return api.getAssetUrl(attrs.projectId, attrs.assetId, attrs.filename ?? undefined); } catch { /* fall through */ }
+  }
+  if (attrs.scratchId) {
+    return getScratchUrlSync(attrs.scratchId) ?? `${SCRATCH_PREFIX}${attrs.scratchId}`;
   }
   return attrs.src ?? null;
 }
@@ -21,6 +37,9 @@ export function resolveImageUrl(attrs: ImageNodeAttrs): string | null {
  *  supplies; an <img src> alone would 401. */
 async function toLoadableUrl(url: string): Promise<{ url: string; revoke: () => void } | null> {
   if (url.startsWith('data:') || url.startsWith('blob:')) return { url, revoke: () => {} };
+  if (url.startsWith(SCRATCH_PREFIX)) {
+    return getScratchObjectUrl(url.slice(SCRATCH_PREFIX.length));
+  }
   try {
     const res = await authedFetch(url);
     if (!res.ok) return null;

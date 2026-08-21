@@ -28,7 +28,8 @@ import {
   serializeOdraft, parseOdraft, parseOdraftLoose,
   type ParsedOdraft, type BackupKind,
 } from '../utils/odraftFormat';
-import { collectAssetRefs, packAssets } from './snapshotAssets';
+import { collectAssetRefs, packAssets, packScratchAssets } from './snapshotAssets';
+import { collectScratchIds } from '../utils/scratchRefs';
 import type { ScriptMeta } from './api';
 
 /** A slow or disconnected network share must not leave a promise pending forever. */
@@ -258,17 +259,32 @@ export async function writeSnapshot(opts: WriteSnapshotOptions): Promise<WriteSn
   // projects can find the right script in Finder without reading filenames.
   const projectFolder = buildProjectFolderName(opts.projectTitle);
 
+  // Images live in one of two places: a project's asset store once the script
+  // has been saved into one, and the scratch store before that. A backup used to
+  // pack only the first, which was harmless while project-less documents carried
+  // their images inline — and would now silently drop every picture from a
+  // backup of an unsaved screenplay, which is exactly the document with no other
+  // copy anywhere.
   let assets: Awaited<ReturnType<typeof packAssets>>['assets'] = [];
   let assetsOmitted = false;
-  if (backupIncludeImages && opts.projectId) {
-    const refs = collectAssetRefs(opts.content);
-    if (refs.length > 0) {
-      const packed = await packAssets(opts.projectId, refs);
+  const projectRefs = collectAssetRefs(opts.content);
+  const scratchIds = collectScratchIds(opts.content);
+  if (backupIncludeImages) {
+    if (opts.projectId && projectRefs.length > 0) {
+      const packed = await packAssets(opts.projectId, projectRefs);
       assets = packed.assets;
       assetsOmitted = packed.truncated;
+    } else if (projectRefs.length > 0) {
+      // References into a project we cannot read from — nothing to pack.
+      assetsOmitted = true;
+    }
+    if (scratchIds.size > 0) {
+      const packed = await packScratchAssets(opts.content);
+      assets = assets.concat(packed.assets);
+      assetsOmitted = assetsOmitted || packed.truncated;
     }
   } else {
-    assetsOmitted = collectAssetRefs(opts.content).length > 0;
+    assetsOmitted = projectRefs.length > 0 || scratchIds.size > 0;
   }
 
   const meta: ScriptMeta = {
