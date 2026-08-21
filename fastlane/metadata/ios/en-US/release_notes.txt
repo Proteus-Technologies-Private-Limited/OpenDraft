@@ -1,31 +1,34 @@
 Everything new since the last App Store release, for iPad and iPhone.
 
-WRITE IN TWO WINDOWS (iPad)
-File > New Window opens a second window, so you can keep an outline, an earlier draft or another script beside the one you are writing. Open a screenplay that is already open in another window and OpenDraft offers to switch to it rather than open a copy that would save over your work.
+HEADERS AND FOOTERS GET THEIR OWN DIALOG
+Format > Header & Footer, out of the bottom of Page Setup where nobody found it. Buttons insert the page number, total pages, title, date and revision colour into whichever slot you are typing in, and a preview of the first two pages shows what you will actually get.
 
-OPEN AND SAVE FILES WHERE THEY LIVE
-File > Open from Files now edits a screenplay in place, wherever it lives — Files, iCloud Drive, Google Drive or Dropbox. Save writes straight back to the original file instead of importing a copy and exporting a new one. Works with .odraft, .fdx, .fountain, .fadein, .osf and .txt.
+EDIT THE HEADER WHERE IT PRINTS
+Double-tap a header or footer on the page and type into it. You edit the template, so {page} stays a live page number rather than freezing as the number of the page you tapped, and every page updates at once.
 
-AUTOMATIC BACKUPS
-Choose a folder and OpenDraft writes timestamped copies of your script while you write — complete with notes, tags, beats, characters and images. A copy is also saved whenever you leave the app, before iOS suspends it. Bring any of them back from File > Backups > Recover Backup. Backups use the same format on every platform, so one written on a Mac restores on your iPad.
+PAGE NUMBERING YOU CAN SEE
+A plain "Show on first page" checkbox, instead of leaving you to work it out from a page number — off is still the default, because a screenplay's first page is not numbered, and now it says so rather than looking like a bug. For a script whose opening sheet is front matter, set the number the first script page carries and everything after it follows.
 
-NEVER LOSE UNSAVED WORK
-If iOS shuts OpenDraft down, the next launch offers your unsaved changes back — including for a screenplay you never saved into a project. Each window keeps its own copy.
+FOUNTAIN FILES SURVIVE BEING SAVED
+A screenplay opened from a .fountain file could come back with ** around its scene headings and the action beneath them turned into dialogue. Emphasis, scene numbers and headings that don't start with INT./EXT. are now written the way the Fountain specification asks, so a script reopens as the script you saved. Asterisks and underscores you typed yourself stay literal.
 
-FADE IN AND OPEN SCREENPLAY FORMAT
-Open .fadein and .osf files directly, and now export to Fade In as well, carrying elements, emphasis, colour and highlighting, fonts, page breaks, scene numbers, synopses, dual dialogue and the title page.
+THE TITLE PAGE STAYS A TITLE PAGE
+Exported scripts could open with the title, credit, draft and copyright piled at the top of page 1, the first scene heading directly underneath — a single blank line above the title was enough to cause it. A fully filled title page also lost its draft, contact and copyright off the bottom. Fixed, and an imported .fdx, .fountain, .fadein or Word title page now arrives laid out properly instead of as one near-blank page.
 
-PAGE BREAKS THAT DO WHAT YOU MEAN
-Force any element onto a new page with Format > Start On New Page. Templates can require it too: the 1-Hour TV Drama, Multi-Cam Sitcom and Stage Play formats break before every New Act, on screen and in PDF and Word exports.
+TWO BLANK LINES BEFORE SCENE HEADINGS
+The industry standard, and Final Draft's default. OpenDraft already wrote two into every Final Draft and Fade In export while showing one on screen, so exported scripts came out longer than the app said. Existing scripts open unchanged and ask once whether to adopt it. Format > Formatting Template sets the blank lines before any element, and now reaches page breaks, PDF and Word as well as the screen.
 
-FONTS
-The typeface you choose now survives export to PDF, Word and Final Draft. The picker lists Times New Roman, Georgia, Helvetica, Verdana, Tahoma and Trebuchet MS, and styles just the text you selected.
+GENERAL KEEPS YOUR INDENTATION
+Text you deliberately indent in a General element stays indented, in the editor, in PDF and through Fountain and Word round-trips. Return on an indented line adds a line instead of asking you to pick an element type.
 
-FOUNTAIN
-Paste Fountain from anywhere as real scene headings, characters and dialogue with Edit > Paste as Fountain. On import, emphasis, forced action, lyrics, centred text and page breaks are all recognised.
+CYRILLIC AND OTHER ALPHABETS EXPORT TO PDF
+A screenplay written in Cyrillic came out of PDF export as a run of unrelated Latin letters. Cyrillic, Greek, Armenian and Georgian are now written properly — same page layout, searchable and copyable. A script whose title is not in English is no longer saved as "Untitled".
 
-GETTING AROUND
-A back button on the projects screen at last, File > Close everywhere, and every close control is now big enough to hit with a thumb.
+EXPORTS THAT MATCH YOUR DOCUMENT
+Word no longer counts the title page, so the script's opening page prints "1." and {pages} reads right, and a page 1 footer no longer vanishes when the header is set to skip it. Final Draft (.fdx) export now carries your own header, footer and page numbering instead of a fixed page number, and reads them back when you open one.
+
+RECOVERING UNSAVED WORK
+Losing power or force-quitting could still lose the last few lines: the recovery copy was written only every ten seconds. It is now written a moment after you stop typing. Beats, notes, tags, character profiles and page setup count as unsaved work too — they were not protected at all. And after a crash OpenDraft reopens the script you had open, instead of a blank page that made it look as though everything was gone.
 
 FIXES
-Choosing Take Photo to add an image no longer closes OpenDraft — it asks for the camera and returns your photo. Fade In (.fadein) and Open Screenplay Format (.osf) files now offer Open in OpenDraft from the Files app. Saving a file opened in place no longer asks to recover it on the next launch. Shift+Enter line breaks survive every export. Manual saves keep per-script spelling settings. Opening Settings and coming back no longer leaves the editor blank.
+Choosing Take Photo to add an image no longer closes OpenDraft. Fade In (.fadein) and Open Screenplay Format (.osf) files now offer Open in OpenDraft from the Files app. Header and footer margins move the bands on screen, not only in the PDF. Long words and URLs no longer run past the right margin.
