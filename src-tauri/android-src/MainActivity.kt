@@ -28,6 +28,32 @@ class MainActivity : TauriActivity() {
      */
     override val handleBackNavigation: Boolean = true
 
+    /**
+     * Back at the first screen puts the app in the background instead of
+     * destroying it.
+     *
+     * Once the WebView has no history left, WryActivity's back callback falls
+     * through to `onBackPressed()`, whose default finishes the Activity. On
+     * Android that tears down the WebView while the *process* survives — and
+     * Wry only builds its WebView from `WryLifecycleObserver.onCreate`, which
+     * is registered on `ProcessLifecycleOwner` and so runs once per process and
+     * never again. Reopening from the launcher therefore recreated MainActivity
+     * around a WebView nothing had rebuilt: a blank white page, with no script
+     * and no JS running, until the process was killed by hand. Verified on the
+     * emulator — the process id is unchanged across Back and the relaunch.
+     *
+     * Backgrounding the task keeps process and WebView alive, so reopening
+     * resumes the script exactly as leaving by Home already did. If the task
+     * cannot be moved (it is not the root of its own task) the default
+     * behaviour still runs, rather than leaving Back doing nothing at all.
+     */
+    @Suppress("DEPRECATION", "MissingSuperCall")
+    override fun onBackPressed() {
+        if (!moveTaskToBack(true)) {
+            super.onBackPressed()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Explicit edge-to-edge opt-in with transparent bars using the
         // non-deprecated androidx.activity API. The no-arg enableEdgeToEdge()
