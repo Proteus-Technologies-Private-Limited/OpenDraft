@@ -11,6 +11,10 @@ import { RETEXT_CATEGORY_META } from '../editor/grammar/retextProvider';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { pasteAsFountain } from '../utils/pasteFountain';
+import {
+  copySelection, cutSelection, pasteIntoEditor, pasteWithoutFormatting,
+  type ClipboardResult,
+} from '../utils/clipboardCommands';
 import { showToast } from './Toast';
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
@@ -225,36 +229,17 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   const handleUndo = () => { editor.chain().focus().undo().run(); onClose(); };
   const handleRedo = () => { editor.chain().focus().redo().run(); onClose(); };
 
-  const handleCut = () => {
-    editor.commands.focus();
-    document.execCommand('cut');
+  // Shared with the Edit menu: ProseMirror's selection rather than the DOM's,
+  // which is what survives this menu taking focus. See utils/clipboardCommands.
+  const runClipboard = async (command: () => Promise<ClipboardResult>) => {
+    const result = await command();
+    if (!result.ok && result.error) showToast(result.error, 'error');
     onClose();
   };
-  const handleCopy = () => {
-    editor.commands.focus();
-    document.execCommand('copy');
-    onClose();
-  };
-  const handlePaste = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      editor.chain().focus().insertContent(text).run();
-    } catch {
-      editor.commands.focus();
-      document.execCommand('paste');
-    }
-    onClose();
-  };
-  const handlePasteWithoutFormatting = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      editor.chain().focus().insertContent(text).run();
-    } catch {
-      editor.commands.focus();
-      document.execCommand('paste');
-    }
-    onClose();
-  };
+  const handleCut = () => runClipboard(() => cutSelection(editor));
+  const handleCopy = () => runClipboard(() => copySelection(editor));
+  const handlePaste = () => runClipboard(() => pasteIntoEditor(editor));
+  const handlePasteWithoutFormatting = () => runClipboard(() => pasteWithoutFormatting(editor));
   const handlePasteAsFountain = async () => {
     const result = await pasteAsFountain(editor);
     if (!result.ok && result.error) showToast(result.error, 'error');

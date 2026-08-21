@@ -15,6 +15,7 @@ import { parseDocx } from '../utils/docxImporter';
 import { serializeOdraft, downloadOdraft } from '../utils/odraftFormat';
 import { packScratchAssets } from '../services/snapshotAssets';
 import { pasteAsFountain } from '../utils/pasteFountain';
+import { copySelection, cutSelection, pasteIntoEditor } from '../utils/clipboardCommands';
 import {
   parseScreenplayImport,
   resetStoresForImport,
@@ -759,6 +760,27 @@ const MenuBar: React.FC<MenuBarProps> = ({
     editor.chain().focus().setNode(type).run();
   };
 
+  /**
+   * Cut, Copy and Paste run off ProseMirror's selection rather than the DOM's.
+   * Opening this menu takes focus out of the editor, and on iOS that collapses
+   * the DOM selection — which is why the old `document.execCommand` calls did
+   * nothing there while the long-press callout worked fine.
+   */
+  const handleCut = useCallback(async () => {
+    const result = await cutSelection(editor);
+    if (!result.ok && result.error) showToast(result.error, 'error');
+  }, [editor]);
+
+  const handleCopy = useCallback(async () => {
+    const result = await copySelection(editor);
+    if (!result.ok && result.error) showToast(result.error, 'error');
+  }, [editor]);
+
+  const handlePaste = useCallback(async () => {
+    const result = await pasteIntoEditor(editor);
+    if (!result.ok && result.error) showToast(result.error, 'error');
+  }, [editor]);
+
   const handlePasteAsFountain = useCallback(async () => {
     if (!editor) return;
     const result = await pasteAsFountain(editor);
@@ -1479,9 +1501,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { icon: <FaUndo />, label: 'Undo', shortcut: `${mod}Z`, action: () => { try { editor?.chain().focus().undo().run(); } catch {} } },
         { icon: <FaRedo />, label: 'Redo', shortcut: `⇧${mod}Z`, action: () => { try { editor?.chain().focus().redo().run(); } catch {} } },
         { separator: true, label: '' },
-        { icon: <FaCut />, label: 'Cut', shortcut: `${mod}X`, action: () => document.execCommand('cut') },
-        { icon: <FaCopy />, label: 'Copy', shortcut: `${mod}C`, action: () => document.execCommand('copy') },
-        { icon: <FaPaste />, label: 'Paste', shortcut: `${mod}V`, action: () => document.execCommand('paste') },
+        { icon: <FaCut />, label: 'Cut', shortcut: `${mod}X`, action: handleCut, disabled: !editor },
+        { icon: <FaCopy />, label: 'Copy', shortcut: `${mod}C`, action: handleCopy, disabled: !editor },
+        { icon: <FaPaste />, label: 'Paste', shortcut: `${mod}V`, action: handlePaste, disabled: !editor },
         { icon: <FaPaste />, label: 'Paste as Fountain', shortcut: `⇧${mod}V`, action: handlePasteAsFountain, disabled: !editor },
         { icon: <FaMousePointer />, label: 'Select All', shortcut: `${mod}A`, action: () => editor?.chain().focus().selectAll().run() },
         { separator: true, label: '' },
