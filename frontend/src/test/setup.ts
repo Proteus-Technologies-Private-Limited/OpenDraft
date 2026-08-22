@@ -53,6 +53,21 @@ if (typeof globalThis.sessionStorage === 'undefined') {
 }
 
 /**
+ * `navigator` became a Node global in 21. CI runs Node 20, where it is absent —
+ * so anything reading it at module scope threw there while passing on a newer
+ * local Node, and the suite went red only after it was pushed. `getOS()` reads
+ * `navigator.userAgent`, and the clipboard tests stub `navigator.clipboard`, so
+ * the shim carries a userAgent and stays writable for them to define onto.
+ */
+if (typeof globalThis.navigator === 'undefined') {
+  Object.defineProperty(globalThis, 'navigator', {
+    value: { userAgent: 'node', maxTouchPoints: 0 },
+    writable: true,
+    configurable: true,
+  });
+}
+
+/**
  * `config.ts` reads `window.__TAURI_INTERNALS__` and `window.location.origin`
  * at module scope to decide the API base URL. Exporters reach it transitively
  * via `imageAsset`. A plain (non-Tauri) origin is the right shape for tests —
