@@ -5,7 +5,7 @@ import {
 } from '../services/customFonts';
 import { pickFontFiles, FONT_FILE_EXTENSIONS } from '../utils/fileOps';
 import { isMobileTauri } from '../services/platform';
-import { canQueryLocalFonts, detectDeviceFonts, requestLocalFonts } from '../utils/deviceFonts';
+import { addNamedFont, canQueryLocalFonts, detectDeviceFonts, requestLocalFonts } from '../utils/deviceFonts';
 import { getAllFonts, fontStack } from '../utils/fonts';
 
 interface Props {
@@ -37,6 +37,7 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [namedFont, setNamedFont] = useState('');
 
   const deviceCount = getAllFonts().filter((f) => f.source === 'device').length;
   // Nothing can be dragged onto an iPad or a phone, so the drop zone does not
@@ -169,6 +170,28 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
     }
   }, []);
 
+  /**
+   * Add a font this device has but nothing could enumerate.
+   *
+   * iPadOS and Android have no equivalent of `queryLocalFonts`, so a font
+   * installed through a font-manager app or a configuration profile is
+   * invisible to us — but it is not unusable, and the writer knows its name.
+   */
+  const handleAddNamed = useCallback(() => {
+    const name = namedFont.trim();
+    if (!name) return;
+    setErrors([]);
+    if (addNamedFont(name)) {
+      setStatus(`“${name}” is available on this device and has been added to the font list.`);
+      setNamedFont('');
+    } else {
+      setErrors([{
+        fileName: '',
+        message: `This device cannot render a font called “${name}”. Check the spelling against the name the font itself uses, or add its file above.`,
+      }]);
+    }
+  }, [namedFont]);
+
   const handleProbeDevice = useCallback(() => {
     // Detection normally runs at startup, so this usually just reports what it
     // already found rather than finding anything new.
@@ -269,6 +292,30 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
             <button type="button" disabled={busy} onClick={handleProbeDevice}>
               Look for Installed Fonts
             </button>
+          )}
+
+          {!canQueryLocalFonts() && (
+            <div className="fonts-named-row">
+              <p className="fonts-dialog-empty">
+                This platform will not list its fonts, so OpenDraft looks for the ones it knows
+                about. If you have another font installed — through a font app or a profile —
+                type its name and it will be added if this device can render it.
+              </p>
+              <div className="fonts-named-input-row">
+                <input
+                  className="props-input"
+                  type="text"
+                  placeholder="e.g. Avenir Next Condensed"
+                  value={namedFont}
+                  onChange={(e) => setNamedFont(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddNamed(); } }}
+                  aria-label="Font name"
+                />
+                <button type="button" disabled={busy || !namedFont.trim()} onClick={handleAddNamed}>
+                  Add by Name
+                </button>
+              </div>
+            </div>
           )}
 
           <p className="fonts-dialog-note">

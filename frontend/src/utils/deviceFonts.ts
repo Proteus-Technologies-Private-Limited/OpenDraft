@@ -19,7 +19,7 @@
  * Neither exists under a test runner, where every probe is answered "yes"
  * rather than pretending the machine has no fonts at all.
  */
-import { type FontEntry, FONT_REGISTRY, setDynamicFonts, genericFor } from './fonts';
+import { type FontEntry, FONT_REGISTRY, setDynamicFonts, genericFor, getAllFonts, findFont } from './fonts';
 
 /** A string with wide and narrow letters, so a substitution shows up in the width. */
 const PROBE_TEXT = 'mmmmmmmmmmlliWWM@1234567890';
@@ -116,6 +116,19 @@ const PROBE_CANDIDATES = [
   'Segoe Script', 'Segoe UI Emoji', 'Showcard Gothic', 'SimSun', 'Sitka Text',
   'Snap ITC', 'Stencil', 'Sylfaen', 'Tempus Sans ITC', 'Tw Cen MT', 'Viner Hand ITC',
   'Vivaldi', 'Vladimir Script', 'Wide Latin', 'Yu Gothic',
+  // iPadOS / iOS. Shares much of the macOS set, but not all of it — iOS calls
+  // Chalkboard "Chalkboard SE" — and it carries faces macOS has not got. A
+  // writer on an iPad has these and nothing else to choose from, so leaving
+  // them out made "On This Device" almost empty there.
+  'Avenir Next Condensed', 'Bodoni 72 Oldstyle', 'Bodoni 72 Smallcaps', 'Chalkboard SE',
+  'Charter', 'DIN Alternate', 'DIN Condensed', 'Euphemia UCAS', 'Galvji', 'Party LET',
+  'Apple SD Gothic Neo', 'Hiragino Maru Gothic ProN', 'Hiragino Mincho ProN', 'Hiragino Sans',
+  'PingFang HK', 'PingFang SC', 'PingFang TC', 'Symbol', 'Zapf Dingbats',
+  'Al Nile', 'Arial Hebrew', 'Damascus', 'Farah', 'Geeza Pro', 'Mishafi',
+  'Devanagari Sangam MN', 'Grantha Sangam MN', 'Kailasa', 'Kannada Sangam MN',
+  'Khmer Sangam MN', 'Kohinoor Bangla', 'Kohinoor Devanagari', 'Kohinoor Gujarati',
+  'Kohinoor Telugu', 'Lao Sangam MN', 'Malayalam Sangam MN', 'Mukta Mahee',
+  'Myanmar Sangam MN', 'Sinhala Sangam MN', 'Tamil Sangam MN', 'Thonburi',
   // Screenplay faces installed by other apps
   'Courier Final Draft', 'Courier Screenplay', 'Courier Prime Sans', 'Courier Prime Code',
   'Prestige Elite Std', 'Letter Gothic Std', 'Nimbus Mono PS',
@@ -134,6 +147,34 @@ function toDeviceEntry(name: string): FontEntry {
     direction: 'ltr',
     generic: genericFor(name),
   };
+}
+
+const NAMED_KEY = 'opendraft:device-fonts:named';
+
+/**
+ * Fonts the writer named themselves, because nothing could find them.
+ *
+ * iPadOS has no way to enumerate installed fonts, and a face added through a
+ * font-manager app or a configuration profile is not in any list we can guess
+ * from — but the writer knows what it is called, and once named it can be
+ * measured like any other. Remembered so it only has to be typed once.
+ */
+function readNamedFonts(): string[] {
+  try {
+    const raw = localStorage.getItem(NAMED_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((n): n is string => typeof n === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeNamedFonts(names: string[]): void {
+  try {
+    localStorage.setItem(NAMED_KEY, JSON.stringify(names));
+  } catch (err) {
+    console.warn('[fonts] could not remember that font name:', err);
+  }
 }
 
 let detected = false;
@@ -160,13 +201,42 @@ export function detectDeviceFonts(): FontEntry[] {
   }
 
   const known = new Set(FONT_REGISTRY.map((f) => f.name.toLowerCase()));
-  const found = PROBE_CANDIDATES
+  const candidates = [...new Set([...PROBE_CANDIDATES, ...readNamedFonts()])];
+  const found = candidates
     .filter((name) => !known.has(name.toLowerCase()) && isFontInstalled(name))
     .sort((a, b) => a.localeCompare(b))
     .map(toDeviceEntry);
 
   setDynamicFonts('device', found);
   return found;
+}
+
+/**
+ * Add a font by name, for the platforms that cannot be asked what they have.
+ *
+ * Returns false when the device cannot render it — which is the whole point of
+ * checking rather than adding it blindly: a name that resolves to nothing would
+ * sit in the picker rendering as Courier, and look like a bug in the font
+ * rather than a typo.
+ */
+export function addNamedFont(name: string): boolean {
+  const trimmed = name.trim();
+  if (!trimmed) return false;
+  probeCache.delete(trimmed.toLowerCase()); // re-measure: it may have been added since
+  if (!isFontInstalled(trimmed)) return false;
+
+  const remembered = readNamedFonts();
+  if (!remembered.some((n) => n.toLowerCase() === trimmed.toLowerCase())) {
+    writeNamedFonts([...remembered, trimmed]);
+  }
+
+  const existing = getAllFonts().filter((f) => f.source === 'device');
+  if (existing.some((f) => f.name.toLowerCase() === trimmed.toLowerCase())) return true;
+  if (findFont(trimmed)) return true; // already in the built-in library
+
+  const merged = [...existing, toDeviceEntry(trimmed)].sort((a, b) => a.name.localeCompare(b.name));
+  setDynamicFonts('device', merged);
+  return true;
 }
 
 interface LocalFontData { family: string; fullName?: string; style?: string }

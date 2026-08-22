@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isFontInstalled, canQueryLocalFonts, detectDeviceFonts } from './deviceFonts';
+import { isFontInstalled, canQueryLocalFonts, detectDeviceFonts, addNamedFont } from './deviceFonts';
 import { getAllFonts, setDynamicFonts } from './fonts';
 
 describe('device font detection', () => {
@@ -30,5 +30,29 @@ describe('device font detection', () => {
 
   it('runs once — the second call does not re-probe', () => {
     expect(detectDeviceFonts()).toEqual([]);
+  });
+});
+
+describe('naming a font the platform will not enumerate', () => {
+  // iPadOS and Android have no queryLocalFonts, so a font installed through a
+  // font-manager app or a configuration profile cannot be discovered — only
+  // named. Under a test runner nothing is measurable, so every name is
+  // accepted, which is the same forgiving answer isFontInstalled gives.
+  it('adds a font this device can render, and remembers it', () => {
+    setDynamicFonts('device', []);
+    expect(addNamedFont('Avenir Next Condensed')).toBe(true);
+    expect(getAllFonts().some((f) => f.name === 'Avenir Next Condensed' && f.source === 'device')).toBe(true);
+    expect(JSON.parse(localStorage.getItem('opendraft:device-fonts:named') || '[]'))
+      .toContain('Avenir Next Condensed');
+  });
+
+  it('refuses an empty name rather than adding a blank row', () => {
+    expect(addNamedFont('   ')).toBe(false);
+  });
+
+  it('does not duplicate a font the library already has', () => {
+    setDynamicFonts('device', []);
+    expect(addNamedFont('Georgia')).toBe(true);
+    expect(getAllFonts().filter((f) => f.name === 'Georgia')).toHaveLength(1);
   });
 });

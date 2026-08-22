@@ -48,8 +48,13 @@ Where a font comes from is recorded in `frontend/src/utils/fonts.ts`:
   Every family it reports becomes selectable.
 - Everywhere else — Safari, and the WebKit views the macOS and iOS builds use —
   there is no such API, so OpenDraft measures a list of common Word, Final Draft
-  and OS faces to see which are really installed. This runs automatically at
-  startup.
+  and OS faces (including the ones iPadOS ships) to see which are really
+  installed. This runs automatically at startup.
+- A font that list doesn't know about — one installed on iPadOS through a font
+  app or a configuration profile — can be added by name in the same dialog.
+  OpenDraft checks the device can actually render it before adding it, and
+  remembers the name, so it only has to be typed once. This is the only way to
+  reach such a font: no web API can enumerate them.
 
 ## Installing your own fonts
 

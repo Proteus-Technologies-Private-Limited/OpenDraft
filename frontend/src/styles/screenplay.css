@@ -11867,3 +11867,6 @@ html.android .version-history-panel {
 .fonts-list-sample { font-size: 17px; flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fonts-list-meta { flex: 1; min-width: 0; font-size: 11.5px; opacity: .6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fonts-list-remove { flex: none; font-size: 11.5px; }
+.fonts-named-row { margin-top: 12px; }
+.fonts-named-input-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.fonts-named-input-row .props-input { flex: 1; min-width: 0; }
