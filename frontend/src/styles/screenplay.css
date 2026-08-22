@@ -391,16 +391,6 @@ body {
    rather than as an extra row of chrome, with a hairline separating it from
    File so it is clearly a way out and not another menu (issue #65). It picks
    up the comfortable-chrome and touch sizing from .menu-item. */
-.menu-item--back {
-  font-size: 12px;
-  color: var(--fd-text-muted);
-  padding: 4px 8px;
-  cursor: pointer;
-  margin-right: 4px;
-  border-right: 1px solid var(--fd-border);
-  border-radius: 6px 0 0 6px;
-}
-.menu-item--back:hover { color: var(--fd-text); }
 
 /* Auth indicator — sits at the right end of the menu bar. */
 .auth-indicator {
@@ -9793,11 +9783,6 @@ html.android .version-history-panel {
   /* The same floor for the back controls on full-screen routes, which are
      laid out as ordinary text buttons and end up around 30px tall. */
   .settings-back-btn, .project-back-btn, .treatment-back-btn, .screen-back-btn,
-  .menu-item--back {
-    min-height: 44px;
-    min-width: 44px;
-    justify-content: center;
-  }
 
   /* Larger tap targets for scene navigator items */
   .navigator-scene { padding: 12px; min-height: 44px; }

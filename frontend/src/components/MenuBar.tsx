@@ -35,8 +35,7 @@ import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFo
 import { selectionStartsNewPage } from '../editor/extensions';
 import { pluginRegistry } from '../plugins/registry';
 import AuthIndicator from './AuthIndicator';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useGoBackTo } from '../hooks/useGoBack';
+import { useNavigate } from 'react-router-dom';
 import { flushPendingSave } from '../services/pendingSave';
 import { scriptApi } from '../services/scriptApi';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -164,7 +163,6 @@ import {
   FaToggleOn,
   FaLock,
   FaFileSignature,
-  FaArrowLeft,
   FaFont,
 } from 'react-icons/fa';
 
@@ -225,7 +223,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
   onDocumentSaved,
 }) => {
   const navigate = useNavigate();
-  const { projectId: urlProjectId } = useParams<{ projectId?: string }>();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -438,30 +435,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const goToSettings = useCallback(
     () => { void leaveEditor(() => navigate('/settings')); },
     [leaveEditor, navigate],
-  );
-
-  /**
-   * Back to the project the open document belongs to.
-   *
-   * A document opened from a project had no way back to it at all: the only
-   * exit was Manage Projects, which lands on the list rather than on the
-   * project you came from (issue #65). Pops when the project view really is
-   * the entry behind us, so it returns to that screen instead of stacking
-   * another copy of it (issue #66).
-   *
-   * The open project comes from the store, not the route: creating a new
-   * document inside a project sets the project context and navigates to '/',
-   * so the URL carries no project id even though the writer is very much
-   * inside one. The route id is the fallback for a script opened by URL before
-   * the store has caught up.
-   */
-  const openProjectId = currentProject?.id ?? urlProjectId;
-  const backToProject = useGoBackTo(
-    openProjectId ? `/project/${openProjectId}` : '/projects',
-  );
-  const goBackToProject = useCallback(
-    () => { void leaveEditor(backToProject); },
-    [leaveEditor, backToProject],
   );
 
   /** Save As: always opens the destination/project/filename picker, even when
@@ -2057,22 +2030,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   const renderMenuItems = () => (
     <>
-      {/* Leading, so it is where a back control is expected — and inside
-          renderMenuItems so the floating menu carries it too, since with the
-          toolbar hidden that popup is the whole menu bar. */}
-      {openProjectId && (
-        <div
-          className="menu-item menu-item--back"
-          role="button"
-          tabIndex={0}
-          onClick={goBackToProject}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') goBackToProject(); }}
-          title="Back to project"
-          aria-label="Back to project"
-        >
-          <FaArrowLeft />
-        </div>
-      )}
       {menus.map((menu) => (
         <div
           key={menu.label}
