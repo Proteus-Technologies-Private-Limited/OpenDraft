@@ -416,6 +416,79 @@ function openTextOrBinaryFileBrowser(
   });
 }
 
+// ── Open (font files) ───────────────────────────────────────────────────────
+
+export interface PickedFontFile {
+  name: string;
+  bytes: ArrayBuffer;
+}
+
+/** The font containers a writer can install. */
+export const FONT_FILE_EXTENSIONS = ['ttf', 'otf', 'ttc', 'woff', 'woff2'];
+
+/**
+ * Pick one or more font files to install.
+ *
+ * Every platform reaches its picker a different way, and a plain
+ * `<input type="file">` is only right on two of them:
+ *
+ *   desktop  the native dialog, because WKWebView and WebView2 do not give a
+ *            file input a usable panel from a `tauri://` page — the same
+ *            reason `openTextOrBinaryFile` uses the dialog plugin.
+ *   Android  the ContentResolver picker, whose bytes come back through a Tauri
+ *            command. One file at a time; that is what the intent offers.
+ *   iOS      a file input with NO `accept`, because iOS maps `accept` through
+ *            UTIs and an extension list leaves everything greyed out.
+ *   web      a file input, filtered.
+ */
+export async function pickFontFiles(): Promise<PickedFontFile[]> {
+  if (isAndroidTauri()) {
+    const picked = await pickAndroidFileBytes();
+    return picked ? [picked] : [];
+  }
+
+  if (isTauri() && !isIOSTauri()) {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const { invoke } = await import('@tauri-apps/api/core');
+    const selected = await open({
+      multiple: true,
+      filters: [{ name: 'Fonts', extensions: FONT_FILE_EXTENSIONS }],
+    });
+    if (!selected) return [];
+    const paths = Array.isArray(selected) ? selected : [selected as string];
+    const out: PickedFontFile[] = [];
+    for (const path of paths) {
+      const name = path.split(/[/\\]/).pop() || 'font';
+      const data: number[] = await invoke('read_binary_file', { path });
+      out.push({ name, bytes: new Uint8Array(data).buffer });
+    }
+    return out;
+  }
+
+  return pickFontFilesBrowser(isIOSTauri());
+}
+
+function pickFontFilesBrowser(unfiltered: boolean): Promise<PickedFontFile[]> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    if (!unfiltered) input.accept = FONT_FILE_EXTENSIONS.map((e) => `.${e}`).join(',');
+    input.onchange = async () => {
+      const files = Array.from(input.files || []);
+      try {
+        resolve(await Promise.all(files.map(async (file) => ({
+          name: file.name,
+          bytes: await file.arrayBuffer(),
+        }))));
+      } catch {
+        resolve([]);
+      }
+    };
+    input.click();
+  });
+}
+
 // ── Open in place ───────────────────────────────────────────────────────────
 
 /**

@@ -53,8 +53,25 @@ Where a font comes from is recorded in `frontend/src/utils/fonts.ts`:
 
 ## Installing your own fonts
 
-**Format → Fonts…** → *Choose Font Files…*, or drop files onto the dialog.
-TTF, OTF, WOFF and WOFF2 are accepted, up to 20 MB each.
+**Format → Fonts…** → *Choose Font Files…*. TTF, OTF, TTC, WOFF and WOFF2 are
+accepted, up to 20 MB each. On desktop and on the web you can also drop files
+onto the dialog.
+
+Each platform reaches its picker a different way, and `pickFontFiles()` in
+`frontend/src/utils/fileOps.ts` is where that lives:
+
+| Platform | How the files are chosen |
+|---|---|
+| macOS / Windows / Linux desktop | The native dialog (`@tauri-apps/plugin-dialog`), read back through the `read_binary_file` command. A `<input type="file">` gets no usable panel from a `tauri://` page. |
+| iPadOS / iOS | A file input with **no** `accept` — iOS maps `accept` through UTIs, and an extension list leaves every font greyed out in the Files picker. |
+| Android | `ACTION_OPEN_DOCUMENT` with `*/*`, read back through ContentResolver (`android_pick_file` → `read_content_uri_bytes`). One file at a time, which is what the intent offers. |
+| Web browser | A filtered, multi-select file input. |
+
+Drag-and-drop follows the same split: on desktop the webview swallows OS file
+drops, so the paths arrive via the editor's native drag-drop listener and are
+read with `read_binary_file`; in a browser the ordinary `drop` event carries the
+files; on iPadOS and Android there is nothing to drop, so the drop zone is not
+shown.
 
 - The family name is read from the font file itself, not from the filename, so
   `SourceSerif4-Semibold.otf` installs as *Source Serif 4* and groups with its

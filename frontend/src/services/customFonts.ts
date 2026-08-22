@@ -265,22 +265,36 @@ export interface InstallResult {
 }
 
 /**
+ * A font file to install, already read.
+ *
+ * Bytes rather than a `File` because only two of the five platforms hand the
+ * app a `File` at all: the desktop dialog and Android's ContentResolver both
+ * produce bytes and a name, and nothing is gained by wrapping those back up
+ * (see utils/fileOps `pickFontFiles`).
+ */
+export interface FontSource {
+  name: string;
+  bytes: ArrayBuffer;
+}
+
+/**
  * Add font files.
  *
  * Every file is attempted; one bad file reports its own error and the rest are
  * still installed, because a writer selecting a folder of weights should not
  * lose the lot to a stray README.
  */
-export async function installFontFiles(files: File[] | FileList): Promise<InstallResult> {
+export async function installFontFiles(sources: FontSource[]): Promise<InstallResult> {
   const result: InstallResult = { installed: [], errors: [] };
-  for (const file of Array.from(files)) {
+  for (const source of sources) {
+    const file = { name: source.name, size: source.bytes.byteLength };
     try {
       if (file.size > MAX_FONT_BYTES) {
         throw new FontFileError(`Too large — fonts must be under ${Math.round(MAX_FONT_BYTES / 1024 / 1024)} MB.`);
       }
       if (file.size === 0) throw new FontFileError('That file is empty.');
 
-      const bytes = await file.arrayBuffer();
+      const bytes = source.bytes;
       const info = readFontFileInfo(bytes, file.name);
 
       const duplicate = [...installed.values()].find(

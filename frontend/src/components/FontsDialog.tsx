@@ -1,16 +1,16 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   installFontFiles, listCustomFonts, removeCustomFont, MAX_FONT_BYTES,
-  type CustomFont,
+  type CustomFont, type FontSource,
 } from '../services/customFonts';
+import { pickFontFiles, FONT_FILE_EXTENSIONS } from '../utils/fileOps';
+import { isMobileTauri } from '../services/platform';
 import { canQueryLocalFonts, detectDeviceFonts, requestLocalFonts } from '../utils/deviceFonts';
 import { getAllFonts, fontStack } from '../utils/fonts';
 
 interface Props {
   onClose: () => void;
 }
-
-const ACCEPT = '.ttf,.otf,.ttc,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2';
 
 function describeSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -37,9 +37,11 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const deviceCount = getAllFonts().filter((f) => f.source === 'device').length;
+  // Nothing can be dragged onto an iPad or a phone, so the drop zone does not
+  // pretend otherwise there — the button is the whole story on those.
+  const canDrop = !isMobileTauri();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -47,12 +49,12 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const addFiles = useCallback(async (files: FileList | File[] | null) => {
-    if (!files || files.length === 0) return;
+  const addFiles = useCallback(async (sources: FontSource[]) => {
+    if (sources.length === 0) return;
     setBusy(true);
     setStatus('');
     try {
-      const result = await installFontFiles(files);
+      const result = await installFontFiles(sources);
       setFonts(listCustomFonts());
       setErrors(result.errors);
       if (result.installed.length > 0) {
@@ -65,9 +67,44 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
       setErrors([{ fileName: '', message: (err as Error)?.message || 'Could not add those fonts.' }]);
     } finally {
       setBusy(false);
-      if (inputRef.current) inputRef.current.value = '';
     }
   }, []);
+
+  /** Read dropped `File` objects — the web and Tauri-desktop drop paths. */
+  const addDroppedFiles = useCallback(async (files: FileList | File[] | null) => {
+    if (!files || files.length === 0) return;
+    const sources: FontSource[] = [];
+    const failures: { fileName: string; message: string }[] = [];
+    for (const file of Array.from(files)) {
+      try {
+        sources.push({ name: file.name, bytes: await file.arrayBuffer() });
+      } catch (err) {
+        failures.push({ fileName: file.name, message: `Could not read that file: ${(err as Error)?.message || String(err)}` });
+      }
+    }
+    await addFiles(sources);
+    if (failures.length > 0) setErrors((prev) => [...prev, ...failures]);
+  }, [addFiles]);
+
+  /**
+   * Open the platform's own picker.
+   *
+   * Not a hidden `<input type="file">`: on desktop the webview gives one no
+   * usable panel from a `tauri://` page, and on Android the bytes have to come
+   * back through ContentResolver. `pickFontFiles` knows which is which.
+   */
+  const choose = useCallback(async () => {
+    setBusy(true);
+    setStatus('');
+    try {
+      const picked = await pickFontFiles();
+      setBusy(false);
+      await addFiles(picked);
+    } catch (err) {
+      setBusy(false);
+      setErrors([{ fileName: '', message: `Could not open the font picker: ${(err as Error)?.message || String(err)}` }]);
+    }
+  }, [addFiles]);
 
   // On desktop Tauri the webview swallows OS file drops, so the browser's drop
   // event carries no files — only paths, forwarded from the editor's native
@@ -79,14 +116,14 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
       setBusy(true);
       setDragging(false);
       const failures: { fileName: string; message: string }[] = [];
-      const files: File[] = [];
+      const files: FontSource[] = [];
       try {
         const { invoke } = await import('@tauri-apps/api/core');
         for (const path of paths) {
           const fileName = path.replace(/^.*[\\/]/, '') || 'font';
           try {
             const data = await invoke<number[]>('read_binary_file', { path });
-            files.push(new File([new Uint8Array(data)] as BlobPart[], fileName));
+            files.push({ name: fileName, bytes: new Uint8Array(data).buffer });
           } catch (err) {
             failures.push({ fileName, message: `Could not read that file: ${(err as Error)?.message || String(err)}` });
           }
@@ -161,30 +198,23 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
             onDrop={(e) => {
               e.preventDefault();
               setDragging(false);
-              void addFiles(e.dataTransfer?.files ?? null);
+              void addDroppedFiles(e.dataTransfer?.files ?? null);
             }}
           >
-            <p>Drop font files here</p>
+            {canDrop && <p>Drop font files here</p>}
             <button
               type="button"
               className="dialog-primary"
               disabled={busy}
-              onClick={() => inputRef.current?.click()}
+              onClick={() => void choose()}
             >
               Choose Font Files…
             </button>
             <p className="fonts-dropzone-hint">
-              TTF, OTF, WOFF and WOFF2, up to {Math.round(MAX_FONT_BYTES / 1024 / 1024)} MB each.
+              {FONT_FILE_EXTENSIONS.map((e) => e.toUpperCase()).join(', ')}, up to
+              {' '}{Math.round(MAX_FONT_BYTES / 1024 / 1024)} MB each.
               Add each weight as its own file to get real bold and italic.
             </p>
-            <input
-              ref={inputRef}
-              type="file"
-              accept={ACCEPT}
-              multiple
-              style={{ display: 'none' }}
-              onChange={(e) => void addFiles(e.target.files)}
-            />
           </div>
 
           {status && <p className="fonts-dialog-status">{status}</p>}
