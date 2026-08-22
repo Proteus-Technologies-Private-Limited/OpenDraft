@@ -9,6 +9,7 @@ import { create } from 'zustand';
 import type { FormattingTemplate } from './formattingTypes';
 import { INDUSTRY_STANDARD_ID } from './formattingTypes';
 import { INDUSTRY_STANDARD_TEMPLATE } from './industryStandardTemplate';
+import { titlePageRules } from './templates/_helpers';
 import { MULTICAM_SITCOM_TEMPLATE, MULTICAM_SITCOM_ID } from './templates/multicamSitcomTemplate';
 import { ONE_HOUR_DRAMA_TEMPLATE, ONE_HOUR_DRAMA_ID } from './templates/oneHourDramaTemplate';
 import { STAGE_PLAY_TEMPLATE, STAGE_PLAY_ID } from './templates/stagePlayTemplate';
@@ -77,6 +78,29 @@ function now(): string {
   return new Date().toISOString();
 }
 
+/**
+ * Give a stored template the title-page rules it predates.
+ *
+ * Templates are persisted as whole objects, so every one saved before the title
+ * page had rules of its own comes back without them — and a missing rule means
+ * the template editor cannot show the field and the stylesheet emits nothing
+ * for it. Filling the gaps on read costs one object spread and needs no
+ * migration pass over storage, which matters because templates live in three
+ * places (local SQLite, the backend, and the cloud copy).
+ *
+ * Only absent ids are added: a rule the writer has already customised is left
+ * exactly as they set it.
+ */
+function withTitlePageRules(template: FormattingTemplate): FormattingTemplate {
+  const defaults = titlePageRules();
+  const missing = Object.keys(defaults).filter((id) => !template.rules?.[id]);
+  if (missing.length === 0) return template;
+  const rules = { ...template.rules };
+  for (const id of missing) rules[id] = defaults[id];
+  return { ...template, rules };
+}
+
+
 export const useFormattingTemplateStore = create<FormattingTemplateState>((set, get) => ({
   templates: [],
   activeTemplateId: null,
@@ -88,7 +112,7 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
       const sys = SYSTEM_TEMPLATES[activeTemplateId];
       if (sys) return sys;
       const found = templates.find((t) => t.id === activeTemplateId);
-      if (found) return found;
+      if (found) return withTitlePageRules(found);
     }
     return INDUSTRY_STANDARD_TEMPLATE;
   },
@@ -107,7 +131,7 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
   loadTemplates: async () => {
     try {
       const templates = await (api as any).listFormattingTemplates();
-      set({ templates, loaded: true });
+      set({ templates: (templates as FormattingTemplate[]).map(withTitlePageRules), loaded: true });
     } catch {
       // Storage not available yet or no templates
       set({ loaded: true });

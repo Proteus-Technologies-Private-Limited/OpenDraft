@@ -29,6 +29,49 @@ interface Row {
 
 const DOCUMENT_GROUP = 'From This Document';
 
+/** Where the popup sits, in viewport coordinates. */
+interface Anchor {
+  left: number;
+  width: number;
+  /** Set when the list hangs below the trigger. */
+  top?: number;
+  /** Set instead when it had to flip above — distance from the viewport bottom. */
+  bottom?: number;
+  maxHeight: number;
+}
+
+/** Enough room for a search field and a few rows; below this, flip above. */
+const MIN_ROOM_BELOW = 220;
+const EDGE_GAP = 8;
+
+/**
+ * Fit the popup to the trigger and the viewport.
+ *
+ * `visualViewport` rather than `innerHeight`: on an iPad the soft keyboard
+ * covers the bottom of the window without changing `innerHeight`, so a list
+ * measured against the window would open underneath the keyboard.
+ */
+function anchorTo(trigger: HTMLElement): Anchor {
+  const rect = trigger.getBoundingClientRect();
+  const vw = window.visualViewport?.width ?? window.innerWidth;
+  const vh = window.visualViewport?.height ?? window.innerHeight;
+
+  const width = Math.min(Math.max(rect.width, 260), vw - EDGE_GAP * 2);
+  const left = Math.max(EDGE_GAP, Math.min(rect.left, vw - width - EDGE_GAP));
+
+  const roomBelow = vh - rect.bottom - EDGE_GAP;
+  const roomAbove = rect.top - EDGE_GAP;
+  if (roomBelow >= MIN_ROOM_BELOW || roomBelow >= roomAbove) {
+    return { left, width, top: rect.bottom + 2, maxHeight: Math.max(140, roomBelow) };
+  }
+  return { left, width, bottom: vh - rect.top + 2, maxHeight: Math.max(140, roomAbove) };
+}
+
+/** Whether this is a touch screen, where a soft keyboard is a real cost. */
+function isCoarsePointer(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+}
+
 /** A font's rows are searched by name and by the group they sit in. */
 function matches(query: string, name: string, group: string): boolean {
   if (!query) return true;
@@ -43,7 +86,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
-  const [anchor, setAnchor] = useState<{ left: number; top: number; width: number } | null>(null);
+  const [anchor, setAnchor] = useState<Anchor | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -89,12 +132,9 @@ const FontPicker: React.FC<FontPickerProps> = ({
   );
 
   const openList = useCallback(() => {
-    const rect = buttonRef.current?.getBoundingClientRect();
-    if (rect) {
-      // Fixed positioning: the picker sits inside toolbars and dialogs that clip
-      // their own overflow, and a dropdown that gets cut off is unusable.
-      setAnchor({ left: rect.left, top: rect.bottom + 2, width: Math.max(rect.width, 260) });
-    }
+    // Fixed positioning: the picker sits inside toolbars and dialogs that clip
+    // their own overflow, and a dropdown that gets cut off is unusable.
+    if (buttonRef.current) setAnchor(anchorTo(buttonRef.current));
     // Open on the current font, so the list starts where the writer is rather
     // than at the top of a hundred and eighty families.
     const fresh = buildRows('');
@@ -112,17 +152,20 @@ const FontPicker: React.FC<FontPickerProps> = ({
     buttonRef.current?.focus();
   }, [onChange]);
 
-  // Typing filters the list, so the search field takes focus as it appears.
+  // Typing filters the list, so on a keyboard the search field takes focus as
+  // it appears. Never on a touch screen: focusing it raises the soft keyboard,
+  // which covers most of the list — and on an iPad the resize that came with it
+  // used to close the popup outright, so a tap appeared to do nothing at all.
   useEffect(() => {
     if (!open) return;
-    searchRef.current?.focus();
+    if (!isCoarsePointer()) searchRef.current?.focus();
     listRef.current?.querySelector<HTMLElement>('.font-picker-option.is-active')
       ?.scrollIntoView({ block: 'center' });
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    const onPointerDown = (e: MouseEvent) => {
+    const onPointerDown = (e: Event) => {
       const target = e.target as Node;
       // The whole popup, not just the list: "Add or manage fonts…" sits below
       // it, and closing on mousedown unmounted the button before its click
@@ -130,23 +173,30 @@ const FontPicker: React.FC<FontPickerProps> = ({
       if (popupRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
       setOpen(false);
     };
-    const onResize = () => setOpen(false);
-    // The popup is positioned against the trigger's viewport rect, so anything
-    // that moves the trigger has to close it. Not the list's own scrolling,
-    // though: capture-phase listeners see that too, and closing the picker as
-    // soon as the writer scrolls it would make the list unreachable.
-    const onScroll = (e: Event) => {
-      if (listRef.current && e.target instanceof Node && listRef.current.contains(e.target)) return;
-      setOpen(false);
+    // The popup is measured against the trigger, so anything that moves the
+    // trigger has to move the popup. Following it beats closing: a soft keyboard
+    // appearing is a resize, and a dialog settling after a tap is a scroll —
+    // treating either as "the writer looked away" is why this never opened on an
+    // iPad.
+    const reposition = (e?: Event) => {
+      if (e && listRef.current && e.target instanceof Node && listRef.current.contains(e.target)) return;
+      if (buttonRef.current) setAnchor(anchorTo(buttonRef.current));
     };
     document.addEventListener('mousedown', onPointerDown);
-    window.addEventListener('resize', onResize);
+    // Touch screens deliver touchstart well before the synthesised mousedown.
+    document.addEventListener('touchstart', onPointerDown as EventListener);
+    window.addEventListener('resize', reposition);
     // Capture phase: the editor scrolls its own container, not the window.
-    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('scroll', reposition, true);
+    window.visualViewport?.addEventListener('resize', reposition);
+    window.visualViewport?.addEventListener('scroll', reposition);
     return () => {
       document.removeEventListener('mousedown', onPointerDown);
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('scroll', onScroll, true);
+      document.removeEventListener('touchstart', onPointerDown as EventListener);
+      window.removeEventListener('resize', reposition);
+      window.removeEventListener('scroll', reposition, true);
+      window.visualViewport?.removeEventListener('resize', reposition);
+      window.visualViewport?.removeEventListener('scroll', reposition);
     };
   }, [open]);
 
@@ -226,7 +276,13 @@ const FontPicker: React.FC<FontPickerProps> = ({
         <div
           ref={popupRef}
           className="font-picker-popup"
-          style={{ left: anchor.left, top: anchor.top, width: anchor.width }}
+          style={{
+            left: anchor.left,
+            top: anchor.top,
+            bottom: anchor.bottom,
+            width: anchor.width,
+            maxHeight: anchor.maxHeight,
+          }}
           role="dialog"
         >
           <div className="font-picker-search-row">

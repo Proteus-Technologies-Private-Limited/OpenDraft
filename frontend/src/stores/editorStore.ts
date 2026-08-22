@@ -45,6 +45,27 @@ function saveViewState(patch: Partial<ViewState>) {
 }
 const _vs = loadViewState();
 
+/**
+ * How tight the chrome is before the writer says otherwise.
+ *
+ * Compact suits a mouse, which lands wherever it is pointed. A finger does not:
+ * the compact toolbar's controls are 22px tall, well under the ~44px both Apple
+ * and Google put the floor at, and on an iPad that is the difference between
+ * tapping the font picker and tapping the element menu beside it. Touch gets
+ * comfortable to start with; the View menu still moves it either way, and the
+ * choice is remembered once made.
+ */
+function defaultToolbarMode(): 'compact' | 'comfortable' | 'hidden' {
+  try {
+    if (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) {
+      return 'comfortable';
+    }
+  } catch {
+    // matchMedia unavailable (a test runner) — a mouse is the safer assumption.
+  }
+  return 'compact';
+}
+
 // ── Custom dictionary library (named global word lists) ──
 const DICTS_KEY = 'opendraft:dictionaries';
 const LEGACY_DICT_KEY = 'opendraft:customDictionary';
@@ -1209,7 +1230,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ theme: t });
   },
 
-  toolbarMode: (_vs.toolbarMode as 'compact' | 'comfortable' | 'hidden') ?? 'compact',
+  toolbarMode: (_vs.toolbarMode as 'compact' | 'comfortable' | 'hidden') ?? defaultToolbarMode(),
   setToolbarMode: (mode) => { set({ toolbarMode: mode }); saveViewState({ toolbarMode: mode }); },
 
   characterSortBy: (_vs.characterSortBy as 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance') ?? 'importance',

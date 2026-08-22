@@ -40,6 +40,7 @@ import FontPicker from './FontPicker';
 import ColorPicker from './ColorPicker';
 import LanguageSelector from './LanguageSelector';
 import { findFont, loadFontByName } from '../utils/fonts';
+import { isTitlePageRuleId } from '../stores/formattingTypes';
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -259,6 +260,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   };
 
   /** True when the selection is inside an AV cell — used to scope the element dropdown. */
+  const isInTitlePage = isTitlePageRuleId(String(activeElement));
+
   const isInsideAvCell = React.useMemo(() => {
     if (!editor) return false;
     try {
@@ -935,9 +938,21 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           className="element-selector"
           value={activeElement}
           onChange={handleElementChange}
+          disabled={isInTitlePage}
+          title={isInTitlePage
+            ? 'Title page elements are set in the Title Page editor; their formatting lives in the template'
+            : 'Element type'}
         >
+          {/* The title page's fields have template rules but are not things a
+              paragraph converts into, so they never appear here — only as the
+              read-only label below when the cursor is actually in one. */}
+          {isInTitlePage && (
+            <option value={activeElement}>
+              {activeTemplate.rules[activeElement]?.label || 'Title Page'}
+            </option>
+          )}
           {Object.values(activeTemplate.rules)
-            .filter((r) => r.enabled)
+            .filter((r) => r.enabled && !isTitlePageRuleId(r.id))
             // When inside an AV cell, only cell-valid types make sense — selecting
             // sceneHeading/action/etc. silently fails the schema check anyway.
             .filter((r) => isInsideAvCell ? AV_CELL_ELEMENT_IDS.includes(r.id) : !AV_CELL_ELEMENT_IDS.includes(r.id))

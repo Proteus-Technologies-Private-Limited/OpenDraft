@@ -6,7 +6,7 @@
  */
 
 import type { FormattingTemplate, FormattingElementRule } from '../stores/formattingTypes';
-import { ELEMENT_CSS_CLASS } from '../stores/formattingTypes';
+import { ELEMENT_CSS_CLASS, titlePageFieldOf } from '../stores/formattingTypes';
 import type { PageLayout } from '../stores/editorStore';
 import { fontStack } from './fonts';
 
@@ -65,6 +65,10 @@ export function generateTemplateCss(
 }
 
 function getSelector(elementId: string, rule: FormattingElementRule): string {
+  // Title page elements are one node type distinguished by a `field` attribute,
+  // not a node type each, so they select on the class the node view renders.
+  const titleField = titlePageFieldOf(elementId);
+  if (titleField) return `.page .screenplay-element.title-page-${titleField}`;
   if (rule.isBuiltIn) {
     const cssClass = ELEMENT_CSS_CLASS[elementId];
     if (cssClass) {
@@ -76,6 +80,8 @@ function getSelector(elementId: string, rule: FormattingElementRule): string {
 }
 
 function getPlaceholderSelector(elementId: string, rule: FormattingElementRule): string {
+  const titleField = titlePageFieldOf(elementId);
+  if (titleField) return `div[data-type="title-page"][data-field="${titleField}"].is-empty::before`;
   if (rule.isBuiltIn) {
     const cssClass = ELEMENT_CSS_CLASS[elementId];
     // The data-type uses the CSS class name (hyphenated)

@@ -133,6 +133,7 @@ import TitlePageEditor from './TitlePageEditor';
 import MoresContdsDialog from './MoresContdsDialog';
 import FontsDialog from './FontsDialog';
 import { fontStack } from '../utils/fonts';
+import { titlePageRuleId } from '../stores/formattingTypes';
 import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
@@ -1507,6 +1508,15 @@ const ScreenplayEditor: React.FC = () => {
           setActiveElement(attrs.customTypeId as ElementType);
           return;
         }
+      }
+      // A title page node is one type with a `field` attribute, so it needs
+      // asking about separately — and it has to be asked at all: leaving it out
+      // meant the selector kept whatever it last showed, which for a fresh
+      // document is Action. Putting the cursor in the title reported "Action".
+      if (ed.isActive('titlePage')) {
+        const field = (ed.getAttributes('titlePage')?.field as string) || 'title';
+        setActiveElement(titlePageRuleId(field));
+        return;
       }
       for (const type of ALL_ELEMENT_TYPES) {
         if (ed.isActive(type)) { setActiveElement(type); break; }

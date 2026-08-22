@@ -191,3 +191,60 @@ export function createDefaultRule(
     allowFormatOverride: true,
   };
 }
+
+// ── Title page elements ─────────────────────────────────────────────────────
+
+/**
+ * The title page's own elements, and why they are element types here at all.
+ *
+ * Final Draft does not give them any: inside a `.fdx` every title-page line is
+ * `<Paragraph Type="General">`, positioned by alignment alone, which is why a
+ * title page imported from one arrives as a run of General paragraphs. Fountain
+ * goes the other way and names them — `Title:`, `Credit:`, `Author:`,
+ * `Source:`, `Draft date:`, `Contact:`, `Copyright:`, `Notes:` — but only as
+ * document metadata, with no formatting attached.
+ *
+ * OpenDraft already stores the semantic name on the node (`titlePage` with a
+ * `field` attribute), so it has what Fountain has; what it lacked was any way
+ * to say how each one should look. These ids give every field a template rule
+ * of its own, so a writer can set the title in a display face at 24pt and leave
+ * the contact block in Courier.
+ *
+ * The `titlePage:` prefix keeps them out of the element ids a document node can
+ * take, so they can never be confused with a body element, and makes them easy
+ * to keep out of the "change this paragraph to…" menus — a line of action is
+ * not something you convert into a copyright notice.
+ */
+export const TITLE_PAGE_RULE_PREFIX = 'titlePage:';
+
+/** Rule id for a title-page field, e.g. `title` → `titlePage:title`. */
+export function titlePageRuleId(field: string): string {
+  return `${TITLE_PAGE_RULE_PREFIX}${field}`;
+}
+
+/** The field name back out of a rule id, or null if it isn't one. */
+export function titlePageFieldOf(ruleId: string): string | null {
+  return ruleId.startsWith(TITLE_PAGE_RULE_PREFIX)
+    ? ruleId.slice(TITLE_PAGE_RULE_PREFIX.length)
+    : null;
+}
+
+export function isTitlePageRuleId(ruleId: string): boolean {
+  return ruleId.startsWith(TITLE_PAGE_RULE_PREFIX);
+}
+
+/**
+ * The fields a title page is built from, in the order they appear on the page.
+ *
+ * `date` carries the notes block — the name is what `buildTitlePageBlocks` has
+ * always written, and renaming it would orphan every saved document, so the
+ * label carries the truth instead.
+ */
+export const TITLE_PAGE_ELEMENTS: { field: string; label: string }[] = [
+  { field: 'title', label: 'Title Page — Title' },
+  { field: 'author', label: 'Title Page — Credit & Author' },
+  { field: 'draft', label: 'Title Page — Draft & Date' },
+  { field: 'contact', label: 'Title Page — Contact' },
+  { field: 'copyright', label: 'Title Page — Copyright' },
+  { field: 'date', label: 'Title Page — Notes' },
+];
