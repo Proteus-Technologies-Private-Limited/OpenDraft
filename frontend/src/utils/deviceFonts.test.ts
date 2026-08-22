@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isFontInstalled, canQueryLocalFonts, detectDeviceFonts, addNamedFont } from './deviceFonts';
+import { isFontInstalled, canQueryLocalFonts, detectDeviceFonts, addNamedFont, PROBE_CANDIDATES } from './deviceFonts';
 import { getAllFonts, setDynamicFonts } from './fonts';
 
 describe('device font detection', () => {
@@ -54,5 +54,24 @@ describe('naming a font the platform will not enumerate', () => {
     setDynamicFonts('device', []);
     expect(addNamedFont('Georgia')).toBe(true);
     expect(getAllFonts().filter((f) => f.name === 'Georgia')).toHaveLength(1);
+  });
+});
+
+describe('the list of faces worth probing', () => {
+  it('names each font once — a duplicate shows up twice in the picker', () => {
+    // "Papyrus" was in both the macOS and the Windows block, and duly appeared
+    // twice under "On This Device" on an iPad.
+    const seen = new Map<string, number>();
+    for (const name of PROBE_CANDIDATES) {
+      const key = name.toLowerCase();
+      seen.set(key, (seen.get(key) ?? 0) + 1);
+    }
+    expect([...seen].filter(([, n]) => n > 1).map(([name]) => name)).toEqual([]);
+  });
+
+  it('covers the faces iPadOS ships, which are all an iPad writer has', () => {
+    const ios = ['Chalkboard SE', 'Charter', 'Galvji', 'Party LET', 'Avenir Next Condensed',
+      'PingFang SC', 'Kohinoor Devanagari', 'Tamil Sangam MN', 'Hiragino Sans', 'Geeza Pro'];
+    for (const name of ios) expect(PROBE_CANDIDATES, name).toContain(name);
   });
 });

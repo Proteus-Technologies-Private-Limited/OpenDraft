@@ -89,7 +89,7 @@ export function isFontInstalled(name: string): boolean {
  * Final Draft users know — rather than everything an OS ships. The full font
  * book is what `requestLocalFonts` is for.
  */
-const PROBE_CANDIDATES = [
+export const PROBE_CANDIDATES = [
   // macOS
   'American Typewriter', 'Andale Mono', 'Apple Chancery', 'Arial Black', 'Arial Narrow',
   'Arial Rounded MT Bold', 'Avenir Next', 'Baskerville', 'Big Caslon', 'Bodoni 72',
@@ -111,7 +111,7 @@ const PROBE_CANDIDATES = [
   'Matura MT Script Capitals', 'Microsoft Sans Serif', 'Modern No. 20', 'Mongolian Baiti',
   'Monotype Corsiva', 'MS Gothic', 'MV Boli', 'Myanmar Text', 'Niagara Solid',
   'Nirmala UI', 'OCR A Extended', 'Old English Text MT', 'Onyx', 'Palace Script MT',
-  'Papyrus', 'Parchment', 'Perpetua', 'Playbill', 'Poor Richard', 'Pristina',
+  'Parchment', 'Perpetua', 'Playbill', 'Poor Richard', 'Pristina',
   'Rage Italic', 'Ravie', 'Rockwell Extra Bold', 'Script MT Bold', 'Segoe Print',
   'Segoe Script', 'Segoe UI Emoji', 'Showcard Gothic', 'SimSun', 'Sitka Text',
   'Snap ITC', 'Stencil', 'Sylfaen', 'Tempus Sans ITC', 'Tw Cen MT', 'Viner Hand ITC',
