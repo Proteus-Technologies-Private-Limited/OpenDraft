@@ -45,6 +45,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
   const [activeIndex, setActiveIndex] = useState(0);
   const [anchor, setAnchor] = useState<{ left: number; top: number; width: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -123,7 +124,10 @@ const FontPicker: React.FC<FontPickerProps> = ({
     if (!open) return;
     const onPointerDown = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (listRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
+      // The whole popup, not just the list: "Add or manage fonts…" sits below
+      // it, and closing on mousedown unmounted the button before its click
+      // could land — so the item did nothing at all.
+      if (popupRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
       setOpen(false);
     };
     const onResize = () => setOpen(false);
@@ -220,6 +224,7 @@ const FontPicker: React.FC<FontPickerProps> = ({
 
       {open && anchor && (
         <div
+          ref={popupRef}
           className="font-picker-popup"
           style={{ left: anchor.left, top: anchor.top, width: anchor.width }}
           role="dialog"

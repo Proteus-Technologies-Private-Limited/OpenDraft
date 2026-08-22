@@ -53,15 +53,34 @@ function decodeName(view: DataView, offset: number, length: number, platformId: 
   return out.trim();
 }
 
+const LANG_WINDOWS_EN_US = 0x0409;
+const LANG_MAC_ENGLISH = 0;
+
 /**
- * Read the `name` table entries we care about.
+ * How much we want a particular name record, lowest first.
  *
- * Windows records win over Macintosh ones where a file has both, because they
- * are the ones with the full Unicode name.
+ * The language matters as much as the platform. A `name` table carries the same
+ * nameID once per language the foundry translated it into, and macOS ships
+ * fonts whose first Windows record is Spanish: `Times New Roman Bold.ttf` calls
+ * its subfamily "Negreta", and reading that one left every bold weight in the
+ * system font folder recorded as regular. English records are the ones
+ * `styleFromSubfamily` can read.
+ */
+function preference(platformId: number, languageId: number): number {
+  if (platformId === 3) return languageId === LANG_WINDOWS_EN_US ? 0 : 3;
+  if (platformId === 1) return languageId === LANG_MAC_ENGLISH ? 1 : 4;
+  if (platformId === 0) return 2; // Unicode: no platform-specific language ids
+  return 5;
+}
+
+/**
+ * Read the `name` table entries we care about, in English where the font has
+ * an English name at all — falling back through the other languages rather
+ * than reporting nothing.
  */
 function readNameTable(view: DataView, tableOffset: number): Map<number, string> {
   const names = new Map<number, string>();
-  const best = new Map<number, number>(); // nameID -> platform we took it from
+  const best = new Map<number, number>(); // nameID -> preference of what we took
 
   const count = view.getUint16(tableOffset + 2);
   const stringOffset = tableOffset + view.getUint16(tableOffset + 4);
@@ -71,19 +90,20 @@ function readNameTable(view: DataView, tableOffset: number): Map<number, string>
     const record = recordsStart + i * 12;
     if (record + 12 > view.byteLength) break;
     const platformId = view.getUint16(record);
+    const languageId = view.getUint16(record + 4);
     const nameId = view.getUint16(record + 6);
     const length = view.getUint16(record + 8);
     const offset = stringOffset + view.getUint16(record + 10);
     if (offset + length > view.byteLength) continue;
 
+    const rank = preference(platformId, languageId);
     const previous = best.get(nameId);
-    if (previous === 3) continue; // already have the Windows name
-    if (previous !== undefined && platformId !== 3) continue;
+    if (previous !== undefined && previous <= rank) continue;
 
     const value = decodeName(view, offset, length, platformId);
     if (!value) continue;
     names.set(nameId, value);
-    best.set(nameId, platformId);
+    best.set(nameId, rank);
   }
   return names;
 }
@@ -133,16 +153,27 @@ export function readFontFileInfo(bytes: ArrayBuffer, fileName: string): FontFile
 
   // wOFF / wOF2 — compressed, so the name table is out of reach here.
   if (tag === 0x774f4646 || tag === 0x774f4632) return fallback();
-  if (tag === SFNT_TTCF) return fallback(); // a collection: several fonts, one file
-  if (tag !== SFNT_TTF && tag !== SFNT_OTTO && tag !== SFNT_TRUE) {
+  if (tag !== SFNT_TTF && tag !== SFNT_OTTO && tag !== SFNT_TRUE && tag !== SFNT_TTCF) {
     throw new FontFileError('That file is not a TrueType or OpenType font.');
   }
 
   try {
-    const numTables = view.getUint16(4);
+    // A TrueType collection holds several fonts in one file, sharing glyphs.
+    // Its header is a list of offsets to ordinary table directories, so reading
+    // the first one gives the family — macOS ships 79 of these in its font
+    // folder, and guessing all of their names from filenames threw away the
+    // weight and slant of every one.
+    let directory = 0;
+    if (tag === SFNT_TTCF) {
+      if (view.byteLength < 16 || view.getUint32(8) === 0) return fallback();
+      directory = view.getUint32(12);
+      if (directory + 12 > view.byteLength) return fallback();
+    }
+
+    const numTables = view.getUint16(directory + 4);
     let nameOffset = 0;
     for (let i = 0; i < numTables; i++) {
-      const record = 12 + i * 16;
+      const record = directory + 12 + i * 16;
       if (record + 16 > view.byteLength) break;
       const tableTag = view.getUint32(record);
       if (tableTag === 0x6e616d65) { // 'name'

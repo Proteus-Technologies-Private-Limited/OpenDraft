@@ -132,13 +132,21 @@ function unregister(id: string): void {
 }
 
 /**
- * Whether a face is monospaced, asked of the browser now that it is loaded.
+ * What kind of face this is, asked of the browser now that it is loaded.
  *
- * Worth knowing: it decides the fallback a document written in this font gets
- * on a machine that hasn't got it — Courier for a typewriter face, Times or
- * Arial for anything else.
+ * It decides the fallback a document written in this font gets on a machine
+ * that hasn't got it, so getting it wrong is the difference between a title
+ * page reading as a display face and reading as Courier.
+ *
+ * Measuring settles the one question a name cannot: whether every glyph is on
+ * the same cell. Beyond that we are down to the family name, and there its
+ * default of `monospace` is wrong — that default exists for fonts named in an
+ * imported screenplay, where Courier is the right guess. A font the writer
+ * installed and the browser has just told us is proportional is not a Courier,
+ * so it falls back with the other proportional faces instead.
  */
 function detectGeneric(family: string): FontGeneric {
+  let proportional = false;
   try {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -147,10 +155,14 @@ function detectGeneric(family: string): FontGeneric {
     const narrow = ctx.measureText('i').width;
     const wide = ctx.measureText('W').width;
     if (narrow > 0 && Math.abs(narrow - wide) < 0.5) return 'monospace';
+    proportional = narrow > 0;
   } catch {
-    // fall through to the name-based guess
+    // Nothing measurable — the name is all we have.
+    return genericFor(family);
   }
-  return genericFor(family);
+  const named = genericFor(family);
+  if (proportional && named === 'monospace') return 'sans-serif';
+  return named;
 }
 
 function publish(): void {
