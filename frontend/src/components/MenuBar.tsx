@@ -34,7 +34,9 @@ import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFo
 import { selectionStartsNewPage } from '../editor/extensions';
 import { pluginRegistry } from '../plugins/registry';
 import AuthIndicator from './AuthIndicator';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useGoBackTo } from '../hooks/useGoBack';
+import { flushPendingSave } from '../services/pendingSave';
 import { scriptApi } from '../services/scriptApi';
 import { useSettingsStore } from '../stores/settingsStore';
 import { clearEditorHistory } from '../editor/clearHistory';
@@ -161,6 +163,7 @@ import {
   FaToggleOn,
   FaLock,
   FaFileSignature,
+  FaArrowLeft,
 } from 'react-icons/fa';
 
 interface MenuBarProps {
@@ -220,6 +223,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   onDocumentSaved,
 }) => {
   const navigate = useNavigate();
+  const { projectId: urlProjectId } = useParams<{ projectId?: string }>();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -403,6 +407,60 @@ const MenuBar: React.FC<MenuBarProps> = ({
       reportSaveError(err, 'manual-save');
     }
   }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen, serializeForOrigin, onDocumentSaved]);
+
+  /**
+   * Leave the editor for another screen of the app.
+   *
+   * Router navigation, not `window.location`: a full page load tore the whole
+   * app down and rebuilt it, and it reset the history stack, so the Projects
+   * screen's back arrow had nothing to return to and fell back to reloading
+   * the editor from scratch instead of returning to the script the user left
+   * (issues #65, #66).
+   *
+   * The catch is that a router navigation fires neither `beforeunload` nor
+   * Tauri's close handler, which are what used to flush unsaved text on the
+   * way out, and the editor's auto-save tick is 30 seconds wide. So flush
+   * first — awaited, which is more than the unload handler could promise in a
+   * WebView. flushPendingSave is a no-op when there is nothing outstanding, or
+   * no document with somewhere to save to.
+   */
+  const leaveEditor = useCallback(async (go: () => void) => {
+    await flushPendingSave();
+    go();
+  }, []);
+
+  const goToProjects = useCallback(
+    () => { void leaveEditor(() => navigate('/projects')); },
+    [leaveEditor, navigate],
+  );
+  const goToSettings = useCallback(
+    () => { void leaveEditor(() => navigate('/settings')); },
+    [leaveEditor, navigate],
+  );
+
+  /**
+   * Back to the project the open document belongs to.
+   *
+   * A document opened from a project had no way back to it at all: the only
+   * exit was Manage Projects, which lands on the list rather than on the
+   * project you came from (issue #65). Pops when the project view really is
+   * the entry behind us, so it returns to that screen instead of stacking
+   * another copy of it (issue #66).
+   *
+   * The open project comes from the store, not the route: creating a new
+   * document inside a project sets the project context and navigates to '/',
+   * so the URL carries no project id even though the writer is very much
+   * inside one. The route id is the fallback for a script opened by URL before
+   * the store has caught up.
+   */
+  const openProjectId = currentProject?.id ?? urlProjectId;
+  const backToProject = useGoBackTo(
+    openProjectId ? `/project/${openProjectId}` : '/projects',
+  );
+  const goBackToProject = useCallback(
+    () => { void leaveEditor(backToProject); },
+    [leaveEditor, backToProject],
+  );
 
   /** Save As: always opens the destination/project/filename picker, even when
    *  the current document is already saved. Use this to fork a local script
@@ -1256,7 +1314,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const handleBackupNow = useCallback(async () => {
     if (!backupsAvailable()) {
       showToast('Choose a backup folder first', 'info');
-      navigate('/settings');
+      goToSettings();
       return;
     }
     const content = buildSaveContent();
@@ -1279,13 +1337,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const reason = describeBackupError(err instanceof Error ? err.message : String(err));
       showToast(`Backup failed — ${reason}`, 'error');
     }
-  }, [buildSaveContent, currentProject, currentScriptId, navigate]);
+  }, [buildSaveContent, currentProject, currentScriptId, goToSettings]);
 
   const handleOpenBackupFolder = useCallback(async () => {
     const folder = useSettingsStore.getState().backupFolder;
     if (!folder) {
       showToast('Choose a backup folder first', 'info');
-      navigate('/settings');
+      goToSettings();
       return;
     }
     try {
@@ -1293,7 +1351,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     } catch {
       showToast('Could not open the backup folder', 'error');
     }
-  }, [navigate]);
+  }, [goToSettings]);
 
   const handleExportOdraft = useCallback(async () => {
     if (!editor) return;
@@ -1486,7 +1544,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
               ...(supportsRevealBackup() ? [
                 { icon: <FaFolderOpen />, label: 'Open Backup Folder', action: handleOpenBackupFolder },
               ] : []),
-              { icon: <FaCog />, label: 'Backup Settings\u2026', action: () => navigate('/settings') },
+              { icon: <FaCog />, label: 'Backup Settings\u2026', action: goToSettings },
             ],
           },
         ] : []),
@@ -1659,7 +1717,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           ],
         },
         { separator: true, label: '' },
-        { icon: <FaProjectDiagram />, label: 'Manage Projects…', action: () => { window.location.href = '/projects'; }, disabled: isCollabGuest },
+        { icon: <FaProjectDiagram />, label: 'Manage Projects…', action: goToProjects, disabled: isCollabGuest },
         { icon: <FaBoxes />, label: 'Asset Manager', action: () => useAssetStore.getState().toggleAssetManager() },
         { separator: true, label: '' },
         {
@@ -1678,7 +1736,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           ],
         },
         { separator: true, label: '' },
-        { icon: <FaCog />, label: 'System Settings…', action: () => navigate('/settings') },
+        { icon: <FaCog />, label: 'System Settings…', action: goToSettings },
         { separator: true, label: '' },
         {
           icon: <FaFilm />, label: 'Production',
@@ -1793,6 +1851,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // Draggable FAB position — persisted to localStorage
   const FAB_POS_KEY = 'opendraft:fabPosition';
   const FAB_SIZE = 36;
+  // How far down the window the iPadOS window control reaches, plus room for
+  // the FAB itself — below this the corner is the app's own again.
+  const FAB_PILL_BAND_PX = 56;
   const [fabPos, setFabPos] = useState<{ x: number; y: number } | null>(() => {
     try {
       const s = localStorage.getItem('opendraft:fabPosition');
@@ -1819,6 +1880,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const fabTopStyle = isAndroidWebView
     ? `max(${fabY}px, calc(max(env(safe-area-inset-top), 28px) + 8px))`
     : `max(${fabY}px, calc(env(safe-area-inset-top, 0px) + 8px))`;
+  // Same problem on the other axis: iPadOS draws its window-management pill
+  // over the top-leading corner of a windowed app, and the FAB's default spot
+  // is right underneath it. This FAB *is* the menu while the toolbar is
+  // hidden, so a buried one leaves no way to reach anything (issue #66).
+  // --ios-window-gutter is 0 unless the app is in a window, and the clamp only
+  // applies in the band the pill occupies — lower down, the leading edge is
+  // the user's to park on.
+  const fabLeftStyle = fabY < FAB_PILL_BAND_PX
+    ? `max(${fabX}px, calc(env(safe-area-inset-left, 0px) + var(--ios-window-gutter, 0px)))`
+    : `max(${fabX}px, env(safe-area-inset-left, 0px))`;
 
   // Desktop: pointer events with capture for mouse drag
   const handleFabPointerDown = useCallback((e: React.PointerEvent) => {
@@ -1980,6 +2051,22 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   const renderMenuItems = () => (
     <>
+      {/* Leading, so it is where a back control is expected — and inside
+          renderMenuItems so the floating menu carries it too, since with the
+          toolbar hidden that popup is the whole menu bar. */}
+      {openProjectId && (
+        <div
+          className="menu-item menu-item--back"
+          role="button"
+          tabIndex={0}
+          onClick={goBackToProject}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') goBackToProject(); }}
+          title="Back to project"
+          aria-label="Back to project"
+        >
+          <FaArrowLeft />
+        </div>
+      )}
       {menus.map((menu) => (
         <div
           key={menu.label}
@@ -2018,7 +2105,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <div
             ref={fabElRef}
             className={`menu-fab ${floatingMenuOpen ? 'menu-fab--open' : ''}`}
-            style={{ left: fabX, top: fabTopStyle }}
+            style={{ left: fabLeftStyle, top: fabTopStyle }}
             onPointerDown={handleFabPointerDown}
             onPointerMove={handleFabPointerMove}
             onPointerUp={handleFabPointerUp}

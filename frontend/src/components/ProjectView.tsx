@@ -19,6 +19,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
 import { projectApi } from '../services/projectApi';
+import { useGoBackTo } from '../hooks/useGoBack';
 import type { ProjectInfo, ScriptMeta, VersionInfo } from '../services/api';
 import {
   parseScreenplayImport,
@@ -477,6 +478,9 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
 const ProjectView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  // Leaving this screen must not push a second copy of the projects list on
+  // top of it — that is what trapped the two screens in a loop (issue #66).
+  const backToProjects = useGoBackTo('/projects');
   // Project's storage source — drives both the routing dispatchers (already
   // handled by projectApi) and the visual badges on individual scripts.
   const isCloud = useProjectStore((s) => projectId ? Boolean(s.cloudProjects[projectId]) : false);
@@ -513,7 +517,9 @@ const ProjectView: React.FC = () => {
       const p = await projectApi.getProject(projectId);
       setProject(p);
     } catch {
-      navigate('/');
+      // The project is gone. replace, or Back returns to this route, it fails
+      // to load again, and pushes another entry — a loop with no exit.
+      navigate('/', { replace: true });
     }
   }, [projectId, navigate]);
 
@@ -633,7 +639,7 @@ const ProjectView: React.FC = () => {
         content: { type: 'doc', content: [{ type: 'paragraph' }] },
       });
       await fetchScripts();
-      navigate(`/project/${projectId}/treatment/${resp.meta.id}`);
+      navigate(`/project/${projectId}/treatment/${resp.meta.id}`, { state: { from: `/project/${projectId}` } });
     } catch (err) {
       showToast(
         err instanceof Error ? err.message : 'Failed to create treatment',
@@ -647,9 +653,9 @@ const ProjectView: React.FC = () => {
     if (!projectId) return;
     const script = scripts.find((s) => s.id === scriptId);
     if (script?.format === 'treatment') {
-      navigate(`/project/${projectId}/treatment/${scriptId}`);
+      navigate(`/project/${projectId}/treatment/${scriptId}`, { state: { from: `/project/${projectId}` } });
     } else {
-      navigate(`/project/${projectId}/edit/${scriptId}`);
+      navigate(`/project/${projectId}/edit/${scriptId}`, { state: { from: `/project/${projectId}` } });
     }
   }, [projectId, scripts, navigate]);
 
@@ -852,7 +858,7 @@ const ProjectView: React.FC = () => {
             content: imported.doc as Record<string, unknown>,
           });
           await fetchScripts();
-          navigate(`/project/${projectId}/edit/${resp.meta.id}`);
+          navigate(`/project/${projectId}/edit/${resp.meta.id}`, { state: { from: `/project/${projectId}` } });
         } catch (err) {
           console.error('Failed to import script:', err);
           showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -898,7 +904,7 @@ const ProjectView: React.FC = () => {
       <div className="project-view-header">
         <button
           className="project-back-btn"
-          onClick={() => navigate('/projects')}
+          onClick={backToProjects}
         >
           &#x2190; Projects
         </button>

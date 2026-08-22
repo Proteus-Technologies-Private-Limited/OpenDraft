@@ -386,6 +386,22 @@ body {
 .menu-item--more { font-size: 12px; color: var(--fd-text-muted); padding: 4px 8px; }
 .menu-item--more:hover { color: var(--fd-text); }
 
+/* Leading "back to the project" control, shown only for a script that is
+   inside one. Icon-only and menu-item sized so it reads as part of the bar
+   rather than as an extra row of chrome, with a hairline separating it from
+   File so it is clearly a way out and not another menu (issue #65). It picks
+   up the comfortable-chrome and touch sizing from .menu-item. */
+.menu-item--back {
+  font-size: 12px;
+  color: var(--fd-text-muted);
+  padding: 4px 8px;
+  cursor: pointer;
+  margin-right: 4px;
+  border-right: 1px solid var(--fd-border);
+  border-radius: 6px 0 0 6px;
+}
+.menu-item--back:hover { color: var(--fd-text); }
+
 /* Auth indicator — sits at the right end of the menu bar. */
 .auth-indicator {
   display: inline-flex; align-items: center; gap: 6px;
@@ -9036,10 +9052,14 @@ html.android .version-history-panel {
   html.ios.ios-windowed {
     --ios-window-gutter: 76px;
   }
-  html.ios .menu-bar {
+  /* :not(.menu-bar--floating) — the floating menu is a popup that follows the
+     draggable FAB around the window. It is not the bar in the corner, and
+     given the gutter it grew a 76px empty margin wherever it opened. The FAB
+     itself is kept clear of the control in MenuBar.tsx instead. */
+  html.ios .menu-bar:not(.menu-bar--floating) {
     padding-left: calc(6px + var(--ios-window-gutter));
   }
-  html.ios .menu-bar.chrome-comfortable {
+  html.ios .menu-bar.chrome-comfortable:not(.menu-bar--floating) {
     padding-left: calc(10px + var(--ios-window-gutter));
   }
 }
@@ -9386,6 +9406,10 @@ html.android .version-history-panel {
     gap: 12px;
     align-items: stretch;
   }
+  /* The stretch above is for the title and the controls; a back control
+     stretched to the full width of the screen reads as a banner rather than a
+     button, so keep it its own size at the leading edge. */
+  .project-list-header > .screen-back-btn { align-self: flex-start; }
   .project-list-title { font-size: 22px; }
   .project-list-controls {
     flex-wrap: wrap;
@@ -9738,7 +9762,8 @@ html.android .version-history-panel {
   .navigator-close, .script-notes-close, .version-history-close, .search-close-btn,
   .asset-manager-close, .format-panel-close, .ic-close-btn,
   .tags-panel-close, .char-profiles-close, .char-lightbox-close,
-  .location-db-close, .script-diff-close, .version-diff-close {
+  .location-db-close, .script-diff-close, .version-diff-close,
+  .asset-viewer-close, .collab-activity-close {
     min-width: 44px;
     min-height: 44px;
     display: flex;
@@ -9747,11 +9772,31 @@ html.android .version-history-panel {
     font-size: 22px;
   }
 
+  /* The same 44px floor for the two closes that cannot simply grow into it:
+     the zoom control is a small round button inside a compact floating pill,
+     and the save-failure dismiss sits in a thin banner — sizing either one up
+     would reshape the thing it lives in. Grow the touch area instead and
+     leave the drawn button alone. */
+  .zoom-panel-close, .save-failure-dismiss {
+    position: relative;
+  }
+  .zoom-panel-close::after, .save-failure-dismiss::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+
   /* The same floor for the back controls on full-screen routes, which are
      laid out as ordinary text buttons and end up around 30px tall. */
-  .settings-back-btn, .project-back-btn, .treatment-back-btn, .screen-back-btn {
+  .settings-back-btn, .project-back-btn, .treatment-back-btn, .screen-back-btn,
+  .menu-item--back {
     min-height: 44px;
     min-width: 44px;
+    justify-content: center;
   }
 
   /* Larger tap targets for scene navigator items */
@@ -11657,5 +11702,81 @@ html.android .version-history-panel {
     height: auto;
     min-height: 34px;
     padding: 6px 12px;
+  }
+}
+
+/* ── The window's top-leading corner ──────────────────────────────────────
+   iPadOS draws its window-management pill inside the top-leading corner of a
+   windowed app, over the app's own content, and reports it through no
+   safe-area inset. Anything the app puts there is buried; anything
+   interactive it puts there cannot be tapped at all (issue #66).
+
+   The menu bar reserves room for it via --ios-window-gutter, which is 0
+   unless html carries .ios-windowed. Every other surface that can reach that
+   corner has to do the same:
+
+     · the full-screen routes — Projects, a project's files, Settings, the
+       treatment editor — which each put a "back" control there, the one way
+       off the screen;
+     · the scene navigator when it is an overlay drawer rather than a docked
+       column, where the tab strip lands in the corner;
+     · the overlays that cover the menu bar entirely — fullscreen index cards
+       and character profiles, and the version diff.
+
+   The indent goes on the leading child rather than on its container, because
+   these headers set their padding afresh at every breakpoint and a padding
+   rule here would have to restate all of it to avoid flattening it.
+
+   env(safe-area-inset-top/left) is folded in throughout: none of these
+   surfaces sit inside .app-container, so none of them ever picked up the
+   generic inset rules, and full-screen on a notched device they ran their top
+   row under the status bar. */
+@supports (padding: env(safe-area-inset-top)) {
+  html.ios .project-source-bar > .project-source-tab:first-child,
+  /* :first-child — on the projects screen the corner belongs to the source
+     tabs whenever they are shown, and the back control sits below them. It
+     only needs the indent when it is the topmost row itself. */
+  html.ios .project-list-header:first-child > .screen-back-btn,
+  html.ios .project-view-header > .project-back-btn,
+  html.ios .settings-header > .settings-back-btn,
+  html.ios .treatment-header > .treatment-back-btn,
+  html.ios .index-cards-fullscreen .index-cards-header > :first-child,
+  html.ios .char-profiles-fullscreen .char-profiles-header > :first-child,
+  html.ios .script-diff-overlay .script-diff-header > :first-child {
+    margin-left: calc(env(safe-area-inset-left, 0px) + var(--ios-window-gutter, 0px));
+  }
+
+  /* Routes: applied to the topmost child so the page's own padding survives,
+     which matches how .app-container clears the status bar in the editor. */
+  html.ios .project-list-page > :first-child,
+  html.ios .project-view > .project-view-header,
+  html.ios .settings-page > .settings-header,
+  html.ios .treatment-editor-root > .treatment-header {
+    margin-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Overlays: these have no padding of their own, so the inset can go on the
+     container and let the whole panel start below the status bar. */
+  html.ios .index-cards-fullscreen,
+  html.ios .char-profiles-panel.char-profiles-fullscreen,
+  html.ios .script-diff-overlay {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  /* The index-card header is sticky inside that scroller, and sticky offsets
+     are measured from the scrollport edge — without this it slides back under
+     the status bar the moment the cards are scrolled. */
+  html.ios .index-cards-fullscreen .index-cards-header {
+    top: env(safe-area-inset-top, 0px);
+  }
+
+  /* The navigator only reaches the corner as an overlay drawer; docked, it
+     sits below the menu bar and wants neither inset. */
+  @media (max-width: 1100px) {
+    html.ios .scene-navigator {
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+    html.ios .scene-navigator .navigator-tabs > :first-child {
+      margin-left: calc(env(safe-area-inset-left, 0px) + var(--ios-window-gutter, 0px));
+    }
   }
 }

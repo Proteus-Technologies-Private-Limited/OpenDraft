@@ -16,8 +16,9 @@ import History from '@tiptap/extension-history';
 import Dropcursor from '@tiptap/extension-dropcursor';
 import Gapcursor from '@tiptap/extension-gapcursor';
 import Placeholder from '@tiptap/extension-placeholder';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
+import { useGoBackTo } from '../hooks/useGoBack';
 import { showToast } from './Toast';
 import {
   FaBold, FaItalic, FaUnderline, FaListUl, FaListOl,
@@ -30,7 +31,9 @@ import {
  */
 const TreatmentEditor: React.FC = () => {
   const { projectId, scriptId } = useParams<{ projectId: string; scriptId: string }>();
-  const navigate = useNavigate();
+  // Pop back to the project rather than pushing another copy of it, or the
+  // project's own back control walks straight back in here (issue #66).
+  const handleBack = useGoBackTo(projectId ? `/project/${projectId}` : '/projects');
 
   const [title, setTitle] = useState('Untitled Treatment');
   const [saving, setSaving] = useState(false);
@@ -142,11 +145,6 @@ const TreatmentEditor: React.FC = () => {
     setTitle(newTitle);
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => save(newTitle), 1200);
-  };
-
-  const handleBack = () => {
-    if (projectId) navigate(`/project/${projectId}`);
-    else navigate('/projects');
   };
 
   const isActive = (type: string, opts?: Record<string, unknown>) =>

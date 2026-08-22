@@ -111,7 +111,8 @@ import { showToast } from './Toast';
 import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useGoBack } from '../hooks/useGoBack';
+import { useGoBack, useGoBackTo } from '../hooks/useGoBack';
+import { setPendingSaveFlush } from '../services/pendingSave';
 import OpenFile from './OpenFile';
 import type { OpenSource } from './OpenFile';
 import WelcomeDialog, { type WelcomeChoice } from './WelcomeDialog';
@@ -260,6 +261,12 @@ const ScreenplayEditor: React.FC = () => {
   const navigate = useNavigate();
   const goBack = useGoBack();
   const isHistoryMode = Boolean(urlCommitHash);
+  // Leaving read-only history mode unwinds to the editor entry it was opened
+  // from; pushing a second one instead left the version sitting on the stack
+  // for the next Back press to walk into (issue #66).
+  const leaveHistoryMode = useGoBackTo(
+    urlProjectId && urlScriptId ? `/project/${urlProjectId}/edit/${urlScriptId}` : '/',
+  );
 
   const {
     setActiveElement, setScenes, setPageCount, setCurrentPage,
@@ -379,7 +386,9 @@ const ScreenplayEditor: React.FC = () => {
     setCurrentScriptId(null);
     setDocumentTitle('Untitled Screenplay');
     setEditorKey((k) => k + 1);
-    navigate('/');
+    // replace, not push: the session behind us is over, and leaving
+    // /collab/:token on the stack puts a dead session one Back press away.
+    navigate('/', { replace: true });
   }, [destroyCollab, navigate, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
   const handleSessionEndedRef = useRef(handleSessionEnded);
@@ -492,7 +501,8 @@ const ScreenplayEditor: React.FC = () => {
             setDocumentTitle('Untitled Screenplay');
           }
           setEditorKey((k) => k + 1);
-          if (!isHost) navigate('/');
+          // replace: the collab route no longer leads anywhere (see above).
+          if (!isHost) navigate('/', { replace: true });
         }, 0);
       },
       onAwarenessUpdate: ({ states }) => {
@@ -766,7 +776,9 @@ const ScreenplayEditor: React.FC = () => {
       } catch (err) {
         showToast('Invalid or expired collaboration link', 'error');
         setCollabLoading(false);
-        navigate('/');
+        // replace: pushing here left the bad link one Back press away, and
+        // returning to it just failed and pushed again.
+        navigate('/', { replace: true });
       }
     })();
   }, [urlCollabToken, navigate, setCurrentProject, setCurrentScriptId, setDocumentTitle, setupCollab]);
@@ -825,8 +837,9 @@ const ScreenplayEditor: React.FC = () => {
     setCollabRole('editor');
 
     if (isHost && currentProject && currentScriptId) {
-      // Navigate to the project URL so the content-loading effect reloads the saved file
-      navigate(`/project/${currentProject.id}/edit/${currentScriptId}`);
+      // Navigate to the project URL so the content-loading effect reloads the
+      // saved file. replace: the collab route it came from is finished.
+      navigate(`/project/${currentProject.id}/edit/${currentScriptId}`, { replace: true });
       showToast('Collaboration session ended', 'success');
     } else if (isHost) {
       setEditorKey((k) => k + 1);
@@ -837,7 +850,7 @@ const ScreenplayEditor: React.FC = () => {
       setCurrentScriptId(null);
       setDocumentTitle('Untitled Screenplay');
       setEditorKey((k) => k + 1);
-      navigate('/');
+      navigate('/', { replace: true });
     }
   }, [destroyCollab, collabUserName, collabColor, currentProject, currentScriptId, navigate, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
@@ -2619,10 +2632,17 @@ const ScreenplayEditor: React.FC = () => {
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
+    // ── Router path ───────────────────────────────────────────────────────
+    // Neither hook above fires when the app navigates to another screen of
+    // its own, so hand the same flush to whatever is doing the navigating
+    // (issue #65). Unregistered below, so a destroyed editor is never asked.
+    const unregisterFlush = setPendingSaveFlush(flushPendingSave);
+
     return () => {
       cancelled = true;
       if (unlistenCloseRequested) unlistenCloseRequested();
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      unregisterFlush();
     };
   }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
 
@@ -4148,13 +4168,7 @@ const ScreenplayEditor: React.FC = () => {
           </span>
           <button
             className="history-banner-back"
-            onClick={() => {
-              if (urlProjectId && urlScriptId) {
-                navigate(`/project/${urlProjectId}/edit/${urlScriptId}`);
-              } else {
-                goBack();
-              }
-            }}
+            onClick={urlProjectId && urlScriptId ? leaveHistoryMode : goBack}
           >
             Back to Current Version
           </button>

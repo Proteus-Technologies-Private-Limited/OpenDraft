@@ -486,6 +486,14 @@ const ProjectList: React.FC = () => {
     [allSortedProjects, client],
   );
 
+  /** Open a project, recording that it was reached from this screen so its
+      "← Projects" control can pop back here instead of pushing a second copy
+      of this screen on top of it (issue #66). */
+  const openProject = useCallback(
+    (id: string) => navigate(`/project/${id}`, { state: { from: '/projects' } }),
+    [navigate],
+  );
+
   const formatDate = (iso: string): string => {
     try {
       const d = new Date(iso);
@@ -577,7 +585,7 @@ const ProjectList: React.FC = () => {
                   const newId = await importProjectFromZip(result.content);
                   await fetchProjects();
                   showToast('Project imported', 'success');
-                  navigate(`/project/${newId}`);
+                  openProject(newId);
                 } catch (err) {
                   showToast(
                     `Import failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -641,7 +649,7 @@ const ProjectList: React.FC = () => {
                       project={project}
                       sortKey={sortKey}
                       source={source}
-                      onNavigate={(id) => navigate(`/project/${id}`)}
+                      onNavigate={openProject}
                       onPin={handlePin}
                       onColor={handleColor}
                       onDelete={handleDelete}
@@ -667,7 +675,7 @@ const ProjectList: React.FC = () => {
                       project={project}
                       sortKey={sortKey}
                       source={source}
-                      onNavigate={(id) => navigate(`/project/${id}`)}
+                      onNavigate={openProject}
                       onPin={handlePin}
                       onColor={handleColor}
                       onDelete={handleDelete}

@@ -286,7 +286,13 @@ const VersionHistory: React.FC = () => {
                         setVersionHistoryOpen(false);
                         setSelectedVersion(null);
                         setDiffText(null);
-                        navigate(`/project/${currentProject.id}/history/${currentScriptId}/${v.hash}`);
+                        // Record where read-only history mode was entered from
+                        // so its "Back to Current Version" can unwind rather
+                        // than push another editor entry (issue #66).
+                        navigate(
+                          `/project/${currentProject.id}/history/${currentScriptId}/${v.hash}`,
+                          { state: { from: `/project/${currentProject.id}/edit/${currentScriptId}` } },
+                        );
                       }
                     }}
                     title="View this version in the editor (read-only)"
