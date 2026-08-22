@@ -39,7 +39,7 @@ import type { LockedFormatting } from '../utils/effectiveFormatting';
 import FontPicker from './FontPicker';
 import ColorPicker from './ColorPicker';
 import LanguageSelector from './LanguageSelector';
-import { FONT_REGISTRY, loadFont } from '../utils/fonts';
+import { findFont, loadFontByName } from '../utils/fonts';
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -116,7 +116,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       const detectedSize = (attrs.fontSize as string | undefined) || '';
       const effectiveFont = detectedFont || rule?.fontFamily || fontFamily;
       setCursorFont(effectiveFont);
-      if (effectiveFont && !FONT_REGISTRY.find((f) => f.name === effectiveFont)) {
+      if (effectiveFont && !findFont(effectiveFont)) {
         setExtraFonts((prev) => (prev.includes(effectiveFont) ? prev : [...prev, effectiveFont]));
       }
       if (detectedSize) {
@@ -169,7 +169,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       const single = [...fonts][0] || '';
       const effective = single || rule?.fontFamily || fontFamily;
       setCursorFont(effective);
-      if (effective && !FONT_REGISTRY.find((f) => f.name === effective)) {
+      if (effective && !findFont(effective)) {
         setExtraFonts((prev) => (prev.includes(effective) ? prev : [...prev, effective]));
       }
     }
@@ -209,7 +209,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           for (const mark of node.marks) {
             if (mark.type.name === 'textStyle' && mark.attrs.fontFamily) {
               const f = mark.attrs.fontFamily as string;
-              if (!FONT_REGISTRY.find(r => r.name === f)) {
+              if (findFont(f)) {
+                // A font the app knows: make sure it is actually loaded, so a
+                // script written elsewhere renders in the face it names rather
+                // than only once someone opens the picker.
+                loadFontByName(f);
+              } else {
                 found.add(f);
               }
             }
@@ -551,10 +556,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         <FontPicker
           value={cursorFont}
           extraFonts={extraFonts}
+          onManageFonts={() => useEditorStore.getState().setFontsDialogOpen(true)}
           onChange={(val) => {
             if (locked.fontFamily) return;
-            const entry = FONT_REGISTRY.find(f => f.name === val);
-            if (entry) loadFont(entry);
+            loadFontByName(val);
             // Picking a font styles the selection — it must not rewrite the
             // document's own font, or every local change would redefine what
             // unstyled text elsewhere renders as (and what this picker reports

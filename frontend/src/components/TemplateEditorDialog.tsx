@@ -14,8 +14,7 @@ import {
 } from 'react-icons/fa';
 import type { FormattingTemplate, FormattingElementRule } from '../stores/formattingTypes';
 import { createDefaultRule } from '../stores/formattingTypes';
-import { FONT_CATEGORIES, getFontsByCategory } from '../utils/fonts';
-import type { FontEntry } from '../utils/fonts';
+import FontPicker from './FontPicker';
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 
@@ -226,24 +225,12 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 <div className="template-editor-field-row">
                   <div className="template-editor-field">
                     <label>Font Family</label>
-                    <select
+                    <FontPicker
                       className="dialog-input"
+                      emptyLabel="Default"
                       value={selectedRule.fontFamily || ''}
-                      onChange={(e) => updateRule(selectedId!, { fontFamily: e.target.value || null })}
-                    >
-                      <option value="">Default</option>
-                      {FONT_CATEGORIES.map((category) => {
-                        const fonts = getFontsByCategory()[category];
-                        if (!fonts || fonts.length === 0) return null;
-                        return (
-                          <optgroup key={category} label={category}>
-                            {fonts.map((font: FontEntry) => (
-                              <option key={font.name} value={font.name}>{font.name}</option>
-                            ))}
-                          </optgroup>
-                        );
-                      })}
-                    </select>
+                      onChange={(name) => updateRule(selectedId!, { fontFamily: name || null })}
+                    />
                   </div>
                   <div className="template-editor-field">
                     <label>Font Size</label>

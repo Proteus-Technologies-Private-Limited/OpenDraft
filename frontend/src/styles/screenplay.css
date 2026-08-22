@@ -11780,3 +11780,90 @@ html.android .version-history-panel {
     }
   }
 }
+
+/* ── Font picker ──────────────────────────────────────────────────────────
+   A searchable list with live previews, in place of a native <select>: the
+   library is well over a hundred families, and a writer choosing between
+   Cinzel and Cormorant has to be able to see them. */
+.font-picker-trigger {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 6px;
+  text-align: left; overflow: hidden; white-space: nowrap;
+}
+.font-picker-trigger-label {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.font-picker-caret { flex: none; opacity: .6; font-size: 9px; font-family: sans-serif; }
+
+.font-picker-popup {
+  position: fixed; z-index: 4000; min-width: 260px; max-width: 380px;
+  background: var(--fd-dropdown-bg); color: var(--fd-text);
+  border: 1px solid var(--fd-overlay-medium); border-radius: 6px;
+  box-shadow: 0 8px 28px var(--fd-shadow);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.font-picker-search-row { padding: 6px; border-bottom: 1px solid var(--fd-overlay-light); }
+.font-picker-search {
+  width: 100%; box-sizing: border-box; height: 26px; padding: 0 8px;
+  background: var(--fd-input-bg); color: var(--fd-text);
+  border: 1px solid var(--fd-overlay-medium); border-radius: 4px;
+  font-size: 12px; font-family: inherit; outline: none;
+}
+.font-picker-search:focus { border-color: var(--fd-accent); }
+
+.font-picker-list { overflow-y: auto; max-height: min(420px, 60vh); padding: 4px 0; }
+.font-picker-group {
+  padding: 6px 10px 3px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--fd-text-muted); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.font-picker-option {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding: 5px 10px; font-size: 15px; line-height: 1.35; cursor: pointer;
+}
+.font-picker-option-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.font-picker-option.is-active { background: var(--fd-menu-hover); }
+.font-picker-option.is-selected { color: var(--fd-accent); }
+.font-picker-option.is-missing .font-picker-option-name { opacity: .55; }
+.font-picker-missing-tag {
+  flex: none; font-size: 9.5px; letter-spacing: .03em; color: var(--fd-text-muted);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.font-picker-empty {
+  padding: 12px 10px; font-size: 12px; color: var(--fd-text-muted);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.font-picker-manage {
+  border: none; border-top: 1px solid var(--fd-overlay-light);
+  background: transparent; color: var(--fd-accent); text-align: left;
+  padding: 8px 10px; font-size: 12px; cursor: pointer; font-family: inherit;
+}
+.font-picker-manage:hover { background: var(--fd-menu-hover); }
+
+/* ── Fonts dialog ── */
+.fonts-dialog-intro, .fonts-dialog-note {
+  font-size: 12.5px; line-height: 1.55; opacity: .8; margin: 0 0 16px;
+}
+.fonts-dialog-note { margin: 18px 0 0; }
+.fonts-dialog-heading {
+  margin: 22px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--fd-text-muted); font-weight: 600;
+}
+.fonts-dropzone {
+  border: 1px dashed var(--fd-overlay-medium); border-radius: 8px;
+  padding: 18px; text-align: center;
+}
+.fonts-dropzone.is-dragging { border-color: var(--fd-accent); background: var(--fd-overlay-subtle); }
+.fonts-dropzone > p { margin: 0 0 10px; font-size: 13px; opacity: .8; }
+.fonts-dropzone-hint { margin: 10px 0 0 !important; font-size: 11.5px; opacity: .6; }
+.fonts-dialog-status { margin: 12px 0 0; font-size: 12.5px; color: var(--fd-accent); }
+.fonts-dialog-errors {
+  margin: 12px 0 0; padding-left: 18px; font-size: 12.5px; color: #e06c6c; line-height: 1.5;
+}
+.fonts-dialog-empty { margin: 0; font-size: 12.5px; opacity: .7; }
+.fonts-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.fonts-list-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--fd-overlay-light);
+}
+.fonts-list-sample { font-size: 17px; flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fonts-list-meta { flex: 1; min-width: 0; font-size: 11.5px; opacity: .6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fonts-list-remove { flex: none; font-size: 11.5px; }

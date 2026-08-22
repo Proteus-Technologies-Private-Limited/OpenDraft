@@ -141,15 +141,36 @@
 
     <h2 id="fonts">Fonts</h2>
 
-    <p>Screenplays traditionally use a <strong>Courier</strong> font at <strong>12pt</strong> size. The font dropdown groups what&rsquo;s available:</p>
+    <p>Screenplays traditionally use a <strong>Courier</strong> font at <strong>12pt</strong> size, and that remains the default. When you want something else, the font picker offers a full library &mdash; type in the search box at the top to filter it, and every entry is drawn in its own typeface so you can see what you are choosing.</p>
 
     <ul>
-      <li><strong>Screenplay Standard</strong> &mdash; Courier Prime (the default: a modern, highly readable Courier designed for screenwriters), Courier New, and Arial.</li>
-      <li><strong>System</strong> &mdash; Times New Roman, Georgia, Helvetica, Verdana, Tahoma and Trebuchet MS. These come from your operating system; Linux and Android may substitute a similar face.</li>
+      <li><strong>Custom Fonts</strong> &mdash; TrueType and OpenType files you have installed yourself (see below).</li>
+      <li><strong>Screenplay Standard</strong> &mdash; Courier Prime (the default: a modern, highly readable Courier designed for screenwriters), Courier New, Courier, Arial, and the Couriers that Final Draft installs.</li>
+      <li><strong>Typewriter</strong> &mdash; Special Elite, Cutive Mono, Xanh Mono and other typed-page faces.</li>
+      <li><strong>Serif</strong> &mdash; Times New Roman, Georgia, Garamond, EB Garamond, Merriweather, Playfair Display, Libre Baskerville and more.</li>
+      <li><strong>Sans Serif</strong> &mdash; Helvetica, Calibri, Segoe UI, Verdana, Open Sans, Lato, Montserrat, Inter and more.</li>
+      <li><strong>Monospace</strong> &mdash; Consolas, Menlo, Roboto Mono, IBM Plex Mono, JetBrains Mono and more.</li>
+      <li><strong>Display &amp; Titles</strong> &mdash; Bebas Neue, Cinzel, Abril Fatface, Orbitron, Rye, Bangers and other decorative faces for title pages and anything outside standard screenplay formatting.</li>
+      <li><strong>Handwriting</strong> &mdash; Caveat, Permanent Marker, Great Vibes, Rock Salt and more.</li>
       <li><strong>Latin Extended, Indic, Arabic &amp; Hebrew, CJK and more</strong> &mdash; Noto families covering most writing systems, downloaded on demand.</li>
+      <li><strong>On This Device</strong> &mdash; fonts OpenDraft found already installed on your computer or tablet.</li>
     </ul>
 
-    <p>Any font used by a document you import is listed too, under <strong>Document Fonts</strong>.</p>
+    <p>Faces that come from your operating system are checked before they are offered: one this platform hasn&rsquo;t got is greyed out and marked <em>not installed</em>, so you are never left wondering why a font looks like Courier.</p>
+
+    <p>Any font used by a document you import is listed too, under <strong>From This Document</strong>.</p>
+
+    <h3 id="custom-fonts">Adding Your Own Fonts</h3>
+
+    <p>Choose <strong>Format &rarr; Fonts&hellip;</strong> (or <em>Add or manage fonts&hellip;</em> at the bottom of the font picker), then pick or drop <code>.ttf</code>, <code>.otf</code>, <code>.woff</code> or <code>.woff2</code> files. OpenDraft reads the family name out of the font file itself, so all the weights of a family group together &mdash; add each weight as its own file to get real bold and italic rather than the browser&rsquo;s synthesised ones.</p>
+
+    <p>Installed fonts stay on that device and survive restarts. Because OpenDraft holds the actual font file, a font you install is <strong>embedded in exported PDFs</strong> &mdash; a title page set in your own typeface comes out of the PDF looking exactly as it does on screen.</p>
+
+    <p>The same dialog can list the fonts already installed on your machine, so you can write in anything you own without installing it twice.</p>
+
+    <h3 id="fonts-across-devices">Fonts Across Devices</h3>
+
+    <p>A script records the <em>name</em> of the font each piece of text is set in. Open it on another computer, tablet or phone and it keeps that choice: where the font is installed you see the font, and where it isn&rsquo;t OpenDraft substitutes the closest match of the same kind &mdash; a typewriter face for a typewriter face, a serif for a serif, a display face for a display face &mdash; rather than dropping everything to Courier. The original name is never lost, so the font comes back the moment you open the script somewhere it exists.</p>
 
     <h3 id="change-font">Changing the Font</h3>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
 import FontPicker from './FontPicker';
-import { FONT_REGISTRY, loadFont } from '../utils/fonts';
+import { findFont, loadFontByName } from '../utils/fonts';
 import { useEditorStore } from '../stores/editorStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
@@ -90,7 +90,8 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
         for (const mark of node.marks) {
           if (mark.type.name === 'textStyle' && mark.attrs.fontFamily) {
             const f = mark.attrs.fontFamily as string;
-            if (!FONT_REGISTRY.find((r) => r.name === f)) found.add(f);
+            if (findFont(f)) loadFontByName(f);
+            else found.add(f);
           }
         }
       }
@@ -167,8 +168,7 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
 
   const handleFontChange = (f: string) => {
     setFont(f);
-    const entry = FONT_REGISTRY.find((e) => e.name === f);
-    if (entry) loadFont(entry);
+    loadFontByName(f);
     preview({ f });
   };
 
@@ -289,7 +289,12 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
           {/* Font family */}
           <div className="format-row" style={locked.fontFamily ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
             <label className="format-label">Font</label>
-            <FontPicker value={font} extraFonts={extraFonts} onChange={handleFontChange} />
+            <FontPicker
+              value={font}
+              extraFonts={extraFonts}
+              onChange={handleFontChange}
+              onManageFonts={() => useEditorStore.getState().setFontsDialogOpen(true)}
+            />
           </div>
 
           {/* Font size */}

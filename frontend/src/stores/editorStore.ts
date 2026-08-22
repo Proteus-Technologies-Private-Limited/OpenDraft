@@ -751,6 +751,8 @@ interface EditorState {
   setTitlePageEditorOpen: (open: boolean) => void;
   moresContdsOpen: boolean;
   setMoresContdsOpen: (open: boolean) => void;
+  fontsDialogOpen: boolean;
+  setFontsDialogOpen: (open: boolean) => void;
   headerFooterOpen: boolean;
   setHeaderFooterOpen: (open: boolean) => void;
   // Registered by ScreenplayEditor; the menu/toolbar calls it to start image insertion.
@@ -1388,6 +1390,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setTitlePageEditorOpen: (open) => set({ titlePageEditorOpen: open }),
   moresContdsOpen: false,
   setMoresContdsOpen: (open) => set({ moresContdsOpen: open }),
+  fontsDialogOpen: false,
+  setFontsDialogOpen: (open) => set({ fontsDialogOpen: open }),
   headerFooterOpen: false,
   setHeaderFooterOpen: (open) => set({ headerFooterOpen: open }),
   imageInsertHandler: null,

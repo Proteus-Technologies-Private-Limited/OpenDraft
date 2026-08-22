@@ -164,6 +164,7 @@ import {
   FaLock,
   FaFileSignature,
   FaArrowLeft,
+  FaFont,
 } from 'react-icons/fa';
 
 interface MenuBarProps {
@@ -1634,6 +1635,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           disabled: !editor,
         },
         { separator: true, label: '' },
+        { icon: <FaFont />, label: 'Fonts…', action: () => useEditorStore.getState().setFontsDialogOpen(true) },
         { icon: <FaCommentDots />, label: 'Mores & Continueds…', action: () => useEditorStore.getState().setMoresContdsOpen(true) },
         { icon: <FaHeading />, label: 'Header & Footer…', action: () => useEditorStore.getState().setHeaderFooterOpen(true) },
         { icon: <FaImage />, label: 'Insert Image…', action: () => useEditorStore.getState().imageInsertHandler?.() },

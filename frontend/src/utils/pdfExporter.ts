@@ -15,6 +15,8 @@ import {
   embedUnicodeFont, needsUnicodeFont, requiredUnicodeStyles,
   type StyledText, type UnicodeFont,
 } from './pdfUnicodeFont';
+import { embedCustomFonts, type EmbeddedFace } from './pdfCustomFonts';
+import { genericFor } from './fonts';
 
 // --- Constants matching pagination.ts ---
 
@@ -121,10 +123,14 @@ function getPlainText(runs: TextRun[]): string {
  * any Courier must keep going through the untouched Final Draft path below.
  */
 export function pdfFontFor(family: string | undefined): 'courier' | 'times' | 'helvetica' {
-  const name = (family || '').toLowerCase();
-  if (name === '' || /courier|mono/.test(name)) return 'courier';
-  if (/times|roman|serif|georgia|garamond|palatino|book|minion|cambria/.test(name)) return 'times';
-  return 'helvetica';
+  if (!family || !family.trim()) return 'courier';
+  switch (genericFor(family)) {
+    case 'monospace': return 'courier';
+    // A script face has no Standard 14 equivalent at all; Times is the less
+    // wrong of the two, being the one with strokes of varying weight.
+    case 'serif': case 'cursive': return 'times';
+    default: return 'helvetica';
+  }
 }
 
 /**
@@ -138,6 +144,11 @@ interface FontContext {
   /** Character spacing that stretches jsPDF's Courier to the Final Draft cell. */
   courierSpace: number;
   unicode: UnicodeFont | null;
+  /**
+   * The writer's own installed fonts, whose bytes are in this document — keyed
+   * by lowercased family name. Empty when the script uses none.
+   */
+  embedded: Map<string, EmbeddedFace>;
 }
 
 /**
@@ -147,8 +158,15 @@ interface FontContext {
  * it, in which case the embedded Unicode face, which can.
  */
 function faceFor(text: string, family: string | undefined, fonts: FontContext): string {
+  const named = family || fonts.documentFont;
+  // An installed font is drawn in itself — it carries its own glyphs, so it
+  // needs no Unicode fallback and no Standard 14 approximation.
+  if (named && fonts.embedded.size > 0) {
+    const own = fonts.embedded.get(named.trim().toLowerCase());
+    if (own) return own.id;
+  }
   if (fonts.unicode && needsUnicodeFont(text)) return fonts.unicode.id;
-  return pdfFontFor(family || fonts.documentFont);
+  return pdfFontFor(named);
 }
 
 /** Whether a face sits on Final Draft's fixed cell — Courier and the fallback do. */
@@ -317,7 +335,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
   // of titlePage + image nodes. The title page renders its nodes in DOCUMENT
   // ORDER (free-flow / WYSIWYG), matching the editor and DOCX.
   const nodes: NodeInfo[] = [];
-  interface TitleItem { kind: 'text' | 'image'; field?: string; text?: string; titleSize?: number; attrs?: Record<string, unknown>; }
+  interface TitleItem { kind: 'text' | 'image'; field?: string; text?: string; titleSize?: number; font?: string; attrs?: Record<string, unknown>; }
   const titleItems: TitleItem[] = [];
 
   // Where the title page ends. Shared with the paginator, the DOCX exporter and
@@ -340,13 +358,19 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
       if (typeName === 'screenplayImage') {
         titleItems.push({ kind: 'image', attrs: (node.attrs || {}) as Record<string, unknown> });
       } else {
+        const titleRuns = extractRuns(node);
         titleItems.push({
           kind: 'text',
           // A node absorbed into the region that is not a title-page node is a
           // stray blank line; render it as a spacer, never as the title.
           field: typeName === 'titlePage' ? ((node.attrs?.field as string) || 'title') : 'blank',
-          text: getPlainText(extractRuns(node)),
+          text: getPlainText(titleRuns),
           titleSize: Number(node.attrs?.tpTitleFontSize) || 12,
+          // The title page is where a display face earns its keep, so the line
+          // is drawn in the font its text carries rather than the document's.
+          // One font per line: the page is flattened to plain text here, as it
+          // has been since it was laid out free-flow.
+          font: titleRuns.find((r) => r.text.trim() && r.fontFamily)?.fontFamily,
         });
       }
       return;
@@ -397,10 +421,20 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     ...[hContent, fContent].flatMap((c) => [{ text: c.left }, { text: c.center }, { text: c.right }]),
   );
 
+  // Fonts the writer installed themselves are embedded outright, so a script
+  // set in one exports as that font rather than as the nearest built-in.
+  const usedFamilies = new Set<string>();
+  if (documentFont) usedFamilies.add(documentFont);
+  for (const node of nodes) {
+    for (const run of node.runs) if (run.fontFamily) usedFamilies.add(run.fontFamily);
+  }
+  for (const it of titleItems) if (it.font) usedFamilies.add(it.font);
+
   const fonts: FontContext = {
     documentFont,
     courierSpace,
     unicode: await embedUnicodeFont(pdf, requiredUnicodeStyles(drawn), FD_CHAR_WIDTH_PT),
+    embedded: embedCustomFonts(pdf, usedFamilies),
   };
 
   let currentY = topMarginPt;
@@ -456,7 +490,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
           // that can write them. jsPDF aligns on its own measurement here, as
           // the title page has always been laid out free-flow rather than on
           // the Final Draft cell.
-          selectFace(pdf, drawnLine, fonts, { bold: isTitle });
+          selectFace(pdf, drawnLine, fonts, { bold: isTitle, family: it.font });
           if (line && y + lineH <= bottom) {
             pdf.text(drawnLine, x, y + lineH, { align });
           } else if (line) {

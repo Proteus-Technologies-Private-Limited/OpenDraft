@@ -8,6 +8,7 @@
 import type { FormattingTemplate, FormattingElementRule } from '../stores/formattingTypes';
 import { ELEMENT_CSS_CLASS } from '../stores/formattingTypes';
 import type { PageLayout } from '../stores/editorStore';
+import { fontStack } from './fonts';
 
 const STYLE_ELEMENT_ID = 'opendraft-template-css';
 
@@ -94,7 +95,9 @@ function generateRuleProperties(
 
   // Font family & size (null = use document default)
   if (rule.fontFamily) {
-    props.push(`font-family: '${rule.fontFamily}', 'Courier Prime', 'Courier New', monospace;`);
+    // Fallbacks matched to the font's own shape, so an element set in a serif
+    // or display face doesn't drop to Courier on a machine without it.
+    props.push(`font-family: ${fontStack(rule.fontFamily)};`);
   }
   if (rule.fontSize != null) {
     props.push(`font-size: ${rule.fontSize}pt;`);

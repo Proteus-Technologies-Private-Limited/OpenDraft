@@ -15,7 +15,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
-import FontFamily from '@tiptap/extension-font-family';
+import FontFamily from '../editor/extensions/ScreenplayFontFamily';
 import { Extension } from '@tiptap/core';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
@@ -131,6 +131,8 @@ import { stashSessionDoc, takeSessionDoc, clearSessionDoc } from '../utils/sessi
 import SaveAsDialog from './SaveAsDialog';
 import TitlePageEditor from './TitlePageEditor';
 import MoresContdsDialog from './MoresContdsDialog';
+import FontsDialog from './FontsDialog';
+import { fontStack } from '../utils/fonts';
 import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
@@ -668,6 +670,7 @@ const ScreenplayEditor: React.FC = () => {
     openFileOpen, setOpenFileOpen, saveAsOpen, setSaveAsOpen,
     titlePageEditorOpen, setTitlePageEditorOpen,
     moresContdsOpen, setMoresContdsOpen,
+    fontsDialogOpen, setFontsDialogOpen,
     compareVersionOpen, setCompareVersionOpen,
     setTrackChangesEnabled, setTrackChangesLabel,
   } = useEditorStore();
@@ -3779,6 +3782,15 @@ const ScreenplayEditor: React.FC = () => {
             const pos = payload.position;
             if (pos) {
               const el = document.elementFromPoint(pos.x, pos.y);
+              // Font files dropped on the Fonts dialog are installed, not
+              // imported as a script — the dialog reads the paths itself.
+              if (el?.closest('.fonts-dropzone')) {
+                const paths = payload.paths;
+                if (paths && paths.length > 0) {
+                  window.dispatchEvent(new CustomEvent('tauri-font-drop', { detail: { paths } }));
+                }
+                return;
+              }
               if (el?.closest('.asset-manager')) {
                 const paths = payload.paths;
                 if (paths && paths.length > 0) {
@@ -4357,7 +4369,7 @@ const ScreenplayEditor: React.FC = () => {
                   className={`page${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}`}
                   ref={pageRef}
                   style={{
-                    fontFamily: `'${fontFamily}', 'Courier New', Courier, monospace`,
+                    fontFamily: fontStack(fontFamily),
                     fontSize: `${fontSize}pt`,
                     width: `${pageLayout.pageWidth}in`,
                     minHeight: `${lastPageEnd + (pageLayout.bottomMargin / 72) * 96}px`,
@@ -4375,7 +4387,7 @@ const ScreenplayEditor: React.FC = () => {
                     // variable has to be overridden here for the page to
                     // actually render in the font the document is set in.
                     ...{
-                      '--screenplay-font': `'${fontFamily}', 'Courier New', Courier, monospace`,
+                      '--screenplay-font': fontStack(fontFamily),
                       '--screenplay-font-size': `${fontSize}pt`,
                     } as React.CSSProperties,
                   }}
@@ -4605,6 +4617,10 @@ const ScreenplayEditor: React.FC = () => {
           onClose={() => setTitlePageEditorOpen(false)}
         />
       )}
+      {fontsDialogOpen && (
+        <FontsDialog onClose={() => setFontsDialogOpen(false)} />
+      )}
+
       {!isHistoryMode && moresContdsOpen && (
         <MoresContdsDialog onClose={() => setMoresContdsOpen(false)} />
       )}
