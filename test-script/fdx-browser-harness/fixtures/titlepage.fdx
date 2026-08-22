@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<FinalDraft DocumentType="Script" Template="No" Version="5">
+  <TitlePage>
+    <Content>
+      <Paragraph Alignment="Center"><Text>THE LONG GOODBYE</Text></Paragraph>
+      <Paragraph Alignment="Center"><Text>Written by</Text></Paragraph>
+      <Paragraph Alignment="Center"><Text>Jane Writer</Text></Paragraph>
+      <Paragraph Alignment="Left"><Text>Second Draft</Text></Paragraph>
+      <Paragraph Alignment="Right"><Text>jane@example.com</Text></Paragraph>
+      <Paragraph Alignment="Right"><Text>Copyright 2026 Jane Writer</Text></Paragraph>
+    </Content>
+  </TitlePage>
+  <Content>
+    <Paragraph Type="Scene Heading"><Text>INT. LAB - DAY</Text></Paragraph>
+    <Paragraph Type="Action"><Text>A car pulls up outside.</Text></Paragraph>
+    <Paragraph Type="Character"><Text>JANE</Text></Paragraph>
+    <Paragraph Type="Dialogue"><Text>We are live.</Text></Paragraph>
+  </Content>
+  <PageLayout TopMargin="72" BottomMargin="72" BreakDialogueAndActionAtSentences="Yes">
+    <PageSize Width="8.50" Height="11.00"/>
+  </PageLayout>
+</FinalDraft>
