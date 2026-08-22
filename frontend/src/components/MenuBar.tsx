@@ -29,6 +29,7 @@ import ScriptFormatPreferencesDialog from './ScriptFormatPreferencesDialog';
 import ScriptFormatPickerDialog from './ScriptFormatPickerDialog';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { applyScriptFormat } from '../utils/applyScriptFormat';
+import { isTitlePageRuleId } from '../stores/formattingTypes';
 import { INDUSTRY_STANDARD_ID, ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { selectionStartsNewPage } from '../editor/extensions';
@@ -1587,7 +1588,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {
           icon: <FaListOl />, label: 'Element',
           children: [
-            ...Object.values(activeTemplate.rules).filter((r) => r.enabled).map((r) => {
+            // Title page fields have template rules but are not conversion
+            // targets — "make this line of action a copyright notice" is not a
+            // thing. They are reached through the Title Page editor.
+            ...Object.values(activeTemplate.rules).filter((r) => r.enabled && !isTitlePageRuleId(r.id)).map((r) => {
               const shortcuts: Record<string, string> = {
                 sceneHeading: `${mod}1`, action: `${mod}2`, character: `${mod}3`, dialogue: `${mod}4`,
                 parenthetical: `${mod}5`, transition: `${mod}6`, general: `${mod}7`, shot: `${mod}8`,
