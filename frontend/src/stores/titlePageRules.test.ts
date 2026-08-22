@@ -78,3 +78,54 @@ describe('title page element rules', () => {
     expect(block).toContain('font-size: 24pt;');
   });
 });
+
+describe('applying the template to the title page', () => {
+  // The industry-standard template is served by the static stylesheet, so it
+  // takes a different path — and the title page has no static rules a template
+  // can drive. Emitting nothing there meant a title font set in the template
+  // worked on every template except the default one.
+  it('emits the title page rules even for the industry-standard template', () => {
+    const css = generateTemplateCss(INDUSTRY_STANDARD_TEMPLATE, DEFAULT_PAGE_LAYOUT, {
+      titlePageOnly: true,
+    });
+    for (const { field } of TITLE_PAGE_ELEMENTS) {
+      expect(css, field).toContain(`.screenplay-element.title-page-${field}`);
+    }
+  });
+
+  it('emits nothing else in that mode — the body keeps the static stylesheet', () => {
+    const css = generateTemplateCss(INDUSTRY_STANDARD_TEMPLATE, DEFAULT_PAGE_LAYOUT, {
+      titlePageOnly: true,
+    });
+    expect(css).not.toContain('scene-heading');
+    expect(css).not.toContain('.character');
+    expect(css).not.toContain('.dialogue');
+  });
+
+  it('carries a template title font through on the default template', () => {
+    const template = {
+      ...INDUSTRY_STANDARD_TEMPLATE,
+      rules: {
+        ...INDUSTRY_STANDARD_TEMPLATE.rules,
+        'titlePage:title': {
+          ...INDUSTRY_STANDARD_TEMPLATE.rules['titlePage:title'],
+          fontFamily: 'Bebas Neue',
+          fontSize: 30,
+        },
+      },
+    };
+    const css = generateTemplateCss(template, DEFAULT_PAGE_LAYOUT, { titlePageOnly: true });
+    const block = css.split('.screenplay-element.title-page-title')[1] ?? '';
+    expect(block).toContain("'Bebas Neue'");
+    expect(block).toContain('font-size: 30pt;');
+  });
+
+  it('beats the static stylesheet on specificity, or it would never show', () => {
+    // screenplay.css styles `.title-page-title` with one class; the generated
+    // rule must outrank it rather than merely come later in the cascade.
+    const css = generateTemplateCss(INDUSTRY_STANDARD_TEMPLATE, DEFAULT_PAGE_LAYOUT, {
+      titlePageOnly: true,
+    });
+    expect(css).toContain('.page .screenplay-element.title-page-title');
+  });
+});

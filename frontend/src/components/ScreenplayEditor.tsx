@@ -1566,10 +1566,16 @@ const ScreenplayEditor: React.FC = () => {
       ? `.screenplay-content .scene-heading { margin-top: ${sceneHeadingSpaceBefore}pt; }\n`
         + '.screenplay-content .scene-heading:first-child { margin-top: 0; }'
       : '';
-    // If the resolved template is industry standard, use static CSS
+    // If the resolved template is industry standard, the body elements are
+    // served by the static stylesheet — but the title page is not. It has no
+    // static rules a template can reach, so its own are emitted even here, or
+    // setting a title-page font would work on every template except the one
+    // most writers are using.
     if (template.id === '__industry_standard__') {
-      injectTemplateCss(overrideCss || null);
-      return;
+      const titlePageCss = generateTemplateCss(template, pageLayout, { titlePageOnly: true });
+      const combined = [titlePageCss, overrideCss].filter(Boolean).join('\n');
+      injectTemplateCss(combined || null);
+      return () => { injectTemplateCss(null); };
     }
     const css = generateTemplateCss(template, pageLayout);
     injectTemplateCss(overrideCss ? `${css}\n${overrideCss}` : css);

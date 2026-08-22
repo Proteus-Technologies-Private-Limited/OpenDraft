@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
-import type { Node as PMNode } from '@tiptap/pm/model';
+import type { Node as PMNode, Mark } from '@tiptap/pm/model';
 import type { TitlePageAttrs } from '../editor/extensions/TitlePage';
 import { useEditorStore } from '../stores/editorStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
@@ -184,8 +184,29 @@ function buildTitlePageBlocks(
   const imageType = schema.nodes.screenplayImage;
   const { byLine, draftLine, copyrightLine } = deriveFields(data);
   const blank = () => titlePageType.create({ field: 'blank' });
+
+  // Whatever the writer set on each field by hand, so applying the dialog does
+  // not throw it away.
+  //
+  // Every apply rebuilds the title page from the field values, and the text
+  // nodes were built bare — so a title set in a display face reverted to the
+  // template's font the moment anything else on the page was edited. The marks
+  // are the writer's own formatting: they win over the template, and they are
+  // what has to survive.
+  const keptMarks = new Map<string, readonly Mark[]>();
+  editor.state.doc.forEach((node) => {
+    if (node.type.name !== 'titlePage') return;
+    const field = node.attrs?.field as string | undefined;
+    if (!field || field === 'blank' || keptMarks.has(field)) return;
+    const first = node.firstChild;
+    if (first?.isText && first.marks.length > 0) keptMarks.set(field, first.marks);
+  });
+
   const text = (field: string, t: string): PMNode =>
-    titlePageType.create(field === 'title' ? { field: 'title', ...data } : { field }, t ? schema.text(t) : undefined);
+    titlePageType.create(
+      field === 'title' ? { field: 'title', ...data } : { field },
+      t ? schema.text(t, keptMarks.get(field) as Mark[] | undefined) : undefined,
+    );
   const imgLines = (a: Record<string, unknown>) => Math.max(1, Number(a.heightLines) || 8);
 
   // Sized from the document's own page, not a hardcoded 54-line US Letter. A4 —

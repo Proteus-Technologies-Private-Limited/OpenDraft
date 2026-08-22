@@ -6,7 +6,7 @@
  */
 
 import type { FormattingTemplate, FormattingElementRule } from '../stores/formattingTypes';
-import { ELEMENT_CSS_CLASS, titlePageFieldOf } from '../stores/formattingTypes';
+import { ELEMENT_CSS_CLASS, titlePageFieldOf, isTitlePageRuleId } from '../stores/formattingTypes';
 import type { PageLayout } from '../stores/editorStore';
 import { fontStack } from './fonts';
 
@@ -15,14 +15,29 @@ const STYLE_ELEMENT_ID = 'opendraft-template-css';
 /**
  * Generate a complete CSS string from a template and page layout.
  */
+export interface TemplateCssOptions {
+  /**
+   * Emit only the title page's rules.
+   *
+   * The industry-standard template is served by the static stylesheet rather
+   * than generated CSS, which is why it takes this path at all — but the title
+   * page has no static equivalent a template can drive, so its rules have to be
+   * emitted even there or a title-page font set in the template does nothing on
+   * the default template.
+   */
+  titlePageOnly?: boolean;
+}
+
 export function generateTemplateCss(
   template: FormattingTemplate,
   pageLayout: PageLayout,
+  options: TemplateCssOptions = {},
 ): string {
   const lines: string[] = [];
 
   for (const [elementId, rule] of Object.entries(template.rules)) {
     if (!rule.enabled) continue;
+    if (options.titlePageOnly && !isTitlePageRuleId(elementId)) continue;
 
     const selector = getSelector(elementId, rule);
     const props = generateRuleProperties(rule, pageLayout);
