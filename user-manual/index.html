@@ -174,6 +174,21 @@
 
     <h2 id="whats-new">What's New</h2>
 
+    <h3>v0.25.0</h3>
+    <ul>
+      <li><strong>A Font Library Worth The Name</strong> &mdash; Around 185 fonts, grouped by what they are: screenplay, typewriter, serif, sans-serif, monospace, display faces for title pages, handwriting, and the Noto families covering most writing systems. The picker searches, and every name is drawn in its own face. Courier Prime 12pt is still what a new script is. See <a href="formatting.html#fonts">Fonts</a>.</li>
+      <li><strong>Install Your Own Fonts</strong> &mdash; <em>Format &rarr; Fonts&hellip;</em> takes TrueType and OpenType files. The family name is read out of the font itself, so weights group together. Because OpenDraft holds the file, a font you install is embedded in exported PDFs. See <a href="formatting.html#custom-fonts">Adding Your Own Fonts</a>.</li>
+      <li><strong>The Fonts Already On Your Device</strong> &mdash; Faces from your operating system are checked before they are offered: one this platform hasn&rsquo;t got is greyed out and marked <em>not installed</em>, instead of silently rendering as Courier. On iPad and Android, where no app can list installed fonts, you can add one by name.</li>
+      <li><strong>A Font Choice Travels With The Script</strong> &mdash; Open a script on a machine without the font and OpenDraft substitutes the closest match of the same kind &mdash; a typewriter face for a typewriter face, a serif for a serif &mdash; rather than dropping everything to Courier. The original name is kept, so the font returns the moment you open it somewhere it exists. See <a href="formatting.html#fonts-across-devices">Fonts Across Devices</a>.</li>
+      <li><strong>The Title Page Is Part Of The Template</strong> &mdash; Title, Credit &amp; Author, Draft &amp; Date, Contact, Copyright and Notes are formatting elements like any other, so you can set the title in a display face at 24pt and leave the contact block in Courier. Anything you change by hand outranks the template and stays put. See <a href="formatting.html#formatting-templates">Formatting Templates</a>.</li>
+      <li><strong>Comfortable On A Tablet</strong> &mdash; Touch devices start in the comfortable toolbar, and the menus, font list and dialogs have finger-sized targets rather than mouse-sized ones. The font picker no longer closed itself the instant the on-screen keyboard appeared, which on iPad made tapping it look like it did nothing at all.</li>
+      <li><strong>Cut, Copy And Paste From The Menus</strong> &mdash; All three ran on the DOM selection, and tapping a menu item takes focus out of the editor &mdash; which on iOS collapses the selection with it, so Cut and Copy silently did nothing and Paste had never worked from a menu at all.</li>
+      <li><strong>Pasted Text Keeps Its Font</strong> &mdash; A paste used to have every font stripped out of it. It now keeps the face it came with, while taking the element type of wherever it lands.</li>
+      <li><strong>Highlights Come Across</strong> &mdash; Google Docs, Word Online, Notes and the browsers all write a highlight as a coloured background rather than a <code>&lt;mark&gt;</code>, so a highlighted sentence pasted in as plain text. It arrives highlighted now.</li>
+      <li><strong>Images Live Outside The Document</strong> &mdash; An image added to a script with no project behind it was embedded inside the document, where a single phone photo weighed about as much as five hundred pages of screenplay &mdash; enough to push the file past the crash-recovery limit and leave it with no crash protection at all.</li>
+      <li><strong>Android: Back At The First Screen</strong> &mdash; Pressing Back on the opening screen now backgrounds the app, the way every Android app does, instead of tearing down the view and reopening to a blank white page.</li>
+    </ul>
+
     <h3>v0.24.1</h3>
     <ul>
       <li><strong>Header &amp; Footer Has Its Own Dialog</strong> &mdash; <em>Format &rarr; Header &amp; Footer</em>, out of the bottom of Page Setup where nobody found it. Buttons insert the page number, total pages, title, date and revision colour into whichever slot you are typing in, and a preview of the first two pages shows what you will actually get. See <a href="page-setup.html#headers-footers">Headers &amp; Footers</a>.</li>
