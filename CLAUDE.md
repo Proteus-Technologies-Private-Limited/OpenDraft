@@ -115,6 +115,26 @@ The Android `.apk` and `.aab` are built via **GitHub Actions** (in `.github/work
 4. Builds both `.apk` (sideloadable) and `.aab` (Play Store)
 5. Uploads renamed artifacts (`OpenDraft_X.Y.Z_android.apk/aab`) to the GitHub Release
 
+### 16 KB memory page support (required by Google Play)
+
+Apps targeting Android 15+ must ship native libraries laid out for 16 KB memory
+pages; Play has refused updates without it since November 2025. NDK 27's linker
+still defaults to 4 KB, so `src-tauri/build.rs` passes
+`-Wl,-z,max-page-size=16384` for Android targets.
+
+That flag lives in `build.rs`, **not** in `.cargo/config.toml`: the Tauri CLI
+sets `CARGO_TARGET_<TRIPLE>_RUSTFLAGS` for every Android build, and that
+environment variable replaces a target's rustflags from config rather than
+merging with them, so anything written there is dropped silently.
+
+The `Verify native libraries are 16 KB page aligned` CI step reads the alignment
+back off the built APK and fails the release if it regresses. To check by hand:
+
+```bash
+$NDK_HOME/toolchains/llvm/prebuilt/*/bin/llvm-readelf -l libopendraft_lib.so | grep LOAD
+# the last column must be 0x4000, not 0x1000
+```
+
 ### GitHub Secrets for Android signing
 
 For unsigned builds (testing), no secrets are needed. For signed/production builds, add these repository secrets:

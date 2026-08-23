@@ -635,6 +635,104 @@ jobs:
           fi
           echo "Verified: WindowActivity1-3 and file associations are in $(basename "$APK")"
 
+      # Google Play blocks updates whose native libraries are not laid out for
+      # 16 KB memory pages — mandatory for anything targeting Android 15+ since
+      # November 2025. The linker flag that does it is emitted by the android
+      # branch of src-tauri/build.rs, which a Tauri or NDK upgrade could quietly
+      # stop applying: the Tauri CLI passes its own rustflags for Android, and
+      # nothing here would fail. The rejection would land days later in the Play
+      # Console, on a release that is already tagged. So read the alignment back
+      # off the APK that actually ships.
+      - name: Verify native libraries are 16 KB page aligned
+        run: |
+          set -euo pipefail
+          APK=$(find src-tauri/gen/android -name "*.apk" -path "*/release/*" ! -name "*unsigned*" | head -1)
+          if [ -z "$APK" ]; then
+            APK=$(find src-tauri/gen/android -name "*.apk" -path "*/release/*" | head -1)
+          fi
+          if [ -z "$APK" ]; then
+            echo "::error::No release APK found to check for 16 KB page alignment"
+            exit 1
+          fi
+
+          # -type f would miss it: llvm-readelf ships as a symlink to llvm-readobj.
+          READELF=$(find "$NDK_HOME/toolchains/llvm/prebuilt" -name llvm-readelf \( -type f -o -type l \) | head -1)
+          if [ -z "$READELF" ]; then
+            echo "::error::llvm-readelf not found under $NDK_HOME — cannot verify 16 KB page alignment"
+            exit 1
+          fi
+
+          WORK=$(mktemp -d)
+          unzip -q "$APK" 'lib/*' -d "$WORK"
+          SOS=$(find "$WORK/lib" -name "*.so" | sort)
+          if [ -z "$SOS" ]; then
+            echo "::error::No native libraries inside $(basename "$APK") — the Rust library did not make it into the APK."
+            exit 1
+          fi
+
+          FAILED=0
+          for SO in $SOS; do
+            NAME="${SO#"$WORK"/lib/}"
+            MIN=""
+            for ALIGN in $("$READELF" -l "$SO" | awk '$1 == "LOAD" { print $NF }'); do
+              BYTES=$((ALIGN))
+              if [ -z "$MIN" ] || [ "$BYTES" -lt "$MIN" ]; then
+                MIN=$BYTES
+              fi
+            done
+            if [ -z "$MIN" ]; then
+              echo "::error::$NAME has no LOAD segments — it is not a loadable library."
+              FAILED=1
+            elif [ "$MIN" -lt 16384 ]; then
+              echo "::error::$NAME is aligned to $MIN bytes, not 16384 — Google Play will reject this bundle, and the app would not load on a 16 KB device. See the android branch of src-tauri/build.rs."
+              FAILED=1
+            else
+              echo "  $NAME: aligned to $MIN bytes"
+            fi
+          done
+          if [ "$FAILED" -ne 0 ]; then
+            exit 1
+          fi
+
+          # Alignment inside the ELF only helps if the library is also stored
+          # uncompressed at a page boundary inside the APK, so the loader can
+          # map it straight out of the archive. `zipalign -c -P 16` is not the
+          # check for that: it has nothing to say about entries that are
+          # compressed, so an APK that deflates its libraries passes it.
+          APK="$APK" python3 << 'PYEOF'
+          import os, struct, sys, zipfile
+
+          apk = os.environ["APK"]
+          bad = []
+          with zipfile.ZipFile(apk) as z, open(apk, "rb") as raw:
+              libs = [i for i in z.infolist()
+                      if i.filename.startswith("lib/") and i.filename.endswith(".so")]
+              if not libs:
+                  sys.exit("::error::No lib/*.so entries in %s" % os.path.basename(apk))
+              for info in libs:
+                  if info.compress_type != zipfile.ZIP_STORED:
+                      bad.append("%s is compressed, so it cannot be mapped from the APK "
+                                 "(set jniLibs useLegacyPackaging = false)" % info.filename)
+                      continue
+                  # The central directory records where the local header starts;
+                  # the payload sits past that header's name and extra fields.
+                  raw.seek(info.header_offset)
+                  header = raw.read(30)
+                  name_len, extra_len = struct.unpack("<HH", header[26:30])
+                  data_offset = info.header_offset + 30 + name_len + extra_len
+                  if data_offset % 16384:
+                      bad.append("%s starts at offset %d, which is not a 16 KB boundary"
+                                 % (info.filename, data_offset))
+
+          for problem in bad:
+              print("::error::%s" % problem)
+          if bad:
+              sys.exit("%d native librar%s not packaged for 16 KB pages."
+                       % (len(bad), "y is" if len(bad) == 1 else "ies are"))
+          print("Verified: every native library in %s is stored uncompressed on a "
+                "16 KB boundary" % os.path.basename(apk))
+          PYEOF
+
       - name: Build Android AAB
         env:
           KEYSTORE_PATH: ${{ env.KEYSTORE_PATH }}
