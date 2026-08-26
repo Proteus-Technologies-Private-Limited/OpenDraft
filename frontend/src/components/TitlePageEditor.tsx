@@ -460,11 +460,17 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
             {showField('tpDraftDate') && (
             <div className="props-field">
               <label className="props-label">Draft Date</label>
+              {/* Free text, not a date picker. A title page dates a draft the way
+                  a writer would write it — "26 August 2026", "Winter 2026" — and
+                  that is what Fountain's `Draft date:` carries either way. A
+                  `type="date"` input renders nothing but ISO yyyy-mm-dd, so an
+                  imported date was held correctly and still shown as an empty
+                  box, with no way to read or edit it. */}
               <input
                 className="props-input"
-                type="date"
                 value={data.tpDraftDate}
                 onChange={(e) => setField('tpDraftDate', e.target.value)}
+                placeholder="e.g. 26 August 2026"
               />
             </div>
             )}

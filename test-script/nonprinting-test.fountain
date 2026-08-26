@@ -1,0 +1,46 @@
+Title: Non-Printing Test
+Credit: Screenplay by
+Author: Alex Example
+Source: Based on a true story
+Draft date: 26 August 2026
+Notes: These notes should survive a round trip.
+Contact:
+	Alex Example
+	1 Example Street
+	Mumbai
+
+# ACT ONE
+
+= An act that opens on a street at dawn.
+
+## Sequence A
+
+INT. COFFEE SHOP - DAY
+
+= Mia orders and gets bad news.
+
+Mia waits at the counter. [[check the barista's name]]
+
+[[a note on its own line — the whole line should vanish]]
+
+MIA
+This is the first line of my speech.
+This is the second line and it must stay dialogue.
+
+MIA
+A paragraph break follows.
+  
+And this is still dialogue after the intentional blank.
+
+/*
+This boneyard text is commented out
+and must not appear anywhere.
+*/
+
+> THE END <
+
+# ACT TWO
+
+EXT. STREET - NIGHT
+
+Rain falls.
