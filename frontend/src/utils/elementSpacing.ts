@@ -40,6 +40,9 @@ export const DEFAULT_SPACE_BEFORE: Record<string, number> = {
   sceneHeading: 2, action: 1, character: 1, dialogue: 0,
   parenthetical: 0, transition: 1, general: 0, shot: 1,
   newAct: 2, endOfAct: 2, lyrics: 0, showEpisode: 1, castList: 0,
+  // On screen they get a line of air like any other block; on the page they
+  // take none, because pagination skips them outright — see NON_PRINTING_TYPES.
+  section: 1, note: 1,
 };
 
 /** The subset of a formatting template this module reads. */

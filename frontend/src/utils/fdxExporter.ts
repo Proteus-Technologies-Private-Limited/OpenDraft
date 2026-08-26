@@ -5,6 +5,7 @@ import { resolveHeaderFooter } from '../stores/editorStore';
 import { CUSTOM_TYPE_TO_FDX } from './fdxParser';
 import { jsonBlockText } from './nodeText';
 import { sanitizeExportFilename } from './exportFilename';
+import { isNonPrintingType } from './nonPrinting';
 
 const NODE_TO_FDX: Record<string, string> = {
   sceneHeading: 'Scene Heading',
@@ -452,6 +453,10 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   if (doc.content) {
     for (const node of doc.content) {
       // FDX has no representation for inserted images — skip them.
+      // Fountain's non-printing structure has no Final Draft equivalent that
+      // stays off the page — a Paragraph of any type prints — so it is left out
+      // rather than smuggled in as Action.
+      if (isNonPrintingType(node.type)) continue;
       if (node.type === 'screenplayImage') continue;
       // The title page has already been written to <TitlePage><Content>, which
       // is where Final Draft looks for it. Emitting these here as well put the

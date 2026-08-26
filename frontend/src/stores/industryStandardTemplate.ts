@@ -7,7 +7,7 @@
 
 import type { FormattingTemplate, FormattingElementRule } from './formattingTypes';
 import { INDUSTRY_STANDARD_ID } from './formattingTypes';
-import { titlePageRules } from './templates/_helpers';
+import { outlineRules, titlePageRules } from './templates/_helpers';
 
 function rule(
   id: string,
@@ -146,6 +146,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       nextOnEnter: 'castList',
       placeholder: 'Cast...',
     }),
+    ...outlineRules(),
     // The title page's own elements, so its typography is part of the template
     // rather than fixed in the stylesheet.
     ...titlePageRules(),

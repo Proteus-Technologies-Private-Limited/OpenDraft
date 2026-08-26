@@ -6,10 +6,15 @@ import { useEditorStore } from '../stores/editorStore';
 import { singleLine } from '../utils/nodeText';
 
 // Element types for the picker sheet
+// Fountain's non-printing structural elements. Last in every list — they are
+// outline, not script, so they must never crowd out the element a writer is
+// reaching for mid-scene.
+const OUTLINE_TYPES: ElementType[] = ['section', 'note'];
+
 const ELEMENT_TYPES: ElementType[] = [
   'sceneHeading', 'action', 'character', 'dialogue', 'parenthetical',
   'transition', 'general', 'shot', 'newAct', 'endOfAct', 'lyrics',
-  'showEpisode', 'castList',
+  'showEpisode', 'castList', ...OUTLINE_TYPES,
 ];
 
 // Context-aware ordering: most likely choices first
@@ -27,7 +32,12 @@ const ELEMENT_ORDER: Record<string, ElementType[]> = {
   lyrics:       ['lyrics', 'dialogue', 'action', 'character', 'general', 'sceneHeading', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'showEpisode', 'castList'],
   showEpisode:  ['action', 'sceneHeading', 'showEpisode', 'general', 'character', 'dialogue', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'castList'],
   castList:     ['castList', 'action', 'character', 'general', 'sceneHeading', 'dialogue', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode'],
+  section:      ['action', 'sceneHeading', 'section', 'general', 'character', 'dialogue', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
+  note:         ['action', 'note', 'sceneHeading', 'general', 'character', 'dialogue', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
 };
+for (const [type, order] of Object.entries(ELEMENT_ORDER)) {
+  ELEMENT_ORDER[type] = [...order, ...OUTLINE_TYPES.filter((t) => !order.includes(t))];
+}
 
 interface MobileAccessoryBarProps {
   editor: Editor;

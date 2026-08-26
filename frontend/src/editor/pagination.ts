@@ -11,6 +11,7 @@ import { getTextLines } from '../utils/wrapText';
 import { DEFAULT_SPACE_BEFORE, buildSpaceBefore, getSpaceBefore, type SpaceBeforeSource } from '../utils/elementSpacing';
 import { findTitlePageRegion, titlePageAttrsCarryData } from '../utils/titlePageRegion';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { isNonPrintingType } from '../utils/nonPrinting';
 
 export const paginationPluginKey = new PluginKey('pagination');
 
@@ -265,11 +266,19 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
     const sb = isFirst ? 0 : (hints.spaceBefore[elementId] ?? 0);
     const lineMul = hints.lineHeightMultiplier[elementId] ?? 1;
     // Images occupy a fixed estimated number of lines (no text to wrap).
-    const fixedLines = typeName === 'screenplayImage'
-      ? Math.max(1, Number(node.attrs?.heightLines) || 8)
-      : undefined;
+    // Sections and Notes are structure, not script — they never reach the page,
+    // so they occupy no lines and claim no space before them. Counted like any
+    // other block they would push the page break somewhere the printed script
+    // has no element at all, and the page count on screen would stop matching
+    // the PDF.
+    const nonPrinting = isNonPrintingType(typeName);
+    const fixedLines = nonPrinting
+      ? 0
+      : typeName === 'screenplayImage'
+        ? Math.max(1, Number(node.attrs?.heightLines) || 8)
+        : undefined;
     nodes.push({
-      typeName, elementId, spaceBefore: sb, text: node.textContent || '',
+      typeName, elementId, spaceBefore: nonPrinting ? 0 : sb, text: node.textContent || '',
       offset, nodeSize: node.nodeSize, lineMul, fixedLines,
       startsNewPage: node.attrs?.startsNewPage === true,
       hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
@@ -456,8 +465,11 @@ export function computeSceneLengths(
   doc.forEach((node) => {
     const typeName = node.type.name;
     const cpl = CHARS_PER_LINE[typeName] || 62;
-    const textLines = getTextLines(node.textContent || '', cpl);
-    const sb = nodeIdx === 0 ? 0 : (hints.spaceBefore[typeName] ?? 0);
+    // A Section or Note inside a scene adds nothing to its length, for the same
+    // reason it adds nothing to the page: it is never printed.
+    const nonPrinting = isNonPrintingType(typeName);
+    const textLines = nonPrinting ? 0 : getTextLines(node.textContent || '', cpl);
+    const sb = nodeIdx === 0 || nonPrinting ? 0 : (hints.spaceBefore[typeName] ?? 0);
 
     if (typeName === 'sceneHeading') {
       if (inScene) lengths.push(sceneLines / linesPerPage);
@@ -542,9 +554,12 @@ export function computePageBlocks(
     for (let i = pb.startNode; i <= Math.min(pb.endNode, nodes.length - 1); i++) {
       const node = nodes[i];
       const cpl = CHARS_PER_LINE[node.typeName] || 62;
-      const textLines = getTextLines(node.text, cpl);
-      const sb = firstOnPage ? 0 : (hints.spaceBefore[node.typeName] ?? 0);
-      firstOnPage = false;
+      const nonPrinting = isNonPrintingType(node.typeName);
+      const textLines = nonPrinting ? 0 : getTextLines(node.text, cpl);
+      const sb = firstOnPage || nonPrinting ? 0 : (hints.spaceBefore[node.typeName] ?? 0);
+      // A non-printing block does not count as the first thing on the page —
+      // the element after it still gets its space before.
+      if (!nonPrinting) firstOnPage = false;
 
       blocks.push({
         typeName: node.typeName,

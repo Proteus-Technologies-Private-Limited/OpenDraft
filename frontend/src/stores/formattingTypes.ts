@@ -119,6 +119,10 @@ export const ELEMENT_DESCRIPTIONS: Record<string, string> = {
   parenthetical: 'A short direction to the actor, in brackets inside a dialogue block.',
   transition: 'How the film moves to the next scene — CUT TO:, DISSOLVE TO:.',
   sceneHeading: 'Where and when a scene takes place — INT./EXT., location, time of day.',
+  section:
+    'An outline heading, from Fountain\u2019s # Section. Structure only: it shows in the '
+    + 'navigator but never on the printed page. Use New Act for an act break a reader should see.',
+  note: 'An aside to yourself, kept in the file and left off the printed page.',
 };
 
 /** The 13 built-in element type ids (matches ElementType union). */
@@ -136,6 +140,8 @@ export const BUILT_IN_ELEMENT_IDS: readonly string[] = [
   'lyrics',
   'showEpisode',
   'castList',
+  'section',
+  'note',
 ] as const;
 
 /**
@@ -156,6 +162,8 @@ export const ELEMENT_CSS_CLASS: Record<string, string> = {
   lyrics: 'lyrics',
   showEpisode: 'show-episode',
   castList: 'cast-list',
+  section: 'section',
+  note: 'note',
 };
 
 /** Sentinel ID for the industry standard template (never stored in DB). */

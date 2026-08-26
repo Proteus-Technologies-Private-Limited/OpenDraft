@@ -17,6 +17,7 @@ import {
 } from './pdfUnicodeFont';
 import { embedCustomFonts, type EmbeddedFace } from './pdfCustomFonts';
 import { genericFor } from './fonts';
+import { isNonPrintingType } from './nonPrinting';
 
 // --- Constants matching pagination.ts ---
 
@@ -353,6 +354,12 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
 
   docNodes.forEach((node, index) => {
     const typeName = node.type || 'general';
+
+    // Fountain's Sections and Notes are outline, not script. The spec is
+    // explicit that they stay in the file and off the printed page, and
+    // pagination already counts them as nothing — so the PDF must not draw
+    // them, or the file would run longer than the page count on screen.
+    if (isNonPrintingType(typeName)) return;
 
     if (hasTitlePage && index < region.length) {
       if (typeName === 'screenplayImage') {

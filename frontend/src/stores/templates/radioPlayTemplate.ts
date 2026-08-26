@@ -9,7 +9,7 @@
  */
 
 import type { FormattingTemplate, StarterNode } from '../formattingTypes';
-import { rule, disabled } from './_helpers';
+import { rule, disabled, outlineRules } from './_helpers';
 
 export const RADIO_PLAY_ID = '__radio_play__';
 
@@ -105,6 +105,7 @@ export const RADIO_PLAY_TEMPLATE: FormattingTemplate = {
       nextOnEnter: 'sceneHeading',
       placeholder: 'SHOW TITLE',
     }),
+    ...outlineRules(),
     castList: disabled('castList', 'Cast List'),
     // Custom: SFX cue, all caps
     soundEffect: rule('soundEffect', 'Sound Effect', false, {

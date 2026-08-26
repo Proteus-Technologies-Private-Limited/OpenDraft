@@ -4,6 +4,10 @@ import { ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 
 // Context-aware element ordering: most likely choices first per current type
+// The two non-printing elements sit at the end of every list: they are
+// structure, not script, so they should never be the first thing offered.
+const OUTLINE_TYPES: ElementType[] = ['section', 'note'];
+
 const ELEMENT_ORDER: Record<string, ElementType[]> = {
   sceneHeading: ['action', 'character', 'general', 'transition', 'shot', 'sceneHeading', 'dialogue', 'parenthetical', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
   action:       ['action', 'character', 'dialogue', 'general', 'sceneHeading', 'transition', 'shot', 'parenthetical', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
@@ -18,11 +22,17 @@ const ELEMENT_ORDER: Record<string, ElementType[]> = {
   lyrics:       ['lyrics', 'dialogue', 'action', 'character', 'general', 'sceneHeading', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'showEpisode', 'castList'],
   showEpisode:  ['action', 'sceneHeading', 'showEpisode', 'general', 'character', 'dialogue', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'castList'],
   castList:     ['castList', 'action', 'character', 'general', 'sceneHeading', 'dialogue', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode'],
+  section:      ['action', 'sceneHeading', 'section', 'general', 'character', 'dialogue', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
+  note:         ['action', 'note', 'sceneHeading', 'general', 'character', 'dialogue', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
 };
+for (const [type, order] of Object.entries(ELEMENT_ORDER)) {
+  ELEMENT_ORDER[type] = [...order, ...OUTLINE_TYPES.filter((t) => !order.includes(t))];
+}
 
 const DEFAULT_ORDER: ElementType[] = [
   'action', 'character', 'dialogue', 'general', 'sceneHeading', 'parenthetical',
   'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList',
+  ...OUTLINE_TYPES,
 ];
 
 interface ElementPickerProps {

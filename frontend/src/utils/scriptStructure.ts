@@ -33,8 +33,33 @@ export interface StructureAct {
   scenes: StructureScene[];
 }
 
+/**
+ * A Fountain Section (`#`, `##`, …) as a node of the outline tree.
+ *
+ * Sections are a hierarchy of their own, running alongside acts rather than
+ * inside them: a writer can outline in Sections without ever inserting an Act
+ * Break, and can do both at once. They are also never printed, which is what
+ * separates them from `newAct` — see utils/nonPrinting.ts.
+ */
+export interface StructureSection {
+  /** 1-based depth: the number of hashes the Section was written with. */
+  level: number;
+  title: string;
+  /** The `=` synopsis lines filed under this Section, if any. */
+  synopsis: string;
+  /** 0-based index among all `section` nodes, for navigating to it. */
+  sectionIndex: number;
+  /** Scenes under this Section, before the next Section at its level or above. */
+  scenes: StructureScene[];
+  children: StructureSection[];
+}
+
 export interface ScriptStructure {
   acts: StructureAct[];
+  /** The Section outline, nested by level. Empty when the script has none. */
+  sections: StructureSection[];
+  /** Total number of Sections at every level — what the outline header counts. */
+  totalSections: number;
   /** Map of sceneIndex → actNumber (null if no acts exist yet). */
   sceneActMap: Map<number, number | null>;
   /** Flat count of scene-heading nodes in the document. */
@@ -93,6 +118,14 @@ export function computeScriptStructure(doc: JSONContent): ScriptStructure {
     });
   };
 
+  // The Section outline. `openSections` is the chain of Sections currently in
+  // scope, deepest last — a new Section closes every open one at its level or
+  // deeper, and a Fountain file is free to jump from `#` straight to `###`, so
+  // the chain is trimmed by level rather than by counting rungs.
+  const sections: StructureSection[] = [];
+  const openSections: StructureSection[] = [];
+  let sectionIndex = 0;
+
   let currentAct: StructureAct | null = null;
   let sceneIndex = 0;
   let blockPos = 0;  // approximate TipTap pos — 1 for opening of each block, + size
@@ -118,6 +151,26 @@ export function computeScriptStructure(doc: JSONContent): ScriptStructure {
         scenes: [],
       };
       acts.push(currentAct);
+      blockPos += 2;
+      continue;
+    }
+
+    if (node.type === 'section') {
+      const level = Math.max(1, Number(node.attrs?.level) || 1);
+      const entry: StructureSection = {
+        level,
+        title: singleLine(getText(node)),
+        synopsis: (node.attrs?.synopsis as string | undefined) || '',
+        sectionIndex: sectionIndex++,
+        scenes: [],
+        children: [],
+      };
+      while (openSections.length > 0 && openSections[openSections.length - 1].level >= level) {
+        openSections.pop();
+      }
+      if (openSections.length === 0) sections.push(entry);
+      else openSections[openSections.length - 1].children.push(entry);
+      openSections.push(entry);
       blockPos += 2;
       continue;
     }
@@ -150,6 +203,8 @@ export function computeScriptStructure(doc: JSONContent): ScriptStructure {
       }
       targetAct.scenes.push(scene);
       sceneActMap.set(sceneIndex, targetAct.actNumber > 0 ? targetAct.actNumber : null);
+      // A scene belongs to the deepest Section still open above it.
+      if (openSections.length > 0) openSections[openSections.length - 1].scenes.push(scene);
 
       // Attach to sequence if applicable
       if (sequenceId) {
@@ -180,6 +235,8 @@ export function computeScriptStructure(doc: JSONContent): ScriptStructure {
 
   return {
     acts,
+    sections,
+    totalSections: sectionIndex,
     sceneActMap,
     totalScenes: sceneIndex,
   };

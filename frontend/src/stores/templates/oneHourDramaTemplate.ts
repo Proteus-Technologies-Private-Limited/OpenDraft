@@ -7,7 +7,7 @@
  */
 
 import type { FormattingTemplate, StarterNode } from '../formattingTypes';
-import { rule } from './_helpers';
+import { rule, outlineRules } from './_helpers';
 
 export const ONE_HOUR_DRAMA_ID = '__one_hour_drama__';
 
@@ -122,6 +122,7 @@ export const ONE_HOUR_DRAMA_TEMPLATE: FormattingTemplate = {
       nextOnEnter: 'newAct',
       placeholder: 'SHOW TITLE',
     }),
+    ...outlineRules(),
     castList: rule('castList', 'Cast List', true, {
       textTransform: 'uppercase',
       leftIndent: 1.75,

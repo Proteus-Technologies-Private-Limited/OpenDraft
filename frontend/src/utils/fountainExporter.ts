@@ -2,6 +2,7 @@
 import type { JSONContent } from '@tiptap/react';
 import { jsonBlockRuns, mergeRuns, singleLine } from './nodeText';
 import { sanitizeExportFilename } from './exportFilename';
+import { clampSectionLevel } from '../editor/extensions/Section';
 
 /**
  * Escape the characters Fountain reads as emphasis markup, so text the writer
@@ -110,8 +111,24 @@ const SCENE_HEADING_RE = /^(INT\.|EXT\.|EST\.|INT\.\/EXT\.|I\/E\.)/;
 /** The parser's all-caps-ending-in-`TO:` transition heuristic. */
 const TRANSITION_RE = /^[A-Z\s]+TO:$/;
 
-/** Leading characters the parser reads as a forcing sigil or block marker. */
-const SIGIL_RE = /^[!~.>@=]/;
+/**
+ * Leading characters the parser reads as a forcing sigil or block marker.
+ *
+ * `#` joined the list when Sections did: without it a line of Action that opens
+ * with a hash — a hashtag, a scene number a writer typed by hand — came back as
+ * a section heading and vanished from the printed page.
+ */
+const SIGIL_RE = /^[!~.>@=#]/;
+
+/**
+ * The opening of a Fountain note, which has no escape in the spec — so Action
+ * containing one has to be forced with `!`, or the brackets and everything
+ * between them are lifted out of the line as an annotation on the way back in.
+ *
+ * The boneyard's `/*` needs no equivalent: `escapeFountain` backslashes every
+ * asterisk, so the marker can never survive into the output intact.
+ */
+const NOTE_MARKER_RE = /\[\[/;
 
 /** Mirrors `isCharacterLine` in fountainParser. */
 function parsesAsCharacter(line: string): boolean {
@@ -135,6 +152,7 @@ function actionText(text: string): string {
       if (trimmed === '') return line;
       const ambiguous =
         SIGIL_RE.test(trimmed) ||
+        NOTE_MARKER_RE.test(trimmed) ||
         SCENE_HEADING_RE.test(trimmed.toUpperCase()) ||
         TRANSITION_RE.test(trimmed) ||
         parsesAsCharacter(trimmed);
@@ -190,6 +208,36 @@ function characterLine(node: JSONContent, suffix = ''): string {
   return `${needsForce ? '@' : ''}${cue}${suffix}`;
 }
 
+/**
+ * Elements that continue the dialogue block they are in.
+ *
+ * Fountain ends a dialogue block at a blank line, so a blank line may only be
+ * written where the block is actually meant to end. The exporter used to put
+ * one after every Dialogue node — and a speech is several nodes whenever it
+ * came from the Fountain parser, which makes one node per line. Saved and
+ * reopened, every line of a speech after the first came back as Action.
+ */
+const DIALOGUE_FAMILY = new Set(['dialogue', 'parenthetical', 'lyrics']);
+
+/** Does the block after this one belong to the same dialogue block? */
+function continuesDialogue(next: JSONContent | undefined): boolean {
+  return !!next && DIALOGUE_FAMILY.has(next.type ?? '');
+}
+
+/**
+ * The `=` lines for an element's synopsis.
+ *
+ * A synopsis is stored as one string and may hold several lines — the parser
+ * files every `=` line it finds under the same heading. Each needs its own `=`
+ * on the way out: a raw newline would end the synopsis and turn the rest into
+ * Action.
+ */
+function synopsisLines(node: JSONContent): string[] {
+  const synopsis = node.attrs?.synopsis;
+  if (typeof synopsis !== 'string' || synopsis.trim() === '') return [];
+  return synopsis.split('\n').map((line) => `= ${line.trim()}`);
+}
+
 export function exportFountain(doc: JSONContent): string {
   const lines: string[] = [];
 
@@ -215,8 +263,9 @@ export function exportFountain(doc: JSONContent): string {
     lines.push('');
   }
 
-  for (const node of doc.content) {
+  doc.content.forEach((node, index) => {
     const text = getTextContent(node);
+    const next = doc.content?.[index + 1];
 
     // A manual page break before this element — Fountain spells it `===`.
     if (node.attrs?.startsNewPage && node.type !== 'titlePage') {
@@ -235,13 +284,36 @@ export function exportFountain(doc: JSONContent): string {
       case 'sceneHeading':
         lines.push('');
         lines.push(sceneHeadingLine(node));
-        if (node.attrs?.synopsis) {
-          lines.push(`= ${node.attrs.synopsis}`);
-        }
+        lines.push(...synopsisLines(node));
         lines.push('');
         break;
       case 'action':
+        // Centred Action is Fountain's `>text<`, and the only way to say
+        // "centred" in the format. Written as plain Action it came back flush
+        // left, so the centring survived neither a save nor a re-open.
+        if (node.attrs?.textAlign === 'center') {
+          lines.push('');
+          lines.push(`> ${singleLine(text).trim()} <`);
+          lines.push('');
+          break;
+        }
         lines.push(actionText(text));
+        lines.push('');
+        break;
+      // Fountain's two non-printing elements. Neither is Action: written as
+      // Action a Section prints on the page it exists to stay off, which is
+      // what issue #82 saw on the way in.
+      case 'section': {
+        const level = clampSectionLevel(node.attrs?.level);
+        lines.push('');
+        lines.push(`${'#'.repeat(level)} ${lineText(node)}`.trimEnd());
+        lines.push(...synopsisLines(node));
+        lines.push('');
+        break;
+      }
+      case 'note':
+        lines.push('');
+        lines.push(`[[${text.trim()}]]`);
         lines.push('');
         break;
       case 'general':
@@ -259,7 +331,7 @@ export function exportFountain(doc: JSONContent): string {
       }
       case 'dialogue':
         lines.push(dialogueText(node));
-        lines.push('');
+        if (!continuesDialogue(next)) lines.push('');
         break;
       case 'transition':
         lines.push('');
@@ -285,7 +357,7 @@ export function exportFountain(doc: JSONContent): string {
         if (node.content) {
           node.content.forEach((col, colIndex) => {
             if (col.type === 'dualDialogueColumn' && col.content) {
-              for (const child of col.content) {
+              col.content.forEach((child, childIndex) => {
                 if (child.type === 'character') {
                   lines.push('');
                   // Second column character gets ^ marker — it must stay on the
@@ -296,9 +368,9 @@ export function exportFountain(doc: JSONContent): string {
                   lines.push(p.startsWith('(') ? p : `(${p})`);
                 } else if (child.type === 'dialogue') {
                   lines.push(dialogueText(child));
-                  lines.push('');
+                  if (!continuesDialogue(col.content?.[childIndex + 1])) lines.push('');
                 }
-              }
+              });
             }
           });
         }
@@ -307,7 +379,7 @@ export function exportFountain(doc: JSONContent): string {
         lines.push(text);
         break;
     }
-  }
+  });
 
   return lines.join('\n');
 }

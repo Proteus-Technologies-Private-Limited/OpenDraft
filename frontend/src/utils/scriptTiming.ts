@@ -28,6 +28,9 @@ const ELEMENT_RATES: Record<string, number> = {
   showEpisode: 0,
   titlePage: 0,
   sceneHeading: 0,
+  // Non-printing: nothing on the page, so nothing on the clock.
+  section: 0,
+  note: 0,
 };
 
 /** Fixed time for transition elements (seconds) */

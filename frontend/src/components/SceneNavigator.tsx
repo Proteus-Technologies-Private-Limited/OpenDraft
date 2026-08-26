@@ -6,7 +6,7 @@ import { useEditorStore } from '../stores/editorStore';
 import { computeSceneLengths, computePageBlocks, activeTemplateHints, type PageContentInfo } from '../editor/pagination';
 import { getSpaceBefore } from '../utils/elementSpacing';
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
-import { computeScriptStructure, sceneActLabel, type ScriptStructure } from '../utils/scriptStructure';
+import { computeScriptStructure, sceneActLabel, type ScriptStructure, type StructureSection } from '../utils/scriptStructure';
 import SynopsisModal from './SynopsisModal';
 import { showToast } from './Toast';
 import { blockContentRange, characterKey, singleLine } from '../utils/nodeText';
@@ -189,6 +189,76 @@ const FD_INDENTS: Record<string, [number, number]> = {
 
 const LINE_HEIGHT_PX = 12 * (96 / 72); // 16px — matches pagination LINE_HEIGHT_PT
 
+// ── Section outline ─────────────────────────────────────────────────────
+
+interface SectionOutlineProps {
+  sections: StructureSection[];
+  onGoToSection: (sectionIndex: number) => void;
+  onGoToScene: (sceneIndex: number) => void;
+  query: string;
+}
+
+/**
+ * The Fountain Section outline, rendered as the tree the hashes describe.
+ *
+ * Depth comes from the node's own level rather than from how deep the recursion
+ * has run, so an outline that skips a rung — `#` straight to `###`, which the
+ * format allows — is still drawn where the writer put it.
+ */
+const SectionOutline: React.FC<SectionOutlineProps> = ({
+  sections, onGoToSection, onGoToScene, query,
+}) => (
+  <>
+    {sections.map((section) => (
+      <div key={`section-${section.sectionIndex}`} className="structure-section">
+        <div
+          className="structure-section-header"
+          style={{ paddingLeft: `${8 + (section.level - 1) * 12}px` }}
+          onClick={() => onGoToSection(section.sectionIndex)}
+          title={section.synopsis || undefined}
+        >
+          <span className="structure-section-level">{'#'.repeat(section.level)}</span>
+          <span className="structure-section-name">
+            {highlightText(section.title || 'Untitled section', query)}
+          </span>
+          {section.scenes.length > 0 && (
+            <span className="structure-section-count">{section.scenes.length}</span>
+          )}
+        </div>
+        {section.synopsis !== '' && (
+          <div
+            className="structure-section-synopsis"
+            style={{ paddingLeft: `${20 + (section.level - 1) * 12}px` }}
+          >
+            {section.synopsis}
+          </div>
+        )}
+        {section.scenes.length > 0 && (
+          <div className="structure-scene-list">
+            {section.scenes.map((scene) => (
+              <div
+                key={`section-scene-${section.sectionIndex}-${scene.sceneIndex}`}
+                className="structure-scene"
+                style={{ paddingLeft: `${20 + (section.level - 1) * 12}px` }}
+                onClick={() => onGoToScene(scene.sceneIndex)}
+              >
+                <span className="structure-scene-num">{scene.sceneIndex + 1}</span>
+                <span className="structure-scene-heading">{scene.heading}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <SectionOutline
+          sections={section.children}
+          onGoToSection={onGoToSection}
+          onGoToScene={onGoToScene}
+          query={query}
+        />
+      </div>
+    ))}
+  </>
+);
+
 // ── Main component ──────────────────────────────────────────────────────
 
 const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style }) => {
@@ -354,11 +424,14 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   // ── Compute act/sequence structure ──
 
   const structure: ScriptStructure = useMemo(() => {
-    if (!editor) return { acts: [], sceneActMap: new Map(), totalScenes: 0 };
+    const empty: ScriptStructure = {
+      acts: [], sections: [], totalSections: 0, sceneActMap: new Map(), totalScenes: 0,
+    };
+    if (!editor) return empty;
     try {
       return computeScriptStructure(editor.getJSON());
     } catch {
-      return { acts: [], sceneActMap: new Map(), totalScenes: 0 };
+      return empty;
     }
   }, [editor, scenes]);
 
@@ -548,6 +621,40 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         }
         return true;
       });
+      editor.chain().focus().setTextSelection(targetPos + 1).run();
+      requestAnimationFrame(() => {
+        const coords = editor.view.coordsAtPos(targetPos + 1);
+        if (scrollContainer) {
+          const containerRect = scrollContainer.getBoundingClientRect();
+          const scrollTo = scrollContainer.scrollTop + (coords.top - containerRect.top) - 60;
+          scrollContainer.scrollTo({ top: scrollTo, behavior: 'auto' });
+        }
+      });
+    },
+    [editor, scrollContainer],
+  );
+
+  /**
+   * Scroll to the nth Section in the document.
+   *
+   * Sections are addressed by their ordinal rather than a stored position for
+   * the same reason scenes are: the structure is rebuilt from the document's
+   * JSON, which carries no ProseMirror positions.
+   */
+  const goToSection = useCallback(
+    (sectionIndex: number) => {
+      if (!editor) return;
+      const { doc } = editor.state;
+      let seen = -1;
+      let targetPos = -1;
+      doc.descendants((node, pos) => {
+        if (node.type.name === 'section') {
+          seen++;
+          if (seen === sectionIndex) { targetPos = pos; return false; }
+        }
+        return true;
+      });
+      if (targetPos < 0) return;
       editor.chain().focus().setTextSelection(targetPos + 1).run();
       requestAnimationFrame(() => {
         const coords = editor.view.coordsAtPos(targetPos + 1);
@@ -923,14 +1030,33 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
           <div className="navigator-header">
             <span className="navigator-title">Structure</span>
             <span className="scene-count">
-              {structure.acts.filter((a) => a.actNumber > 0).length || '—'} acts
+              {structure.totalSections > 0
+                ? `${structure.totalSections} section${structure.totalSections === 1 ? '' : 's'}`
+                : `${structure.acts.filter((a) => a.actNumber > 0).length || '—'} acts`}
             </span>
           </div>
           <div className="navigator-list">
-            {structure.acts.length === 0 ? (
-              <div className="navigator-empty">
-                No structure yet. Insert an Act Break from the element selector, or start writing scenes.
+            {/* The Section outline, when the script has one. It sits above the
+                acts rather than inside them: Sections and Act Breaks are two
+                separate hierarchies, and a script can use either or both. */}
+            {structure.sections.length > 0 && (
+              <div className="structure-outline">
+                <div className="structure-outline-title">Outline</div>
+                <SectionOutline
+                  sections={structure.sections}
+                  onGoToSection={goToSection}
+                  onGoToScene={goToScene}
+                  query={searchQuery}
+                />
               </div>
+            )}
+            {structure.acts.length === 0 ? (
+              structure.sections.length === 0 && (
+                <div className="navigator-empty">
+                  No structure yet. Add a Section for an outline heading, insert an Act Break from
+                  the element selector, or start writing scenes.
+                </div>
+              )
             ) : (
               structure.acts.map((act) => {
                 const isCollapsed = collapsedActs.has(act.actNumber);

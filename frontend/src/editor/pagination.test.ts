@@ -149,3 +149,44 @@ describe('space before comes from the template', () => {
     expect(loose.length).toBeGreaterThan(tight.length);
   });
 });
+
+describe('non-printing elements take no space on the page', () => {
+  const layout = DEFAULT_PAGE_LAYOUT;
+  const linesPerPage = getPageMetrics(layout).linesPerPage;
+
+  /** A run of Action blocks, one line each, filling exactly one page. */
+  const fullPage = () =>
+    Array.from({ length: linesPerPage }, (_, i) => block('action', `Line ${i}.`));
+
+  it('does not push an element onto a second page', () => {
+    // Every Action line is preceded by a blank line, so `linesPerPage / 2`
+    // blocks fill the page. Sections and Notes are never printed — counted like
+    // any other block they would move the break to an element the reader of the
+    // PDF cannot see, and the page count on screen would stop matching the file.
+    const half = fullPage().slice(0, Math.floor(linesPerPage / 2));
+    const withoutOutline = computeBreaks(pmDoc(doc(...half)), layout).breaks;
+    const withOutline = computeBreaks(
+      pmDoc(doc(
+        { ...block('section', 'ACT ONE'), attrs: { level: 1 } },
+        block('note', 'Remember to cut this scene down.'),
+        ...half,
+      )),
+      layout,
+    ).breaks;
+    expect(withoutOutline).toHaveLength(0);
+    expect(withOutline).toHaveLength(0);
+  });
+
+  it('leaves the page a break falls on unchanged', () => {
+    const body = fullPage();
+    const plain = computeBreaks(pmDoc(doc(...body)), layout);
+    const outlined = computeBreaks(
+      pmDoc(doc({ ...block('section', 'ACT ONE'), attrs: { level: 1 } }, ...body)),
+      layout,
+    );
+    expect(outlined.pageCount).toBe(plain.pageCount);
+    // One node further along, because the Section itself is node 0.
+    expect(outlined.breaks.map((b) => b.nodeIndex))
+      .toEqual(plain.breaks.map((b) => b.nodeIndex + 1));
+  });
+});
