@@ -45,6 +45,9 @@ const TITLE_PAGE_KEYS: Record<string, string> = {
   contact: 'tpContact',
   copyright: 'tpCopyright',
   notes: 'tpNotes',
+  // Not a key in the spec's list, but the format is open key/value and this is
+  // what `exportFountain` writes, so OpenDraft can read its own file back.
+  'wga registration': 'tpWgaRegistration',
 };
 
 /**

@@ -20,6 +20,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 
+
 interface ScribbleInputProps {
   editor: Editor;
   /** Where the converted text goes — captured before this sheet took focus. */

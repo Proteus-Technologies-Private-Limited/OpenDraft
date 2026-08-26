@@ -436,3 +436,47 @@ describe('exportFountain — elements Fountain has no element for', () => {
       .toEqual(['Wide on the harbour.', 'NARRATOR: It began here.']);
   });
 });
+
+describe('Fountain title page — fields that used to be dropped', () => {
+  const titleAttrs = (fountain: string): Record<string, unknown> => {
+    const node = parse(fountain).find((n) => n.attrs?.field === 'title');
+    return (node?.attrs ?? {}) as Record<string, unknown>;
+  };
+
+  const roundTripAttrs = (attrs: Record<string, string>): Record<string, unknown> => {
+    const written = exportFountain(doc({
+      type: 'titlePage',
+      attrs: { field: 'title', ...attrs },
+      content: [{ type: 'text', text: attrs.tpTitle ?? 'X' }],
+    }));
+    return titleAttrs(written);
+  };
+
+  it('keeps the notes the parser has always read', () => {
+    // `Notes:` was parsed but never written, so a title page's notes survived
+    // an import and were dropped by the very next save.
+    expect(roundTripAttrs({ tpTitle: 'X', tpNotes: 'Third revision' }).tpNotes)
+      .toBe('Third revision');
+  });
+
+  it('keeps a WGA registration', () => {
+    expect(roundTripAttrs({ tpTitle: 'X', tpWgaRegistration: 'WGA #1234' }).tpWgaRegistration)
+      .toBe('WGA #1234');
+  });
+
+  it('keeps a contact block on more than one line', () => {
+    // Written as a literal `\n` this came back with the escape in the address.
+    const contact = 'Jane Writer\n1 Example Street\njane@example.com';
+    expect(roundTripAttrs({ tpTitle: 'X', tpContact: contact }).tpContact).toBe(contact);
+  });
+
+  it('writes a multi-line value as indented continuation lines', () => {
+    const out = exportFountain(doc({
+      type: 'titlePage',
+      attrs: { field: 'title', tpTitle: 'X', tpContact: 'One\nTwo' },
+      content: [{ type: 'text', text: 'X' }],
+    }));
+    expect(out).toContain('Contact: One\n    Two');
+    expect(out).not.toContain('\\n');
+  });
+});

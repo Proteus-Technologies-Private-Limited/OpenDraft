@@ -122,6 +122,18 @@
       element you get if you import that Fountain file again &mdash; the column where the losses show up.
     </p>
 
+    <p>Anything in <span class="lossy-key">red</span> is a conversion that loses something:</p>
+
+    <ul>
+      <li><strong>Converted</strong> &mdash; the text survives but becomes a different element
+        (New Act becoming Action, say). Nothing is lost from the page; what is lost is the element it was.</li>
+      <li><strong>Flattened</strong> &mdash; a structure becomes ordinary paragraphs. Dual dialogue stops
+        being two columns; AV rows stop being two columns.</li>
+      <li><strong>Not exported</strong> &mdash; the element is left out of the file entirely. Every one of
+        these is non-printing, so nothing disappears from the printed script &mdash; but the outline,
+        the notes and the synopses do not travel.</li>
+    </ul>
+
     <div style="overflow-x: auto;">
     <table>
       <thead>
@@ -153,10 +165,50 @@
         <tr><td>Scene synopsis</td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td><code>= &hellip;</code></td><td>Scene synopsis</td></tr>
         <tr><td>Dual dialogue</td><td>DualDialogue</td><td class="lossy">two speeches, one after the other</td><td class="lossy">flattened</td><td><code>^</code> on the second cue</td><td>Dual dialogue</td></tr>
         <tr><td>AV script rows</td><td>General pairs, re-read by OpenDraft</td><td class="lossy">flattened</td><td class="lossy">flattened</td><td class="lossy">rows in order, labelled with notes</td><td class="lossy"><strong>Action</strong></td></tr>
-        <tr><td>Images</td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td>embedded</td><td class="lossy"><strong>not exported</strong> (plain text)</td><td class="lossy">&mdash;</td></tr>
+        <tr><td>Images</td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td>embedded</td><td class="lossy"><strong>not exported</strong> (Fountain is plain text)</td><td class="lossy">&mdash;</td></tr>
+        <tr><td>Custom elements<br><span class="muted">(declared by a template)</span></td><td class="lossy">converted to the built-in element it is based on</td><td class="lossy">converted</td><td class="lossy">converted</td><td class="lossy">converted</td><td class="lossy"><strong>the base element</strong></td></tr>
       </tbody>
     </table>
     </div>
+
+    <h2 id="title-page">Title Page Fields</h2>
+
+    <p>
+      The title page has its own fields, and they travel separately from the script. Final Draft and
+      Word have no named title-page fields at all &mdash; a title page is a run of centred paragraphs
+      &mdash; so everything is written onto the page in the right place, but an import has to guess
+      which line was which.
+    </p>
+
+    <div style="overflow-x: auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Final Draft (.fdx)</th>
+          <th>Fade In / OSF</th>
+          <th>Fountain</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Title</td><td>on the page</td><td><code>title</code></td><td><code>Title:</code></td></tr>
+        <tr><td>Credit <span class="muted">(&ldquo;Written by&rdquo;)</span></td><td>on the page</td><td class="lossy"><strong>not exported</strong></td><td><code>Credit:</code></td></tr>
+        <tr><td>Written By</td><td>on the page</td><td><code>author</code></td><td><code>Author:</code></td></tr>
+        <tr><td>Based On</td><td>on the page</td><td><code>subtitle</code></td><td><code>Source:</code></td></tr>
+        <tr><td>Draft &amp; date</td><td>on the page, joined</td><td><code>draft</code>, joined</td><td><code>Draft:</code> and <code>Draft date:</code></td></tr>
+        <tr><td>Contact</td><td>on the page</td><td><code>contact</code></td><td><code>Contact:</code></td></tr>
+        <tr><td>Copyright</td><td>on the page</td><td><code>copyright</code></td><td><code>Copyright:</code></td></tr>
+        <tr><td>WGA registration</td><td>on the page</td><td class="lossy"><strong>not exported</strong></td><td><code>WGA registration:</code></td></tr>
+        <tr><td>Notes</td><td>on the page</td><td><code>notes</code></td><td><code>Notes:</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+      Fountain has no standard key for a WGA registration, but a Fountain title page is an open list of
+      <code>key: value</code> pairs and a reader that does not recognise one ignores it &mdash; so
+      OpenDraft writes it and reads it back, and no other application is harmed by it.
+    </p>
 
     <h2 id="fountain-general">Why General comes back as Action</h2>
 
@@ -203,8 +255,6 @@
         character descriptions, but not notes or tags.</li>
       <li><strong>Version history and revision marks</strong> &mdash; kept in your OpenDraft library,
         not in an exported file.</li>
-      <li><strong>Custom element types</strong> declared by a template export as the built-in element they
-        are based on.</li>
     </ul>
 
     <p>

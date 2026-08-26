@@ -6,6 +6,7 @@ import { CUSTOM_TYPE_TO_FDX } from './fdxParser';
 import { jsonBlockText } from './nodeText';
 import { sanitizeExportFilename } from './exportFilename';
 import { isNonPrintingType } from './nonPrinting';
+import { DEFAULT_TITLE_PAGE_CREDIT } from './titlePageBlocks';
 
 const NODE_TO_FDX: Record<string, string> = {
   sceneHeading: 'Scene Heading',
@@ -315,27 +316,35 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   lines.push('  <TitlePage>');
   lines.push('    <Content>');
   let tpTitle = title;
+  let tpCredit = DEFAULT_TITLE_PAGE_CREDIT;
   let tpWrittenBy = '';
   let tpBasedOn = '';
   let tpDraft = '';
   let tpContact = '';
   let tpCopyright = '';
+  let tpWgaRegistration = '';
+  let tpNotes = '';
   if (doc.content) {
     for (const node of doc.content) {
       if (node.type === 'titlePage' && node.attrs?.field === 'title' && node.attrs?.tpTitle) {
         tpTitle = node.attrs.tpTitle || title;
+        tpCredit = node.attrs.tpCredit || DEFAULT_TITLE_PAGE_CREDIT;
         tpWrittenBy = node.attrs.tpWrittenBy || '';
         tpBasedOn = node.attrs.tpBasedOn || '';
         tpDraft = [node.attrs.tpDraft, node.attrs.tpDraftDate].filter(Boolean).join(' - ');
         tpContact = node.attrs.tpContact || '';
         tpCopyright = node.attrs.tpCopyright || '';
+        tpWgaRegistration = node.attrs.tpWgaRegistration || '';
+        tpNotes = node.attrs.tpNotes || '';
         break;
       }
     }
   }
   lines.push(`      <Paragraph Type="General" Alignment="Center" SpaceBefore="288"><Text>${esc(tpTitle)}</Text></Paragraph>`);
   if (tpWrittenBy) {
-    lines.push(`      <Paragraph Type="General" Alignment="Center"><Text>Written by</Text></Paragraph>`);
+    // The credit the writer chose, not a fixed "Written by" — a script credited
+    // "Screenplay by" said the wrong thing on every .fdx it was exported to.
+    lines.push(`      <Paragraph Type="General" Alignment="Center"><Text>${esc(tpCredit)}</Text></Paragraph>`);
     lines.push(`      <Paragraph Type="General" Alignment="Center"><Text>${esc(tpWrittenBy)}</Text></Paragraph>`);
     if (tpBasedOn) {
       lines.push(`      <Paragraph Type="General" Alignment="Center"><Text>${esc(tpBasedOn)}</Text></Paragraph>`);
@@ -351,6 +360,15 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   }
   if (tpCopyright) {
     lines.push(`      <Paragraph Type="General"><Text>${esc(tpCopyright)}</Text></Paragraph>`);
+  }
+  // The registration sits with the copyright, and the notes at the foot —
+  // matching what `deriveTitlePageLines` lays out on screen. Neither was
+  // written at all, so both were lost the moment a script was exported.
+  if (tpWgaRegistration) {
+    lines.push(`      <Paragraph Type="General"><Text>${esc(tpWgaRegistration)}</Text></Paragraph>`);
+  }
+  for (const line of tpNotes.split('\n').filter((l) => l.trim() !== '')) {
+    lines.push(`      <Paragraph Type="General"><Text>${esc(line)}</Text></Paragraph>`);
   }
   lines.push('    </Content>');
   lines.push('  </TitlePage>');
