@@ -28,12 +28,20 @@ interface TipTapNode {
  */
 const TITLE_PAGE_KEYS: Record<string, string> = {
   title: 'tpTitle',
-  credit: 'tpBasedOn',
+  // `Credit:` is the label above the author — "Written by", "Screenplay by".
+  // It was mapped to "based on", which put it on the line *below* the author
+  // and left the hard-coded "Written by" above it, so `Credit: Written by` plus
+  // `Author: Alex Example` came out as "Written by Alex Example / Written by"
+  // (issue #87). `Source:` is the field that means "based on".
+  credit: 'tpCredit',
   author: 'tpWrittenBy',
   authors: 'tpWrittenBy',
   'written by': 'tpWrittenBy',
   source: 'tpBasedOn',
   'draft date': 'tpDraftDate',
+  // Fountain writers use `Date:` for the draft date as often as `Draft date:`.
+  date: 'tpDraftDate',
+  draft: 'tpDraft',
   contact: 'tpContact',
   copyright: 'tpCopyright',
   notes: 'tpNotes',

@@ -66,7 +66,7 @@ describe('buildTitlePageBlocks', () => {
       .join('\n');
     for (const expected of [
       'THE LONG GOODBYE',
-      'Written by Jane Writer',
+      'Written by\nJane Writer',
       'Second Draft - 2026-08-17',
       'jane@example.com',
       'Copyright 2026 Jane Writer',
@@ -103,13 +103,33 @@ describe('buildTitlePageBlocks', () => {
 });
 
 describe('deriveTitlePageLines', () => {
-  it('labels the credit, which the writer never types', () => {
-    expect(deriveTitlePageLines({ tpWrittenBy: 'Jane Writer' }).byLine).toBe('Written by Jane Writer');
+  // The credit is its own line above the author, which is how a title page is
+  // laid out everywhere else: the FDX and DOCX importers both read files that
+  // put "Written by" on one line and the name on the next. Gluing the two
+  // together meant an imported title page came back out reshaped, and left
+  // Fountain's `Credit:` — which may say "Screenplay by" — with nowhere to go
+  // but the "based on" line, where it printed a second time (issue #87).
+  it('puts the credit label on its own line above the author', () => {
+    expect(deriveTitlePageLines({ tpWrittenBy: 'Jane Writer' }).byLine).toBe('Written by\nJane Writer');
   });
 
-  it('puts the source on its own line under the credit', () => {
+  it('takes the label the writer gave it', () => {
+    expect(deriveTitlePageLines({ tpCredit: 'Screenplay by', tpWrittenBy: 'Jane Writer' }).byLine)
+      .toBe('Screenplay by\nJane Writer');
+  });
+
+  it('falls back to "Written by" for a blank credit', () => {
+    expect(deriveTitlePageLines({ tpCredit: '   ', tpWrittenBy: 'Jane Writer' }).byLine)
+      .toBe('Written by\nJane Writer');
+  });
+
+  it('writes no credit block at all without an author', () => {
+    expect(deriveTitlePageLines({ tpCredit: 'Screenplay by' }).byLine).toBe('');
+  });
+
+  it('puts the source on its own line under the author', () => {
     expect(deriveTitlePageLines({ tpWrittenBy: 'Jane Writer', tpBasedOn: 'Based on a true story' }).byLine)
-      .toBe('Written by Jane Writer\nBased on a true story');
+      .toBe('Written by\nJane Writer\nBased on a true story');
   });
 
   it('joins the draft and its date, and either alone', () => {

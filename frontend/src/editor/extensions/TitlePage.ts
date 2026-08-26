@@ -4,6 +4,8 @@ export interface TitlePageAttrs {
   field: string;
   // Structured title page metadata
   tpTitle: string;
+  /** The label line above the author — Fountain's `Credit:`. Blank = "Written by". */
+  tpCredit: string;
   tpWrittenBy: string;
   tpBasedOn: string;
   tpDraft: string;
@@ -27,6 +29,7 @@ export const TitlePage = Node.create({
       field: { default: 'title' },
       // Structured fields (stored on the title node with field='title')
       tpTitle: { default: '' },
+      tpCredit: { default: '' },
       tpWrittenBy: { default: '' },
       tpBasedOn: { default: '' },
       tpDraft: { default: '' },

@@ -38,6 +38,7 @@ export interface TitlePageBlock {
 /** The fields the Title Page dialog reads and writes. */
 export interface TitlePageFields {
   tpTitle?: string;
+  tpCredit?: string;
   tpWrittenBy?: string;
   tpBasedOn?: string;
   tpDraft?: string;
@@ -50,11 +51,26 @@ export interface TitlePageFields {
 }
 
 /**
+ * The label above the author when the writer has not named one.
+ *
+ * Every screenplay has one; almost every screenplay's is this. It stays a
+ * default rather than a stored value so existing documents, which have no
+ * credit field at all, keep reading the way they always have.
+ */
+export const DEFAULT_TITLE_PAGE_CREDIT = 'Written by';
+
+/**
  * The rendered credit lines, derived from the raw fields.
  *
  * Mirrors `deriveFields` in TitlePageEditor.tsx: the source is on the file,
- * "Written by" is a label the writer never types, and the WGA registration
- * shares the copyright block rather than getting a line of its own.
+ * and the WGA registration shares the copyright block rather than getting a
+ * line of its own.
+ *
+ * The credit is a line of its own above the author, not a prefix to it. It used
+ * to be the hard-coded words "Written by" glued to the front of the name, which
+ * left Fountain's `Credit:` — the field that says exactly this, and may say
+ * "Screenplay by" or "Story by" instead — with nowhere to go. It was filed
+ * under "based on" and printed a second time below the author (issue #87).
  */
 export function deriveTitlePageLines(data: TitlePageFields): {
   byLine: string;
@@ -63,8 +79,9 @@ export function deriveTitlePageLines(data: TitlePageFields): {
 } {
   const writtenBy = str(data.tpWrittenBy);
   const basedOn = str(data.tpBasedOn);
+  const credit = str(data.tpCredit) || DEFAULT_TITLE_PAGE_CREDIT;
   const byLine = writtenBy
-    ? (basedOn ? `Written by ${writtenBy}\n${basedOn}` : `Written by ${writtenBy}`)
+    ? [credit, writtenBy, basedOn].filter(Boolean).join('\n')
     : '';
   const draftLine = [str(data.tpDraft), str(data.tpDraftDate)].filter(Boolean).join(' - ');
   const copyrightLine = [str(data.tpCopyright), str(data.tpWgaRegistration)]
@@ -120,7 +137,10 @@ export function buildTitlePageBlocks(
 
   if (byLine) {
     blocks.push(blank(), blank(), node({ field: 'author' }, byLine));
-    used += 3;
+    // The credit block is as many lines as it holds, not one: it carries the
+    // credit, the author and any source. Counting it as a single line left the
+    // bottom block one or two lines lower than the gap arithmetic intended.
+    used += 2 + byLine.split('\n').length;
   }
 
   const bottom: [string, string][] = [];

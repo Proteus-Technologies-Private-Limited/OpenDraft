@@ -4,6 +4,8 @@ import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorS
 import { ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
 import { useEditorStore } from '../stores/editorStore';
 import { singleLine } from '../utils/nodeText';
+import { supportsApplePencil } from '../services/platform';
+import ScribbleInput from './ScribbleInput';
 
 // Element types for the picker sheet
 // Fountain's non-printing structural elements. Last in every list — they are
@@ -48,7 +50,13 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
   const [visible, setVisible] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [currentElement, setCurrentElement] = useState<ElementType>('action');
+  // Where the handwriting sheet will put what it converts. Captured when the
+  // sheet opens, because focusing its field blurs the editor.
+  const [scribbleTarget, setScribbleTarget] = useState<{ from: number; to: number } | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
+  // Resolved once: the user agent does not change mid-session, and this decides
+  // whether a button is drawn at all.
+  const pencilDevice = useRef(supportsApplePencil()).current;
 
   const {
     scriptNotesOpen, toggleScriptNotes, addNote, setNoteFilter,
@@ -193,12 +201,29 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
     if (!tagsPanelOpen) toggleTagsPanel();
   }, [editor, setPendingTagSelection, tagsPanelOpen, toggleTagsPanel]);
 
-  if (!visible) return null;
+  const handleScribble = useCallback(() => {
+    const { from, to } = editor.state.selection;
+    setScribbleTarget({ from, to });
+  }, [editor]);
+
+  // The handwriting sheet outlives the bar. Opening it moves focus out of the
+  // editor, which drops the keyboard and takes `visible` with it — returning
+  // null there would unmount the sheet the moment it opened.
+  if (!visible && !scribbleTarget) return null;
 
   const orderedTypes = ELEMENT_ORDER[currentElement] || ELEMENT_TYPES;
 
   return (
     <>
+      {scribbleTarget && (
+        <ScribbleInput
+          editor={editor}
+          target={scribbleTarget}
+          onClose={() => setScribbleTarget(null)}
+        />
+      )}
+      {visible && (
+      <>
       {/* Bottom sheet for element type picker */}
       {sheetOpen && (
         <div
@@ -262,6 +287,23 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
           </svg>
         </button>
 
+        {/* Handwriting — iPad only, where there is a Pencil to use it with. */}
+        {pencilDevice && (
+          <button
+            className="mob-acc-btn"
+            onPointerDown={(e) => { e.preventDefault(); handleScribble(); }}
+            title="Handwriting"
+            aria-label="Handwriting input"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 19l7-7 3 3-7 7-3-3z" />
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+              <path d="M2 2l7.586 7.586" />
+              <circle cx="11" cy="11" r="2" />
+            </svg>
+          </button>
+        )}
+
         {/* Tag */}
         <button
           className="mob-acc-btn"
@@ -276,6 +318,8 @@ const MobileAccessoryBar: React.FC<MobileAccessoryBarProps> = ({ editor }) => {
 
         {/* Context menu accessible via 3-finger touch on mobile */}
       </div>
+      </>
+      )}
     </>
   );
 };

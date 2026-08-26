@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Format Compatibility - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="../">Home</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="title-page.html" class="sidebar-link">Title Page</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Analysis</div>
+    <a href="script-statistics.html" class="sidebar-link">Script Statistics &amp; Timing</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="backups.html" class="sidebar-link">Backups &amp; Recovery</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+    <a href="format-compatibility.html" class="sidebar-link active">Format Compatibility</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Format Compatibility
+    </div>
+
+    <h1>Format Compatibility</h1>
+    <p class="page-subtitle">Exactly what happens to each screenplay element when you export, and what comes back if you import the file again.</p>
+
+    <p>
+      OpenDraft has more element types than some screenplay formats do. Where a format has no
+      equivalent for an element, the export has to choose the closest thing it does have &mdash;
+      so a script can come back from a round trip with some elements changed. This page says
+      precisely which, so nothing about a conversion is a surprise.
+    </p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p>
+          <strong>Keeping everything:</strong> OpenDraft&rsquo;s own <code>.odraft</code> format is
+          the only lossless one &mdash; it carries every element, plus notes, tags, beats, character
+          profiles and revision history. When you work in another application&rsquo;s format, use
+          <strong>File &gt; Save to Library As</strong> to keep an <code>.odraft</code> copy alongside it.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="element-mapping">Element Mapping</h2>
+
+    <p>
+      What each OpenDraft element becomes in an exported file. <strong>Fountain (back)</strong> is the
+      element you get if you import that Fountain file again &mdash; the column where the losses show up.
+    </p>
+
+    <div style="overflow-x: auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>OpenDraft element</th>
+          <th>Final Draft (.fdx)</th>
+          <th>Fade In / OSF</th>
+          <th>Word (.docx)</th>
+          <th>Fountain</th>
+          <th>Fountain (back)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Scene Heading</td><td>Scene Heading</td><td>Scene Heading</td><td>Scene Heading</td><td><code>INT. &hellip;</code> (or forced with <code>.</code>)</td><td>Scene Heading</td></tr>
+        <tr><td>Action</td><td>Action</td><td>Action</td><td>Action</td><td>Action</td><td>Action</td></tr>
+        <tr><td>Character</td><td>Character</td><td>Character</td><td>Character</td><td>cue (forced with <code>@</code> if needed)</td><td>Character</td></tr>
+        <tr><td>Dialogue</td><td>Dialogue</td><td>Dialogue</td><td>Dialogue</td><td>dialogue</td><td>Dialogue</td></tr>
+        <tr><td>Parenthetical</td><td>Parenthetical</td><td>Parenthetical</td><td>Parenthetical</td><td><code>(&hellip;)</code></td><td>Parenthetical</td></tr>
+        <tr><td>Transition</td><td>Transition</td><td>Transition</td><td>Transition</td><td><code>&gt; &hellip;</code></td><td>Transition</td></tr>
+        <tr><td>Lyrics</td><td>Lyrics</td><td>Lyrics</td><td>Lyrics</td><td><code>~&hellip;</code></td><td>Lyrics</td></tr>
+        <tr><td>Shot</td><td>Shot</td><td>Shot</td><td>Shot</td><td>forced Action</td><td class="lossy"><strong>Action</strong></td></tr>
+        <tr><td>General</td><td>General</td><td>Normal Text</td><td>General</td><td>forced Action</td><td class="lossy"><strong>Action</strong></td></tr>
+        <tr><td>New Act</td><td>New Act</td><td class="lossy"><strong>Normal Text</strong></td><td>New Act</td><td>forced Action</td><td class="lossy"><strong>Action</strong></td></tr>
+        <tr><td>End of Act</td><td>End of Act</td><td class="lossy"><strong>Normal Text</strong></td><td>End of Act</td><td>forced Action</td><td class="lossy"><strong>Action</strong></td></tr>
+        <tr><td>Show/Episode</td><td>Show/Episode</td><td class="lossy"><strong>Normal Text</strong></td><td>Show/Episode</td><td>forced Action</td><td class="lossy"><strong>Action</strong></td></tr>
+        <tr><td>Cast List</td><td>Cast List</td><td class="lossy"><strong>Normal Text</strong></td><td>Cast List</td><td>forced Action</td><td class="lossy"><strong>Action</strong></td></tr>
+        <tr><td>Section (outline)</td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td><code>#</code>, <code>##</code>, <code>###</code></td><td>Section</td></tr>
+        <tr><td>Note (not printed)</td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td><code>[[ &hellip; ]]</code></td><td>Note</td></tr>
+        <tr><td>Scene synopsis</td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td><code>= &hellip;</code></td><td>Scene synopsis</td></tr>
+        <tr><td>Dual dialogue</td><td>DualDialogue</td><td class="lossy">two speeches, one after the other</td><td class="lossy">flattened</td><td><code>^</code> on the second cue</td><td>Dual dialogue</td></tr>
+        <tr><td>AV script rows</td><td>General pairs, re-read by OpenDraft</td><td class="lossy">flattened</td><td class="lossy">flattened</td><td class="lossy">rows in order, labelled with notes</td><td class="lossy"><strong>Action</strong></td></tr>
+        <tr><td>Images</td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td>embedded</td><td class="lossy"><strong>not exported</strong> (plain text)</td><td class="lossy">&mdash;</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h2 id="fountain-general">Why General comes back as Action</h2>
+
+    <p>
+      Fountain has no General element, and no syntax that could carry one. OpenDraft writes General
+      as <strong>forced Action</strong> (Fountain&rsquo;s <code>!</code> prefix), because Action is the
+      one element whose leading spaces and tabs the Fountain spec says to keep &mdash; so an indented
+      General block keeps its shape. But a reader has no way to tell that Action apart from any other,
+      so importing the file gives you Action:
+    </p>
+
+    <p style="text-align: center;">
+      <code>General</code> &rarr; <code>!forced Action</code> &rarr; <code>Action</code>
+    </p>
+
+    <p>
+      The same is true of <strong>Shot</strong>, <strong>New Act</strong>, <strong>End of Act</strong>,
+      <strong>Show/Episode</strong> and <strong>Cast List</strong>. OpenDraft could invent a private
+      extension to preserve them, but that would produce files other Fountain applications read wrongly,
+      which is the opposite of what the format is for. <strong>Don&rsquo;t rely on Fountain to preserve
+      these five elements when moving a script between applications</strong> &mdash; use
+      <code>.fdx</code>, <code>.docx</code> or <code>.odraft</code>, all of which keep every one of them.
+    </p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p>
+          <strong>Why the <code>!</code> matters:</strong> without it, an all-caps line with a blank line
+          above it is a <em>character cue</em> in Fountain, and the paragraph beneath it becomes that
+          character&rsquo;s dialogue. Forcing the line keeps the downgrade to a single element instead of
+          rewriting the scene around it.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="beyond-elements">What Else Does Not Travel</h2>
+
+    <p>These belong to OpenDraft rather than to any screenplay element, so only <code>.odraft</code> carries them:</p>
+
+    <ul>
+      <li><strong>Script notes, tags and entities, beats, and character profiles</strong> &mdash; no
+        interchange format has a place for them. <code>.fdx</code> is the closest: it carries beats and
+        character descriptions, but not notes or tags.</li>
+      <li><strong>Version history and revision marks</strong> &mdash; kept in your OpenDraft library,
+        not in an exported file.</li>
+      <li><strong>Custom element types</strong> declared by a template export as the built-in element they
+        are based on.</li>
+    </ul>
+
+    <p>
+      OpenDraft tells you this before you start: opening another application&rsquo;s format shows what
+      saving back to it can and cannot carry.
+    </p>
+
+    <h2 id="choosing">Choosing a Format</h2>
+
+    <table>
+      <thead>
+        <tr><th>If you want to&hellip;</th><th>Use</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Keep everything, including notes and history</td><td><code>.odraft</code></td></tr>
+        <tr><td>Send a script to Final Draft, or get every element back</td><td><code>.fdx</code></td></tr>
+        <tr><td>Share a plain-text script anyone can read and edit</td><td><code>.fountain</code></td></tr>
+        <tr><td>Hand a script to someone using Word</td><td><code>.docx</code></td></tr>
+        <tr><td>Send a script that must look identical everywhere</td><td><code>.pdf</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="import-export.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Import &amp; Export</span>
+      </a>
+      <a href="collaboration.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Real-Time Collaboration</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v0.25.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

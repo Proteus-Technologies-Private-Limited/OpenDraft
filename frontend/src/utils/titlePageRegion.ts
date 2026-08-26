@@ -49,6 +49,7 @@ const MAX_STRAY_LINES = 2;
 /** The structured fields the Title Page dialog writes onto the `title` node. */
 const TITLE_ATTR_KEYS = [
   'tpTitle',
+  'tpCredit',
   'tpWrittenBy',
   'tpBasedOn',
   'tpDraft',
