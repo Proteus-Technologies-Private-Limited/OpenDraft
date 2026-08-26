@@ -46,6 +46,9 @@ const DEFAULT_REPLACEMENTS: Record<string, string> = {
   showEpisode: 'general',
   newAct: 'sceneHeading',
   endOfAct: 'action',
+  // A section is outline, not script — demoting it to Action would print it.
+  section: 'note',
+  note: 'action',
 };
 
 export function getDefaultReplacement(elementType: string): string {

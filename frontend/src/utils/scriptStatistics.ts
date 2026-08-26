@@ -5,6 +5,7 @@
 import type { JSONContent } from '@tiptap/react';
 import { jsonBlockText, singleLine } from './nodeText';
 import type { CharacterProfile } from '../stores/editorStore';
+import { isNonPrintingType } from './nonPrinting';
 
 // ── Scene heading parsing (matching SceneNavigator patterns) ──────────
 
@@ -133,6 +134,9 @@ function extractSceneData(doc: JSONContent): SceneData[] {
   for (const node of doc.content) {
     const type = node.type || '';
     if (type === 'titlePage') continue;
+    // Outline and annotation, not script — counting a Section's words in the
+    // scene's word count would inflate a statistic meant to describe the page.
+    if (isNonPrintingType(type)) continue;
 
     const text = getTextContent(node);
     const words = countWords(text);

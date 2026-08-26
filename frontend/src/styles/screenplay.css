@@ -1655,6 +1655,63 @@ body {
 .structure-act {
   border-bottom: 1px solid var(--fd-overlay-subtle);
 }
+/* ── Section outline (Structure tab) ──────────────────────────────────
+   Fountain Sections, drawn as the tree their hashes describe. Depth comes from
+   the node's own level via an inline padding, not from nesting, so an outline
+   that jumps from # to ### still lines up where the writer put it. */
+.structure-outline {
+  border-bottom: 1px solid var(--fd-border);
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+.structure-outline-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fd-text-muted);
+  padding: 10px 12px 4px;
+}
+.structure-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.structure-section-header:hover { background: var(--fd-overlay-subtle); }
+.structure-section-level {
+  font-family: var(--fd-mono, monospace);
+  font-size: 11px;
+  color: var(--fd-accent, #3b82f6);
+  flex-shrink: 0;
+}
+.structure-section-name {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fd-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.structure-section-count {
+  font-size: 11px;
+  color: var(--fd-text-muted);
+  background: var(--fd-overlay-light);
+  border-radius: 8px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+.structure-section-synopsis {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--fd-text-muted);
+  padding-right: 12px;
+  padding-bottom: 4px;
+  white-space: pre-wrap;
+}
+
 .structure-act-header {
   display: flex;
   align-items: center;
@@ -2156,6 +2213,39 @@ body {
   font-style: italic;
   padding-left: calc(2.50in - var(--pl, 1.50in));
   padding-right: calc(var(--pw, 8.26in) - 6.00in - var(--pr, 0.76in));
+}
+
+/* ── Non-printing structure: Fountain Sections and Notes ──────────────
+   Both are outline, not script. They are drawn distinctly so a writer can see
+   at a glance that they are not part of the page, and they are removed from
+   print entirely by the @media print rule further down — the same decision
+   pagination and the PDF/DOCX/FDX/OSF exporters make in code. */
+.section {
+  font-weight: bold;
+  color: var(--fd-accent, #3b82f6);
+  border-left: 3px solid var(--fd-accent, #3b82f6);
+  padding-left: 8px;
+  margin-top: 12pt;
+  letter-spacing: 0.02em;
+}
+
+/* Depth by indent and weight, so a nested outline reads as one. Level is
+   carried on the node, not by nesting — a Fountain file may jump from # to ###
+   and the outline has to hold that without inventing the middle rung. */
+.section[data-level="1"] { font-size: 1.08em; }
+.section[data-level="2"] { margin-left: 0.25in; opacity: 0.95; }
+.section[data-level="3"] { margin-left: 0.50in; opacity: 0.9; }
+.section[data-level="4"] { margin-left: 0.75in; opacity: 0.85; }
+.section[data-level="5"] { margin-left: 1.00in; opacity: 0.8; }
+.section[data-level="6"] { margin-left: 1.25in; opacity: 0.75; }
+
+.note {
+  font-style: italic;
+  color: var(--fd-text-dim, #8a8a8a);
+  background: var(--fd-note-bg, rgba(244, 211, 94, 0.10));
+  border-left: 3px solid var(--fd-note-border, #f4d35e);
+  padding: 2px 8px;
+  margin-top: 12pt;
 }
 
 /* Show/Episode */
@@ -9899,6 +9989,12 @@ html.android .version-history-panel {
 
   /* Let the browser handle page breaks */
   .tiptap .ProseMirror > * { page-break-inside: avoid; }
+
+  /* Fountain's non-printing elements. The spec is explicit that a Section and
+     a Note stay in the file and off the page, so print drops them — matching
+     what pagination counted and what the exporters write. */
+  .screenplay-element.section,
+  .screenplay-element.note { display: none !important; }
 }
 
 /* ── Collaboration ────────────────────────────────────────────────── */

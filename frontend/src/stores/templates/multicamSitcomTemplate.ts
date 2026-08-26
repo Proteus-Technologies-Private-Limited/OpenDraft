@@ -11,7 +11,7 @@
  */
 
 import type { FormattingTemplate, StarterNode } from '../formattingTypes';
-import { rule, disabled } from './_helpers';
+import { rule, disabled, outlineRules } from './_helpers';
 
 export const MULTICAM_SITCOM_ID = '__multicam_sitcom__';
 
@@ -130,6 +130,7 @@ export const MULTICAM_SITCOM_TEMPLATE: FormattingTemplate = {
       nextOnEnter: 'newAct',
       placeholder: 'SHOW TITLE',
     }),
+    ...outlineRules(),
     castList: rule('castList', 'Cast List', true, {
       textTransform: 'uppercase',
       leftIndent: 1.75,

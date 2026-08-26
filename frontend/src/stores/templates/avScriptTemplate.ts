@@ -7,7 +7,7 @@
  */
 
 import type { FormattingTemplate, StarterNode } from '../formattingTypes';
-import { rule, disabled } from './_helpers';
+import { rule, disabled, outlineRules } from './_helpers';
 
 export const AV_SCRIPT_ID = '__av_script__';
 
@@ -96,6 +96,7 @@ export const AV_SCRIPT_TEMPLATE: FormattingTemplate = {
       nextOnEnter: 'action',
       placeholder: 'TITLE',
     }),
+    ...outlineRules(),
     castList: disabled('castList', 'Cast List'),
     // Inner AV-cell paragraphs — formatting only, since they live inside avCell.
     avPara: rule('avPara', 'Audio/Video Body', false, {

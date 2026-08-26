@@ -21,6 +21,7 @@ import JSZip from 'jszip';
 import type { JSONContent } from '@tiptap/react';
 import { sanitizeExportFilename } from './exportFilename';
 import { titlePageAttrsCarryData } from './titlePageRegion';
+import { isNonPrintingType } from './nonPrinting';
 
 /** Element type → the OSF style a paragraph is based on. */
 const NODE_TO_OSF_STYLE: Record<string, string> = {
@@ -306,6 +307,9 @@ export function exportOSF(doc: JSONContent, options: OSFExportOptions = {}): str
   let titlePageNode: JSONContent | null = null;
   const body: string[] = [];
   for (const node of doc.content ?? []) {
+    // Sections and Notes are not printed, and OSF has no paragraph style that
+    // isn't — see utils/nonPrinting.ts.
+    if (isNonPrintingType(node.type)) continue;
     if (node.type === 'titlePage') {
       if (!titlePageNode && titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined)) {
         titlePageNode = node;

@@ -111,6 +111,14 @@
     <h3 id="import-fountain">Fountain (.fountain)</h3>
     <p>Import scripts written in Fountain format. Fountain is an open, plain-text markup language for screenwriting. Many free tools can create Fountain files. Emphasis markup (<code>*italic*</code>, <code>**bold**</code>, <code>_underline_</code>), forced elements (<code>!</code>, <code>~</code>, <code>.</code>, <code>&gt;</code>, <code>@</code>), centred text (<code>&gt;text&lt;</code>) and page breaks (<code>===</code>) are all recognised.</p>
 
+    <p>Fountain&rsquo;s outlining markup comes through as well, and stays off the printed page:</p>
+    <ul>
+      <li><strong>Sections</strong> (<code>#</code>, <code>##</code>, <code>###</code>&hellip;) become Section elements, nested to the depth their hashes describe, and appear in the Scene Navigator&rsquo;s <strong>Structure</strong> tab. They are kept separate from New Act and End of Act, which are act markers that <em>do</em> print.</li>
+      <li><strong>Synopses</strong> (<code>= &hellip;</code>) are filed on the scene heading or Section they sit under.</li>
+      <li><strong>Notes</strong> (<code>[[ &hellip; ]]</code>) become Note elements, whether they stand alone or sit inside a line.</li>
+      <li>The <strong>boneyard</strong> (<code>/*&nbsp;&hellip;&nbsp;*/</code>) is commented-out text, and is dropped.</li>
+    </ul>
+
     <h3 id="import-fadein">Fade In (.fadein) and Open Screenplay Format (.osf)</h3>
     <p>Open scripts saved by <a href="https://www.fadeinpro.com/" target="_blank" rel="noopener">Fade In</a> directly &mdash; there is no need to export to another format first. A <code>.fadein</code> file is a compressed Open Screenplay Format document, and OpenDraft reads both it and plain <code>.osf</code> files. Imported:</p>
     <ul>

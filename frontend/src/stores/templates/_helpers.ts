@@ -44,6 +44,37 @@ export function disabled(id: string, label: string): FormattingElementRule {
 }
 
 /**
+ * Fountain's two non-printing structural elements, shared by every script type.
+ *
+ * They carry a formatting rule like any other element so the Template Editor,
+ * the element picker and the Enter/Tab flow can see them — but the formatting
+ * is screen-only. Nothing they say reaches the page: pagination and every
+ * exporter skip them (see utils/nonPrinting.ts), which is the whole point of
+ * a Section as against a New Act.
+ *
+ * `nextOnEnter: 'action'` because a section titles what follows it — the writer
+ * types "# ACT ONE" and then starts writing the script, not another heading.
+ */
+export function outlineRules(): Record<string, FormattingElementRule> {
+  return {
+    section: rule('section', 'Section (Outline)', true, {
+      bold: true,
+      marginTop: 12,
+      nextOnEnter: 'action',
+      nextOnTab: 'action',
+      placeholder: 'Section name (outline only)',
+    }),
+    note: rule('note', 'Note (Not printed)', true, {
+      italic: true,
+      marginTop: 12,
+      nextOnEnter: 'action',
+      nextOnTab: 'action',
+      placeholder: 'Note (not printed)',
+    }),
+  };
+}
+
+/**
  * The default title-page rules, matching what screenplay.css has always drawn:
  * a bold uppercase centred title, a centred credit, the draft flush left, and
  * the contact and copyright blocks flush right.

@@ -34,6 +34,7 @@ import { getForceBreakIds, jsonStartsOwnPage } from './pageBreaks';
 import { getSpaceBefore, DEFAULT_SPACE_BEFORE } from './elementSpacing';
 import { sanitizeExportFilename } from './exportFilename';
 import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
+import { isNonPrintingType } from './nonPrinting';
 
 // --- Layout constants (mirror pdfExporter.ts) ---
 
@@ -408,6 +409,8 @@ export async function exportDocx(
   );
   const hasTitlePage = region.isReal;
   docNodes.forEach((node, index) => {
+    // Sections and Notes never reach the page — see utils/nonPrinting.ts.
+    if (isNonPrintingType(node.type)) return;
     if (hasTitlePage && index < region.length) {
       titleRegionNodes.push(node);
       return;

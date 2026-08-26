@@ -9,7 +9,7 @@
  */
 
 import type { FormattingTemplate, StarterNode } from '../formattingTypes';
-import { rule, disabled } from './_helpers';
+import { rule, disabled, outlineRules } from './_helpers';
 
 export const STAGE_PLAY_ID = '__stage_play__';
 
@@ -105,6 +105,7 @@ export const STAGE_PLAY_TEMPLATE: FormattingTemplate = {
       placeholder: 'Lyrics...',
     }),
     showEpisode: disabled('showEpisode', 'Show/Episode'),
+    ...outlineRules(),
     castList: disabled('castList', 'Cast List'),
     // Custom: italic, parenthesized stage direction set off from dialogue
     stageDirection: rule('stageDirection', 'Stage Direction', false, {

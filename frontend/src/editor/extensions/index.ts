@@ -9,6 +9,8 @@ export { Shot } from './Shot';
 export { NewAct } from './NewAct';
 export { EndOfAct } from './EndOfAct';
 export { Lyrics } from './Lyrics';
+export { Section, clampSectionLevel, MAX_SECTION_LEVEL } from './Section';
+export { Note } from './Note';
 export { ShowEpisode } from './ShowEpisode';
 export { CastList } from './CastList';
 export { DualDialogue, DualDialogueColumn } from './DualDialogue';

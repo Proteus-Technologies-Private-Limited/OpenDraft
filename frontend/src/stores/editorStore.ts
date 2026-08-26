@@ -164,6 +164,9 @@ export type BuiltInElementType =
   | 'lyrics'
   | 'showEpisode'
   | 'castList'
+  // Fountain's two non-printing structural elements — see utils/nonPrinting.ts.
+  | 'section'
+  | 'note'
   | 'titlePage';
 
 /** Element type id — built-in literal or any custom id declared by a template.
@@ -190,6 +193,8 @@ export const ELEMENT_LABELS: Record<string, string> = {
   lyrics: 'Lyrics',
   showEpisode: 'Show/Episode',
   castList: 'Cast List',
+  section: 'Section (Outline)',
+  note: 'Note (Not printed)',
   titlePage: 'Title Page',
 };
 

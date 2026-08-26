@@ -23,6 +23,7 @@ import { ScreenplayHardBreak, HardBreakLeafText } from '../editor/extensions/Scr
 import {
   SceneHeading, Action, Character, Dialogue, Parenthetical, Transition,
   General, Shot, NewAct, EndOfAct, Lyrics, ShowEpisode, CastList,
+  Section, Note,
   TitlePage, CustomElement,
   DualDialogue, DualDialogueColumn,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection,
@@ -37,6 +38,7 @@ export const testSchema = getSchema([
   Bold, Italic, Underline, Strike,
   SceneHeading, Action, Character, Dialogue, Parenthetical, Transition,
   General, Shot, NewAct, EndOfAct, Lyrics, ShowEpisode, CastList,
+  Section, Note,
   TitlePage, CustomElement,
   DualDialogue, DualDialogueColumn,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection,

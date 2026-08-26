@@ -23,6 +23,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import {
   SceneHeading, Action, Character, Dialogue, Parenthetical,
   Transition, General, Shot, NewAct, EndOfAct, Lyrics,
+  Section, Note,
   ShowEpisode, CastList, FontSize, PasteFormatting, ScriptNoteMark, TagMark,
   FormatOverride, CustomElement, DualDialogue, DualDialogueColumn,
   TitlePage,
@@ -178,7 +179,7 @@ const DEFAULT_NEXT_TYPE: Record<string, string> = {
 const ALL_ELEMENT_TYPES: ElementType[] = [
   'sceneHeading', 'action', 'character', 'dialogue', 'parenthetical',
   'transition', 'general', 'shot', 'newAct', 'endOfAct', 'lyrics',
-  'showEpisode', 'castList',
+  'showEpisode', 'castList', 'section', 'note',
 ];
 
 const SAMPLE_CONTENT = {
@@ -1471,12 +1472,14 @@ const ScreenplayEditor: React.FC = () => {
             general: 'Text...', shot: 'SHOT DESCRIPTION',
             newAct: 'ACT ONE', endOfAct: 'END OF ACT',
             lyrics: 'Lyrics...', showEpisode: 'SHOW TITLE', castList: 'Cast...',
+            section: 'Section name (outline only)', note: 'Note (not printed)',
           };
           return m[node.type.name] || '';
         },
       }),
       SceneHeading, Action, Character, Dialogue, Parenthetical,
       Transition, General, Shot, NewAct, EndOfAct, Lyrics,
+      Section, Note,
       ShowEpisode, CastList, DualDialogue, DualDialogueColumn, TitlePage,
       AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvKeymap,
       ScriptNoteMark, TagMark,

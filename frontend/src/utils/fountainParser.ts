@@ -1,6 +1,8 @@
 // Fountain markup format parser
 // Spec: https://fountain.io/syntax
 import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
+import { clampSectionLevel } from '../editor/extensions/Section';
+import { isNonPrintingType } from './nonPrinting';
 
 interface TipTapMark {
   type: string;
@@ -102,9 +104,146 @@ function parseTitlePage(lines: string[]): { next: number; nodes: TipTapNode[] } 
  */
 const LINE_SEPARATORS = /\r\n?|\u2028|\u2029|\u0085/g;
 
-/** Split text into lines, whichever separator convention it arrived with. */
+/**
+ * Split text into lines, whichever separator convention it arrived with.
+ *
+ * The commented-out boneyard goes first and multi-line notes are folded onto a
+ * single line, both before anything is split — each can span lines, and every
+ * other rule in this parser reads one line at a time.
+ */
 function splitLines(text: string): string[] {
-  return text.replace(/^\uFEFF/, '').replace(LINE_SEPARATORS, '\n').split('\n');
+  const normalised = text.replace(/^\uFEFF/, '').replace(LINE_SEPARATORS, '\n');
+  return foldNotes(stripBoneyard(normalised)).split('\n');
+}
+
+/**
+ * Remove the boneyard: everything between a `/*` marker and its closing
+ * counterpart, which the spec defines as text that is commented out and "will
+ * not be included" in the script.
+ *
+ * The newlines the comment spanned are kept. Deleting them outright would pull
+ * whatever followed the closing marker up onto the line before it, so a
+ * boneyard placed between a scene heading and its action would silently weld
+ * the two into one line. What is commented out disappears; what is not keeps
+ * its own line.
+ *
+ * An unterminated `/*` matches nothing and is left as literal text, rather than
+ * swallowing the rest of the script.
+ */
+function stripBoneyard(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ''));
+}
+
+/**
+ * A Fountain note: `[[ … ]]`, which the spec says stays in the file but not in
+ * the printed script.
+ */
+const NOTE_PATTERN = /\[\[([\s\S]*?)\]\]/g;
+
+/**
+ * Fold a note that runs over several lines onto one.
+ *
+ * The spec allows a note to span lines, but every other rule here reads one
+ * line at a time — so an unfolded note left its opening `[[` on a line of its
+ * own, which then parsed as Action, and its closing `]]` on another. Only the
+ * newlines *inside* the brackets are collapsed; the line the note sits on is
+ * otherwise untouched.
+ */
+function foldNotes(text: string): string {
+  return text.replace(NOTE_PATTERN, (note) => note.replace(/\s*\n\s*/g, ' '));
+}
+
+/**
+ * Split a line into the text that remains once its notes are removed, and the
+ * notes themselves.
+ *
+ * Notes are not printed, so they cannot stay in the line — left in place the
+ * brackets came through as literal characters in the middle of a scene. They
+ * are not thrown away either: each becomes a `note` block of its own, emitted
+ * straight after the element it annotated, which is where the writer put it.
+ */
+function extractNotes(line: string): { text: string; notes: string[] } {
+  const notes: string[] = [];
+  const text = line.replace(NOTE_PATTERN, (_, body: string) => {
+    const note = body.trim();
+    if (note !== '') notes.push(note);
+    return '';
+  });
+  return { text, notes };
+}
+
+/** Section heading: one or more leading hashes, e.g. `# ACT ONE`, `## Sequence`. */
+const SECTION_PATTERN = /^(#+)\s*(.*)$/;
+
+/**
+ * A synopsis line: a leading `=` that is not the start of a `===` page break.
+ *
+ * Two equals signs are neither, and stay Action rather than becoming a synopsis
+ * whose text is a stray `=`.
+ */
+const SYNOPSIS_PATTERN = /^=(?!=)\s*(.*)$/;
+
+/** The elements a synopsis can be filed under. */
+const SYNOPSIS_TARGETS = new Set(['sceneHeading', 'section']);
+
+/**
+ * Lines with their notes lifted out, and the notes keyed by the line they came
+ * from. `-1` holds any note that appeared before the first line of content.
+ */
+interface PreparedLines {
+  lines: string[];
+  notes: Map<number, string[]>;
+}
+
+/**
+ * Lift every note out of the text before parsing begins.
+ *
+ * A line that held nothing but a note is *removed*, not blanked. Fountain reads
+ * a blank line as structure — it ends a dialogue block and it is half the test
+ * for a character cue — so leaving one behind where a note used to be would
+ * change how the lines around it parse. A note parked between a cue and its
+ * first line of dialogue would have cut the block in two and dropped the
+ * dialogue out as Action.
+ *
+ * The notes from a removed line are filed against the line above, so they are
+ * emitted after the element they were written next to.
+ */
+function prepareLines(text: string): PreparedLines {
+  const lines: string[] = [];
+  const notes = new Map<number, string[]>();
+
+  const file = (index: number, found: string[]) => {
+    const existing = notes.get(index);
+    if (existing) existing.push(...found);
+    else notes.set(index, [...found]);
+  };
+
+  for (const raw of splitLines(text)) {
+    const { text: stripped, notes: found } = extractNotes(raw);
+    if (found.length > 0 && stripped.trim() === '') {
+      file(lines.length - 1, found);
+      continue;
+    }
+    lines.push(stripped);
+    if (found.length > 0) file(lines.length - 1, found);
+  }
+
+  return { lines, notes };
+}
+
+/**
+ * The nearest scene heading or section already parsed, or null.
+ *
+ * The spec puts synopses "anywhere within the screenplay", so one does not have
+ * to sit directly under the heading it describes. OpenDraft stores a synopsis
+ * on the element it belongs to, which makes the nearest heading or section
+ * above it the right home.
+ */
+function lastSynopsisTarget(nodes: TipTapNode[]): TipTapNode | null {
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    if (SYNOPSIS_TARGETS.has(nodes[i].type)) return nodes[i];
+  }
+  return null;
 }
 
 /**
@@ -142,7 +281,7 @@ function isTransitionLine(trimmed: string): boolean {
 }
 
 export function parseFountain(text: string): TipTapNode {
-  const lines = splitLines(text);
+  const { lines, notes: noteLines } = prepareLines(text);
   const singleSpaced = isSingleSpaced(lines);
   const nodes: TipTapNode[] = [];
   let i = 0;
@@ -156,14 +295,33 @@ export function parseFountain(text: string): TipTapNode {
   let pendingPageBreak = false;
 
   const push = (node: TipTapNode) => {
-    if (pendingPageBreak) {
+    // Never onto a section or a note: neither is printed, so starting a page at
+    // one would move the break somewhere the reader cannot see it. The break
+    // stays pending and lands on the next element that does reach the page.
+    if (pendingPageBreak && !isNonPrintingType(node.type)) {
       node.attrs = { ...node.attrs, startsNewPage: true };
       pendingPageBreak = false;
     }
     nodes.push(node);
   };
 
+  // Notes are emitted once the line they were lifted from has been parsed, so
+  // each lands after the element it annotated whichever rule claimed the line —
+  // including the multi-line ones, where a dialogue block consumes several at
+  // once. Pushed straight onto `nodes`: a pending page break belongs to the
+  // next printed element, not to a note that happens to precede it.
+  let flushedThrough = -2;
+  const flushNotesBefore = (limit: number) => {
+    while (flushedThrough < limit) {
+      flushedThrough++;
+      for (const note of noteLines.get(flushedThrough) ?? []) {
+        nodes.push(makeNode('note', note));
+      }
+    }
+  };
+
   while (i < lines.length) {
+    flushNotesBefore(i - 1);
     const line = lines[i];
     const trimmed = line.trim();
 
@@ -180,11 +338,36 @@ export function parseFountain(text: string): TipTapNode {
       continue;
     }
 
-    // Synopsis line: starts with = (must follow a scene heading)
-    if (trimmed.startsWith('= ') && nodes.length > 0 && nodes[nodes.length - 1].type === 'sceneHeading') {
-      const prev = nodes[nodes.length - 1];
-      if (!prev.attrs) prev.attrs = {};
-      prev.attrs.synopsis = trimmed.substring(2).trim();
+    // Section: one or more leading hashes. Fountain's outlining marker, and
+    // structure rather than script — it is not printed. Nothing else can claim
+    // a line that opens with `#`, so this can be settled before the forcing
+    // rules below.
+    const section = SECTION_PATTERN.exec(trimmed);
+    if (section) {
+      const node = makeNode('section', section[2].trim());
+      node.attrs = { ...node.attrs, level: clampSectionLevel(section[1].length) };
+      push(node);
+      i++;
+      continue;
+    }
+
+    // Synopsis: filed on the nearest scene heading or section above it, since
+    // the spec allows one anywhere. With neither above it there is nothing to
+    // file it on, and it becomes a note — still off the page, still in the file,
+    // rather than printed as a line of Action.
+    const synopsis = SYNOPSIS_PATTERN.exec(trimmed);
+    if (synopsis) {
+      const body = synopsis[1].trim();
+      const target = lastSynopsisTarget(nodes);
+      if (target) {
+        const existing = typeof target.attrs?.synopsis === 'string' ? target.attrs.synopsis : '';
+        target.attrs = {
+          ...target.attrs,
+          synopsis: existing === '' ? body : `${existing}\n${body}`,
+        };
+      } else if (body !== '') {
+        nodes.push(makeNode('note', body));
+      }
       i++;
       continue;
     }
@@ -283,6 +466,9 @@ export function parseFountain(text: string): TipTapNode {
     push(makeNode('action', actionIndent(line)));
     i++;
   }
+
+  // Anything filed against the last lines of the document.
+  flushNotesBefore(lines.length);
 
   // Post-process: merge dual dialogue pairs
   const merged = mergeDualDialogue(nodes);
@@ -482,9 +668,10 @@ function looksLikeCue(line: string): boolean {
  */
 function opensHardElement(trimmed: string): boolean {
   if (trimmed === '') return true;
-  // Forced action, character, transition/centred text, and page break. `~`
-  // (lyrics) is deliberately absent: lyrics belong inside a dialogue block.
-  if (/^[!@>=]/.test(trimmed)) return true;
+  // Forced action, character, transition/centred text, page break, synopsis,
+  // and a section heading. `~` (lyrics) is deliberately absent: lyrics belong
+  // inside a dialogue block.
+  if (/^[!@>=#]/.test(trimmed)) return true;
   // Forced scene heading — `.INT` and not an ellipsis.
   if (/^\.[^.]/.test(trimmed)) return true;
   return isSceneHeadingLine(trimmed) || isTransitionLine(trimmed);
@@ -611,6 +798,22 @@ function collectDialogueBlock(
     const trimmed = line.trim();
 
     if (trimmed === '') {
+      // Two or more spaces on an otherwise blank line is the spec's way of
+      // saying the blank line is deliberate and the block carries on. It is
+      // also exactly what this app's own exporter writes for a paragraph break
+      // inside dialogue — so without this, a `.fountain` saved by OpenDraft and
+      // reopened lost every line of a speech after its first break, as Action.
+      if (/^[ \t]{2,}$/.test(line)) {
+        push(makeNode('dialogue', ''));
+        i++;
+        continue;
+      }
+      break;
+    }
+
+    // A section heading is structure, not speech: it ends the block wherever it
+    // lands, blank line above it or not.
+    if (SECTION_PATTERN.test(trimmed)) {
       break;
     }
 
