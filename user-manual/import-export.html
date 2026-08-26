@@ -72,6 +72,7 @@
     <a href="version-history.html" class="sidebar-link">Version History</a>
     <a href="backups.html" class="sidebar-link">Backups &amp; Recovery</a>
     <a href="import-export.html" class="sidebar-link active">Import &amp; Export</a>
+    <a href="format-compatibility.html" class="sidebar-link">Format Compatibility</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Collaboration</div>
@@ -191,6 +192,20 @@
     <h3 id="export-fountain">Fountain (.fountain)</h3>
     <p>Go to <strong>File &gt; Export &gt; Fountain (.fountain)</strong>. This creates a plain-text Fountain file that can be opened in any Fountain-compatible editor or version control system.</p>
 
+    <div class="callout callout-warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div class="callout-content">
+        <p>
+          <strong>Fountain cannot carry every element.</strong> It has no General element, so OpenDraft
+          writes General as forced Action (<code>!</code>). Import that file again and the text comes
+          back as <strong>Action, not General</strong>. The same applies to Shot, New Act, End of Act,
+          Show/Episode and Cast List. Use <code>.fdx</code>, <code>.docx</code> or <code>.odraft</code>
+          if you need those preserved &mdash; see
+          <a href="format-compatibility.html">Format Compatibility</a> for the full mapping.
+        </p>
+      </div>
+    </div>
+
     <h3 id="export-fadein">Fade In (.fadein)</h3>
     <p>Go to <strong>File &gt; Export &gt; Fade In (.fadein)</strong>. This writes a Fade In document &mdash; an Open Screenplay Format archive that Fade In 3 and 4 both open. It carries a great deal more than Fountain does:</p>
     <ul>
@@ -223,6 +238,12 @@
 
     <h2 id="format-comparison">Format Comparison</h2>
 
+    <p>
+      For what happens to each individual screenplay element in each format &mdash; and which ones change
+      if you import the file again &mdash; see <a href="format-compatibility.html">Format Compatibility</a>.
+    </p>
+
+
     <table>
       <thead>
         <tr><th>Feature</th><th>.odraft</th><th>.fdx</th><th>.fadein</th><th>.fountain</th><th>.pdf</th><th>.txt</th></tr>
@@ -244,9 +265,9 @@
         <span class="nav-label">&larr; Previous</span>
         <span class="nav-title">Backups &amp; Recovery</span>
       </a>
-      <a href="collaboration.html" class="nav-next">
+      <a href="format-compatibility.html" class="nav-next">
         <span class="nav-label">Next &rarr;</span>
-        <span class="nav-title">Real-Time Collaboration</span>
+        <span class="nav-title">Format Compatibility</span>
       </a>
     </div>
 

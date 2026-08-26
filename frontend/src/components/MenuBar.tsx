@@ -5,6 +5,7 @@ import { useEditorStore, DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
+import { requestHandwriting } from '../utils/handwriting';
 import { showToast } from './Toast';
 import { downloadFDX, exportFDX } from '../utils/fdxExporter';
 import { downloadFountain, exportFountain } from '../utils/fountainExporter';
@@ -84,7 +85,7 @@ import {
   supportsOpenInPlace,
   type InPlaceDocument,
 } from '../utils/fileOps';
-import { isDesktopTauri, supportsMultipleWindows } from '../services/platform';
+import { isDesktopTauri, supportsApplePencil, supportsMultipleWindows } from '../services/platform';
 import { getCompatEntries } from '../services/compat';
 import { reportSaveError } from '../stores/saveErrorStore';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
@@ -1540,6 +1541,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { icon: <FaPaste />, label: 'Paste as Fountain', shortcut: `⇧${mod}V`, action: handlePasteAsFountain, disabled: !editor },
         { icon: <FaMousePointer />, label: 'Select All', shortcut: `${mod}A`, action: () => editor?.chain().focus().selectAll().run() },
         { separator: true, label: '' },
+        ...(supportsApplePencil()
+          ? [{
+            icon: <FaPencilAlt />,
+            label: 'Handwriting\u2026',
+            action: requestHandwriting,
+            disabled: !editor,
+          }]
+          : []),
         { icon: <FaSearch />, label: 'Find & Replace…', shortcut: `${mod}F`, action: () => setSearchOpen(true) },
         { icon: <FaHashtag />, label: 'Go to Page…', shortcut: `${mod}G`, action: () => setGoToPageOpen(true) },
         {

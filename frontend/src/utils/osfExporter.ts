@@ -56,7 +56,14 @@ const BUILTIN_STYLES: { name: string; index: number; extra?: string }[] = [
   { name: 'Shot', index: 7, extra: ' spacebefore="1.0" allcaps="1"' },
 ];
 
-/** Title-page field → the bookmark the parser reads it back from. */
+/** Title-page field → the bookmark the parser reads it back from.
+ *
+ *  OSF has no bookmark for the credit label or the WGA registration, so those
+ *  two cannot be carried — see the Format Compatibility page in the manual.
+ *  The draft date is not missing, though: it has no bookmark of its own but
+ *  belongs with the draft, and joining them is what the FDX exporter and the
+ *  title page itself already do. Left out, a dated draft exported to Fade In
+ *  came back undated. */
 const TP_ATTR_TO_BOOKMARK: [string, string][] = [
   ['tpTitle', 'title'],
   ['tpBasedOn', 'subtitle'],
@@ -254,8 +261,15 @@ function titlePageBlock(node: JSONContent | null): string {
   const attrs = (node.attrs ?? {}) as Record<string, unknown>;
 
   const paras: string[] = [];
+  // The draft and its date share one bookmark, so they share one paragraph.
+  const resolved: Record<string, unknown> = {
+    ...attrs,
+    tpDraft: [attrs.tpDraft, attrs.tpDraftDate]
+      .filter((v) => typeof v === 'string' && v.trim() !== '')
+      .join(' - '),
+  };
   for (const [key, bookmark] of TP_ATTR_TO_BOOKMARK) {
-    const value = attrs[key];
+    const value = resolved[key];
     if (typeof value !== 'string' || value.trim() === '') continue;
     // One <para> per field, with any line breaks kept inside its <text>.
     //

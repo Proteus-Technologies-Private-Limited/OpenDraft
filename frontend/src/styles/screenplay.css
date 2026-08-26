@@ -8708,6 +8708,99 @@ html.android .version-history-panel {
 }
 
 /* Bottom sheet overlay for element picker */
+/* ── Handwriting input (Apple Pencil) ─────────────────────────────────
+   A deliberately large, empty writing area. The size is the point: Scribble
+   sizes its writable region from the blank space around the caret, and the
+   cramped, destructive behaviour in the editor was a symptom of there being
+   almost none mid-script (issue #90). Nothing follows the caret in here, so
+   nothing can be overwritten. */
+.scribble-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.45);
+}
+.scribble-sheet {
+  width: min(720px, 100%);
+  background: var(--fd-dropdown-bg);
+  border: 1px solid var(--fd-border);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+[data-theme="light"] .scribble-sheet {
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+.scribble-header {
+  padding: 14px 18px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.scribble-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fd-text);
+}
+.scribble-hint {
+  font-size: 12px;
+  color: var(--fd-text-muted);
+}
+.scribble-area {
+  margin: 0 18px;
+  /* Tall enough to write a sentence at a natural hand size, and it grows with
+     the viewport rather than being pinned to a phone-sized box. */
+  min-height: max(180px, 22vh);
+  resize: none;
+  padding: 14px 16px;
+  font-size: 22px;
+  line-height: 1.7;
+  font-family: inherit;
+  color: var(--fd-text);
+  background: var(--fd-bg);
+  border: 1px solid var(--fd-border);
+  border-radius: 10px;
+}
+.scribble-area:focus {
+  outline: 2px solid var(--fd-accent, #3b82f6);
+  outline-offset: -1px;
+}
+.scribble-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px;
+}
+.scribble-btn {
+  /* A 44pt target: this is reached with a Pencil tip or a fingertip. */
+  min-height: 44px;
+  min-width: 96px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: 1px solid var(--fd-border);
+  background: var(--fd-bg);
+  color: var(--fd-text);
+  font-size: 15px;
+  cursor: pointer;
+}
+.scribble-btn-primary {
+  background: var(--fd-accent, #3b82f6);
+  border-color: var(--fd-accent, #3b82f6);
+  color: #fff;
+  font-weight: 600;
+}
+.scribble-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .mob-acc-sheet-overlay {
   position: fixed;
   left: 0;

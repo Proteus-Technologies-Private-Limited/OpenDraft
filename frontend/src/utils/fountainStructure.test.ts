@@ -328,3 +328,155 @@ describe('computeScriptStructure — section outline', () => {
     expect(structure.totalSections).toBe(0);
   });
 });
+
+describe('Fountain title page — Credit and Author (issue #87)', () => {
+  /** The credit block of a parsed title page, as plain text. */
+  const creditBlock = (fountain: string): string => {
+    const nodes = parse(fountain);
+    const author = nodes.find((n) => n.attrs?.field === 'author');
+    return author ? textOf(author) : '';
+  };
+
+  it('reads the reported title page the way it is written', () => {
+    // Exactly the input from the issue. `Credit:` was filed as "based on", so
+    // this came out as "Written by Alex Example" with a second "Written by"
+    // underneath it.
+    expect(creditBlock([
+      'Title: The Extremely Broken Umbrella',
+      'Credit: Written by',
+      'Author: Alex Example',
+      'Draft date: 26 August 2026',
+      '',
+    ].join('\n'))).toBe('Written by\nAlex Example');
+  });
+
+  it('keeps a credit that is not the default', () => {
+    expect(creditBlock('Title: X\nCredit: Screenplay by\nAuthor: Alex Example\n\n'))
+      .toBe('Screenplay by\nAlex Example');
+  });
+
+  it('defaults the credit when the file names none', () => {
+    expect(creditBlock('Title: X\nAuthor: Alex Example\n\n')).toBe('Written by\nAlex Example');
+  });
+
+  it('puts Source under the author, where "based on" belongs', () => {
+    expect(creditBlock('Title: X\nAuthor: Alex Example\nSource: Based on a true story\n\n'))
+      .toBe('Written by\nAlex Example\nBased on a true story');
+  });
+
+  it('reads the draft date from either key', () => {
+    const draftOf = (fountain: string) => {
+      const draft = parse(fountain).find((n) => n.attrs?.field === 'draft');
+      return draft ? textOf(draft) : '';
+    };
+    expect(draftOf('Title: X\nDraft date: 26 August 2026\n\n')).toBe('26 August 2026');
+    expect(draftOf('Title: X\nDate: 26 August 2026\n\n')).toBe('26 August 2026');
+    expect(draftOf('Title: X\nDraft: Second Draft\nDate: 26 August 2026\n\n'))
+      .toBe('Second Draft - 26 August 2026');
+  });
+
+  it('round-trips the credit rather than reshaping it', () => {
+    const original = 'Title: X\nCredit: Screenplay by\nAuthor: Alex Example\nSource: Based on a true story\n\nSam waits.\n';
+    const out = exportFountain(parseFountain(original) as JSONContent);
+    expect(out).toContain('Credit: Screenplay by');
+    expect(out).toContain('Author: Alex Example');
+    expect(out).toContain('Source: Based on a true story');
+    // Not the old `Credit: Based on …`, which read back as the label.
+    expect(out).not.toMatch(/Credit: Based on/);
+    expect(creditBlock(out)).toBe('Screenplay by\nAlex Example\nBased on a true story');
+  });
+});
+
+describe('exportFountain — elements Fountain has no element for', () => {
+  it('does not let a cast list come back as a character cue', () => {
+    // Cast List fell through to the raw `default` branch, so a run of names in
+    // capitals re-imported as a cue and swallowed the paragraph under it.
+    const out = exportFountain(doc(
+      block('action', 'Before.'),
+      block('castList', 'SAM, JO, THE DOG'),
+      block('action', 'After.'),
+    ));
+    const back = parse(out);
+    expect(types(back)).toEqual(['action', 'action', 'action']);
+    expect(textOf(back[1])).toBe('SAM, JO, THE DOG');
+    expect(textOf(back[2])).toBe('After.');
+  });
+
+  it('writes an AV script out instead of an empty file', () => {
+    // No `avBlock` case matched, and `getTextContent` returns '' for a node
+    // whose children are blocks — so the whole AV body was written as nothing.
+    const out = exportFountain({
+      type: 'doc',
+      content: [{
+        type: 'avBlock',
+        content: [{
+          type: 'avRow',
+          content: [
+            {
+              type: 'avCell',
+              attrs: { side: 'video' },
+              content: [{ type: 'avPara', content: [{ type: 'text', text: 'Wide on the harbour.' }] }],
+            },
+            {
+              type: 'avCell',
+              attrs: { side: 'audio' },
+              content: [{ type: 'avPara', content: [{ type: 'text', text: 'NARRATOR: It began here.' }] }],
+            },
+          ],
+        }],
+      }],
+    });
+    expect(out).toContain('Wide on the harbour.');
+    expect(out).toContain('NARRATOR: It began here.');
+
+    const back = parse(out);
+    // The column labels are notes, so they never reach the printed page.
+    expect(back.filter((n) => n.type === 'note').map(textOf)).toEqual(['Video', 'Audio']);
+    expect(back.filter((n) => n.type === 'action').map(textOf))
+      .toEqual(['Wide on the harbour.', 'NARRATOR: It began here.']);
+  });
+});
+
+describe('Fountain title page — fields that used to be dropped', () => {
+  const titleAttrs = (fountain: string): Record<string, unknown> => {
+    const node = parse(fountain).find((n) => n.attrs?.field === 'title');
+    return (node?.attrs ?? {}) as Record<string, unknown>;
+  };
+
+  const roundTripAttrs = (attrs: Record<string, string>): Record<string, unknown> => {
+    const written = exportFountain(doc({
+      type: 'titlePage',
+      attrs: { field: 'title', ...attrs },
+      content: [{ type: 'text', text: attrs.tpTitle ?? 'X' }],
+    }));
+    return titleAttrs(written);
+  };
+
+  it('keeps the notes the parser has always read', () => {
+    // `Notes:` was parsed but never written, so a title page's notes survived
+    // an import and were dropped by the very next save.
+    expect(roundTripAttrs({ tpTitle: 'X', tpNotes: 'Third revision' }).tpNotes)
+      .toBe('Third revision');
+  });
+
+  it('keeps a WGA registration', () => {
+    expect(roundTripAttrs({ tpTitle: 'X', tpWgaRegistration: 'WGA #1234' }).tpWgaRegistration)
+      .toBe('WGA #1234');
+  });
+
+  it('keeps a contact block on more than one line', () => {
+    // Written as a literal `\n` this came back with the escape in the address.
+    const contact = 'Jane Writer\n1 Example Street\njane@example.com';
+    expect(roundTripAttrs({ tpTitle: 'X', tpContact: contact }).tpContact).toBe(contact);
+  });
+
+  it('writes a multi-line value as indented continuation lines', () => {
+    const out = exportFountain(doc({
+      type: 'titlePage',
+      attrs: { field: 'title', tpTitle: 'X', tpContact: 'One\nTwo' },
+      content: [{ type: 'text', text: 'X' }],
+    }));
+    expect(out).toContain('Contact: One\n    Two');
+    expect(out).not.toContain('\\n');
+  });
+});

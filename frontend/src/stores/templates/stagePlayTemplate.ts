@@ -33,7 +33,7 @@ export const STAGE_PLAY_TEMPLATE: FormattingTemplate = {
   // Stage convention: each act starts on its own page.
   forceBreakBefore: ['newAct'],
   starterDocument: STARTER,
-  titlePageFields: ['tpTitle', 'tpWrittenBy', 'tpDraft', 'tpDraftDate', 'tpContact', 'tpCopyright', 'tpNotes'],
+  titlePageFields: ['tpTitle', 'tpCredit', 'tpWrittenBy', 'tpDraft', 'tpDraftDate', 'tpContact', 'tpCopyright', 'tpNotes'],
   rules: {
     sceneHeading: rule('sceneHeading', 'Scene Heading', true, {
       bold: true,

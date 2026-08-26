@@ -49,6 +49,21 @@ export function getOS(): 'macos' | 'windows' | 'linux' | 'android' | 'ios' | 'un
 }
 
 /**
+ * Whether this device is one an Apple Pencil can be used with — an iPad.
+ *
+ * iPhone and iPod run the same OS and report the same way, but no Pencil pairs
+ * with them, so the handwriting input is not offered there. iPadOS 13+ sends a
+ * desktop-class "Macintosh" user agent, which is why a real Mac has to be told
+ * apart by its lack of touch points rather than by its name.
+ */
+export function supportsApplePencil(): boolean {
+  const ua = navigator.userAgent || '';
+  if (/iphone|ipod/i.test(ua)) return false;
+  if (/ipad/i.test(ua)) return true;
+  return /macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
+}
+
+/**
  * Whether this device can show more than one OpenDraft window (issue #63).
  *
  * Always true on desktop. On mobile it has to be asked of the platform: iPadOS

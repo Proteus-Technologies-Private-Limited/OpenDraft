@@ -189,6 +189,16 @@
     { page: 'Import & Export', title: 'Export as Final Draft', section: 'Export FDX', text: 'Save as Final Draft FDX file. Preserves character profiles tag categories entities.', url: 'import-export.html#export-fdx' },
     { page: 'Import & Export', title: 'Export as Fountain', section: 'Export Fountain', text: 'Save as Fountain plain-text format. Compatible any Fountain editor version control.', url: 'import-export.html#export-fountain' },
 
+    { page: 'Writing Your Screenplay', title: 'Handwriting with an Apple Pencil', section: 'Handwriting', text: 'Apple Pencil Scribble iPad handwriting input box. Write with pencil insert at cursor. Replaces selection. Scribble overwrites deletes existing text middle of screenplay cramped small writing area. Safe large writing box.', url: 'writing-screenplay.html#handwriting' },
+
+    // Format Compatibility
+    { page: 'Format Compatibility', title: 'Format Compatibility', section: '', text: 'What each screenplay element becomes when exported. Lossy conversion round trip. Which elements are lost changed converted flattened. Element mapping table fdx fountain docx osf fadein odraft.', url: 'format-compatibility.html' },
+    { page: 'Format Compatibility', title: 'Element Mapping', section: 'Element Mapping', text: 'Mapping table OpenDraft element Final Draft Fade In OSF Word docx Fountain. Scene heading action character dialogue parenthetical transition lyrics shot general new act end of act show episode cast list section note synopsis dual dialogue AV images.', url: 'format-compatibility.html#element-mapping' },
+    { page: 'Format Compatibility', title: 'Why General comes back as Action', section: 'General', text: 'Fountain has no General element unformatted text. Exported as forced Action exclamation mark prefix. Imported back becomes Action not General. Shot New Act End of Act Show Episode Cast List same. Known limitation. Use fdx docx odraft to keep them.', url: 'format-compatibility.html#fountain-general' },
+    { page: 'Format Compatibility', title: 'Title Page Fields', section: 'Title Page', text: 'Title page fields export title credit written by based on draft date contact copyright WGA registration notes. Final Draft Fade In OSF Fountain keys. Which title page fields are lost.', url: 'format-compatibility.html#title-page' },
+    { page: 'Format Compatibility', title: 'What Else Does Not Travel', section: 'Beyond Elements', text: 'Script notes tags entities beats character profiles version history revision marks custom element types not exported. Only odraft carries everything.', url: 'format-compatibility.html#beyond-elements' },
+    { page: 'Format Compatibility', title: 'Choosing a Format', section: 'Choosing', text: 'Which export format to use. odraft lossless. fdx Final Draft every element. fountain plain text shareable. docx Word. pdf identical everywhere.', url: 'format-compatibility.html#choosing' },
+
     // Themes
     { page: 'Themes', title: 'Themes', section: '', text: 'Light dark interface themes. Toggle view menu. Eye strain low-light.', url: 'themes.html' },
     { page: 'Themes', title: 'Dark Theme', section: 'Dark', text: 'Dark theme low-light environments reduced eye strain. Dark backgrounds light text. Toolbars panels menus. Editor page stays white.', url: 'themes.html#dark-theme' },

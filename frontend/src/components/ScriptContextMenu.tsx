@@ -11,6 +11,8 @@ import { RETEXT_CATEGORY_META } from '../editor/grammar/retextProvider';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { pasteAsFountain } from '../utils/pasteFountain';
+import { supportsApplePencil } from '../services/platform';
+import { requestHandwriting } from '../utils/handwriting';
 import {
   copySelection, cutSelection, pasteIntoEditor, pasteWithoutFormatting,
   type ClipboardResult,
@@ -542,6 +544,13 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
     onClose();
   };
 
+  // The menu is dismissed first: it is drawn over the page, and the sheet that
+  // replaces it needs the screen.
+  const handleHandwriting = useCallback(() => {
+    onClose();
+    requestHandwriting();
+  }, [onClose]);
+
   return (
     <div
       ref={menuRef}
@@ -625,6 +634,13 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
         <span>Paste as Fountain</span>
         <span className="ctx-shortcut">{shift}{mod}V</span>
       </div>
+      {/* Handwriting — on an iPad this menu is opened with three fingers, which
+          is the one gesture that works whether or not a keyboard is showing. */}
+      {supportsApplePencil() && (
+        <div className="ctx-item" onClick={handleHandwriting}>
+          <span>Handwriting&hellip;</span>
+        </div>
+      )}
       <div className="ctx-separator" />
 
       {/* Selection */}

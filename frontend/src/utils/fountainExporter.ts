@@ -3,6 +3,7 @@ import type { JSONContent } from '@tiptap/react';
 import { jsonBlockRuns, mergeRuns, singleLine } from './nodeText';
 import { sanitizeExportFilename } from './exportFilename';
 import { clampSectionLevel } from '../editor/extensions/Section';
+import { DEFAULT_TITLE_PAGE_CREDIT } from './titlePageBlocks';
 
 /**
  * Escape the characters Fountain reads as emphasis markup, so text the writer
@@ -248,17 +249,42 @@ export function exportFountain(doc: JSONContent): string {
   for (const node of doc.content) {
     if (node.type === 'titlePage' && node.attrs?.field === 'title') {
       if (node.attrs.tpTitle) titlePageMeta['Title'] = node.attrs.tpTitle;
-      if (node.attrs.tpWrittenBy) titlePageMeta['Author'] = node.attrs.tpWrittenBy;
-      if (node.attrs.tpDraft) titlePageMeta['Draft date'] = node.attrs.tpDraftDate || node.attrs.tpDraft;
-      if (node.attrs.tpContact) titlePageMeta['Contact'] = node.attrs.tpContact.replace(/\n/g, '\\n');
+      // `Credit:` is the label line above the author, and `Source:` is the
+      // "based on" line below it. This used to write the source as the credit,
+      // prefixed with "Based on" — which read back as the label and printed
+      // where the label goes (issue #87). A credit is written whenever there is
+      // an author, so a file that names one is explicit about it rather than
+      // relying on the reader's own default.
+      if (node.attrs.tpWrittenBy) {
+        titlePageMeta['Credit'] = node.attrs.tpCredit || DEFAULT_TITLE_PAGE_CREDIT;
+        titlePageMeta['Author'] = node.attrs.tpWrittenBy;
+      }
+      if (node.attrs.tpBasedOn) titlePageMeta['Source'] = node.attrs.tpBasedOn;
+      if (node.attrs.tpDraft) titlePageMeta['Draft'] = node.attrs.tpDraft;
+      if (node.attrs.tpDraftDate) titlePageMeta['Draft date'] = node.attrs.tpDraftDate;
+      if (node.attrs.tpContact) titlePageMeta['Contact'] = node.attrs.tpContact;
       if (node.attrs.tpCopyright) titlePageMeta['Copyright'] = node.attrs.tpCopyright;
-      if (node.attrs.tpBasedOn) titlePageMeta['Credit'] = `Based on ${node.attrs.tpBasedOn}`;
+      // `Notes:` is a key the parser has always read and this never wrote, so a
+      // title page's notes survived an import and were dropped by the next save.
+      // The registration has no standard key, but a Fountain title page is open
+      // key/value and a reader that does not know this one ignores it — which
+      // costs nothing and lets OpenDraft read its own file back whole.
+      if (node.attrs.tpNotes) titlePageMeta['Notes'] = node.attrs.tpNotes;
+      if (node.attrs.tpWgaRegistration) {
+        titlePageMeta['WGA registration'] = node.attrs.tpWgaRegistration;
+      }
       break;
     }
   }
   if (Object.keys(titlePageMeta).length > 0) {
     for (const [key, value] of Object.entries(titlePageMeta)) {
-      lines.push(`${key}: ${value}`);
+      // A value that runs over several lines is written the way the spec says
+      // to write one — the first line after the key, the rest indented under
+      // it. A contact block used to be flattened to a literal `\n`, which
+      // nothing converts back, so the address came home with the escape in it.
+      const [first, ...rest] = value.split('\n');
+      lines.push(`${key}: ${first}`);
+      for (const line of rest) lines.push(`    ${line}`);
     }
     lines.push('');
   }
@@ -350,6 +376,17 @@ export function exportFountain(doc: JSONContent): string {
         lines.push(actionText(lineText(node).toUpperCase()));
         lines.push('');
         break;
+      // Cast List was missing from this switch entirely and fell through to the
+      // `default` branch, which writes the text raw. A cast list is a run of
+      // names in capitals, so it came back as a character cue with the
+      // paragraph under it as that character's dialogue. It is Action like the
+      // rest of them, forced, and it keeps its own lines rather than being
+      // collapsed onto one — a cast list is a list.
+      case 'castList':
+        lines.push('');
+        lines.push(actionText(text));
+        lines.push('');
+        break;
       case 'lyrics':
         lines.push(`~${text}`);
         break;
@@ -373,6 +410,34 @@ export function exportFountain(doc: JSONContent): string {
               });
             }
           });
+        }
+        break;
+      // Fountain is a single column of text and has no way to say "these two
+      // paragraphs are side by side", so an AV script is flattened to the rows
+      // in order, each cell's paragraphs as forced Action. Before this the
+      // whole block matched nothing and `getTextContent` returned '' for it, so
+      // exporting an AV script to Fountain wrote an empty file.
+      //
+      // Which column a paragraph came from is kept as a note: `[[Video]]` is
+      // not printed, so it labels the file for a human reading it without
+      // putting a word into the script itself.
+      case 'avBlock':
+        for (const row of node.content ?? []) {
+          if (row.type !== 'avRow') continue;
+          for (const cell of row.content ?? []) {
+            if (cell.type !== 'avCell') continue;
+            const side = (cell.attrs as { side?: string } | undefined)?.side === 'audio'
+              ? 'Audio'
+              : 'Video';
+            const paras = (cell.content ?? [])
+              .map((para) => generalText(getTextContent(para)))
+              .filter((para) => para.trim() !== '');
+            if (paras.length === 0) continue;
+            lines.push('');
+            lines.push(`[[${side}]]`);
+            lines.push(...paras);
+          }
+          lines.push('');
         }
         break;
       default:

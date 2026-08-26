@@ -401,6 +401,20 @@ tr:hover td {
   background: var(--bg-alt);
 }
 
+/* A cell in the format-compatibility table where the conversion loses
+   something — the element changes, or it is not written at all. */
+td.lossy,
+.lossy-key {
+  color: var(--danger, #c0392b);
+}
+.lossy-key { font-weight: 600; }
+
+/* A quieter aside inside a table cell — what a field or element is. */
+.muted {
+  color: var(--text-light);
+  font-size: 13px;
+}
+
 /* Screenshot placeholder */
 .screenshot {
   border-radius: var(--radius);

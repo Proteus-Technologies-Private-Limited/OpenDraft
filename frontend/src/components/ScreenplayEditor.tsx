@@ -74,6 +74,8 @@ import WritingSuggestionsModal from './WritingSuggestionsModal';
 import GrammarRulesPanel from './GrammarRulesPanel';
 // MobileAccessoryBar removed — context menu via 3-finger touch only
 import ScriptContextMenu from './ScriptContextMenu';
+import ScribbleInput from './ScribbleInput';
+import { HANDWRITING_EVENT } from '../utils/handwriting';
 import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { Grammar, grammarPluginKey } from '../editor/extensions/Grammar';
 import { spellChecker, BUILTIN_LANGUAGE } from '../editor/spellchecker';
@@ -1033,6 +1035,8 @@ const ScreenplayEditor: React.FC = () => {
   const charAutoDismissedRef = useRef(false);
 
   const [formatPanelOpen, setFormatPanelOpen] = useState(false);
+  /** Where the handwriting sheet will insert what it converts, when open. */
+  const [scribbleTarget, setScribbleTarget] = useState<{ from: number; to: number } | null>(null);
 
   // Script context menu state
   const [ctxMenuState, setCtxMenuState] = useState<{
@@ -3161,6 +3165,19 @@ const ScreenplayEditor: React.FC = () => {
     });
   }, [editor]);
 
+  // Open the handwriting sheet when the Edit menu or the touch context menu
+  // asks for it. The selection is read here, at the moment of the request,
+  // because focusing the sheet's writing field moves focus out of the editor.
+  React.useEffect(() => {
+    if (!editor) return;
+    const onRequest = () => {
+      const { from, to } = editor.state.selection;
+      setScribbleTarget({ from, to });
+    };
+    window.addEventListener(HANDWRITING_EVENT, onRequest);
+    return () => window.removeEventListener(HANDWRITING_EVENT, onRequest);
+  }, [editor]);
+
   // Bridge: let the AvKeymap extension surface the same element picker, but
   // restricted to the cell-valid types (avPara/avShot/avDirection).
   React.useEffect(() => {
@@ -4534,6 +4551,17 @@ const ScreenplayEditor: React.FC = () => {
           suggestions={charAutoState.suggestions}
           onSelect={handleCharAutoSelect}
           onDismiss={handleCharAutoDismiss}
+        />
+      )}
+      {/* Handwriting input (Apple Pencil). Mounted here rather than on a
+          toolbar because it has to be reachable whatever else is on screen —
+          notably with a hardware keyboard attached, where no on-screen
+          accessory bar is showing at all (issue #90). */}
+      {scribbleTarget && editor && (
+        <ScribbleInput
+          editor={editor}
+          target={scribbleTarget}
+          onClose={() => setScribbleTarget(null)}
         />
       )}
       {/* Context menu on mobile: 3-finger touch only */}

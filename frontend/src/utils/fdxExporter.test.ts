@@ -62,3 +62,33 @@ describe('FDX export with hard breaks', () => {
     expect(out).toContain('Wide&#10;shot');
   });
 });
+
+describe('FDX title page — fields the exporter used to drop', () => {
+  const titlePageOf = (attrs: Record<string, string>): string => {
+    const xml = exportFDX(
+      { type: 'doc', content: [{
+        type: 'titlePage',
+        attrs: { field: 'title', tpTitle: 'THE LONG GOODBYE', ...attrs },
+        content: [{ type: 'text', text: 'THE LONG GOODBYE' }],
+      }] },
+      'THE LONG GOODBYE',
+    );
+    return xml.slice(xml.indexOf('<TitlePage>'), xml.indexOf('</TitlePage>'));
+  };
+
+  it('writes the credit the writer chose, not a fixed "Written by"', () => {
+    const tp = titlePageOf({ tpCredit: 'Screenplay by', tpWrittenBy: 'Jane Writer' });
+    expect(tp).toContain('<Text>Screenplay by</Text>');
+    expect(tp).not.toContain('<Text>Written by</Text>');
+  });
+
+  it('still writes "Written by" when no credit was chosen', () => {
+    expect(titlePageOf({ tpWrittenBy: 'Jane Writer' })).toContain('<Text>Written by</Text>');
+  });
+
+  it('writes the WGA registration and the notes', () => {
+    const tp = titlePageOf({ tpWgaRegistration: 'WGA #1234', tpNotes: 'Third revision' });
+    expect(tp).toContain('<Text>WGA #1234</Text>');
+    expect(tp).toContain('<Text>Third revision</Text>');
+  });
+});

@@ -12,6 +12,7 @@ import {
   titlePageAttrsCarryData,
   type TitleNodeInfo,
 } from '../utils/titlePageRegion';
+import { DEFAULT_TITLE_PAGE_CREDIT } from '../utils/titlePageBlocks';
 import { showToast } from './Toast';
 
 /** Small image thumbnail for the title-page preview/list. Shares the editor
@@ -31,6 +32,7 @@ interface Props {
 
 const EMPTY_ATTRS: Omit<TitlePageAttrs, 'field'> = {
   tpTitle: '',
+  tpCredit: '',
   tpWrittenBy: '',
   tpBasedOn: '',
   tpDraft: '',
@@ -67,6 +69,7 @@ function readTitlePageData(editor: Editor): Omit<TitlePageAttrs, 'field'> {
     // Structured data exists — use it
     result.tpTitle = titleNode.attrs.tpTitle || '';
     result.tpTitleFontSize = Number(titleNode.attrs.tpTitleFontSize) || 12;
+    result.tpCredit = titleNode.attrs.tpCredit || '';
     result.tpWrittenBy = titleNode.attrs.tpWrittenBy || '';
     result.tpBasedOn = titleNode.attrs.tpBasedOn || '';
     result.tpDraft = titleNode.attrs.tpDraft || '';
@@ -99,10 +102,12 @@ function readTitlePageData(editor: Editor): Omit<TitlePageAttrs, 'field'> {
 
 type TpData = Omit<TitlePageAttrs, 'field'>;
 
-/** Derive the rendered credit lines from the dialog fields. */
+/** Derive the rendered credit lines from the dialog fields.
+ *  Keep in step with `deriveTitlePageLines` in utils/titlePageBlocks.ts. */
 function deriveFields(data: TpData) {
+  const credit = (data.tpCredit || '').trim() || DEFAULT_TITLE_PAGE_CREDIT;
   const byLine = data.tpWrittenBy
-    ? (data.tpBasedOn ? `Written by ${data.tpWrittenBy}\n${data.tpBasedOn}` : `Written by ${data.tpWrittenBy}`)
+    ? [credit, data.tpWrittenBy, data.tpBasedOn].filter(Boolean).join('\n')
     : '';
   const draftLine = (data.tpDraft || data.tpDraftDate) ? [data.tpDraft, data.tpDraftDate].filter(Boolean).join(' - ') : '';
   const copyrightLine = (data.tpCopyright || data.tpWgaRegistration) ? [data.tpCopyright, data.tpWgaRegistration].filter(Boolean).join('\n') : '';
@@ -406,6 +411,17 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
               >
                 {TITLE_FONT_SIZES.map((s) => <option key={s} value={s}>{s} pt</option>)}
               </select>
+            </div>
+            )}
+            {showField('tpCredit') && (
+            <div className="props-field">
+              <label className="props-label">Credit</label>
+              <input
+                className="props-input"
+                value={data.tpCredit}
+                onChange={(e) => setField('tpCredit', e.target.value)}
+                placeholder={DEFAULT_TITLE_PAGE_CREDIT}
+              />
             </div>
             )}
             {showField('tpWrittenBy') && (
