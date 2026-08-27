@@ -66,7 +66,7 @@ for r in range(120, 0, -1):
 img = Image.alpha_composite(img, overlay)
 
 # --- Place editor screenshot on the RIGHT with tilt effect ---
-editor_path = os.path.join(PROJECT_ROOT, "images", "editor.png")
+editor_path = os.path.join(PROJECT_ROOT, "images", "macos", "editor.png")
 editor = Image.open(editor_path).convert("RGBA")
 
 # Resize editor
