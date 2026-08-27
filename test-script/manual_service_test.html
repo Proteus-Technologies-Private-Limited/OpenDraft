@@ -1,0 +1,105 @@
+<!--
+  Exercises frontend/src/services/userManual.ts against the live GitHub repo:
+  manifest fetch, full download, IndexedDB round-trip, image caching, search,
+  and removal. It talks to the real network, so it needs a connection.
+
+  Build the bundle it loads, then serve this directory and open the page:
+
+    frontend/node_modules/.bin/esbuild frontend/src/services/userManual.ts \
+      --bundle --format=esm --outfile=test-script/output/manual-test/userManual.js
+    cp test-script/manual_service_test.html test-script/output/manual-test/index.html
+    ./venv/bin/python -m http.server 8791 --directory test-script/output/manual-test
+
+  The page title becomes DONE-PASS or DONE-FAIL when the run finishes.
+-->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>userManual service test</title></head>
+<body>
+<pre id="log">running…</pre>
+<script type="module">
+import {
+  fetchManifest, downloadManual, getManualStatus, getCachedPages,
+  getCachedPage, getCachedImage, searchManual, removeManual,
+  formatBytes, MANUAL_IMG_ATTR, isUpdateAvailable, getManualStylesheet,
+} from './userManual.js';
+
+const out = [];
+const log = (...a) => { out.push(a.join(' ')); document.getElementById('log').textContent = out.join('\n'); };
+let failures = 0;
+const check = (name, cond, extra = '') => {
+  log(`${cond ? 'PASS' : 'FAIL'}  ${name}${extra ? '  — ' + extra : ''}`);
+  if (!cond) failures++;
+};
+
+(async () => {
+  try {
+    await removeManual();
+
+    const m = await fetchManifest();
+    check('manifest has pages', m.pages.length >= 20, `${m.pages.length} pages, version=${m.version}`);
+
+    let lastPct = -1;
+    const status = await downloadManual((p) => {
+      const pct = Math.round((p.done / Math.max(1, p.total)) * 100);
+      if (pct !== lastPct) { lastPct = pct; log(`  …${pct}% ${p.label}`); }
+    });
+    check('download reports installed', status.installed === true);
+    check('all pages stored', status.pageCount === m.pages.length, `${status.pageCount}/${m.pages.length}`);
+    check('images stored', status.imageCount > 0, `${status.imageCount} images, ${formatBytes(status.bytes)}`);
+
+    const pages = await getCachedPages();
+    check('cached page order preserved', pages[0]?.slug === m.pages[0].slug, `first=${pages[0]?.slug}`);
+    check('sections present', new Set(pages.map(p => p.section)).size > 3);
+
+    const gs = await getCachedPage('getting-started.html');
+    check('page html non-empty', !!gs && gs.html.length > 500, `${gs?.html.length} chars`);
+    check('page text non-empty', !!gs && gs.text.length > 500, `${gs?.text.length} chars`);
+    check('manual chrome stripped', !!gs && !/sidebar-link|header-search|<script/i.test(gs.html));
+    check('image rewritten to data attr', !!gs && gs.html.includes(MANUAL_IMG_ATTR),
+          (gs?.html.match(/data-manual-img="[^"]+"/) || ['none'])[0]);
+    check('no leftover network img src', !!gs && !/<img[^>]+src="(?!blob:)/i.test(gs.html));
+
+    // Every referenced image should be retrievable from the cache.
+    const refs = new Set();
+    for (const p of pages) {
+      for (const mm of (p.html || '').matchAll(/data-manual-img="([^"]+)"/g)) refs.add(mm[1]);
+    }
+    let got = 0;
+    for (const path of refs) { if (await getCachedImage(path)) got++; }
+    // formatting.html references screenshots/format-template-menu.png, which is
+    // not in the repo. One skip is expected; more would mean a download problem.
+    check('referenced images cached (bar known-missing)', refs.size - got <= 1, `${got}/${refs.size}`);
+
+    const sheet = await getManualStylesheet();
+    check('stylesheet cached', !!sheet && sheet.length > 5000, `${sheet ? sheet.length : 0} chars`);
+    check('stylesheet uses :host, not :root', !!sheet && /:host\s*\{/.test(sheet) && !/:root/.test(sheet));
+    check('stylesheet defines the palette', !!sheet && sheet.includes('--primary:') && sheet.includes('--text:'));
+    check('stylesheet neutralises page chrome offsets', !!sheet && /\.main \{ margin: 0/.test(sheet));
+
+    const hits = await searchManual('scene heading');
+    check('search returns hits', hits.length > 0, `${hits.length} hits, top="${hits[0]?.title}"`);
+    check('search hit has snippet', !!hits[0]?.snippet, (hits[0]?.snippet || '').slice(0, 70));
+    const none = await searchManual('zzzqqxnotaword');
+    check('search miss returns empty', none.length === 0);
+
+    const upd = await isUpdateAvailable();
+    check('update check does not throw', typeof upd === 'boolean', `available=${upd}`);
+
+    // Survives a reload of the store.
+    const again = await getManualStatus();
+    check('status persists', again.installed && again.pageCount === status.pageCount);
+
+    await removeManual();
+    const cleared = await getManualStatus();
+    check('remove clears everything', !cleared.installed && cleared.pageCount === 0);
+  } catch (err) {
+    failures++;
+    log('THREW  ' + (err && err.stack ? err.stack : err));
+  }
+  log(failures === 0 ? '\nRESULT: ALL PASSED' : `\nRESULT: ${failures} FAILED`);
+  document.title = failures === 0 ? 'DONE-PASS' : 'DONE-FAIL';
+})();
+</script>
+</body>
+</html>

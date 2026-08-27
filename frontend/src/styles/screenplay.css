@@ -383,8 +383,6 @@ body {
 .menu-item:hover .menu-icon, .menu-item.active .menu-icon { color: var(--fd-text); }
 .menu-label { font-size: 12.5px; color: var(--fd-text); font-weight: 450; }
 .menu-spacer { flex: 1; }
-.menu-item--more { font-size: 12px; color: var(--fd-text-muted); padding: 4px 8px; }
-.menu-item--more:hover { color: var(--fd-text); }
 
 /* Leading "back to the project" control, shown only for a script that is
    inside one. Icon-only and menu-item sized so it reads as part of the bar
@@ -440,7 +438,6 @@ body {
 .menu-bar.chrome-comfortable .menu-item { padding: 10px 16px; min-height: 44px; gap: 8px; border-radius: 8px; }
 .menu-bar.chrome-comfortable .menu-label { font-size: 14px; font-weight: normal; }
 .menu-bar.chrome-comfortable .menu-icon { font-size: 14px; }
-.menu-bar.chrome-comfortable .menu-item--more { padding: 10px 12px; min-height: 44px; }
 .menu-dropdown {
   position: fixed; min-width: 260px;
   background: var(--fd-dropdown-bg); border: 1px solid var(--fd-border);
@@ -2936,6 +2933,179 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 }
 .about-list li strong {
   color: var(--fd-text);
+}
+
+/* Compatibility table is collapsed by default — it is diagnostic detail, not
+   something most people opening About are looking for (issue #94). */
+.about-disclosure {
+  width: 100%;
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: none; padding: 0;
+  color: var(--fd-text); font-size: 13px; font-weight: 600;
+  cursor: pointer; text-align: left;
+}
+.about-disclosure:hover { color: var(--fd-accent); }
+.about-disclosure-caret {
+  display: inline-block; font-size: 10px; color: var(--fd-text-muted);
+  transition: transform .15s ease;
+}
+.about-disclosure[aria-expanded="true"] .about-disclosure-caret { transform: rotate(90deg); }
+
+/* ============ USER MANUAL ============ */
+.manual-dialog {
+  min-width: min(1040px, 96vw);
+  max-width: min(1040px, 96vw);
+  width: min(1040px, 96vw);
+  height: min(760px, calc(var(--vv-height, 100dvh) - 48px));
+  max-height: calc(var(--vv-height, 100dvh) - 48px);
+}
+.manual-header {
+  display: flex; align-items: center; gap: 16px;
+  justify-content: space-between;
+}
+.manual-header-title { display: inline-flex; align-items: center; gap: 8px; }
+.manual-header-tools { display: flex; align-items: center; gap: 10px; flex: 0 1 auto; }
+.manual-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex: 0 0 auto;
+  background: none; border: 1px solid var(--fd-border); border-radius: 4px;
+  color: var(--fd-text-muted); font-size: 12px; cursor: pointer;
+}
+.manual-icon-btn:hover { color: var(--fd-text); background: var(--fd-menu-hover); }
+.manual-search {
+  position: relative; display: flex; align-items: center;
+  flex: 0 1 320px;
+}
+.manual-search input {
+  width: 100%; height: 30px;
+  background: var(--fd-input-bg); color: var(--fd-text);
+  border: 1px solid var(--fd-border); border-radius: 4px;
+  padding: 0 28px 0 28px; font-size: 13px; font-weight: 400; outline: none;
+}
+.manual-search input:focus { border-color: var(--fd-accent); }
+.manual-search-icon {
+  position: absolute; left: 9px; font-size: 11px;
+  color: var(--fd-text-muted); pointer-events: none;
+}
+.manual-search-clear {
+  position: absolute; right: 6px;
+  background: none; border: none; cursor: pointer;
+  color: var(--fd-text-muted); font-size: 11px; padding: 4px;
+}
+.manual-search-clear:hover { color: var(--fd-text); }
+
+.manual-error {
+  padding: 8px 20px; font-size: 13px;
+  color: #f87171; border-bottom: 1px solid var(--fd-border);
+}
+
+.manual-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 12px;
+}
+.manual-empty-icon { font-size: 34px; color: var(--fd-text-muted); }
+.manual-empty h3 { margin: 0; font-size: 16px; color: var(--fd-text); }
+.manual-empty p { margin: 0; max-width: 460px; font-size: 13px; color: var(--fd-text-secondary); line-height: 1.6; }
+.manual-empty-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+.manual-empty-actions button { display: inline-flex; align-items: center; gap: 8px; }
+
+.manual-progress { width: min(420px, 100%); }
+.manual-progress-bar {
+  height: 5px; border-radius: 3px; overflow: hidden;
+  background: var(--fd-border);
+}
+.manual-progress-fill {
+  height: 100%; background: var(--fd-accent);
+  transition: width .2s ease;
+}
+.manual-progress-label {
+  margin-top: 6px; font-size: 12px; color: var(--fd-text-muted);
+}
+
+.manual-layout {
+  flex: 1 1 auto; display: flex; min-height: 0;
+  border-bottom: 1px solid var(--fd-border);
+}
+.manual-sidebar-toggle { display: none; }
+.manual-sidebar {
+  flex: 0 0 232px; overflow-y: auto;
+  border-right: 1px solid var(--fd-border);
+  padding: 12px 0;
+}
+.manual-sidebar-section { margin-bottom: 12px; }
+.manual-sidebar-title {
+  padding: 4px 16px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--fd-text-muted);
+}
+.manual-sidebar-link {
+  display: block; width: 100%; text-align: left;
+  padding: 6px 16px; background: none; border: none;
+  color: var(--fd-text-secondary); font-size: 13px; cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.manual-sidebar-link:hover { background: var(--fd-menu-hover); color: var(--fd-text); }
+.manual-sidebar-link.active {
+  color: var(--fd-accent); border-left-color: var(--fd-accent);
+  background: var(--fd-menu-hover);
+}
+
+/* Fixed rather than sized to 100vw/100dvh in place: the overlay pads and
+   centres its child, so a viewport-sized box would start below that padding
+   and push its own footer off the bottom edge. */
+.manual-dialog--full {
+  position: fixed; top: 0; left: 0;
+  width: 100vw; min-width: 0; max-width: none;
+  height: var(--vv-height, 100dvh); max-height: var(--vv-height, 100dvh);
+  border-radius: 0; border: none;
+}
+.manual-main { flex: 1 1 auto; overflow-y: auto; min-width: 0; }
+
+.manual-shadow-host { display: block; }
+
+.manual-results { padding: 24px 32px; }
+.manual-results h2 { font-size: 15px; color: var(--fd-text); margin: 0 0 14px; }
+.manual-result {
+  display: flex; flex-direction: column; gap: 3px;
+  width: 100%; text-align: left; cursor: pointer;
+  padding: 10px 12px; margin-bottom: 8px;
+  background: none; border: 1px solid var(--fd-border); border-radius: 4px;
+}
+.manual-result:hover { background: var(--fd-menu-hover); border-color: var(--fd-accent); }
+.manual-result-title { font-size: 14px; font-weight: 600; color: var(--fd-text); }
+.manual-result-section { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--fd-text-muted); }
+.manual-result-snippet { font-size: 12.5px; color: var(--fd-text-secondary); line-height: 1.5; }
+
+.manual-actions { flex-wrap: wrap; }
+.manual-actions button { display: inline-flex; align-items: center; gap: 6px; }
+.manual-meta {
+  flex: 1 1 auto; display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--fd-text-muted);
+}
+.manual-update-badge {
+  padding: 1px 7px; border-radius: 10px; font-size: 11px;
+  background: var(--fd-accent); color: #fff;
+}
+
+/* Narrow windows and phones: the contents list collapses into a toggle so the
+   page itself keeps the full width. */
+@media (max-width: 700px) {
+  .manual-layout { flex-direction: column; position: relative; }
+  .manual-sidebar-toggle {
+    display: block; width: 100%; text-align: left;
+    padding: 8px 16px; background: var(--fd-toolbar-bg);
+    border: none; border-bottom: 1px solid var(--fd-border);
+    color: var(--fd-text); font-size: 13px; cursor: pointer;
+  }
+  .manual-sidebar {
+    display: none; flex: 0 0 auto; max-height: 45%;
+    border-right: none; border-bottom: 1px solid var(--fd-border);
+  }
+  .manual-sidebar--open { display: block; }
+  .manual-main { padding: 16px 18px; }
+  .manual-header { flex-wrap: wrap; gap: 8px; }
+  .manual-search { flex: 1 1 100%; }
+  .manual-meta { flex: 1 1 100%; order: -1; }
 }
 
 /* ============ PAGE SETUP DIALOG ============ */
@@ -9418,7 +9588,6 @@ html.android .version-history-panel {
   .menu-item { padding: 8px 12px; min-height: 40px; gap: 6px; white-space: nowrap; flex-shrink: 0; }
   .menu-label { font-size: 13px; }
   .menu-icon { font-size: 14px; }
-  .menu-item--more { flex-shrink: 0; }
   .menu-spacer { flex: 0 0 4px; }
 
   /* Comfortable mode: bigger than compact, scroll if too wide */
@@ -9432,7 +9601,6 @@ html.android .version-history-panel {
   .menu-bar.chrome-comfortable .menu-item { padding: 10px 14px; min-height: 44px; gap: 7px; }
   .menu-bar.chrome-comfortable .menu-label { font-size: 14px; }
   .menu-bar.chrome-comfortable .menu-icon { font-size: 15px; }
-  .menu-bar.chrome-comfortable .menu-item--more { padding: 10px 12px; min-height: 44px; }
   .menu-bar.chrome-comfortable .menu-spacer { flex: 0 0 auto; width: 0; }
 
   /* Floating menu bar (hidden mode): constrain to viewport, scroll */
@@ -9715,7 +9883,6 @@ html.android .version-history-panel {
   .menu-bar.chrome-comfortable .menu-item { padding: 10px 12px; min-height: 42px; gap: 6px; }
   .menu-bar.chrome-comfortable .menu-label { font-size: 13px; }
   .menu-bar.chrome-comfortable .menu-icon { font-size: 14px; }
-  .menu-bar.chrome-comfortable .menu-item--more { padding: 10px 10px; min-height: 42px; }
 
   /* Floating menu bar (hidden mode): full-width on phone, scroll */
   .menu-bar--floating {

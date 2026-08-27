@@ -77,6 +77,7 @@ import {
 } from '../services/backupService';
 import { useBackupStatusStore, describeBackupError } from '../stores/backupStatusStore';
 import RecoverBackupDialog from './RecoverBackupDialog';
+import UserManualDialog from './UserManualDialog';
 import {
   openBinaryFile,
   openTextOrBinaryFile,
@@ -97,7 +98,7 @@ import {
   FaPalette,
   FaEye,
   FaWrench,
-  FaEllipsisH,
+  FaQuestionCircle,
   FaFileImport,
   FaFolderOpen,
   FaArchive,
@@ -150,7 +151,7 @@ import {
   FaBoxes,
   FaBars,
   FaInfoCircle,
-  FaKeyboard,
+  FaBook,
   FaStethoscope,
   FaSearchPlus,
   FaSearchMinus,
@@ -604,6 +605,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   // ── Diagnostics (Help menu) ──
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  // Compatibility detail in About starts collapsed (issue #94).
+  const [compatOpen, setCompatOpen] = useState(false);
   const [diagnosticsReport, setDiagnosticsReport] = useState<import('../services/diagnostics').DiagnosticsReport | null>(null);
   const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
 
@@ -1750,20 +1754,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
     },
   ];
 
-  // Help menu rendered separately as a 3-dot overflow on the right
+  // Help sits at the right-hand end of the bar, after the spacer.
   const helpMenu: MenuSection = {
     label: 'Help',
     items: [
       {
+        icon: <FaBook />,
+        label: 'User Manual\u2026',
+        action: () => setManualOpen(true),
+      },
+      { separator: true, label: '' },
+      {
         icon: <FaInfoCircle />,
         label: 'About Open Draft',
         action: () => setAboutOpen(true),
-      },
-      {
-        icon: <FaKeyboard />,
-        label: 'Keyboard Shortcuts',
-        action: () =>
-          showToast(`${mod}1-8: Elements | Tab: Next | ${mod}B/I/U: Format | ${mod}Z: Undo | ${mod}F: Find | ${mod}G: Go to Page`, 'success'),
       },
       {
         icon: <FaStethoscope />,
@@ -2053,19 +2057,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <span className="menu-label">{menu.label}</span>
         </div>
       ))}
-      <div className="menu-spacer" />
-      <AuthIndicator />
       <div
         ref={(el) => { menuItemRefs.current['Help'] = el; }}
-        className={`menu-item menu-item--more ${activeMenu === 'Help' ? 'active' : ''}`}
+        className={`menu-item ${activeMenu === 'Help' ? 'active' : ''}`}
         onClick={() => handleMenuClick('Help')}
         onMouseEnter={() => {
           if (activeMenu) setActiveMenu('Help');
         }}
-        title="Help & About"
+        title="User manual, about and diagnostics"
       >
-        <FaEllipsisH />
+        <span className="menu-icon"><FaQuestionCircle /></span>
+        <span className="menu-label">Help</span>
       </div>
+      <div className="menu-spacer" />
+      <AuthIndicator />
     </>
   );
 
@@ -2478,7 +2483,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
             </div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">Compatibility</div>
+              <button
+                className="about-disclosure"
+                aria-expanded={compatOpen}
+                onClick={() => setCompatOpen((v) => !v)}
+              >
+                <span className="about-disclosure-caret">&#9654;</span>
+                <span className="about-section-title" style={{ margin: 0 }}>Compatibility</span>
+              </button>
+              {compatOpen && (
               <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', marginTop: 8 }}>
                 <thead>
                   <tr style={{ textAlign: 'left', color: 'var(--fd-text-secondary)' }}>
@@ -2531,6 +2544,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                   ))}
                 </tbody>
               </table>
+              )}
             </div>
           </div>
           <div className="dialog-actions">
@@ -2539,6 +2553,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         </div>
       </div>
     )}
+    {manualOpen && <UserManualDialog onClose={() => setManualOpen(false)} />}
     {diagnosticsOpen && (
       <div className="dialog-overlay" onClick={() => setDiagnosticsOpen(false)}>
         <div className="dialog-box about-dialog" onClick={(e) => e.stopPropagation()}>
