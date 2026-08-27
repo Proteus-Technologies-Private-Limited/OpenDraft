@@ -1,11 +1,11 @@
 {
-  "version": "0fd0f51fb5359333",
+  "version": "f9bc0cc8db6d8bb4",
   "pages": [
     {
       "slug": "index.html",
       "title": "Home",
       "section": "Getting Started",
-      "hash": "9d0b012a13b48548"
+      "hash": "ba40fde0fe146632"
     },
     {
       "slug": "getting-started.html",

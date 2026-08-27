@@ -2317,6 +2317,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.25.0</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.26.0</div>
+              <ul className="about-list">
+                <li><strong>The Manual Is In The App</strong> — Help → User Manual… opens the whole manual inside OpenDraft, contents down the side and links between pages working the way they do on the web. It is not bundled with the app: download it once, about 8&nbsp;MB of pages and screenshots, and it stays on the device and works with no connection after that. Update fetches a newer copy when the manual changes; Remove takes the space back.</li>
+                <li><strong>Search What You Have Downloaded</strong> — Type in the reader and it searches every page, matching titles first and showing a line of context under each result. It runs against the local copy, so it works on a plane.</li>
+                <li><strong>A Mark That Survives Being Small</strong> — The old icon was a detailed illustration: a pen, a flock of birds, film strips, a painterly background and two lines of type. Below about 128 pixels none of it survived, so the app was hard to pick out on a home screen or in a browser tab. It is now one shape — a nib whose body opens into three feather planes — that still reads at 32 pixels and in a single colour.</li>
+                <li><strong>Help Is A Menu</strong> — It sits after Tools, where the three dots used to be at the far right of the bar, and holds the manual, About and Diagnostics. Keyboard Shortcuts has gone from it: dropping six shortcuts into a toast was never much use, and the manual has a page listing all of them.</li>
+                <li><strong>About Opens Shorter</strong> — The compatibility table is collapsed until you ask for it. It is there for filing bug reports, not for the first thing you read.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.25.0</div>
               <ul className="about-list">
                 <li><strong>A Font Library Worth The Name</strong> — Around 185 fonts, grouped by what they are: screenplay, typewriter, serif, sans-serif, monospace, display faces for title pages, handwriting, and the Noto families covering most writing systems. The picker searches, and every name is drawn in its own face so you can see what you are choosing. Courier Prime 12pt is still what a new script is.</li>

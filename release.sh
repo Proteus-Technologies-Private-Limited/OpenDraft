@@ -125,6 +125,17 @@ sed -i '' "s/What's New in v${OLD_VERSION}/What's New in v${NEW_VERSION}/g" \
   "$PROJECT_ROOT/user-manual/search.js"
 echo "  ✓ user-manual/search.js"
 
+# The in-app manual downloads user-manual/manifest.json to decide whether the
+# copy on someone's device is current. The footer rewrite above changes every
+# page, so the manifest has to be rebuilt or installed copies keep reporting
+# themselves up to date against a version that no longer matches.
+if [ -x "$PROJECT_ROOT/venv/bin/python" ]; then
+  "$PROJECT_ROOT/venv/bin/python" "$PROJECT_ROOT/test-script/generate_manual_manifest.py" > /dev/null
+  echo "  ✓ user-manual/manifest.json"
+else
+  echo "  ! venv missing — user-manual/manifest.json NOT regenerated"
+fi
+
 # Update Cargo.lock — bump ONLY the opendraft package version. Do NOT run
 # `cargo generate-lockfile`/`cargo update`: that re-resolves every dependency to
 # the latest version and pulls in incompatible Tauri releases (wry/tauri-runtime)
