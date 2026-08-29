@@ -129,6 +129,14 @@ jobs:
           security create-keychain -p "" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "" build.keychain
+          # A keychain locks itself again after five minutes of inactivity.
+          # The arm64 build compiles for longer than that, so codesign reached
+          # a re-locked keychain and blocked forever waiting for an unlock no
+          # headless runner can answer: the job hit its 90-minute timeout with
+          # codesign still running, and every retry did the same. The jobs that
+          # signed within five minutes were unaffected, which is why only this
+          # one failed. Six hours is longer than any build here.
+          security set-keychain-settings -lut 21600 build.keychain
           security import $RUNNER_TEMP/certificate.p12 -k build.keychain \
             -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
@@ -840,6 +848,14 @@ jobs:
           security create-keychain -p "" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "" build.keychain
+          # A keychain locks itself again after five minutes of inactivity.
+          # The arm64 build compiles for longer than that, so codesign reached
+          # a re-locked keychain and blocked forever waiting for an unlock no
+          # headless runner can answer: the job hit its 90-minute timeout with
+          # codesign still running, and every retry did the same. The jobs that
+          # signed within five minutes were unaffected, which is why only this
+          # one failed. Six hours is longer than any build here.
+          security set-keychain-settings -lut 21600 build.keychain
           security import $RUNNER_TEMP/certificate.p12 -k build.keychain \
             -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
@@ -958,6 +974,14 @@ jobs:
           security create-keychain -p "" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "" build.keychain
+          # A keychain locks itself again after five minutes of inactivity.
+          # The arm64 build compiles for longer than that, so codesign reached
+          # a re-locked keychain and blocked forever waiting for an unlock no
+          # headless runner can answer: the job hit its 90-minute timeout with
+          # codesign still running, and every retry did the same. The jobs that
+          # signed within five minutes were unaffected, which is why only this
+          # one failed. Six hours is longer than any build here.
+          security set-keychain-settings -lut 21600 build.keychain
           security import $RUNNER_TEMP/certificate.p12 -k build.keychain \
             -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
@@ -1080,6 +1104,14 @@ jobs:
           security create-keychain -p "" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "" build.keychain
+          # A keychain locks itself again after five minutes of inactivity.
+          # The arm64 build compiles for longer than that, so codesign reached
+          # a re-locked keychain and blocked forever waiting for an unlock no
+          # headless runner can answer: the job hit its 90-minute timeout with
+          # codesign still running, and every retry did the same. The jobs that
+          # signed within five minutes were unaffected, which is why only this
+          # one failed. Six hours is longer than any build here.
+          security set-keychain-settings -lut 21600 build.keychain
           security import $RUNNER_TEMP/certificate.p12 -k build.keychain \
             -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
@@ -1423,6 +1455,14 @@ jobs:
           security create-keychain -p "" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "" build.keychain
+          # A keychain locks itself again after five minutes of inactivity.
+          # The arm64 build compiles for longer than that, so codesign reached
+          # a re-locked keychain and blocked forever waiting for an unlock no
+          # headless runner can answer: the job hit its 90-minute timeout with
+          # codesign still running, and every retry did the same. The jobs that
+          # signed within five minutes were unaffected, which is why only this
+          # one failed. Six hours is longer than any build here.
+          security set-keychain-settings -lut 21600 build.keychain
           security import $RUNNER_TEMP/distribution.p12 -k build.keychain \
             -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild
           security set-key-partition-list -S apple-tool:,apple:,codesign:,productbuild: -s -k "" build.keychain
