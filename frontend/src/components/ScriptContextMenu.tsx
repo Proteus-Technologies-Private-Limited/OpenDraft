@@ -18,6 +18,7 @@ import {
   type ClipboardResult,
 } from '../utils/clipboardCommands';
 import { showToast } from './Toast';
+import { removeScriptNoteMarks } from '../editor/scriptNoteMarks';
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -373,24 +374,14 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
 
   const handleDeleteScriptNote = () => {
     if (!existingNoteId) return;
-    // Remove the mark from the editor
-    const { doc, schema } = editor.state;
-    const markType = schema.marks.scriptNote;
-    if (markType) {
-      editor.chain().focus().command(({ tr }) => {
-        doc.descendants((node, pos) => {
-          if (!node.isText) return;
-          const mark = node.marks.find(
-            (m) => m.type === markType && m.attrs.noteId === existingNoteId,
-          );
-          if (mark) {
-            tr.removeMark(pos, pos + node.nodeSize, mark);
-          }
-        });
-        return true;
-      }).run();
-    }
+    // The highlight goes with the note — see editor/scriptNoteMarks.
+    removeScriptNoteMarks(editor, existingNoteId);
     deleteNote(existingNoteId);
+    // Adding a note filters the panel to it; deleting it must let that go, or
+    // the panel shows nothing and looks as though every note had gone.
+    if (useEditorStore.getState().noteFilter.noteId === existingNoteId) {
+      setNoteFilter({ elementType: null, contextLabel: null, color: null, noteId: null });
+    }
     onClose();
   };
 

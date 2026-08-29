@@ -22,21 +22,44 @@ import { detectDeviceFonts } from './utils/deviceFonts';
  * only where it is needed.
  *
  * iPadOS exposes no "am I in a window" API, so infer it from geometry: a
- * full-screen app spans the screen in one axis or the other, while Split View,
- * Slide Over and a free-floating window never do.
+ * full-screen app fills the screen in BOTH axes, while Split View, Slide Over
+ * and a free-floating window never do.
+ *
+ * Matching on width alone was not enough. A window dragged out to the full
+ * width of the screen but left short of its height is still a window, still
+ * carries the pill, and was being read as full-screen — so the gutter
+ * collapsed and the control landed on top of the File menu. Both axes have to
+ * span before the app can conclude there is no window frame around it.
+ *
+ * iPhone never has a window frame, so it is excluded outright: a hair of
+ * measurement noise there would otherwise indent the menu bar for a control
+ * that does not exist.
  */
 function trackIpadWindowMode(): void {
   const TOLERANCE_PX = 2;
 
   const isWindowed = (): boolean => {
+    // iPadOS reports a desktop-class UA, so an iPad is told from a Mac by its
+    // touch points, and from an iPhone by name.
+    const ua = navigator.userAgent || '';
+    const isIpad = /ipad/i.test(ua)
+      || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+    if (!isIpad) return false;
+
     const screenW = window.screen?.width || 0;
     const screenH = window.screen?.height || 0;
     // No screen metrics to compare against — assume full-screen rather than
-    // indenting the menu bar on every iPhone for a control that is not there.
+    // indenting the menu bar for a control that may not be there.
     if (!screenW || !screenH) return false;
+
+    const near = (a: number, b: number) => Math.abs(a - b) <= TOLERANCE_PX;
+    const long = Math.max(screenW, screenH);
+    const short = Math.min(screenW, screenH);
     const w = window.innerWidth;
-    const spansScreen =
-      Math.abs(w - screenW) <= TOLERANCE_PX || Math.abs(w - screenH) <= TOLERANCE_PX;
+    const h = window.innerHeight;
+    // Either orientation, but the window has to fill the screen in both axes.
+    const spansScreen = (near(w, long) && near(h, short))
+      || (near(w, short) && near(h, long));
     return !spansScreen;
   };
 

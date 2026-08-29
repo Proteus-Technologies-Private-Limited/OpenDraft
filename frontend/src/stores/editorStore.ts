@@ -2,6 +2,11 @@ import { create } from 'zustand';
 import { uuid } from '../utils/uuid';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { findLanguage, urlsFor } from '../editor/languageCatalog';
+import {
+  NOTE_NUMBER_FORMATS,
+  type NoteNumberFormat,
+  type FootnoteMarkerStyle,
+} from '../utils/noteNumbering';
 
 // ── View-state persistence helpers ──
 const VIEW_STATE_KEY = 'opendraft:viewState';
@@ -253,6 +258,58 @@ export function resolveMoresContds(layout: PageLayout | undefined): MoresContds 
   return resolved;
 }
 
+/**
+ * Footnote / endnote configuration, mirroring Word's Footnote and Endnote
+ * dialog.
+ *
+ * `enabled` is the master switch and is OFF by default, which together with a
+ * note's own `printInScript` flag (also off by default) is what guarantees that
+ * a document written before this feature existed paginates and exports exactly
+ * as it always did.
+ */
+export interface FootnoteSettings {
+  /** Master switch. While this is off, a note's own print flag is inert. */
+  enabled: boolean;
+  /** At the foot of the page carrying the reference, or at the end of the script. */
+  placement: 'footnote' | 'endnote';
+  numberFormat: NoteNumberFormat;
+  markerStyle: FootnoteMarkerStyle;
+  /** Word's "Start at". */
+  startAt: number;
+  /** Word's "Numbering". Endnotes have no pages, so they are always continuous. */
+  numbering: 'continuous' | 'restartEachPage';
+  /** Whether printed notes reach the PDF, Word and Final Draft exports. */
+  includeInExports: boolean;
+}
+
+export const DEFAULT_FOOTNOTES: FootnoteSettings = {
+  enabled: false,
+  placement: 'footnote',
+  numberFormat: 'arabic',
+  markerStyle: 'superscript',
+  startAt: 1,
+  numbering: 'continuous',
+  includeInExports: true,
+};
+
+/** Always returns a complete FootnoteSettings, filling missing/legacy fields with
+ *  defaults so a document saved before this existed reads back as "off" rather
+ *  than as undefined. Invalid enum values fall back rather than propagating. */
+export function resolveFootnotes(layout: PageLayout | undefined): FootnoteSettings {
+  const f: FootnoteSettings = { ...DEFAULT_FOOTNOTES, ...(layout?.footnotes ?? {}) };
+  const n = Number(f.startAt);
+  f.startAt = Number.isFinite(n) ? Math.min(9999, Math.max(1, Math.round(n))) : 1;
+  if (f.placement !== 'endnote') f.placement = 'footnote';
+  if (f.markerStyle !== 'bracketed') f.markerStyle = 'superscript';
+  if (!NOTE_NUMBER_FORMATS.some((x) => x.id === f.numberFormat)) f.numberFormat = 'arabic';
+  // Endnotes are one list at the end of the script; there is no page to restart
+  // on, and Word greys the control out for the same reason.
+  if (f.placement === 'endnote' || f.numbering !== 'restartEachPage') f.numbering = 'continuous';
+  f.enabled = f.enabled === true;
+  f.includeInExports = f.includeInExports !== false;
+  return f;
+}
+
 export interface PageLayout {
   pageWidth: number;     // inches
   pageHeight: number;    // inches
@@ -279,6 +336,9 @@ export interface PageLayout {
   /** Dialogue continuation ("Mores & Continueds") config. Optional for back-compat
    *  with documents saved before this existed — read via resolveMoresContds(). */
   moresContds?: MoresContds;
+  /** Footnote/endnote config. Optional for back-compat with documents saved
+   *  before this existed — read via resolveFootnotes(). */
+  footnotes?: FootnoteSettings;
 }
 
 export const DEFAULT_PAGE_LAYOUT: PageLayout = {
@@ -296,6 +356,7 @@ export const DEFAULT_PAGE_LAYOUT: PageLayout = {
   footerStartPage: 1,
   startingPageNumber: 1,
   moresContds: { ...DEFAULT_MORES_CONTDS },
+  footnotes: { ...DEFAULT_FOOTNOTES },
 };
 
 /** Header/footer settings with every legacy gap filled in. Documents saved
@@ -394,6 +455,37 @@ export interface NoteInfo {
   createdAt: string;
   /** Optional scene context */
   sceneId: string | null;
+  /** Print this note in the screenplay, as a footnote or an endnote.
+   *  Optional on purpose: a document saved before this existed reads back
+   *  undefined, which is off, so there is nothing to migrate. */
+  printInScript?: boolean;
+  /** Where this note prints, overriding the document's own Location setting.
+   *  Absent — the usual case — means it follows the document, so changing the
+   *  Location moves every note that has not been given one of its own. */
+  printPlacement?: NotePlacement;
+  /** Height in 12pt lines of this note's images, measured once after they load
+   *  and then persisted, so the space reserved on the page stops guessing. */
+  printImageLines?: number;
+}
+
+/** Where a printing note goes. */
+export type NotePlacement = 'footnote' | 'endnote';
+
+/** Whether a note actually reaches the page.
+ *
+ *  Nothing should test `printInScript` directly: an empty note is never worth a
+ *  number, and the placeholder records that orphan reconciliation synthesises
+ *  for a mark with no note have empty content by construction. */
+export function noteWillPrint(note: NoteInfo | undefined | null): boolean {
+  return !!note && note.printInScript === true && note.content.trim().length > 0;
+}
+
+/** Where this note actually goes: its own choice, or the document's. */
+export function effectiveNotePlacement(
+  note: NoteInfo | undefined | null,
+  settings: FootnoteSettings,
+): NotePlacement {
+  return note?.printPlacement ?? settings.placement;
 }
 
 /** Filter state that can be set externally (e.g. from context menu) */
@@ -412,6 +504,19 @@ export interface GeneralNote {
   content: string;
   color: NoteColor;
   createdAt: string;
+  /** Print this note in the screenplay. A general note is anchored to nothing,
+   *  so there is no place in the script to put a reference marker and no page
+   *  it belongs to — it can only ever be an endnote, whatever the document's
+   *  placement setting says. Optional, so older documents read back as off. */
+  printInScript?: boolean;
+  /** Measured image height, cached the way an anchored note's is. */
+  printImageLines?: number;
+}
+
+/** Whether a general note reaches the page. Same rule as an anchored one:
+ *  an empty note is never worth a number. */
+export function generalNoteWillPrint(note: GeneralNote | undefined | null): boolean {
+  return !!note && note.printInScript === true && note.content.trim().length > 0;
 }
 
 // ── Production Tagging (Final Draft TagData) ──
@@ -572,7 +677,7 @@ interface EditorState {
   notes: NoteInfo[];
   setNotes: (notes: NoteInfo[]) => void;
   addNote: (note: Omit<NoteInfo, 'id' | 'createdAt'>) => string;
-  updateNote: (id: string, updates: Partial<Pick<NoteInfo, 'content' | 'color'>>) => void;
+  updateNote: (id: string, updates: Partial<Omit<NoteInfo, 'id' | 'createdAt'>>) => void;
   deleteNote: (id: string) => void;
   noteFilter: NoteFilter;
   setNoteFilter: (filter: NoteFilter) => void;
@@ -581,7 +686,7 @@ interface EditorState {
   generalNotes: GeneralNote[];
   setGeneralNotes: (notes: GeneralNote[]) => void;
   addGeneralNote: (note: Omit<GeneralNote, 'id' | 'createdAt'>) => string;
-  updateGeneralNote: (id: string, updates: Partial<Pick<GeneralNote, 'title' | 'content' | 'color'>>) => void;
+  updateGeneralNote: (id: string, updates: Partial<Omit<GeneralNote, 'id' | 'createdAt'>>) => void;
   deleteGeneralNote: (id: string) => void;
 
   // Beats
@@ -777,6 +882,8 @@ interface EditorState {
   setTitlePageEditorOpen: (open: boolean) => void;
   moresContdsOpen: boolean;
   setMoresContdsOpen: (open: boolean) => void;
+  footnoteDialogOpen: boolean;
+  setFootnoteDialogOpen: (open: boolean) => void;
   fontsDialogOpen: boolean;
   setFontsDialogOpen: (open: boolean) => void;
   headerFooterOpen: boolean;
@@ -1416,6 +1523,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setTitlePageEditorOpen: (open) => set({ titlePageEditorOpen: open }),
   moresContdsOpen: false,
   setMoresContdsOpen: (open) => set({ moresContdsOpen: open }),
+  footnoteDialogOpen: false,
+  setFootnoteDialogOpen: (open) => set({ footnoteDialogOpen: open }),
   fontsDialogOpen: false,
   setFontsDialogOpen: (open) => set({ fontsDialogOpen: open }),
   headerFooterOpen: false,

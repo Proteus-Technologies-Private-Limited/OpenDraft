@@ -11,6 +11,7 @@ import { downloadFDX, exportFDX } from '../utils/fdxExporter';
 import { downloadFountain, exportFountain } from '../utils/fountainExporter';
 import { exportFadeIn, exportOSF } from '../utils/osfExporter';
 import { exportPDF } from '../utils/pdfExporter';
+import { buildExportFootnotePlan } from '../utils/exportFootnotes';
 import { downloadDocx } from '../utils/docxExporter';
 import { parseDocx } from '../utils/docxImporter';
 import { serializeOdraft, downloadOdraft } from '../utils/odraftFormat';
@@ -1034,6 +1035,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
     store.setBeatColumns([]);
     store.setBeatArrangeMode('auto');
     store.setNotes([]);
+    // General notes belong to the document too — leaving them behind carried
+    // one script's notes into the next.
+    store.setGeneralNotes([]);
     store.setTags([]);
     store.setTagCategories([]);
     store.setCharacterProfiles([]);
@@ -1220,7 +1224,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     try {
       const s = useEditorStore.getState();
       await downloadFDX(editor.getJSON(), documentTitle, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns, s.pageLayout,
-        { family: s.fontFamily, size: s.fontSize });
+        { family: s.fontFamily, size: s.fontSize },
+        buildExportFootnotePlan(editor.getJSON(), s.pageLayout, s.notes, s.generalNotes));
     } catch (err) {
       console.error('FDX export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -1260,6 +1265,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         documentTitle: store.documentTitle,
         revisionColor: store.revisionMode ? store.revisionColor : '',
         documentFont: store.fontFamily,
+        footnotes: buildExportFootnotePlan(editor.getJSON(), pageLayout, store.notes, store.generalNotes),
       });
     } catch (err) {
       console.error('PDF export failed:', err);
@@ -1272,6 +1278,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     try {
       const store = useEditorStore.getState();
       await downloadDocx(editor.getJSON(), documentTitle, pageLayout, {
+        footnotes: buildExportFootnotePlan(editor.getJSON(), pageLayout, store.notes, store.generalNotes),
         documentTitle: store.documentTitle,
         revisionColor: store.revisionMode ? store.revisionColor : '',
         documentFont: store.fontFamily,
@@ -1628,6 +1635,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { icon: <FaFont />, label: 'Fonts…', action: () => useEditorStore.getState().setFontsDialogOpen(true) },
         { icon: <FaCommentDots />, label: 'Mores & Continueds…', action: () => useEditorStore.getState().setMoresContdsOpen(true) },
         { icon: <FaHeading />, label: 'Header & Footer…', action: () => useEditorStore.getState().setHeaderFooterOpen(true) },
+        { icon: <FaStickyNote />, label: 'Footnotes & Endnotes…', action: () => useEditorStore.getState().setFootnoteDialogOpen(true) },
         { icon: <FaImage />, label: 'Insert Image…', action: () => useEditorStore.getState().imageInsertHandler?.() },
         { separator: true, label: '' },
         { icon: <FaFileAlt />, label: 'Title Page…', action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
@@ -2319,6 +2327,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-changelog">
               <div className="about-subsection-title">v0.26.0</div>
               <ul className="about-list">
+                <li><strong>Notes That Print — Footnotes And Endnotes</strong> — A script note can now go on the page. Pick where from the note's own dropdown: <em>Do not print</em>, <em>Page footer</em>, or <em>End note</em>. A superscript number appears beside the text and the note prints at the foot of that page, or on a NOTES page at the end. Written for anyone quoting a source who needs the citation on the page rather than beside it.</li>
+                <li><strong>Configured The Way Word Does It</strong> — Format → Footnotes &amp; Endnotes… sets the default location, the number format (1, 2, 3 &middot; a, b, c &middot; i, ii, iii &middot; *, &dagger;, &Dagger;, &sect;), superscript or bracketed markers, the number to start at, and whether numbering runs continuously or restarts each page. A preview shows your own citations in the script's typeface.</li>
+                <li><strong>A Long Footnote Splits Rather Than Spills</strong> — As much as fits prints at the foot of the page and the rest continues on the next, without repeating the number — the same thing Word does. No page gives up more than half of itself, so the script always keeps the greater part of every page.</li>
+                <li><strong>Footnotes Reach Your Exports</strong> — PDF gets them exactly as they appear on screen, page for page. Word gets <em>real</em> Word footnotes and endnotes, which Word lays out and reflows itself. Final Draft carries the citation as a script note. One switch turns the lot off for a clean send-out.</li>
+                <li><strong>General Notes Print Too</strong> — A note attached to the file rather than to a line of it has nowhere on the page to point from, so it can only ever be an end note. It is numbered after the anchored ones, and its title prints above its text.</li>
+                <li><strong>Find The Text A Note Belongs To</strong> — Every script note has a Go&nbsp;to button that scrolls to the words it is attached to and flashes them, so you can see what the note was about even with highlights turned off.</li>
+                <li><strong>A Tidier Notes Panel</strong> — The colour swatches, the print dropdown and the buttons were on one line and the last of them fell off the edge of a narrow panel. They are on two rows now, and a long note scrolls inside its card instead of growing taller than the panel.</li>
+                <li><strong>Deleting A Note Takes Its Highlight</strong> — A note's colour could outlive the note, leaving a stubborn yellow on a passage nothing was attached to any more. It was a second highlight, harvested from the note's own span whenever the document's HTML was parsed again — a copy and paste inside the editor was enough. New pastes no longer make one, and any left in a script are cleared when it opens.</li>
+                <li><strong>General Notes Stay With Their Script</strong> — Starting a new script, opening another, importing a file or leaving a project each left the previous script's general notes in place, so they turned up under the next one. They belong to the file and now go with it.</li>
+                <li><strong>Android: The Panel Header Is Reachable</strong> — The Notes, Characters and Tags panels slide over the whole screen, and their headers sat underneath the status bar, which put the close button out of reach.</li>
                 <li><strong>The Manual Is In The App</strong> — Help → User Manual… opens the whole manual inside OpenDraft, contents down the side and links between pages working the way they do on the web. It is not bundled with the app: download it once, about 8&nbsp;MB of pages and screenshots, and it stays on the device and works with no connection after that. Update fetches a newer copy when the manual changes; Remove takes the space back.</li>
                 <li><strong>Search What You Have Downloaded</strong> — Type in the reader and it searches every page, matching titles first and showing a line of context under each result. It runs against the local copy, so it works on a plane.</li>
                 <li><strong>A Mark That Survives Being Small</strong> — The old icon was a detailed illustration: a pen, a flock of birds, film strips, a painterly background and two lines of type. Below about 128 pixels none of it survived, so the app was hard to pick out on a home screen or in a browser tab. It is now one shape — a nib whose body opens into three feather planes — that still reads at 32 pixels and in a single colour.</li>

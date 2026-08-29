@@ -40,6 +40,8 @@ import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { createPaginationPlugin, getPageMetrics, activeTemplateHints } from '../editor/pagination';
+import type { FootnotePageAssignment } from '../editor/pagination';
+import type { EndnotePage } from '../utils/footnotes';
 import { createContdCasePlugin } from '../editor/contdCase';
 import { ScreenplayImage } from '../editor/extensions/ScreenplayImage';
 import { buildImageAttrs, insertImageNode, warnIfImageDegraded } from '../utils/insertImage';
@@ -75,6 +77,19 @@ import GrammarRulesPanel from './GrammarRulesPanel';
 // MobileAccessoryBar removed — context menu via 3-finger touch only
 import ScriptContextMenu from './ScriptContextMenu';
 import ScribbleInput from './ScribbleInput';
+import PencilCaret from './PencilCaret';
+import { useFootnotePlan } from '../hooks/useFootnotePlan';
+import { footnotePlanSignature, type FootnotePlan } from '../utils/footnotes';
+import { createFootnoteMarkerPlugin } from '../editor/footnoteMarkers';
+import { stripNoteBackgrounds } from '../editor/stripNoteBackgrounds';
+import { sweepStrayNoteHighlights } from '../editor/scriptNoteMarks';
+import FootnoteBlock from './FootnoteBlock';
+import FootnoteDialog from './FootnoteDialog';
+import EndnotePages from './EndnotePages';
+
+/** Shared empty list, so "nothing prints" never re-renders the overlays. */
+const NO_FOOTNOTE_PAGES: FootnotePageAssignment[] = [];
+const NO_ENDNOTE_PAGES: EndnotePage[] = [];
 import { HANDWRITING_EVENT } from '../utils/handwriting';
 import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { Grammar, grammarPluginKey } from '../editor/extensions/Grammar';
@@ -632,6 +647,11 @@ const ScreenplayEditor: React.FC = () => {
     if (!isTouch) return;
     const handleThreeFingerTouch = (e: TouchEvent) => {
       if (e.touches.length === 3) {
+        // Not inside the handwriting sheet. It has its own selection and
+        // clipboard controls, and the field's native callout carries the
+        // Pencil's own gestures — opening the script's context menu on top of
+        // it would take both away.
+        if ((e.target as HTMLElement | null)?.closest?.('.scribble-overlay')) return;
         e.preventDefault();
         // Use center of the three touches as position
         let cx = 0, cy = 0;
@@ -674,6 +694,7 @@ const ScreenplayEditor: React.FC = () => {
     openFileOpen, setOpenFileOpen, saveAsOpen, setSaveAsOpen,
     titlePageEditorOpen, setTitlePageEditorOpen,
     moresContdsOpen, setMoresContdsOpen,
+    footnoteDialogOpen, setFootnoteDialogOpen,
     fontsDialogOpen, setFontsDialogOpen,
     compareVersionOpen, setCompareVersionOpen,
     setTrackChangesEnabled, setTrackChangesLabel,
@@ -1095,6 +1116,29 @@ const ScreenplayEditor: React.FC = () => {
     setOverlays(newOverlays);
   }, []);
 
+  // Which notes print, where, and how much room they need. Null — and free —
+  // whenever nothing prints. Held in a ref as well, because the pagination and
+  // marker plugins are built once and read it lazily, exactly as they read the
+  // page layout and the template hints.
+  const footnotePlanRef = useRef<FootnotePlan | null>(null);
+
+  const [FootnoteMarkerExtension] = React.useState(() =>
+    Extension.create({
+      name: 'footnoteMarkers',
+      addProseMirrorPlugins() {
+        return [createFootnoteMarkerPlugin(() => footnotePlanRef.current)];
+      },
+    })
+  );
+
+  // Which notes each page owes at its foot. Always empty while nothing prints.
+  const [footnotePages, setFootnotePages] = useState<FootnotePageAssignment[]>(NO_FOOTNOTE_PAGES);
+  const setFootnotePagesRef = useRef(setFootnotePages);
+  setFootnotePagesRef.current = setFootnotePages;
+  const [endnotePages, setEndnotePages] = useState<EndnotePage[]>(NO_ENDNOTE_PAGES);
+  const setEndnotePagesRef = useRef(setEndnotePages);
+  setEndnotePagesRef.current = setEndnotePages;
+
   const [PaginationExtension] = React.useState(() =>
     Extension.create({
       name: 'pagination',
@@ -1104,12 +1148,18 @@ const ScreenplayEditor: React.FC = () => {
             (state) => {
               setPageCountRef.current(state.pageCount);
               breaksRef.current = state.breaks;
+              // Keep the identity stable when nothing prints, so the overlays
+              // do not re-render for a change that cannot have happened.
+              setFootnotePagesRef.current(state.footnotePages ?? NO_FOOTNOTE_PAGES);
+              setEndnotePagesRef.current(state.endnotePages ?? NO_ENDNOTE_PAGES);
               // Measure from DOM after ProseMirror applies decoration margins
               requestAnimationFrame(() => requestAnimationFrame(measureOverlays));
             },
             () => pageLayoutRef.current,
             // Template-driven page rules (e.g. "every New Act starts a page").
             () => activeTemplateHints(),
+            // Room to hold back for printing notes; null when none print.
+            () => footnotePlanRef.current,
           ),
         ];
       },
@@ -1488,6 +1538,7 @@ const ScreenplayEditor: React.FC = () => {
       AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvKeymap,
       ScriptNoteMark, TagMark,
       StartsNewPage,
+      FootnoteMarkerExtension,
       PaginationExtension,
       ContdCaseExtension,
       SearchExtension,
@@ -1505,6 +1556,11 @@ const ScreenplayEditor: React.FC = () => {
     editable: !isHistoryMode && !(collabMode && collabRole === 'viewer'),
     editorProps: {
       attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: 'false' },
+      // A script note paints itself with an inline background, and the pasted
+      // highlight rule matches any element carrying one — so pasting a noted
+      // passage back used to lay a second highlight over it. See
+      // editor/stripNoteBackgrounds.
+      transformPastedHTML: (html) => stripNoteBackgrounds(html),
     },
     onSelectionUpdate: ({ editor: ed }) => {
       // Check custom element first
@@ -1968,11 +2024,18 @@ const ScreenplayEditor: React.FC = () => {
     return () => { editor.off('update', run); timers.forEach(clearTimeout); };
   }, [editor, measureOverlays]);
 
-  // Re-paginate when the page layout changes (e.g. after FDX import) or when the
-  // active formatting template changes. Neither touches the document, and the
-  // pagination plugin only recomputes on doc changes — so without this nudge a
-  // template's page rules (forceBreakBefore, lineHeightMultiplier) would not take
-  // effect until the writer's next keystroke.
+  const footnotePlan = useFootnotePlan(editor);
+  footnotePlanRef.current = footnotePlan;
+  // Changes exactly when the footnotes would lay out differently, so editing a
+  // note's text does not dispatch a repagination on every debounce tick.
+  const footnoteSig = footnotePlanSignature(footnotePlan);
+
+  // Re-paginate when the page layout changes (e.g. after FDX import), when the
+  // active formatting template changes, or when a printing note appears, moves
+  // or grows. None of those touches the document, and the pagination plugin only
+  // recomputes on doc changes — so without this nudge a template's page rules
+  // (forceBreakBefore, lineHeightMultiplier), or the room a footnote needs,
+  // would not take effect until the writer's next keystroke.
   useEffect(() => {
     if (!editor) return;
     const t = setTimeout(() => {
@@ -1981,7 +2044,7 @@ const ScreenplayEditor: React.FC = () => {
       editor.view.dispatch(tr);
     }, 300);
     return () => clearTimeout(t);
-  }, [editor, pageLayout, activeTemplateId, templates, templatesLoaded, sceneHeadingSpaceBefore]);
+  }, [editor, pageLayout, activeTemplateId, templates, templatesLoaded, sceneHeadingSpaceBefore, footnoteSig]);
 
   // --- Initialize spell checker on mount ---
   useEffect(() => {
@@ -3087,6 +3150,13 @@ const ScreenplayEditor: React.FC = () => {
           contextLabel: '', color: 'Yellow' as const, createdAt: new Date().toISOString(), sceneId: null,
         }))]);
       }
+      // Clear highlights an older bug left on top of notes and tags. Done here
+      // because this already runs once, after the document has settled.
+      const swept = sweepStrayNoteHighlights(editor);
+      if (swept > 0) {
+        console.info(`[notes] cleared ${swept} stray highlight(s) left over an annotation`);
+      }
+
       if (orphanedTags.length > 0) {
         store.setTags([...store.tags, ...orphanedTags.map((o) => ({
           id: o.tagId, categoryId: o.categoryId, name: o.text, text: o.text, notes: '',
@@ -4182,6 +4252,39 @@ const ScreenplayEditor: React.FC = () => {
 
   const zoomScale = zoomLevel / 100;
 
+  // What each page owes at its foot. Empty whenever nothing prints, so the
+  // lookups below cost nothing in the overwhelmingly common case.
+  const footnotesByPage = useMemo(() => {
+    const map = new Map<number, FootnotePageAssignment>();
+    for (const fp of footnotePages) map.set(fp.pageNumber, fp);
+    return map;
+  }, [footnotePages]);
+
+  // Script pages, excluding the NOTES sheets those endnotes will be drawn on.
+  const scriptPageCount = Math.max(1, (hfPageCount || 1) - endnotePages.length);
+  const endnoteExtraHeight = useMemo(() => {
+    if (endnotePages.length === 0) return 0;
+    const m = getPageMetrics(pageLayout);
+    return endnotePages.length * (m.sepHeightPx + m.pageContentPx);
+  }, [endnotePages, pageLayout]);
+
+  const renderFootnotes = useCallback((pageNumber: number) => {
+    // Not gated on the document's Location: a note can be sent to the foot of
+    // its page on its own, and only the notes that actually go there reach
+    // `footnotesByPage` in the first place.
+    if (!footnotePlan) return null;
+    const owed = footnotesByPage.get(pageNumber);
+    if (!owed || owed.slices.length === 0) return null;
+    return (
+      <FootnoteBlock
+        plan={footnotePlan}
+        slices={owed.slices}
+        noteIds={owed.noteIds}
+        pageNumber={pageNumber}
+      />
+    );
+  }, [footnotePlan, footnotesByPage]);
+
   // Compute last-page footer position so the last page shows its full extent
   const lastPageEnd = useMemo(() => {
     const m = getPageMetrics(pageLayout);
@@ -4394,7 +4497,15 @@ const ScreenplayEditor: React.FC = () => {
               <div
                 className="page-container"
                 style={{
-                  transform: `scale(${zoomScale})`,
+                  // No transform at 1:1. WebKit does not paint the caret inside
+                  // a transformed contenteditable — selection and typing work,
+                  // the caret is simply invisible — and an identity scale is
+                  // enough to trigger it. Since scale(1) changes nothing but
+                  // costs the writer their cursor, it is left off entirely at
+                  // the default zoom, which is where nearly everyone writes.
+                  ...(zoomScale === 1
+                    ? {}
+                    : { transform: `scale(${zoomScale})` }),
                   transformOrigin: 'top left',
                   width: `${pageLayout.pageWidth}in`,
                   minWidth: `${pageLayout.pageWidth}in`,
@@ -4408,7 +4519,7 @@ const ScreenplayEditor: React.FC = () => {
                     fontFamily: fontStack(fontFamily),
                     fontSize: `${fontSize}pt`,
                     width: `${pageLayout.pageWidth}in`,
-                    minHeight: `${lastPageEnd + (pageLayout.bottomMargin / 72) * 96}px`,
+                    minHeight: `${lastPageEnd + endnoteExtraHeight + (pageLayout.bottomMargin / 72) * 96}px`,
                     paddingTop: `${pageLayout.topMargin}pt`,
                     paddingBottom: `${pageLayout.bottomMargin}pt`,
                     paddingLeft: `${pageLayout.leftMargin}in`,
@@ -4451,6 +4562,10 @@ const ScreenplayEditor: React.FC = () => {
                           <div className="page-sep-more">{moresContds.moreText}</div>
                         )}
                         {showFooterForPrev && renderHFBand('footer', footerPrinted)}
+                        {/* The bottom band belongs to the page above this
+                            break, which is the page whose footnotes these are —
+                            the same off-by-one `footerPrinted` accounts for. */}
+                        {!ov.isTitlePage && renderFootnotes(ov.pageNumber - 1)}
                       </div>
                       <div className="page-sep-gap" />
                       <div className="page-sep-top" style={{ height: `${pageLayout.topMargin}pt` }}>
@@ -4490,20 +4605,50 @@ const ScreenplayEditor: React.FC = () => {
                       ? overlays[overlays.length - 1].pageNumber
                       : 1;
                     const printed = printedPageNumber(lastPage, headerFooter.startingPageNumber);
-                    if (printed < headerFooter.footerStartPage) return null;
+                    const showFooter = printed >= headerFooter.footerStartPage;
+                    const footnotes = renderFootnotes(lastPage);
+                    // Footnotes belong to the page whether or not it carries a
+                    // footer — the two are unrelated, and a script whose footer
+                    // starts on page 2 still cites sources on page 1.
+                    if (!showFooter && !footnotes) return null;
                     return (
                       <div
                         className="page-sep"
                         style={{ top: `${lastPageEnd}px` }}
                       >
                         <div className="page-sep-bottom" style={{ height: `${pageLayout.bottomMargin}pt`, position: 'relative' }}>
-                          {renderHFBand('footer', printed)}
+                          {showFooter && renderHFBand('footer', printed)}
+                          {footnotes}
                         </div>
                       </div>
                     );
                   })()}
 
+                  {footnotePlan && endnotePages.length > 0 && (
+                    <EndnotePages
+                      plan={footnotePlan}
+                      pages={endnotePages}
+                      layout={pageLayout}
+                      lastPageEnd={lastPageEnd}
+                      scriptPageCount={scriptPageCount}
+                      renderBands={(pageNumber) => {
+                        const printed = printedPageNumber(pageNumber, headerFooter.startingPageNumber);
+                        return {
+                          header: printed >= headerFooter.headerStartPage
+                            ? renderHFBand('header', printed) : null,
+                          footer: printed >= headerFooter.footerStartPage
+                            ? renderHFBand('footer', printed - 1) : null,
+                        };
+                      }}
+                    />
+                  )}
+
                   <EditorContent editor={editor} />
+                  {/* iPadOS paints no caret in a web view while the soft
+                      keyboard is down, which is how the Pencil is used, so the
+                      app draws one. A sibling of the editor, never inside it —
+                      ProseMirror replaces its own children. */}
+                  <PencilCaret editor={editor} enabled={isTouch && !isHistoryMode} />
                 </div>
               </div>
               </div>
@@ -4670,6 +4815,9 @@ const ScreenplayEditor: React.FC = () => {
 
       {!isHistoryMode && moresContdsOpen && (
         <MoresContdsDialog onClose={() => setMoresContdsOpen(false)} />
+      )}
+      {!isHistoryMode && footnoteDialogOpen && (
+        <FootnoteDialog onClose={() => setFootnoteDialogOpen(false)} />
       )}
       {!isHistoryMode && headerFooterOpen && (
         <HeaderFooterDialog

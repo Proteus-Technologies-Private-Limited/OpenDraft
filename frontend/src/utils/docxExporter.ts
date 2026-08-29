@@ -23,8 +23,12 @@ import {
   PageNumber,
   TabStopType,
   ImageRun,
+  FootnoteReferenceRun,
+  EndnoteReferenceRun,
 } from 'docx';
 import type { ISectionOptions } from 'docx';
+import { noteBlockText, type NoteBlock as NoteBlockLike } from './noteContent';
+import type { FootnotePlan, FootnoteRef } from './footnotes';
 import { resolveImageUrl, loadImageBytes } from './imageAsset';
 import { jsonBlockRuns, jsonBlockText, type Run } from './nodeText';
 import type { JSONContent } from '@tiptap/react';
@@ -123,7 +127,20 @@ function applyTypeStyles(runs: RunStyle[], typeName: string): RunStyle[] {
  *
  * Exported for tests.
  */
-export function buildTextRuns(runs: RunStyle[], docFont: string = FONT_FAMILY): TextRun[] {
+export function buildTextRuns(
+  runs: RunStyle[],
+  docFont: string = FONT_FAMILY,
+  /**
+   * Footnote references anchored in this block. Word owns the numbering and the
+   * layout of a real footnote, so all that is placed here is the reference
+   * itself, split into the run stream at the character the note is anchored to.
+   */
+  refs: readonly FootnoteRef[] = [],
+  isEndnote: (noteId: string) => boolean = () => false,
+): (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] {
+  if (refs.length > 0) {
+    return buildRunsWithReferences(runs, docFont, refs, isEndnote);
+  }
   if (runs.length === 0 || (runs.length === 1 && runs[0].text === '' && !runs[0].isBreak)) {
     return [new TextRun({ text: '', font: docFont, size: FONT_SIZE_HALFPT })];
   }
@@ -344,13 +361,16 @@ function buildElementParagraph(
   pageBreakBefore = false,
   docFont: string = FONT_FAMILY,
   spaceBeforeLines: Record<string, number> = DEFAULT_SPACE_BEFORE,
+  /** References anchored in this block, with the note number each carries. */
+  refs: readonly FootnoteRef[] = [],
+  isEndnote: (noteId: string) => boolean = () => false,
 ): Paragraph {
   const typeName = node.type || 'general';
   const indent = indentForType(typeName, layout);
   const alignment = alignmentForType(typeName);
   const sb = isFirst ? 0 : (spaceBeforeLines[typeName] ?? 0) * LINE_HEIGHT_PT;
   const styledRuns = applyTypeStyles(extractRuns(node), typeName);
-  const children = buildTextRuns(styledRuns, docFont);
+  const children = buildTextRuns(styledRuns, docFont, refs, isEndnote);
 
   return new Paragraph({
     alignment,
@@ -369,9 +389,74 @@ function buildElementParagraph(
   });
 }
 
+/**
+ * The same run stream, with a footnote reference dropped in at each anchor.
+ *
+ * Word draws the superscript, numbers it, lays the note out at the foot of the
+ * page and reflows it as the document changes — so nothing here writes a
+ * number. The reference is placed after the last character of the annotated
+ * phrase, which is where the plan recorded it.
+ */
+function buildRunsWithReferences(
+  runs: RunStyle[],
+  docFont: string,
+  refs: readonly FootnoteRef[],
+  isEndnote: (noteId: string) => boolean,
+): (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] {
+  const sorted = [...refs].sort((a, b) => a.charOffset - b.charOffset);
+  const out: (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] = [];
+  // Each note chooses for itself, so the kind of reference is decided per ref
+  // rather than per paragraph.
+  const reference = (ref: FootnoteRef) =>
+    isEndnote(ref.noteId) ? new EndnoteReferenceRun(ref.number) : new FootnoteReferenceRun(ref.number);
+
+  const styled = (r: RunStyle, text: string) => new TextRun({
+    text,
+    font: r.fontFamily || docFont,
+    size: FONT_SIZE_HALFPT,
+    bold: r.bold || undefined,
+    italics: r.italic || undefined,
+    underline: r.underline ? {} : undefined,
+    strike: r.strike || undefined,
+  });
+
+  let pos = 0;
+  let ri = 0;
+  for (const r of runs) {
+    if (r.isBreak) {
+      out.push(new TextRun({ text: '', break: 1, font: docFont, size: FONT_SIZE_HALFPT }));
+      pos += 1;
+      continue;
+    }
+    const len = r.text.length;
+    let cursor = 0;
+    while (ri < sorted.length && sorted[ri].charOffset > pos && sorted[ri].charOffset <= pos + len) {
+      const at = sorted[ri].charOffset - pos;
+      const head = r.text.slice(cursor, at);
+      if (head.length > 0) out.push(styled(r, head));
+      out.push(reference(sorted[ri]));
+      cursor = at;
+      ri++;
+    }
+    const tail = r.text.slice(cursor);
+    if (tail.length > 0) out.push(styled(r, tail));
+    pos += len;
+  }
+
+  return out.length > 0
+    ? out
+    : [new TextRun({ text: '', font: docFont, size: FONT_SIZE_HALFPT })];
+}
+
 // --- Main export ---
 
 export interface DocxExportOptions {
+  /**
+   * Printing script notes. Word gets real footnotes or endnotes from these and
+   * lays them out itself. Absent — the usual case — and the output is what it
+   * always was.
+   */
+  footnotes?: FootnotePlan | null;
   documentTitle?: string;
   revisionColor?: string;
   /** The document's typeface; defaults to the screenplay Courier. */
@@ -398,6 +483,8 @@ export async function exportDocx(
   // the Title Page dialog so all four agree even when something stray sits above
   // the title (issue #52) — see utils/titlePageRegion.
   const bodyNodes: JSONContent[] = [];
+  /** Index in the original document, per body node — the footnote plan's key. */
+  const bodySrcIndex: number[] = [];
   const titleRegionNodes: JSONContent[] = [];
   const docNodes = doc?.content ?? [];
   const region = findTitlePageRegion(
@@ -421,6 +508,7 @@ export async function exportDocx(
     // the whole region.
     if (!hasTitlePage && node.type === 'titlePage' && nodeText(node).trim() === '') return;
     bodyNodes.push(node);
+    bodySrcIndex.push(index);
   });
 
   // Page geometry in twips
@@ -437,6 +525,48 @@ export async function exportDocx(
   const docTitle = options?.documentTitle || title;
   const revColor = options?.revisionColor || '';
   const docFont = options?.documentFont || FONT_FAMILY;
+
+  // Printing notes reach a file only when the writer asked them to.
+  const plan = options?.footnotes && options.footnotes.settings.includeInExports
+    ? options.footnotes
+    : null;
+
+  /**
+   * The notes themselves, keyed by the number their reference carries.
+   *
+   * These become real Word footnotes (or endnotes): Word numbers them, places
+   * them, draws the separator and reflows them as the document is edited. The
+   * one thing it will not take from us is the numbering FORMAT — the library
+   * writes no `w:footnotePr` — so a script set to roman numerals here still
+   * reads 1, 2, 3 in Word. That is worth saying in the manual rather than
+   * pretending otherwise.
+   */
+  const noteParagraphs = (entry: { blocks: readonly { kind: string }[] }): Paragraph[] => {
+    const paragraphs: Paragraph[] = [];
+    for (const b of entry.blocks as NoteBlockLike[]) {
+      if (b.kind === 'image') continue;
+      paragraphs.push(new Paragraph({
+        children: [new TextRun({ text: noteBlockText(b), font: docFont, size: FONT_SIZE_HALFPT })],
+      }));
+    }
+    if (paragraphs.length === 0) {
+      paragraphs.push(new Paragraph({
+        children: [new TextRun({ text: '', font: docFont, size: FONT_SIZE_HALFPT })],
+      }));
+    }
+    return paragraphs;
+  };
+
+  // Only an ANCHORED note can become a real Word footnote or endnote: Word's
+  // note exists because a reference points at it. Each one chooses its own
+  // kind, so both maps can be populated at once. General notes have nothing to
+  // point from and are appended as ordinary paragraphs further down.
+  const footnotesMap: Record<string, { children: Paragraph[] }> = {};
+  const endnotesMap: Record<string, { children: Paragraph[] }> = {};
+  if (plan) {
+    for (const entry of plan.entries) footnotesMap[String(entry.number)] = { children: noteParagraphs(entry) };
+    for (const entry of plan.anchoredEndnotes) endnotesMap[String(entry.number)] = { children: noteParagraphs(entry) };
+  }
   const hf = resolveHeaderFooter(layout);
   const headerContent = hf.headerContent;
   const footerContent = hf.footerContent;
@@ -522,9 +652,39 @@ export async function exportDocx(
       continue;
     }
     bodyParagraphs.push(
-      buildElementParagraph(bodyNodes[i], layout, i === 0, forcePageBreak, docFont, spaceBeforeLines),
+      buildElementParagraph(
+        bodyNodes[i], layout, i === 0, forcePageBreak, docFont, spaceBeforeLines,
+        plan?.refsByNode.get(bodySrcIndex[i]) ?? [],
+        (noteId) => !!plan && !plan.footnoteIds.has(noteId),
+      ),
     );
   }
+  // General notes close the document under a NOTES heading. They cannot be Word
+  // footnotes — nothing references them — so they are written as ordinary
+  // paragraphs, which is what they are.
+  if (plan && plan.generalEntries.length > 0) {
+    bodyParagraphs.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      pageBreakBefore: true,
+      spacing: { line: LINE_HEIGHT_PT * TWIPS_PER_POINT, lineRule: LineRuleType.EXACT },
+      children: [new TextRun({ text: 'NOTES', font: docFont, size: FONT_SIZE_HALFPT })],
+    }));
+    for (const entry of plan.generalEntries) {
+      const head = entry.title ? `${entry.entryLabel} ${entry.title}` : entry.entryLabel;
+      bodyParagraphs.push(new Paragraph({
+        spacing: { before: LINE_HEIGHT_PT * TWIPS_PER_POINT, line: LINE_HEIGHT_PT * TWIPS_PER_POINT, lineRule: LineRuleType.EXACT },
+        children: [new TextRun({ text: head, font: docFont, size: FONT_SIZE_HALFPT, bold: !!entry.title })],
+      }));
+      for (const b of entry.blocks) {
+        if (b.kind === 'image') continue;
+        bodyParagraphs.push(new Paragraph({
+          spacing: { line: LINE_HEIGHT_PT * TWIPS_PER_POINT, lineRule: LineRuleType.EXACT },
+          children: [new TextRun({ text: noteBlockText(b), font: docFont, size: FONT_SIZE_HALFPT })],
+        }));
+      }
+    }
+  }
+
   if (bodyParagraphs.length === 0) {
     bodyParagraphs.push(
       new Paragraph({
@@ -633,6 +793,8 @@ export async function exportDocx(
   const document = new Document({
     creator: 'OpenDraft',
     title: docTitle,
+    ...(Object.keys(footnotesMap).length > 0 ? { footnotes: footnotesMap } : {}),
+    ...(Object.keys(endnotesMap).length > 0 ? { endnotes: endnotesMap } : {}),
     styles: {
       default: {
         document: {

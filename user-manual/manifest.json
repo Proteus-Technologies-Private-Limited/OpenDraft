@@ -1,11 +1,11 @@
 {
-  "version": "f9bc0cc8db6d8bb4",
+  "version": "7d6e097922b74fd2",
   "pages": [
     {
       "slug": "index.html",
       "title": "Home",
       "section": "Getting Started",
-      "hash": "ba40fde0fe146632"
+      "hash": "6de9e783cd276928"
     },
     {
       "slug": "getting-started.html",
@@ -77,7 +77,7 @@
       "slug": "script-notes.html",
       "title": "Script Notes",
       "section": "Characters & Notes",
-      "hash": "36a6fc4abf1d064a"
+      "hash": "18b9fa162cde5ed8"
     },
     {
       "slug": "script-statistics.html",
@@ -131,7 +131,7 @@
       "slug": "format-compatibility.html",
       "title": "Format Compatibility",
       "section": "Projects & Files",
-      "hash": "94e65e2ab458fe94"
+      "hash": "e790627998a1949b"
     },
     {
       "slug": "collaboration.html",

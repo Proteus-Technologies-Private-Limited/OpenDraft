@@ -18,6 +18,18 @@ import {
 import { embedCustomFonts, type EmbeddedFace } from './pdfCustomFonts';
 import { genericFor } from './fonts';
 import { isNonPrintingType } from './nonPrinting';
+import {
+  applyFootnoteMarkers,
+  buildEndnotePages,
+  packFootnotePage,
+  FOOTNOTE_CPL,
+  ENDNOTE_HEADING_LINES,
+  type FootnoteEntry,
+  type FootnotePlan,
+  type NoteSlice,
+} from './footnotes';
+import { noteEntryLabel } from './noteNumbering';
+import { noteBlockText } from './noteContent';
 
 // --- Constants matching pagination.ts ---
 
@@ -78,6 +90,9 @@ interface NodeInfo {
   runs: TextRun[];
   plainText: string;
   attrs?: Record<string, unknown>;
+  /** Index in the ORIGINAL document content. `nodes` drops the title page and
+   *  the non-printing blocks, and the footnote plan is keyed on the original. */
+  srcIndex: number;
 }
 
 // --- Helpers ---
@@ -261,6 +276,16 @@ function renderLine(
       pdf.line(cursorX, ulY, cursorX + w, ulY);
     }
     cursorX += w;
+    if (run.marker) {
+      // Raised, small, and advancing nothing: it overhangs into the space that
+      // follows, which is what the editor's marker decoration does and what
+      // keeps this line the same length in both. See utils/footnotes.
+      const markerFace = selectFace(pdf, run.marker, fonts, {});
+      pdf.setFontSize(8);
+      pdf.text(run.marker, cursorX, y - 3.5, { charSpace: charSpaceFor(markerFace, fonts) });
+      pdf.setFontSize(12);
+      setFontStyle(pdf, run.bold, run.italic, face);
+    }
   }
 }
 
@@ -291,6 +316,11 @@ export interface PDFExportOptions {
    * script is drawn in the closest face jsPDF embeds.
    */
   documentFont?: string;
+  /**
+   * Printing script notes. Absent — the usual case — and this exporter is
+   * byte-for-byte what it was before footnotes existed.
+   */
+  footnotes?: FootnotePlan | null;
 }
 
 /** Resolve dynamic field placeholders in header/footer text. Shared with the
@@ -322,6 +352,13 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     unit: 'pt',
     format: [pageWidthPt, pageHeightPt],
   });
+
+  // Printing notes reach a file only when the writer asked them to. One flag,
+  // read from the same resolver the editor reads, so turning it off restores
+  // exactly today's output.
+  const plan = options?.footnotes && options.footnotes.settings.includeInExports
+    ? options.footnotes
+    : null;
 
   const documentFont = options?.documentFont;
   pdf.setFontSize(12);
@@ -392,12 +429,20 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     }
 
     const rawRuns = extractRuns(node);
-    const runs = applyTypeStyles(rawRuns, typeName);
+    const styled = applyTypeStyles(rawRuns, typeName);
+    // References anchored in this block. A superscript rides beside the text
+    // and advances nothing; a bracketed one is spliced in as real characters,
+    // padded to the width the editor reserved — see utils/footnotes.
+    const refs = plan?.refsByNode.get(index);
+    const runs = refs && refs.length > 0
+      ? applyFootnoteMarkers(styled, refs, plan!.settings.markerStyle, plan!.markerWidth)
+      : styled;
     nodes.push({
       typeName,
       runs,
       plainText: getPlainText(rawRuns),
       attrs: node.attrs as Record<string, unknown> | undefined,
+      srcIndex: index,
     });
   });
 
@@ -421,6 +466,17 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
   }
   for (const it of titleItems) {
     if (it.kind === 'text') drawn.push({ text: it.text || '', bold: it.field === 'title' });
+  }
+  if (plan) {
+    // Every string this export will draw has to be declared here or a face
+    // that cannot encode it is never embedded — the dagger and the section
+    // sign in the symbol format are outside Latin-1, and so is most citation
+    // text that is not English.
+    for (const ref of plan.refs) drawn.push({ text: ref.label });
+    for (const entry of plan.entries) {
+      drawn.push({ text: entry.entryLabel });
+      for (const b of entry.blocks) drawn.push({ text: noteBlockText(b) });
+    }
   }
   drawn.push(
     { text: mc.moreText }, { text: mc.contdText },
@@ -527,7 +583,93 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     currentY = topMarginPt;
   }
 
+  // Footnotes owed by the page being laid out, and any lines carried in from
+  // the page before. The usable bottom moves up to make room for them, so the
+  // reserve is taken from the same place the editor takes it — the content
+  // area — and the two page counts stay equal.
+  const drawFootnotes = !!plan;
+  let pageEntries: FootnoteEntry[] = [];
+  /** Parts of a note still to be drawn, continuing onto the next page. */
+  let pendingSlices: NoteSlice[] = [];
+  const linesPerPage = Math.floor((pageHeightPt - topMarginPt - bottomMarginPt) / LINE_HEIGHT_PT);
+
+  function reserveLines(): number {
+    if (!drawFootnotes) return 0;
+    return packFootnotePage(pendingSlices, pageEntries, linesPerPage).reserve;
+  }
+
+  /** Where the script has to stop on this page. */
+  function bottomPt(): number {
+    return usableBottomPt - reserveLines() * LINE_HEIGHT_PT;
+  }
+
+  /**
+   * Every line a note occupies, so a slice of it can be drawn on its own.
+   * The label opens the first line, exactly as `footnoteEntryLines` measured it.
+   */
+  function noteLines(entry: FootnoteEntry, label: string | null): TextRun[][] {
+    const out: TextRun[][] = [];
+    const wrap = (text: string, bold = false) => {
+      for (const line of wordWrapRuns(
+        [{ text, bold, italic: false, underline: false }], FOOTNOTE_CPL, false,
+      )) out.push(line as TextRun[]);
+    };
+    let first = true;
+    if (entry.title) {
+      wrap(label ? `${label} ${entry.title}` : entry.title, true);
+      first = false;
+    }
+    for (const b of entry.blocks) {
+      if (b.kind === 'image') continue; // measured by height, not drawn here
+      const text = noteBlockText(b);
+      wrap(label && first ? `${label} ${text}` : text);
+      first = false;
+    }
+    if (out.length === 0 && label) wrap(label);
+    return out;
+  }
+
+  /**
+   * Draw this page's footnotes, bottom-aligned on the content area's edge.
+   *
+   * Only this page's share of each note is drawn — a note longer than the room
+   * the page can spare continues at the foot of the next one, which is both
+   * what Word does and what stops it overflowing into the script.
+   */
+  function flushFootnotes(): void {
+    if (!drawFootnotes) return;
+    const fill = packFootnotePage(pendingSlices, pageEntries, linesPerPage);
+    pendingSlices = fill.pending;
+    pageEntries = [];
+    if (fill.reserve === 0) return;
+
+    const leftPt = FD_INDENTS.action[0] * PTS_PER_INCH;
+    let y = usableBottomPt - (fill.reserve - 1) * LINE_HEIGHT_PT;
+
+    // A blank line, then Word's short rule — drawn on a continuation page too.
+    const ruleY = y - LINE_HEIGHT_PT * 0.4;
+    pdf.setLineWidth(0.5);
+    pdf.line(leftPt, ruleY, leftPt + 2 * PTS_PER_INCH, ruleY);
+    y += LINE_HEIGHT_PT;
+
+    for (const slice of fill.slices) {
+      const entry = plan!.entryById.get(slice.noteId);
+      if (!entry) continue;
+      const label = !slice.isStart
+        ? null
+        : plan!.settings.numbering === 'restartEachPage'
+          ? noteEntryLabel(plan!.settings.startAt + Math.max(0, fill.slices.indexOf(slice)), plan!.settings.numberFormat)
+          : entry.entryLabel;
+      const lines = noteLines(entry, label);
+      for (const line of lines.slice(slice.fromLine, slice.fromLine + slice.lines)) {
+        renderLine(pdf, line, leftPt, y, fonts);
+        y += LINE_HEIGHT_PT;
+      }
+    }
+  }
+
   function newPage(): void {
+    flushFootnotes();
     pdf.addPage([pageWidthPt, pageHeightPt]);
     pageNumber++;
     currentY = topMarginPt;
@@ -569,15 +711,42 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     const typeName = node.typeName;
     const forcedBreak = mustStartNewPage(node);
 
+    // Decided jointly with the block, exactly as the paginator decides it: if
+    // the block plus its own notes will not fit, both move to the next page and
+    // the reservation returns to what it was.
+    const claimed: FootnoteEntry[] = [];
+    if (drawFootnotes) {
+      for (const ref of plan!.refsByNode.get(node.srcIndex) ?? []) {
+        // A note anchored here but sent to the end of the script still gets its
+        // reference number in the text; it just costs this page nothing.
+        if (!plan!.footnoteIds.has(ref.noteId)) continue;
+        const entry = plan!.entryById.get(ref.noteId);
+        if (entry && !pageEntries.includes(entry)) { pageEntries.push(entry); claimed.push(entry); }
+      }
+    }
+    /**
+     * Break the page for this block. The block's own notes travel with it
+     * rather than being drawn on the page it has just left — which is exactly
+     * why the reservation cannot oscillate.
+     */
+    const breakForBlock = () => {
+      for (const e of claimed) {
+        const at = pageEntries.indexOf(e);
+        if (at >= 0) pageEntries.splice(at, 1);
+      }
+      newPage();
+      for (const e of claimed) pageEntries.push(e);
+    };
+
     // Inserted image — place it, paginating if it doesn't fit.
     if (typeName === 'screenplayImage') {
       const img = imageMap.get(i);
       if (img) {
         const sbPt = isFirstElement ? 0 : LINE_HEIGHT_PT;
         if (forcedBreak) {
-          newPage();
+          breakForBlock();
         } else if (currentY + sbPt + img.hPt > pageHeightPt - bottomMarginPt && currentY > topMarginPt) {
-          newPage();
+          breakForBlock();
         } else {
           currentY += sbPt;
         }
@@ -647,10 +816,10 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
 
     if (forcedBreak) {
       // Template rule or manual "start on new page" flag — unconditional break.
-      newPage();
-    } else if (isDialogueBlock && currentY + dialogueBlockHeight > usableBottomPt && currentY > topMarginPt + LINE_HEIGHT_PT) {
+      breakForBlock();
+    } else if (isDialogueBlock && currentY + dialogueBlockHeight > bottomPt() && currentY > topMarginPt + LINE_HEIGHT_PT) {
       // Try to split dialogue block across pages
-      const remaining = usableBottomPt - currentY;
+      const remaining = bottomPt() - currentY;
 
       // Can we fit at least the character name + 2 lines of dialogue?
       const charHeight = spaceBeforePt + elementHeightPt;
@@ -678,7 +847,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
           const dWrapped = wordWrapRuns(dNode.runs, dMaxChars, UPPERCASE_TYPES.has(dNode.typeName));
           const dHeight = dSb + dWrapped.length * LINE_HEIGHT_PT;
 
-          if (currentY + dHeight > usableBottomPt) {
+          if (currentY + dHeight > bottomPt()) {
             break;
           }
 
@@ -693,11 +862,11 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
           // Render (MORE) indicator
           const moreIndents = FD_INDENTS.character || FD_INDENTS.general;
           const moreLeftPt = moreIndents[0] * PTS_PER_INCH;
-          if (mc.dialogueBreakContd && currentY + LINE_HEIGHT_PT <= usableBottomPt) {
+          if (mc.dialogueBreakContd && currentY + LINE_HEIGHT_PT <= bottomPt()) {
             drawPlain(pdf, mc.moreText, moreLeftPt, currentY + LINE_HEIGHT_PT, fonts);
           }
 
-          newPage();
+          breakForBlock();
 
           // Render CONT'D character name
           const charName = node.plainText.trim().toUpperCase();
@@ -721,11 +890,11 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
             const dHeight = dSb + dWrapped.length * LINE_HEIGHT_PT;
 
             // Check for another page break within continued dialogue
-            if (currentY + dHeight > usableBottomPt) {
-              if (mc.dialogueBreakContd && currentY + LINE_HEIGHT_PT <= usableBottomPt) {
+            if (currentY + dHeight > bottomPt()) {
+              if (mc.dialogueBreakContd && currentY + LINE_HEIGHT_PT <= bottomPt()) {
                 drawPlain(pdf, mc.moreText, contdLeftPt, currentY + LINE_HEIGHT_PT, fonts);
               }
-              newPage();
+              breakForBlock();
               if (mc.dialogueBreakContd) {
                 drawPlain(pdf, `${charName} ${mc.contdText}`, contdLeftPt, currentY + LINE_HEIGHT_PT, fonts);
                 currentY += LINE_HEIGHT_PT;
@@ -744,14 +913,14 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
         continue;
       } else {
         // Not enough room to split — push entire block to next page
-        newPage();
+        breakForBlock();
       }
-    } else if (keepWithNext && projectedY + nextElementHeight > usableBottomPt && currentY > topMarginPt + LINE_HEIGHT_PT) {
+    } else if (keepWithNext && projectedY + nextElementHeight > bottomPt() && currentY > topMarginPt + LINE_HEIGHT_PT) {
       // Scene heading won't fit with at least its next element — push to next page
-      newPage();
-    } else if (projectedY > usableBottomPt && currentY > topMarginPt + LINE_HEIGHT_PT) {
+      breakForBlock();
+    } else if (projectedY > bottomPt() && currentY > topMarginPt + LINE_HEIGHT_PT) {
       // Regular page break
-      newPage();
+      breakForBlock();
     }
 
     // Apply space before. An element that was forced onto its own page sits at
@@ -802,6 +971,42 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     }
 
     i++;
+  }
+
+  // The last page has no break after it, so nothing has drawn its footnotes yet.
+  flushFootnotes();
+
+
+  // Endnote mode: the notes collect on their own sheets at the end of the
+  // script, packed by the same helper the editor draws from, so the two agree
+  // on how many sheets there are and what is on each.
+  // Whatever the script ran out of room to continue finishes on the sheets at
+  // the end, exactly as the editor lays it out.
+  if (plan && (plan.endnoteEntries.length > 0 || pendingSlices.length > 0)) {
+    const endnoteLeftPt = FD_INDENTS.action[0] * PTS_PER_INCH;
+    const endnoteRightPt = FD_INDENTS.action[1] * PTS_PER_INCH;
+    for (const page of buildEndnotePages(plan.endnoteEntries, linesPerPage, pendingSlices)) {
+      pdf.addPage([pageWidthPt, pageHeightPt]);
+      pageNumber++;
+      let y = topMarginPt + LINE_HEIGHT_PT;
+      if (page.hasHeading) {
+        const heading = 'NOTES';
+        const face = selectFace(pdf, heading, fonts, {});
+        const x = (endnoteLeftPt + endnoteRightPt) / 2 - widthOf(pdf, heading, face, fonts) / 2;
+        drawPlain(pdf, heading, x, y, fonts, {});
+        y += ENDNOTE_HEADING_LINES * LINE_HEIGHT_PT;
+      }
+      for (const slice of page.slices) {
+        const entry = plan.entryById.get(slice.noteId);
+        if (!entry) continue;
+        const lines = noteLines(entry, slice.isStart ? entry.entryLabel : null);
+        // Only this slice's share of the note; the rest is on the next sheet.
+        for (const line of lines.slice(slice.fromLine, slice.fromLine + slice.lines)) {
+          renderLine(pdf, line, endnoteLeftPt, y, fonts);
+          y += LINE_HEIGHT_PT;
+        }
+      }
+    }
   }
 
   // Final pass: render headers and footers on all pages (now that totalPages is known)

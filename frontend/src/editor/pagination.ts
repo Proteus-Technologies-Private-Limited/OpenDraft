@@ -12,6 +12,13 @@ import { DEFAULT_SPACE_BEFORE, buildSpaceBefore, getSpaceBefore, type SpaceBefor
 import { findTitlePageRegion, titlePageAttrsCarryData } from '../utils/titlePageRegion';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { isNonPrintingType } from '../utils/nonPrinting';
+import {
+  buildEndnotePages,
+  packFootnotePage,
+  type FootnotePlan,
+  type EndnotePage,
+  type NoteSlice,
+} from '../utils/footnotes';
 
 export const paginationPluginKey = new PluginKey('pagination');
 
@@ -110,6 +117,16 @@ for (const [type, [l, r]] of Object.entries(FD_INDENTS)) {
 
 const DIALOGUE_BLOCK_TYPES = new Set(['dialogue', 'parenthetical', 'lyrics']);
 
+/**
+ * Page metrics in lines and pixels.
+ *
+ * `sepHeightPx` is the height of the visual gap BETWEEN pages — bottom margin,
+ * workspace gap, top margin. Footnote height must never be added to it: a
+ * footnote lives inside the page's content area, and it is paid for by
+ * `computeBreaks` reporting fewer `linesOnPage`. Adding it here as well would
+ * charge for the same space twice, and would shift both the decoration margin
+ * and the overlay measurement that reads it back.
+ */
 export function getPageMetrics(layout: PageLayout) {
   const contentHeightPt = layout.pageHeight * 72 - layout.topMargin - layout.bottomMargin;
   const linesPerPage = Math.floor(contentHeightPt / LINE_HEIGHT_PT);
@@ -136,9 +153,30 @@ export interface BreakInfo {
   isTitlePage: boolean;
 }
 
+/** Which printing notes a page carries, and what it spilled onto the next. */
+export interface FootnotePageAssignment {
+  pageNumber: number;
+  /** Notes whose reference lands on this page. */
+  noteIds: string[];
+  /** Lines carried IN from the previous page, for a note too tall to fit. */
+  carryLines: number;
+  /**
+   * Exactly what to draw at this page's foot, already clipped to the room
+   * reserved. A note longer than the page continues on the next one rather
+   * than overflowing into the script.
+   */
+  slices: NoteSlice[];
+}
+
 export interface PaginationState {
   pageCount: number;
   breaks: BreakInfo[];
+  /** Only present when notes are printing; every existing consumer ignores it. */
+  footnotePages?: FootnotePageAssignment[];
+  /** Present only in endnote mode: the extra sheets at the end of the script.
+   *  They are counted in `pageCount`, so the status bar, the header/footer
+   *  `{pages}` field and the PDF all agree without any further plumbing. */
+  endnotePages?: EndnotePage[];
 }
 
 /** True when two break sets would place content differently on the page. */
@@ -183,6 +221,9 @@ export function createPaginationPlugin(
   onUpdate: (state: PaginationState) => void,
   getLayout: () => PageLayout,
   getHints: () => TemplateHints = () => EMPTY_HINTS,
+  // Read fresh at compute time, like the layout and the template hints. Null
+  // whenever nothing prints, which is the common case and costs nothing.
+  getFootnotes: () => FootnotePlan | null = () => null,
 ) {
   // An edit that introduces a page break moves the caret a whole page down, but
   // the transaction's own scrollIntoView ran before these decorations existed —
@@ -194,13 +235,13 @@ export function createPaginationPlugin(
     key: paginationPluginKey,
     state: {
       init(_, state) {
-        const result = computeBreaks(state.doc, getLayout(), getHints());
+        const result = computeBreaks(state.doc, getLayout(), getHints(), getFootnotes());
         setTimeout(() => onUpdate(result), 0);
         return result;
       },
       apply(tr, oldState, _oldEditorState, newEditorState) {
         if (!tr.docChanged && !tr.getMeta('forceRepaginate')) return oldState;
-        const result = computeBreaks(newEditorState.doc, getLayout(), getHints());
+        const result = computeBreaks(newEditorState.doc, getLayout(), getHints(), getFootnotes());
         // Only for real edits: a template or page-layout repagination must not
         // yank the view around while the writer is looking somewhere else.
         if (tr.docChanged && breaksDiffer(oldState, result)) revealCaret = true;
@@ -250,7 +291,16 @@ export function createPaginationPlugin(
   });
 }
 
-export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHints = EMPTY_HINTS): PaginationState {
+const EMPTY_IDS: string[] = [];
+
+export function computeBreaks(
+  doc: PmNode,
+  layout: PageLayout,
+  hints: TemplateHints = EMPTY_HINTS,
+  // Defaulted, so every existing caller and test is untouched — and when it is
+  // null not one line below behaves differently from before footnotes existed.
+  plan: FootnotePlan | null = null,
+): PaginationState {
   const { linesPerPage } = getPageMetrics(layout);
 
   interface NodeInfo {
@@ -260,7 +310,7 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
   }
   const nodes: NodeInfo[] = [];
   let isFirst = true;
-  doc.forEach((node, offset) => {
+  doc.forEach((node, offset, index) => {
     const typeName = node.type.name;
     const elementId = getElementId(node);
     const sb = isFirst ? 0 : (hints.spaceBefore[elementId] ?? 0);
@@ -277,8 +327,14 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
       : typeName === 'screenplayImage'
         ? Math.max(1, Number(node.attrs?.heightLines) || 8)
         : undefined;
+    // A bracketed marker is ordinary inline text and so occupies cells in the
+    // character grid; a superscript one overhangs and occupies none. Either way
+    // the placeholder count matches exactly what the PDF will wrap, which is
+    // what keeps the page count on screen equal to the page count in the file.
+    const rawText = node.textContent || '';
     nodes.push({
-      typeName, elementId, spaceBefore: nonPrinting ? 0 : sb, text: node.textContent || '',
+      typeName, elementId, spaceBefore: nonPrinting ? 0 : sb,
+      text: plan ? plan.textWithMarkers(index, rawText) : rawText,
       offset, nodeSize: node.nodeSize, lineMul, fixedLines,
       startsNewPage: node.attrs?.startsNewPage === true,
       hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
@@ -287,6 +343,16 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
   });
 
   const breaks: BreakInfo[] = [];
+  const footnotePages: FootnotePageAssignment[] = [];
+  // Notes committed to the page being filled, and any footnote lines spilled
+  // onto it by a block on the page before. The page being filled is always
+  // `pageNumber - 1`.
+  let pageNotes: string[] = EMPTY_IDS;
+  /** Parts of a note still to be drawn, continuing onto the next page. */
+  let pendingSlices: NoteSlice[] = [];
+  /** Footnote text left over once the script has run out of pages. */
+  let tailSlices: NoteSlice[] = [];
+  let carryLines = 0;
   let lineCount = 0;
   let pageNumber = 2;
   let i = 0;
@@ -314,6 +380,10 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
       // pageNumber stays at its current value (the title page does not consume a
       // number); the body's first page remains the implicit unnumbered page 1.
       titleBroken = true;
+      // The title page is not script: nothing anchored above the break prints,
+      // and the body's first page starts with a clean slate.
+      pageNotes = EMPTY_IDS;
+      carryLines = 0;
       breaks.push({
         nodeIndex: i,
         offset: node.offset, nodeSize: node.nodeSize,
@@ -361,8 +431,48 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
     const forceBreak = lineCount > 0
       && (node.startsNewPage || hints.forceBreakBefore.has(node.elementId));
 
-    if ((forceBreak || lineCount + blockLines > linesPerPage) && lineCount > 0) {
-      const remaining = linesPerPage - lineCount;
+    // Lines this page still has for script, once room is held back for the
+    // footnotes it would then be carrying.
+    //
+    // The block's OWN notes are included before deciding whether it fits. That
+    // is what stops this oscillating: if the block plus its notes will not fit,
+    // the block moves to the next page and takes its notes with it, so the
+    // reservation returns to exactly what it was before the block was
+    // considered. Nothing is ever un-committed, so there is no cycle to enter
+    // and no iteration to cap.
+    const inTitleRegion = i < titleRegionLength;
+    const notesFor = (from: number, to: number): string[] =>
+      plan && !inTitleRegion ? plan.notesForNodes(from, to) : EMPTY_IDS;
+    const capacityWith = (extra: readonly string[]): number => {
+      if (!plan) return linesPerPage;
+      const all = extra.length > 0 ? pageNotes.concat(extra) : pageNotes;
+      return linesPerPage - plan.reserveLines(carryLines, all, linesPerPage);
+    };
+
+    /**
+     * Close the page being filled: work out exactly what fits at its foot, and
+     * hand whatever does not to the next one.
+     */
+    const closePage = (committed: string[]) => {
+      if (!plan) return;
+      const arriving = committed
+        .map((id) => plan.entryById.get(id))
+        .filter((e): e is NonNullable<typeof e> => !!e);
+      const fill = packFootnotePage(pendingSlices, arriving, linesPerPage);
+      footnotePages.push({
+        pageNumber: pageNumber - 1,
+        noteIds: committed,
+        carryLines,
+        slices: fill.slices,
+      });
+      pendingSlices = fill.pending;
+      carryLines = fill.pending.reduce((n, q) => n + q.lines, 0);
+    };
+
+    const blockNotes = notesFor(i, blockEnd);
+    const capacity = capacityWith(blockNotes);
+
+    if ((forceBreak || lineCount + blockLines > capacity) && lineCount > 0) {
 
       // Try to split character+dialogue blocks. A forced break is never split —
       // the whole point is that the element opens a page of its own.
@@ -370,6 +480,14 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
         const charLines = node.spaceBefore + getTextLines(node.text, CHARS_PER_LINE[node.typeName] || 41);
 
         const MIN_DL = 2; // FD: at least 2 lines of dialogue on each side of split
+
+        // The room left shrinks as each accepted line of dialogue brings its own
+        // note down with it, so it is recomputed rather than fixed up front.
+        // Each candidate is tested against the room remaining AFTER its own note
+        // is accounted for, so an acceptance can never be invalidated by a later
+        // one — the sequence only ever tightens.
+        let fittedNotes = notesFor(i, i);
+        let remaining = capacityWith(fittedNotes) - lineCount;
 
         // Can we fit character + at least 2 lines of dialogue?
         if (remaining >= charLines + MIN_DL) {
@@ -381,10 +499,15 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
             const dc = CHARS_PER_LINE[dn.typeName] || 36;
             const dl = getTextLines(dn.text, dc);
             const dnTotal = dn.spaceBefore + dl;
-            if (fittedLines + dnTotal <= remaining) {
+            const dnNotes = notesFor(j, j);
+            const candNotes = dnNotes.length > 0 ? fittedNotes.concat(dnNotes) : fittedNotes;
+            const room = dnNotes.length > 0 ? capacityWith(candNotes) - lineCount : remaining;
+            if (fittedLines + dnTotal <= room) {
               fittedLines += dnTotal;
               fittedDL += dl;
               lastFittedNode = j;
+              fittedNotes = candNotes;
+              remaining = room;
             } else {
               break;
             }
@@ -400,6 +523,7 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
 
           if (lastFittedNode > i && fittedDL >= MIN_DL && remainDL >= MIN_DL) {
             lineCount += fittedLines;
+            const committed = fittedNotes;
             const splitIdx = lastFittedNode + 1;
             const splitNode = splitIdx < nodes.length ? nodes[splitIdx] : nodes[blockEnd];
             breaks.push({
@@ -412,6 +536,10 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
               characterName: singleLine(node.text),
               isTitlePage: false,
             });
+            if (plan) {
+              closePage(committed);
+              pageNotes = notesFor(splitIdx, blockEnd);
+            }
             pageNumber++;
             lineCount = 1; // CONT'D line
             for (let j = splitIdx; j <= blockEnd; j++) {
@@ -426,23 +554,59 @@ export function computeBreaks(doc: PmNode, layout: PageLayout, hints: TemplateHi
         }
       }
 
-      // Default: push entire block to next page
+      // Default: push entire block to next page. The block's notes go with it,
+      // which is exactly why the page's reservation is unchanged by having
+      // considered it.
       breaks.push({
         nodeIndex: i,
         offset: node.offset, nodeSize: node.nodeSize,
         pageNumber, linesOnPage: lineCount,
         isDialogueSplit: false, characterName: '', isTitlePage: false,
       });
+      if (plan) {
+        closePage(pageNotes);
+        pageNotes = blockNotes;
+      }
       pageNumber++;
       lineCount = blockLines - node.spaceBefore;
     } else {
       lineCount += blockLines;
+      if (plan && blockNotes.length > 0) pageNotes = pageNotes.concat(blockNotes);
     }
 
     i = blockEnd + 1;
   }
 
-  return { pageCount: pageNumber - 1, breaks };
+  if (!plan) return { pageCount: pageNumber - 1, breaks };
+
+  // The last page has no break of its own to close it.
+  {
+    const arriving = pageNotes
+      .map((id) => plan.entryById.get(id))
+      .filter((e): e is NonNullable<typeof e> => !!e);
+    let fill = packFootnotePage(pendingSlices, arriving, linesPerPage);
+    footnotePages.push({
+      pageNumber: pageNumber - 1, noteIds: pageNotes, carryLines, slices: fill.slices,
+    });
+    // Whatever is still unfinished has run out of script to continue on, so it
+    // finishes on the sheets at the end — which exist, paginate and render —
+    // rather than on pages invented here that nothing would draw.
+    tailSlices = fill.pending;
+  }
+
+  // Sheets at the end carry the anchored notes when they are endnotes, and
+  // always carry the general ones — a note attached to the file rather than to
+  // a line has no page of its own to sit at the foot of.
+  if (plan.endnoteEntries.length > 0 || tailSlices.length > 0) {
+    const endnotePages = buildEndnotePages(plan.endnoteEntries, linesPerPage, tailSlices);
+    return {
+      pageCount: pageNumber - 1 + endnotePages.length,
+      breaks,
+      footnotePages,
+      endnotePages,
+    };
+  }
+  return { pageCount: pageNumber - 1, breaks, footnotePages };
 }
 
 // ── Scene length computation ────────────────────────────────────────────
@@ -508,9 +672,10 @@ export function computePageBlocks(
   doc: PmNode,
   layout: PageLayout,
   hints: TemplateHints = EMPTY_HINTS,
+  plan: FootnotePlan | null = null,
 ): PageContentInfo[] {
   const { linesPerPage } = getPageMetrics(layout);
-  const { breaks } = computeBreaks(doc, layout, hints);
+  const { breaks } = computeBreaks(doc, layout, hints, plan);
 
   // Collect top-level nodes
   const nodes: { typeName: string; text: string; offset: number }[] = [];

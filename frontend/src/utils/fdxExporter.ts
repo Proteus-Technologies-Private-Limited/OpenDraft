@@ -6,6 +6,8 @@ import { CUSTOM_TYPE_TO_FDX } from './fdxParser';
 import { jsonBlockText } from './nodeText';
 import { sanitizeExportFilename } from './exportFilename';
 import { isNonPrintingType } from './nonPrinting';
+import { noteBlockText } from './noteContent';
+import type { FootnotePlan } from './footnotes';
 import { DEFAULT_TITLE_PAGE_CREDIT } from './titlePageBlocks';
 
 const NODE_TO_FDX: Record<string, string> = {
@@ -277,7 +279,9 @@ export interface FDXDocumentFont {
   size?: number;
 }
 
-export function exportFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont): string {
+export function exportFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont, footnotes?: FootnotePlan | null): string {
+  // Printing notes reach a file only when the writer asked them to.
+  const plan = footnotes && footnotes.settings.includeInExports ? footnotes : null;
   // Final Draft keeps the typeface on each element's FontSpec; the screenplay
   // Courier is the default a file gets when the writer has not changed it.
   const docFont = documentFont?.family || 'Courier Prime';
@@ -420,7 +424,7 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   }
 
   // Helper: emit a single Paragraph element
-  const emitParagraph = (node: JSONContent, indent: string) => {
+  const emitParagraph = (node: JSONContent, indent: string, noteTexts: readonly string[] = []) => {
     const fdxType = resolveFdxExportType(node);
     const paraAttrs: string[] = [`Type="${fdxType}"`];
 
@@ -435,6 +439,17 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
 
     if (node.content && node.content.length > 0) {
       lines.push(`${indent}<Paragraph ${attrStr}>`);
+      // Printing script notes travel as Final Draft's own ScriptNote element.
+      //
+      // Be clear about what this is: Final Draft has no footnote. A ScriptNote
+      // is a NON-PRINTING annotation shown in its Notes pane, so the citation
+      // arrives with the script and is not lost, but Final Draft will not print
+      // it at the foot of the page the way the PDF does.
+      for (const text of noteTexts) {
+        lines.push(`${indent}  <ScriptNote>`);
+        lines.push(`${indent}    <Paragraph><Text>${esc(text)}</Text></Paragraph>`);
+        lines.push(`${indent}  </ScriptNote>`);
+      }
       // Scene heading synopsis → SceneProperties/Summary (Final Draft format)
       if (node.type === 'sceneHeading' && node.attrs?.synopsis) {
         lines.push(`${indent}  <SceneProperties>`);
@@ -463,13 +478,47 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
         }
       }
       lines.push(`${indent}</Paragraph>`);
+    } else if (noteTexts.length > 0) {
+      lines.push(`${indent}<Paragraph ${attrStr}>`);
+      for (const text of noteTexts) {
+        lines.push(`${indent}  <ScriptNote>`);
+        lines.push(`${indent}    <Paragraph><Text>${esc(text)}</Text></Paragraph>`);
+        lines.push(`${indent}  </ScriptNote>`);
+      }
+      lines.push(`${indent}  <Text></Text>`);
+      lines.push(`${indent}</Paragraph>`);
     } else {
       lines.push(`${indent}<Paragraph ${attrStr}><Text></Text></Paragraph>`);
     }
   };
 
+  // The last block that will actually be written out, so the general notes have
+  // something real to hang from.
+  const lastBodyIndex = doc.content
+    ? doc.content.reduce((last, node, idx) => (
+      isNonPrintingType(node.type) || node.type === 'screenplayImage' || node.type === 'titlePage'
+        ? last : idx
+    ), -1)
+    : -1;
+
   if (doc.content) {
-    for (const node of doc.content) {
+    for (let srcIndex = 0; srcIndex < doc.content.length; srcIndex++) {
+      const node = doc.content[srcIndex];
+      /** Citation text for the notes anchored in this block, if any. */
+      const noteTexts = (plan?.refsByNode.get(srcIndex) ?? [])
+        .map((ref) => plan!.entryById.get(ref.noteId))
+        .filter((e): e is NonNullable<typeof e> => !!e)
+        .map((e) => `${e.entryLabel}. ${e.blocks.map(noteBlockText).filter(Boolean).join(' ')}`.trim());
+      // General notes belong to the file, not to any line of it, and Final Draft
+      // has nowhere to put such a thing. Rather than drop them, they ride on the
+      // last paragraph of the script — which is as near to "the end" as the
+      // format allows.
+      if (plan && srcIndex === lastBodyIndex) {
+        for (const e of plan.generalEntries) {
+          const body = e.blocks.map(noteBlockText).filter(Boolean).join(' ');
+          noteTexts.push(`${e.entryLabel}. ${e.title ? `${e.title} — ` : ''}${body}`.trim());
+        }
+      }
       // FDX has no representation for inserted images — skip them.
       // Fountain's non-printing structure has no Final Draft equivalent that
       // stays off the page — a Paragraph of any type prints — so it is left out
@@ -517,7 +566,7 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
           }
         }
       } else {
-        emitParagraph(node, '    ');
+        emitParagraph(node, '    ', noteTexts);
       }
     }
   }
@@ -584,8 +633,8 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   return lines.join('\n');
 }
 
-export async function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont) {
-  const xml = exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns, pageLayout, documentFont);
+export async function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont, footnotes?: FootnotePlan | null) {
+  const xml = exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns, pageLayout, documentFont, footnotes);
   const filename = `${sanitizeExportFilename(title)}.fdx`;
   const { saveFile } = await import('./fileOps');
   await saveFile(xml, filename, [{ name: 'Final Draft', extensions: ['fdx'] }]);

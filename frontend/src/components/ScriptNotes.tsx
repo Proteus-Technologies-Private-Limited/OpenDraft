@@ -13,6 +13,16 @@ import { useAssetStore, type Asset } from '../stores/assetStore';
 import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
 import { isTauri } from '../services/platform';
+import { FaCrosshairs, FaTrash } from 'react-icons/fa';
+import {
+  removeScriptNoteMarks,
+  recolorScriptNoteMarks,
+  findScriptNotePos,
+} from '../editor/scriptNoteMarks';
+import { showToast } from './Toast';
+import { useFootnotePlan } from '../hooks/useFootnotePlan';
+import { resolveFootnotes, type NotePlacement } from '../stores/editorStore';
+import { noteEntryLabel } from '../utils/noteNumbering';
 
 /** Open a URL in the default browser. Uses Tauri invoke on desktop, window.open on web. */
 const openInBrowser = (url: string) => {
@@ -210,6 +220,86 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
   const { currentProject } = useProjectStore();
   const projectId = currentProject?.id ?? null;
 
+  // Which notes print, and what number each will carry. Null while nothing
+  // prints, which is what keeps the panel exactly as it was for everyone who
+  // never turns this on.
+  const footnotePlan = useFootnotePlan(editor);
+  const pageLayout = useEditorStore((st) => st.pageLayout);
+  const setPageLayout = useEditorStore((st) => st.setPageLayout);
+  const setFootnoteDialogOpen = useEditorStore((st) => st.setFootnoteDialogOpen);
+  const footnoteSettings = resolveFootnotes(pageLayout);
+  /** Where a note goes: its own choice, or the document's if it has none. */
+  const notePlacementOf = useCallback(
+    (note: { printPlacement?: NotePlacement }): NotePlacement =>
+      note.printPlacement ?? footnoteSettings.placement,
+    [footnoteSettings.placement],
+  );
+
+  /**
+   * The number this note will carry, or null if it will not print.
+   *
+   * Read from the plan rather than from the note's own position, because the
+   * numbering is by document order and a note inserted earlier renumbers every
+   * note after it — which the writer should be able to see happen.
+   */
+  const markerFor = useCallback((noteId: string): string | null => {
+    if (!footnotePlan) return null;
+    const entry = footnotePlan.entryById.get(noteId);
+    if (!entry) return null;
+    return noteEntryLabel(entry.number, footnotePlan.settings.numberFormat);
+  }, [footnotePlan]);
+
+  /** The paginator has to be told: none of this lives in the document. */
+  const nudgePagination = useCallback(() => {
+    if (!editor) return;
+    editor.view.dispatch(
+      editor.state.tr.setMeta('forceRepaginate', true).setMeta('addToHistory', false),
+    );
+  }, [editor]);
+
+  /** Turning the first note on while the document switch is off would look like
+   *  a dead control, so switch the document on too and say so. */
+  const ensureEnabled = useCallback(() => {
+    const fn = resolveFootnotes(useEditorStore.getState().pageLayout);
+    if (fn.enabled) return;
+    setPageLayout({ ...useEditorStore.getState().pageLayout, footnotes: { ...fn, enabled: true } });
+    showToast('Notes now print in the screenplay. Format \u2192 Footnotes & Endnotes to configure.', 'info');
+  }, [setPageLayout]);
+
+  /**
+   * Where one note prints. `''` means it does not.
+   *
+   * A choice matching the document's own Location is stored as no choice at
+   * all, so the note keeps following the document — change the Location later
+   * and every note that was never given one of its own moves with it.
+   */
+  const handlePlacementChange = useCallback((id: string, value: string) => {
+    if (!value) {
+      updateNote(id, { printInScript: false });
+      nudgePagination();
+      return;
+    }
+    const placement = value as NotePlacement;
+    const fn = resolveFootnotes(useEditorStore.getState().pageLayout);
+    updateNote(id, {
+      printInScript: true,
+      printPlacement: placement === fn.placement ? undefined : placement,
+    });
+    ensureEnabled();
+    nudgePagination();
+  }, [updateNote, ensureEnabled, nudgePagination]);
+
+  /**
+   * A general note belongs to the file, not to a line of it, so there is
+   * nowhere in the script to put a reference and no page that is its own. It
+   * always prints at the end, whatever the document's placement setting says.
+   */
+  const handleGeneralPrintToggle = useCallback((id: string, next: boolean) => {
+    updateGeneralNote(id, { printInScript: next });
+    if (next) ensureEnabled();
+    nudgePagination();
+  }, [updateGeneralNote, ensureEnabled, nudgePagination]);
+
   // Track which note is being edited (shows textarea), null = preview mode for all
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
 
@@ -322,50 +412,33 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
     const id = pendingDeleteNoteId;
     if (!id) return;
     setPendingDeleteNoteId(null);
-    if (editor) {
-      const { doc, schema } = editor.state;
-      const markType = schema.marks.scriptNote;
-      if (markType) {
-        editor.chain().focus().command(({ tr }) => {
-          doc.descendants((node, pos) => {
-            if (!node.isText) return;
-            const mark = node.marks.find(
-              (m) => m.type === markType && m.attrs.noteId === id,
-            );
-            if (mark) {
-              tr.removeMark(pos, pos + node.nodeSize, mark);
-            }
-          });
-          return true;
-        }).run();
-      }
-    }
+    // The highlight goes with the note. Both halves have to happen, so this
+    // does not run through a chain that could abandon them together.
+    removeScriptNoteMarks(editor, id);
     deleteNote(id);
-  }, [editor, deleteNote, pendingDeleteNoteId]);
+    // Then check it actually went. A transaction can be lost if something else
+    // dispatches one built from the state just before it — repagination, a
+    // collaborator's edit, an autosave. Sweeping again on the next frame costs
+    // nothing when the first attempt worked, and this is not a place to leave a
+    // highlight behind: the note it belonged to no longer exists to remove it.
+    requestAnimationFrame(() => {
+      if (findScriptNotePos(editor, id) !== null) {
+        console.warn('[notes] the highlight outlived its note; removing it again', id);
+        removeScriptNoteMarks(editor, id);
+      }
+    });
+    // A filter pinned to this note now points at nothing, which empties the
+    // panel and reads as "every note was deleted" while the other notes are
+    // still highlighted in the script. Let go of it.
+    if (useEditorStore.getState().noteFilter.noteId === id) {
+      setNoteFilter({ elementType: null, contextLabel: null, color: null, noteId: null });
+    }
+  }, [editor, deleteNote, pendingDeleteNoteId, setNoteFilter]);
 
   const handleColorChange = useCallback(
     (id: string, color: NoteColor) => {
       updateNote(id, { color });
-      if (editor) {
-        const hex = getNoteColorHex(color);
-        const { doc, schema } = editor.state;
-        const markType = schema.marks.scriptNote;
-        if (markType) {
-          editor.chain().command(({ tr }) => {
-            doc.descendants((node, pos) => {
-              if (!node.isText) return;
-              const mark = node.marks.find(
-                (m) => m.type === markType && m.attrs.noteId === id,
-              );
-              if (mark) {
-                tr.removeMark(pos, pos + node.nodeSize, mark);
-                tr.addMark(pos, pos + node.nodeSize, markType.create({ noteId: id, color: hex }));
-              }
-            });
-            return true;
-          }).run();
-        }
-      }
+      recolorScriptNoteMarks(editor, id, getNoteColorHex(color));
     },
     [editor, updateNote],
   );
@@ -373,33 +446,32 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
   const handleNavigateToNote = useCallback(
     (noteId: string) => {
       if (!editor) return;
-      const { doc, schema } = editor.state;
-      const markType = schema.marks.scriptNote;
-      if (!markType) return;
 
-      let targetPos: number | null = null;
-      doc.descendants((node, pos) => {
-        if (targetPos !== null) return false;
-        if (!node.isText) return;
-        const mark = node.marks.find(
-          (m) => m.type === markType && m.attrs.noteId === noteId,
-        );
-        if (mark) {
-          targetPos = pos;
-          return false;
-        }
-      });
+      const targetPos = findScriptNotePos(editor, noteId);
+      if (targetPos === null) return;
 
-      if (targetPos !== null) {
-        editor.chain().focus().setTextSelection(targetPos).run();
-        const coords = editor.view.coordsAtPos(targetPos);
-        const editorMain = document.querySelector('.editor-main');
-        if (editorMain && coords) {
-          const rect = editorMain.getBoundingClientRect();
-          const scrollTo = editorMain.scrollTop + (coords.top - rect.top) - rect.height / 3;
-          editorMain.scrollTo({ top: scrollTo, behavior: 'auto' });
-        }
+      editor.chain().focus().setTextSelection(targetPos).run();
+      const coords = editor.view.coordsAtPos(targetPos);
+      const editorMain = document.querySelector('.editor-main');
+      if (editorMain && coords) {
+        const rect = editorMain.getBoundingClientRect();
+        const scrollTo = editorMain.scrollTop + (coords.top - rect.top) - rect.height / 3;
+        editorMain.scrollTo({ top: scrollTo, behavior: 'smooth' });
       }
+
+      // Land visibly. Scrolling alone leaves the writer hunting for which words
+      // the note was about, especially when highlights are turned off.
+      const marked = editor.view.dom.querySelectorAll(`[data-note-id="${CSS.escape(noteId)}"]`);
+      marked.forEach((el) => {
+        el.classList.remove('script-note-flash');
+        // Force a reflow so re-adding the class restarts the animation when the
+        // same note is jumped to twice.
+        void (el as HTMLElement).offsetWidth;
+        el.classList.add('script-note-flash');
+      });
+      window.setTimeout(() => {
+        marked.forEach((el) => el.classList.remove('script-note-flash'));
+      }, 1400);
     },
     [editor],
   );
@@ -528,6 +600,14 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
     <div ref={panelRef} className={`script-notes-panel ${panelClass}`} style={style}>
       <div className="script-notes-header">
         <span className="script-notes-title">Notes</span>
+        {/* Right where the writer is when they set a note to print. */}
+        <button
+          className="script-notes-settings"
+          onClick={() => setFootnoteDialogOpen(true)}
+          title="Footnote and endnote settings"
+        >
+          &#9881;
+        </button>
         <button className="script-notes-close" onClick={toggleScriptNotes} title="Close">
           &times;
         </button>
@@ -665,6 +745,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
             const sceneName = getSceneName(note.sceneId);
             const elemLabel = ELEMENT_LABELS[note.elementType as ElementType] || note.elementType;
             const isEditing = editingNoteId === note.id;
+            const marker = markerFor(note.id);
 
             return (
               <div
@@ -686,6 +767,14 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                     )}
                     {sceneName && (
                       <span className="note-item-scene">{sceneName}</span>
+                    )}
+                    {marker && (
+                      <span className="note-item-fn-badge">
+                        {notePlacementOf(note) === 'endnote' ? 'Endnote' : 'Footnote'} {marker}
+                      </span>
+                    )}
+                    {!marker && note.printInScript && (
+                      <span className="note-item-fn-badge muted">Not printed &mdash; empty</span>
                     )}
                   </div>
                   <span className="note-item-date">{formatDate(note.createdAt)}</span>
@@ -777,13 +866,39 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                       />
                     ))}
                   </div>
-                  <button
-                    className="note-item-delete"
-                    onClick={() => handleDeleteRequest(note.id)}
-                    title="Delete note"
-                  >
-                    Delete
-                  </button>
+                  <div className="note-item-controls">
+                    <select
+                      className={`note-print-select${marker ? ' active' : ''}`}
+                      disabled={!note.content.trim()}
+                      value={note.printInScript ? notePlacementOf(note) : ''}
+                      onChange={(e) => handlePlacementChange(note.id, e.target.value)}
+                      title={
+                        note.content.trim()
+                          ? 'Where this note prints in the screenplay'
+                          : 'Add note text first'
+                      }
+                    >
+                      <option value="">Do not print</option>
+                      <option value="footnote">Page footer</option>
+                      <option value="endnote">End note</option>
+                    </select>
+                    <button
+                      className="note-icon-btn"
+                      onClick={() => handleNavigateToNote(note.id)}
+                      title="Scroll to the text this note is attached to"
+                      aria-label="Go to the text this note is attached to"
+                    >
+                      <FaCrosshairs />
+                    </button>
+                    <button
+                      className="note-icon-btn note-icon-danger"
+                      onClick={() => handleDeleteRequest(note.id)}
+                      title="Delete note"
+                      aria-label="Delete note"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -823,9 +938,16 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
               generalNotes.map((gn) => {
                 const hex = getNoteColorHex(gn.color);
                 const isEditing = editingGeneralNoteId === gn.id;
+                const gnMarker = markerFor(gn.id);
                 return (
                   <div key={gn.id} className="note-item" style={{ borderLeftColor: hex }}>
                     <div className="note-item-header">
+                      {gnMarker && (
+                        <span className="note-item-fn-badge">Endnote {gnMarker}</span>
+                      )}
+                      {!gnMarker && gn.printInScript && (
+                        <span className="note-item-fn-badge muted">Not printed &mdash; empty</span>
+                      )}
                       <span className="note-item-date">{formatDate(gn.createdAt)}</span>
                     </div>
                     {isEditing ? (
@@ -874,13 +996,33 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                           />
                         ))}
                       </div>
-                      <button
-                        className="note-item-delete"
-                        onClick={() => setPendingDeleteGeneralNoteId(gn.id)}
-                        title="Delete note"
-                      >
-                        Delete
-                      </button>
+                      <div className="note-item-controls">
+                        <select
+                          className={`note-print-select${gnMarker ? ' active' : ''}`}
+                          disabled={!gn.content.trim()}
+                          value={gn.printInScript ? 'endnote' : ''}
+                          onChange={(e) => handleGeneralPrintToggle(gn.id, e.target.value === 'endnote')}
+                          title={
+                            gn.content.trim()
+                              // A general note is attached to the file, not to a
+                              // line of it, so there is no page it could sit at
+                              // the foot of.
+                              ? 'A general note can only print at the end of the script'
+                              : 'Add note text first'
+                          }
+                        >
+                          <option value="">Do not print</option>
+                          <option value="endnote">End note</option>
+                        </select>
+                        <button
+                          className="note-icon-btn note-icon-danger"
+                          onClick={() => setPendingDeleteGeneralNoteId(gn.id)}
+                          title="Delete note"
+                          aria-label="Delete note"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

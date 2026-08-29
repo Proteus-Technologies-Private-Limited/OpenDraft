@@ -611,6 +611,7 @@ const ProjectView: React.FC = () => {
     edStore.setBeatColumns([]);
     edStore.setBeatArrangeMode('auto');
     edStore.setNotes([]);
+    edStore.setGeneralNotes([]);
     edStore.setTags([]);
     edStore.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
     edStore.setCharacterProfiles([]);

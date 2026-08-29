@@ -30,9 +30,28 @@ export interface WrapRun {
    * on, so a font change must not move a page break.
    */
   fontFamily?: string;
+  /**
+   * A footnote reference drawn immediately after this run's text, raised and
+   * small.
+   *
+   * It is carried beside the text rather than in it because it advances the
+   * cursor by nothing: a superscript overhangs into the space that follows, the
+   * same way the editor's marker decoration does. That is what lets the PDF and
+   * the editor agree to the character — the editor cannot see a decoration in
+   * `node.textContent`, so if the marker consumed cells here the two would
+   * wrap differently. A bracketed marker is ordinary text and is spliced into
+   * the run's own text instead, where it does consume cells in both.
+   */
+  marker?: string;
 }
 
 const emptyRun = (): WrapRun => ({ text: '', bold: false, italic: false, underline: false });
+
+/** Would merging these two runs change how either is drawn? */
+function drawsAlike(a: WrapRun, b: WrapRun): boolean {
+  return a.bold === b.bold && a.italic === b.italic
+    && a.underline === b.underline && a.fontFamily === b.fontFamily;
+}
 
 /**
  * How many rendered lines a block's text occupies at `cpl` characters per line.
@@ -89,6 +108,13 @@ export function wordWrapRuns(
         pendingIndent = '';
       }
     }
+    if (run.marker) {
+      // Rides on the word the reference is anchored to, so it can never be
+      // wrapped onto a line of its own away from the phrase it belongs to.
+      const last = words[words.length - 1];
+      if (last && !last.isBreak) last.marker = (last.marker ?? '') + run.marker;
+      else words.push({ ...emptyRun(), marker: run.marker });
+    }
   }
 
   if (words.length === 0) return [[emptyRun()]];
@@ -135,24 +161,35 @@ export function wordWrapRuns(
       if (rest.length > 0) {
         currentLine = [{ ...word, text: rest }];
         currentLineChars = rest.length;
+      } else if (word.marker) {
+        // The token divided exactly; the reference belongs to its last piece.
+        const tail = lines[lines.length - 1];
+        tail[tail.length - 1].marker = word.marker;
       }
       continue;
     }
 
     const wordLen = word.text.length;
 
+    const asRun = (text: string): WrapRun => ({
+      text, bold: word.bold, italic: word.italic, underline: word.underline,
+      fontFamily: word.fontFamily, ...(word.marker ? { marker: word.marker } : {}),
+    });
+
     if (currentLine.length === 0) {
-      currentLine.push({ text: word.text, bold: word.bold, italic: word.italic, underline: word.underline, fontFamily: word.fontFamily });
+      currentLine.push(asRun(word.text));
       currentLineChars = wordLen;
     } else if (currentLineChars + wordLen <= maxChars) {
       const last = currentLine[currentLine.length - 1];
       // Runs merge only when they render identically — a differing typeface
       // keeps them apart, or the second would be drawn in the first's font.
-      if (last.bold === word.bold && last.italic === word.italic
-        && last.underline === word.underline && last.fontFamily === word.fontFamily) {
+      // A run carrying a marker never absorbs another, or the reference would
+      // end up drawn in the middle of the following word.
+      if (drawsAlike(last, word) && !last.marker) {
         last.text += word.text;
+        if (word.marker) last.marker = word.marker;
       } else {
-        currentLine.push({ text: word.text, bold: word.bold, italic: word.italic, underline: word.underline, fontFamily: word.fontFamily });
+        currentLine.push(asRun(word.text));
       }
       currentLineChars += wordLen;
     } else {
@@ -160,7 +197,7 @@ export function wordWrapRuns(
       lastRun.text = lastRun.text.replace(/ +$/, '');
       lines.push(currentLine);
       const trimmedWord = word.text.replace(/^ +/, '');
-      currentLine = [{ text: trimmedWord, bold: word.bold, italic: word.italic, underline: word.underline, fontFamily: word.fontFamily }];
+      currentLine = [asRun(trimmedWord)];
       currentLineChars = trimmedWord.length;
     }
   }

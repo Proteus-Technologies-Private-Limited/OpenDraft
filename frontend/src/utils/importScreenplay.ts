@@ -92,6 +92,7 @@ export function resetStoresForImport(): void {
   store.setBeatColumns([]);
   store.setBeatArrangeMode('auto');
   store.setNotes([]);
+  store.setGeneralNotes([]);
   store.setTags([]);
   store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
   store.setCharacterProfiles([]);

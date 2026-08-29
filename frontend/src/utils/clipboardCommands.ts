@@ -165,6 +165,26 @@ function restoreCursor(editor: Editor, at: { from: number; to: number }): void {
   editor.chain().focus().setTextSelection({ from, to }).run();
 }
 
+/**
+ * Plain text off the clipboard, for a plain text field.
+ *
+ * The editor pastes want the HTML flavour so emphasis survives; a textarea has
+ * nowhere to put it, and on iOS every flavour asked for is another system
+ * "Paste" prompt. One prompt, plain text, is the right trade here.
+ */
+export async function readClipboardText(): Promise<{ text?: string; error?: string }> {
+  try {
+    if (navigator.clipboard?.readText) {
+      const text = await navigator.clipboard.readText();
+      return text ? { text } : { error: 'The clipboard is empty.' };
+    }
+  } catch (err) {
+    console.error('[clipboard] readText failed:', err);
+    return { error: pasteFailureMessage() };
+  }
+  return { error: pasteFailureMessage() };
+}
+
 export async function pasteIntoEditor(editor: Editor | null): Promise<ClipboardResult> {
   if (!editor) return { ok: false };
 

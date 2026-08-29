@@ -3213,6 +3213,230 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 }
 
 /* ============ HEADER & FOOTER DIALOG ============ */
+/* ── Footnote and Endnote dialog ── */
+.fn-dialog {
+  min-width: 460px;
+  max-width: 520px;
+}
+.fn-section {
+  margin-top: 14px;
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.fn-section[disabled] {
+  opacity: 0.45;
+}
+.fn-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--fd-text-muted);
+  margin-bottom: 8px;
+}
+.fn-hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--fd-text-muted);
+  margin-top: 6px;
+}
+.fn-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.fn-row > label {
+  flex: 0 0 110px;
+  font-size: 12px;
+  color: var(--fd-text);
+}
+.fn-row > select,
+.fn-row > input[type="number"] {
+  flex: 1 1 auto;
+  height: 26px;
+  padding: 0 6px;
+  font-size: 12px;
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  background: var(--fd-input-bg);
+  color: var(--fd-text);
+}
+.fn-row > input[type="number"] {
+  flex: 0 0 80px;
+}
+.fn-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--fd-text);
+  cursor: pointer;
+  margin-top: 10px;
+}
+.fn-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--fd-text);
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+.fn-radio-label {
+  flex: 0 0 90px;
+}
+.fn-radio-value {
+  color: var(--fd-text-muted);
+}
+.fn-segmented {
+  display: flex;
+  gap: 6px;
+  flex: 1 1 auto;
+}
+.fn-segmented button {
+  flex: 1 1 0;
+  height: 26px;
+  font-size: 11px;
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  background: var(--fd-input-bg);
+  color: var(--fd-text);
+  cursor: pointer;
+}
+.fn-segmented button.active {
+  border-color: var(--fd-accent);
+  color: var(--fd-accent);
+}
+/* The preview is the script's own typeface, so what it shows is what prints. */
+.fn-preview {
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  padding: 12px 14px;
+  background: #fff;
+  color: #000;
+  font-family: var(--screenplay-font, 'Courier Prime', monospace);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.fn-preview-marker {
+  font-size: 0.7em;
+}
+.fn-preview-rule {
+  width: 40%;
+  border-top: 1px solid #000;
+  margin: 14px 0 6px;
+}
+.fn-preview-heading {
+  text-align: center;
+  margin: 14px 0 6px;
+  letter-spacing: 1px;
+}
+.fn-preview-entry {
+  display: flex;
+  gap: 0.6ch;
+}
+.fn-preview-label {
+  flex: 0 0 auto;
+}
+.fn-preview-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+/* ── Script Notes: the print toggle and its number badge ── */
+/* Square, so two of them and a dropdown always fit however narrow the panel. */
+.note-icon-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  background: var(--fd-input-bg);
+  color: var(--fd-text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.note-icon-btn:hover {
+  border-color: var(--fd-accent);
+  color: var(--fd-accent);
+}
+.note-icon-danger:hover {
+  border-color: #c0392b;
+  color: #ff6b6b;
+}
+
+/* Jumping to a note lands visibly: the annotated words flash, so the writer can
+   see which text the note was about even with highlights turned off. */
+@keyframes script-note-flash {
+  0%, 60% { background-color: var(--fd-accent); color: #fff; }
+  100% { background-color: transparent; }
+}
+.script-note-flash {
+  animation: script-note-flash 1.4s ease-out;
+  border-radius: 2px;
+}
+
+.note-print-select {
+  /* Takes the width the buttons leave, and may shrink: without min-width:0 a
+     select refuses to go below its longest option and pushes them out. */
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  background: var(--fd-input-bg);
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  color: var(--fd-text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.note-print-select:hover:not(:disabled) {
+  border-color: var(--fd-accent);
+  color: var(--fd-accent);
+}
+.note-print-select:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.note-print-select.active {
+  border-color: var(--fd-accent);
+  color: var(--fd-accent);
+}
+.note-item-fn-badge {
+  /* Hugs its text: it sits in a flex column, which would otherwise stretch it
+     the full width of the card. */
+  align-self: flex-start;
+  font-size: 10px;
+  padding: 0 6px;
+  border-radius: 8px;
+  border: 1px solid var(--fd-accent);
+  color: var(--fd-accent);
+  white-space: nowrap;
+}
+.note-item-fn-badge.muted {
+  border-color: var(--fd-border);
+  color: var(--fd-text-muted);
+}
+.script-notes-settings {
+  background: none;
+  border: none;
+  color: var(--fd-text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 6px;
+  margin-left: auto;
+}
+.script-notes-settings:hover {
+  color: var(--fd-accent);
+}
+
 .hf-dialog {
   min-width: 460px;
   max-width: 520px;
@@ -4759,6 +4983,13 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   justify-content: space-between;
   align-items: flex-start;
   gap: 6px;
+  min-width: 0;
+}
+.note-item-header > .note-item-context {
+  min-width: 0;
+}
+.note-item-date {
+  flex: 0 0 auto;
 }
 .note-item-context {
   display: flex;
@@ -4847,6 +5078,10 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   border-radius: 3px;
   cursor: pointer;
   min-height: 28px;
+  /* A long citation would otherwise make one card taller than the panel and
+     push its own controls out of reach. It scrolls within the card instead. */
+  max-height: 180px;
+  overflow-y: auto;
   transition: border-color .15s;
 }
 .note-item-preview:hover { border-color: var(--fd-border); }
@@ -4953,14 +5188,25 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .note-asset-option:hover .note-asset-option-tags,
 .note-asset-option.selected .note-asset-option-tags { color: rgba(255,255,255,.6); }
 /* ── Note actions row ── */
+/* The note's controls, stacked rather than crammed onto one line: six colour
+   dots, a placement dropdown and two buttons do not fit across a 300px panel,
+   and the last of them used to be pushed off its edge entirely. */
 .note-item-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
 }
 .note-item-colors {
   display: flex;
   gap: 4px;
+  flex-wrap: wrap;
+}
+.note-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 .note-color-dot {
   width: 14px;
@@ -4983,6 +5229,122 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 }
 .note-item-delete:hover {
   color: #ff6b6b;
+}
+
+/* ── Printed notes: footnote markers and the block at the page foot ── */
+
+/* The reference number drawn beside a printing note. A widget decoration, so
+   it is never document text; `user-select: none` keeps the caret out of it. */
+.footnote-marker {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+  color: inherit;
+}
+sup.footnote-marker {
+  font-size: 0.65em;
+  line-height: 0;
+  vertical-align: super;
+}
+
+/* A printing note's marker is part of the script, so hiding note highlights
+   (View > Note Highlights) must not hide it — only the annotation colour. */
+.notes-hidden .footnote-marker {
+  color: inherit;
+}
+
+/* The block itself, drawn into the whitespace the paginator reserved. Anchored
+   with bottom:100% against the break's bottom band, which puts its foot exactly
+   at the content area's bottom edge — the same place the reserve was taken
+   from, so the height and the gap always agree. */
+.footnote-block {
+  position: absolute;
+  bottom: 100%;
+  left: var(--pl, 1.5in);
+  right: var(--pr, 0.76in);
+  font-family: var(--screenplay-font);
+  font-size: 12pt;
+  line-height: 16px;
+  color: #000;
+  /* .page-sep is pointer-events:none, so opt back in to allow the click
+     through to the note in the panel. */
+  pointer-events: auto;
+}
+
+/* Word's convention: a short rule, not a full-width one. */
+.footnote-rule {
+  width: 2in;
+  height: 0;
+  border-top: 1px solid #000;
+  /* The blank line above the rule is the second of the two lines the reserve
+     charges for; the rule itself sits on the first. */
+  margin: 8px 0 0;
+}
+
+/* One note's share of this page. The box is exactly as many lines tall as the
+   paginator reserved for it, and the note is slid up inside it — so a note too
+   long for its page is cut at the line the next page continues from, and can
+   never climb up over the script. Word splits a long footnote for the same
+   reason. */
+.footnote-slice {
+  overflow: hidden;
+  cursor: pointer;
+}
+.footnote-slice-inner {
+  display: block;
+}
+/* The label is drawn inline at the head of the first line, NOT in a column of
+   its own: a column would narrow every following line and wrap the note earlier
+   than it was measured, making the drawn block taller than the room reserved. */
+.footnote-entry-label {
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+}
+.footnote-slice:hover .footnote-entry-label {
+  text-decoration: underline;
+}
+.footnote-entry-line {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.footnote-entry-title {
+  font-weight: 700;
+}
+.footnote-entry-image {
+  display: block;
+}
+.footnote-entry-image img {
+  max-width: 100%;
+  display: block;
+}
+/* The endnote sheets lay a whole note out the same way, in normal flow. */
+.footnote-entry,
+.footnote-entry-body {
+  display: block;
+}
+
+/* The NOTES sheets in endnote mode. Absolutely placed at heights the paginator
+   worked out, inside the same continuous page element as the script. */
+.endnote-page {
+  position: absolute;
+  left: var(--pl, 1.5in);
+  right: var(--pr, 0.76in);
+  font-family: var(--screenplay-font);
+  font-size: 12pt;
+  line-height: 16px;
+  color: #000;
+  z-index: 5;
+}
+.endnote-entry-title {
+  display: block;
+  font-weight: 700;
+}
+.endnote-heading {
+  text-align: center;
+  letter-spacing: 1px;
+  /* "NOTES" then two blank lines — the three the packer reserved. */
+  margin-bottom: 32px;
 }
 
 /* ── Script Note inline highlight in editor ── */
@@ -6698,6 +7060,39 @@ html.android .version-history-panel {
 .history-banner-back:hover {
   background: rgba(255,255,255,.25);
   border-color: rgba(255,255,255,.5);
+}
+
+/* An explicit caret on the page, so nothing upstream can quietly turn it
+   transparent. It must contrast with the *paper*, not with the app chrome:
+   --fd-page-bg is #ffffff in every theme and .screenplay-content sets the text
+   to #000, so the caret follows the text. Using the chrome's --fd-text here
+   painted a #e0e0e0 caret on white paper in the dark theme — present, focused,
+   and invisible. The history-mode rule below is more specific and still wins,
+   so a read-only draft stays caret-free. */
+.page .ProseMirror { caret-color: currentColor; }
+
+/* While the app draws the caret itself, the system one is off. Guessing which
+   of the two was on screen produced moments with both (see PencilCaret.tsx);
+   turning the native one off outright leaves exactly one, always. */
+body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
+
+/* The stand-in caret (see PencilCaret.tsx). Absolute inside .ProseMirror, so it
+   scrolls and scales with the text, and inert so it can never take a tap. */
+.pencil-caret {
+  position: absolute;
+  width: 2px;
+  background: currentColor;
+  color: #000;
+  pointer-events: none;
+  z-index: 40;
+  animation: pencil-caret-blink 1.06s steps(1, end) infinite;
+}
+@keyframes pencil-caret-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pencil-caret { animation: none; }
 }
 
 /* History mode: visual feedback on the editor area */
@@ -8892,7 +9287,10 @@ html.android .version-history-panel {
   background: rgba(0, 0, 0, 0.45);
 }
 .scribble-sheet {
-  width: min(720px, 100%);
+  /* Bigger than it was: this is a writing surface, not a prompt, and a Pencil
+     needs room to form letters at a natural size. */
+  width: min(980px, 100%);
+  max-height: calc(var(--vv-height, 100dvh) - 32px);
   background: var(--fd-dropdown-bg);
   border: 1px solid var(--fd-border);
   border-radius: 14px;
@@ -8906,25 +9304,82 @@ html.android .version-history-panel {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
 }
 .scribble-header {
-  padding: 14px 18px 8px;
+  padding: 14px 18px 10px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
 }
-.scribble-title {
-  font-size: 13px;
-  font-weight: 600;
+.scribble-header-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.scribble-toggle {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 34px; padding: 0 12px;
+  background: none; border: 1px solid var(--fd-border); border-radius: 8px;
+  color: var(--fd-text-muted); font-size: 13px; cursor: pointer;
+}
+.scribble-toggle:hover { color: var(--fd-text); }
+.scribble-toggle.is-on {
+  color: #fff; background: var(--fd-accent); border-color: var(--fd-accent);
+}
+
+/* Where the text is going: the script either side of the insertion point,
+   drawn with the editor's own element classes so a Character cue sits in the
+   Character column. The page is rendered at full width and scaled down, because
+   element indents are absolute inches and do not survive being re-measured. */
+.scribble-preview {
+  max-height: 210px;
+  overflow: auto;
+  padding: 10px;
+  background: var(--fd-bg);
+  border: 1px solid var(--fd-border);
+  border-radius: 8px;
+}
+.scribble-preview-page {
+  /* `zoom`, not `transform: scale` — a transform shrinks what is painted but
+     still reserves the full-size layout box, leaving a tall empty gap under a
+     page-width preview. Zoom scales the box as well, and WebKit has supported
+     it for as long as the iPad has existed. 0.85 keeps 12pt Courier legible
+     while fitting the sheet in portrait. */
+  zoom: 0.85;
+  width: 8.26in;
   color: var(--fd-text);
+  line-height: 1.3;
 }
-.scribble-hint {
-  font-size: 12px;
-  color: var(--fd-text-muted);
+.scribble-preview-page .screenplay-element { margin-top: 6pt; }
+.scribble-preview-page .screenplay-element:first-child { margin-top: 0; }
+/* The line being written into, so the eye finds it without hunting. */
+.scribble-preview-page .is-target {
+  background: color-mix(in srgb, var(--fd-accent) 14%, transparent);
+  border-radius: 3px;
+}
+.scribble-preview-empty {
+  font-size: 13px; color: var(--fd-text-muted); font-style: italic;
+}
+.scribble-element {
+  margin-left: 10px;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--fd-accent); color: #fff;
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  vertical-align: middle;
+}
+/* The caret marker stands in for the insertion point between the two sides. */
+.scribble-ctx-caret {
+  display: inline-block; width: 3px; height: 1.05em;
+  margin: 0 1px; vertical-align: text-bottom;
+  background: var(--fd-accent);
+}
+.scribble-ctx-replace {
+  background: var(--fd-accent); color: #fff;
+  border-radius: 3px; padding: 0 3px;
+  text-decoration: line-through;
 }
 .scribble-area {
   margin: 0 18px;
-  /* Tall enough to write a sentence at a natural hand size, and it grows with
-     the viewport rather than being pinned to a phone-sized box. */
-  min-height: max(180px, 22vh);
+  /* Tall enough to write several lines at a natural hand size, and it grows
+     with the viewport rather than being pinned to a phone-sized box. */
+  min-height: max(300px, 40vh);
+  flex: 1 1 auto;
   resize: none;
   padding: 14px 16px;
   font-size: 22px;
@@ -8935,10 +9390,31 @@ html.android .version-history-panel {
   border: 1px solid var(--fd-border);
   border-radius: 10px;
 }
+/* The field and its drawn caret share a positioned box. When the app draws the
+   caret the native one is off, so there is only ever one. */
+.scribble-area-wrap { position: relative; display: flex; flex: 1 1 auto; min-height: 0; }
+.scribble-area-wrap .scribble-caret { color: var(--fd-text); z-index: 2; }
+.scribble-area { caret-color: var(--fd-accent, #3b82f6); }
+.scribble-area-wrap:has(.scribble-caret) .scribble-area { caret-color: transparent; }
 .scribble-area:focus {
   outline: 2px solid var(--fd-accent, #3b82f6);
   outline-offset: -1px;
 }
+.scribble-tools {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 10px 18px 0;
+}
+.scribble-tool {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 40px; padding: 0 14px;
+  background: var(--fd-toolbar-bg); color: var(--fd-text);
+  border: 1px solid var(--fd-border); border-radius: 8px;
+  font-size: 13px; cursor: pointer;
+}
+.scribble-tool:hover:not(:disabled) { background: var(--fd-menu-hover); }
+.scribble-tool:disabled { opacity: .4; cursor: default; }
+.scribble-tool-key { font-weight: 600; }
+.scribble-tools-gap { flex: 1 1 auto; }
 .scribble-actions {
   display: flex;
   justify-content: flex-end;
@@ -9372,6 +9848,16 @@ html.android .version-history-panel {
   html.android .project-view {
     padding-top: max(env(safe-area-inset-top), 28px);
     padding-bottom: max(env(safe-area-inset-bottom), 24px);
+  }
+  /* The slide-over panels are `position: fixed`, so they sit outside the
+     app container's padding and their headers land under the status bar —
+     which puts the close and settings buttons out of reach. Give them the
+     same clearance. */
+  html.android .script-notes-panel,
+  html.android .char-profiles-panel,
+  html.android .tags-panel,
+  html.android .location-db-panel {
+    padding-top: max(env(safe-area-inset-top), 28px);
   }
 
   /* iOS/iPadOS: the insets above only started reporting real values once

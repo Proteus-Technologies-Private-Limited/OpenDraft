@@ -156,9 +156,97 @@
     <div class="callout callout-tip">
       <span class="callout-icon">&#128161;</span>
       <div class="callout-content">
-        <p><strong>Tip:</strong> Turn off note highlights when you want to read the script cleanly, or before printing/exporting to PDF. Notes are never included in exports.</p>
+        <p><strong>Tip:</strong> Turn off note highlights when you want to read the script cleanly. Highlights are a working aid &mdash; they never print. A note only reaches the page if you set it to print, as below.</p>
       </div>
     </div>
+
+    <h2 id="printing">Printing a Note as a Footnote</h2>
+
+    <p>Sometimes a note belongs in the script rather than beside it &mdash; a source for a quoted line, a permission, a reference you need on the page. Any script note can be promoted to a printed <strong>footnote</strong> or <strong>endnote</strong>.</p>
+
+    <ol class="steps">
+      <li>Write the note text (an empty note cannot print).</li>
+      <li>Choose where it goes from the dropdown on the note in the Script Notes panel:</li>
+    </ol>
+
+    <table>
+      <thead>
+        <tr><th>Choice</th><th>What happens</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Do not print</td><td>The note stays a working annotation. This is the default.</td></tr>
+        <tr><td>Page footer</td><td>The note prints at the foot of the page its reference sits on.</td></tr>
+        <tr><td>End note</td><td>The note prints on a NOTES page at the end of the script.</td></tr>
+      </tbody>
+    </table>
+
+    <p>Either way a superscript number appears in the script at the end of the annotated text, and the note's header shows <em>Footnote 3</em> or <em>Endnote iii</em>. Numbering follows document order and runs as a single sequence whichever destination each note has, so inserting a note earlier in the script renumbers the ones after it.</p>
+
+    <p>Every note follows the document's own Location setting until you choose otherwise. Pick a destination that differs from it and that note keeps its own choice; the rest still move when you change the document setting.</p>
+
+    <h2 id="general-note-printing">Printing a General Note</h2>
+
+    <p>General notes can print too, from the same dropdown &mdash; but they only offer <strong>Do not print</strong> and <strong>End note</strong>. A general note is attached to the file rather than to a line of it, so there is no text to carry a reference number and no page it belongs to. It can only ever collect at the end, whatever the document's Location says.</p>
+
+    <p>General notes are numbered after the anchored ones, continuing the same sequence, and a note's title prints above its text.</p>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">&#128161;</span>
+      <div class="callout-content">
+        <p><strong>Nothing changes until you ask it to.</strong> Notes do not print by default. While no note is set to print, your script paginates and exports exactly as it always has.</p>
+      </div>
+    </div>
+
+    <h2 id="footnote-settings">Footnote and Endnote Settings</h2>
+
+    <p>Open <strong>Format &gt; Footnotes &amp; Endnotes&hellip;</strong>, or click the gear in the Script Notes panel header. The settings apply to the whole document.</p>
+
+    <table>
+      <thead>
+        <tr><th>Setting</th><th>What it does</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Print notes in the screenplay</td><td>The master switch. While it is off, notes stay on screen only.</td></tr>
+        <tr><td>Location</td><td>Where notes go <em>by default</em> &mdash; <strong>Footnotes</strong> at the bottom of the page carrying the reference, or <strong>Endnotes</strong> on their own NOTES pages at the end. Any note can be sent the other way from its own dropdown.</td></tr>
+        <tr><td>Number format</td><td>1, 2, 3 &middot; a, b, c &middot; A, B, C &middot; i, ii, iii &middot; I, II, III &middot; *, &dagger;, &Dagger;, &sect;</td></tr>
+        <tr><td>Marker style</td><td>A superscript number, or a bracketed one like [1].</td></tr>
+        <tr><td>Start at</td><td>The number the first note carries.</td></tr>
+        <tr><td>Numbering</td><td>Continuous through the script, or restarting on each page. (Endnotes are always continuous &mdash; there is no page to restart on.)</td></tr>
+        <tr><td>Include notes when exporting</td><td>Turn it off to send a clean file without changing anything on screen.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="long-footnotes">Long Footnotes</h2>
+
+    <p>A footnote longer than the room its page can spare is split, exactly as Word splits one: as much as fits prints at the foot of the page, and the rest continues at the foot of the next page &mdash; without repeating the number. A note that is still unfinished when the script runs out of pages finishes on the NOTES pages at the end, so nothing is ever cut off.</p>
+
+    <p>No page gives up more than half of itself to footnotes, so the script always keeps the greater part of every page.</p>
+
+    <div class="callout callout-warning">
+      <span class="callout-icon">&#9888;</span>
+      <div class="callout-content">
+        <p><strong>Footnotes take room from the page.</strong> A footnote occupies lines at the foot of the page it belongs to, so page breaks move and your script can run longer &mdash; which matters when a page is roughly a minute of screen time. Endnotes leave the script's own pages untouched and add sheets at the end instead.</p>
+      </div>
+    </div>
+
+    <h2 id="footnote-formats">What Each Format Supports</h2>
+
+    <table>
+      <thead>
+        <tr><th>Format</th><th>Printed notes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>PDF</td><td>Full support &mdash; placement, number format, marker style, start number and per-page numbering, exactly as shown on screen.</td></tr>
+        <tr><td>Word (.docx)</td><td>Real Word footnotes and endnotes, which Word lays out and reflows itself &mdash; each note keeps the destination you chose. Word uses <em>its own</em> numbering, so a script set to roman numerals still reads 1, 2, 3 there. General notes close the document under a NOTES heading, since nothing references them.</td></tr>
+        <tr><td>Final Draft (.fdx)</td><td>The citation travels as a Final Draft <em>script note</em>. Final Draft has no footnote, so it appears in the Notes pane rather than on the page.</td></tr>
+        <tr><td>Fountain, Fade In</td><td>Not supported &mdash; neither format has any footnote concept.</td></tr>
+        <tr><td>Browser Print</td><td>Use PDF export instead. Browser printing does not reproduce page furniture; headers and footers are lost there too.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="note-media">Notes with Images</h2>
+
+    <p>A printing note that contains an image reserves room for it on the page and prints it in the PDF. Video links print as their address &mdash; a page cannot play anything. An <code>@AssetName</code> reference that cannot be resolved prints as the text you typed, so nothing silently disappears.</p>
 
     <div class="page-nav">
       <a href="characters.html">
