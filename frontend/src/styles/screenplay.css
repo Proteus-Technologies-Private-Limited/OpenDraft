@@ -12603,6 +12603,26 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
       margin-left: calc(env(safe-area-inset-left, 0px) + var(--ios-window-gutter, 0px));
     }
   }
+
+  /* Same story on the other side of the screen (issue #96): below 900px the
+     right-hand slide-overs turn into `position: fixed` drawers anchored at
+     top: 0, which takes them out of .app-container and out of the padding
+     that keeps it clear of the status bar. Their header then runs under the
+     clock, and the close button under the battery — where it cannot reliably
+     be tapped. Above 900px they are docked inside the container, already
+     inset, and must not be padded twice, which is why an iPad never showed
+     this and the rule stays inside the query.
+
+     padding-right goes with it: these are pinned to the trailing edge, so in
+     landscape the close button is the control the notch covers. */
+  @media (max-width: 900px) {
+    html.ios .script-notes-panel,
+    html.ios .char-profiles-panel,
+    html.ios .tags-panel {
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+    }
+  }
 }
 
 /* ── Font picker ──────────────────────────────────────────────────────────

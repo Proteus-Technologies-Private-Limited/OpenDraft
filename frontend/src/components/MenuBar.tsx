@@ -87,7 +87,7 @@ import {
   supportsOpenInPlace,
   type InPlaceDocument,
 } from '../utils/fileOps';
-import { isDesktopTauri, supportsApplePencil, supportsMultipleWindows } from '../services/platform';
+import { isDesktopTauri, printsViaShareSheet, supportsApplePencil, supportsMultipleWindows } from '../services/platform';
 import { getCompatEntries } from '../services/compat';
 import { reportSaveError } from '../stores/saveErrorStore';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
@@ -1171,54 +1171,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
     };
   }, [editorHasUnsavedChanges, confirmOrRun]);
 
-  // ── Global keyboard shortcuts ──
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'F7' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        e.preventDefault();
-        if (e.shiftKey) setGrammarModalOpen(true);
-        else setSpellModalOpen(true);
-        return;
-      }
-      const m = e.metaKey || e.ctrlKey;
-      if (!m) return;
-      switch (e.key) {
-        case 'n':
-          e.preventDefault();
-          if (!isCollabGuest) handleNewScreenplay();
-          break;
-        case 's':
-        case 'S':
-          e.preventDefault();
-          if (!isCollabGuest) (e.shiftKey ? handleSaveAs() : handleSave());
-          break;
-        case 'p':
-          e.preventDefault();
-          window.print();
-          break;
-        case 'f':
-          e.preventDefault();
-          setSearchOpen(true);
-          break;
-        case 'g':
-          e.preventDefault();
-          setGoToPageOpen(true);
-          break;
-        case '=': // Cmd+= is Cmd++ on most keyboards
-        case '+':
-          e.preventDefault();
-          setZoomLevel(Math.min(300, useEditorStore.getState().zoomLevel + 10));
-          break;
-        case '-':
-          e.preventDefault();
-          setZoomLevel(Math.max(50, useEditorStore.getState().zoomLevel - 10));
-          break;
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [handleSave, handleSaveAs, handleNewScreenplay, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel, setSpellModalOpen, setGrammarModalOpen]);
-
   const handleExportFDX = useCallback(async () => {
     if (!editor) return;
     try {
@@ -1272,6 +1224,77 @@ const MenuBar: React.FC<MenuBarProps> = ({
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
   }, [editor, documentTitle, pageLayout]);
+
+  /**
+   * File → Print (and ⌘P).
+   *
+   * Everywhere with a print dialog this is the browser's own, which renders
+   * the paginated editor exactly as it appears. iOS has no such dialog, and
+   * asking for one there threw the writer out of their script and onto an
+   * error screen they could only leave by force-quitting the app (issue #97).
+   * The system print path on iPhone and iPad is AirPrint in the share sheet,
+   * so Print goes there with the very PDF that File → Export → PDF produces —
+   * the same pagination, and the sheet's other destinations (Save to Files,
+   * AirDrop, Mail) come along with it.
+   */
+  const handlePrint = useCallback(async () => {
+    if (!printsViaShareSheet()) {
+      window.print();
+      return;
+    }
+    // Laying out a feature-length script takes a moment, and the share sheet
+    // does not appear until it is done — without this the tap looks ignored.
+    showToast('Preparing your script — choose Print in the share sheet.');
+    await handleExportPDF();
+  }, [handleExportPDF]);
+
+  // ── Global keyboard shortcuts ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'F7' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        if (e.shiftKey) setGrammarModalOpen(true);
+        else setSpellModalOpen(true);
+        return;
+      }
+      const m = e.metaKey || e.ctrlKey;
+      if (!m) return;
+      switch (e.key) {
+        case 'n':
+          e.preventDefault();
+          if (!isCollabGuest) handleNewScreenplay();
+          break;
+        case 's':
+        case 'S':
+          e.preventDefault();
+          if (!isCollabGuest) (e.shiftKey ? handleSaveAs() : handleSave());
+          break;
+        case 'p':
+          e.preventDefault();
+          void handlePrint();
+          break;
+        case 'f':
+          e.preventDefault();
+          setSearchOpen(true);
+          break;
+        case 'g':
+          e.preventDefault();
+          setGoToPageOpen(true);
+          break;
+        case '=': // Cmd+= is Cmd++ on most keyboards
+        case '+':
+          e.preventDefault();
+          setZoomLevel(Math.min(300, useEditorStore.getState().zoomLevel + 10));
+          break;
+        case '-':
+          e.preventDefault();
+          setZoomLevel(Math.max(50, useEditorStore.getState().zoomLevel - 10));
+          break;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [handleSave, handleSaveAs, handleNewScreenplay, handlePrint, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel, setSpellModalOpen, setGrammarModalOpen]);
 
   const handleExportDocx = useCallback(async () => {
     if (!editor) return;
@@ -1537,7 +1560,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         ] : []),
         { separator: true, label: '' },
         { icon: <FaCog />, label: 'Page Setup…', action: () => setPageSetupOpen(true) },
-        { icon: <FaPrint />, label: 'Print…', shortcut: `${mod}P`, action: () => window.print() },
+        { icon: <FaPrint />, label: 'Print…', shortcut: `${mod}P`, action: () => { void handlePrint(); } },
       ],
     },
     {

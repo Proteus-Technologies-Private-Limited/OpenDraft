@@ -29,6 +29,23 @@ export function isDesktopTauri(): boolean {
   return isTauri() && !isMobileTauri();
 }
 
+/**
+ * Whether File → Print has to reach the printer through the system share
+ * sheet rather than a print dialog.
+ *
+ * iOS gives a web view no print dialog to open. Tauri swaps `window.print()`
+ * for an invoke of `plugin:webview|print`, but registers that command on
+ * desktop only, so on iPhone and iPad the call rejects with "not allowed by
+ * ACL" and nothing prints (issue #97). Granting the permission would not help:
+ * there is no iOS implementation behind it — wry's print is macOS-only.
+ *
+ * AirPrint lives in the share sheet on iOS, which is already where every other
+ * OpenDraft export goes, so Print hands it the exported PDF instead.
+ */
+export function printsViaShareSheet(): boolean {
+  return isTauri() && getOS() === 'ios';
+}
+
 /** True when running as a plain browser web app (no Tauri). */
 export function isWeb(): boolean {
   return !isTauri();

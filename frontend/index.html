@@ -18,9 +18,19 @@
   <body>
     <div id="root"></div>
     <script>
+      // Set by main.tsx the moment it is about to mount React. Until then a
+      // thrown error or a rejected promise means the app never started, and
+      // the overlay below is the only way the user sees why. Afterwards it
+      // means something inside a running app went wrong — a failed export, a
+      // command the platform does not implement (issue #97) — and covering
+      // the editor with an unclosable overlay loses the writer's session and
+      // forces a force-quit. Past this flag the console is enough.
+      window.__odBooted = false;
+
       // Catch fatal JS errors that prevent React from mounting.
       // Shows a visible error overlay instead of a blank screen.
       window.addEventListener('error', function(e) {
+        if (window.__odBooted) return;
         var d = document.getElementById('_fatal');
         if (!d) {
           d = document.createElement('div');
@@ -32,6 +42,7 @@
         d.innerHTML += '\n[ERROR] ' + (e.message || e) + '\n  at ' + (e.filename || '?') + ':' + (e.lineno || '?') + '\n';
       });
       window.addEventListener('unhandledrejection', function(e) {
+        if (window.__odBooted) return;
         var d = document.getElementById('_fatal');
         if (!d) {
           d = document.createElement('div');
