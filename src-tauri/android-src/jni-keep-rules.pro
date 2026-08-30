@@ -26,4 +26,5 @@
     public static java.lang.String backupList(android.content.Context, java.lang.String);
     public static java.lang.String backupDeleteFile(android.content.Context, java.lang.String);
     public static java.lang.String backupProbeFolder(android.content.Context, java.lang.String);
+    public static java.lang.String startPrintJob(android.content.Context, java.lang.String, java.lang.String);
 }

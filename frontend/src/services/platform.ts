@@ -29,21 +29,41 @@ export function isDesktopTauri(): boolean {
   return isTauri() && !isMobileTauri();
 }
 
+/** How File → Print reaches a printer on this platform. */
+export type PrintRoute =
+  /** The web view's own print dialog. Desktop and browsers. */
+  | 'dialog'
+  /** iOS: the exported PDF, handed to the share sheet that carries AirPrint. */
+  | 'ios-share-sheet'
+  /** Android: the exported PDF, handed to the system print service. */
+  | 'android-print-service';
+
 /**
- * Whether File → Print has to reach the printer through the system share
- * sheet rather than a print dialog.
+ * Where Print has to send the script, because neither mobile web view can open
+ * a print dialog of its own.
  *
- * iOS gives a web view no print dialog to open. Tauri swaps `window.print()`
- * for an invoke of `plugin:webview|print`, but registers that command on
- * desktop only, so on iPhone and iPad the call rejects with "not allowed by
- * ACL" and nothing prints (issue #97). Granting the permission would not help:
- * there is no iOS implementation behind it — wry's print is macOS-only.
+ * iOS is the loud failure (issue #97): Tauri swaps `window.print()` for an
+ * invoke of `plugin:webview|print` but registers that command on desktop only,
+ * so the call rejects with "not allowed by ACL". Granting the permission would
+ * not help — there is no iOS implementation behind it, wry's print is
+ * macOS-only. AirPrint is reached from the share sheet instead.
  *
- * AirPrint lives in the share sheet on iOS, which is already where every other
- * OpenDraft export goes, so Print hands it the exported PDF instead.
+ * Android is the quiet one: Tauri leaves `window.print()` alone there, and
+ * Android's WebView — unlike Chrome for Android — simply does not implement
+ * it, so Print has always been a menu item that did nothing at all. Android
+ * prints through PrintManager, which takes a document rather than a page, so
+ * that route hands it the same PDF.
+ *
+ * Both are given the file File → Export → PDF produces, so what comes out of
+ * the printer is what the writer would have got out of the exporter.
  */
-export function printsViaShareSheet(): boolean {
-  return isTauri() && getOS() === 'ios';
+export function printRoute(): PrintRoute {
+  if (isTauri()) {
+    const os = getOS();
+    if (os === 'ios') return 'ios-share-sheet';
+    if (os === 'android') return 'android-print-service';
+  }
+  return 'dialog';
 }
 
 /** True when running as a plain browser web app (no Tauri). */
