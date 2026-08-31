@@ -1,0 +1,70 @@
+# Issue #98 — "Include Title Page" on a real device.
+#
+# The parser and exporter changes are unit-tested; what needs a device is the
+# File-menu item and the fact that the choice survives a relaunch, which is the
+# whole point of keeping it in localStorage rather than on the document.
+#
+# Run against one device at a time (two simulators booted means Maestro picks
+# for you, and it prefers the Android emulator):
+#   maestro --device "OpenDraft iPad 26"  test test-script/tp98-title-page-flow.yaml
+#   maestro --device emulator-5554        test test-script/tp98-title-page-flow.yaml
+#
+# On Android the scene-navigator drawer can be open over the editor from a
+# previous session, and both platforms may greet you with the recovery dialog;
+# both are cleared first so the flow starts from the editor either way.
+appId: com.proteus.opendraft
+---
+- launchApp
+- runFlow:
+    when:
+      visible: "SCENES"
+    commands:
+      - tapOn:
+          point: "65%,7%"
+- runFlow:
+    when:
+      visible: "Discard"
+    commands:
+      - tapOn: "Discard"
+
+# On by default, and sitting with Print rather than in the document's settings.
+- tapOn: "File"
+- takeScreenshot: 01-file-menu-default
+- assertVisible: "✓ Include Title Page"
+
+# Turning it off sticks...
+- tapOn: ".*Include Title Page.*"
+- tapOn: "File"
+- assertVisible: "Include Title Page"
+- assertNotVisible: "✓ Include Title Page"
+
+# ...and survives the app being killed, because it is in localStorage.
+- stopApp
+- launchApp
+- runFlow:
+    when:
+      visible: "Discard"
+    commands:
+      - tapOn: "Discard"
+- tapOn: "File"
+- takeScreenshot: 02-after-relaunch
+- assertNotVisible: "✓ Include Title Page"
+
+# Print still runs with the title page excluded: iOS raises the share sheet,
+# Android the system print dialog. Both go through renderPDF.
+- tapOn: "Print…"
+- waitForAnimationToEnd:
+    timeout: 25000
+- takeScreenshot: 03-print-excluded
+
+# Leave the device as it was found.
+- launchApp
+- runFlow:
+    when:
+      visible: "Discard"
+    commands:
+      - tapOn: "Discard"
+- tapOn: "File"
+- tapOn: ".*Include Title Page.*"
+- tapOn: "File"
+- assertVisible: "✓ Include Title Page"

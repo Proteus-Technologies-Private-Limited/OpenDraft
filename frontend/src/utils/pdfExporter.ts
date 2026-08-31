@@ -321,6 +321,16 @@ export interface PDFExportOptions {
    * byte-for-byte what it was before footnotes existed.
    */
   footnotes?: FootnotePlan | null;
+  /**
+   * Whether the title page is drawn at all. Absent or true keeps it.
+   *
+   * The writer's own preference, not the document's: rendered output — this,
+   * print and DOCX — honours it, while the interchange formats (FDX, Fountain,
+   * Fade In/OSF and .odraft) always carry the title-page data whatever it says.
+   * Sending a script to a producer who wants the pages and nothing else should
+   * not edit the script (issue #98).
+   */
+  includeTitlePage?: boolean;
 }
 
 /** Resolve dynamic field placeholders in header/footer text. Shared with the
@@ -401,10 +411,18 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
     })),
   );
-  const hasTitlePage = region.isReal;
+  // Excluding the title page has to drop the region outright. It cannot lean on
+  // the `!hasTitlePage` path below: that one exists for a region that was never
+  // a title page in the first place, so it keeps whatever carries text as body
+  // content — which here would print the title as the first line of page 1.
+  const excludeTitlePage = options?.includeTitlePage === false;
+  const hasTitlePage = region.isReal && !excludeTitlePage;
+  const dropTitleRegion = region.isReal && excludeTitlePage;
 
   docNodes.forEach((node, index) => {
     const typeName = node.type || 'general';
+
+    if (dropTitleRegion && index < region.length) return;
 
     // Fountain's Sections and Notes are outline, not script. The spec is
     // explicit that they stay in the file and off the printed page, and

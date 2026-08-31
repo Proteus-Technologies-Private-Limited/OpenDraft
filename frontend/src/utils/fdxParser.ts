@@ -302,8 +302,10 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     const tpParagraphs = titlePageEl.querySelectorAll('Paragraph');
     const tpTexts: string[] = [];
     for (const p of Array.from(tpParagraphs)) {
-      const textEl = p.querySelector('Text');
-      if (textEl?.textContent) tpTexts.push(textEl.textContent);
+      // Trimmed before the test: a `<Text> </Text>` is a spacer, not a title,
+      // and untrimmed it became a title page whose title was a single space.
+      const text = p.querySelector('Text')?.textContent?.trim();
+      if (text) tpTexts.push(text);
     }
     // Heuristic: first line is title, look for "Written by" / "by" pattern for author
     const tpAttrs: Record<string, string> = { field: 'title', tpTitle: '', tpWrittenBy: '', tpBasedOn: '', tpDraft: '', tpDraftDate: '', tpContact: '', tpCopyright: '', tpWgaRegistration: '', tpNotes: '' };

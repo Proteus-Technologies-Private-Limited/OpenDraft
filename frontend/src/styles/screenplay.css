@@ -10778,6 +10778,13 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
      what pagination counted and what the exporters write. */
   .screenplay-element.section,
   .screenplay-element.note { display: none !important; }
+
+  /* File ▸ Include Title Page, turned off. Safe to hide outright: this block
+     has already dropped .page-sep, so print flows the document and nothing
+     depends on the overlays' measured positions. `.sp-title-region` is put on
+     the leading run by measureOverlays, which covers the blank spacers and any
+     title-page image as well as the .title-page nodes (issue #98). */
+  .print-skip-title-page .sp-title-region { display: none !important; }
 }
 
 /* ── Collaboration ────────────────────────────────────────────────── */
