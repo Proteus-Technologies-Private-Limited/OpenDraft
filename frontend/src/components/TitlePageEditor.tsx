@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
-import type { Node as PMNode, Mark } from '@tiptap/pm/model';
+import type { Node as PMNode } from '@tiptap/pm/model';
 import type { TitlePageAttrs } from '../editor/extensions/TitlePage';
 import { useEditorStore } from '../stores/editorStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
@@ -13,6 +13,7 @@ import {
   type TitleNodeInfo,
 } from '../utils/titlePageRegion';
 import { DEFAULT_TITLE_PAGE_CREDIT } from '../utils/titlePageBlocks';
+import { buildTitlePageBlocks, deriveFields } from '../utils/titlePageDialogBlocks';
 import { showToast } from './Toast';
 
 /** Small image thumbnail for the title-page preview/list. Shares the editor
@@ -100,20 +101,6 @@ function readTitlePageData(editor: Editor): Omit<TitlePageAttrs, 'field'> {
   return result;
 }
 
-type TpData = Omit<TitlePageAttrs, 'field'>;
-
-/** Derive the rendered credit lines from the dialog fields.
- *  Keep in step with `deriveTitlePageLines` in utils/titlePageBlocks.ts. */
-function deriveFields(data: TpData) {
-  const credit = (data.tpCredit || '').trim() || DEFAULT_TITLE_PAGE_CREDIT;
-  const byLine = data.tpWrittenBy
-    ? [credit, data.tpWrittenBy, data.tpBasedOn].filter(Boolean).join('\n')
-    : '';
-  const draftLine = (data.tpDraft || data.tpDraftDate) ? [data.tpDraft, data.tpDraftDate].filter(Boolean).join(' - ') : '';
-  const copyrightLine = (data.tpCopyright || data.tpWgaRegistration) ? [data.tpCopyright, data.tpWgaRegistration].filter(Boolean).join('\n') : '';
-  return { byLine, draftLine, copyrightLine };
-}
-
 /** Lines available on the open document's page, for sizing the title page. */
 function currentLinesPerPage(): number {
   return getPageMetrics(useEditorStore.getState().pageLayout).linesPerPage;
@@ -167,90 +154,38 @@ function titlePageRegionEnd(editor: Editor): number {
 }
 
 /**
- * Build the title-page nodes with the classic layout: optional images at the
- * top, the title ~⅓ down, the credit line below it, the draft/contact/copyright/
- * notes block pushed to the bottom (via blank spacer lines), then optional
- * images at the very bottom. Rendered identically by the flow exporters.
+ * Swap the leading title-page region for a freshly built one.
  *
- * `linesPerPage` is a parameter rather than a store read: the layout that
- * matters is the one belonging to the document being laid out. That is the
- * store's for the dialog, but an importer building a title page holds the
- * incoming document's layout while the store still has the previous document's.
+ * `built` may legitimately be empty — the writer cleared every field, or removed
+ * the last image from a page that had nothing else on it. Deleting the region
+ * can then leave the document with no nodes at all, which ProseMirror will not
+ * accept, so a blank body line takes its place. This mirrors what deleting the
+ * title page outright does.
  */
-function buildTitlePageBlocks(
-  editor: Editor,
-  data: TpData,
-  imagesAbove: Record<string, unknown>[],
-  imagesBelow: Record<string, unknown>[],
-  linesPerPage: number,
-): PMNode[] {
-  const schema = editor.state.schema;
-  const titlePageType = schema.nodes.titlePage;
-  const imageType = schema.nodes.screenplayImage;
-  const { byLine, draftLine, copyrightLine } = deriveFields(data);
-  const blank = () => titlePageType.create({ field: 'blank' });
-
-  // Whatever the writer set on each field by hand, so applying the dialog does
-  // not throw it away.
-  //
-  // Every apply rebuilds the title page from the field values, and the text
-  // nodes were built bare — so a title set in a display face reverted to the
-  // template's font the moment anything else on the page was edited. The marks
-  // are the writer's own formatting: they win over the template, and they are
-  // what has to survive.
-  const keptMarks = new Map<string, readonly Mark[]>();
-  editor.state.doc.forEach((node) => {
-    if (node.type.name !== 'titlePage') return;
-    const field = node.attrs?.field as string | undefined;
-    if (!field || field === 'blank' || keptMarks.has(field)) return;
-    const first = node.firstChild;
-    if (first?.isText && first.marks.length > 0) keptMarks.set(field, first.marks);
-  });
-
-  const text = (field: string, t: string): PMNode =>
-    titlePageType.create(
-      field === 'title' ? { field: 'title', ...data } : { field },
-      t ? schema.text(t, keptMarks.get(field) as Mark[] | undefined) : undefined,
-    );
-  const imgLines = (a: Record<string, unknown>) => Math.max(1, Number(a.heightLines) || 8);
-
-  // Sized from the document's own page, not a hardcoded 54-line US Letter. A4 —
-  // the default — holds 58 lines, so the old constants left the bottom block
-  // four lines short of the foot of the page on every A4 script, and would have
-  // overflowed a shorter page outright.
-  const TITLE_LINE = Math.max(3, Math.round(linesPerPage / 3.6)); // title sits ~⅓ down
-  const PAGE_LINES = Math.max(TITLE_LINE + 4, linesPerPage - 4);  // bottom content ends here
-  const aboveLines = imagesAbove.reduce((s, a) => s + imgLines(a), 0);
-  const belowLines = imagesBelow.reduce((s, a) => s + imgLines(a), 0);
-
-  const blocks: PMNode[] = [];
-  // Top images fill the space ABOVE the title; they only push the title down when
-  // they're taller than that space (then the title shifts by just the overflow).
-  for (const a of imagesAbove) blocks.push(imageType.create(a));
-  const topSpacers = Math.max(2, TITLE_LINE - 1 - aboveLines);
-  for (let i = 0; i < topSpacers; i++) blocks.push(blank());
-  blocks.push(text('title', data.tpTitle || ''));
-  let used = aboveLines + topSpacers + 1;
-  if (byLine) { blocks.push(blank(), blank(), text('author', byLine)); used += 3; }
-
-  const bottom: [string, string][] = [];
-  if (draftLine) bottom.push(['draft', draftLine]);
-  if (data.tpContact) bottom.push(['contact', data.tpContact]);
-  if (copyrightLine) bottom.push(['copyright', copyrightLine]);
-  if (data.tpNotes) bottom.push(['date', data.tpNotes]);
-  const bottomLines = bottom.reduce((s, [, t]) => s + t.split('\n').length, 0);
-  if (bottom.length || imagesBelow.length) {
-    // Gap pushes the bottom block + bottom images to the bottom of the page.
-    const gap = Math.max(2, PAGE_LINES - used - bottomLines - belowLines);
-    for (let i = 0; i < gap; i++) blocks.push(blank());
-    for (const [f, t] of bottom) blocks.push(text(f, t));
-    for (const a of imagesBelow) blocks.push(imageType.create(a));
+function replaceTitleRegion(editor: Editor, built: PMNode[]): void {
+  const tr = editor.state.tr;
+  const end = titlePageRegionEnd(editor);
+  if (end > 0) tr.delete(0, end);
+  for (let i = built.length - 1; i >= 0; i--) tr.insert(0, built[i]);
+  if (tr.doc.content.size === 0) {
+    const fallback = editor.schema.nodes.action || editor.schema.nodes.general;
+    if (fallback) tr.insert(0, fallback.create());
   }
-  return blocks;
+  editor.view.dispatch(tr);
 }
 
 const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
   const [data, setData] = useState<Omit<TitlePageAttrs, 'field'>>({ ...EMPTY_ATTRS });
+
+  // Whether the title page goes out with print, PDF and Word. Unlike every
+  // other control here it takes effect the moment it is ticked, and Cancel does
+  // not put it back — deliberately. It is a preference belonging to this device,
+  // not a field of the script, so it has nothing to commit: Apply's job is to
+  // rewrite the title-page nodes, and making a boolean ride that transaction
+  // would rebuild the whole region, dirty the document and push an edit to
+  // every collaborator to record something the file never carries (issue #98).
+  const includeTitlePageInOutput = useEditorStore((s) => s.includeTitlePageInOutput);
+  const toggleIncludeTitlePageInOutput = useEditorStore((s) => s.toggleIncludeTitlePageInOutput);
 
   useEffect(() => {
     setData(readTitlePageData(editor));
@@ -264,16 +199,11 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
     try {
       const { imagesAbove, imagesBelow } = classifyTitleImages(editor);
       const built = buildTitlePageBlocks(editor, data, imagesAbove, imagesBelow, currentLinesPerPage());
-      const tr = editor.state.tr;
-      const regionEnd = titlePageRegionEnd(editor);
-      if (regionEnd > 0) tr.delete(0, regionEnd);
-      for (let i = built.length - 1; i >= 0; i--) tr.insert(0, built[i]);
-      editor.view.dispatch(tr);
+      replaceTitleRegion(editor, built);
       onClose();
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to update title page', 'error');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, data, onClose]);
 
   // --- Title-page image: upload and insert a screenplayImage node at the chosen
@@ -297,11 +227,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
       const g = classifyTitleImages(editor);
       (placement === 'above' ? g.imagesAbove : g.imagesBelow).push(attrs);
       const built = buildTitlePageBlocks(editor, data, g.imagesAbove, g.imagesBelow, currentLinesPerPage());
-      const tr = editor.state.tr;
-      const end = titlePageRegionEnd(editor);
-      if (end > 0) tr.delete(0, end);
-      for (let i = built.length - 1; i >= 0; i--) tr.insert(0, built[i]);
-      editor.view.dispatch(tr);
+      replaceTitleRegion(editor, built);
       showToast('Image added to title page', 'success');
     } catch (err) {
       showToast(`Failed to add image: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -346,12 +272,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
   // Rebuild the whole title page (classic layout) from the live fields + the
   // given image groups, so every image operation updates the page immediately.
   const rebuild = (above: Record<string, unknown>[], below: Record<string, unknown>[]) => {
-    const built = buildTitlePageBlocks(editor, data, above, below, currentLinesPerPage());
-    const tr = editor.state.tr;
-    const end = titlePageRegionEnd(editor);
-    if (end > 0) tr.delete(0, end);
-    for (let i = built.length - 1; i >= 0; i--) tr.insert(0, built[i]);
-    editor.view.dispatch(tr);
+    replaceTitleRegion(editor, buildTitlePageBlocks(editor, data, above, below, currentLinesPerPage()));
   };
   const editImages = (mutate: (above: Record<string, unknown>[], below: Record<string, unknown>[]) => void) => {
     const g = classifyTitleImages(editor);
@@ -371,15 +292,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
 
   const handleDeleteTitlePage = useCallback(() => {
     if (!window.confirm('Delete the entire title page (title, credits, and images)?')) return;
-    const end = titlePageRegionEnd(editor);
-    if (end > 0) {
-      const tr = editor.state.tr.delete(0, end);
-      if (tr.doc.content.size === 0) {
-        const fallback = editor.schema.nodes.action || editor.schema.nodes.general;
-        if (fallback) tr.insert(0, fallback.create());
-      }
-      editor.view.dispatch(tr);
-    }
+    if (titlePageRegionEnd(editor) > 0) replaceTitleRegion(editor, []);
     onClose();
   }, [editor, onClose]);
 
@@ -607,6 +520,20 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
               {imagesBelow.map((a, i) => <TpImageThumb key={`b${i}`} attrs={a} align />)}
             </div>
           </div>
+        </div>
+        <div className="tp-output-pref">
+          <label className="tp-output-check">
+            <input
+              type="checkbox"
+              checked={includeTitlePageInOutput}
+              onChange={toggleIncludeTitlePageInOutput}
+            />
+            <span>Include title page when printing or exporting to PDF or Word</span>
+          </label>
+          <p className="tp-output-help">
+            Takes effect straight away and is remembered on this device. Final Draft,
+            Fountain and Fade In files always carry the title page.
+          </p>
         </div>
         <div className="dialog-actions">
           <button onClick={handleDeleteTitlePage} style={{ marginRight: 'auto', color: '#c0392b' }}>
