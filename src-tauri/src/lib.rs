@@ -2520,6 +2520,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         // ── Asset protocol: serve local files for convertFileSrc() URLs ──
         .register_uri_scheme_protocol("asset", |_app, request| {
             let uri = request.uri();

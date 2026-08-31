@@ -24,6 +24,24 @@ export function isMobileTauri(): boolean {
     (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
 }
 
+/**
+ * Opens a URL outside the app — the system browser.
+ *
+ * `window.open` is only right in a browser tab. Inside the iOS web view it
+ * returns null and nothing happens, and the Android one takes the whole app
+ * down with it, which is how the manual's "Read online" link behaved on both.
+ * Tauri opens it through the platform instead: an Intent on Android,
+ * UIApplication on iOS, the desktop's default browser elsewhere.
+ */
+export async function openExternal(url: string): Promise<void> {
+  if (!isTauri()) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  const { openUrl } = await import('@tauri-apps/plugin-opener');
+  await openUrl(url);
+}
+
 /** True when running as a Tauri desktop app (has sidecar backend). */
 export function isDesktopTauri(): boolean {
   return isTauri() && !isMobileTauri();
