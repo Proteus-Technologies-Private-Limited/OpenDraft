@@ -2788,7 +2788,7 @@ dependencies = [
 
 [[package]]
 name = "opendraft"
-version = "0.26.0"
+version = "0.26.1"
 dependencies = [
  "jni",
  "percent-encoding",
