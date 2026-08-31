@@ -12,7 +12,7 @@ import {
 import { useAssetStore, type Asset } from '../stores/assetStore';
 import { useProjectStore } from '../stores/projectStore';
 import { api } from '../services/api';
-import { isTauri } from '../services/platform';
+import { isTauri, openExternal } from '../services/platform';
 import { FaCrosshairs, FaTrash } from 'react-icons/fa';
 import {
   removeScriptNoteMarks,
@@ -26,13 +26,9 @@ import { noteEntryLabel } from '../utils/noteNumbering';
 
 /** Open a URL in the default browser. Uses Tauri invoke on desktop, window.open on web. */
 const openInBrowser = (url: string) => {
-  if (isTauri()) {
-    import('@tauri-apps/api/core').then(({ invoke }) => {
-      invoke('open_url', { url }).catch((err: unknown) => console.error('Failed to open URL:', err));
-    });
-  } else {
-    window.open(url, '_blank');
-  }
+  // Same path on every platform — see openExternal. The `open_url` command
+  // this used to invoke has no mobile implementation behind it.
+  void openExternal(url).catch((err: unknown) => console.error('Failed to open URL:', err));
 };
 
 interface ScriptNotesProps {

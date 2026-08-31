@@ -28,6 +28,8 @@
     },
     "dialog:default",
     "dialog:allow-confirm",
-    "dialog:allow-ask"
+    "dialog:allow-ask",
+    "opener:allow-open-url",
+    "opener:allow-default-urls"
   ]
 }

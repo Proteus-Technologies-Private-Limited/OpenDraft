@@ -67,6 +67,13 @@ interface SwipeEdgeConfig {
   thresholdPx?: number;
   onSwipe: () => void;
   enabled?: boolean;
+  /**
+   * Element whose edge the gesture starts from. Omitted, it is the screen's,
+   * and the gesture yields to anything marked `data-swipe-zone`. Given one,
+   * the hook is wired to that element on purpose — a dialog that owns its own
+   * swipes — so it listens there and measures the edge from its box.
+   */
+  root?: RefObject<HTMLElement | null>;
 }
 
 export function useSwipeEdge(config: SwipeEdgeConfig) {
@@ -76,19 +83,34 @@ export function useSwipeEdge(config: SwipeEdgeConfig) {
     thresholdPx = 60,
     onSwipe,
     enabled = true,
+    root,
   } = config;
 
   const startRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
+    const el = root ? root.current : null;
+    if (root && !el) return;
+    const target: HTMLElement | Document = el ?? document;
 
     const handleStart = (e: TouchEvent) => {
       const touch = e.touches[0];
+      // An element that owns its swipes owns every touch that starts on it.
+      // On a phone the right-hand panels are 100vw, so their own left edge sits
+      // exactly where the navigator's open-gesture zone is: swiping a note
+      // panel away also slid the navigator in. Marked by useSwipeDismiss, so
+      // any panel with a dismiss gesture suppresses this one automatically,
+      // and a docked panel that leaves the edge clear still does not. A
+      // root-scoped hook is the owner, so it skips the check.
+      if (!el && (e.target as HTMLElement | null)?.closest?.('[data-swipe-zone]')) return;
+      const bounds = el ? el.getBoundingClientRect() : null;
+      const left = bounds ? bounds.left : 0;
+      const right = bounds ? bounds.right : window.innerWidth;
       const inZone =
         edge === 'left'
-          ? touch.clientX < edgeZonePx
-          : touch.clientX > window.innerWidth - edgeZonePx;
+          ? touch.clientX < left + edgeZonePx
+          : touch.clientX > right - edgeZonePx;
       if (inZone) {
         startRef.current = { x: touch.clientX, y: touch.clientY };
       }
@@ -113,15 +135,19 @@ export function useSwipeEdge(config: SwipeEdgeConfig) {
       startRef.current = null;
     };
 
-    document.addEventListener('touchstart', handleStart, { passive: true });
-    document.addEventListener('touchend', handleEnd, { passive: true });
-    document.addEventListener('touchcancel', handleCancel);
+    target.addEventListener('touchstart', handleStart as EventListener, { passive: true });
+    target.addEventListener('touchend', handleEnd as EventListener, { passive: true });
+    target.addEventListener('touchcancel', handleCancel);
     return () => {
-      document.removeEventListener('touchstart', handleStart);
-      document.removeEventListener('touchend', handleEnd);
-      document.removeEventListener('touchcancel', handleCancel);
+      target.removeEventListener('touchstart', handleStart as EventListener);
+      target.removeEventListener('touchend', handleEnd as EventListener);
+      target.removeEventListener('touchcancel', handleCancel);
     };
-  }, [edge, edgeZonePx, thresholdPx, onSwipe, enabled]);
+    // `root.current` is in the deps on purpose: the element can mount after
+    // this effect first runs — the manual's layout appears only once its
+    // status has loaded — and a ref changing does not re-render on its own.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edge, edgeZonePx, thresholdPx, onSwipe, enabled, root, root?.current]);
 }
 
 // ── Swipe on a panel to dismiss it ──────────────────────────────────────────
@@ -133,13 +159,21 @@ interface SwipeDismissConfig {
   thresholdPx?: number;
   onDismiss: () => void;
   enabled?: boolean;
+  /**
+   * Track swipes that begin on a button or link too. Off by default so a
+   * panel's controls behave normally, but a panel that is nothing but
+   * controls — the manual's contents list — would otherwise have no swipe at
+   * all. Taps survive either way: the drag only starts past a 15px dead zone,
+   * and nothing is preventDefault-ed before that.
+   */
+  fromInteractive?: boolean;
 }
 
 export function useSwipeDismiss(
   ref: RefObject<HTMLElement | null>,
   config: SwipeDismissConfig,
 ) {
-  const { direction, thresholdPx = 80, onDismiss, enabled = true } = config;
+  const { direction, thresholdPx = 80, onDismiss, enabled = true, fromInteractive = false } = config;
   const startRef = useRef<{ x: number; y: number } | null>(null);
   const onDismissRef = useRef(onDismiss);
   onDismissRef.current = onDismiss;
@@ -176,7 +210,7 @@ export function useSwipeDismiss(
       const t = e.touches[0];
       // Skip swipe tracking when the touch starts on an interactive element
       // so that buttons, inputs, and links inside the panel work normally.
-      onInteractive = isInteractive(e.target as HTMLElement | null);
+      onInteractive = !fromInteractive && isInteractive(e.target as HTMLElement | null);
       if (onInteractive) { startRef.current = null; return; }
       startRef.current = { x: t.clientX, y: t.clientY };
       dragging = false;
@@ -242,18 +276,26 @@ export function useSwipeDismiss(
       el.style.transform = '';
     };
 
+    // Tells useSwipeEdge that this element handles its own swipes, so an edge
+    // gesture must not also fire for a touch that starts inside it.
+    el.dataset.swipeZone = direction;
+
     el.addEventListener('touchstart', handleStart, { passive: true });
     el.addEventListener('touchmove', handleMove, { passive: false });
     el.addEventListener('touchend', handleEnd, { passive: true });
     el.addEventListener('touchcancel', reset);
     return () => {
+      delete el.dataset.swipeZone;
       el.removeEventListener('touchstart', handleStart);
       el.removeEventListener('touchmove', handleMove);
       el.removeEventListener('touchend', handleEnd);
       el.removeEventListener('touchcancel', reset);
       reset();
     };
-  }, [ref, direction, thresholdPx, enabled]);
+    // See the note in useSwipeEdge: the panel can mount after this effect has
+    // already run once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ref, direction, thresholdPx, enabled, fromInteractive, ref.current]);
 }
 
 // ── Pinch-to-zoom on the editor area ────────────────────────────────────────

@@ -154,6 +154,13 @@ async function init() {
   const fatalOverlay = document.getElementById('_fatal');
   if (fatalOverlay) fatalOverlay.remove();
 
+  // Retire the "OpenDraft failed to start" overlay for the rest of the
+  // session: from here on a stray error or rejection is a fault inside a
+  // running app, and a full-screen overlay with no way out of it would strand
+  // the writer in their document (issue #97). See the flag's note in
+  // index.html.
+  (window as any).__odBooted = true;
+
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <BrowserRouter>

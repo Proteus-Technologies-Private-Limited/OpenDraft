@@ -3027,11 +3027,15 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   border-bottom: 1px solid var(--fd-border);
 }
 .manual-sidebar-toggle { display: none; }
+/* Shown only when the reader wants it — the header's contents button decides,
+   at every width, so a page can have the whole window when it is being read. */
 .manual-sidebar {
+  display: none;
   flex: 0 0 232px; overflow-y: auto;
   border-right: 1px solid var(--fd-border);
   padding: 12px 0;
 }
+.manual-sidebar--open { display: block; }
 .manual-sidebar-section { margin-bottom: 12px; }
 .manual-sidebar-title {
   padding: 4px 16px; font-size: 11px; font-weight: 700;
@@ -3058,6 +3062,33 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   width: 100vw; min-width: 0; max-width: none;
   height: var(--vv-height, 100dvh); max-height: var(--vv-height, 100dvh);
   border-radius: 0; border: none;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Phones and tablets: full bleed is the only sensible size for a manual, so it
+   is what they get rather than something to opt into. The card is 1040×760
+   because a desktop window has room around it; on a tablet that leaves two
+   thirds of the screen dimmed, and on a phone the ≤480px `.dialog-box` sheet
+   rules cap every dialog at 60vh — right for a two-field dialog, wrong for a
+   document. Written with both classes so it outranks that cap wherever the two
+   rules end up relative to each other, and `position: fixed` for the same
+   reason the toggle above uses it. A tablet in landscape is wider than 1024px
+   and still wants this, hence the second query. */
+@media (max-width: 1024px), (pointer: coarse) and (max-height: 900px) {
+  .dialog-box.manual-dialog {
+    position: fixed; top: 0; left: 0;
+    width: 100vw; min-width: 0; max-width: none;
+    height: var(--vv-height, 100dvh); max-height: var(--vv-height, 100dvh);
+    border-radius: 0; border: none;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* The ≤480px sheet rules scroll the whole box; put scrolling back inside
+       the page so the header and footer stay put. */
+    overflow: hidden;
+  }
+  /* Nothing left to expand into. */
+  .manual-fullscreen-toggle { display: none; }
 }
 .manual-main { flex: 1 1 auto; overflow-y: auto; min-width: 0; }
 
@@ -3098,10 +3129,12 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
     color: var(--fd-text); font-size: 13px; cursor: pointer;
   }
   .manual-sidebar {
-    display: none; flex: 0 0 auto; max-height: 45%;
+    flex: 0 0 auto; max-height: 45%;
     border-right: none; border-bottom: 1px solid var(--fd-border);
   }
-  .manual-sidebar--open { display: block; }
+  /* The stacked "Contents" bar is the control here, so the header keeps only
+     the search box. */
+  .manual-nav-toggle { display: none; }
   .manual-main { padding: 16px 18px; }
   .manual-header { flex-wrap: wrap; gap: 8px; }
   .manual-search { flex: 1 1 100%; }
@@ -9908,7 +9941,14 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
     top: 0;
     bottom: 0;
     z-index: 3400;
-    width: 280px;
+    /* A quarter wider than the 240px it actually rendered at: scene headings
+       are long, and as an overlay this is not competing with the page for room.
+       The rule here used to say 280px and never took effect — the navigator
+       carries an inline width from the desktop resize handle, which no
+       stylesheet rule can outrank, hence `!important`. The right-hand panels
+       override their own inline width the same way below. */
+    width: 300px !important;
+    max-width: 90vw;
     min-width: 0;
     box-shadow: 4px 0 20px rgba(0,0,0,.4);
     transition: transform 0.25s ease;
@@ -12601,6 +12641,26 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
     }
     html.ios .scene-navigator .navigator-tabs > :first-child {
       margin-left: calc(env(safe-area-inset-left, 0px) + var(--ios-window-gutter, 0px));
+    }
+  }
+
+  /* Same story on the other side of the screen (issue #96): below 900px the
+     right-hand slide-overs turn into `position: fixed` drawers anchored at
+     top: 0, which takes them out of .app-container and out of the padding
+     that keeps it clear of the status bar. Their header then runs under the
+     clock, and the close button under the battery — where it cannot reliably
+     be tapped. Above 900px they are docked inside the container, already
+     inset, and must not be padded twice, which is why an iPad never showed
+     this and the rule stays inside the query.
+
+     padding-right goes with it: these are pinned to the trailing edge, so in
+     landscape the close button is the control the notch covers. */
+  @media (max-width: 900px) {
+    html.ios .script-notes-panel,
+    html.ios .char-profiles-panel,
+    html.ios .tags-panel {
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
     }
   }
 }

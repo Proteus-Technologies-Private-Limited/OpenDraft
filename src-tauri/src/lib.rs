@@ -643,6 +643,44 @@ fn android_save_and_share_binary(filename: String, contents: Vec<u8>) -> Result<
 // The result is captured by MainActivity.onActivityResult() and stored in
 // a static companion field, then retrieved by android_get_picked_file().
 
+/// Android: print the script through the system print dialog.
+///
+/// Android's WebView never implemented `window.print()`, so Print was a menu
+/// item that silently did nothing. PrintManager is the platform's print path
+/// and it takes a document, so the frontend renders the same PDF it would have
+/// exported and sends the bytes here.
+///
+/// The temp file outlives this call deliberately: the spooler reads it while
+/// the writer is still choosing a printer, and it is written into the cache
+/// directory that Android reclaims on its own — the same arrangement export
+/// already relies on.
+#[tauri::command]
+fn android_print_pdf(filename: String, contents: Vec<u8>) -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    {
+        let path = std::env::temp_dir().join(&filename);
+        std::fs::write(&path, &contents)
+            .map_err(|e| format!("Failed to write the file to print: {}", e))?;
+
+        // What the writer sees named in the Android print queue.
+        let job_name = filename.rsplit('/').next().unwrap_or(&filename);
+        let job_name = job_name.strip_suffix(".pdf").unwrap_or(job_name);
+        let job_name = if job_name.is_empty() { "OpenDraft" } else { job_name };
+
+        match android_static_call("startPrintJob", &[&path.to_string_lossy(), job_name])? {
+            // startPrintJob reports trouble by returning a message; null is the
+            // print dialog on its way up.
+            Some(message) => Err(message),
+            None => Ok(()),
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (filename, contents);
+        Err("This command is only available on Android".to_string())
+    }
+}
+
 #[tauri::command]
 fn android_pick_file() -> Result<(), String> {
     #[cfg(target_os = "android")]
@@ -1262,13 +1300,14 @@ fn ios_backup_probe(bookmark: String) -> Result<FolderProbe, String> {
 
 // ── Android ───────────────────────────────────────────────────────────────
 
-/// Call one of MainActivity's backup helpers.
+/// Call one of MainActivity's static Kotlin helpers.
 ///
-/// All of them take the Context followed by strings and return a nullable
-/// String, so one helper covers the lot; `None` is the helper's own failure,
-/// which each caller turns into a message in the writer's terms.
+/// They all take the Context followed by strings and return a nullable String,
+/// so one helper covers the lot. What `None` means is the callee's business —
+/// the backup helpers use it for their own failure, `startPrintJob` for
+/// success — so each caller reads it in its own terms.
 #[cfg(target_os = "android")]
-fn android_backup_call(method: &str, args: &[&str]) -> Result<Option<String>, String> {
+fn android_static_call(method: &str, args: &[&str]) -> Result<Option<String>, String> {
     use jni::objects::{JObject, JString, JValue};
     use jni::JavaVM;
 
@@ -1429,7 +1468,7 @@ fn android_backup_write(
 ) -> Result<String, String> {
     #[cfg(target_os = "android")]
     {
-        android_backup_call(
+        android_static_call(
             "backupWriteFile",
             &[&tree_uri, &folder, &filename, &contents],
         )?
@@ -1450,7 +1489,7 @@ fn android_backup_write(
 fn android_backup_list(tree_uri: String) -> Result<Vec<MobileBackupEntry>, String> {
     #[cfg(target_os = "android")]
     {
-        let json = android_backup_call("backupList", &[&tree_uri])?.ok_or_else(|| {
+        let json = android_static_call("backupList", &[&tree_uri])?.ok_or_else(|| {
             "Could not read the backup folder. OpenDraft may have lost permission to it — \
              choose the folder again in Settings."
                 .to_string()
@@ -1468,7 +1507,7 @@ fn android_backup_list(tree_uri: String) -> Result<Vec<MobileBackupEntry>, Strin
 fn android_backup_delete(doc_uri: String) -> Result<(), String> {
     #[cfg(target_os = "android")]
     {
-        android_backup_call("backupDeleteFile", &[&doc_uri])?
+        android_static_call("backupDeleteFile", &[&doc_uri])?
             .map(|_| ())
             .ok_or_else(|| "Could not delete that backup.".to_string())
     }
@@ -1483,7 +1522,7 @@ fn android_backup_delete(doc_uri: String) -> Result<(), String> {
 fn android_backup_probe(tree_uri: String) -> Result<FolderProbe, String> {
     #[cfg(target_os = "android")]
     {
-        let json = android_backup_call("backupProbeFolder", &[&tree_uri])?
+        let json = android_static_call("backupProbeFolder", &[&tree_uri])?
             .ok_or_else(|| "Could not check the backup folder".to_string())?;
         serde_json::from_str(&json).map_err(|e| format!("Malformed folder probe: {}", e))
     }
@@ -2481,6 +2520,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         // ── Asset protocol: serve local files for convertFileSrc() URLs ──
         .register_uri_scheme_protocol("asset", |_app, request| {
             let uri = request.uri();
@@ -2544,6 +2584,7 @@ pub fn run() {
             ios_backup_probe,
             android_save_and_share,
             android_save_and_share_binary,
+            android_print_pdf,
             android_pick_file,
             android_get_picked_file,
             android_check_new_intent,

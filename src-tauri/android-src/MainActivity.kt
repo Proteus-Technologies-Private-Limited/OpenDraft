@@ -5,6 +5,15 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.CancellationSignal
+import android.os.Handler
+import android.os.Looper
+import android.os.ParcelFileDescriptor
+import android.print.PageRange
+import android.print.PrintAttributes
+import android.print.PrintDocumentAdapter
+import android.print.PrintDocumentInfo
+import android.print.PrintManager
 import android.provider.DocumentsContract
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
@@ -395,6 +404,46 @@ class MainActivity : TauriActivity() {
             }
             return probe.toString()
         }
+
+        // ── Printing ─────────────────────────────────────────────────────
+        // Android's WebView, unlike Chrome for Android, does not implement
+        // window.print(), so File → Print did nothing at all until this.
+        // PrintManager is the platform's answer, and it takes a document
+        // rather than a page — which suits OpenDraft, whose printable form is
+        // the PDF the exporter already produces. Printing the WebView instead
+        // would have meant printing the app rather than the script.
+
+        /**
+         * Start a system print job for an already-rendered PDF.
+         *
+         * Returns null when the job was handed to the print service, or a
+         * message the Rust side turns into a user-facing error. Note that null
+         * means "the print dialog is opening", not "the pages came out": once
+         * PrintManager has the job the writer owns it, and cancelling is a
+         * normal outcome the app never hears about.
+         */
+        @JvmStatic
+        fun startPrintJob(context: Context, filePath: String, jobName: String): String? {
+            val file = File(filePath)
+            if (!file.isFile) return "The file to print is missing: $filePath"
+            val printManager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager
+                ?: return "This device has no print service."
+
+            // PrintManager.print must be called from the main thread, and Rust
+            // calls in on whichever thread served the command.
+            Handler(Looper.getMainLooper()).post {
+                try {
+                    // null attributes: no paper-size preference of our own, so
+                    // the dialog opens on the printer's default. The PDF carries
+                    // its own page size and the spooler fits it to whatever the
+                    // writer picks.
+                    printManager.print(jobName, PdfPrintAdapter(file, jobName), null)
+                } catch (e: Exception) {
+                    android.util.Log.e("OpenDraft", "[print] could not start job: ${e.message}")
+                }
+            }
+            return null
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -506,5 +555,79 @@ class MainActivity : TauriActivity() {
                 }
             }
         }
+    }
+}
+
+/**
+ * Feeds a finished PDF to the Android print spooler.
+ *
+ * The whole file is written on every pass, whatever range was asked for, and
+ * onWriteFinished then reports ALL_PAGES — that is the contract that lets the
+ * spooler pull the writer's selected pages out of the document itself. Getting
+ * this wrong is the classic PrintDocumentAdapter bug: report a narrower range
+ * than was written and the print preview shows blank pages.
+ *
+ * The page count is left unknown rather than guessed. Two things depend on it
+ * being right — the "N pages" the dialog shows and the range it will accept —
+ * and neither is worth a number the exporter has not confirmed.
+ */
+private class PdfPrintAdapter(
+    private val file: File,
+    private val jobName: String,
+) : PrintDocumentAdapter() {
+
+    override fun onLayout(
+        oldAttributes: PrintAttributes?,
+        newAttributes: PrintAttributes?,
+        cancellationSignal: CancellationSignal?,
+        callback: LayoutResultCallback,
+        extras: Bundle?,
+    ) {
+        if (cancellationSignal?.isCanceled == true) {
+            callback.onLayoutCancelled()
+            return
+        }
+        val info = PrintDocumentInfo.Builder(jobName)
+            .setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
+            .setPageCount(PrintDocumentInfo.PAGE_COUNT_UNKNOWN)
+            .build()
+        // Always `changed = true`, even though the document genuinely never
+        // changes between passes: `false` invites the spooler to reuse a
+        // previously written document, and on the first pass there is none —
+        // which is how this adapter shape ends up previewing blank pages. One
+        // redundant file copy is the cheaper mistake.
+        callback.onLayoutFinished(info, true)
+    }
+
+    override fun onWrite(
+        pages: Array<out PageRange>?,
+        destination: ParcelFileDescriptor,
+        cancellationSignal: CancellationSignal?,
+        callback: WriteResultCallback,
+    ) {
+        // Off the main thread: a feature-length script is megabytes, and these
+        // callbacks arrive on the UI thread where that copy would show as jank
+        // or, on a slow device, an ANR.
+        Thread {
+            val result = try {
+                file.inputStream().use { input ->
+                    java.io.FileOutputStream(destination.fileDescriptor).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                null
+            } catch (e: Exception) {
+                android.util.Log.e("OpenDraft", "[print] could not write document: ${e.message}")
+                e.message ?: "The document could not be written."
+            }
+
+            Handler(Looper.getMainLooper()).post {
+                when {
+                    cancellationSignal?.isCanceled == true -> callback.onWriteCancelled()
+                    result != null -> callback.onWriteFailed(result)
+                    else -> callback.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
+                }
+            }
+        }.start()
     }
 }

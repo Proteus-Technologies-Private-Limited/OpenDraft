@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import {
-  FaBook, FaCompress, FaDownload, FaExpand, FaExternalLinkAlt, FaSearch, FaSyncAlt, FaTimes, FaTrash,
+  FaBars, FaBook, FaCompress, FaDownload, FaExpand, FaExternalLinkAlt, FaSearch, FaSyncAlt, FaTimes, FaTrash,
 } from 'react-icons/fa';
 import {
   MANUAL_IMG_ATTR,
@@ -21,10 +21,20 @@ import {
   type ManualSearchHit,
   type ManualStatus,
 } from '../services/userManual';
+import { useSwipeDismiss, useSwipeEdge } from '../hooks/useTouch';
+import { openExternal } from '../services/platform';
 
 interface UserManualDialogProps {
   onClose: () => void;
 }
+
+/** Remembers the full-screen toggle between openings. */
+const MANUAL_FULLSCREEN_KEY = 'opendraft:manualFullScreen';
+/** Remembers whether the contents list is showing. */
+const MANUAL_SIDEBAR_KEY = 'opendraft:manualSidebar';
+/** Below this the contents list stacks above the page rather than beside it —
+ *  matches the `max-width: 700px` block in screenplay.css. */
+const NARROW_PX = 700;
 
 /**
  * Enough styling to keep a page readable if the manual's own stylesheet could
@@ -94,10 +104,59 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
   const [progress, setProgress] = useState<ManualProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updateReady, setUpdateReady] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [fullScreen, setFullScreen] = useState(false);
+  // The contents list is a preference too, and one with a width-dependent
+  // default: a wide window has room to keep it beside the page, a narrow one
+  // does not. Once someone says otherwise, that answer stands.
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem(MANUAL_SIDEBAR_KEY);
+      if (saved !== null) return saved === '1';
+    } catch { /* ignore */ }
+    return typeof window === 'undefined' || window.innerWidth > NARROW_PX;
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(MANUAL_SIDEBAR_KEY, sidebarOpen ? '1' : '0'); } catch { /* ignore */ }
+  }, [sidebarOpen]);
+  // Reading the manual full screen is a preference, not a per-visit choice:
+  // someone who expanded it once wants it that way the next time too. Phones
+  // and tablets are full bleed from CSS regardless, so this only decides what
+  // a desktop window opens as.
+  const [fullScreen, setFullScreen] = useState(() => {
+    try { return localStorage.getItem(MANUAL_FULLSCREEN_KEY) === '1'; } catch { return false; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(MANUAL_FULLSCREEN_KEY, fullScreen ? '1' : '0'); } catch { /* ignore */ }
+  }, [fullScreen]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Held in state, not just a ref: the contents list mounts only once the
+  // manual's status has loaded, and the swipe hook has to re-bind when it
+  // appears. A ref alone changes nothing that would re-run an effect.
+  const [sidebarEl, setSidebarEl] = useState<HTMLElement | null>(null);
+  const sidebarRef = useRef<HTMLElement | null>(null);
+  sidebarRef.current = sidebarEl;
+
+  // Swipe the contents list in from the manual's own left edge, and back out
+  // again by dragging it. Scoped to the dialog so the editor's navigator, whose
+  // gesture starts in the same place, stays out of it.
+  useSwipeEdge({
+    edge: 'left',
+    root: dialogRef,
+    onSwipe: () => setSidebarOpen(true),
+    enabled: !sidebarOpen,
+  });
+  useSwipeDismiss(sidebarRef, {
+    direction: 'left',
+    onDismiss: () => setSidebarOpen(false),
+    enabled: sidebarOpen,
+    // The list is entirely links, so without this there is nothing left to
+    // start the gesture on.
+    fromInteractive: true,
+  });
+
   const hostRef = useRef<HTMLDivElement>(null);
   const shadowRef = useRef<ShadowRoot | null>(null);
   /** Object URLs minted for cached images; revoked when the page changes. */
@@ -265,7 +324,7 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
     if (!href || href.startsWith('#')) return;
     e.preventDefault();
     if (/^https?:/i.test(href)) {
-      window.open(href, '_blank', 'noopener,noreferrer');
+      void openExternal(href);
       return;
     }
     const target = href.split('#')[0].split('/').pop() || '';
@@ -274,7 +333,7 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
       setHits(null);
       setQuery('');
     } else {
-      window.open(MANUAL_WEB_URL + href.replace(/^\.\//, ''), '_blank', 'noopener,noreferrer');
+      void openExternal(MANUAL_WEB_URL + href.replace(/^\.\//, ''));
     }
   }, [pages]);
 
@@ -288,11 +347,14 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
     return out;
   }, [pages]);
 
-  const openOnline = () => window.open(MANUAL_WEB_URL, '_blank', 'noopener,noreferrer');
+  const openOnline = () => void openExternal(MANUAL_WEB_URL);
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div
+        ref={dialogRef}
+        // Swipes inside the manual are the manual's own — see useSwipeEdge.
+        data-swipe-zone="manual"
         className={`dialog-box manual-dialog${fullScreen ? ' manual-dialog--full' : ''}`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -316,8 +378,19 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
                 )}
               </div>
             )}
+            {status?.installed && (
+              <button
+                className="manual-icon-btn manual-nav-toggle"
+                onClick={() => setSidebarOpen((v) => !v)}
+                aria-pressed={sidebarOpen}
+                title={sidebarOpen ? 'Hide contents' : 'Show contents'}
+                aria-label={sidebarOpen ? 'Hide contents' : 'Show contents'}
+              >
+                <FaBars />
+              </button>
+            )}
             <button
-              className="manual-icon-btn"
+              className="manual-icon-btn manual-fullscreen-toggle"
               onClick={() => setFullScreen((v) => !v)}
               aria-pressed={fullScreen}
               title={fullScreen ? 'Restore' : 'Full screen'}
@@ -369,7 +442,7 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
             >
               {sidebarOpen ? 'Hide contents' : 'Contents'}
             </button>
-            <nav className={`manual-sidebar ${sidebarOpen ? 'manual-sidebar--open' : ''}`}>
+            <nav ref={setSidebarEl} className={`manual-sidebar ${sidebarOpen ? 'manual-sidebar--open' : ''}`}>
               {grouped.map((group) => (
                 <div className="manual-sidebar-section" key={group.section}>
                   <div className="manual-sidebar-title">{group.section}</div>
@@ -377,7 +450,10 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
                     <button
                       key={page.slug}
                       className={`manual-sidebar-link ${page.slug === slug && !hits ? 'active' : ''}`}
-                      onClick={() => { setSlug(page.slug); setHits(null); setQuery(''); setSidebarOpen(false); }}
+                      onClick={() => { setSlug(page.slug); setHits(null); setQuery('');
+                        // Only where the list sits on top of the page — beside it,
+                        // closing on every pick would fight the reader.
+                        if (window.innerWidth <= NARROW_PX) setSidebarOpen(false); }}
                     >
                       {page.title}
                     </button>

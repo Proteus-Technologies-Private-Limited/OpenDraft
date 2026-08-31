@@ -327,8 +327,23 @@ export interface PDFExportOptions {
  *  editor and the settings preview so all three render a template identically. */
 const resolveFields = resolveHFFields;
 
-export async function exportPDF(doc: JSONContent, title: string, layout: PageLayout, options?: PDFExportOptions): Promise<void> {
-  const { saveFile } = await import('./fileOps');
+/** A rendered PDF: the bytes, and what to call the file they belong in. */
+export interface RenderedPDF {
+  bytes: Uint8Array;
+  filename: string;
+}
+
+/**
+ * Lay the script out as a PDF and hand back the bytes.
+ *
+ * Split out from exportPDF because the file is no longer only ever destined
+ * for disk: on iOS and Android it is also what File → Print sends to the
+ * system printer (issues #97, and Android's silent Print), and those want the
+ * bytes rather than a save dialog. Everything about the document itself —
+ * pagination, fonts, headers, footnotes — lives here, so print and export can
+ * never drift apart.
+ */
+export async function renderPDF(doc: JSONContent, title: string, layout: PageLayout, options?: PDFExportOptions): Promise<RenderedPDF> {
   const filename = `${sanitizeExportFilename(title)}.pdf`;
 
   if (!doc || !doc.content || doc.content.length === 0) {
@@ -336,8 +351,7 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
       unit: 'pt',
       format: [layout.pageWidth * PTS_PER_INCH, layout.pageHeight * PTS_PER_INCH],
     });
-    await saveFile(new Uint8Array(pdf.output('arraybuffer')), filename, [{ name: 'PDF', extensions: ['pdf'] }]);
-    return;
+    return { bytes: new Uint8Array(pdf.output('arraybuffer')), filename };
   }
 
   const pageWidthPt = layout.pageWidth * PTS_PER_INCH;
@@ -1042,7 +1056,14 @@ export async function exportPDF(doc: JSONContent, title: string, layout: PageLay
     }
   }
 
-  await saveFile(new Uint8Array(pdf.output('arraybuffer')), filename, [{ name: 'PDF', extensions: ['pdf'] }]);
+  return { bytes: new Uint8Array(pdf.output('arraybuffer')), filename };
+}
+
+/** Render the script and put it somewhere the writer chose. */
+export async function exportPDF(doc: JSONContent, title: string, layout: PageLayout, options?: PDFExportOptions): Promise<void> {
+  const { saveFile } = await import('./fileOps');
+  const { bytes, filename } = await renderPDF(doc, title, layout, options);
+  await saveFile(bytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
 }
 
 // --- Render helpers ---

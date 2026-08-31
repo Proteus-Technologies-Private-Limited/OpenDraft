@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
+import type { JSONContent } from '@tiptap/core';
 import { useEditorStore, DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useAssetStore } from '../stores/assetStore';
@@ -10,7 +11,7 @@ import { showToast } from './Toast';
 import { downloadFDX, exportFDX } from '../utils/fdxExporter';
 import { downloadFountain, exportFountain } from '../utils/fountainExporter';
 import { exportFadeIn, exportOSF } from '../utils/osfExporter';
-import { exportPDF } from '../utils/pdfExporter';
+import { exportPDF, renderPDF, type PDFExportOptions } from '../utils/pdfExporter';
 import { buildExportFootnotePlan } from '../utils/exportFootnotes';
 import { downloadDocx } from '../utils/docxExporter';
 import { parseDocx } from '../utils/docxImporter';
@@ -87,7 +88,7 @@ import {
   supportsOpenInPlace,
   type InPlaceDocument,
 } from '../utils/fileOps';
-import { isDesktopTauri, supportsApplePencil, supportsMultipleWindows } from '../services/platform';
+import { isDesktopTauri, printRoute, supportsApplePencil, supportsMultipleWindows } from '../services/platform';
 import { getCompatEntries } from '../services/compat';
 import { reportSaveError } from '../stores/saveErrorStore';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
@@ -1171,54 +1172,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
     };
   }, [editorHasUnsavedChanges, confirmOrRun]);
 
-  // ── Global keyboard shortcuts ──
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'F7' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        e.preventDefault();
-        if (e.shiftKey) setGrammarModalOpen(true);
-        else setSpellModalOpen(true);
-        return;
-      }
-      const m = e.metaKey || e.ctrlKey;
-      if (!m) return;
-      switch (e.key) {
-        case 'n':
-          e.preventDefault();
-          if (!isCollabGuest) handleNewScreenplay();
-          break;
-        case 's':
-        case 'S':
-          e.preventDefault();
-          if (!isCollabGuest) (e.shiftKey ? handleSaveAs() : handleSave());
-          break;
-        case 'p':
-          e.preventDefault();
-          window.print();
-          break;
-        case 'f':
-          e.preventDefault();
-          setSearchOpen(true);
-          break;
-        case 'g':
-          e.preventDefault();
-          setGoToPageOpen(true);
-          break;
-        case '=': // Cmd+= is Cmd++ on most keyboards
-        case '+':
-          e.preventDefault();
-          setZoomLevel(Math.min(300, useEditorStore.getState().zoomLevel + 10));
-          break;
-        case '-':
-          e.preventDefault();
-          setZoomLevel(Math.max(50, useEditorStore.getState().zoomLevel - 10));
-          break;
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [handleSave, handleSaveAs, handleNewScreenplay, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel, setSpellModalOpen, setGrammarModalOpen]);
-
   const handleExportFDX = useCallback(async () => {
     if (!editor) return;
     try {
@@ -1256,22 +1209,116 @@ const MenuBar: React.FC<MenuBarProps> = ({
     }
   }, [editor, documentTitle]);
 
+  /** Everything the PDF exporter needs beyond the document itself. Shared, so
+   *  what Print sends to the printer is the file Export would have written. */
+  const pdfOptions = useCallback((json: JSONContent): PDFExportOptions => {
+    const store = useEditorStore.getState();
+    return {
+      sceneNumbersVisible: store.sceneNumbersVisible,
+      documentTitle: store.documentTitle,
+      revisionColor: store.revisionMode ? store.revisionColor : '',
+      documentFont: store.fontFamily,
+      footnotes: buildExportFootnotePlan(json, pageLayout, store.notes, store.generalNotes),
+    };
+  }, [pageLayout]);
+
   const handleExportPDF = useCallback(async () => {
     if (!editor) return;
     try {
-      const store = useEditorStore.getState();
-      await exportPDF(editor.getJSON(), documentTitle, pageLayout, {
-        sceneNumbersVisible: store.sceneNumbersVisible,
-        documentTitle: store.documentTitle,
-        revisionColor: store.revisionMode ? store.revisionColor : '',
-        documentFont: store.fontFamily,
-        footnotes: buildExportFootnotePlan(editor.getJSON(), pageLayout, store.notes, store.generalNotes),
-      });
+      const json = editor.getJSON();
+      await exportPDF(json, documentTitle, pageLayout, pdfOptions(json));
     } catch (err) {
       console.error('PDF export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
-  }, [editor, documentTitle, pageLayout]);
+  }, [editor, documentTitle, pageLayout, pdfOptions]);
+
+  /**
+   * File → Print (and ⌘P).
+   *
+   * Where the web view has a print dialog this is that dialog, rendering the
+   * paginated editor through the @media print rules exactly as it appears.
+   * Neither mobile platform has one — see printRoute() for why — so both send
+   * the PDF instead: iOS to the share sheet that carries AirPrint (issue #97),
+   * Android to PrintManager, which gives the real system print dialog with
+   * printer, copies and Save as PDF. Either way it is the file File → Export →
+   * PDF would have written, so the printed script matches the exported one.
+   */
+  const handlePrint = useCallback(async () => {
+    const route = printRoute();
+    if (route === 'dialog') {
+      window.print();
+      return;
+    }
+    if (!editor) return;
+    try {
+      // Laying out a feature-length script takes a moment, and nothing appears
+      // until it is done — without this the tap looks like it was ignored.
+      showToast(route === 'ios-share-sheet'
+        ? 'Preparing your script — choose Print in the share sheet.'
+        : 'Preparing your script for printing…');
+
+      const json = editor.getJSON();
+      if (route === 'ios-share-sheet') {
+        await exportPDF(json, documentTitle, pageLayout, pdfOptions(json));
+        return;
+      }
+      const { bytes, filename } = await renderPDF(json, documentTitle, pageLayout, pdfOptions(json));
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('android_print_pdf', { filename, contents: Array.from(bytes) });
+    } catch (err) {
+      console.error('Print failed:', err);
+      showToast(`Print failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, documentTitle, pageLayout, pdfOptions]);
+
+  // ── Global keyboard shortcuts ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'F7' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        if (e.shiftKey) setGrammarModalOpen(true);
+        else setSpellModalOpen(true);
+        return;
+      }
+      const m = e.metaKey || e.ctrlKey;
+      if (!m) return;
+      switch (e.key) {
+        case 'n':
+          e.preventDefault();
+          if (!isCollabGuest) handleNewScreenplay();
+          break;
+        case 's':
+        case 'S':
+          e.preventDefault();
+          if (!isCollabGuest) (e.shiftKey ? handleSaveAs() : handleSave());
+          break;
+        case 'p':
+          e.preventDefault();
+          void handlePrint();
+          break;
+        case 'f':
+          e.preventDefault();
+          setSearchOpen(true);
+          break;
+        case 'g':
+          e.preventDefault();
+          setGoToPageOpen(true);
+          break;
+        case '=': // Cmd+= is Cmd++ on most keyboards
+        case '+':
+          e.preventDefault();
+          setZoomLevel(Math.min(300, useEditorStore.getState().zoomLevel + 10));
+          break;
+        case '-':
+          e.preventDefault();
+          setZoomLevel(Math.max(50, useEditorStore.getState().zoomLevel - 10));
+          break;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [handleSave, handleSaveAs, handleNewScreenplay, handlePrint, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel, setSpellModalOpen, setGrammarModalOpen]);
 
   const handleExportDocx = useCallback(async () => {
     if (!editor) return;
@@ -1537,7 +1584,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         ] : []),
         { separator: true, label: '' },
         { icon: <FaCog />, label: 'Page Setup…', action: () => setPageSetupOpen(true) },
-        { icon: <FaPrint />, label: 'Print…', shortcut: `${mod}P`, action: () => window.print() },
+        { icon: <FaPrint />, label: 'Print…', shortcut: `${mod}P`, action: () => { void handlePrint(); } },
       ],
     },
     {
