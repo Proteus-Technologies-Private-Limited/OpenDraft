@@ -1,7 +1,8 @@
 /**
  * Whether the PDF draws the title page.
  *
- * File ▸ Include Title Page is the writer's own preference — sending a script to
+ * Format ▸ Title Page ▸ "Include title page" is the writer's own preference —
+ * sending a script to
  * someone who wants the pages and nothing else should not mean deleting the
  * title page from the script (issue #98).
  *

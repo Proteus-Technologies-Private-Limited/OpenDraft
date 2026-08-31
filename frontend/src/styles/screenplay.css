@@ -2352,6 +2352,26 @@ body {
 }
 .tp-sync-btn:hover { border-color: var(--fd-accent); color: var(--fd-accent); }
 
+/* Print & export preference — a band of its own between the scrolling body and
+   the buttons. It is not a title-page field, so it sits outside the form grid;
+   pinning it here (the body is the only thing that scrolls) keeps it on screen
+   on a phone, which is where not finding it was the whole problem. Aligned
+   under the preview column: the half of the dialog showing what comes out. */
+.tp-output-pref {
+  flex-shrink: 0; padding: 10px 16px;
+  border-top: 1px solid var(--fd-border);
+  display: flex; flex-direction: column; align-items: flex-end;
+}
+.tp-output-check {
+  display: flex; align-items: flex-start; gap: 8px;
+  max-width: min(52%, 360px); cursor: pointer; font-size: 13px; line-height: 1.4;
+}
+.tp-output-check input { width: 15px; height: 15px; margin-top: 1px; flex-shrink: 0; cursor: pointer; }
+.tp-output-help {
+  max-width: min(52%, 360px); margin: 4px 0 0;
+  font-size: 11px; color: var(--fd-text-muted); line-height: 1.4;
+}
+
 /* Title Page Live Preview */
 .tp-editor-preview {
   display: flex; align-items: center; justify-content: center;
@@ -2389,6 +2409,9 @@ body {
   .tp-editor-body { grid-template-columns: 1fr; gap: 14px; }
   .tp-editor-form { grid-template-columns: 1fr; }
   .tp-preview-page { max-width: 240px; }
+  .tp-output-pref { align-items: stretch; }
+  .tp-output-check, .tp-output-help { max-width: none; }
+  .tp-output-check input { width: 18px; height: 18px; }
 }
 
 /* ============ RTL SUPPORT FOR MULTI-LINGUAL DIALOGUE ============ */
@@ -10817,7 +10840,8 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
   .screenplay-element.section,
   .screenplay-element.note { display: none !important; }
 
-  /* File ▸ Include Title Page, turned off. Safe to hide outright: this block
+  /* Format ▸ Title Page ▸ Include title page, turned off. Safe to hide
+     outright: this block
      has already dropped .page-sep, so print flows the document and nothing
      depends on the overlays' measured positions. `.sp-title-region` is put on
      the leading run by measureOverlays, which covers the blank spacers and any

@@ -253,8 +253,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setTagsVisible,
     revisionMode,
     setRevisionMode,
-    includeTitlePageInOutput,
-    toggleIncludeTitlePageInOutput,
     documentTitle,
     pageLayout,
     setSearchOpen,
@@ -1588,14 +1586,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
         ] : []),
         { separator: true, label: '' },
         { icon: <FaCog />, label: 'Page Setup…', action: () => setPageSetupOpen(true) },
-        // Sits with Print and Export because that is all it governs: the pages
-        // that come out. It does not touch the script, and the interchange
-        // formats ignore it — see `includeTitlePageInOutput` (issue #98).
-        {
-          icon: <FaFileAlt />,
-          label: includeTitlePageInOutput ? '\u2713 Include Title Page' : 'Include Title Page',
-          action: toggleIncludeTitlePageInOutput,
-        },
+        // "Include Title Page" used to sit here. It moved to the Title Page
+        // dialog (Format ▸ Title Page): a bare entry in a long File menu is not
+        // where anyone looks for it — the writer who wants the title page kept
+        // out of a PDF is the writer already looking at their title page.
         { icon: <FaPrint />, label: 'Print…', shortcut: `${mod}P`, action: () => { void handlePrint(); } },
       ],
     },
@@ -2384,12 +2378,17 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.26.1</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.26.2</div>
+              <ul className="about-list">
+                <li><strong>Blank Space Where The Title Page Was</strong> — Clearing every field on the title page and pressing Apply took the words away but left the page's empty lines behind, so the script opened on a gap instead of the first scene. An emptied title page is now removed outright, in the editor and in anything you print or export.</li>
+                <li><strong>The Title Page Switch Moved</strong> — <em>Include Title Page</em> has left the File menu for the bottom of the Title Page editor, under the preview, where the question comes up. It takes effect the moment you tick it — no Apply, and Cancel leaves it alone, because it is a preference rather than part of your script.</li>
+              </ul>
               <div className="about-subsection-title">v0.26.1</div>
               <ul className="about-list">
                 <li><strong>A Title Page You Never Wrote</strong> — Opening a Fade In file could bring a title page with it reading TITLE, Author's Name and Draft information. Every new Fade In document ships one already filled in with that boilerplate, so having a title page in the file and having written one are not the same thing. A title page you never touched is left behind; one you did keep — even if you left Fade In's copyright line alone — comes across whole.</li>
                 <li><strong>&ldquo;Untitled Screenplay&rdquo; On The Title Page</strong> — Exporting a script that had no title page to Final Draft wrote one anyway, using the name of the document. Reopening that file read the name back in as a real title page. A script without a title page now exports without one.</li>
                 <li><strong>Written By, Twice</strong> — A title page imported from Fade In printed its credit line a second time at the foot of the page, because Fade In marks the credit differently from every other field and it was being filed as a note.</li>
-                <li><strong>Print Without The Title Page</strong> — <em>File &rarr; Include Title Page</em>, next to Print. Turn it off and the title page stays in the script but out of anything you print or export to PDF or Word. Sending someone the pages should not mean deleting the title page to do it. The choice is remembered, and the screenplay formats — Final Draft, Fountain, Fade In — always carry the title page either way.</li>
+                <li><strong>Print Without The Title Page</strong> — <em>Format &rarr; Title Page</em>, under the fields. Turn it off and the title page stays in the script but out of anything you print or export to PDF or Word. Sending someone the pages should not mean deleting the title page to do it. The choice is remembered, and the screenplay formats — Final Draft, Fountain, Fade In — always carry the title page either way.</li>
                 <li><strong>Print On iPhone, iPad And Android</strong> — Print used to land on an error screen you could only leave by force-quitting the app, and on Android did nothing at all. iPhone and iPad now hand the script to the share sheet, where AirPrint is; Android opens the system print dialog, with Save as PDF alongside the printers.</li>
                 <li><strong>Panels Below The Status Bar</strong> — On iPhone the Notes, Characters and Tags panels ran their headers under the clock, putting the close button out of reach. On Android the scene navigator did the same, so its tabs and its close button could not be tapped at all.</li>
                 <li><strong>About Uses The Screen</strong> — About and Diagnostics opened as a short card on phones and tablets, scrolling a sliver of themselves on a device with room to spare. They now fill the screen, the way the manual does.</li>

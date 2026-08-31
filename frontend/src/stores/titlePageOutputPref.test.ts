@@ -1,5 +1,5 @@
 /**
- * "Include Title Page" is remembered per device, not per script.
+ * "Include title page" (Format ▸ Title Page) is remembered per device, not per script.
  *
  * It is a habit of the person printing — send the producer the pages, keep the
  * title page for the draft you file — so it has to survive a restart and follow
