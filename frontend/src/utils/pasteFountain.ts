@@ -11,6 +11,7 @@
 import type { Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/react';
 import { parseFountain } from './fountainParser';
+import { pasteFailureMessage, readNativeText } from './clipboardCommands';
 
 /**
  * Parse `text` as Fountain and insert it at the current selection.
@@ -40,6 +41,13 @@ export interface PasteFountainResult {
  *
  * Clipboard reads need an explicit permission in the browser and a focused
  * document everywhere, so failure is normal enough to report rather than throw.
+ * The Android web view refuses the permission outright, so a refusal falls
+ * through to the platform's own clipboard the way the other pastes do
+ * (issue #102). This one loses nothing by it: Fountain is plain text already.
+ *
+ * The failure message is the shared one. It used to be a second hard-coded
+ * copy, which is why this path told an iPhone user to "allow clipboard access"
+ * instead of telling them to tap the Paste prompt iOS was showing them.
  */
 export async function pasteAsFountain(editor: Editor): Promise<PasteFountainResult> {
   let text: string;
@@ -47,10 +55,9 @@ export async function pasteAsFountain(editor: Editor): Promise<PasteFountainResu
     text = await navigator.clipboard.readText();
   } catch (err) {
     console.error('Paste as Fountain: clipboard read failed', err);
-    return {
-      ok: false,
-      error: 'Could not read the clipboard. Allow clipboard access for OpenDraft and try again.',
-    };
+    const native = await readNativeText();
+    if (!native) return { ok: false, error: pasteFailureMessage() };
+    text = native;
   }
 
   if (!insertFountainText(editor, text)) {

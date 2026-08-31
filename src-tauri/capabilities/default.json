@@ -30,6 +30,7 @@
     "dialog:allow-confirm",
     "dialog:allow-ask",
     "opener:allow-open-url",
-    "opener:allow-default-urls"
+    "opener:allow-default-urls",
+    "clipboard-manager:allow-read-text"
   ]
 }

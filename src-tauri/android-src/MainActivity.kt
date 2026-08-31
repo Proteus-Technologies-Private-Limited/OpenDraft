@@ -123,6 +123,35 @@ class MainActivity : TauriActivity() {
             }
         }
 
+        /**
+         * The clipboard's HTML flavour, or null when it holds none.
+         *
+         * The clipboard plugin only offers plain text, so a paste through the
+         * Edit menu arrived stripped of bold, italic and colour — everything
+         * the long-press callout preserves, because that hands the web view
+         * the real thing. `ClipData.Item.getHtmlText()` is the same flavour,
+         * so reading it here closes the gap (issue #102).
+         *
+         * Null is the ordinary answer, not a failure: most clips are plain
+         * text and carry no HTML at all. The Rust side turns null into "no
+         * HTML flavour" and the caller falls back to plain text.
+         *
+         * `context` is passed in because a companion object has none.
+         */
+        @JvmStatic
+        fun readClipboardHtml(context: android.content.Context): String? {
+            return try {
+                val manager = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                    as? android.content.ClipboardManager ?: return null
+                val clip = manager.primaryClip ?: return null
+                if (clip.itemCount == 0) return null
+                clip.getItemAt(0).htmlText
+            } catch (e: Exception) {
+                android.util.Log.e("OpenDraft", "[clipboard] readClipboardHtml failed: ${e.message}")
+                null
+            }
+        }
+
         /** Request code for the document picker activity. */
         const val PICK_FILE_REQUEST = 42
 

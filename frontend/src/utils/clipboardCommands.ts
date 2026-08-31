@@ -21,7 +21,7 @@
  */
 import type { Editor } from '@tiptap/react';
 import { DOMSerializer } from '@tiptap/pm/model';
-import { getOS } from '../services/platform';
+import { getOS, isTauri } from '../services/platform';
 
 export interface ClipboardResult {
   ok: boolean;
@@ -29,8 +29,64 @@ export interface ClipboardResult {
   error?: string;
 }
 
+/**
+ * Plain text from the platform's own clipboard, bypassing the web view.
+ *
+ * `navigator.clipboard.read`/`readText` are gated behind Chromium's
+ * `clipboard-read` permission, and the Android WebView implements no UI to
+ * grant it: its permission manager denies anything it does not handle itself,
+ * so every read rejects with NotAllowedError however the paste was started.
+ * Writes are unaffected — sanitized writes are auto-granted on user activation
+ * — which is why Cut and Copy worked and only Paste failed (issue #102).
+ *
+ * Long-press Paste kept working because that is Android's own editing callout
+ * handing the page a trusted paste event with the data already in it; the page
+ * never asks for the clipboard, so no permission is involved.
+ *
+ * Asking through the app instead of the web view sidesteps the gate: the plugin
+ * reads android.content.ClipboardManager directly. Returns null when there is
+ * no native route (a browser tab), so callers fall back to the web API.
+ *
+ * Plain text only — see readNativeHtml for the flavour that keeps formatting.
+ */
+export async function readNativeText(): Promise<string | null> {
+  if (!isTauri()) return null;
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const text = await invoke<string | null>('plugin:clipboard-manager|read_text');
+    return typeof text === 'string' && text ? text : null;
+  } catch (err) {
+    console.error('[clipboard] native read_text failed:', err);
+    return null;
+  }
+}
+
+/**
+ * The clipboard's HTML flavour from the platform, when it has one.
+ *
+ * The clipboard plugin reads plain text only, so falling back to it alone cost
+ * the writer every mark a paste should carry — bold, italic, colour — all of
+ * which the long-press callout keeps, because Android hands the web view the
+ * real clipboard rather than a string. `read_clipboard_html` reads
+ * ClipData's own HTML flavour, so the menu paste and the callout agree again.
+ *
+ * Null is the ordinary answer, not an error: most clips are plain text and
+ * carry no HTML at all, and every platform but Android returns null outright.
+ */
+async function readNativeHtml(): Promise<string | null> {
+  if (!isTauri()) return null;
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const html = await invoke<string | null>('read_clipboard_html');
+    return typeof html === 'string' && html ? html : null;
+  } catch (err) {
+    console.error('[clipboard] native read_clipboard_html failed:', err);
+    return null;
+  }
+}
+
 /** Said when the clipboard cannot be read, which on iOS is usually the prompt. */
-function pasteFailureMessage(): string {
+export function pasteFailureMessage(): string {
   return getOS() === 'ios'
     ? 'Could not read the clipboard. iOS asks permission for every paste — tap “Paste” when it appears, or press and hold in the script and use Paste there.'
     : 'Could not read the clipboard. Allow clipboard access for OpenDraft and try again.';
@@ -180,8 +236,12 @@ export async function readClipboardText(): Promise<{ text?: string; error?: stri
     }
   } catch (err) {
     console.error('[clipboard] readText failed:', err);
+    const native = await readNativeText();
+    if (native) return { text: native };
     return { error: pasteFailureMessage() };
   }
+  const native = await readNativeText();
+  if (native) return { text: native };
   return { error: pasteFailureMessage() };
 }
 
@@ -220,7 +280,20 @@ export async function pasteIntoEditor(editor: Editor | null): Promise<ClipboardR
       }
       return { ok: false, error: 'The clipboard is empty.' };
     } catch (err) {
+      // Denied outright on Android, where the web view grants `clipboard-read`
+      // to nobody. Ask the platform before giving up — unformatted, but a paste.
       console.error('[clipboard] read failed:', err);
+      // HTML first, so this keeps the marks the long-press callout keeps.
+      const markup = await readNativeHtml();
+      if (markup) {
+        restoreCursor(editor, at);
+        if (editor.view.pasteHTML(markup)) return { ok: true };
+      }
+      const native = await readNativeText();
+      if (native) {
+        restoreCursor(editor, at);
+        if (editor.view.pasteText(native)) return { ok: true };
+      }
       return { ok: false, error: pasteFailureMessage() };
     }
   }
@@ -233,6 +306,12 @@ export async function pasteIntoEditor(editor: Editor | null): Promise<ClipboardR
     return { ok: true };
   } catch (err) {
     console.error('[clipboard] readText failed:', err);
+    const native = await readNativeText();
+    if (native) {
+      restoreCursor(editor, at);
+      editor.view.pasteText(native);
+      return { ok: true };
+    }
     return { ok: false, error: pasteFailureMessage() };
   }
 }
@@ -255,6 +334,12 @@ export async function pasteWithoutFormatting(editor: Editor | null): Promise<Cli
     return { ok: true };
   } catch (err) {
     console.error('[clipboard] readText failed:', err);
+    const native = await readNativeText();
+    if (native) {
+      restoreCursor(editor, at);
+      editor.view.pasteText(native);
+      return { ok: true };
+    }
     return { ok: false, error: pasteFailureMessage() };
   }
 }

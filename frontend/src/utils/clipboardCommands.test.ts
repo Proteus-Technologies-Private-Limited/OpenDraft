@@ -19,7 +19,22 @@ import { writeClipboard, pasteIntoEditor, pasteWithoutFormatting } from './clipb
 
 /** Set per test: the paste path is deliberately different on iOS. */
 let os: 'ios' | 'macos' = 'macos';
-vi.mock('../services/platform', () => ({ getOS: () => os }));
+/** Set per test: inside Tauri a refused read falls through to the platform. */
+let tauri = false;
+vi.mock('../services/platform', () => ({ getOS: () => os, isTauri: () => tauri }));
+
+/** The native clipboard the Tauri plugin reads, when there is one. */
+let nativeText: string | null = null;
+/** The HTML flavour of that clipboard, when the clip carries one. */
+let nativeHtml: string | null = null;
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: async (cmd: string) => {
+    if (cmd === 'read_clipboard_html') return nativeHtml;
+    if (cmd !== 'plugin:clipboard-manager|read_text') throw new Error(`unexpected ${cmd}`);
+    if (nativeText === null) throw new Error('no clipboard');
+    return nativeText;
+  },
+}));
 
 type Editor = Parameters<typeof pasteIntoEditor>[0];
 
@@ -60,6 +75,9 @@ const originalClipboardItem = globalThis.ClipboardItem;
 
 beforeEach(() => {
   os = 'macos';
+  tauri = false;
+  nativeText = null;
+  nativeHtml = null;
   globalThis.ClipboardItem = class {
     items: Record<string, Blob>;
     constructor(items: Record<string, Blob>) { this.items = items; }
@@ -151,6 +169,52 @@ describe('pasteIntoEditor', () => {
     await pasteIntoEditor(editor);
     expect(getType).toHaveBeenCalledTimes(1);
     expect(getType).toHaveBeenCalledWith('text/html');
+  });
+
+  it('falls through to the platform clipboard when the web view refuses', async () => {
+    // Android denies `clipboard-read` outright, so this is the only paste the
+    // menu can produce there (issue #102).
+    tauri = true;
+    nativeText = 'FADE IN:';
+    const { editor, pasteText } = fakeEditor();
+    stubClipboard({ read: async () => { throw new Error('NotAllowedError'); } });
+
+    expect(await pasteIntoEditor(editor)).toEqual({ ok: true });
+    expect(pasteText).toHaveBeenCalledWith('FADE IN:');
+  });
+
+  it('keeps formatting by preferring the platform HTML flavour', async () => {
+    // Plain text alone would drop every mark the long-press callout keeps.
+    tauri = true;
+    nativeHtml = '<p><strong>FADE IN:</strong></p>';
+    nativeText = 'FADE IN:';
+    const { editor, pasteHTML, pasteText } = fakeEditor();
+    stubClipboard({ read: async () => { throw new Error('NotAllowedError'); } });
+
+    expect(await pasteIntoEditor(editor)).toEqual({ ok: true });
+    expect(pasteHTML).toHaveBeenCalledWith('<p><strong>FADE IN:</strong></p>');
+    expect(pasteText).not.toHaveBeenCalled();
+  });
+
+  it('still reports the refusal when there is no platform clipboard either', async () => {
+    tauri = true;
+    nativeText = null;
+    const { editor } = fakeEditor();
+    stubClipboard({ read: async () => { throw new Error('NotAllowedError'); } });
+
+    const result = await pasteIntoEditor(editor);
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('Could not read the clipboard');
+  });
+
+  it('does not reach for the platform clipboard in a browser', async () => {
+    tauri = false;
+    nativeText = 'should not be reached';
+    const { editor, pasteText } = fakeEditor();
+    stubClipboard({ read: async () => { throw new Error('NotAllowedError'); } });
+
+    expect((await pasteIntoEditor(editor)).ok).toBe(false);
+    expect(pasteText).not.toHaveBeenCalled();
   });
 
   it('names the iOS prompt when the read is refused', async () => {

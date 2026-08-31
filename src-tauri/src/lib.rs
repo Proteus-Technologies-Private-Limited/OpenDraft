@@ -105,6 +105,61 @@ fn read_content_uri_bytes(uri: String) -> Result<ContentUriBytes, String> {
     }
 }
 
+/// The clipboard's HTML flavour, when the platform has one.
+///
+/// The clipboard plugin reads plain text only, so an Edit ▸ Paste on Android
+/// lost every mark the long-press callout keeps — the callout hands the web
+/// view the real clipboard, flavours and all, while the plugin hands back a
+/// string. This reads `ClipData.Item.getHtmlText()`, which is the same flavour
+/// the callout would have delivered (issue #102).
+///
+/// `Ok(None)` is the ordinary answer on a plain-text clip and everywhere that
+/// is not Android; the caller falls back to plain text. Only a genuine JNI
+/// failure is an `Err`.
+#[tauri::command]
+fn read_clipboard_html() -> Result<Option<String>, String> {
+    #[cfg(target_os = "android")]
+    {
+        android_read_clipboard_html()
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        Ok(None)
+    }
+}
+
+#[cfg(target_os = "android")]
+fn android_read_clipboard_html() -> Result<Option<String>, String> {
+    use jni::objects::{JObject, JString, JValue};
+    use jni::JavaVM;
+
+    let ctx = android_context().ok_or(NO_ANDROID_CONTEXT)?;
+    let vm = unsafe { JavaVM::from_raw(ctx.vm().cast()) }
+        .map_err(|e| format!("Failed to get JVM: {}", e))?;
+    let mut env = vm.attach_current_thread()
+        .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+    let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
+
+    // In Kotlin rather than raw JNI for the same reason as readUriBytes: the
+    // getSystemService cast, the null primaryClip and the empty-item case are
+    // three guards that read as one line there and a dozen calls here.
+    let html_obj = env.call_static_method(
+        "com/proteus/opendraft/MainActivity", "readClipboardHtml",
+        "(Landroid/content/Context;)Ljava/lang/String;",
+        &[JValue::Object(&activity)],
+    ).map_err(|e| format!("readClipboardHtml: {}", e))?
+     .l().map_err(|e| format!("readClipboardHtml cast: {}", e))?;
+
+    if html_obj.is_null() {
+        return Ok(None);
+    }
+
+    let html: String = env.get_string(&JString::from(html_obj))
+        .map_err(|e| format!("clipboard html to string: {}", e))?
+        .into();
+    Ok(if html.is_empty() { None } else { Some(html) })
+}
+
 #[cfg(target_os = "android")]
 fn android_read_content_uri_bytes(uri_str: &str) -> Result<ContentUriBytes, String> {
     use jni::objects::{JByteArray, JObject, JValue};
@@ -2521,6 +2576,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         // ── Asset protocol: serve local files for convertFileSrc() URLs ──
         .register_uri_scheme_protocol("asset", |_app, request| {
             let uri = request.uri();
@@ -2566,6 +2622,7 @@ pub fn run() {
             get_opened_file,
             read_content_uri,
             read_content_uri_bytes,
+            read_clipboard_html,
             write_content_uri,
             write_content_uri_bytes,
             ios_save_and_share,

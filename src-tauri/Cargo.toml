@@ -51,6 +51,11 @@ tauri-plugin-dialog = "=2.7.2"
 # iOS web view and takes the Android one down with it (the manual's "Read
 # online" link), so external links go through the platform instead.
 tauri-plugin-opener = "=2.5.2"
+# Reading the clipboard. `navigator.clipboard.read*` is denied outright by the
+# Android WebView — it has no permission UI for `clipboard-read`, so every
+# promise rejects with NotAllowedError and Edit ▸ Paste could not work at all
+# (issue #102). This asks the platform through the app instead of the web view.
+tauri-plugin-clipboard-manager = "=2.3.3"
 reqwest = { version = "0.12", features = ["rustls-tls"], default-features = false }
 percent-encoding = "2"
 
