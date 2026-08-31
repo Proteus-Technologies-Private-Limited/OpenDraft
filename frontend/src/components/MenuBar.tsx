@@ -2384,6 +2384,17 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.26.0</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.26.1</div>
+              <ul className="about-list">
+                <li><strong>A Title Page You Never Wrote</strong> — Opening a Fade In file could bring a title page with it reading TITLE, Author's Name and Draft information. Every new Fade In document ships one already filled in with that boilerplate, so having a title page in the file and having written one are not the same thing. A title page you never touched is left behind; one you did keep — even if you left Fade In's copyright line alone — comes across whole.</li>
+                <li><strong>&ldquo;Untitled Screenplay&rdquo; On The Title Page</strong> — Exporting a script that had no title page to Final Draft wrote one anyway, using the name of the document. Reopening that file read the name back in as a real title page. A script without a title page now exports without one.</li>
+                <li><strong>Written By, Twice</strong> — A title page imported from Fade In printed its credit line a second time at the foot of the page, because Fade In marks the credit differently from every other field and it was being filed as a note.</li>
+                <li><strong>Print Without The Title Page</strong> — <em>File &rarr; Include Title Page</em>, next to Print. Turn it off and the title page stays in the script but out of anything you print or export to PDF or Word. Sending someone the pages should not mean deleting the title page to do it. The choice is remembered, and the screenplay formats — Final Draft, Fountain, Fade In — always carry the title page either way.</li>
+                <li><strong>Print On iPhone, iPad And Android</strong> — Print used to land on an error screen you could only leave by force-quitting the app, and on Android did nothing at all. iPhone and iPad now hand the script to the share sheet, where AirPrint is; Android opens the system print dialog, with Save as PDF alongside the printers.</li>
+                <li><strong>Panels Below The Status Bar</strong> — On iPhone the Notes, Characters and Tags panels ran their headers under the clock, putting the close button out of reach. On Android the scene navigator did the same, so its tabs and its close button could not be tapped at all.</li>
+                <li><strong>About Uses The Screen</strong> — About and Diagnostics opened as a short card on phones and tablets, scrolling a sliver of themselves on a device with room to spare. They now fill the screen, the way the manual does.</li>
+              </ul>
+
               <div className="about-subsection-title">v0.26.0</div>
               <ul className="about-list">
                 <li><strong>Notes That Print — Footnotes And Endnotes</strong> — A script note can now go on the page. Pick where from the note's own dropdown: <em>Do not print</em>, <em>Page footer</em>, or <em>End note</em>. A superscript number appears beside the text and the note prints at the foot of that page, or on a NOTES page at the end. Written for anyone quoting a source who needs the citation on the page rather than beside it.</li>
