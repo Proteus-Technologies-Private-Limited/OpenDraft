@@ -2378,6 +2378,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 0.26.2</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v0.26.3</div>
+              <ul className="about-list">
+                <li><strong>Paste Works Again On Android</strong> — <em>Edit &rarr; Paste</em> and <em>Paste as Fountain</em> failed on Android with &ldquo;Could not read the clipboard&rdquo;, even though the text was still there and pressing and holding in the script could still paste it. Android does not let a web page read the clipboard at all, so OpenDraft now asks Android itself. Bold, italic and colour come across with the text, the way they do when you press and hold.</li>
+              </ul>
               <div className="about-subsection-title">v0.26.2</div>
               <ul className="about-list">
                 <li><strong>Blank Space Where The Title Page Was</strong> — Clearing every field on the title page and pressing Apply took the words away but left the page's empty lines behind, so the script opened on a gap instead of the first scene. An emptied title page is now removed outright, in the editor and in anything you print or export.</li>
