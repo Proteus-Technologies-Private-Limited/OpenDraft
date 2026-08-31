@@ -569,6 +569,7 @@ function paraText(para: Element, legacyInline: boolean): string {
 const TITLE_PAGE_ATTR_DEFAULTS: Record<string, string> = {
   field: 'title',
   tpTitle: '',
+  tpCredit: '',
   tpWrittenBy: '',
   tpBasedOn: '',
   tpDraft: '',
@@ -583,6 +584,7 @@ const TITLE_PAGE_ATTR_DEFAULTS: Record<string, string> = {
 const BOOKMARK_TO_TP_ATTR: Record<string, string> = {
   title: 'tpTitle',
   subtitle: 'tpBasedOn',
+  credit: 'tpCredit',
   author: 'tpWrittenBy',
   authors: 'tpWrittenBy',
   copyright: 'tpCopyright',
@@ -590,6 +592,51 @@ const BOOKMARK_TO_TP_ATTR: Record<string, string> = {
   contact: 'tpContact',
   notes: 'tpNotes',
 };
+
+/**
+ * Fade In's factory title page, field by field.
+ *
+ * Every new Fade In document ships a title page already filled in with this
+ * boilerplate, so "the file has no title page" and "the writer never made one"
+ * are not the same thing — the file always has one. Importing it verbatim gave
+ * a writer who had never opened the title page a title page reading TITLE /
+ * Author's Name / Draft information, inserted ahead of their script (#98).
+ *
+ * Matched per field rather than as a whole, and only ever used to decide
+ * whether the page was touched at all: a file may carry a real title and author
+ * and still leave the copyright line as Fade In wrote it, and that line is the
+ * writer's to keep.
+ */
+const FADE_IN_PLACEHOLDERS: Record<string, RegExp> = {
+  tpTitle: /^title$/,
+  tpCredit: /^written by$/,
+  tpWrittenBy: /^author's name$/,
+  tpDraft: /^draft information$/,
+  tpContact: /^contact information$/,
+  tpCopyright: /^copyright \(c\) \d{4}$/,
+};
+
+/**
+ * Fold a title-page line to the form the placeholder patterns are written in.
+ *
+ * Fade In wraps the longer placeholders, so `Draft information` arrives as
+ * "Draft\ninformation"; collapsing whitespace puts it back on one line. The
+ * apostrophe fold covers "Author’s Name", which Fade In writes typographically.
+ */
+function normalizeTitleLine(text: string): string {
+  return text.replace(/\u2019/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/** Whether `text` is exactly what Fade In would have put in `field`. */
+function isFadeInPlaceholder(field: string, text: string): boolean {
+  return FADE_IN_PLACEHOLDERS[field]?.test(normalizeTitleLine(text)) ?? false;
+}
+
+/** Whether `text` is Fade In boilerplate for any field at all. */
+function isAnyFadeInPlaceholder(text: string): boolean {
+  const line = normalizeTitleLine(text);
+  return Object.values(FADE_IN_PLACEHOLDERS).some((re) => re.test(line));
+}
 
 /**
  * Build the titlePage node.
@@ -623,27 +670,60 @@ function parseTitlePage(root: Element, legacyInline: boolean): { nodes: TipTapNo
   const titlePageEl = firstChildNamed(root, 'titlepage');
   if (titlePageEl) {
     const loose: string[] = [];
+    // The last unbookmarked line, held back one paragraph. Fade In writes the
+    // credit — the "Written by" that names how the author is credited — with no
+    // bookmark at all, directly above the bookmarked author. Appending it to the
+    // notes with the rest of the loose text printed it a second time at the foot
+    // of the page, under the credit `deriveTitlePageLines` had already drawn
+    // above the author (the field issue #87 added, which this importer never fed).
+    let pending: string | null = null;
+    const flush = () => {
+      if (pending !== null) loose.push(pending);
+      pending = null;
+    };
     for (const para of childrenNamed(titlePageEl, 'para')) {
       const text = paraText(para, legacyInline);
       if (text === '') continue;
       const bookmark = attr(para, 'bookmark')?.toLowerCase();
       const key = bookmark ? BOOKMARK_TO_TP_ATTR[bookmark] : undefined;
       if (key) {
+        if (key === 'tpWrittenBy' && pending !== null && !tp.tpCredit) {
+          tp.tpCredit = pending;
+          pending = null;
+        }
+        flush();
         tp[key] = tp[key] ? `${tp[key]}\n${text}` : text;
         found = true;
       } else {
-        loose.push(text);
+        flush();
+        pending = text;
       }
     }
+    flush();
+
+    // Boilerplate is boilerplate wherever it sits. Without this a file whose
+    // bookmarked fields the writer had emptied still carried Fade In's stray
+    // credit line, and the fallback below would have made "Written by" the title.
+    const real = loose.filter((text) => !isAnyFadeInPlaceholder(text));
+
     // A title page with no bookmarks at all (some writers omit them) still
     // has a usable title on its first non-empty line.
-    if (!found && loose.length > 0) {
-      tp.tpTitle = loose[0];
-      if (loose.length > 1) tp.tpNotes = loose.slice(1).join('\n');
+    if (!found && real.length > 0) {
+      tp.tpTitle = real[0];
+      if (real.length > 1) tp.tpNotes = real.slice(1).join('\n');
       found = true;
-    } else if (loose.length > 0) {
-      tp.tpNotes = tp.tpNotes ? `${tp.tpNotes}\n${loose.join('\n')}` : loose.join('\n');
+    } else if (real.length > 0) {
+      tp.tpNotes = tp.tpNotes ? `${tp.tpNotes}\n${real.join('\n')}` : real.join('\n');
     }
+  }
+
+  // Every field the file filled in is exactly what Fade In put there, so the
+  // writer never touched the title page: import the script without one, rather
+  // than opening their document on a page of someone else's placeholders (#98).
+  if (found && !Object.entries(tp).some(
+    ([key, value]) => key !== 'field' && value.trim() !== '' && !isFadeInPlaceholder(key, value),
+  )) {
+    found = false;
   }
 
   if (!found) return { nodes: [], title: '' };

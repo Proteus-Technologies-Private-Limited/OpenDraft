@@ -465,6 +465,9 @@ export interface DocxExportOptions {
    *  `{pages}` be written as a literal instead of Word's NUMPAGES, which counts
    *  the title page and so is always one too high for a script that has one. */
   scriptPageCount?: number;
+  /** Whether the title page is written at all. Absent or true keeps it. The
+   *  writer's preference, shared with print and PDF — see `PDFExportOptions`. */
+  includeTitlePage?: boolean;
 }
 
 export async function exportDocx(
@@ -494,10 +497,16 @@ export async function exportDocx(
       hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
     })),
   );
-  const hasTitlePage = region.isReal;
+  // Excluded by the writer: drop the region outright rather than letting it fall
+  // through to the body, which is the path for a region that was never a title
+  // page and so keeps whatever carries text.
+  const excludeTitlePage = options?.includeTitlePage === false;
+  const hasTitlePage = region.isReal && !excludeTitlePage;
+  const dropTitleRegion = region.isReal && excludeTitlePage;
   docNodes.forEach((node, index) => {
     // Sections and Notes never reach the page — see utils/nonPrinting.ts.
     if (isNonPrintingType(node.type)) return;
+    if (dropTitleRegion && index < region.length) return;
     if (hasTitlePage && index < region.length) {
       titleRegionNodes.push(node);
       return;

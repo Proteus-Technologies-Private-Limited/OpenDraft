@@ -253,6 +253,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setTagsVisible,
     revisionMode,
     setRevisionMode,
+    includeTitlePageInOutput,
+    toggleIncludeTitlePageInOutput,
     documentTitle,
     pageLayout,
     setSearchOpen,
@@ -1219,6 +1221,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       revisionColor: store.revisionMode ? store.revisionColor : '',
       documentFont: store.fontFamily,
       footnotes: buildExportFootnotePlan(json, pageLayout, store.notes, store.generalNotes),
+      includeTitlePage: store.includeTitlePageInOutput,
     };
   }, [pageLayout]);
 
@@ -1332,6 +1335,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // So `{pages}` matches what the editor and the PDF report, rather than
         // Word's NUMPAGES, which counts the title page.
         scriptPageCount: store.pageCount,
+        includeTitlePage: store.includeTitlePageInOutput,
       });
     } catch (err) {
       console.error('Word export failed:', err);
@@ -1584,6 +1588,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
         ] : []),
         { separator: true, label: '' },
         { icon: <FaCog />, label: 'Page Setup…', action: () => setPageSetupOpen(true) },
+        // Sits with Print and Export because that is all it governs: the pages
+        // that come out. It does not touch the script, and the interchange
+        // formats ignore it — see `includeTitlePageInOutput` (issue #98).
+        {
+          icon: <FaFileAlt />,
+          label: includeTitlePageInOutput ? '\u2713 Include Title Page' : 'Include Title Page',
+          action: toggleIncludeTitlePageInOutput,
+        },
         { icon: <FaPrint />, label: 'Print…', shortcut: `${mod}P`, action: () => { void handlePrint(); } },
       ],
     },

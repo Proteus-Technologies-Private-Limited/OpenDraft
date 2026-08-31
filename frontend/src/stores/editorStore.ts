@@ -26,6 +26,7 @@ interface ViewState {
   characterSortBy?: 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance';
   grammarRulesEnabled?: Record<string, boolean>;
   spellingSettings?: SpellingSettings;
+  includeTitlePageInOutput?: boolean;
 }
 
 export interface SpellingSettings {
@@ -647,6 +648,21 @@ interface EditorState {
   currentPage: number;
   setCurrentPage: (page: number) => void;
 
+  /**
+   * Whether print, PDF and DOCX draw the title page. On unless turned off.
+   *
+   * Kept here rather than on `PageLayout` because it is the writer's habit, not
+   * the script's: it belongs to the person printing, follows them from one
+   * document to the next, and must not travel inside a .odraft file or a collab
+   * session. Persisted per device in the view state (issue #98).
+   *
+   * Only rendered output honours it. FDX, Fountain, Fade In/OSF and .odraft
+   * always carry the title-page data — sending a script somewhere is not the
+   * same as editing it.
+   */
+  includeTitlePageInOutput: boolean;
+  toggleIncludeTitlePageInOutput: () => void;
+
   // Scene navigator
   scenes: SceneInfo[];
   setScenes: (scenes: SceneInfo[]) => void;
@@ -977,6 +993,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setPageCount: (count) => set({ pageCount: count }),
   currentPage: 1,
   setCurrentPage: (page) => set({ currentPage: page }),
+
+  includeTitlePageInOutput: _vs.includeTitlePageInOutput !== false,
+  toggleIncludeTitlePageInOutput: () => set((s) => {
+    const v = !s.includeTitlePageInOutput;
+    saveViewState({ includeTitlePageInOutput: v });
+    return { includeTitlePageInOutput: v };
+  }),
 
   scenes: [],
   setScenes: (scenes) => set({ scenes }),

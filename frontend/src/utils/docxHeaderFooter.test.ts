@@ -192,3 +192,24 @@ describe('DOCX {pages} field', () => {
     expect(parts.headers.join('')).toContain('NUMPAGES');
   });
 });
+
+describe('DOCX title page — excluded by the writer', () => {
+  it('drops the title page instead of spilling its text into the script', async () => {
+    // The exporter has a second path for a region that was never a title page,
+    // which keeps whatever carries text as body content. Reusing it here would
+    // have printed "THE SCRIPT" as the first line of page 1 (issue #98).
+    const parts = await exportParts(scriptWithTitlePage(), DEFAULT_PAGE_LAYOUT, {
+      includeTitlePage: false,
+    });
+    const text = textOf(parts.document);
+    expect(text).not.toContain('THE SCRIPT');
+    expect(text).toContain('INT. HOUSE - DAY');
+  });
+
+  it('keeps the title page when the option is absent or true', async () => {
+    for (const options of [undefined, { includeTitlePage: true }]) {
+      const parts = await exportParts(scriptWithTitlePage(), DEFAULT_PAGE_LAYOUT, options);
+      expect(textOf(parts.document)).toContain('THE SCRIPT');
+    }
+  });
+});

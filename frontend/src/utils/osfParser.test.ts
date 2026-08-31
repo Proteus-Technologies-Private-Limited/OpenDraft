@@ -11,7 +11,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { DOMParser as XmlDOMParser } from '@xmldom/xmldom';
 import JSZip from 'jszip';
 import { parseOSF, parseFadeIn } from './osfParser';
-import { titleNodeOf, bodyTypesOf } from '../test/titlePage';
+import { titleNodeOf, bodyTypesOf, titleRegionOf } from '../test/titlePage';
 import type { JSONContent } from '@tiptap/react';
 
 // The suite runs without a DOM; the parser needs a DOMParser that produces
@@ -538,6 +538,74 @@ ${BUILTIN_STYLES}
     const { doc, scriptTitle } = parseOSF(osfDocument(para('Action', 'Body.')));
     expect((doc.content as Node[])[0].type).toBe('action');
     expect(scriptTitle).toBe('');
+  });
+
+  /**
+   * Fade In's factory title page, copied from test-script/samples/sample-01.fadein.
+   *
+   * Every new Fade In document has one, filled in with this boilerplate and the
+   * credit line written without a bookmark. A writer who never opens the title
+   * page still ships all of it, which is why "the file has a <titlepage>" cannot
+   * mean "the writer made a title page" (issue #98).
+   */
+  const FADE_IN_BOILERPLATE = `
+    <para bookmark="Title"><style basestylename="Normal Text" align="center"/><text>TITLE</text></para>
+    <para><style basestylename="Normal Text" align="center"/><text>Written by</text></para>
+    <para bookmark="Author"><style basestylename="Normal Text" align="center"/><text>Author's Name</text></para>
+    <para bookmark="Copyright"><style basestylename="Normal Text"/><text>Copyright (c) 2018</text></para>
+    <para bookmark="Draft"><style basestylename="Normal Text"/><text>Draft\ninformation</text></para>
+    <para bookmark="Contact"><style basestylename="Normal Text"/><text>Contact\ninformation</text></para>`;
+
+  it('drops a title page the writer never touched', () => {
+    const xml = osfDocument(para('Action', 'Body.'), {
+      extra: `<titlepage>${FADE_IN_BOILERPLATE}</titlepage>`,
+    });
+    const { doc, scriptTitle } = parseOSF(xml);
+
+    expect(titleRegionOf(doc as JSONContent).length).toBe(0);
+    expect((doc.content as Node[])[0].type).toBe('action');
+    expect(scriptTitle).toBe('');
+  });
+
+  it('keeps a real title page, boilerplate copyright and all', () => {
+    // sample-03.fadein: a real title and author, and the copyright line left
+    // exactly as Fade In wrote it. Dropping that line would be losing content.
+    const xml = osfDocument(para('Action', 'Body.'), {
+      extra: `<titlepage>
+        <para bookmark="Title"><style basestylename="Normal Text" align="center"/><text>SAMPLE 03</text></para>
+        <para><style basestylename="Normal Text" align="center"/><text>Written by</text></para>
+        <para bookmark="Author"><style basestylename="Normal Text" align="center"/><text>Jane Doe</text></para>
+        <para bookmark="Copyright"><style basestylename="Normal Text"/><text>Copyright (c) 2018</text></para>
+      </titlepage>`,
+    });
+    const { doc, scriptTitle } = parseOSF(xml);
+
+    expect(titleNodeOf(doc as JSONContent)?.attrs).toMatchObject({
+      tpTitle: 'SAMPLE 03',
+      tpWrittenBy: 'Jane Doe',
+      tpCopyright: 'Copyright (c) 2018',
+    });
+    expect(scriptTitle).toBe('SAMPLE 03');
+  });
+
+  it('reads the unbookmarked line above the author as the credit', () => {
+    // Fade In gives the credit no bookmark, so it used to fall in with the loose
+    // text and be appended to the notes — printing "Screenplay by" a second time
+    // at the foot of the page, under the credit already drawn above the author.
+    const xml = osfDocument(para('Action', 'Body.'), {
+      extra: `<titlepage>
+        <para bookmark="Title"><style basestylename="Normal Text" align="center"/><text>The Long Walk</text></para>
+        <para><style basestylename="Normal Text" align="center"/><text>Screenplay by</text></para>
+        <para bookmark="Author"><style basestylename="Normal Text" align="center"/><text>A. Writer</text></para>
+      </titlepage>`,
+    });
+    const { doc } = parseOSF(xml);
+
+    expect(titleNodeOf(doc as JSONContent)?.attrs).toMatchObject({
+      tpCredit: 'Screenplay by',
+      tpWrittenBy: 'A. Writer',
+      tpNotes: '',
+    });
   });
 });
 

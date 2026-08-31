@@ -91,4 +91,49 @@ describe('FDX title page — fields the exporter used to drop', () => {
     expect(tp).toContain('<Text>WGA #1234</Text>');
     expect(tp).toContain('<Text>Third revision</Text>');
   });
+
+  it('writes a title page that has a credit but no title', () => {
+    // The old test was a non-empty `tpTitle`, so this title page was invisible
+    // to the exporter and went out as an empty <TitlePage> (issue #98).
+    const xml = exportFDX({ type: 'doc', content: [{
+      type: 'titlePage',
+      attrs: { field: 'title', tpCredit: 'Story by', tpWrittenBy: 'Jane Writer' },
+      content: [],
+    }] }, 'Untitled Screenplay');
+    const tp = xml.slice(xml.indexOf('<TitlePage>'), xml.indexOf('</TitlePage>'));
+    expect(tp).toContain('<Text>Story by</Text>');
+    expect(tp).toContain('<Text>Jane Writer</Text>');
+  });
+});
+
+describe('FDX title page — a script that has none', () => {
+  const bare = () => exportFDX(
+    { type: 'doc', content: [
+      { type: 'sceneHeading', content: [{ type: 'text', text: 'INT. HOUSE - DAY' }] },
+      { type: 'action', content: [{ type: 'text', text: 'A dog speaks.' }] },
+    ] },
+    'Untitled Screenplay',
+  );
+
+  it('leaves the title page blank instead of inventing one from the document title', () => {
+    const xml = bare();
+    // The element stays — Final Draft expects it — but carries nothing.
+    expect(xml).toContain('<TitlePage>');
+    expect(xml.slice(xml.indexOf('<TitlePage>'), xml.indexOf('</TitlePage>')))
+      .not.toContain('<Paragraph');
+    // The document title is not title-page data and must not leak onto the page.
+    expect(xml).not.toContain('Untitled Screenplay');
+  });
+
+  it('gives the reader nothing to rebuild a title page from', () => {
+    // The round trip is the bug this closes: the exported name came back in as
+    // `tpTitle`, `hasTitlePageContent` passed, and the file reopened on a title
+    // page the writer never wrote (issue #98). `parseFDXFull` cannot be driven
+    // from this suite — it is built on querySelector, which the node
+    // environment's XML parser does not implement — so the round trip is pinned
+    // from this end: the reader keeps `<Text>` content it finds under
+    // <TitlePage> and nothing else, and there is none.
+    const tp = bare().slice(bare().indexOf('<TitlePage>'), bare().indexOf('</TitlePage>'));
+    expect(tp.match(/<Text[^>]*>[^<]+<\/Text>/g)).toBeNull();
+  });
 });

@@ -300,6 +300,7 @@ const ScreenplayEditor: React.FC = () => {
     grammarRulesPanelOpen, setGrammarRulesPanelOpen,
     setDocumentTitle,
     sceneNumbersVisible, sceneNumbersLocked,
+    includeTitlePageInOutput,
     saveStatus, saveError, setSaveStatus,
   } = useEditorStore();
 
@@ -1091,6 +1092,15 @@ const ScreenplayEditor: React.FC = () => {
         !el.classList.contains('track-change-deleted-block'),
     );
     const breaks = breaksRef.current;
+
+    // Mark the title-page region so Print can drop it when the writer has asked
+    // for a script without one. Marked by model index rather than by class: the
+    // region takes in the blank spacers and any images above the title, and only
+    // the titlePage nodes carry a class of their own (issue #98). The title-page
+    // break is where the body starts, so its nodeIndex is the region's length.
+    const titleEnd = breaks.find((b) => b.isTitlePage)?.nodeIndex ?? 0;
+    children.forEach((el, i) => el.classList.toggle('sp-title-region', i < titleEnd));
+
     if (breaks.length === 0) { setOverlays([]); return; }
 
     // getBoundingClientRect returns coordinates in viewport space (affected by
@@ -4513,7 +4523,7 @@ const ScreenplayEditor: React.FC = () => {
                 }}
               >
                 <div
-                  className={`page${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}`}
+                  className={`page${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}`}
                   ref={pageRef}
                   style={{
                     fontFamily: fontStack(fontFamily),

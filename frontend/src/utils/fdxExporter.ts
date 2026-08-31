@@ -9,6 +9,7 @@ import { isNonPrintingType } from './nonPrinting';
 import { noteBlockText } from './noteContent';
 import type { FootnotePlan } from './footnotes';
 import { DEFAULT_TITLE_PAGE_CREDIT } from './titlePageBlocks';
+import { titlePageAttrsCarryData } from './titlePageRegion';
 
 const NODE_TO_FDX: Record<string, string> = {
   sceneHeading: 'Scene Heading',
@@ -279,7 +280,14 @@ export interface FDXDocumentFont {
   size?: number;
 }
 
-export function exportFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont, footnotes?: FootnotePlan | null): string {
+/**
+ * `_title` is the document's name, and deliberately unused: it used to be the
+ * fallback title on the exported title page, which is exactly the bug issue #98
+ * reported. It stays in the signature because every argument after it is
+ * positional, and `downloadFDX` still names the file after it.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- see above
+export function exportFDX(doc: JSONContent, _title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont, footnotes?: FootnotePlan | null): string {
   // Printing notes reach a file only when the writer asked them to.
   const plan = footnotes && footnotes.settings.includeInExports ? footnotes : null;
   // Final Draft keeps the typeface on each element's FontSpec; the screenplay
@@ -316,10 +324,24 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   lines.push(...buildHeaderAndFooter(pageLayout, docFont, docFontSize));
   lines.push('');
 
-  // Title page — extract structured attrs from titlePage nodes if available
+  // Title page — the structured fields live on the one `field: 'title'` node.
+  //
+  // Whether there is a title page at all is `titlePageAttrsCarryData`, the test
+  // the paginator, the PDF exporter and the DOCX exporter already share. This
+  // asked for a non-empty `tpTitle` instead, and — worse — fell back to the
+  // *document* title when it found none, writing `<TitlePage>` unconditionally.
+  // A script that had never had a title page therefore exported one reading
+  // "Untitled Screenplay", and reopening that .fdx read the name straight back
+  // in as a title page the writer never wrote (issue #98). The same test also
+  // left a title page carrying a credit but no title contributing nothing.
+  //
+  // The element itself always ships — Final Draft expects it — but an untouched
+  // title page now ships empty, which is what "preserve it as-is" means for a
+  // blank one. `title` stays in the signature: `downloadFDX` still names the
+  // file after it, and the argument is positional.
   lines.push('  <TitlePage>');
   lines.push('    <Content>');
-  let tpTitle = title;
+  let tpTitle = '';
   let tpCredit = DEFAULT_TITLE_PAGE_CREDIT;
   let tpWrittenBy = '';
   let tpBasedOn = '';
@@ -330,21 +352,25 @@ export function exportFDX(doc: JSONContent, title: string = 'Untitled', characte
   let tpNotes = '';
   if (doc.content) {
     for (const node of doc.content) {
-      if (node.type === 'titlePage' && node.attrs?.field === 'title' && node.attrs?.tpTitle) {
-        tpTitle = node.attrs.tpTitle || title;
-        tpCredit = node.attrs.tpCredit || DEFAULT_TITLE_PAGE_CREDIT;
-        tpWrittenBy = node.attrs.tpWrittenBy || '';
-        tpBasedOn = node.attrs.tpBasedOn || '';
-        tpDraft = [node.attrs.tpDraft, node.attrs.tpDraftDate].filter(Boolean).join(' - ');
-        tpContact = node.attrs.tpContact || '';
-        tpCopyright = node.attrs.tpCopyright || '';
-        tpWgaRegistration = node.attrs.tpWgaRegistration || '';
-        tpNotes = node.attrs.tpNotes || '';
+      if (node.type === 'titlePage'
+          && titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined)) {
+        const attrs = node.attrs ?? {};
+        tpTitle = attrs.tpTitle || '';
+        tpCredit = attrs.tpCredit || DEFAULT_TITLE_PAGE_CREDIT;
+        tpWrittenBy = attrs.tpWrittenBy || '';
+        tpBasedOn = attrs.tpBasedOn || '';
+        tpDraft = [attrs.tpDraft, attrs.tpDraftDate].filter(Boolean).join(' - ');
+        tpContact = attrs.tpContact || '';
+        tpCopyright = attrs.tpCopyright || '';
+        tpWgaRegistration = attrs.tpWgaRegistration || '';
+        tpNotes = attrs.tpNotes || '';
         break;
       }
     }
   }
-  lines.push(`      <Paragraph Type="General" Alignment="Center" SpaceBefore="288"><Text>${esc(tpTitle)}</Text></Paragraph>`);
+  if (tpTitle) {
+    lines.push(`      <Paragraph Type="General" Alignment="Center" SpaceBefore="288"><Text>${esc(tpTitle)}</Text></Paragraph>`);
+  }
   if (tpWrittenBy) {
     // The credit the writer chose, not a fixed "Written by" — a script credited
     // "Screenplay by" said the wrong thing on every .fdx it was exported to.
