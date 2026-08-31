@@ -61,6 +61,27 @@ echo ""
 # ── Step 1: Create release branch and update versions ───────────────────────
 echo "=== Step 1/4: Updating version numbers ==="
 
+# The filenames README and the landing page currently link to, captured before
+# the seds below rewrite them to the new version.
+#
+# Step 3.5 backfills these into the new release, because `releases/latest`
+# moves to the new tag the moment it is published while main still advertises
+# the old filenames until the PR merges. That list used to be hand-written and
+# had drifted: it was missing x64.dmg and x86_64-legacy.dmg, so every Intel Mac
+# download 404'd for the whole window between publishing v0.26.2 and merging
+# its PR. Reading it off the files that do the advertising cannot drift.
+ADVERTISED=$(grep -ohE "OpenDraft[_-]${OLD_VERSION}[A-Za-z0-9_.-]*" \
+  "$PROJECT_ROOT/README.md" "$PROJECT_ROOT/landing/index.html" 2>/dev/null \
+  | sort -u || true)
+if [ -z "$ADVERTISED" ]; then
+  echo "Error: no ${OLD_VERSION} download links found in README.md or landing/index.html."
+  echo "       Refusing to release: the backfill in step 3.5 would upload nothing"
+  echo "       and every download link would 404 until the PR merged."
+  exit 1
+fi
+echo "  Download links to keep alive during the release:"
+echo "$ADVERTISED" | sed 's/^/    /'
+
 git checkout -b "$BRANCH"
 
 # src-tauri/tauri.conf.json
@@ -189,21 +210,46 @@ echo "  Uploading old-version binaries for backward-compatible downloads..."
 OLD_TAG="v${OLD_VERSION}"
 TMPDIR=$(mktemp -d)
 
-EXTENSIONS=("aarch64.dmg" "x64-setup.exe" "x64_en-US.msi" "amd64.deb" "amd64.AppImage" "android.apk" "ios.ipa")
-for ext in "${EXTENSIONS[@]}"; do
-  OLD_NAME="OpenDraft_${OLD_VERSION}_${ext}"
-  if gh release download "$OLD_TAG" --repo "$REPO" -p "$OLD_NAME" -D "$TMPDIR" 2>/dev/null; then
-    gh release upload "$TAG" "$TMPDIR/$OLD_NAME" --repo "$REPO" --clobber 2>/dev/null
-    echo "    ✓ ${OLD_NAME}"
+# Every advertised filename, whatever its shape — the rpm's
+# OpenDraft-VERSION-1.x86_64.rpm needed a special case when this was built from
+# a list of extensions, and no longer does.
+while IFS= read -r OLD_NAME; do
+  [ -z "$OLD_NAME" ] && continue
+  if ! gh release download "$OLD_TAG" --repo "$REPO" -p "$OLD_NAME" -D "$TMPDIR" 2>/dev/null; then
+    echo "    ! ${OLD_NAME} — not on ${OLD_TAG}, cannot backfill"
+    continue
   fi
-done
-# RPM uses different naming: OpenDraft-VERSION-1.x86_64.rpm
-OLD_RPM="OpenDraft-${OLD_VERSION}-1.x86_64.rpm"
-if gh release download "$OLD_TAG" --repo "$REPO" -p "$OLD_RPM" -D "$TMPDIR" 2>/dev/null; then
-  gh release upload "$TAG" "$TMPDIR/$OLD_RPM" --repo "$REPO" --clobber 2>/dev/null
-  echo "    ✓ ${OLD_RPM}"
-fi
+  # Errors are no longer swallowed: a silent upload failure here is a download
+  # link that 404s for every user until the PR merges.
+  if gh release upload "$TAG" "$TMPDIR/$OLD_NAME" --repo "$REPO" --clobber; then
+    echo "    ✓ ${OLD_NAME}"
+  else
+    echo "    ! ${OLD_NAME} — upload failed"
+  fi
+done <<< "$ADVERTISED"
 rm -rf "$TMPDIR"
+
+# Prove it, rather than assume it. These are the URLs the website hands out.
+echo "  Checking every advertised download resolves..."
+DOWNLOAD_BASE="https://github.com/${REPO}/releases/latest/download"
+BROKEN=""
+while IFS= read -r NAME; do
+  [ -z "$NAME" ] && continue
+  CODE=$(curl -sS -o /dev/null -w "%{http_code}" -L -r 0-0 --max-time 30 \
+    "${DOWNLOAD_BASE}/${NAME}" 2>/dev/null || echo "000")
+  case "$CODE" in
+    200|206) echo "    ✓ ${NAME}" ;;
+    *)       echo "    ✗ ${NAME} → HTTP ${CODE}"; BROKEN="${BROKEN} ${NAME}" ;;
+  esac
+done <<< "$ADVERTISED"
+
+if [ -n "$BROKEN" ]; then
+  echo ""
+  echo "WARNING: these download links are broken right now:${BROKEN}"
+  echo "  Users following them get a 404 until the PR in step 4 is merged."
+  echo "  Merge it promptly, or upload the missing files to ${TAG} by hand."
+  echo ""
+fi
 
 echo ""
 
@@ -252,10 +298,10 @@ done
 
 # Remove old-version binaries now that links on main point to new version
 echo "  Cleaning up old-version binaries from release..."
-for ext in "${EXTENSIONS[@]}"; do
-  gh release delete-asset "$TAG" "OpenDraft_${OLD_VERSION}_${ext}" --repo "$REPO" -y 2>/dev/null
-done
-gh release delete-asset "$TAG" "OpenDraft-${OLD_VERSION}-1.x86_64.rpm" --repo "$REPO" -y 2>/dev/null
+while IFS= read -r OLD_NAME; do
+  [ -z "$OLD_NAME" ] && continue
+  gh release delete-asset "$TAG" "$OLD_NAME" --repo "$REPO" -y 2>/dev/null
+done <<< "$ADVERTISED"
 echo "  ✓ Old-version binaries removed"
 
 # Switch back to main
