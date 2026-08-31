@@ -2864,6 +2864,32 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   min-width: 440px;
   max-width: 500px;
 }
+
+/* Phones and tablets: full bleed, for the reasons the manual is — a 500px card
+   with the =<480px sheet rules capping it at 60vh leaves About and Diagnostics
+   scrolling a sliver of themselves on a device that has the room. Same shape as
+   the manual's rule: both classes so it outranks that cap, `position: fixed` so
+   the overlay's padding cannot push its footer off the bottom, and the safe-area
+   insets the fixed position gives up. */
+@media (max-width: 1024px), (pointer: coarse) and (max-height: 900px) {
+  .dialog-box.about-dialog {
+    position: fixed; top: 0; left: 0;
+    width: 100vw; min-width: 0; max-width: none;
+    height: var(--vv-height, 100dvh); max-height: var(--vv-height, 100dvh);
+    border-radius: 0; border: none;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* Scrolling belongs to the body, so the header and the buttons stay put. */
+    overflow: hidden;
+  }
+  /* Android under-reports the inset (see the note by .app-container), and a
+     fixed box has no container padding to fall back on. */
+  html.android .dialog-box.about-dialog,
+  html.android .dialog-box.manual-dialog {
+    padding-top: max(env(safe-area-inset-top, 0px), 28px);
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 24px);
+  }
+}
 .about-body {
   text-align: center;
 }
@@ -9891,6 +9917,18 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
   html.android .tags-panel,
   html.android .location-db-panel {
     padding-top: max(env(safe-area-inset-top), 28px);
+  }
+
+  /* The scene navigator is the same story on the other side, and was missed:
+     as an overlay drawer its tab row landed in the status bar, which put the
+     tabs and the close button behind the system bar where taps never reached
+     them. Scoped to the breakpoint where it is an overlay — docked, it sits
+     below the menu bar inside the container's padding and wants none of this.
+     iOS has the matching rule further down. */
+  @media (max-width: 1100px) {
+    html.android .scene-navigator {
+      padding-top: max(env(safe-area-inset-top), 28px);
+    }
   }
 
   /* iOS/iPadOS: the insets above only started reporting real values once
