@@ -49,6 +49,29 @@ Choose the next version number following semver (e.g. `0.3.0` → `0.4.0`).
 
 Throughout this guide, replace `X.Y.Z` with the new version.
 
+**One number, every platform.** `src-tauri/tauri.conf.json` is the only place a
+version is decided. Every store and download derives from it: Tauri writes it
+into `CFBundleShortVersionString` for the App Store builds and into the Android
+`versionName`, and `release.sh` seds it through the rest of the tree.
+
+Never set a version by hand in App Store Connect, and never pass
+`--app_version` to `submit-stores.yml` with anything but the number already in
+`tauri.conf.json`. Doing that in the past left the App Store on 1.8 while every
+other platform was on 0.26.3 — the same app, two numbers, so the version in
+Help → About matched nothing a user could look up, bug reports were ambiguous,
+and the in-app update check of issue #106 had nothing it could compare against.
+Release 2.0.0 exists to put the two back together.
+
+Two constraints on the number you pick:
+
+- **Apple only goes up.** Each App Store version must sort strictly greater than
+  the last published one, so after 2.0.0 there is no going back to `0.x`. This is
+  why unification had to clear 1.8 rather than pull Apple down.
+- **Android's `versionCode` only goes up too.** Tauri derives it as
+  `major*1000000 + minor*1000 + patch`, so 0.26.3 was 26003 and 2.0.0 is
+  2000000. Fine going forward, but it means minor and patch must stay under
+  1000 and the major can never be lowered.
+
 ### 2. Update version in all source files
 
 | # | File | What to change |
