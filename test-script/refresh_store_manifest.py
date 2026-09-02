@@ -82,9 +82,13 @@ def play_access_token(sa_info):
     """Service-account bearer token for the Play Developer API."""
     try:
         from google.oauth2 import service_account
+        # Needs `requests`, which google-auth does not depend on — it is the
+        # google-auth[requests] extra. Report what actually failed: guessing
+        # "not installed" here sent the v2.0.0 diagnosis after the wrong
+        # package entirely.
         import google.auth.transport.requests as greq
-    except ImportError:
-        print('  ! play: google-auth not installed', file=sys.stderr)
+    except ImportError as err:
+        print(f'  ! play: cannot import the Play client ({err})', file=sys.stderr)
         return None
     creds = service_account.Credentials.from_service_account_info(
         sa_info, scopes=['https://www.googleapis.com/auth/androidpublisher'])

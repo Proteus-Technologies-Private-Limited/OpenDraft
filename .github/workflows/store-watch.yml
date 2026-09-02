@@ -52,7 +52,11 @@ jobs:
           python-version: '3.12'
 
       - name: Install Play API client
-        run: pip install --quiet google-auth
+        # `requests` is not a dependency of google-auth — it is the
+        # google-auth[requests] extra — but google.auth.transport.requests
+        # imports it, so installing google-auth alone left the Play half of
+        # the v2.0.0 watch reporting "unknown" on every run.
+        run: pip install --quiet google-auth requests
 
       # The target is the released tag, not the manifest's own dmg version:
       # release.sh's bump reaches main only when the release PR merges, which
