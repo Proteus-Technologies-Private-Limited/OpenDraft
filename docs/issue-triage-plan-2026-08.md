@@ -788,3 +788,19 @@ on-screen break is a `margin-top` on a whole node, so a long paragraph moves
 whole, and one longer than a page overflows it — 85 lines recorded on a 58-line
 page in a synthetic case. Splitting inside a paragraph would mean addressing a
 break at a character offset rather than a node.
+
+## (MORE)/CONT'D in the Word export — decided against
+
+`docxExporter` has no line-level pagination: it emits paragraphs and lets Word
+decide where pages fall. It therefore cannot know where a speech splits, and
+never writes `(MORE)` or `CHARACTER (CONT'D)`.
+
+The only way to write them correctly is to run the same break computation the
+editor uses and emit explicit page breaks, which is what Final Draft's Word
+export does. **Rejected:** that would force OpenDraft's line model onto every
+exported document, not only ones with split dialogue, and Word's own metrics on
+the reader's machine need not agree with ours. Keeping Word's pagination is
+worth more than the labels.
+
+So this is an accepted gap, not an open defect. The PDF export is unaffected —
+it lays out line by line and does draw both labels.
