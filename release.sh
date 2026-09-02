@@ -146,6 +146,19 @@ sed -i '' "s/What's New in v${OLD_VERSION}/What's New in v${NEW_VERSION}/g" \
   "$PROJECT_ROOT/user-manual/search.js"
 echo "  ✓ user-manual/search.js"
 
+# landing/updates.json — the manifest the in-app update notice reads. Only the
+# channels served off the GitHub release move here; Apple and Google are still
+# reviewing at this point, so their entries are left for the store watch to
+# move once each store reports the build actually live. Deliberately a script
+# rather than a sed: a blanket version substitution would rewrite the play
+# channel too, and send Play users to a listing with nothing new on it.
+if [ -x "$PROJECT_ROOT/venv/bin/python" ]; then
+  "$PROJECT_ROOT/venv/bin/python" "$PROJECT_ROOT/test-script/update_download_manifest.py" "${NEW_VERSION}"
+else
+  python3 "$PROJECT_ROOT/test-script/update_download_manifest.py" "${NEW_VERSION}"
+fi
+echo "  ✓ landing/updates.json (download channels)"
+
 # The in-app manual downloads user-manual/manifest.json to decide whether the
 # copy on someone's device is current. The footer rewrite above changes every
 # page, so the manifest has to be rebuilt or installed copies keep reporting

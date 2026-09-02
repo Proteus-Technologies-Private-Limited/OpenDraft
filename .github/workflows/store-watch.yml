@@ -1,0 +1,117 @@
+name: Store Watch
+
+# Moves the store channels in landing/updates.json once Apple and Google are
+# actually serving the new build (issue #106).
+#
+# release.sh moves the GitHub-hosted channels when a release is published.
+# The stores are still reviewing at that point, so this watches until each one
+# reports the build live — and then SWITCHES ITSELF OFF.
+#
+# The stores send no webhook, so something has to ask more than once; the
+# schedule below is the only delay primitive Actions has. What it must not do
+# is ask forever, so:
+#
+#   - publish-release enables this workflow and kicks it off.
+#   - While enabled it wakes every 30 minutes and asks the stores.
+#   - When every store channel has caught up, it disables itself. A disabled
+#     workflow's schedule does not fire, so between releases this runs zero
+#     times — not cheaply, but not at all.
+#   - If a submission is rejected the stores never catch up, so it also gives
+#     up after GIVE_UP_DAYS, files an issue, and disables itself. Terminating
+#     on failure matters as much as terminating on success.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write      # enable/disable this workflow
+  issues: write       # the give-up report
+
+concurrency:
+  group: store-watch
+  cancel-in-progress: false
+
+env:
+  GIVE_UP_DAYS: 14
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Play API client
+        run: pip install --quiet google-auth
+
+      - name: Ask the stores what is live
+        id: check
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON_B64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
+        run: |
+          if [ -n "$PLAY_SERVICE_ACCOUNT_JSON_B64" ]; then
+            PLAY_SERVICE_ACCOUNT_JSON=$(echo "$PLAY_SERVICE_ACCOUNT_JSON_B64" | base64 --decode)
+            export PLAY_SERVICE_ACCOUNT_JSON
+          else
+            echo "::warning::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 not set — the play channel cannot be checked"
+          fi
+          python3 test-script/refresh_store_manifest.py | tee /tmp/out.txt
+          grep -E '^(changed|caught-up)=' /tmp/out.txt >> "$GITHUB_OUTPUT"
+
+      - name: Commit the manifest
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add landing/updates.json
+          git commit -m "Point the store channels at what the stores are serving
+
+          Written by the store watch, not by hand: the version comes from the
+          App Store lookup and the Play production track."
+          git push origin main
+
+      # How long the current release has been waiting on review.
+      - name: Age of the latest release
+        id: age
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PUBLISHED=$(gh release view --repo "${{ github.repository }}" --json publishedAt -q .publishedAt 2>/dev/null || echo "")
+          if [ -z "$PUBLISHED" ]; then
+            echo "days=0" >> "$GITHUB_OUTPUT"
+          else
+            NOW=$(date -u +%s)
+            THEN=$(date -u -d "$PUBLISHED" +%s)
+            echo "days=$(( (NOW - THEN) / 86400 ))" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Give up and report
+        if: steps.check.outputs.caught-up != 'true' && fromJSON(steps.age.outputs.days) >= fromJSON(env.GIVE_UP_DAYS)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create --repo "${{ github.repository }}" \
+            --title "Store watch gave up: a store never went live" \
+            --body "The store watch has been asking for ${{ steps.age.outputs.days }} days and at least one store channel in \`landing/updates.json\` is still behind the released version.
+
+          That usually means a submission was rejected or is still in review. Until the manifest is corrected, users on that store are not being told an update exists.
+
+          Check the store, then re-run **Store Watch** manually to resume." || true
+
+      - name: Switch off — nothing left to watch
+        if: steps.check.outputs.caught-up == 'true' || fromJSON(steps.age.outputs.days) >= fromJSON(env.GIVE_UP_DAYS)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Disabling Store Watch — it will not run again until the next release enables it."
+          gh workflow disable store-watch.yml --repo "${{ github.repository }}"

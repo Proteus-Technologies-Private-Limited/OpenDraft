@@ -1868,5 +1868,20 @@ jobs:
             --draft=false
           echo "Release ${{ env.RELEASE_TAG }} published"
 
+      # The update notice's store channels cannot move yet: Apple and Google
+      # are still reviewing, so their listings still offer the old build and a
+      # manifest naming the new one would send people to a page with nothing
+      # new on it. Hand that to the store watch, which asks the stores until
+      # they are actually serving it and then switches itself off. Enabling is
+      # separate from dispatching because a disabled workflow ignores every
+      # trigger, including this one.
+      - name: Start the store watch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow enable  store-watch.yml --repo "${{ github.repository }}" || true
+          gh workflow run     store-watch.yml --repo "${{ github.repository }}" || true
+          echo "Store watch armed — it will move the store channels as each store goes live."
+
       # Download links are updated in the version bump commit (release.sh)
       # before the tag is pushed, so they're already on main by this point.

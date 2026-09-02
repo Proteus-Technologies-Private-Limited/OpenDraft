@@ -39,6 +39,58 @@ The `release.sh` script handles the entire process — version bumps, commit, an
 
 ---
 
+## The update manifest (`landing/updates.json`)
+
+The in-app update notice reads this file from GitHub Pages. Nothing about it is
+maintained by hand, and it is split in two because the two halves become true at
+different times.
+
+**Download channels** (`dmg`, `win`, `linux`, `apk`) are bumped by
+`release.sh`, which calls `test-script/update_download_manifest.py`. These are
+downloadable the instant CI publishes the release, and the edit reaches Pages
+when the release PR merges — which `release.sh` already sequences *after* the
+release is published, so the manifest and the README download links go live
+together.
+
+**Store channels** (`ios`, `mas`, `play`) are left alone at release time,
+because Apple and Google are still reviewing. Naming the new version there would
+send people to a listing still offering the build they already have. They are
+moved later by the **Store Watch** workflow, which asks each store what it is
+actually serving:
+
+- Apple — the iTunes lookup API, no credentials. One record covers both the iOS
+  and Mac App Store entries for this app id, so those two channels move together.
+- Google — the Play Developer API, using the same
+  `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64` secret `submit-stores.yml` uses. The
+  track release's name is preferred; the versionCode is the fallback, decoded
+  with Tauri's `major*1000000 + minor*1000 + patch`.
+
+### Why the watch turns itself off
+
+Neither store sends a webhook, so something has to ask more than once, and the
+schedule is the only delay Actions offers. What it must not do is ask forever:
+
+1. `publish-release` **enables** Store Watch and dispatches it. Enabling is a
+   separate step because a disabled workflow ignores every trigger, including
+   that one.
+2. While enabled it wakes every 30 minutes.
+3. Once every store channel has caught up it runs `gh workflow disable` on
+   itself. A disabled workflow's schedule does not fire, so between releases it
+   runs *zero* times.
+4. If a submission is rejected the stores never catch up, so it also gives up
+   after 14 days, opens an issue naming the channel, and disables itself.
+
+**It ships disabled.** A new workflow with a `cron` starts firing as soon as it
+lands on main, so it was switched off once by hand after merging. If you ever
+need it back before a release, run it from the Actions tab — dispatching also
+re-enables it.
+
+**It pushes to main.** If branch protection refuses the `github-actions[bot]`
+push, add that actor to the ruleset's bypass list, or the manifest will go stale
+silently — the workflow is the only thing that moves the store channels.
+
+---
+
 ## Manual release (step-by-step)
 
 Use this if the script fails partway or you need more control.
