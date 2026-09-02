@@ -90,7 +90,8 @@ import {
   supportsOpenInPlace,
   type InPlaceDocument,
 } from '../utils/fileOps';
-import { isDesktopTauri, printRoute, supportsApplePencil, supportsMultipleWindows } from '../services/platform';
+import { isDesktopTauri, isWeb, printRoute, supportsApplePencil, supportsMultipleWindows } from '../services/platform';
+import { checkForUpdate } from '../services/updateCheck';
 import { getCompatEntries } from '../services/compat';
 import { reportSaveError } from '../stores/saveErrorStore';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
@@ -157,6 +158,7 @@ import {
   FaInfoCircle,
   FaBook,
   FaStethoscope,
+  FaCloudDownloadAlt,
   FaSearchPlus,
   FaSearchMinus,
   FaUpload,
@@ -1827,6 +1829,34 @@ const MenuBar: React.FC<MenuBarProps> = ({
   ];
 
   // Help sits at the right-hand end of the bar, after the spacer.
+  /**
+   * Help → Check for Updates (issue #106).
+   *
+   * Unlike the silent check on launch this one always answers: it ignores the
+   * throttle, the snooze and any earlier Dismiss, and says so when it cannot
+   * reach the manifest rather than looking like it did nothing. When there is
+   * an update the banner shows it, so there is one place the buttons live.
+   */
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const handleCheckForUpdates = async () => {
+    if (checkingUpdate) return;
+    setCheckingUpdate(true);
+    try {
+      const outcome = await checkForUpdate(true);
+      if (outcome.status === 'up-to-date') {
+        showToast(`OpenDraft ${outcome.version} is the latest version.`, 'success');
+      } else if (outcome.status === 'unreachable') {
+        showToast('Could not check for updates. Check your connection.', 'error');
+      }
+      // 'available' needs no toast — the banner is already on screen.
+    } catch (err) {
+      console.error('[MenuBar] update check failed:', err);
+      showToast('Could not check for updates.', 'error');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
   const helpMenu: MenuSection = {
     label: 'Help',
     items: [
@@ -1836,6 +1866,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
         action: () => setManualOpen(true),
       },
       { separator: true, label: '' },
+      // Meaningless in a browser, where a reload already serves the newest
+      // build, so it is not offered there.
+      ...(isWeb() ? [] : [{
+        icon: <FaCloudDownloadAlt />,
+        label: checkingUpdate ? 'Checking\u2026' : 'Check for Updates\u2026',
+        disabled: checkingUpdate,
+        action: () => { void handleCheckForUpdates(); },
+      }]),
       {
         icon: <FaInfoCircle />,
         label: 'About Open Draft',

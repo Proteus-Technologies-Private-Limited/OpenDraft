@@ -6,6 +6,7 @@ import ProjectView from './components/ProjectView';
 import SettingsPage from './components/SettingsPage';
 import Toast from './components/Toast';
 import DemoBanner from './components/DemoBanner';
+import UpdateBanner from './components/UpdateBanner';
 import AuthGate from './components/AuthGate';
 import AuthBootstrap from './components/AuthBootstrap';
 import StorageFallbackDialog from './components/StorageFallbackDialog';
@@ -33,6 +34,7 @@ function App() {
   return (
     <>
       <DemoBanner />
+      <UpdateBanner />
       <Routes>
         <Route path="/" element={<ScreenplayEditor />} />
         <Route path="/verify" element={<VerifyEmailRoute />} />

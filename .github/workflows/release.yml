@@ -1440,6 +1440,12 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Build frontend
+        # The App Store build and the .dmg are the same binary on the same OS,
+        # so the update notice cannot tell them apart at runtime and its OS
+        # fallback would offer an App Store copy a .dmg download — wrong, and
+        # something Apple objects to. This is the one job that has to say.
+        env:
+          VITE_OPENDRAFT_CHANNEL: mas
         run: cd frontend && npm run build
 
       - name: Import Apple Distribution certificate
