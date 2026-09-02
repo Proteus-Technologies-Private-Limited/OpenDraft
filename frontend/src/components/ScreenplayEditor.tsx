@@ -31,6 +31,7 @@ import {
   StartsNewPage,
 } from '../editor/extensions';
 import { registerAvCellPicker } from '../editor/extensions/AvBlock';
+import { isBlankBlock, previousSiblingBlock, blankLineTypeFor } from '../editor/blankLine';
 import Strike from '@tiptap/extension-strike';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
@@ -91,6 +92,8 @@ import EndnotePages from './EndnotePages';
 const NO_FOOTNOTE_PAGES: FootnotePageAssignment[] = [];
 const NO_ENDNOTE_PAGES: EndnotePage[] = [];
 import { HANDWRITING_EVENT } from '../utils/handwriting';
+import { ELEMENT_MENU_EVENT } from '../utils/elementMenu';
+import { matchesShortcut } from '../utils/shortcuts';
 import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { Grammar, grammarPluginKey } from '../editor/extensions/Grammar';
 import { spellChecker, BUILTIN_LANGUAGE } from '../editor/spellchecker';
@@ -1043,9 +1046,29 @@ const ScreenplayEditor: React.FC = () => {
     position: { top: number; left: number };
     defaultType: ElementType;
     availableTypes?: ElementType[];
-  }>({ visible: false, position: { top: 0, left: 0 }, defaultType: 'action' });
+    /**
+     * Whether the line the menu opened on is blank. The menu used to open only
+     * on blank lines; the shortcut and the Format menu can now open it on a
+     * line with text, where "one more blank line" is not what a writer means
+     * and the menu is a plain type chooser again (issue #100).
+     */
+    blankLine: boolean;
+  }>({ visible: false, position: { top: 0, left: 0 }, defaultType: 'action', blankLine: false });
+  /** Read by the shortcut handler, which must not re-open a menu already up. */
+  const pickerVisibleRef = useRef(false);
+  pickerVisibleRef.current = pickerState.visible;
 
   const showPickerRef = useRef<(defaultType: ElementType, availableTypes?: ElementType[]) => void>(() => {});
+  /** Opens the menu wherever the caret is, from a shortcut or a menu item. */
+  const openElementMenuRef = useRef<() => void>(() => {});
+  /** Splits the current (blank) block to leave one more blank line behind. */
+  const insertBlankLineRef = useRef<(typeId?: string) => void>(() => {});
+  /**
+   * Start position of the block whose element menu was last dismissed, so the
+   * next Enter there inserts a line instead of re-opening the menu the writer
+   * just refused. Cleared as soon as the caret is anywhere else (issue #100).
+   */
+  const pickerDismissedAtRef = useRef<number | null>(null);
 
   // Character autocomplete state
   const [knownCharacters, setKnownCharacters] = useState<string[]>([]);
@@ -1108,12 +1131,18 @@ const ScreenplayEditor: React.FC = () => {
     // (unscaled) coordinate system.  Divide by zoom to convert.
     const scale = (zoomLevelRef.current || 100) / 100;
     const lineHeightPx = 12 * (96 / 72); // 16px — matches pagination LINE_HEIGHT_PT
+    // Room for the CONT'D line is only reserved when the marker is actually
+    // drawn — the pagination decoration reads the same setting the same way.
+    // Subtracting it here unconditionally moved the whole break band, footer
+    // and header included, a line higher than the break it belongs to whenever
+    // a writer had turned (MORE)/(CONT'D) off.
+    const showContd = resolveMoresContds(pageLayoutRef.current).dialogueBreakContd;
     const newOverlays: OverlayInfo[] = [];
     for (const brk of breaks) {
       const el = children[brk.nodeIndex];
       if (!el) continue;
       const elRect = el.getBoundingClientRect();
-      const contdHeight = brk.isDialogueSplit ? lineHeightPx : 0;
+      const contdHeight = brk.isDialogueSplit && showContd ? lineHeightPx : 0;
       const overlayTop = (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
       newOverlays.push({
         top: overlayTop,
@@ -1299,8 +1328,31 @@ const ScreenplayEditor: React.FC = () => {
                   return true;
                 }
               }
-              // Normal blank line: show element picker
-              showPickerRef.current(currentType as ElementType);
+              // Enter opens the element menu on a blank line, which left the
+              // keystroke no way to mean "just another blank line" — and at the
+              // end of a script there is no populated line below to insert
+              // against either, so there was no workaround at all (issue #100).
+              // Three conditions insert the line rather than open the menu; the
+              // menu's own Enter and its Blank Line row reach the same code.
+              const blockStart = $from.before($from.depth);
+              const menuEnabled = useSettingsStore.getState().elementMenuOnEnter;
+              //   1. the writer turned the menu off outright;
+              //   2. this blank line already follows a blank line, so the menu
+              //      offered itself on the first one and the answer was "space";
+              //   3. the menu was just dismissed on this very line — Escape has
+              //      to leave Enter meaning what it means everywhere else.
+              if (!menuEnabled
+                  || isBlankBlock(previousSiblingBlock($from))
+                  || pickerDismissedAtRef.current === blockStart) {
+                insertBlankLineRef.current();
+                return true;
+              }
+              // Normal blank line: show element picker. Pass the custom id
+              // rather than the `customElement` wrapper, so the menu can mark
+              // the row the line is already on.
+              showPickerRef.current((currentType === 'customElement'
+                ? (currentNode.attrs?.customTypeId || currentType)
+                : currentType) as ElementType);
               return true;
             }
 
@@ -3234,13 +3286,14 @@ const ScreenplayEditor: React.FC = () => {
     // Use requestAnimationFrame so the DOM has settled after the split
     requestAnimationFrame(() => {
       if (!editor.view) return;
-      const { from } = editor.state.selection;
+      const { from, $from } = editor.state.selection;
       const coords = editor.view.coordsAtPos(from);
       setPickerState({
         visible: true,
         position: { top: coords.bottom + 4, left: coords.left },
         defaultType,
         availableTypes,
+        blankLine: isBlankBlock($from.parent),
       });
     });
   }, [editor]);
@@ -3258,6 +3311,77 @@ const ScreenplayEditor: React.FC = () => {
     return () => window.removeEventListener(HANDWRITING_EVENT, onRequest);
   }, [editor]);
 
+  // The "menu was refused here" marker only holds for the line it was refused
+  // on: step away and Enter offers the menu again, exactly as it did before.
+  React.useEffect(() => {
+    if (!editor) return;
+    const onSelection = () => {
+      if (pickerDismissedAtRef.current === null) return;
+      const { $from } = editor.state.selection;
+      if ($from.depth === 0 || $from.before($from.depth) !== pickerDismissedAtRef.current) {
+        pickerDismissedAtRef.current = null;
+      }
+    };
+    editor.on('selectionUpdate', onSelection);
+    return () => { editor.off('selectionUpdate', onSelection); };
+  }, [editor]);
+
+  // Adds one blank line at the caret. With no argument it keeps the element
+  // type the writer already has, except where a plain Action is the right
+  // neutral spacer; `typeId` is the writer naming the type outright, which the
+  // element menu does when the row picked is the one the line is already on.
+  insertBlankLineRef.current = useCallback((typeId?: string) => {
+    if (!editor) return;
+    pickerDismissedAtRef.current = null;
+    const node = editor.state.selection.$from.parent;
+    const blankType = typeId ?? blankLineTypeFor(node.type.name);
+    // setNode is not optional. `splitBlock` gives the new node the schema's
+    // default block type whenever the caret sits at the end of a block — always
+    // true on a blank one — and this document's default is `sceneHeading`.
+    const chain = editor.chain().focus().splitBlock();
+    if (editor.schema.nodes[blankType]) {
+      // A customElement carries its identity in attrs, which the split drops.
+      chain.setNode(blankType, blankType === 'customElement' ? { ...node.attrs } : undefined);
+    } else {
+      // An id that exists only as a template rule — same wrapper the menu uses.
+      const rule = useFormattingTemplateStore.getState().getActiveTemplate().rules[blankType];
+      if (!rule) return;
+      chain.setNode('customElement', { customTypeId: blankType, customLabel: rule.label });
+    }
+    chain.run();
+  }, [editor]);
+
+  // The element menu, asked for from outside the editor. Opening it on a line
+  // with text is allowed — it is then an ordinary type chooser.
+  openElementMenuRef.current = useCallback(() => {
+    if (!editor || pickerVisibleRef.current) return;
+    const node = editor.state.selection.$from.parent;
+    if (!node.isTextblock) return;
+    const type = node.type.name === 'customElement'
+      ? (node.attrs?.customTypeId || node.type.name)
+      : node.type.name;
+    showPickerRef.current(type as ElementType);
+  }, [editor]);
+
+  React.useEffect(() => {
+    const onRequest = () => openElementMenuRef.current();
+    const onKey = (e: KeyboardEvent) => {
+      const spec = useSettingsStore.getState().elementMenuShortcut;
+      if (!spec || !matchesShortcut(e, spec)) return;
+      // Only when the writer is actually in the script — the same keys may
+      // mean something else in a dialog or a side panel.
+      if (!editor?.isFocused) return;
+      e.preventDefault();
+      openElementMenuRef.current();
+    };
+    window.addEventListener(ELEMENT_MENU_EVENT, onRequest);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener(ELEMENT_MENU_EVENT, onRequest);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [editor]);
+
   // Bridge: let the AvKeymap extension surface the same element picker, but
   // restricted to the cell-valid types (avPara/avShot/avDirection).
   React.useEffect(() => {
@@ -3269,6 +3393,23 @@ const ScreenplayEditor: React.FC = () => {
 
   const handlePickerSelect = useCallback((type: ElementType) => {
     if (!editor) return;
+    pickerDismissedAtRef.current = null;
+    setPickerState(s => ({ ...s, visible: false }));
+
+    // On a blank line, picking the type that line already has cannot mean
+    // "convert it" — it would be a no-op, and it is the row a writer lands on
+    // most, since the list is ordered current-type first. Read it the only way
+    // it makes sense: one more line of this element (issue #100). On a line
+    // with text, the same pick really is a no-op, and is left as one.
+    const node = editor.state.selection.$from.parent;
+    const currentId = node.type.name === 'customElement'
+      ? ((node.attrs?.customTypeId as string) || 'customElement')
+      : node.type.name;
+    if (type === currentId && isBlankBlock(node)) {
+      insertBlankLineRef.current(type);
+      return;
+    }
+
     // setNode works for any real schema node (built-in screenplay elements as
     // well as the AV inner types avPara/avShot/avDirection). Custom-id elements
     // declared only in template rules go through the customElement wrapper.
@@ -3284,11 +3425,19 @@ const ScreenplayEditor: React.FC = () => {
         }).run();
       }
     }
-    setPickerState(s => ({ ...s, visible: false }));
   }, [editor]);
+
+  const handlePickerInsertLine = useCallback(() => {
+    setPickerState(s => ({ ...s, visible: false }));
+    insertBlankLineRef.current();
+  }, []);
 
   const handlePickerDismiss = useCallback(() => {
     setPickerState(s => ({ ...s, visible: false }));
+    if (editor) {
+      const { $from } = editor.state.selection;
+      pickerDismissedAtRef.current = $from.depth === 0 ? null : $from.before($from.depth);
+    }
     // Re-focus editor
     editor?.commands.focus();
   }, [editor]);
@@ -4697,6 +4846,7 @@ const ScreenplayEditor: React.FC = () => {
           defaultType={pickerState.defaultType}
           availableTypes={pickerState.availableTypes}
           onSelect={handlePickerSelect}
+          onInsertBlankLine={pickerState.blankLine ? handlePickerInsertLine : undefined}
           onDismiss={handlePickerDismiss}
         />
       )}

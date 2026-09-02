@@ -41,11 +41,18 @@ interface ElementPickerProps {
   /** When provided, overrides the template-derived element list (used inside AV cells). */
   availableTypes?: ElementType[];
   onSelect: (type: ElementType) => void;
+  /**
+   * "Never mind the type — just give me another blank line." (issue #100)
+   * Absent when the menu was opened on a line that already has text, where a
+   * blank line is not what any of these rows could mean: Enter then accepts
+   * the highlighted row straight away, as an ordinary menu does.
+   */
+  onInsertBlankLine?: () => void;
   onDismiss: () => void;
 }
 
 const ElementPicker: React.FC<ElementPickerProps> = ({
-  position, defaultType, availableTypes, onSelect, onDismiss,
+  position, defaultType, availableTypes, onSelect, onInsertBlankLine, onDismiss,
 }) => {
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
   const orderedTypes = useMemo<ElementType[]>(
@@ -67,6 +74,15 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
   const labelFor = (type: ElementType): string =>
     ELEMENT_LABELS[type] || activeTemplate.rules[type]?.label || String(type);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  // Enter opened this menu, so Enter cannot also mean "accept the highlighted
+  // row" — that left the writer no keystroke for "just another blank line"
+  // (issue #100). Until an arrow key or the pointer picks a row, Enter still
+  // means what it means everywhere else: insert a line.
+  const [hasNavigated, setHasNavigated] = useState(!onInsertBlankLine);
+  // Pointer hover is highlight only, never navigation: on iPad an Apple Pencil
+  // hovering over the menu raises mouseenter without the writer choosing
+  // anything, and that must not quietly turn Enter back into "accept".
+  const [hoverIndex, setHoverIndex] = useState(-1);
   const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -101,17 +117,22 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
       case 'ArrowDown':
         e.preventDefault();
         e.stopPropagation();
-        setSelectedIndex(i => Math.min(i + 1, orderedTypes.length - 1));
+        setHasNavigated(true);
+        setHoverIndex(-1);
+        setSelectedIndex(i => (hasNavigated ? Math.min(i + 1, orderedTypes.length - 1) : i));
         break;
       case 'ArrowUp':
         e.preventDefault();
         e.stopPropagation();
-        setSelectedIndex(i => Math.max(i - 1, 0));
+        setHasNavigated(true);
+        setHoverIndex(-1);
+        setSelectedIndex(i => (hasNavigated ? Math.max(i - 1, 0) : i));
         break;
       case 'Enter':
         e.preventDefault();
         e.stopPropagation();
-        onSelect(orderedTypes[selectedIndex]);
+        if (hasNavigated || !onInsertBlankLine) onSelect(orderedTypes[selectedIndex]);
+        else onInsertBlankLine();
         break;
       case 'Escape':
         e.preventDefault();
@@ -123,7 +144,7 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
         onDismiss();
         break;
     }
-  }, [selectedIndex, orderedTypes, onSelect, onDismiss]);
+  }, [selectedIndex, hasNavigated, orderedTypes, onSelect, onInsertBlankLine, onDismiss]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown, true);
@@ -148,18 +169,41 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
       style={{ top: adjustedPos.top, left: adjustedPos.left }}
     >
       <div className="element-picker-header">Element Type</div>
-      {orderedTypes.map((type, i) => (
+      {orderedTypes.map((type, i) => {
+        // The menu only opens on a blank line, so the row the line is already
+        // on cannot mean "convert" — it means one more line of this element.
+        // Say so, rather than leaving it to be discovered (issue #100).
+        const hint = [
+          type === defaultType && onInsertBlankLine ? 'blank line' : '',
+          hasNavigated && i === selectedIndex ? '\u23CE' : '',
+        ].filter(Boolean).join(' ');
+        return (
         <div
           key={type}
           ref={el => { itemRefs.current[i] = el; }}
-          className={`element-picker-item${i === selectedIndex ? ' selected' : ''}`}
+          className={`element-picker-item${(hasNavigated && i === selectedIndex) || i === hoverIndex ? ' selected' : ''}`}
           onMouseDown={(e) => { e.preventDefault(); onSelect(type); }}
-          onMouseEnter={() => setSelectedIndex(i)}
+          onMouseEnter={() => setHoverIndex(i)}
+          onMouseLeave={() => setHoverIndex(h => (h === i ? -1 : h))}
           title={ELEMENT_DESCRIPTIONS[type]}
         >
           <span className="element-picker-label">{labelFor(type)}</span>
+          {/* Always rendered, even empty: the hint column is reserved width, so
+              a hint appearing or moving between rows never resizes the menu. */}
+          <span className="element-picker-hint">{hint}</span>
         </div>
-      ))}
+        );
+      })}
+      {onInsertBlankLine && (
+        <div
+          className="element-picker-blank"
+          onMouseDown={(e) => { e.preventDefault(); onInsertBlankLine(); }}
+          title="Add another blank line instead of changing the element type"
+        >
+          <span className="element-picker-label">Blank Line</span>
+          <span className="element-picker-hint">{hasNavigated ? '' : '\u23CE'}</span>
+        </div>
+      )}
     </div>
   );
 };

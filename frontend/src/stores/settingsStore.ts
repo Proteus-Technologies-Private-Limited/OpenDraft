@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { parseShortcut } from '../utils/shortcuts';
+import { DEFAULT_ELEMENT_MENU_SHORTCUT } from '../utils/elementMenu';
 
 export interface CollabUser {
   id: string;
@@ -77,6 +79,24 @@ interface SettingsState {
   /** Also snapshot documents that were never saved to the library. */
   backupUnsavedDocs: boolean;
   setBackupUnsavedDocs: (v: boolean) => void;
+
+  // ── Editing ───────────────────────────────────────────────────────────
+  /**
+   * Whether Enter on a blank line offers the element menu. Off means Enter is
+   * always a plain new line, for writers who format by muscle memory — the same
+   * switch Final Draft ships as "Show SmartType Window", Movie Magic as "Enable
+   * Quick Entry" and WriterDuet as "Show line type select on enter" (issue #100).
+   */
+  elementMenuOnEnter: boolean;
+  setElementMenuOnEnter: (v: boolean) => void;
+  /**
+   * Shortcut that opens the element menu anywhere, blank line or not, in
+   * ProseMirror notation (`Alt-Enter`, `Mod-Shift-e`). '' turns it off. It is
+   * the way to the menu for anyone who has turned the Enter route off, and the
+   * only way to it from a line that already has text on it (issue #100).
+   */
+  elementMenuShortcut: string;
+  setElementMenuShortcut: (spec: string) => void;
 }
 
 const STORAGE_KEY_URL = 'opendraft:collabServerUrl';
@@ -91,6 +111,8 @@ const STORAGE_KEY_BACKUP_INTERVAL = 'opendraft:backupIntervalMinutes';
 const STORAGE_KEY_BACKUP_RETENTION = 'opendraft:backupRetentionCount';
 const STORAGE_KEY_BACKUP_IMAGES = 'opendraft:backupIncludeImages';
 const STORAGE_KEY_BACKUP_UNSAVED = 'opendraft:backupUnsavedDocs';
+const STORAGE_KEY_ELEMENT_MENU_ON_ENTER = 'opendraft:elementMenuOnEnter';
+const STORAGE_KEY_ELEMENT_MENU_SHORTCUT = 'opendraft:elementMenuShortcut';
 
 export const BACKUP_INTERVAL_OPTIONS = [5, 10, 15, 30, 60] as const;
 /** 0 means "keep every snapshot". */
@@ -112,6 +134,17 @@ function loadClampedInt(key: string, fallback: number, min: number, max: number)
   const n = parseInt(raw, 10);
   if (Number.isNaN(n)) return fallback;
   return Math.min(max, Math.max(min, n));
+}
+
+/** Stored spec, the shipped default when nothing is stored, '' when switched off. */
+function loadElementMenuShortcut(): string {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_ELEMENT_MENU_SHORTCUT);
+    if (raw === null) return DEFAULT_ELEMENT_MENU_SHORTCUT;
+    return raw && parseShortcut(raw) ? raw : '';
+  } catch {
+    return DEFAULT_ELEMENT_MENU_SHORTCUT;
+  }
 }
 
 function loadBool(key: string, fallback: boolean): boolean {
@@ -235,5 +268,20 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setBackupUnsavedDocs: (v) => {
     try { localStorage.setItem(STORAGE_KEY_BACKUP_UNSAVED, v ? '1' : '0'); } catch { /* ignore */ }
     set({ backupUnsavedDocs: v });
+  },
+
+  elementMenuOnEnter: loadBool(STORAGE_KEY_ELEMENT_MENU_ON_ENTER, true),
+  setElementMenuOnEnter: (v) => {
+    try { localStorage.setItem(STORAGE_KEY_ELEMENT_MENU_ON_ENTER, v ? '1' : '0'); } catch { /* ignore */ }
+    set({ elementMenuOnEnter: v });
+  },
+
+  elementMenuShortcut: loadElementMenuShortcut(),
+  setElementMenuShortcut: (spec) => {
+    // '' is a real value here — it means "no shortcut" — so it is stored rather
+    // than removed, or the default would come back on the next launch.
+    const clean = spec && parseShortcut(spec) ? spec : '';
+    try { localStorage.setItem(STORAGE_KEY_ELEMENT_MENU_SHORTCUT, clean); } catch { /* ignore */ }
+    set({ elementMenuShortcut: clean });
   },
 }));

@@ -21,6 +21,8 @@
  */
 
 import { Node, Extension, mergeAttributes } from '@tiptap/core';
+import { isBlankBlock, previousSiblingBlock, blankLineTypeFor } from '../blankLine';
+import { useSettingsStore } from '../../stores/settingsStore';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
 
@@ -276,6 +278,18 @@ export const AvKeymap = Extension.create({
         const { $from } = editor.state.selection;
         const para = $from.parent;
         if (para.textContent.length === 0) {
+          // Same rule as the screenplay body: once a blank line follows a blank
+          // line — or the writer has switched the menu off — Enter means "one
+          // more blank line", not "ask me again" (issue #100). setNode is not
+          // optional: `splitBlock` at the end of a block takes the cell's
+          // default child, which is not necessarily the type in hand.
+          if (!useSettingsStore.getState().elementMenuOnEnter
+              || isBlankBlock(previousSiblingBlock($from))) {
+            return editor.chain()
+              .splitBlock()
+              .setNode(blankLineTypeFor(para.type.name))
+              .run();
+          }
           if (__avCellPicker) __avCellPicker(para.type.name, AV_CELL_ELEMENT_IDS);
           return true;
         }

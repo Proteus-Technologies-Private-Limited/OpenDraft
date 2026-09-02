@@ -7,6 +7,8 @@ import { useProjectStore } from '../stores/projectStore';
 import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
 import { requestHandwriting } from '../utils/handwriting';
+import { requestElementMenu } from '../utils/elementMenu';
+import { formatShortcut } from '../utils/shortcuts';
 import { showToast } from './Toast';
 import { downloadFDX, exportFDX } from '../utils/fdxExporter';
 import { downloadFountain, exportFountain } from '../utils/fountainExporter';
@@ -232,6 +234,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   // Platform-aware modifier key symbol for shortcut labels
   const mod = /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl+';
+  // Written the way this platform writes it, from whatever the writer set.
+  const elementMenuShortcut = useSettingsStore((s) => s.elementMenuShortcut);
   const {
     navigatorOpen,
     toggleNavigator,
@@ -1634,6 +1638,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {
           icon: <FaListOl />, label: 'Element',
           children: [
+            {
+              label: 'Show Element Menu\u2026',
+              shortcut: formatShortcut(elementMenuShortcut),
+              title: 'Choose the element for this line, at the cursor',
+              action: requestElementMenu,
+            },
+            { separator: true, label: '' },
             // Title page fields have template rules but are not conversion
             // targets — "make this line of action a copyright notice" is not a
             // thing. They are reached through the Title Page editor.

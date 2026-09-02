@@ -190,3 +190,61 @@ describe('non-printing elements take no space on the page', () => {
       .toEqual(plain.breaks.map((b) => b.nodeIndex + 1));
   });
 });
+
+describe('splitting a speech across a page', () => {
+  /**
+   * A speech splits at a paragraph boundary — a plain Enter, no blank line
+   * needed — and Final Draft's rule of at least two dialogue lines either side
+   * of the split is kept by choosing which boundary, not by giving up on the
+   * split. Filling the page greedily and then testing the minimum once meant a
+   * speech whose last paragraph was a single line could not be split at all:
+   * the test failed and the whole speech jumped to the next page, even though
+   * an earlier boundary satisfied it comfortably. Adding or removing an
+   * unrelated blank line elsewhere flipped the behaviour, which is what made it
+   * look arbitrary.
+   */
+  const MIN_DL = 2;
+
+  /** Filler, then a speech of `paras` one-line dialogue paragraphs. */
+  const speechAfter = (fill: number, paras: number) => doc(
+    ...Array.from({ length: fill }, (_, i) => block('action', `Line ${i}.`)),
+    block('character', 'ANNA'),
+    ...Array.from({ length: paras }, (_, i) => block('dialogue', `Paragraph ${i} of the speech.`)),
+    block('action', 'After the speech.'),
+  );
+
+  const splitOf = (json: ReturnType<typeof doc>) =>
+    computeBreaks(pmDoc(json), DEFAULT_PAGE_LAYOUT).breaks.find((b) => b.isDialogueSplit);
+
+  // A range of fills, so the case does not depend on the speech landing at one
+  // exact offset — which is precisely the fragility being fixed.
+  it.each([24, 25, 26, 27])(
+    'splits rather than moving the whole speech (fill %i)', (fill) => {
+      const split = splitOf(speechAfter(fill, 10));
+      expect(split).toBeDefined();
+      expect(split!.characterName).toBe('ANNA');
+    },
+  );
+
+  it('leaves the minimum on each side of the split', () => {
+    const json = speechAfter(24, 10);
+    const state = computeBreaks(pmDoc(json), DEFAULT_PAGE_LAYOUT);
+    const split = state.breaks.find((b) => b.isDialogueSplit)!;
+    // Paragraphs are one line each, so counting them counts lines. The cue sits
+    // at index `fill`; dialogue runs from the next node to `fill + 10`.
+    const cueIndex = 24;
+    const fittedParas = split.nodeIndex - (cueIndex + 1);
+    const remainingParas = (cueIndex + 10) - split.nodeIndex + 1;
+    expect(fittedParas).toBeGreaterThanOrEqual(MIN_DL);
+    expect(remainingParas).toBeGreaterThanOrEqual(MIN_DL);
+  });
+
+  it('still moves a speech that cannot be split legally', () => {
+    // The cue lands with one line of room left, so no boundary can leave two
+    // lines on both sides. The speech travels whole rather than orphaning one.
+    const json = speechAfter(28, 4);
+    const state = computeBreaks(pmDoc(json), DEFAULT_PAGE_LAYOUT);
+    expect(state.breaks.length).toBeGreaterThan(0);
+    expect(state.breaks.some((b) => b.isDialogueSplit)).toBe(false);
+  });
+});

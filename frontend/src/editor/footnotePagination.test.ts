@@ -220,3 +220,47 @@ describe('the title page is not script', () => {
     expect(state.footnotePages!.some((f) => f.noteIds.includes('n1'))).toBe(true);
   });
 });
+
+describe('a page that ends in a dialogue split', () => {
+  /**
+   * A page whose last speech carries over keeps the notes the rest of the page
+   * had already claimed. The split path used to close the page on the fitted
+   * half of the speech alone, which threw every earlier note on that page away
+   * — so a page ending in a (MORE) printed no footnotes at all.
+   */
+  const scriptSplittingAfter = (fill: number): JSONContent => doc(
+    noted('Referenced action.', 'n1'),
+    ...filler(fill, 1),
+    block('character', 'ANNA'),
+    block('dialogue', 'word '.repeat(20).trim()),
+    block('parenthetical', '(beat)'),
+    block('dialogue', 'word '.repeat(20).trim()),
+    block('action', 'After the speech.'),
+  );
+
+  // Two fills either side of the boundary, so the case survives a change in
+  // how many lines the filler happens to take.
+  it.each([23, 24])('keeps the page’s own notes when the speech carries over (fill %i)', (fill) => {
+    const json = scriptSplittingAfter(fill);
+    const state = breaksOf(json, [note('n1')]);
+    expect(state.breaks.some((b) => b.isDialogueSplit)).toBe(true);
+    const first = state.footnotePages!.find((f) => f.pageNumber === 1);
+    expect(first?.noteIds).toContain('n1');
+    expect(first!.slices.length).toBeGreaterThan(0);
+  });
+
+  it('does not lose the note that the carried-over half brings with it', () => {
+    // The note is on the character cue, which stays on the closing page.
+    const json = doc(
+      ...filler(24),
+      marked('character', 'ANNA', { type: 'scriptNote', attrs: { noteId: 'n2', color: '#f4d35e' } }),
+      block('dialogue', 'word '.repeat(20).trim()),
+      block('parenthetical', '(beat)'),
+      block('dialogue', 'word '.repeat(20).trim()),
+      block('action', 'After the speech.'),
+    );
+    const state = breaksOf(json, [note('n2')]);
+    expect(state.breaks.some((b) => b.isDialogueSplit)).toBe(true);
+    expect(state.footnotePages!.some((f) => f.noteIds.includes('n2'))).toBe(true);
+  });
+});

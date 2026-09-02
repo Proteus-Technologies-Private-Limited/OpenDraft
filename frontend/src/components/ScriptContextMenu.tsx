@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import type { Editor } from '@tiptap/react';
 import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorStore';
 import { useEditorStore } from '../stores/editorStore';
@@ -13,16 +13,89 @@ import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFo
 import { pasteAsFountain } from '../utils/pasteFountain';
 import { supportsApplePencil } from '../services/platform';
 import { requestHandwriting } from '../utils/handwriting';
+import { formatShortcut } from '../utils/shortcuts';
+import { useSettingsStore } from '../stores/settingsStore';
 import {
   copySelection, cutSelection, pasteIntoEditor, pasteWithoutFormatting,
   type ClipboardResult,
 } from '../utils/clipboardCommands';
 import { showToast } from './Toast';
 import { removeScriptNoteMarks } from '../editor/scriptNoteMarks';
+import { applyCaseToRange, shouldUpperCase } from '../editor/caseTransform';
+import { TextSelection } from '@tiptap/pm/state';
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
 const shift = isMac ? '⇧' : 'Shift+';
+
+/**
+ * A submenu that stays on screen.
+ *
+ * The natural place for one is flush to the right of its row and aligned with
+ * it, which is all CSS could say. Near an edge that place is off screen: a long
+ * Element list opened low on the page ran past the bottom of the window with no
+ * way to reach the rest of it, and the same for Revision Color.
+ *
+ * So the panel is placed against the row it belongs to: flipped to the left of
+ * the menu when there is no room to the right, lifted when it would run off the
+ * bottom, and capped to the window with its own scrollbar when it is taller
+ * than the screen. `position: fixed` rather than absolute, so the parent menu
+ * can scroll when it is itself too tall without clipping its own submenus.
+ */
+const CtxSubmenu: React.FC<{
+  anchorRef: React.RefObject<HTMLElement | null>;
+  className?: string;
+  children: React.ReactNode;
+}> = ({ anchorRef, className = '', children }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [placed, setPlaced] = useState<{ style: React.CSSProperties; flipped: boolean }>(
+    { style: { left: 0, top: 0, visibility: 'hidden' }, flipped: false },
+  );
+
+  // Layout effect, not effect: this runs after the panel is measurable but
+  // before the browser paints, so it is never seen in the wrong place.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const anchor = anchorRef.current;
+    if (!el || !anchor) return;
+    const GAP = 8;
+    const a = anchor.getBoundingClientRect();
+    const width = el.offsetWidth;
+    const natural = el.scrollHeight;
+    const maxHeight = window.innerHeight - GAP * 2;
+    const height = Math.min(natural, maxHeight);
+
+    let flipped = false;
+    let left = a.right;
+    if (left + width > window.innerWidth - GAP) {
+      left = a.left - width;
+      flipped = true;
+      // Wider than the space either side: give up on flipping and just fit.
+      if (left < GAP) {
+        left = Math.max(GAP, window.innerWidth - GAP - width);
+        flipped = false;
+      }
+    }
+    let top = a.top - 4;
+    if (top + height > window.innerHeight - GAP) top = window.innerHeight - GAP - height;
+    if (top < GAP) top = GAP;
+
+    setPlaced({
+      style: { left, top, maxHeight: natural > maxHeight ? maxHeight : undefined },
+      flipped,
+    });
+  }, [anchorRef]);
+
+  return (
+    <div
+      ref={ref}
+      className={`ctx-submenu${placed.flipped ? ' is-flipped' : ''}${className ? ` ${className}` : ''}`}
+      style={placed.style}
+    >
+      {children}
+    </div>
+  );
+};
 
 // Element types shown in the submenu, with their shortcuts
 const ELEMENT_MENU_ITEMS: { type: ElementType; shortcut: string }[] = [
@@ -87,6 +160,12 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   const setGrammarRuleEnabled = useEditorStore((s) => s.setGrammarRuleEnabled);
   const menuRef = useRef<HTMLDivElement>(null);
   const [elementSubOpen, setElementSubOpen] = useState(false);
+  // Each submenu is placed against the row it hangs off, so each row needs a ref.
+  const elementMenuShortcut = useSettingsStore((st) => st.elementMenuShortcut);
+  const elementSubAnchor = useRef<HTMLDivElement>(null);
+  const styleSubAnchor = useRef<HTMLDivElement>(null);
+  const revisionSubAnchor = useRef<HTMLDivElement>(null);
+  const addDictAnchor = useRef<HTMLDivElement>(null);
   const [styleSubOpen, setStyleSubOpen] = useState(false);
   const [revisionSubOpen, setRevisionSubOpen] = useState(false);
   const [addDictSubOpen, setAddDictSubOpen] = useState(false);
@@ -269,14 +348,16 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   const handleSubscript = () => { editor.chain().focus().toggleSubscript().run(); onClose(); };
   const handleSuperscript = () => { editor.chain().focus().toggleSuperscript().run(); onClose(); };
   const handleAllCaps = () => {
-    // Toggle all caps on selection by transforming the text
     if (!hasSelection) { onClose(); return; }
     const { from, to } = editor.state.selection;
-    const text = editor.state.doc.textBetween(from, to);
-    const isUpper = text === text.toUpperCase();
-    const newText = isUpper ? text.toLowerCase() : text.toUpperCase();
-    editor.chain().focus().command(({ tr }) => {
-      tr.insertText(newText, from, to);
+    // '\n' between blocks so the toggle reads the selection the way the page
+    // reads it; without a separator "END" and "Anna" ran together as "ENDAnna".
+    const upper = shouldUpperCase(editor.state.doc.textBetween(from, to, '\n'));
+    editor.chain().focus().command(({ tr, state }) => {
+      if (!applyCaseToRange(tr, state.doc, from, to, upper)) return false;
+      // Keep the selection on what was just changed, so the writer can see it
+      // and toggle straight back.
+      tr.setSelection(TextSelection.create(tr.doc, tr.mapping.map(from), tr.mapping.map(to)));
       return true;
     }).run();
     onClose();
@@ -647,15 +728,17 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       {/* Element submenu */}
       <div
         className="ctx-has-sub-wrap"
+        ref={elementSubAnchor}
         onPointerEnter={(e) => { if (e.pointerType === 'mouse') { setElementSubOpen(true); setStyleSubOpen(false); setRevisionSubOpen(false); } }}
         onPointerLeave={(e) => { if (e.pointerType === 'mouse') setElementSubOpen(false); }}
       >
         <div className="ctx-item ctx-has-sub" onClick={() => { setElementSubOpen(true); setStyleSubOpen(false); setRevisionSubOpen(false); }}>
           <span>Element</span>
+          {elementMenuShortcut && <span className="ctx-shortcut">{formatShortcut(elementMenuShortcut)}</span>}
           <span className="ctx-arrow">&#9656;</span>
         </div>
         {elementSubOpen && (
-          <div className="ctx-submenu">
+          <CtxSubmenu anchorRef={elementSubAnchor}>
             {ELEMENT_MENU_ITEMS
               .filter(({ type }) => {
                 const rule = activeTemplate.rules[type];
@@ -671,13 +754,14 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
                 {shortcut && <span className="ctx-shortcut">{shortcut}</span>}
               </div>
             ))}
-          </div>
+          </CtxSubmenu>
         )}
       </div>
 
       {/* Style submenu */}
       <div
         className="ctx-has-sub-wrap"
+        ref={styleSubAnchor}
         onPointerEnter={(e) => { if (e.pointerType === 'mouse') { setStyleSubOpen(true); setElementSubOpen(false); setRevisionSubOpen(false); } }}
         onPointerLeave={(e) => { if (e.pointerType === 'mouse') setStyleSubOpen(false); }}
       >
@@ -686,7 +770,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           <span className="ctx-arrow">&#9656;</span>
         </div>
         {styleSubOpen && (
-          <div className="ctx-submenu">
+          <CtxSubmenu anchorRef={styleSubAnchor}>
             <div className={`ctx-item${locked.bold ? ' ctx-disabled' : ''}${editor.isActive('bold') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.bold) handleBold(); }}>
               <span>Bold</span>
               <span className="ctx-shortcut">{mod}B</span>
@@ -713,7 +797,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
             <div className={`ctx-item${locked.textTransform ? ' ctx-disabled' : ''}`} onClick={() => { if (!locked.textTransform) handleAllCaps(); }}>
               <span>ALL CAPS</span>
             </div>
-          </div>
+          </CtxSubmenu>
         )}
       </div>
 
@@ -751,6 +835,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       </div>
       <div
         className="ctx-has-sub-wrap"
+        ref={revisionSubAnchor}
         onPointerEnter={(e) => { if (e.pointerType === 'mouse') { setRevisionSubOpen(true); setElementSubOpen(false); setStyleSubOpen(false); } }}
         onPointerLeave={(e) => { if (e.pointerType === 'mouse') setRevisionSubOpen(false); }}
       >
@@ -759,7 +844,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           <span className="ctx-arrow">&#9656;</span>
         </div>
         {revisionSubOpen && (
-          <div className="ctx-submenu ctx-submenu-colors">
+          <CtxSubmenu anchorRef={revisionSubAnchor} className="ctx-submenu-colors">
             {REVISION_COLORS.map((color) => (
               <div
                 key={color}
@@ -770,7 +855,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
                 <span>{color}</span>
               </div>
             ))}
-          </div>
+          </CtxSubmenu>
         )}
       </div>
       <div className="ctx-separator" />
@@ -827,17 +912,17 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
             </div>
             <div
               className="ctx-item"
+              ref={addDictAnchor}
               onMouseEnter={() => multipleTargets && setAddDictSubOpen(true)}
               onMouseLeave={() => multipleTargets && setAddDictSubOpen(false)}
               onClick={handleSpellAddDict}
-              style={multipleTargets ? { position: 'relative' } : undefined}
             >
               <span>Add to Dictionary{multipleTargets ? '…' : ''}</span>
               {multipleTargets && (
                 <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--fd-text-muted)' }}>▸</span>
               )}
               {multipleTargets && addDictSubOpen && (
-                <div className="ctx-submenu" style={{ left: '100%', top: 0 }}>
+                <CtxSubmenu anchorRef={addDictAnchor}>
                   {activeAddTargets.map((t) => {
                     const label = t === PROJECT_DICT_TARGET ? 'Project dictionary' : t;
                     return (
@@ -853,7 +938,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
                       </div>
                     );
                   })}
-                </div>
+                </CtxSubmenu>
               )}
             </div>
           </>

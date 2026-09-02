@@ -3764,12 +3764,38 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 }
 .element-picker-label {
   flex: 1;
+  white-space: nowrap;
 }
+/* Reserved column, wide enough for the longest hint ("blank line"), so the menu
+   is sized by its element labels alone. Without it the menu resized as hints
+   appeared and moved between rows while the writer arrowed through it. */
 .element-picker-hint {
+  flex: 0 0 auto;
+  min-width: 52px;
+  text-align: right;
   font-size: 10px;
   color: var(--fd-text-muted);
   margin-left: 12px;
   font-style: italic;
+}
+/* "Blank Line" escape hatch: Enter opened this menu, so it also has to be able
+   to leave it with the line the writer asked for (issue #100). Sticky so it
+   stays reachable by tap once the element list scrolls. */
+.element-picker-blank {
+  position: sticky;
+  bottom: -4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px 5px;
+  margin-top: 2px;
+  cursor: pointer;
+  color: var(--fd-text-muted);
+  background: var(--fd-dropdown-bg);
+  border-top: 1px solid var(--fd-border);
+}
+.element-picker-blank:hover {
+  color: var(--fd-text);
 }
 
 /* ============ CHARACTER AUTOCOMPLETE ============ */
@@ -9639,7 +9665,9 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
   z-index: 3000;
   min-width: 240px;
   max-height: calc(100vh - 16px);
-  overflow: visible;
+  /* Scrolls when the menu itself is taller than the window. Safe to clip only
+     because submenus are `position: fixed` and so escape this box. */
+  overflow-y: auto;
   background: var(--fd-dropdown-bg);
   border: 1px solid var(--fd-border);
   border-radius: 6px;
@@ -9703,12 +9731,11 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
 /* Submenus */
 .ctx-has-sub-wrap { position: relative; }
 .ctx-has-sub { position: relative; }
+/* Placed by CtxSubmenu, not by CSS: `left`/`top`/`max-height` are set from the
+   row it hangs off and the space actually available around it. */
 .ctx-submenu {
-  position: absolute;
-  left: 100%;
-  top: -4px;
+  position: fixed;
   min-width: 200px;
-  max-height: 400px;
   overflow-y: auto;
   background: var(--fd-dropdown-bg);
   border: 1px solid var(--fd-border);
@@ -9725,6 +9752,11 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
   top: 0;
   width: 12px;
   height: 100%;
+}
+/* Opened to the left of the menu instead: the gap to cross is on the other side. */
+.ctx-has-sub-wrap > .ctx-submenu.is-flipped::before {
+  left: auto;
+  right: -12px;
 }
 .ctx-has-sub:hover > .ctx-submenu { display: block; }
 .ctx-submenu .ctx-item { margin: 0 4px; }
@@ -12856,3 +12888,30 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
   .fonts-named-input-row button { padding: 9px 14px; font-size: 14px; }
   .fonts-dropzone button { padding: 12px 18px; font-size: 15px; }
 }
+
+/* ============ SHORTCUT CAPTURE (Settings → Editing) ============ */
+.shortcut-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.shortcut-capture {
+  min-width: 140px;
+  text-align: center;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.shortcut-capture.is-listening {
+  border-color: var(--fd-accent);
+  color: var(--fd-accent);
+}
+.shortcut-clear {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  color: var(--fd-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+.shortcut-clear:hover:not(:disabled) { color: var(--fd-text); }
+.shortcut-clear:disabled { opacity: .4; cursor: default; }

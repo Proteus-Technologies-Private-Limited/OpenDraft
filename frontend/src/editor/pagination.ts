@@ -492,8 +492,13 @@ export function computeBreaks(
         // Can we fit character + at least 2 lines of dialogue?
         if (remaining >= charLines + MIN_DL) {
           let fittedLines = charLines;
-          let lastFittedNode = i;
           let fittedDL = 0;
+          /**
+           * Every paragraph boundary the page could still afford, in the order
+           * the page fills. The last one is the fullest page; the earlier ones
+           * are what to fall back to when it leaves too little behind.
+           */
+          const candidates: { lastNode: number; lines: number; dl: number; notes: string[] }[] = [];
           for (let j = i + 1; j <= blockEnd; j++) {
             const dn = nodes[j];
             const dc = CHARS_PER_LINE[dn.typeName] || 36;
@@ -505,26 +510,39 @@ export function computeBreaks(
             if (fittedLines + dnTotal <= room) {
               fittedLines += dnTotal;
               fittedDL += dl;
-              lastFittedNode = j;
               fittedNotes = candNotes;
               remaining = room;
+              candidates.push({ lastNode: j, lines: fittedLines, dl: fittedDL, notes: fittedNotes });
             } else {
               break;
             }
           }
 
-          // Check remaining dialogue lines on next page >= 2
-          let remainDL = 0;
-          for (let j = lastFittedNode + 1; j <= blockEnd; j++) {
-            const dn = nodes[j];
-            const dc = CHARS_PER_LINE[dn.typeName] || 36;
-            remainDL += getTextLines(dn.text, dc);
+          /** Dialogue lines left in this speech after a split following `j`. */
+          const linesAfter = (j: number): number => {
+            let n = 0;
+            for (let k = j + 1; k <= blockEnd; k++) {
+              n += getTextLines(nodes[k].text, CHARS_PER_LINE[nodes[k].typeName] || 36);
+            }
+            return n;
+          };
+
+          // Fullest page first, then back off a paragraph at a time. Filling the
+          // page greedily and then testing the minimum ONCE meant a speech whose
+          // last paragraph is a single line could not be split at all — the test
+          // failed and the whole speech moved to the next page, even though an
+          // earlier boundary satisfied it comfortably. Backing off keeps Final
+          // Draft's two-lines-a-side rule rather than relaxing it.
+          let chosen: typeof candidates[number] | null = null;
+          for (let c = candidates.length - 1; c >= 0; c--) {
+            const cand = candidates[c];
+            if (cand.dl >= MIN_DL && linesAfter(cand.lastNode) >= MIN_DL) { chosen = cand; break; }
           }
 
-          if (lastFittedNode > i && fittedDL >= MIN_DL && remainDL >= MIN_DL) {
-            lineCount += fittedLines;
-            const committed = fittedNotes;
-            const splitIdx = lastFittedNode + 1;
+          if (chosen) {
+            lineCount += chosen.lines;
+            const committed = chosen.notes;
+            const splitIdx = chosen.lastNode + 1;
             const splitNode = splitIdx < nodes.length ? nodes[splitIdx] : nodes[blockEnd];
             breaks.push({
               nodeIndex: Math.min(splitIdx, nodes.length - 1),
@@ -537,7 +555,12 @@ export function computeBreaks(
               isTitlePage: false,
             });
             if (plan) {
-              closePage(committed);
+              // `pageNotes` is everything this page owed before the speech that
+              // is being split; `committed` is only what the fitted half of that
+              // speech brings with it. Closing on `committed` alone threw away
+              // every note the rest of the page had already claimed, so a page
+              // that ended in a (MORE) printed no footnotes at all.
+              closePage(pageNotes.concat(committed));
               pageNotes = notesFor(splitIdx, blockEnd);
             }
             pageNumber++;
