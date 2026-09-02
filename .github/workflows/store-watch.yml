@@ -54,6 +54,20 @@ jobs:
       - name: Install Play API client
         run: pip install --quiet google-auth
 
+      # The target is the released tag, not the manifest's own dmg version:
+      # release.sh's bump reaches main only when the release PR merges, which
+      # happens after the release is published. Reading the target out of the
+      # file would mean comparing the stores against the PREVIOUS version and
+      # concluding, wrongly, that there was nothing to wait for.
+      - name: The version the stores are catching up to
+        id: target
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(gh release view --repo "${{ github.repository }}" --json tagName -q .tagName)
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "Target: ${TAG#v}"
+
       - name: Ask the stores what is live
         id: check
         env:
@@ -65,20 +79,32 @@ jobs:
           else
             echo "::warning::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 not set — the play channel cannot be checked"
           fi
-          python3 test-script/refresh_store_manifest.py | tee /tmp/out.txt
+          python3 test-script/refresh_store_manifest.py --target "${{ steps.target.outputs.version }}" | tee /tmp/out.txt
           grep -E '^(changed|caught-up)=' /tmp/out.txt >> "$GITHUB_OUTPUT"
 
-      - name: Commit the manifest
-        if: steps.check.outputs.changed == 'true'
+      # Published to a branch, not to main. main requires a pull request, and
+      # GitHub refuses to make the Actions app a bypass actor on a repository
+      # ruleset ("must be part of the ruleset source or owner organization"),
+      # so this workflow cannot commit there. The branch is main's tree with
+      # the composed manifest on top, written only by this workflow, and it is
+      # what the app reads over raw.githubusercontent. Overwritten rather than
+      # appended to because it is derived, not authored — there is no history
+      # here worth keeping.
+      - name: Publish the manifest branch
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B manifest
           git add landing/updates.json
-          git commit -m "Point the store channels at what the stores are serving
+          if git diff --cached --quiet; then
+            git commit --allow-empty -m "Refresh manifest branch from main"
+          else
+            git commit -m "Point the store channels at what the stores are serving
 
-          Written by the store watch, not by hand: the version comes from the
+          Written by the store watch, not by hand: the versions come from the
           App Store lookup and the Play production track."
-          git push origin main
+          fi
+          git push --force origin manifest
 
       # How long the current release has been waiting on review.
       - name: Age of the latest release

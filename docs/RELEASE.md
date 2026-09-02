@@ -41,16 +41,28 @@ The `release.sh` script handles the entire process — version bumps, commit, an
 
 ## The update manifest (`landing/updates.json`)
 
-The in-app update notice reads this file from GitHub Pages. Nothing about it is
-maintained by hand, and it is split in two because the two halves become true at
-different times.
+Nothing about this file is maintained by hand, and it is split in two because
+the two halves become true at different times.
 
-**Download channels** (`dmg`, `win`, `linux`, `apk`) are bumped by
+**Where the app reads it from.** Not Pages, but
+`raw.githubusercontent.com/.../OpenDraft/manifest/landing/updates.json` — the
+`manifest` branch, which only the Store Watch workflow writes. `main` requires a
+pull request, and GitHub will not accept the Actions app as a bypass actor on a
+repository ruleset (`422: Actor GitHub Actions integration must be part of the
+ruleset source or owner organization`), so the watch cannot commit to `main` at
+all. Release assets were the other candidate and serve no
+`access-control-allow-origin`, which a web view will not read.
+`raw.githubusercontent` does, and the in-app user manual has fetched from that
+host in released builds for some time.
+
+So: `main` stays the human-owned source, and the `manifest` branch is the
+composed, machine-owned copy the app actually reads. The branch is overwritten
+each run, not appended to — it is derived, not authored.
+
+**Download channels** (`dmg`, `win`, `linux`, `apk`) are bumped on `main` by
 `release.sh`, which calls `test-script/update_download_manifest.py`. These are
-downloadable the instant CI publishes the release, and the edit reaches Pages
-when the release PR merges — which `release.sh` already sequences *after* the
-release is published, so the manifest and the README download links go live
-together.
+downloadable the instant CI publishes the release. Store Watch copies them onto
+the `manifest` branch on its next run after the release PR merges.
 
 **Store channels** (`ios`, `mas`, `play`) are left alone at release time,
 because Apple and Google are still reviewing. Naming the new version there would
@@ -74,20 +86,23 @@ schedule is the only delay Actions offers. What it must not do is ask forever:
    separate step because a disabled workflow ignores every trigger, including
    that one.
 2. While enabled it wakes every 30 minutes.
-3. Once every store channel has caught up it runs `gh workflow disable` on
-   itself. A disabled workflow's schedule does not fire, so between releases it
-   runs *zero* times.
+3. Once the manifest is *finished* it runs `gh workflow disable` on itself. A
+   disabled workflow's schedule does not fire, so between releases it runs
+   *zero* times.
 4. If a submission is rejected the stores never catch up, so it also gives up
    after 14 days, opens an issue naming the channel, and disables itself.
+
+"Finished" means both halves, not just the stores. The target comes from the
+published release tag rather than from the manifest, and the download channels
+must equal it too — otherwise the watch could switch off while the branch still
+advertised the *previous* version's downloads, because `release.sh`'s bump only
+reaches `main` when the release PR merges, which is after the release is
+published.
 
 **It ships disabled.** A new workflow with a `cron` starts firing as soon as it
 lands on main, so it was switched off once by hand after merging. If you ever
 need it back before a release, run it from the Actions tab — dispatching also
 re-enables it.
-
-**It pushes to main.** If branch protection refuses the `github-actions[bot]`
-push, add that actor to the ruleset's bypass list, or the manifest will go stale
-silently — the workflow is the only thing that moves the store channels.
 
 ---
 

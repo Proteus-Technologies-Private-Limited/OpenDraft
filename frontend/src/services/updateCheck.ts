@@ -38,9 +38,23 @@
 import { getOS, isWeb, openExternal } from './platform';
 import { getAppVersion } from './diagnostics';
 
-/** Published by deploy-manual.yml alongside the landing page. */
+/**
+ * The manifest, on a branch the store watch owns.
+ *
+ * Not the Pages site, and not for want of trying: the branch ruleset requires
+ * a pull request for main, and GitHub refuses to make the Actions app a bypass
+ * actor on a repository ruleset ("must be part of the ruleset source or owner
+ * organization"), so the watch cannot commit there. Release assets were the
+ * other candidate and serve no access-control-allow-origin at all, which a web
+ * view will not read.
+ *
+ * raw.githubusercontent does send it, and the in-app user manual has been
+ * fetching from that host in released builds for some time, so it is known to
+ * work from inside the Tauri web views. The branch is written only by the
+ * store watch; main stays the human-owned source it composes from.
+ */
 const MANIFEST_URL =
-  'https://proteus-technologies-private-limited.github.io/OpenDraft/updates.json';
+  'https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/manifest/landing/updates.json';
 
 const KEY_LAST_CHECK = 'opendraft:updateLastCheck';
 const KEY_LATEST = 'opendraft:updateLatestSeen';

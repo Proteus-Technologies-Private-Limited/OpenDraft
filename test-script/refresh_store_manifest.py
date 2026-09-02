@@ -179,10 +179,22 @@ def main():
             channels[name]['version'] = live
             changed = True
 
-    caught_up = all(
+    # Caught up means the manifest is finished, which needs both halves. The
+    # download channels are only right once release.sh's bump has merged to
+    # main, and that PR lands after the release is published — so checking the
+    # stores alone would let the watch switch off while still advertising the
+    # previous version's downloads.
+    stores_ready = all(
         name in channels and version_tuple(channels[name]['version']) >= version_tuple(target)
         for name in ('ios', 'mas', 'play')
     )
+    downloads_ready = all(
+        name in channels and version_tuple(channels[name]['version']) == version_tuple(target)
+        for name in ('dmg', 'win', 'linux', 'apk')
+    )
+    if not downloads_ready:
+        print('  waiting: main still advertises the previous downloads')
+    caught_up = stores_ready and downloads_ready
 
     if changed:
         with open(MANIFEST, 'w', encoding='utf-8') as fh:
