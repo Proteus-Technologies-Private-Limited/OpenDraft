@@ -1,5 +1,5 @@
 {
-  "version": "c49e1d830257e430",
+  "version": "7e18af4d44f6fafc",
   "pages": [
     {
       "slug": "index.html",
@@ -23,7 +23,7 @@
       "slug": "writing-screenplay.html",
       "title": "Writing Your Screenplay",
       "section": "Writing",
-      "hash": "0c8f773790461f97"
+      "hash": "452632f89ee85ac5"
     },
     {
       "slug": "formatting.html",
@@ -155,7 +155,7 @@
       "slug": "keyboard-shortcuts.html",
       "title": "Keyboard Shortcuts",
       "section": "Customization",
-      "hash": "aacb9424ca041a06"
+      "hash": "7e5cb6f8e7016ebb"
     }
   ]
 }
