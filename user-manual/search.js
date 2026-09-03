@@ -182,6 +182,8 @@
 
     // Import & Export
     { page: 'Import & Export', title: 'Import & Export', section: '', text: 'Final Draft Fountain PDF plain text formats. Import export save as.', url: 'import-export.html' },
+    { page: 'Import & Export', title: 'Printing', section: 'Printing', text: 'File Print command P print screenplay. Prints the PDF same pages as export matches screen. Desktop opens PDF in system viewer Preview. Browser print dialog. iPhone iPad share sheet AirPrint. Android print dialog save as PDF.', url: 'import-export.html#print' },
+    { page: 'Import & Export', title: 'Printing the page instead', section: 'Printing', text: 'Settings Printing print the PDF switch option desktop browser. Turn off to use the browser print dialog on the page, margins scaling controls. Browser decides page breaks may not match editor. Not shown on iPad iPhone Android.', url: 'import-export.html#print-via-pdf' },
     { page: 'Import & Export', title: 'Import Final Draft', section: 'Import FDX', text: 'Import Final Draft FDX. Preserves screenplay elements formatting character profiles highlighting page layout.', url: 'import-export.html#import-fdx' },
     { page: 'Import & Export', title: 'Import Fountain', section: 'Import Fountain', text: 'Import Fountain format. Open plain-text markup screenwriting. Free tools.', url: 'import-export.html#import-fountain' },
     { page: 'Import & Export', title: 'Open A File Where It Lives', section: 'Open In Place', text: 'Open file from disk open from files. Edit fdx fountain fadein osf odraft txt in place. Save writes back to original file iCloud Drive Google Drive Dropbox. Double click Finder Explorer stays attached. Save As lossless odraft copy.', url: 'import-export.html#open-in-place' },
