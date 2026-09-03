@@ -26,6 +26,22 @@ export interface ViewportRect {
   bottom: number;
 }
 
+/** A viewport rectangle with all four edges, as `getClientRects` returns them. */
+export interface ViewportBox {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** A rectangle in the page's unscaled coordinate space. */
+export interface PageRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 /** A point in the page's unscaled coordinate space. */
 export interface PagePoint {
   left: number;
@@ -41,8 +57,18 @@ export interface PagePoint {
  * width to divide by, and dividing anyway yields Infinity or NaN.
  */
 export function pageScale(page: ScaledPage): number | null {
-  if (page.offsetWidth <= 0) return null;
-  const scale = page.getBoundingClientRect().width / page.offsetWidth;
+  return scaleOf(page.offsetWidth, page.getBoundingClientRect().width);
+}
+
+/**
+ * The same division, over a width already measured — so a caller that needs
+ * the rectangle as well as the scale can read the element once instead of
+ * twice. `toPagePoint` is called for each end of a selection on every frame of
+ * a handle drag, and each of those was two forced layouts rather than one.
+ */
+function scaleOf(offsetWidth: number, paintedWidth: number): number | null {
+  if (offsetWidth <= 0) return null;
+  const scale = paintedWidth / offsetWidth;
   if (!Number.isFinite(scale) || scale <= 0) return null;
   return scale;
 }
@@ -56,12 +82,32 @@ export function pageScale(page: ScaledPage): number | null {
  * nothing to see or to grab.
  */
 export function toPagePoint(page: ScaledPage, rect: ViewportRect): PagePoint | null {
-  const scale = pageScale(page);
-  if (scale === null) return null;
   const bounds = page.getBoundingClientRect();
+  const scale = scaleOf(page.offsetWidth, bounds.width);
+  if (scale === null) return null;
   return {
     left: (rect.left - bounds.left) / scale,
     top: (rect.top - bounds.top) / scale,
     height: Math.max(8, (rect.bottom - rect.top) / scale),
+  };
+}
+
+/**
+ * `box`, in viewport coordinates, as a rectangle in the page's own space.
+ *
+ * The same conversion `toPagePoint` does, for the bands that stand in for a
+ * selection highlight the system has stopped painting. No height floor: unlike
+ * a caret, a band of no height is a line with nothing on it, and drawing it
+ * 8px tall would put a stripe under an empty line.
+ */
+export function toPageRect(page: ScaledPage, box: ViewportBox): PageRect | null {
+  const bounds = page.getBoundingClientRect();
+  const scale = scaleOf(page.offsetWidth, bounds.width);
+  if (scale === null) return null;
+  return {
+    left: (box.left - bounds.left) / scale,
+    top: (box.top - bounds.top) / scale,
+    width: (box.right - box.left) / scale,
+    height: (box.bottom - box.top) / scale,
   };
 }

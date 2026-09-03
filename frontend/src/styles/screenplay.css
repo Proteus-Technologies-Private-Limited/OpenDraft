@@ -7220,6 +7220,45 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
   touch-action: none;
 }
 
+/* Invisible to hit-testing for as long as a drag is running.
+ *
+ * The drag asks ProseMirror what position is under the finger, and
+ * `posAtCoords` answers by hit-testing that point: `elementFromPoint`, then a
+ * check that the result is inside `.ProseMirror`. These handles are children
+ * of `.page` rather than of the editor — they have to be, ProseMirror replaces
+ * its own children — so a probe that lands on one fails that check and falls
+ * back to `posFromElement`, which measures block rectangles rather than
+ * characters. The probe lands on one constantly: the handle is drawn at
+ * exactly the position being probed, and its grab target is 44px wide. That
+ * coarse fallback is what moved the selection two characters at a time
+ * (issue #108).
+ *
+ * Pointer capture is unaffected — a captured pointer is delivered to its
+ * capture target ahead of any hit test — so the handle keeps receiving the
+ * move and up events that drive the drag. Both handles are neutralised, not
+ * just the one being dragged, because the two ends pass close to each other. */
+.selection-handle.is-dragging { pointer-events: none; }
+
+/* No system highlight while SelectionHandles is drawing its own, so the script
+   never shows two over the same words. The caret has the same arrangement just
+   above. Only inside the page — a search field or a dialog keeps its own. */
+body.selection-bands-active .page .ProseMirror ::selection,
+body.selection-bands-active .page .ProseMirror::selection { background: transparent; }
+
+/* The stand-in selection highlight (see SelectionHandles.tsx). Drawn only when
+   the web view has no focus and so paints none of its own. Behind the text and
+   inert: `posAtCoords` hit-tests the point under the finger during a handle
+   drag, and anything catching that hit test outside .ProseMirror sends the
+   lookup down a coarse fallback path — which is what made dragging jump two
+   characters at a time in the first place. */
+.selection-band {
+  position: absolute;
+  background: rgba(51, 143, 255, 0.30);
+  pointer-events: none;
+  z-index: 39;
+  border-radius: 1px;
+}
+
 /* The knob. Clear of the text — above the start, below the end — so a finger
    on it is not covering the character the handle is pointing at, which is the
    character the writer is trying to see. */

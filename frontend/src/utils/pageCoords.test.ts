@@ -56,3 +56,21 @@ describe('toPagePoint', () => {
     expect(toPagePoint(page(0, 0), { left: 10, top: 40, bottom: 50 })).toBeNull();
   });
 });
+
+describe('toPagePoint — cost of a reading', () => {
+  it('measures the page once, not once for the scale and again for the origin', () => {
+    // Called for both ends of a selection on every frame of a handle drag, and
+    // getBoundingClientRect forces layout: twice per end was twice the cost of
+    // the thing being kept smooth (issue #108).
+    let reads = 0;
+    const page = {
+      offsetWidth: 800,
+      getBoundingClientRect() {
+        reads++;
+        return { left: 10, top: 20, width: 1200 };
+      },
+    };
+    toPagePoint(page, { left: 100, top: 200, bottom: 220 });
+    expect(reads).toBe(1);
+  });
+});
