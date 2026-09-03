@@ -7203,6 +7203,91 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
   .pencil-caret { animation: none; }
 }
 
+/* Draggable selection handles (see SelectionHandles.tsx). iPadOS draws none of
+   its own inside this web view, so the app draws them, in the same blue as the
+   selection highlight above so the three read as one thing.
+
+   Absolute inside .page, like the caret, so they scroll and scale with the
+   text. Unlike the caret they are not inert: each one is the drag target, and
+   `touch-action: none` is what stops a drag along a handle from scrolling the
+   page out from under the gesture instead of moving the selection. */
+.selection-handle {
+  position: absolute;
+  width: 2px;
+  margin-left: -1px;
+  background: #338fff;
+  z-index: 41;
+  touch-action: none;
+}
+
+/* Invisible to hit-testing for as long as a drag is running.
+ *
+ * The drag asks ProseMirror what position is under the finger, and
+ * `posAtCoords` answers by hit-testing that point: `elementFromPoint`, then a
+ * check that the result is inside `.ProseMirror`. These handles are children
+ * of `.page` rather than of the editor — they have to be, ProseMirror replaces
+ * its own children — so a probe that lands on one fails that check and falls
+ * back to `posFromElement`, which measures block rectangles rather than
+ * characters. The probe lands on one constantly: the handle is drawn at
+ * exactly the position being probed, and its grab target is 44px wide. That
+ * coarse fallback is what moved the selection two characters at a time
+ * (issue #108).
+ *
+ * Pointer capture is unaffected — a captured pointer is delivered to its
+ * capture target ahead of any hit test — so the handle keeps receiving the
+ * move and up events that drive the drag. Both handles are neutralised, not
+ * just the one being dragged, because the two ends pass close to each other. */
+.selection-handle.is-dragging { pointer-events: none; }
+
+/* No system highlight while SelectionHandles is drawing its own, so the script
+   never shows two over the same words. The caret has the same arrangement just
+   above. Only inside the page — a search field or a dialog keeps its own. */
+body.selection-bands-active .page .ProseMirror ::selection,
+body.selection-bands-active .page .ProseMirror::selection { background: transparent; }
+
+/* The stand-in selection highlight (see SelectionHandles.tsx). Drawn only when
+   the web view has no focus and so paints none of its own. Behind the text and
+   inert: `posAtCoords` hit-tests the point under the finger during a handle
+   drag, and anything catching that hit test outside .ProseMirror sends the
+   lookup down a coarse fallback path — which is what made dragging jump two
+   characters at a time in the first place. */
+.selection-band {
+  position: absolute;
+  background: rgba(51, 143, 255, 0.30);
+  pointer-events: none;
+  z-index: 39;
+  border-radius: 1px;
+}
+
+/* The knob. Clear of the text — above the start, below the end — so a finger
+   on it is not covering the character the handle is pointing at, which is the
+   character the writer is trying to see. */
+.selection-handle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: inherit;
+}
+.selection-handle-start::before { top: -11px; }
+.selection-handle-end::before { bottom: -11px; }
+
+/* A finger-sized target around a 2px line. Invisible, and wider than the
+   handle in every direction so the knob can be grabbed from slightly off it —
+   the whole point of a handle is that it is caught first time. */
+.selection-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 44px;
+  margin-left: -22px;
+  top: -24px;
+  bottom: -24px;
+}
+
 /* History mode: visual feedback on the editor area */
 .app-container.history-mode .editor-main {
   background: repeating-linear-gradient(
@@ -9384,42 +9469,74 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
    cramped, destructive behaviour in the editor was a symptom of there being
    almost none mid-script (issue #90). Nothing follows the caret in here, so
    nothing can be overwritten. */
-.scribble-overlay {
+/* A floating panel, not a modal sheet. There is no backdrop on purpose: the
+   script behind stays live, and tapping a line in it is how the writer moves
+   where the next insert lands without closing anything (issue #90). It is
+   dragged by its header, because only the writer knows which part of the page
+   it must not cover. */
+.scribble-panel {
   position: fixed;
-  inset: 0;
+  /* Placed by the component, which measures it and keeps it on screen. */
+  left: 0;
+  top: 0;
   z-index: 3600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.45);
-}
-.scribble-sheet {
-  /* Bigger than it was: this is a writing surface, not a prompt, and a Pencil
-     needs room to form letters at a natural size. */
-  width: min(980px, 100%);
-  max-height: calc(var(--vv-height, 100dvh) - 32px);
-  background: var(--fd-dropdown-bg);
+  /* Wide enough to write a line of dialogue at hand size, narrow enough to
+     leave the script either side of it readable. */
+  width: min(720px, calc(100vw - 16px));
+  max-height: calc(var(--vv-height, 100dvh) - 16px);
+  /* Resizable, so a width and height set by the writer arrive as inline
+     styles and have to be allowed to win over the defaults above. */
+  min-width: 300px;
+  min-height: 240px;
+  /* See-through by however much the writer asked for. The panel sits over the
+     page it is being used to edit, and how much of that page has to stay
+     readable underneath depends on where they have put it. */
+  background: color-mix(in srgb, var(--fd-dropdown-bg)
+    calc(var(--scribble-panel-alpha, 1) * 100%), transparent);
+  backdrop-filter: blur(2px);
   border: 1px solid var(--fd-border);
   border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-[data-theme="light"] .scribble-sheet {
-  background: #fff;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+[data-theme="light"] .scribble-panel {
+  background: color-mix(in srgb, #fff calc(var(--scribble-panel-alpha, 1) * 100%), transparent);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
 }
 .scribble-header {
-  padding: 14px 18px 10px;
+  padding: 10px 14px 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* The drag handle. `touch-action: none` so a Pencil or a fingertip dragging
+     the panel does not scroll the script underneath at the same time. */
+  cursor: grab;
+  touch-action: none;
+  border-bottom: 1px solid var(--fd-border);
 }
+.scribble-header:active { cursor: grabbing; }
 .scribble-header-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
+.scribble-header-tools { display: flex; align-items: center; gap: 8px; }
+.scribble-title { display: inline-flex; align-items: center; font-weight: 600; }
+/* The grip says "this moves" without a line of instructions. */
+.scribble-grip {
+  width: 18px; height: 10px; margin-right: 9px;
+  background-image: radial-gradient(currentColor 1.2px, transparent 1.3px);
+  background-size: 6px 5px;
+  color: var(--fd-text-muted);
+  opacity: .8;
+}
+.scribble-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  background: none; border: 1px solid var(--fd-border); border-radius: 8px;
+  color: var(--fd-text-muted); cursor: pointer;
+}
+.scribble-close:hover { color: var(--fd-text); background: var(--fd-menu-hover); }
 .scribble-toggle {
   display: inline-flex; align-items: center; gap: 7px;
   min-height: 34px; padding: 0 12px;
@@ -9436,7 +9553,9 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
    Character column. The page is rendered at full width and scaled down, because
    element indents are absolute inches and do not survive being re-measured. */
 .scribble-preview {
-  max-height: 210px;
+  /* Shorter than the modal sheet's: the panel sits over the script, so every
+     pixel it takes is a pixel of the page the writer cannot see. */
+  max-height: 150px;
   overflow: auto;
   padding: 10px;
   background: var(--fd-bg);
@@ -9483,10 +9602,11 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
   text-decoration: line-through;
 }
 .scribble-area {
-  margin: 0 18px;
-  /* Tall enough to write several lines at a natural hand size, and it grows
-     with the viewport rather than being pinned to a phone-sized box. */
-  min-height: max(300px, 40vh);
+  margin: 10px 14px 0;
+  /* Still tall enough to write two or three lines at a natural hand size —
+     which is what the Pencil needs and what the page could not give it — while
+     leaving most of the script visible behind the panel. */
+  min-height: max(190px, 26vh);
   flex: 1 1 auto;
   resize: none;
   padding: 14px 16px;
@@ -9501,8 +9621,8 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
 /* The field and its drawn caret share a positioned box. When the app draws the
    caret the native one is off, so there is only ever one. */
 .scribble-area-wrap { position: relative; display: flex; flex: 1 1 auto; min-height: 0; }
-.scribble-area-wrap .scribble-caret { color: var(--fd-text); z-index: 2; }
-.scribble-area { caret-color: var(--fd-accent, #3b82f6); }
+.scribble-area-wrap .scribble-caret { color: var(--scribble-ink, var(--fd-text)); z-index: 2; }
+.scribble-area { caret-color: var(--scribble-ink, var(--fd-accent, #3b82f6)); }
 .scribble-area-wrap:has(.scribble-caret) .scribble-area { caret-color: transparent; }
 .scribble-area:focus {
   outline: 2px solid var(--fd-accent, #3b82f6);
@@ -9510,7 +9630,7 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
 }
 .scribble-tools {
   display: flex; flex-wrap: wrap; gap: 8px;
-  padding: 10px 18px 0;
+  padding: 10px 14px 0;
 }
 .scribble-tool {
   display: inline-flex; align-items: center; gap: 6px;
@@ -9527,7 +9647,7 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 14px 18px;
+  padding: 10px 14px 12px;
 }
 .scribble-btn {
   /* A 44pt target: this is reached with a Pencil tip or a fingertip. */
@@ -12915,3 +13035,73 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
 }
 .shortcut-clear:hover:not(:disabled) { color: var(--fd-text); }
 .shortcut-clear:disabled { opacity: .4; cursor: default; }
+
+/* ── Handwriting panel: resize, transparency, ink, narrow widths ────────── */
+
+/* The writing field, see-through by its own amount so the line of script the
+   writer is about to add to can be read straight through where they write it.
+   Its own control rather than the panel's: the chrome and the field want very
+   different amounts of it. */
+.scribble-area {
+  background: color-mix(in srgb, var(--fd-input-bg, rgba(255, 255, 255, 0.06))
+    calc(var(--scribble-area-alpha, 1) * 100%), transparent);
+  color: var(--scribble-ink, var(--fd-text));
+}
+
+/* Grab the corner to resize. Sized for a fingertip rather than a pointer, and
+   `touch-action: none` so the drag does not scroll the script underneath. */
+.scribble-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 26px;
+  height: 26px;
+  cursor: nwse-resize;
+  touch-action: none;
+  z-index: 2;
+}
+.scribble-resize::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 11px;
+  height: 11px;
+  border-right: 2px solid var(--fd-text-dim, #8a8a8a);
+  border-bottom: 2px solid var(--fd-text-dim, #8a8a8a);
+  border-bottom-right-radius: 3px;
+  opacity: 0.7;
+}
+
+/* Narrow: the buttons keep their icons and drop their words. Their accessible
+   names stay on the button, so nothing is lost to a screen reader. */
+.scribble-panel.is-compact .scribble-tool-label { display: none; }
+.scribble-panel.is-compact .scribble-tool { padding-left: 10px; padding-right: 10px; }
+.scribble-panel.is-compact .scribble-header { padding: 8px 10px 6px; }
+
+.scribble-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  padding: 8px 2px 2px;
+  border-top: 1px solid var(--fd-border);
+  /* Its own controls, not the header's drag surface. */
+  cursor: default;
+  touch-action: auto;
+}
+.scribble-setting { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--fd-text-dim, #9aa0a6); }
+.scribble-setting input[type="range"] { width: 108px; accent-color: var(--fd-accent, #3b82f6); }
+.scribble-ink-row { display: flex; gap: 6px; }
+.scribble-ink {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: 0 0 0 1px var(--fd-border);
+  padding: 0;
+  cursor: pointer;
+}
+.scribble-ink.is-default { background: linear-gradient(135deg, #d4d4d4 50%, #6b6b6b 50%); }
+.scribble-ink.is-on { border-color: var(--fd-accent, #3b82f6); }
+.scribble-close.is-on { color: var(--fd-accent, #3b82f6); }

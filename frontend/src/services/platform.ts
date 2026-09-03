@@ -104,6 +104,19 @@ export function getOS(): 'macos' | 'windows' | 'linux' | 'android' | 'ios' | 'un
 }
 
 /**
+ * Whether the app has to draw its own text-selection handles (issue #108).
+ *
+ * iPadOS puts no selection grabbers on a range selected inside this web view:
+ * the text highlights and that is all, so neither end of the selection can be
+ * nudged without starting again. Every other web view on the device is left
+ * alone — Android's draws its own, and so does Safari, and a second pair drawn
+ * over those would be two live handles at each end.
+ */
+export function needsSelectionHandles(): boolean {
+  return isTauri() && getOS() === 'ios';
+}
+
+/**
  * Whether this device is one an Apple Pencil can be used with — an iPad.
  *
  * iPhone and iPod run the same OS and report the same way, but no Pencil pairs

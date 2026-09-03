@@ -1432,6 +1432,26 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setOpenSubmenu(null);
   };
 
+  /**
+   * Keep the writer's selection where it is while they reach for a menu.
+   *
+   * Pressing a menu moves focus out of the editor by default. On iPadOS that
+   * costs the selection twice over: the highlight stops being painted, and —
+   * the part this fixes — WebKit collapses the DOM selection on the way out,
+   * ProseMirror's observer syncs the collapse into its own state, and the
+   * caret comes back somewhere other than where the writer left it. A menu
+   * that does not take focus leaves the selection exactly as it was.
+   *
+   * Same treatment as ElementPicker and CharacterAutocomplete: mousedown
+   * rather than pointerdown, because preventing the pointer event suppresses
+   * the click that follows it and the menu would stop responding at all.
+   * Nothing inside a menu wants focus of its own.
+   *
+   * It does not bring the highlight back — an unfocused view paints none
+   * regardless, which is what SelectionHandles' bands are for.
+   */
+  const keepEditorSelection = (e: React.MouseEvent) => e.preventDefault();
+
   const handleItemClick = (item: MenuItem, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!item.disabled && item.action) {
@@ -2158,6 +2178,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           key={menu.label}
           ref={(el) => { menuItemRefs.current[menu.label] = el; }}
           className={`menu-item ${activeMenu === menu.label ? 'active' : ''}`}
+          onMouseDown={keepEditorSelection}
           onClick={() => handleMenuClick(menu.label)}
           onMouseEnter={() => {
             if (activeMenu) setActiveMenu(menu.label);
@@ -2170,6 +2191,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       <div
         ref={(el) => { menuItemRefs.current['Help'] = el; }}
         className={`menu-item ${activeMenu === 'Help' ? 'active' : ''}`}
+        onMouseDown={keepEditorSelection}
         onClick={() => handleMenuClick('Help')}
         onMouseEnter={() => {
           if (activeMenu) setActiveMenu('Help');
@@ -2233,6 +2255,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {activeMenuData && createPortal(
       <div
         className={`menu-dropdown${toolbarMode === 'comfortable' ? ' menu-dropdown--comfortable' : ''}${dropdownPos.bottom != null ? ' menu-dropdown--above' : ''}`}
+        onMouseDown={keepEditorSelection}
         style={{ top: dropdownPos.top, bottom: dropdownPos.bottom, left: dropdownPos.left }}
       >
         {activeMenuData.items.map((item, i) =>

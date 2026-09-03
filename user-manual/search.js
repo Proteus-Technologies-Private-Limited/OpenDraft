@@ -192,7 +192,7 @@
     { page: 'Import & Export', title: 'Export as Final Draft', section: 'Export FDX', text: 'Save as Final Draft FDX file. Preserves character profiles tag categories entities.', url: 'import-export.html#export-fdx' },
     { page: 'Import & Export', title: 'Export as Fountain', section: 'Export Fountain', text: 'Save as Fountain plain-text format. Compatible any Fountain editor version control.', url: 'import-export.html#export-fountain' },
 
-    { page: 'Writing Your Screenplay', title: 'Handwriting with an Apple Pencil', section: 'Handwriting', text: 'Apple Pencil Scribble iPad handwriting input box. Write with pencil insert at cursor. Replaces selection. Scribble overwrites deletes existing text middle of screenplay cramped small writing area. Safe large writing box.', url: 'writing-screenplay.html#handwriting' },
+    { page: 'Writing Your Screenplay', title: 'Handwriting with an Apple Pencil', section: 'Handwriting', text: 'Apple Pencil Scribble iPad handwriting input box. Edit menu Handwriting three-finger context menu. Write with pencil insert at cursor. Replaces selection. Floating panel stays open drag by title bar move insertion point tap script preview clear close. Scribble overwrites deletes existing text middle of screenplay cramped small writing area. Safe large writing box.', url: 'writing-screenplay.html#handwriting' },
 
     // Format Compatibility
     { page: 'Format Compatibility', title: 'Format Compatibility', section: '', text: 'What each screenplay element becomes when exported. Lossy conversion round trip. Which elements are lost changed converted flattened. Element mapping table fdx fountain docx osf fadein odraft.', url: 'format-compatibility.html' },

@@ -32,21 +32,26 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Editor } from '@tiptap/react';
+import { toPagePoint, type PagePoint } from '../utils/pageCoords';
 
 interface PencilCaretProps {
   editor: Editor | null;
   /** Touch device. Desktop carets work; leave them alone. */
   enabled: boolean;
+  /**
+   * Keep drawing while the editor does not hold focus.
+   *
+   * Only the handwriting panel sets this. Focus is in its writing field, so
+   * iPadOS paints nothing in the view behind — and that view is exactly where
+   * the writer needs to see the insertion point, because tapping a line there
+   * is how they choose where the next insert goes (issue #90). There is still
+   * only ever one caret: an unfocused view has none of its own to clash with.
+   */
+  showUnfocused?: boolean;
 }
 
-interface CaretBox {
-  left: number;
-  top: number;
-  height: number;
-}
-
-const PencilCaret: React.FC<PencilCaretProps> = ({ editor, enabled }) => {
-  const [box, setBox] = useState<CaretBox | null>(null);
+const PencilCaret: React.FC<PencilCaretProps> = ({ editor, enabled, showUnfocused = false }) => {
+  const [box, setBox] = useState<PagePoint | null>(null);
 
   const measure = useCallback(() => {
     if (!editor || !enabled) { setBox(null); return; }
@@ -59,35 +64,23 @@ const PencilCaret: React.FC<PencilCaretProps> = ({ editor, enabled }) => {
       const focused = document.activeElement === dom
         || dom.contains(document.activeElement)
         || dom.classList.contains('ProseMirror-focused');
-      if (!focused || !state.selection.empty) {
+      if ((!focused && !showUnfocused) || !state.selection.empty) {
         setBox(null);
         return;
       }
       // Read-only drafts hide the caret on purpose.
       if (!view.editable) { setBox(null); return; }
 
-      const coords = view.coordsAtPos(state.selection.head);
-      // Measured against the page, which is this element's offset parent.
+      // Measured against the page, which is this element's offset parent, and
+      // undone of whatever zoom is being applied to it — see pageCoords.ts.
       const page = dom.closest('.page') as HTMLElement | null;
       if (!page) { setBox(null); return; }
-      const rect = page.getBoundingClientRect();
-
-      // The painted width over the layout width is whatever scale an ancestor
-      // is applying — zoom, or none. Measured, so nothing here has to know how
-      // the page is being scaled or whether that has changed.
-      const scale = page.offsetWidth > 0 ? rect.width / page.offsetWidth : 1;
-      if (!Number.isFinite(scale) || scale <= 0) { setBox(null); return; }
-
-      setBox({
-        left: (coords.left - rect.left) / scale,
-        top: (coords.top - rect.top) / scale,
-        height: Math.max(8, (coords.bottom - coords.top) / scale),
-      });
+      setBox(toPagePoint(page, view.coordsAtPos(state.selection.head)));
     } catch {
       // coordsAtPos throws while the view is mid-update; the next tick re-reads.
       setBox(null);
     }
-  }, [editor, enabled]);
+  }, [editor, enabled, showUnfocused]);
 
   /** Coalesce the several events a single caret move fires into one measure. */
   /**
