@@ -33,8 +33,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import {
-  FaArrowLeft, FaChevronDown, FaChevronUp, FaCopy, FaCut, FaKeyboard, FaLevelDownAlt,
-  FaPaste, FaTextWidth, FaTimes,
+  FaArrowLeft, FaChevronDown, FaChevronUp, FaCog, FaCopy, FaCut, FaKeyboard,
+  FaLevelDownAlt, FaPaste, FaTextWidth, FaTimes,
 } from 'react-icons/fa';
 import { ELEMENT_LABELS } from '../stores/editorStore';
 import { readClipboardText, writeClipboard } from '../utils/clipboardCommands';
@@ -56,6 +56,80 @@ const KEYBOARD_PREF_KEY = 'opendraft:handwritingKeyboard';
 /** Where the writer last dragged the panel, and whether they kept the preview. */
 const POSITION_PREF_KEY = 'opendraft:handwritingPos';
 const PREVIEW_PREF_KEY = 'opendraft:handwritingPreview';
+/** The size the writer last dragged the panel to. */
+const SIZE_PREF_KEY = 'opendraft:handwritingSize';
+/** How much of the script shows through the panel, and through the field. */
+const PANEL_ALPHA_KEY = 'opendraft:handwritingPanelAlpha';
+const AREA_ALPHA_KEY = 'opendraft:handwritingAreaAlpha';
+/** What colour the handwriting comes out in. */
+const INK_KEY = 'opendraft:handwritingInk';
+
+/**
+ * Smallest the panel is any use at: narrower and a line of dialogue wraps
+ * twice, shorter and there is no room to write at hand size.
+ */
+const MIN_PANEL: PanelSize = { width: 300, height: 240 };
+
+/**
+ * Below this the tool buttons drop their words and keep their icons. Measured
+ * on the panel rather than the window: it is the panel the buttons have to fit
+ * across, and the writer can now make that any width they like.
+ */
+const COMPACT_WIDTH = 470;
+
+/**
+ * Ink the writer can pick from.
+ *
+ * The panel is see-through now, so what is behind the field is the script —
+ * and handwriting in the same colour as the text underneath is unreadable
+ * against it. These are chosen to stay legible over black text on white paper.
+ */
+const INKS: { label: string; value: string }[] = [
+  { label: 'Default', value: '' },
+  { label: 'Blue', value: '#1d4ed8' },
+  { label: 'Red', value: '#dc2626' },
+  { label: 'Green', value: '#15803d' },
+  { label: 'Purple', value: '#7c3aed' },
+];
+
+function loadNumber(key: string, fallback: number, lo: number, hi: number): number {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    const n = Number(raw);
+    return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveValue(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* private mode — the panel still works, the choice just will not stick */
+  }
+}
+
+function loadString(key: string, fallback: string): string {
+  try {
+    return localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function loadSize(): PanelSize | null {
+  try {
+    const raw = localStorage.getItem(SIZE_PREF_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PanelSize>;
+    if (typeof parsed?.width !== 'number' || typeof parsed?.height !== 'number') return null;
+    return { width: parsed.width, height: parsed.height };
+  } catch {
+    return null;
+  }
+}
 
 function loadFlag(key: string, fallback: boolean): boolean {
   try {
@@ -266,11 +340,77 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
   const [pos, setPos] = useState<PanelPos | null>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
 
+
+
   const panelSize = useCallback((): PanelSize => {
     const el = panelRef.current;
     const rect = el?.getBoundingClientRect();
     return { width: Math.round(rect?.width ?? 0), height: Math.round(rect?.height ?? 0) };
   }, []);
+
+  // ── Size, and what shows through ────────────────────────────────────────
+  const [size, setSize] = useState<PanelSize | null>(loadSize);
+  const resizeRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [compact, setCompact] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [panelAlpha, setPanelAlpha] = useState(() => loadNumber(PANEL_ALPHA_KEY, 1, 0.2, 1));
+  const [areaAlpha, setAreaAlpha] = useState(() => loadNumber(AREA_ALPHA_KEY, 1, 0, 1));
+  const [ink, setInk] = useState(() => loadString(INK_KEY, ''));
+
+  /**
+   * The words on the tool buttons come and go with the width of the panel, not
+   * the width of the window: the writer sets the panel's width now, and six
+   * labelled buttons in a 320px panel wrap into an unusable stack.
+   */
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([entry]) => {
+      setCompact(entry.contentRect.width < COMPACT_WIDTH);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  /** Held within the viewport as well as the minimum, so a corner dragged far
+   *  past the edge cannot leave the panel bigger than the screen it is on. */
+  const clampSize = useCallback((want: PanelSize): PanelSize => {
+    const view = viewportSize();
+    return {
+      width: Math.round(Math.min(Math.max(want.width, MIN_PANEL.width), view.width - 16)),
+      height: Math.round(Math.min(Math.max(want.height, MIN_PANEL.height), view.height - 16)),
+    };
+  }, []);
+
+  const onResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = panelRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    e.preventDefault();
+    e.stopPropagation();
+    resizeRef.current = { x: e.clientX, y: e.clientY, w: rect.width, h: rect.height };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, []);
+
+  const onResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const r = resizeRef.current;
+    if (!r) return;
+    e.preventDefault();
+    setSize(clampSize({ width: r.w + (e.clientX - r.x), height: r.h + (e.clientY - r.y) }));
+  }, [clampSize]);
+
+  const onResizeEnd = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!resizeRef.current) return;
+    resizeRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    setSize((current) => {
+      if (current) saveValue(SIZE_PREF_KEY, JSON.stringify(current));
+      return current;
+    });
+    // A panel grown from the bottom-right can push its own header off screen.
+    setPos((prev) => (prev ? clampPanelPosition(prev, panelSize(), viewportSize()) : prev));
+  }, [panelSize]);
 
   // Measured before paint, so the panel never shows in one place and jumps to
   // another. A saved position is honoured; a first-ever open goes to the foot.
@@ -421,28 +561,6 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
     });
   }, []);
 
-  /**
-   * Scroll the script so the caret is not left under the panel.
-   *
-   * ProseMirror's own `scrollIntoView` counts anything inside the window as
-   * visible, and the panel floats over the window — so the line just written
-   * into can be perfectly "in view" and completely hidden. Only ever scrolls
-   * the line up out from under the panel; a caret above it is left alone.
-   */
-  const revealCaret = useCallback(() => {
-    try {
-      const panel = panelRef.current?.getBoundingClientRect();
-      const main = editor.view.dom.closest('.editor-main') as HTMLElement | null;
-      if (!panel || !main) return;
-      const caret = editor.view.coordsAtPos(editor.state.selection.head);
-      const clearance = 24;
-      if (caret.bottom <= panel.top - clearance) return;
-      main.scrollTop += caret.bottom - (panel.top - clearance);
-    } catch {
-      /* the text is in; not scrolling to it is a small loss */
-    }
-  }, [editor]);
-
   const handleInsert = useCallback(() => {
     const paragraphs = splitHandwriting(text);
     if (paragraphs.length === 0) {
@@ -492,12 +610,18 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
 
     setText('');
     requestAnimationFrame(() => {
-      revealCaret();
+      // The script is deliberately left exactly where it was. It used to be
+      // scrolled so the caret cleared the panel, which moved the page out from
+      // under the writer at the moment they were looking for what had just
+      // landed — the one moment the view needs to hold still. Where to put the
+      // panel so it does not cover the work is the writer's call, and they can
+      // drag and now resize it to make that call.
+      //
       // Back to the field, so the next sentence can be written without a tap.
       areaRef.current?.focus();
       trackSelection();
     });
-  }, [editor, text, revealCaret, trackSelection]);
+  }, [editor, text, trackSelection]);
 
   // Escape closes — it is a deliberate "I am done here", which is the bar the
   // panel holds everything else to.
@@ -519,11 +643,17 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
     // stray Pencil tip landing outside used to throw away everything written
     // in it.)
     <div
-      className="scribble-panel"
+      className={`scribble-panel${compact ? ' is-compact' : ''}`}
       ref={panelRef}
       role="dialog"
       aria-label="Handwriting input"
-      style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }}
+      style={{
+        ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }),
+        ...(size ? { width: size.width, height: size.height } : {}),
+        '--scribble-panel-alpha': String(panelAlpha),
+        '--scribble-area-alpha': String(areaAlpha),
+        ...(ink ? { '--scribble-ink': ink } : {}),
+      } as unknown as React.CSSProperties}
     >
       <div
         className="scribble-header"
@@ -559,6 +689,16 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
             </button>
             <button
               type="button"
+              className={`scribble-close${settingsOpen ? ' is-on' : ''}`}
+              onClick={() => setSettingsOpen((o) => !o)}
+              aria-label="Handwriting settings"
+              aria-expanded={settingsOpen}
+              title="Transparency and ink"
+            >
+              <FaCog />
+            </button>
+            <button
+              type="button"
               className="scribble-close"
               onClick={onClose}
               aria-label="Close handwriting"
@@ -568,6 +708,56 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
             </button>
           </div>
         </div>
+
+        {/* Transparency and ink. The panel covers the script, so how much of
+            it shows through — and what colour the handwriting has to stay
+            legible against whatever does — is the writer's call, not a fixed
+            choice. Kept in the header so it never moves with the field. */}
+        {settingsOpen && (
+          <div className="scribble-settings" onPointerDown={(e) => e.stopPropagation()}>
+            <label className="scribble-setting">
+              <span>Panel</span>
+              <input
+                type="range" min={0.2} max={1} step={0.05} value={panelAlpha}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setPanelAlpha(v);
+                  saveValue(PANEL_ALPHA_KEY, String(v));
+                }}
+                aria-label="Panel opacity"
+              />
+            </label>
+            <label className="scribble-setting">
+              <span>Writing area</span>
+              <input
+                type="range" min={0} max={1} step={0.05} value={areaAlpha}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setAreaAlpha(v);
+                  saveValue(AREA_ALPHA_KEY, String(v));
+                }}
+                aria-label="Writing area opacity"
+              />
+            </label>
+            <div className="scribble-setting scribble-inks">
+              <span>Ink</span>
+              <div className="scribble-ink-row">
+                {INKS.map((c) => (
+                  <button
+                    key={c.label}
+                    type="button"
+                    className={`scribble-ink${ink === c.value ? ' is-on' : ''}${c.value ? '' : ' is-default'}`}
+                    style={c.value ? { background: c.value } : undefined}
+                    onClick={() => { setInk(c.value); saveValue(INK_KEY, c.value); }}
+                    aria-label={`${c.label} ink`}
+                    aria-pressed={ink === c.value}
+                    title={c.label}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* The script either side of where this lands, in the editor's own
             element styles and page metrics. It follows the caret: tap a
@@ -627,31 +817,44 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
           its own palette for native fields, but not for a field inside a web
           view, so the app has to supply the equivalents. */}
       <div className="scribble-tools">
-        <button type="button" className="scribble-tool scribble-tool-key" onClick={() => replaceSelection('\n')}>
-          <FaLevelDownAlt style={{ transform: 'rotate(90deg)' }} /> Enter
+        <button type="button" className="scribble-tool scribble-tool-key" onClick={() => replaceSelection('\n')} aria-label="Enter" title="Enter">
+          <FaLevelDownAlt style={{ transform: 'rotate(90deg)' }} /><span className="scribble-tool-label">Enter</span>
         </button>
         <button
           type="button"
           className="scribble-tool scribble-tool-key"
-          onClick={() => replaceSelection('', true)}
+          onClick={() => replaceSelection('', true)} aria-label="Backspace" title="Backspace"
           disabled={text === ''}
         >
-          <FaArrowLeft /> Backspace
+          <FaArrowLeft /><span className="scribble-tool-label">Backspace</span>
         </button>
         <span className="scribble-tools-gap" />
-        <button type="button" className="scribble-tool" onClick={handleSelectAll} disabled={text === ''}>
-          <FaTextWidth /> Select All
+        <button type="button" className="scribble-tool" onClick={handleSelectAll} aria-label="Select All" title="Select All" disabled={text === ''}>
+          <FaTextWidth /><span className="scribble-tool-label">Select All</span>
         </button>
-        <button type="button" className="scribble-tool" onClick={() => void handleCut()} disabled={!hasSelection}>
-          <FaCut /> Cut
+        <button type="button" className="scribble-tool" onClick={() => void handleCut()} aria-label="Cut" title="Cut" disabled={!hasSelection}>
+          <FaCut /><span className="scribble-tool-label">Cut</span>
         </button>
-        <button type="button" className="scribble-tool" onClick={() => void handleCopy()} disabled={!hasSelection}>
-          <FaCopy /> Copy
+        <button type="button" className="scribble-tool" onClick={() => void handleCopy()} aria-label="Copy" title="Copy" disabled={!hasSelection}>
+          <FaCopy /><span className="scribble-tool-label">Copy</span>
         </button>
-        <button type="button" className="scribble-tool" onClick={() => void handlePaste()}>
-          <FaPaste /> Paste
+        <button type="button" className="scribble-tool" onClick={() => void handlePaste()} aria-label="Paste" title="Paste">
+          <FaPaste /><span className="scribble-tool-label">Paste</span>
         </button>
       </div>
+
+      {/* Drag the corner to resize. The panel floats over the script, so how
+          much of the page it is allowed to cover is the writer's decision —
+          the same decision dragging it around already was. */}
+      <div
+        className="scribble-resize"
+        onPointerDown={onResizeStart}
+        onPointerMove={onResizeMove}
+        onPointerUp={onResizeEnd}
+        onPointerCancel={onResizeEnd}
+        role="separator"
+        aria-label="Resize handwriting panel"
+      />
 
       <div className="scribble-actions">
         {/* Clear rather than Cancel: leaving is the close button's job now, and

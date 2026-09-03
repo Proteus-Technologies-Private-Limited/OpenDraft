@@ -9484,7 +9484,16 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
      leave the script either side of it readable. */
   width: min(720px, calc(100vw - 16px));
   max-height: calc(var(--vv-height, 100dvh) - 16px);
-  background: var(--fd-dropdown-bg);
+  /* Resizable, so a width and height set by the writer arrive as inline
+     styles and have to be allowed to win over the defaults above. */
+  min-width: 300px;
+  min-height: 240px;
+  /* See-through by however much the writer asked for. The panel sits over the
+     page it is being used to edit, and how much of that page has to stay
+     readable underneath depends on where they have put it. */
+  background: color-mix(in srgb, var(--fd-dropdown-bg)
+    calc(var(--scribble-panel-alpha, 1) * 100%), transparent);
+  backdrop-filter: blur(2px);
   border: 1px solid var(--fd-border);
   border-radius: 14px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
@@ -9493,7 +9502,7 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   overflow: hidden;
 }
 [data-theme="light"] .scribble-panel {
-  background: #fff;
+  background: color-mix(in srgb, #fff calc(var(--scribble-panel-alpha, 1) * 100%), transparent);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
 }
 .scribble-header {
@@ -9612,8 +9621,8 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 /* The field and its drawn caret share a positioned box. When the app draws the
    caret the native one is off, so there is only ever one. */
 .scribble-area-wrap { position: relative; display: flex; flex: 1 1 auto; min-height: 0; }
-.scribble-area-wrap .scribble-caret { color: var(--fd-text); z-index: 2; }
-.scribble-area { caret-color: var(--fd-accent, #3b82f6); }
+.scribble-area-wrap .scribble-caret { color: var(--scribble-ink, var(--fd-text)); z-index: 2; }
+.scribble-area { caret-color: var(--scribble-ink, var(--fd-accent, #3b82f6)); }
 .scribble-area-wrap:has(.scribble-caret) .scribble-area { caret-color: transparent; }
 .scribble-area:focus {
   outline: 2px solid var(--fd-accent, #3b82f6);
@@ -13026,3 +13035,73 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 }
 .shortcut-clear:hover:not(:disabled) { color: var(--fd-text); }
 .shortcut-clear:disabled { opacity: .4; cursor: default; }
+
+/* ── Handwriting panel: resize, transparency, ink, narrow widths ────────── */
+
+/* The writing field, see-through by its own amount so the line of script the
+   writer is about to add to can be read straight through where they write it.
+   Its own control rather than the panel's: the chrome and the field want very
+   different amounts of it. */
+.scribble-area {
+  background: color-mix(in srgb, var(--fd-input-bg, rgba(255, 255, 255, 0.06))
+    calc(var(--scribble-area-alpha, 1) * 100%), transparent);
+  color: var(--scribble-ink, var(--fd-text));
+}
+
+/* Grab the corner to resize. Sized for a fingertip rather than a pointer, and
+   `touch-action: none` so the drag does not scroll the script underneath. */
+.scribble-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 26px;
+  height: 26px;
+  cursor: nwse-resize;
+  touch-action: none;
+  z-index: 2;
+}
+.scribble-resize::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 11px;
+  height: 11px;
+  border-right: 2px solid var(--fd-text-dim, #8a8a8a);
+  border-bottom: 2px solid var(--fd-text-dim, #8a8a8a);
+  border-bottom-right-radius: 3px;
+  opacity: 0.7;
+}
+
+/* Narrow: the buttons keep their icons and drop their words. Their accessible
+   names stay on the button, so nothing is lost to a screen reader. */
+.scribble-panel.is-compact .scribble-tool-label { display: none; }
+.scribble-panel.is-compact .scribble-tool { padding-left: 10px; padding-right: 10px; }
+.scribble-panel.is-compact .scribble-header { padding: 8px 10px 6px; }
+
+.scribble-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  padding: 8px 2px 2px;
+  border-top: 1px solid var(--fd-border);
+  /* Its own controls, not the header's drag surface. */
+  cursor: default;
+  touch-action: auto;
+}
+.scribble-setting { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--fd-text-dim, #9aa0a6); }
+.scribble-setting input[type="range"] { width: 108px; accent-color: var(--fd-accent, #3b82f6); }
+.scribble-ink-row { display: flex; gap: 6px; }
+.scribble-ink {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: 0 0 0 1px var(--fd-border);
+  padding: 0;
+  cursor: pointer;
+}
+.scribble-ink.is-default { background: linear-gradient(135deg, #d4d4d4 50%, #6b6b6b 50%); }
+.scribble-ink.is-on { border-color: var(--fd-accent, #3b82f6); }
+.scribble-close.is-on { color: var(--fd-accent, #3b82f6); }
