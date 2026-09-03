@@ -83,3 +83,47 @@ export function defaultPanelPosition(
 export function splitHandwriting(text: string): string[] {
   return text.split(/\n\s*\n|\n/).map((p) => p.trim()).filter(Boolean);
 }
+
+/**
+ * Characters that hug the word before them: an insert starting with one of
+ * these wants no space in front of it, or a comma ends up adrift.
+ */
+const ATTACHES_LEFT = /[,.;:!?)\]}…’”%]/;
+
+/**
+ * Characters that hug what follows them: text inserted straight after an open
+ * bracket or quote wants no space, and neither does the next character when the
+ * insert itself ends in one.
+ */
+const ATTACHES_RIGHT = /[([{“‘/]/;
+
+/**
+ * Space a handwritten insert into the sentence around it.
+ *
+ * What comes back from handwriting recognition is trimmed, because Scribble
+ * puts strays either end of almost everything it converts (issue #90). That is
+ * right for a line of its own and wrong in the middle of one: a writer adding
+ * "(CONTINUOUS)" to the end of a scene heading got `DAY(CONTINUOUS)`, and the
+ * panel now exists to make exactly those small in-line revisions, so it happens
+ * constantly rather than occasionally.
+ *
+ * `prevChar` and `nextChar` are the characters the insert lands between —
+ * empty at the start or end of a block, since nothing there needs joining.
+ * Punctuation is left alone in both directions: a space is added only where two
+ * pieces of ordinary text would otherwise run together.
+ */
+export function joinHandwriting(insert: string, prevChar: string, nextChar: string): string {
+  if (insert === '') return insert;
+
+  const needsBefore = prevChar !== ''
+    && !/\s/.test(prevChar)
+    && !ATTACHES_RIGHT.test(prevChar)
+    && !ATTACHES_LEFT.test(insert[0]);
+
+  const needsAfter = nextChar !== ''
+    && !/\s/.test(nextChar)
+    && !ATTACHES_LEFT.test(nextChar)
+    && !ATTACHES_RIGHT.test(insert[insert.length - 1]);
+
+  return `${needsBefore ? ' ' : ''}${insert}${needsAfter ? ' ' : ''}`;
+}

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   clampPanelPosition,
   defaultPanelPosition,
+  joinHandwriting,
   splitHandwriting,
   PANEL_MARGIN,
 } from './handwriting';
@@ -70,5 +71,43 @@ describe('splitHandwriting', () => {
 
   it('has nothing to insert for whitespace alone', () => {
     expect(splitHandwriting('   \n  \n')).toEqual([]);
+  });
+});
+
+describe('joinHandwriting', () => {
+  it('spaces an insert off the word before it', () => {
+    // The reported case: "(CONTINUOUS)" written at the end of a scene heading.
+    expect(joinHandwriting('(CONTINUOUS)', 'Y', '')).toBe(' (CONTINUOUS)');
+  });
+
+  it('spaces both sides when it lands between two words', () => {
+    expect(joinHandwriting('very', 'e', 'q')).toBe(' very ');
+  });
+
+  it('adds nothing at the start or the end of a block', () => {
+    expect(joinHandwriting('She turns.', '', '')).toBe('She turns.');
+  });
+
+  it('leaves an existing space alone rather than doubling it', () => {
+    expect(joinHandwriting('quiet', ' ', ' ')).toBe('quiet');
+  });
+
+  it('does not push punctuation away from the word it belongs to', () => {
+    // Writing a word in front of a comma, and a comma in front of a word.
+    expect(joinHandwriting('slowly', 'n', ',')).toBe(' slowly');
+    expect(joinHandwriting(', slowly', 'n', '')).toBe(', slowly');
+  });
+
+  it('keeps brackets and quotes tight to what they open', () => {
+    expect(joinHandwriting('beat', '(', ')')).toBe('beat');
+    expect(joinHandwriting('(beat)', 's', '')).toBe(' (beat)');
+  });
+
+  it('does not put a space after text that ends in an opening bracket', () => {
+    expect(joinHandwriting('(', 'e', 'b')).toBe(' (');
+  });
+
+  it('has nothing to space when there is nothing to insert', () => {
+    expect(joinHandwriting('', 'e', 'b')).toBe('');
   });
 });

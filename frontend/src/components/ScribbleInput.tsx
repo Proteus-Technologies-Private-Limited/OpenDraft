@@ -39,7 +39,7 @@ import {
 import { ELEMENT_LABELS } from '../stores/editorStore';
 import { readClipboardText, writeClipboard } from '../utils/clipboardCommands';
 import {
-  clampPanelPosition, defaultPanelPosition, splitHandwriting,
+  clampPanelPosition, defaultPanelPosition, joinHandwriting, splitHandwriting,
   type PanelPos, type PanelSize,
 } from '../utils/handwriting';
 import { showToast } from './Toast';
@@ -460,8 +460,19 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
     // reverting to a default.
     const elementType = editor.state.doc.resolve(from).parent.type.name;
 
+    // A single line joins the sentence the caret is in, so it is spaced into
+    // it. The characters either side come from `textBetween`, which stops at a
+    // block boundary and hands back '' — nothing to join to at the start or the
+    // end of a line, which is exactly the answer wanted there.
+    //
+    // Several lines become blocks of their own; nothing runs together, so
+    // nothing needs spacing.
     const content = paragraphs.length === 1
-      ? paragraphs[0]
+      ? joinHandwriting(
+        paragraphs[0],
+        from > 0 ? editor.state.doc.textBetween(from - 1, from) : '',
+        to < editor.state.doc.content.size ? editor.state.doc.textBetween(to, to + 1) : '',
+      )
       : paragraphs.map((p) => ({
         type: elementType,
         content: [{ type: 'text', text: p }],
