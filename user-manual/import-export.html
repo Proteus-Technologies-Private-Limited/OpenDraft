@@ -143,6 +143,8 @@
     <h3 id="paste-fountain">Paste as Fountain</h3>
     <p>To bring in part of a script rather than a whole file, copy the Fountain text and use <strong>Edit &gt; Paste as Fountain</strong> (or <kbd>Shift</kbd>+<kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>V</kbd>, also on the right-click menu). The pasted text is run through the Fountain parser and inserted at the cursor as real screenplay elements, instead of landing as one block of whatever element you were already in.</p>
 
+    <p>A single line of ordinary text is the exception. Fountain calls anything it does not recognise Action, so pasting <em>Across the yard</em> in the middle of a scene heading would otherwise break the heading in two and drop an Action line between the halves. Text like that is inserted at the cursor instead, keeping the element you are in &mdash; exactly as an ordinary paste would. Anything Fountain does recognise, including a line you have marked as Action yourself with a leading <code>!</code>, still arrives as its own element.</p>
+
     <div class="callout callout-info">
       <span class="callout-icon">&#8505;&#65039;</span>
       <div class="callout-content">
