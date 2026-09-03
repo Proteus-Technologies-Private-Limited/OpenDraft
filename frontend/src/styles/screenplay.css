@@ -9430,42 +9430,65 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
    cramped, destructive behaviour in the editor was a symptom of there being
    almost none mid-script (issue #90). Nothing follows the caret in here, so
    nothing can be overwritten. */
-.scribble-overlay {
+/* A floating panel, not a modal sheet. There is no backdrop on purpose: the
+   script behind stays live, and tapping a line in it is how the writer moves
+   where the next insert lands without closing anything (issue #90). It is
+   dragged by its header, because only the writer knows which part of the page
+   it must not cover. */
+.scribble-panel {
   position: fixed;
-  inset: 0;
+  /* Placed by the component, which measures it and keeps it on screen. */
+  left: 0;
+  top: 0;
   z-index: 3600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.45);
-}
-.scribble-sheet {
-  /* Bigger than it was: this is a writing surface, not a prompt, and a Pencil
-     needs room to form letters at a natural size. */
-  width: min(980px, 100%);
-  max-height: calc(var(--vv-height, 100dvh) - 32px);
+  /* Wide enough to write a line of dialogue at hand size, narrow enough to
+     leave the script either side of it readable. */
+  width: min(720px, calc(100vw - 16px));
+  max-height: calc(var(--vv-height, 100dvh) - 16px);
   background: var(--fd-dropdown-bg);
   border: 1px solid var(--fd-border);
   border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-[data-theme="light"] .scribble-sheet {
+[data-theme="light"] .scribble-panel {
   background: #fff;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
 }
 .scribble-header {
-  padding: 14px 18px 10px;
+  padding: 10px 14px 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* The drag handle. `touch-action: none` so a Pencil or a fingertip dragging
+     the panel does not scroll the script underneath at the same time. */
+  cursor: grab;
+  touch-action: none;
+  border-bottom: 1px solid var(--fd-border);
 }
+.scribble-header:active { cursor: grabbing; }
 .scribble-header-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
+.scribble-header-tools { display: flex; align-items: center; gap: 8px; }
+.scribble-title { display: inline-flex; align-items: center; font-weight: 600; }
+/* The grip says "this moves" without a line of instructions. */
+.scribble-grip {
+  width: 18px; height: 10px; margin-right: 9px;
+  background-image: radial-gradient(currentColor 1.2px, transparent 1.3px);
+  background-size: 6px 5px;
+  color: var(--fd-text-muted);
+  opacity: .8;
+}
+.scribble-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  background: none; border: 1px solid var(--fd-border); border-radius: 8px;
+  color: var(--fd-text-muted); cursor: pointer;
+}
+.scribble-close:hover { color: var(--fd-text); background: var(--fd-menu-hover); }
 .scribble-toggle {
   display: inline-flex; align-items: center; gap: 7px;
   min-height: 34px; padding: 0 12px;
@@ -9482,7 +9505,9 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
    Character column. The page is rendered at full width and scaled down, because
    element indents are absolute inches and do not survive being re-measured. */
 .scribble-preview {
-  max-height: 210px;
+  /* Shorter than the modal sheet's: the panel sits over the script, so every
+     pixel it takes is a pixel of the page the writer cannot see. */
+  max-height: 150px;
   overflow: auto;
   padding: 10px;
   background: var(--fd-bg);
@@ -9529,10 +9554,11 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
   text-decoration: line-through;
 }
 .scribble-area {
-  margin: 0 18px;
-  /* Tall enough to write several lines at a natural hand size, and it grows
-     with the viewport rather than being pinned to a phone-sized box. */
-  min-height: max(300px, 40vh);
+  margin: 10px 14px 0;
+  /* Still tall enough to write two or three lines at a natural hand size —
+     which is what the Pencil needs and what the page could not give it — while
+     leaving most of the script visible behind the panel. */
+  min-height: max(190px, 26vh);
   flex: 1 1 auto;
   resize: none;
   padding: 14px 16px;
@@ -9556,7 +9582,7 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
 }
 .scribble-tools {
   display: flex; flex-wrap: wrap; gap: 8px;
-  padding: 10px 18px 0;
+  padding: 10px 14px 0;
 }
 .scribble-tool {
   display: inline-flex; align-items: center; gap: 6px;
@@ -9573,7 +9599,7 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 14px 18px;
+  padding: 10px 14px 12px;
 }
 .scribble-btn {
   /* A 44pt target: this is reached with a Pencil tip or a fingertip. */

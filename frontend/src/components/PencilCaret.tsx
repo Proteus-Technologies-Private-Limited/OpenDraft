@@ -38,9 +38,19 @@ interface PencilCaretProps {
   editor: Editor | null;
   /** Touch device. Desktop carets work; leave them alone. */
   enabled: boolean;
+  /**
+   * Keep drawing while the editor does not hold focus.
+   *
+   * Only the handwriting panel sets this. Focus is in its writing field, so
+   * iPadOS paints nothing in the view behind — and that view is exactly where
+   * the writer needs to see the insertion point, because tapping a line there
+   * is how they choose where the next insert goes (issue #90). There is still
+   * only ever one caret: an unfocused view has none of its own to clash with.
+   */
+  showUnfocused?: boolean;
 }
 
-const PencilCaret: React.FC<PencilCaretProps> = ({ editor, enabled }) => {
+const PencilCaret: React.FC<PencilCaretProps> = ({ editor, enabled, showUnfocused = false }) => {
   const [box, setBox] = useState<PagePoint | null>(null);
 
   const measure = useCallback(() => {
@@ -54,7 +64,7 @@ const PencilCaret: React.FC<PencilCaretProps> = ({ editor, enabled }) => {
       const focused = document.activeElement === dom
         || dom.contains(document.activeElement)
         || dom.classList.contains('ProseMirror-focused');
-      if (!focused || !state.selection.empty) {
+      if ((!focused && !showUnfocused) || !state.selection.empty) {
         setBox(null);
         return;
       }
@@ -70,7 +80,7 @@ const PencilCaret: React.FC<PencilCaretProps> = ({ editor, enabled }) => {
       // coordsAtPos throws while the view is mid-update; the next tick re-reads.
       setBox(null);
     }
-  }, [editor, enabled]);
+  }, [editor, enabled, showUnfocused]);
 
   /** Coalesce the several events a single caret move fires into one measure. */
   /**

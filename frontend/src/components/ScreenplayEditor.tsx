@@ -652,11 +652,11 @@ const ScreenplayEditor: React.FC = () => {
     if (!isTouch) return;
     const handleThreeFingerTouch = (e: TouchEvent) => {
       if (e.touches.length === 3) {
-        // Not inside the handwriting sheet. It has its own selection and
+        // Not inside the handwriting panel. It has its own selection and
         // clipboard controls, and the field's native callout carries the
         // Pencil's own gestures — opening the script's context menu on top of
         // it would take both away.
-        if ((e.target as HTMLElement | null)?.closest?.('.scribble-overlay')) return;
+        if ((e.target as HTMLElement | null)?.closest?.('.scribble-panel')) return;
         e.preventDefault();
         // Use center of the three touches as position
         let cx = 0, cy = 0;
@@ -1081,8 +1081,13 @@ const ScreenplayEditor: React.FC = () => {
   const charAutoDismissedRef = useRef(false);
 
   const [formatPanelOpen, setFormatPanelOpen] = useState(false);
-  /** Where the handwriting sheet will insert what it converts, when open. */
-  const [scribbleTarget, setScribbleTarget] = useState<{ from: number; to: number } | null>(null);
+  /**
+   * Whether the handwriting panel is up. Only whether — where it inserts is the
+   * editor's live selection, read by the panel itself, because the panel is not
+   * modal and the writer moves the insertion point by tapping the script behind
+   * it (issue #90).
+   */
+  const [scribbleOpen, setScribbleOpen] = useState(false);
 
   // Script context menu state
   const [ctxMenuState, setCtxMenuState] = useState<{
@@ -3299,15 +3304,12 @@ const ScreenplayEditor: React.FC = () => {
     });
   }, [editor]);
 
-  // Open the handwriting sheet when the Edit menu or the touch context menu
-  // asks for it. The selection is read here, at the moment of the request,
-  // because focusing the sheet's writing field moves focus out of the editor.
+  // Open the handwriting panel when the Edit menu or the touch context menu
+  // asks for it. Asking again while it is open is a no-op rather than a reset:
+  // the panel already follows the selection, so there is nothing to re-capture.
   React.useEffect(() => {
     if (!editor) return;
-    const onRequest = () => {
-      const { from, to } = editor.state.selection;
-      setScribbleTarget({ from, to });
-    };
+    const onRequest = () => setScribbleOpen(true);
     window.addEventListener(HANDWRITING_EVENT, onRequest);
     return () => window.removeEventListener(HANDWRITING_EVENT, onRequest);
   }, [editor]);
@@ -4813,7 +4815,15 @@ const ScreenplayEditor: React.FC = () => {
                       keyboard is down, which is how the Pencil is used, so the
                       app draws one. A sibling of the editor, never inside it —
                       ProseMirror replaces its own children. */}
-                  <PencilCaret editor={editor} enabled={isTouch && !isHistoryMode} />
+                  <PencilCaret
+                    editor={editor}
+                    enabled={isTouch && !isHistoryMode}
+                    // While the handwriting panel is up the editor does not hold
+                    // focus — the writing field does — but the writer still has
+                    // to see which line the next insert lands on, and iPadOS
+                    // draws nothing for an unfocused view.
+                    showUnfocused={scribbleOpen}
+                  />
                   {/* And no selection handles either, so the app draws those
                       too — see SelectionHandles.tsx. Same reason it is a
                       sibling and not a child of the editor. */}
@@ -4875,11 +4885,10 @@ const ScreenplayEditor: React.FC = () => {
           toolbar because it has to be reachable whatever else is on screen —
           notably with a hardware keyboard attached, where no on-screen
           accessory bar is showing at all (issue #90). */}
-      {scribbleTarget && editor && (
+      {scribbleOpen && editor && (
         <ScribbleInput
           editor={editor}
-          target={scribbleTarget}
-          onClose={() => setScribbleTarget(null)}
+          onClose={() => setScribbleOpen(false)}
         />
       )}
       {/* Context menu on mobile: 3-finger touch only */}
