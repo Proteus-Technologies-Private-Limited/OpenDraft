@@ -1254,7 +1254,29 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const handlePrint = useCallback(async () => {
     const route = printRoute();
     if (route === 'dialog') {
-      window.print();
+      // In a browser this opens the dialog and returns nothing. Inside a Tauri
+      // web view `window.print` is a shim over `plugin:webview|print`, so it
+      // returns a promise — and one that rejects if the command is not allowed
+      // by the ACL, which is how Print came to be a menu item that did nothing
+      // at all on the desktop app. Awaited, so a refusal is something the
+      // writer is told about rather than a menu item that silently does
+      // nothing.
+      // Let any open menu close first. Print is reached from the File menu,
+      // and `handleItemClick` runs the action before it clears the menu, so
+      // the dropdown was still mounted when the dialog took its snapshot —
+      // and being portalled to the body it is outside everything the print
+      // stylesheet hides. What came out was a picture of the File menu.
+      // Two frames: one for React to re-render without it, one for the
+      // browser to lay the page out again before it is captured.
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+      try {
+        await (window.print() as unknown as void | Promise<void>);
+      } catch (err) {
+        console.error('[print] the web view refused to print:', err);
+        showToast('Could not open the print dialog. Export to PDF and print that instead.');
+      }
       return;
     }
     if (!editor) return;
