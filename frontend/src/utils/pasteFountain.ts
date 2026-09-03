@@ -43,11 +43,22 @@ export interface FountainInsert {
  * Action", so it gets an Action block rather than being poured into the
  * heading the caret happens to be in.
  *
- * Only `!` can reach the inline test — the rest already parse to something
- * other than a bare Action node — but the whole set is listed because the test
- * is about what the writer wrote, not about which rule happened to claim it.
+ * `.` is the one that has to be qualified, because it is the one character
+ * here that also starts ordinary prose. Fountain forces a scene heading on a
+ * leading `.` only where the next character is not a second `.`, which is what
+ * keeps an ellipsis from becoming a heading — so `...and then I left`, the
+ * shape half of dialogue continuation takes, is prose that the parser already
+ * hands back as a plain Action. Matching it here anyway sent it in as a block
+ * and split the element the caret was in: issue #109 again, on the paste most
+ * likely to land mid-sentence. The lookahead mirrors the parser's own rule.
+ *
+ * The rest need no qualifying: `@`, `>`, `~` and `#` parse to something other
+ * than a bare Action node and are turned away before this test is reached, and
+ * `!` forces Action unconditionally, marker consumed. They are listed all the
+ * same, because the question is what the writer marked up, not which rule
+ * happened to claim it.
  */
-const FORCED_ELEMENT = /^[!@>~.#=]/;
+const FORCED_ELEMENT = /^(?:[!@>~#=]|\.(?=[^.]))/;
 
 /**
  * Decide what `text` should become when pasted as Fountain.

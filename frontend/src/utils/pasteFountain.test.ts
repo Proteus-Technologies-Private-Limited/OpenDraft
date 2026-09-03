@@ -35,6 +35,25 @@ describe('planFountainInsert — plain text goes in at the caret', () => {
     ]);
   });
 
+  // A leading `.` forces a scene heading in Fountain, but only where the next
+  // character is not a second `.` — which is exactly what stops an ellipsis
+  // being read as markup. Dialogue continuation is written that way constantly,
+  // so this is the plain line most likely to be pasted into the middle of an
+  // element (issue #109).
+  it('treats a line opening with an ellipsis as text, not a forced heading', () => {
+    expect(planFountainInsert('...and then I left')?.inline).toEqual([
+      { type: 'text', text: '...and then I left' },
+    ]);
+  });
+
+  it('treats a bare pair of dots as text', () => {
+    expect(planFountainInsert('..')?.inline).toEqual([{ type: 'text', text: '..' }]);
+  });
+
+  it('treats a lone full stop as text', () => {
+    expect(planFountainInsert('.')?.inline).toEqual([{ type: 'text', text: '.' }]);
+  });
+
   it('has nothing to insert for empty or blank text', () => {
     expect(planFountainInsert('')).toBeNull();
     expect(planFountainInsert('   \n  ')).toBeNull();
@@ -51,6 +70,9 @@ describe('planFountainInsert — structure keeps its own blocks', () => {
 
   staysBlocks('a scene heading', 'INT. KITCHEN - DAY');
   staysBlocks('a forced scene heading', '.PIER 3');
+  // The qualified `.` rule must not go so far the other way that a real forced
+  // heading whose text begins with a dot-word slips through as prose.
+  staysBlocks('a forced scene heading of one word', '.LATER');
   staysBlocks('a transition', 'CUT TO:');
   staysBlocks('a forced transition', '> SMASH CUT:');
   staysBlocks('a section', '# Act One');
