@@ -1,34 +1,34 @@
 Everything new since the last App Store release, for iPad and iPhone.
 
-HEADERS AND FOOTERS GET THEIR OWN DIALOG
-Format > Header & Footer, out of the bottom of Page Setup where nobody found it. Buttons insert the page number, total pages, title, date and revision colour into whichever slot you are typing in, and a preview of the first two pages shows what you will actually get.
+HANDLES ON A SELECTION
+Selecting text highlighted it and left it at that: with no grabber at either end, widening a selection by a word meant throwing it away and starting again. There is now a handle at each end to drag, and dragging one past the other turns the selection around, the way it does everywhere else on the device.
 
-EDIT THE HEADER WHERE IT PRINTS
-Double-tap a header or footer on the page and type into it. You edit the template, so {page} stays a live page number rather than freezing as the number of the page you tapped, and every page updates at once.
+THE SELECTION STAYS VISIBLE
+Reaching for a menu, or the keyboard coming and going, made the highlight disappear — while the selection itself was still there and still what the next command would act on. Cutting a selected line from the Edit menu also moved the cursor before cutting it. The highlight now stays put, and so does the cursor.
 
-PAGE NUMBERING YOU CAN SEE
-A plain "Show on first page" checkbox, instead of leaving you to work it out from a page number — off is still the default, because a screenplay's first page is not numbered, and now it says so rather than looking like a bug. For a script whose opening sheet is front matter, set the number the first script page carries and everything after it follows.
+A HANDWRITING PANEL YOU CAN SIZE AND SEE THROUGH
+Drag its bottom-right corner to make it bigger or smaller; made narrow, the buttons keep their icons and drop their words. The gear in the title bar sets how much of the script shows through the panel and through the writing box — turned right down you can read the line you are adding to straight through the place you are writing — and picks the ink colour your handwriting comes out in, so it stays legible against whatever shows through.
 
-FOUNTAIN FILES SURVIVE BEING SAVED
-A screenplay opened from a .fountain file could come back with ** around its scene headings and the action beneath them turned into dialogue. Emphasis, scene numbers and headings that don't start with INT./EXT. are now written the way the Fountain specification asks, so a script reopens as the script you saved. Asterisks and underscores you typed yourself stay literal.
+THE PAGE HOLDS STILL WHEN YOU INSERT
+Inserting handwriting scrolled the script so the cursor cleared the panel, which moved the page at the one moment you were looking for what had just landed. It now stays exactly where it was.
 
-THE TITLE PAGE STAYS A TITLE PAGE
-Exported scripts could open with the title, credit, draft and copyright piled at the top of page 1, the first scene heading directly underneath — a single blank line above the title was enough to cause it. A fully filled title page also lost its draft, contact and copyright off the bottom. Fixed, and an imported .fdx, .fountain, .fadein or Word title page now arrives laid out properly instead of as one near-blank page.
+BLANK LINES, AND A WAY OUT OF THE ELEMENT MENU
+Pressing Return on a blank line opens a menu of element types, and there was no way left to mean "just another blank line". Return again did nothing at all, and Escape then Return only reopened the menu. Five things now insert the line: Return with nothing chosen, a Blank Line row at the foot of the menu to tap, choosing the element the line is already on, a line that already follows a blank one, or simply carrying on typing. Once a line follows a blank line the menu stops asking altogether. If you would rather Return never opened it, there is a switch in Settings > Editing.
 
-TWO BLANK LINES BEFORE SCENE HEADINGS
-The industry standard, and Final Draft's default. OpenDraft already wrote two into every Final Draft and Fade In export while showing one on screen, so exported scripts came out longer than the app said. Existing scripts open unchanged and ask once whether to adopt it. Format > Formatting Template sets the blank lines before any element, and now reaches page breaks, PDF and Word as well as the screen.
+AN ELEMENT MENU SHORTCUT OF YOUR OWN
+With a keyboard attached, Option-Return opens the element menu wherever the cursor is — on a blank line, or in the middle of a line that already has text, where it is an ordinary type chooser. Change it in Settings > Editing.
 
-GENERAL KEEPS YOUR INDENTATION
-Text you deliberately indent in a General element stays indented, in the editor, in PDF and through Fountain and Word round-trips. Return on an indented line adds a line instead of asking you to pick an element type.
+FOOTNOTES MISSING FROM A PAGE ENDING IN (MORE)
+When a speech carried over to the next page, the page it left printed none of its footnotes. They were being counted against the part of the speech that fitted rather than against the page they belonged to.
 
-CYRILLIC AND OTHER ALPHABETS EXPORT TO PDF
-A screenplay written in Cyrillic came out of PDF export as a run of unrelated Latin letters. Cyrillic, Greek, Armenian and Georgian are now written properly — same page layout, searchable and copyable. A script whose title is not in English is no longer saved as "Untitled".
+A SPEECH THAT WOULD NOT SPLIT
+A speech near the foot of a page moved to the next page whole, rather than breaking, whenever breaking would have left a single line behind. It now breaks a paragraph earlier instead of not at all, so the page still fills and no orphan line is left on either side.
 
-EXPORTS THAT MATCH YOUR DOCUMENT
-Word no longer counts the title page, so the script's opening page prints "1." and {pages} reads right, and a page 1 footer no longer vanishes when the header is set to skip it. Final Draft (.fdx) export now carries your own header, footer and page numbering instead of a fixed page number, and reads them back when you open one.
+MENUS THAT RAN OFF THE SCREEN
+Element, Style, Revision Color and Add to Dictionary opened flush against the right edge, so near the side of the screen the rest of the list could not be reached — worst on iPhone, where there is least room to spare. They now flip to the left when there is no room on the right, lift clear of the bottom edge, and scroll when the list is taller than the screen.
 
-RECOVERING UNSAVED WORK
-Losing power or force-quitting could still lose the last few lines: the recovery copy was written only every ten seconds. It is now written a moment after you stop typing. Beats, notes, tags, character profiles and page setup count as unsaved work too — they were not protected at all. And after a crash OpenDraft reopens the script you had open, instead of a blank page that made it look as though everything was gone.
+ALL CAPS ACROSS SEVERAL LINES
+Selecting more than one line and choosing ALL CAPS merged them into a single line, taking bold, italic and colour with them. Each line is now changed where it sits and keeps its formatting.
 
-FIXES
-Choosing Take Photo to add an image no longer closes OpenDraft. Fade In (.fadein) and Open Screenplay Format (.osf) files now offer Open in OpenDraft from the Files app. Header and footer margins move the bands on screen, not only in the PDF. Long words and URLs no longer run past the right margin.
+ONE VERSION NUMBER EVERYWHERE
+OpenDraft on the App Store was numbered separately from every other platform: the same app was 1.8 here and 0.26.3 on Windows, Linux, Android and the Mac download, so the version in the app matched nothing you could look up. From this release there is a single number on every platform. That is why this one is 2.0.0 rather than 1.9, and nothing in the app changes because of it.
