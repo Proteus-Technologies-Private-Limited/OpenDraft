@@ -2444,11 +2444,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 2.0.0</div>
+            <div className="about-version">Version 2.1.0</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 2.0.0</div>
+              <div className="about-section-title">What's New in 2.1.0</div>
               <div className="about-changelog">
               <div className="about-subsection-title">v2.1.0</div>
               <ul className="about-list">

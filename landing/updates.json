@@ -13,20 +13,20 @@
   ],
   "channels": {
     "dmg": {
-      "version": "2.0.0",
-      "url": "https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_2.0.0_aarch64.dmg"
+      "version": "2.1.0",
+      "url": "https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_2.1.0_aarch64.dmg"
     },
     "win": {
-      "version": "2.0.0",
-      "url": "https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_2.0.0_x64-setup.exe"
+      "version": "2.1.0",
+      "url": "https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_2.1.0_x64-setup.exe"
     },
     "linux": {
-      "version": "2.0.0",
-      "url": "https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_2.0.0_amd64.AppImage"
+      "version": "2.1.0",
+      "url": "https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_2.1.0_amd64.AppImage"
     },
     "apk": {
-      "version": "2.0.0",
-      "url": "https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_2.0.0_android.apk"
+      "version": "2.1.0",
+      "url": "https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_2.1.0_android.apk"
     },
     "mas": {
       "version": "1.8",

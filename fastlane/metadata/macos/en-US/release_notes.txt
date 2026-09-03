@@ -1,0 +1,25 @@
+Everything new since the last App Store release.
+
+BLANK LINES, AND A WAY OUT OF THE ELEMENT MENU
+Pressing Return on a blank line opens a menu of element types, and there was no keystroke left to mean "just another blank line". Return again did nothing at all, and Escape then Return only reopened the menu. Five things now insert the line: Return with nothing chosen, the Blank Line row at the foot of the menu, choosing the element the line is already on, a line that already follows a blank one, or simply carrying on typing. Once a line follows a blank line the menu stops asking altogether. If you would rather Return never opened it, there is a switch in Settings > Editing.
+
+AN ELEMENT MENU SHORTCUT OF YOUR OWN
+Option-Return opens the element menu wherever the cursor is — on a blank line, or in the middle of a line that already has text, where it is an ordinary type chooser. Change it in Settings > Editing by clicking the box and pressing the keys you want.
+
+FOOTNOTES MISSING FROM A PAGE ENDING IN (MORE)
+When a speech carried over to the next page, the page it left printed none of its footnotes. They were being counted against the part of the speech that fitted rather than against the page they belonged to.
+
+A SPEECH THAT WOULD NOT SPLIT
+A speech near the foot of a page moved to the next page whole, rather than breaking, whenever breaking would have left a single line behind. It now breaks a paragraph earlier instead of not at all, so the page still fills and no orphan line is left on either side. The shaded break band also drew a line too tall when the CONT'D marker was switched off.
+
+RIGHT-CLICK SUBMENUS THAT RAN OFF THE WINDOW
+Element, Style, Revision Color and Add to Dictionary opened flush against the right edge of the menu, so with the window near the side of the screen the rest of the list could not be reached. They now flip to the left when there is no room on the right, lift clear of the bottom edge, and scroll when the list is taller than the window.
+
+ALL CAPS ACROSS SEVERAL LINES
+Selecting more than one line and choosing ALL CAPS merged them into a single line, taking bold, italic and colour with them. Each line is now changed where it sits and keeps its formatting.
+
+TOLD ONCE WHEN THERE IS A NEW VERSION
+OpenDraft now mentions, once, when a newer version is available, with Update, Remind me later and Dismiss. Update opens the App Store, since that is where this copy came from. Dismiss silences that version and no other, so a later release can speak up once and then leave you alone.
+
+ONE VERSION NUMBER EVERYWHERE
+The same app carried two numbers depending on where you got it: 1.8 on the App Store, and 0.26.3 for the download from opendraft's own site, and on Windows, Linux and Android. The version in Help > About matched nothing you could look up. From this release there is a single number on every platform. That is why this one is 2.0.0 rather than 1.9, and nothing in the app changes because of it.
