@@ -9,6 +9,7 @@ import { getApiBase } from '../config';
 import { getDeviceId } from '../services/deviceId';
 import BackupSettingsSection from './BackupSettingsSection';
 import { formatShortcut, isMacPlatform, shortcutFromEvent } from '../utils/shortcuts';
+import { printRoute } from '../services/platform';
 
 const EXPIRY_OPTIONS = [
   { label: '30 minutes', hours: 0.5 },
@@ -87,6 +88,7 @@ const SettingsPage: React.FC = () => {
     collabServerUrl, setCollabServerUrl,
     collabAuth, defaultInviteExpiry, setDefaultInviteExpiry,
     elementMenuOnEnter, setElementMenuOnEnter,
+    printViaPdf, setPrintViaPdf,
     elementMenuShortcut, setElementMenuShortcut,
   } = useSettingsStore();
 
@@ -1173,6 +1175,41 @@ const SettingsPage: React.FC = () => {
               </div>
             )}
           </section>
+        )}
+
+        {/* ── Printing ──
+            Only where there is a choice to make. iPad, iPhone and Android have
+            no print dialog of their own — printRoute() explains why — so they
+            print the PDF whatever this says, and a switch that changed nothing
+            would be worse than no switch at all. */}
+        {printRoute() === 'dialog' && (
+        <section className="settings-section">
+          <h2 className="settings-section-title">Printing</h2>
+          <p className="settings-section-desc">
+            What File &rarr; Print sends to the printer.
+          </p>
+
+          <div className="settings-row">
+            <label>
+              <input
+                type="checkbox"
+                checked={printViaPdf}
+                onChange={(e) => setPrintViaPdf(e.target.checked)}
+              />{' '}
+              Print the PDF, so the pages match the ones on screen
+            </label>
+            <div className="settings-hint">
+              The editor draws its page turns rather than making them, so
+              printing the page asks the browser to lay the script out a second
+              time &mdash; and it can end its pages somewhere else. Printing the
+              PDF gives the pages you have been looking at, and the same
+              document anyone you send the export to would read. Turn this off
+              to use the browser's own print dialog instead, which is quicker on
+              a long script and is what its margin and scaling controls apply
+              to.
+            </div>
+          </div>
+        </section>
         )}
 
         {/* ── Editing ── */}

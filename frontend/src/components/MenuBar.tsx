@@ -238,6 +238,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const mod = /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl+';
   // Written the way this platform writes it, from whatever the writer set.
   const elementMenuShortcut = useSettingsStore((s) => s.elementMenuShortcut);
+  const printViaPdf = useSettingsStore((s) => s.printViaPdf);
   const {
     navigatorOpen,
     toggleNavigator,
@@ -1253,6 +1254,34 @@ const MenuBar: React.FC<MenuBarProps> = ({
    */
   const handlePrint = useCallback(async () => {
     const route = printRoute();
+
+    // Where there is a print dialog, the writer chooses what goes into it: the
+    // PDF the exporter lays out, or the page as the web view paginates it.
+    // Everywhere else there is no choice to make — see printRoute().
+    if (route === 'dialog' && printViaPdf && editor) {
+      try {
+        showToast('Preparing your script for printing…');
+        const json = editor.getJSON();
+        const { renderPDF } = await import('../utils/pdfExporter');
+        const { printPDFBytes } = await import('../utils/printPdf');
+        const { bytes, filename } = await renderPDF(json, documentTitle, pageLayout, pdfOptions(json));
+        // The desktop web view cannot print a frame, so there the file is
+        // opened in whatever the machine uses for PDFs and printed from there.
+        const outcome = await printPDFBytes(bytes, filename, isDesktopTauri());
+        if (outcome === 'opened-externally') {
+          showToast('Opened your script as a PDF — print it from there.');
+        }
+      } catch (err) {
+        console.error('[print] could not print the PDF:', err);
+        // The reason is in the message, not just the console: there is no
+        // console to open in a packaged desktop build, and "it did not work"
+        // on its own is what made the DOM print path so slow to diagnose.
+        const reason = err instanceof Error ? err.message : String(err);
+        showToast(`Could not print the PDF: ${reason}. Turn off "Print the PDF" in Settings → Printing to use the print dialog instead.`);
+      }
+      return;
+    }
+
     if (route === 'dialog') {
       // In a browser this opens the dialog and returns nothing. Inside a Tauri
       // web view `window.print` is a shim over `plugin:webview|print`, so it
@@ -1299,7 +1328,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       console.error('Print failed:', err);
       showToast(`Print failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
-  }, [editor, documentTitle, pageLayout, pdfOptions]);
+  }, [editor, documentTitle, pageLayout, pdfOptions, printViaPdf]);
 
   // ── Global keyboard shortcuts ──
   useEffect(() => {

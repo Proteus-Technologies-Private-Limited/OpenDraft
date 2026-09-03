@@ -97,6 +97,24 @@ interface SettingsState {
    */
   elementMenuShortcut: string;
   setElementMenuShortcut: (spec: string) => void;
+  /**
+   * Whether File → Print prints the exported PDF rather than the page.
+   *
+   * On by default, and the reason is fidelity. The editor draws its page turns
+   * rather than making them, so printing the page asks the browser to
+   * paginate the script a second time by its own rules — and it put the page
+   * turns somewhere else, which in a screenplay is a change to the script. The
+   * PDF is laid out page by page by the exporter, so printing it gives the
+   * pages the writer has been looking at, and the same document anyone sent
+   * the export would read. Off falls back to the web view's own print dialog,
+   * which is faster on a long script and is what the browser's own margin and
+   * scaling controls apply to.
+   *
+   * Only consulted where there is a print dialog to fall back to. iOS and
+   * Android have none and have always printed the PDF — see printRoute().
+   */
+  printViaPdf: boolean;
+  setPrintViaPdf: (v: boolean) => void;
 }
 
 const STORAGE_KEY_URL = 'opendraft:collabServerUrl';
@@ -112,6 +130,7 @@ const STORAGE_KEY_BACKUP_RETENTION = 'opendraft:backupRetentionCount';
 const STORAGE_KEY_BACKUP_IMAGES = 'opendraft:backupIncludeImages';
 const STORAGE_KEY_BACKUP_UNSAVED = 'opendraft:backupUnsavedDocs';
 const STORAGE_KEY_ELEMENT_MENU_ON_ENTER = 'opendraft:elementMenuOnEnter';
+const STORAGE_KEY_PRINT_VIA_PDF = 'opendraft:printViaPdf';
 const STORAGE_KEY_ELEMENT_MENU_SHORTCUT = 'opendraft:elementMenuShortcut';
 
 export const BACKUP_INTERVAL_OPTIONS = [5, 10, 15, 30, 60] as const;
@@ -274,6 +293,12 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setElementMenuOnEnter: (v) => {
     try { localStorage.setItem(STORAGE_KEY_ELEMENT_MENU_ON_ENTER, v ? '1' : '0'); } catch { /* ignore */ }
     set({ elementMenuOnEnter: v });
+  },
+
+  printViaPdf: loadBool(STORAGE_KEY_PRINT_VIA_PDF, true),
+  setPrintViaPdf: (v) => {
+    try { localStorage.setItem(STORAGE_KEY_PRINT_VIA_PDF, v ? '1' : '0'); } catch { /* ignore */ }
+    set({ printViaPdf: v });
   },
 
   elementMenuShortcut: loadElementMenuShortcut(),

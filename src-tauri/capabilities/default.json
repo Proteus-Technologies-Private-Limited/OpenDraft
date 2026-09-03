@@ -31,6 +31,10 @@
     "dialog:allow-confirm",
     "dialog:allow-ask",
     "opener:allow-open-url",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "$APPDATA/**" }]
+    },
     "opener:allow-default-urls",
     "clipboard-manager:allow-read-text"
   ]
