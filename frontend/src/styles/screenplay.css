@@ -10964,7 +10964,26 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 
 /* ============ PRINT ============ */
 @media print {
+  /* Print the script and nothing else.
+   *
+   * Browsers draw the date, the document title, the URL and the page number
+   * into the page margin box. None of it is part of the screenplay, none of it
+   * can be styled, and a script is a format where a stray line at the top of
+   * the page is not a small thing. There is no property that turns them off —
+   * but they are drawn in the margin, so a page with no margin has nowhere to
+   * put them.
+   *
+   * Nothing moves as a result: a screenplay's own margins are `.page`'s
+   * padding, set from Page Setup, and they sit inside this box rather than
+   * being made of it. `size` is left alone so the paper chosen in the print
+   * dialog is the paper used. */
+  @page { margin: 0; }
+
   /* Hide all chrome */
+  /* The dropdown is portalled to the body, so hiding .menu-bar never reached
+     it and a print started from the File menu printed the File menu. The FAB
+     and its menu are portalled the same way. */
+  .menu-dropdown, .menu-submenu, .menu-fab,
   .menu-bar, .toolbar, .scene-navigator, .status-bar,
   .search-replace-panel, .dialog-overlay,
   .index-cards, .beat-board, .script-notes-panel, .char-profiles-panel, .tags-panel,
@@ -10983,7 +11002,32 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   .page { box-shadow: none !important; margin: 0 !important; width: 100% !important; }
   .page-sep { display: none !important; }
 
-  /* Let the browser handle page breaks */
+  /* Break where the editor breaks.
+   *
+   * On screen the page turns are simulated: one continuous page element with
+   * absolutely positioned separators drawn over it, and a margin pushing the
+   * first element of each page down past the gap. Print used to ignore all of
+   * that and let the browser flow the document itself, so it decided its own
+   * page turns and what came out was paginated differently from what was on
+   * screen — the thing a writer is watching most closely, since where a page
+   * ends is part of how a script reads.
+   *
+   * The pagination plugin already names the element each page starts on, so
+   * that element forces a real page break. Its simulated gap is a top margin,
+   * which is truncated at a forced break, and the padding puts the new sheet's
+   * top margin back — the page box has none of its own, since a margin there
+   * is where browsers draw the URL and the date. */
+  .sp-page-start {
+    break-before: page;
+    page-break-before: always;
+    /* The simulated gap goes: it exists to push this element past the foot of
+       a page that is only drawn, and here the page turn is real. Browsers are
+       supposed to truncate a margin at a forced break and this one does not,
+       so it is taken out rather than relied on. */
+    margin-top: 0 !important;
+    padding-top: var(--page-margin-top);
+  }
+
   .tiptap .ProseMirror > * { page-break-inside: avoid; }
 
   /* Fountain's non-printing elements. The spec is explicit that a Section and

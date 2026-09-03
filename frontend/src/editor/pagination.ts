@@ -281,7 +281,17 @@ export function createPaginationPlugin(
           const marginTop = Math.round(whitespacePx + sepHeightPx + contdPx);
           decos.push(
             Decoration.node(brk.offset, brk.offset + brk.nodeSize, {
-              style: `margin-top: ${marginTop}px !important`,
+              // No `!important`: an inline declaration already beats every
+              // stylesheet rule that sets a margin on these elements, none of
+              // which is important either — and leaving it off is what lets
+              // the print rules take this filler back out. It is whitespace
+              // standing in for the foot of a page, and in print the foot of
+              // the page is real.
+              style: `margin-top: ${marginTop}px`,
+              // Names the first element of each page, so print can break where
+              // the editor breaks instead of paginating the flow a second time
+              // and putting the page turns somewhere else.
+              class: 'sp-page-start',
             })
           );
         }
