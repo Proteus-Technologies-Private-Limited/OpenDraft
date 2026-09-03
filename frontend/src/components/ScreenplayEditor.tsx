@@ -79,6 +79,7 @@ import GrammarRulesPanel from './GrammarRulesPanel';
 import ScriptContextMenu from './ScriptContextMenu';
 import ScribbleInput from './ScribbleInput';
 import PencilCaret from './PencilCaret';
+import SelectionHandles from './SelectionHandles';
 import { useFootnotePlan } from '../hooks/useFootnotePlan';
 import { footnotePlanSignature, type FootnotePlan } from '../utils/footnotes';
 import { createFootnoteMarkerPlugin } from '../editor/footnoteMarkers';
@@ -164,7 +165,7 @@ import { useIsTouchDevice, useSwipeEdge, usePinchZoom } from '../hooks/useTouch'
 import { useSettingsStore } from '../stores/settingsStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
 import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, isCollabAuthenticated } from '../services/collabAuth';
-import { platformFetch, isTauri, isDesktopTauri } from '../services/platform';
+import { platformFetch, isTauri, isDesktopTauri, needsSelectionHandles } from '../services/platform';
 import { reportSaveError } from '../stores/saveErrorStore';
 import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
@@ -4326,9 +4327,14 @@ const ScreenplayEditor: React.FC = () => {
     const handleContextMenu = (e: MouseEvent) => {
       const editorDom = editor.view.dom;
       if (!editorDom.contains(e.target as Node)) return;
-      e.preventDefault();
-      // No context menu on touch devices — use 3-finger touch instead
+      // No context menu on touch devices — three fingers opens it instead —
+      // and nothing prevented either. On iPadOS the long press that fires this
+      // event is the same gesture that selects a word and puts the selection
+      // UI on screen, so preventing it here took the selection handles with it
+      // (issue #108). This used to run before the check, which meant that on a
+      // touch device the handler did nothing *but* cancel the gesture.
       if (isTouchDevice) return;
+      e.preventDefault();
 
       // Move cursor to click position only if no text is selected,
       // or if the click is outside the current selection
@@ -4808,6 +4814,13 @@ const ScreenplayEditor: React.FC = () => {
                       app draws one. A sibling of the editor, never inside it —
                       ProseMirror replaces its own children. */}
                   <PencilCaret editor={editor} enabled={isTouch && !isHistoryMode} />
+                  {/* And no selection handles either, so the app draws those
+                      too — see SelectionHandles.tsx. Same reason it is a
+                      sibling and not a child of the editor. */}
+                  <SelectionHandles
+                    editor={editor}
+                    enabled={needsSelectionHandles() && !isHistoryMode}
+                  />
                 </div>
               </div>
               </div>

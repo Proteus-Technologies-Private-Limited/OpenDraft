@@ -7203,6 +7203,52 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
   .pencil-caret { animation: none; }
 }
 
+/* Draggable selection handles (see SelectionHandles.tsx). iPadOS draws none of
+   its own inside this web view, so the app draws them, in the same blue as the
+   selection highlight above so the three read as one thing.
+
+   Absolute inside .page, like the caret, so they scroll and scale with the
+   text. Unlike the caret they are not inert: each one is the drag target, and
+   `touch-action: none` is what stops a drag along a handle from scrolling the
+   page out from under the gesture instead of moving the selection. */
+.selection-handle {
+  position: absolute;
+  width: 2px;
+  margin-left: -1px;
+  background: #338fff;
+  z-index: 41;
+  touch-action: none;
+}
+
+/* The knob. Clear of the text — above the start, below the end — so a finger
+   on it is not covering the character the handle is pointing at, which is the
+   character the writer is trying to see. */
+.selection-handle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: inherit;
+}
+.selection-handle-start::before { top: -11px; }
+.selection-handle-end::before { bottom: -11px; }
+
+/* A finger-sized target around a 2px line. Invisible, and wider than the
+   handle in every direction so the knob can be grabbed from slightly off it —
+   the whole point of a handle is that it is caught first time. */
+.selection-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 44px;
+  margin-left: -22px;
+  top: -24px;
+  bottom: -24px;
+}
+
 /* History mode: visual feedback on the editor area */
 .app-container.history-mode .editor-main {
   background: repeating-linear-gradient(

@@ -32,6 +32,7 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Editor } from '@tiptap/react';
+import { toPagePoint, type PagePoint } from '../utils/pageCoords';
 
 interface PencilCaretProps {
   editor: Editor | null;
@@ -39,14 +40,8 @@ interface PencilCaretProps {
   enabled: boolean;
 }
 
-interface CaretBox {
-  left: number;
-  top: number;
-  height: number;
-}
-
 const PencilCaret: React.FC<PencilCaretProps> = ({ editor, enabled }) => {
-  const [box, setBox] = useState<CaretBox | null>(null);
+  const [box, setBox] = useState<PagePoint | null>(null);
 
   const measure = useCallback(() => {
     if (!editor || !enabled) { setBox(null); return; }
@@ -66,23 +61,11 @@ const PencilCaret: React.FC<PencilCaretProps> = ({ editor, enabled }) => {
       // Read-only drafts hide the caret on purpose.
       if (!view.editable) { setBox(null); return; }
 
-      const coords = view.coordsAtPos(state.selection.head);
-      // Measured against the page, which is this element's offset parent.
+      // Measured against the page, which is this element's offset parent, and
+      // undone of whatever zoom is being applied to it — see pageCoords.ts.
       const page = dom.closest('.page') as HTMLElement | null;
       if (!page) { setBox(null); return; }
-      const rect = page.getBoundingClientRect();
-
-      // The painted width over the layout width is whatever scale an ancestor
-      // is applying — zoom, or none. Measured, so nothing here has to know how
-      // the page is being scaled or whether that has changed.
-      const scale = page.offsetWidth > 0 ? rect.width / page.offsetWidth : 1;
-      if (!Number.isFinite(scale) || scale <= 0) { setBox(null); return; }
-
-      setBox({
-        left: (coords.left - rect.left) / scale,
-        top: (coords.top - rect.top) / scale,
-        height: Math.max(8, (coords.bottom - coords.top) / scale),
-      });
+      setBox(toPagePoint(page, view.coordsAtPos(state.selection.head)));
     } catch {
       // coordsAtPos throws while the view is mid-update; the next tick re-reads.
       setBox(null);
