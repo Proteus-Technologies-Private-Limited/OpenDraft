@@ -29,15 +29,15 @@
       "url": "https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest/download/OpenDraft_2.1.0_android.apk"
     },
     "mas": {
-      "version": "1.8",
+      "version": "2.1.0",
       "url": "https://apps.apple.com/us/app/open-draft-screenwriting/id6761807809"
     },
     "ios": {
-      "version": "1.8",
+      "version": "2.1.0",
       "url": "https://apps.apple.com/us/app/open-draft-screenwriting/id6761807809"
     },
     "play": {
-      "version": "0.26.3",
+      "version": "2.1.0",
       "url": "https://play.google.com/store/apps/details?id=com.proteus.opendraft"
     }
   }
