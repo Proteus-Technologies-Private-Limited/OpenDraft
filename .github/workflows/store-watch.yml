@@ -72,6 +72,22 @@ jobs:
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           echo "Target: ${TAG#v}"
 
+      # The store versions this workflow published last time. main's store
+      # entries are stale by design — they are only moved by hand, and were
+      # still on 1.8 while the stores served 2.x — so recomposing from main
+      # alone means one lookup that cannot answer republishes 1.8 and takes
+      # the notice away from that store until some later run succeeds.
+      - name: The manifest as last published
+        id: previous
+        run: |
+          if git fetch --depth=1 origin manifest \
+             && git show FETCH_HEAD:landing/updates.json > /tmp/previous-updates.json; then
+            echo "path=/tmp/previous-updates.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "No published manifest to carry forward — first run since the branch was removed."
+            echo "path=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Ask the stores what is live
         id: check
         env:
@@ -83,7 +99,9 @@ jobs:
           else
             echo "::warning::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 not set — the play channel cannot be checked"
           fi
-          python3 test-script/refresh_store_manifest.py --target "${{ steps.target.outputs.version }}" | tee /tmp/out.txt
+          python3 test-script/refresh_store_manifest.py \
+            --target "${{ steps.target.outputs.version }}" \
+            --previous "${{ steps.previous.outputs.path }}" | tee /tmp/out.txt
           grep -E '^(changed|caught-up)=' /tmp/out.txt >> "$GITHUB_OUTPUT"
 
       # Published to a branch, not to main. main requires a pull request, and

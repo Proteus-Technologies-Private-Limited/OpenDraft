@@ -70,8 +70,22 @@ send people to a listing still offering the build they already have. They are
 moved later by the **Store Watch** workflow, which asks each store what it is
 actually serving:
 
-- Apple — the iTunes lookup API, no credentials. One record covers both the iOS
-  and Mac App Store entries for this app id, so those two channels move together.
+- Apple — the iTunes lookup API, no credentials. Asked **twice**, once per
+  storefront: the iOS and Mac App Store entries share an app id and a product
+  page, but they are separate records (`software` and `mac-software`, the latter
+  needing `entity=macSoftware`) at separate versions, because review approves
+  the two builds separately. v2.1.0 was the proof — the single default record is
+  the iOS one, and writing it to both channels pinned `mas` to 2.0.0 while the
+  Mac App Store was already serving 2.1.0, so Mac App Store users on 2.0.0 were
+  told they were up to date. Whichever record is missing from a reply is
+  reported as unknown; the other platform's version is never a substitute.
+- A store channel never moves backwards. Every run recomposes the manifest from
+  `main`, whose store entries are stale by design, so the versions the last run
+  published (read off the `manifest` branch and passed in as `--previous`) are
+  floors. Without that, one lookup that could not answer would republish
+  `main`'s old version and take the notice away from that store until a later
+  run happened to succeed. To correct a store channel downwards, delete the
+  `manifest` branch.
 - Google — the Play Developer API, using the same
   `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64` secret `submit-stores.yml` uses. The
   track release's name is preferred; the versionCode is the fallback, decoded
