@@ -1,25 +1,16 @@
-Everything new since the last App Store release.
+Everything new since 2.0.0.
 
-BLANK LINES, AND A WAY OUT OF THE ELEMENT MENU
-Pressing Return on a blank line opens a menu of element types, and there was no keystroke left to mean "just another blank line". Return again did nothing at all, and Escape then Return only reopened the menu. Five things now insert the line: Return with nothing chosen, the Blank Line row at the foot of the menu, choosing the element the line is already on, a line that already follows a blank one, or simply carrying on typing. Once a line follows a blank line the menu stops asking altogether. If you would rather Return never opened it, there is a switch in Settings > Editing.
+PRINT PRINTS THE PAGES YOU ARE LOOKING AT
+The editor draws its page turns rather than making them, and printing asked the browser to lay the script out a second time by its own rules — so the printed pages could end somewhere you had never seen, which in a screenplay is a change to the script. Print now sends the PDF, the same pages File > Export > PDF produces, so what comes off the printer is what is on screen and what anyone you send it to would read. The date, the title, the address and the page number the browser drew into the margins are gone with it.
 
-AN ELEMENT MENU SHORTCUT OF YOUR OWN
-Option-Return opens the element menu wherever the cursor is — on a blank line, or in the middle of a line that already has text, where it is an ordinary type chooser. Change it in Settings > Editing by clicking the box and pressing the keys you want.
+PRINT DID NOTHING AT ALL
+File > Print was a menu item that did nothing, silently and with no error to find: printing had never been permitted inside the app's own window, so the request was refused and the refusal went nowhere. It works, and if it ever cannot it now says why.
 
-FOOTNOTES MISSING FROM A PAGE ENDING IN (MORE)
-When a speech carried over to the next page, the page it left printed none of its footnotes. They were being counted against the part of the speech that fitted rather than against the page they belonged to.
+PRINTING FROM THE FILE MENU PRINTED THE FILE MENU
+The print started before the menu had closed, and a menu is drawn outside everything the print styles hide, so what came out of the printer was a picture of it.
 
-A SPEECH THAT WOULD NOT SPLIT
-A speech near the foot of a page moved to the next page whole, rather than breaking, whenever breaking would have left a single line behind. It now breaks a paragraph earlier instead of not at all, so the page still fills and no orphan line is left on either side. The shaded break band also drew a line too tall when the CONT'D marker was switched off.
+THE OLD WAY, IF YOU WANT IT
+Settings > Printing turns the PDF off and hands the script to the print dialog instead, with its margin and scaling controls, which are quicker on a long script. The page breaks are then the browser's own and need not agree with the ones you see in the editor.
 
-RIGHT-CLICK SUBMENUS THAT RAN OFF THE WINDOW
-Element, Style, Revision Color and Add to Dictionary opened flush against the right edge of the menu, so with the window near the side of the screen the rest of the list could not be reached. They now flip to the left when there is no room on the right, lift clear of the bottom edge, and scroll when the list is taller than the window.
-
-ALL CAPS ACROSS SEVERAL LINES
-Selecting more than one line and choosing ALL CAPS merged them into a single line, taking bold, italic and colour with them. Each line is now changed where it sits and keeps its formatting.
-
-TOLD ONCE WHEN THERE IS A NEW VERSION
-OpenDraft now mentions, once, when a newer version is available, with Update, Remind me later and Dismiss. Update opens the App Store, since that is where this copy came from. Dismiss silences that version and no other, so a later release can speak up once and then leave you alone.
-
-ONE VERSION NUMBER EVERYWHERE
-The same app carried two numbers depending on where you got it: 1.8 on the App Store, and 0.26.3 for the download from opendraft's own site, and on Windows, Linux and Android. The version in Help > About matched nothing you could look up. From this release there is a single number on every platform. That is why this one is 2.0.0 rather than 1.9, and nothing in the app changes because of it.
+PASTING A LINE INTO THE MIDDLE OF ANOTHER
+Paste as Fountain read an ordinary line of prose as a screenplay element and put it in as a block, which split the line the cursor was in: a scene heading pasted into came back torn in half around it. A single plain line now goes in as text at the cursor, and a line opening with "…", read as markup for the same reason, no longer is. Anything with real structure — a heading, a character cue and its dialogue, a transition, a centred line — still arrives as those elements.

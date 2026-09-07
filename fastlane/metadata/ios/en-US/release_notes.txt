@@ -1,4 +1,4 @@
-Everything new since the last App Store release, for iPad and iPhone.
+Everything new since 2.0.0, for iPad and iPhone.
 
 HANDLES ON A SELECTION
 Selecting text highlighted it and left it at that: with no grabber at either end, widening a selection by a word meant throwing it away and starting again. There is now a handle at each end to drag, and dragging one past the other turns the selection around, the way it does everywhere else on the device.
@@ -6,29 +6,17 @@ Selecting text highlighted it and left it at that: with no grabber at either end
 THE SELECTION STAYS VISIBLE
 Reaching for a menu, or the keyboard coming and going, made the highlight disappear — while the selection itself was still there and still what the next command would act on. Cutting a selected line from the Edit menu also moved the cursor before cutting it. The highlight now stays put, and so does the cursor.
 
-A HANDWRITING PANEL YOU CAN SIZE AND SEE THROUGH
+A HANDWRITING PANEL THAT STAYS OPEN
+Handwriting opened as a sheet over the script, and the page underneath could not be touched — so moving the insertion point meant closing it, tapping the new line and opening it again. It is a floating panel now. Drag it by its title bar, tap any line behind it to choose where the next insert goes, and it stays up between inserts, so a run of small revisions is one panel and no reopening. Where you leave it is remembered.
+
+A PANEL YOU CAN SIZE AND SEE THROUGH
 Drag its bottom-right corner to make it bigger or smaller; made narrow, the buttons keep their icons and drop their words. The gear in the title bar sets how much of the script shows through the panel and through the writing box — turned right down you can read the line you are adding to straight through the place you are writing — and picks the ink colour your handwriting comes out in, so it stays legible against whatever shows through.
 
 THE PAGE HOLDS STILL WHEN YOU INSERT
 Inserting handwriting scrolled the script so the cursor cleared the panel, which moved the page at the one moment you were looking for what had just landed. It now stays exactly where it was.
 
-BLANK LINES, AND A WAY OUT OF THE ELEMENT MENU
-Pressing Return on a blank line opens a menu of element types, and there was no way left to mean "just another blank line". Return again did nothing at all, and Escape then Return only reopened the menu. Five things now insert the line: Return with nothing chosen, a Blank Line row at the foot of the menu to tap, choosing the element the line is already on, a line that already follows a blank one, or simply carrying on typing. Once a line follows a blank line the menu stops asking altogether. If you would rather Return never opened it, there is a switch in Settings > Editing.
+HANDWRITING ADDED TO A LINE YOU ALREADY WROTE
+Handwriting inserted mid-line arrived with no space around it — writing "(CONTINUOUS)" at the end of a scene heading gave you DAY(CONTINUOUS). It is now spaced against the words either side, while a full stop, a comma or a bracket stays tight to what it belongs to.
 
-AN ELEMENT MENU SHORTCUT OF YOUR OWN
-With a keyboard attached, Option-Return opens the element menu wherever the cursor is — on a blank line, or in the middle of a line that already has text, where it is an ordinary type chooser. Change it in Settings > Editing.
-
-FOOTNOTES MISSING FROM A PAGE ENDING IN (MORE)
-When a speech carried over to the next page, the page it left printed none of its footnotes. They were being counted against the part of the speech that fitted rather than against the page they belonged to.
-
-A SPEECH THAT WOULD NOT SPLIT
-A speech near the foot of a page moved to the next page whole, rather than breaking, whenever breaking would have left a single line behind. It now breaks a paragraph earlier instead of not at all, so the page still fills and no orphan line is left on either side.
-
-MENUS THAT RAN OFF THE SCREEN
-Element, Style, Revision Color and Add to Dictionary opened flush against the right edge, so near the side of the screen the rest of the list could not be reached — worst on iPhone, where there is least room to spare. They now flip to the left when there is no room on the right, lift clear of the bottom edge, and scroll when the list is taller than the screen.
-
-ALL CAPS ACROSS SEVERAL LINES
-Selecting more than one line and choosing ALL CAPS merged them into a single line, taking bold, italic and colour with them. Each line is now changed where it sits and keeps its formatting.
-
-ONE VERSION NUMBER EVERYWHERE
-OpenDraft on the App Store was numbered separately from every other platform: the same app was 1.8 here and 0.26.3 on Windows, Linux, Android and the Mac download, so the version in the app matched nothing you could look up. From this release there is a single number on every platform. That is why this one is 2.0.0 rather than 1.9, and nothing in the app changes because of it.
+PASTING A LINE INTO THE MIDDLE OF ANOTHER
+Paste as Fountain read an ordinary line of prose as a screenplay element and put it in as a block, which split the line the cursor was in: a scene heading pasted into came back torn in half. A single plain line now goes in as text at the cursor, and a line opening with "…", read as markup for the same reason, no longer is. Anything with real structure — a heading, a character cue and its dialogue, a transition — still arrives as those elements.
