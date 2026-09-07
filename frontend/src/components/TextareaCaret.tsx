@@ -32,6 +32,9 @@ const MIRRORED: (keyof CSSStyleDeclaration)[] = [
   'overflowWrap', 'tabSize',
 ];
 
+/** Field events that can move the caret without `selectionchange` firing. */
+const AREA_EVENTS = ['select', 'keyup', 'pointerup', 'input', 'focus', 'blur'] as const;
+
 const TextareaCaret: React.FC<TextareaCaretProps> = ({ areaRef, value, enabled }) => {
   const [box, setBox] = useState<{ left: number; top: number; height: number } | null>(null);
   const mirrorRef = useRef<HTMLDivElement | null>(null);
@@ -39,7 +42,15 @@ const TextareaCaret: React.FC<TextareaCaretProps> = ({ areaRef, value, enabled }
 
   const measure = useCallback(() => {
     const area = areaRef.current;
-    if (!enabled || !area || document.activeElement !== area) { setBox(null); return; }
+    // `document.activeElement` survives the window going inactive — on an iPad
+    // in Stage Manager, or any window that is not full screen, it still names
+    // this field after the writer has tapped away. A caret left painted there
+    // is worse than none: the CSS turns the native one off for as long as this
+    // is mounted, so a stale mark is the only one on screen (issue #112).
+    if (!enabled || !area || !document.hasFocus() || document.activeElement !== area) {
+      setBox(null);
+      return;
+    }
     // A range shows itself by highlight; a caret is only for a collapsed one.
     if (area.selectionStart !== area.selectionEnd) { setBox(null); return; }
 
@@ -64,6 +75,18 @@ const TextareaCaret: React.FC<TextareaCaretProps> = ({ areaRef, value, enabled }
         mirror.style[prop] = cs[prop];
       }
       mirror.style.height = 'auto';
+      // `width` resolves to the *content* width, and everything here is
+      // `border-box` (see the global reset), so copying the two verbatim leaves
+      // the mirror's content box narrower than the field's by its padding and
+      // its borders — 34px at this font size, which breaks every wrapped line
+      // early and walks the caret further off the longer the writing gets.
+      const contentWidth = parseFloat(cs.width);
+      if (!Number.isFinite(contentWidth)) { setBox(null); return; }
+      const chrome = cs.boxSizing === 'border-box'
+        ? parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+          + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth)
+        : 0;
+      mirror.style.width = `${contentWidth + (Number.isFinite(chrome) ? chrome : 0)}px`;
 
       const upto = value.slice(0, area.selectionStart ?? 0);
       mirror.textContent = upto;
@@ -98,19 +121,38 @@ const TextareaCaret: React.FC<TextareaCaretProps> = ({ areaRef, value, enabled }
     const area = areaRef.current;
     if (!area) return;
 
+    // Safari fires `selectionchange` for a form control late and only on newer
+    // iPadOS, so it cannot be the only way this hears that the selection moved:
+    // a tap that repositions the caret, or a Scribble conversion that moves it
+    // without changing the value, left the mark behind at the old spot while
+    // the writing landed at the new one (issue #112). The field's own events
+    // are the reliable half, and `setSelectionRange` fires `select` too — which
+    // is what the panel's Enter, Backspace, Paste and Insert all end in.
     document.addEventListener('selectionchange', schedule);
+    for (const name of AREA_EVENTS) area.addEventListener(name, schedule);
     area.addEventListener('scroll', schedule, { passive: true });
-    area.addEventListener('focus', schedule);
-    area.addEventListener('blur', schedule);
     window.addEventListener('resize', schedule);
+    // Whether the window is active is part of the guard above, and nothing else
+    // here fires when only that changes.
+    window.addEventListener('focus', schedule);
+    window.addEventListener('blur', schedule);
+    document.addEventListener('visibilitychange', schedule);
+
+    // The panel is resizable, which changes the field's width and so where
+    // every wrapped line breaks. Dragging its corner fires no window `resize`.
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+    ro?.observe(area);
 
     schedule();
     return () => {
       document.removeEventListener('selectionchange', schedule);
+      for (const name of AREA_EVENTS) area.removeEventListener(name, schedule);
       area.removeEventListener('scroll', schedule);
-      area.removeEventListener('focus', schedule);
-      area.removeEventListener('blur', schedule);
       window.removeEventListener('resize', schedule);
+      window.removeEventListener('focus', schedule);
+      window.removeEventListener('blur', schedule);
+      document.removeEventListener('visibilitychange', schedule);
+      ro?.disconnect();
       if (frame.current != null) cancelAnimationFrame(frame.current);
     };
   }, [areaRef, enabled, schedule]);

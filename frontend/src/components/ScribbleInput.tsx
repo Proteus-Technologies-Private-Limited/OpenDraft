@@ -474,6 +474,47 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
     return () => window.clearTimeout(id);
   }, []);
 
+  /**
+   * Come back with the field live again.
+   *
+   * Leaving the app — or, on an iPad that is not full screen, tapping another
+   * window — blurs the field and takes the keyboard down with it. The panel
+   * noticed neither: the focus-on-open effect above runs once, so the writer
+   * returned to a panel that still read "Keyboard on" over a field that was
+   * not focused at all, with no caret and nowhere for the Pencil to write
+   * (issue #112).
+   *
+   * Only when the field was the thing that had focus. Tapping a line in the
+   * script behind is how the writer moves where the next insert lands, and
+   * stealing focus back from the page on every return would undo that.
+   *
+   * The keyboard itself cannot be restored — iOS raises it only for a real
+   * gesture, and a tap on the now-focused field is that gesture.
+   */
+  const fieldHadFocus = useRef(true);
+  useEffect(() => {
+    const remember = () => {
+      fieldHadFocus.current = document.activeElement === areaRef.current;
+    };
+    const restore = () => {
+      if (document.visibilityState !== 'visible' || !fieldHadFocus.current) return;
+      const el = areaRef.current;
+      if (el && document.activeElement !== el) el.focus();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') restore();
+      else remember();
+    };
+    window.addEventListener('blur', remember);
+    window.addEventListener('focus', restore);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('blur', remember);
+      window.removeEventListener('focus', restore);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
+
   const trackSelection = useCallback(() => {
     const el = areaRef.current;
     setHasSelection(!!el && el.selectionEnd > el.selectionStart);
@@ -531,28 +572,40 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
     else if (result.error) showToast(result.error, 'error');
   }, [replaceSelection]);
 
+  const toggleKeyboard = useCallback(() => setKeyboardOn((on) => !on), []);
+
   /**
    * Turning the keyboard on has to re-focus the field: iOS decides whether to
    * raise it when focus arrives, so changing `inputmode` under a field that is
    * already focused does nothing until focus comes back.
+   *
+   * Which means it has to come back *after* React has written the new
+   * `inputmode` to the field, and a layout effect is the only place that is
+   * guaranteed. The blur and re-focus used to run inside the `setKeyboardOn`
+   * updater — during render, where they could reach the field while it still
+   * carried the old value — and from a `requestAnimationFrame`, which is
+   * outside the gesture iOS needs to see to raise a keyboard at all. Between
+   * the two, the button turned on and nothing came up (issue #112). A state
+   * updater is no place for side effects in any case: StrictMode calls it
+   * twice, and got two blurs racing two focus calls.
    */
-  const toggleKeyboard = useCallback(() => {
-    setKeyboardOn((on) => {
-      const next = !on;
-      saveFlag(KEYBOARD_PREF_KEY, next);
-      const el = areaRef.current;
-      if (el) {
-        const start = el.selectionStart;
-        const end = el.selectionEnd;
-        el.blur();
-        requestAnimationFrame(() => {
-          el.focus();
-          if (start != null && end != null) el.setSelectionRange(start, end);
-        });
-      }
-      return next;
-    });
-  }, []);
+  const appliedKeyboard = useRef(keyboardOn);
+  useLayoutEffect(() => {
+    saveFlag(KEYBOARD_PREF_KEY, keyboardOn);
+    // Only on a real change. Not on open — the field is being focused for the
+    // first time just above, and blurring it here would fight that — and a ref
+    // outlives StrictMode's remount, so a "have I run before" flag would say
+    // yes on the second pass and do exactly that.
+    if (appliedKeyboard.current === keyboardOn) return;
+    appliedKeyboard.current = keyboardOn;
+    const el = areaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    el.blur();
+    el.focus();
+    if (start != null && end != null) el.setSelectionRange(start, end);
+  }, [keyboardOn]);
 
   const togglePreview = useCallback(() => {
     setPreviewOn((on) => {
@@ -676,7 +729,15 @@ const ScribbleInput: React.FC<ScribbleInputProps> = ({ editor, onClose }) => {
               aria-pressed={keyboardOn}
               title={keyboardOn ? 'Tapping the box opens the keyboard' : 'Tapping the box will not open the keyboard'}
             >
-              <FaKeyboard /> {keyboardOn ? 'Keyboard on' : 'Keyboard off'}
+              {/* The preference, not a report on what iPadOS is painting.
+                  "Keyboard on" read as the latter, and iOS takes the keyboard
+                  down on its own — switching windows is enough — leaving the
+                  panel claiming one that was not there (issue #112). There is
+                  no way to ask iOS whether it is up, and inferring it from the
+                  visual viewport is the mistake PencilCaret documents, so this
+                  says only what it actually decides. The filled state carries
+                  on or off. */}
+              <FaKeyboard /> Keyboard
             </button>
             <button
               type="button"
