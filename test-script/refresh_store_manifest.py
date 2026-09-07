@@ -32,6 +32,7 @@ import argparse
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -42,6 +43,7 @@ MANIFEST = os.path.join(REPO_ROOT, 'landing', 'updates.json')
 APPLE_APP_ID = '6761807809'
 PLAY_PACKAGE = 'com.proteus.opendraft'
 TIMEOUT = 30
+USER_AGENT = 'OpenDraft store watch (+https://github.com/Proteus-Technologies-Private-Limited/OpenDraft)'
 
 
 def version_tuple(v):
@@ -75,13 +77,21 @@ def apple_live_version(kind):
     The kind is checked rather than trusted. A lookup that cannot serve the
     entity asked for answers with the record it has instead, and taking that
     would publish one platform's version as the other's.
+
+    The lookup is also served from a CDN edge, and an edge that has not expired
+    its copy answers with the version that was live when it cached: every run
+    of the watch on 2026-09-03 read 1.8 from a GitHub runner while the same
+    request made elsewhere read the 2.0.0 that had been live since the day
+    before. `_` is unused by the API and varies per call, so no cache can
+    answer it from a copy made for an earlier one.
     """
     entity = 'macSoftware' if kind == 'mac-software' else 'software'
     url = ('https://itunes.apple.com/lookup?'
            + urllib.parse.urlencode({'id': APPLE_APP_ID, 'country': 'us',
-                                     'entity': entity}))
+                                     'entity': entity, '_': int(time.time())}))
     try:
-        data = get_json(url)
+        data = get_json(url, headers={'User-Agent': USER_AGENT,
+                                      'Cache-Control': 'no-cache'})
     except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as err:
         print(f'  ! apple: {kind} lookup failed ({err})', file=sys.stderr)
         return None
