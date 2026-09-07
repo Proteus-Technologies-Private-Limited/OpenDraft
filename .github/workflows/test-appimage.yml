@@ -1,0 +1,144 @@
+name: Test Linux AppImage
+
+# Boots the Linux AppImage on a real x86_64 runner and screenshots it, to catch
+# the blank-white-window class of bug (issue #113) that no unit test can see.
+#
+# The runner's own Mesa is too old to trip over the bundled libwayland — Ubuntu
+# builds Mesa against its own older wayland, so even 24.04 with Mesa 25.2 loads
+# it happily. So the app is launched inside an Arch container instead, which is
+# where a current Mesa lives. Mesa falls back to software rendering under Xvfb,
+# which is fine: the bug is library resolution during EGL driver load, not
+# anything the GPU does.
+#
+# Same two scripts a developer runs locally, so a green run here and a green run
+# on a laptop mean the same thing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Released version to test, e.g. 2.1.0. Leave empty to build the AppImage from this branch.'
+        required: false
+        type: string
+      repack:
+        description: 'Strip the bundled Wayland libraries first (what the release does). Untick to confirm this test still catches the bug.'
+        required: false
+        default: true
+        type: boolean
+      settle_seconds:
+        description: 'Seconds to wait after launch before screenshotting.'
+        required: false
+        default: '45'
+        type: string
+
+jobs:
+  test-appimage:
+    # 22.04 for parity with the leg of build-desktop that ships the AppImage.
+    runs-on: ubuntu-22.04
+    name: Launch AppImage headless
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download the released AppImage
+        if: inputs.version != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p build-appimage
+          gh release download "v${{ inputs.version }}" \
+            -p "OpenDraft_${{ inputs.version }}_amd64.AppImage" -D build-appimage
+          echo "APPIMAGE=$(find build-appimage -name '*.AppImage' | head -1)" >> "$GITHUB_ENV"
+
+      # Everything below the download is the release job's Linux recipe, kept
+      # deliberately identical so what gets tested is what would ship.
+      - name: Setup Node.js
+        if: inputs.version == ''
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust
+        if: inputs.version == ''
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux dependencies
+        if: inputs.version == ''
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            squashfs-tools
+
+      - name: Build the AppImage from this branch
+        if: inputs.version == ''
+        timeout-minutes: 60
+        env:
+          VITE_API_BASE: http://localhost:18321/api
+        run: |
+          set -euo pipefail
+          cd frontend && npm ci && npm run build && cd ..
+          # tauri would otherwise rebuild the frontend itself; the release job
+          # clears this for the same reason.
+          node -e "
+          const fs = require('fs');
+          const p = 'src-tauri/tauri.conf.json';
+          const cfg = JSON.parse(fs.readFileSync(p, 'utf8'));
+          cfg.build.beforeBuildCommand = '';
+          cfg.build.beforeDevCommand = '';
+          fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
+          "
+          npx --prefix frontend tauri build --bundles appimage
+          echo "APPIMAGE=$(find src-tauri/target/release/bundle/appimage -name '*.AppImage' | head -1)" >> "$GITHUB_ENV"
+
+      - name: Install squashfs-tools
+        if: inputs.version != ''
+        run: sudo apt-get update && sudo apt-get install -y squashfs-tools
+
+      - name: Strip bundled Wayland libraries
+        if: inputs.repack
+        run: .github/scripts/fix-appimage-wayland.sh "$APPIMAGE"
+
+      - name: Verify no Wayland libraries remain
+        if: inputs.repack
+        run: .github/scripts/verify-appimage-wayland.sh "$APPIMAGE"
+
+      # Informational: the symbol-level answer in about a minute, before the
+      # slow launch. Never the verdict, so a failure here still leaves a
+      # screenshot to look at.
+      - name: EGL symbol check
+        continue-on-error: true
+        run: ./test-script/repro_issue_113_egl.sh "$APPIMAGE"
+
+      - name: Launch under Xvfb and screenshot
+        timeout-minutes: 20
+        env:
+          SETTLE_SECONDS: ${{ inputs.settle_seconds }}
+        run: ./test-script/launch_appimage_headless.sh "$APPIMAGE"
+
+      - name: Upload screenshot and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-launch-${{ inputs.version || github.sha }}
+          path: |
+            test-script/output/issue-113/*.png
+            test-script/output/issue-113/*.log
+          if-no-files-found: warn
+
+      # Worth keeping when the run built from source: it is the artifact the
+      # screenshot was taken of, ready to try on a real desktop.
+      - name: Upload the AppImage
+        if: always() && inputs.version == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenDraft-appimage-${{ github.sha }}
+          path: src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: warn
