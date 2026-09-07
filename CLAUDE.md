@@ -165,6 +165,83 @@ cd frontend && npx tauri android init && npx tauri android build --apk
 
 ---
 
+## Linux Build — AppImage
+
+The `.deb`, `.rpm` and `.AppImage` come out of the `ubuntu-22.04` leg of
+`build-desktop`. The AppImage then gets repacked before it ships.
+
+### Why the AppImage is repacked
+
+linuxdeploy (which the Tauri AppImage bundler drives) walks `ldd` and copies
+every dependency into `AppDir/usr/lib` — including `libwayland-client.so.0`. It
+does **not** bundle Mesa: `libEGL` always comes from the user's machine. Since
+`AppRun` puts `AppDir/usr/lib` ahead of the system path, the host's own
+`libEGL_mesa` gets resolved against our Ubuntu 22.04 `libwayland-client`, fails
+to find symbols it needs (`wl_fixes_interface`,
+`wl_display_create_queue_with_name`, `wl_display_dispatch_queue_timeout`), and
+`libEGL` reports `EGL_BAD_PARAMETER`. WebKit is left with no renderer and the
+window comes up blank white — reported from Arch + GNOME/Wayland as issue #113.
+`GDK_BACKEND=x11` is already set by linuxdeploy's GTK hook, so this bites under
+XWayland too; it is a bundled-library problem, not a Wayland-backend one.
+
+`libwayland` is host-ABI-coupled for exactly this reason and sits on the
+upstream AppImage excludelist — the linuxdeploy build Tauri fetches just misses
+it. Every desktop that can run a GTK3 app already ships it, so removing ours is
+strictly a fix.
+
+- `.github/scripts/fix-appimage-wayland.sh` strips `libwayland-*` and repacks
+- `.github/scripts/verify-appimage-wayland.sh` fails the release if any come back
+- `.github/scripts/appimage-squashfs.py` reads the offset, compressor and block
+  size out of the file, shared by both
+
+The repack reuses the AppImage's **own** runtime (the ELF prefix the file
+already starts with) and the compressor recorded in its superblock, so it needs
+neither appimagetool nor FUSE, and the runtime that will mount the result is
+reading exactly the format it wrote. Hardcoding gzip instead of the zstd Tauri
+uses cost 10 MB.
+
+`tauri-action` uploads the AppImage itself, so the repacked file is re-uploaded
+over the draft asset afterwards.
+
+### Testing the Linux AppImage without a Linux machine
+
+Both scripts take a release version or a path, exit non-zero on the bug, and
+need only Docker — no VM, no GPU, no Wayland compositor. They run under x86
+emulation on an Apple Silicon Mac and natively (much faster) on any x86_64
+Linux box or free cloud shell.
+
+```bash
+./test-script/repro_issue_113_egl.sh [version | path.AppImage]      # ~1 min
+./test-script/launch_appimage_headless.sh [version | path.AppImage] # ~5 min
+```
+
+The first loads a current Arch Mesa's EGL driver against the AppImage's bundled
+`libwayland-client` and diffs the symbols — quick enough for the inner loop.
+The second boots the real app under Xvfb in the same container, screenshots it
+to `test-script/output/issue-113/`, and fails on either an `EGL_BAD_PARAMETER`
+in the log or a near-flat screenshot. Mesa falls back to software rendering
+there, which is fine: the bug is library resolution during EGL driver load, not
+anything the GPU does. On a native runner set `SETTLE_SECONDS=45`.
+
+Run at least the second one against a fresh build after touching anything in
+the Linux bundle path.
+
+### The same test in CI
+
+`.github/workflows/test-appimage.yml` is a `workflow_dispatch` job that runs
+both scripts on a GitHub runner and uploads the screenshot and console log as
+artifacts. Give it a released version to test that release, or leave `version`
+empty to build the AppImage from the branch first. Untick `repack` to skip the
+Wayland strip and confirm the test still catches the bug.
+
+The job runs the app inside the same Arch container the local scripts use — the
+runner's own Mesa is no good for this. Ubuntu builds Mesa against its own older
+wayland, so even 24.04 with Mesa 25.2 loads our bundled `libwayland-client`
+happily. Of the common cloud images only Debian 13, Ubuntu 25.04, Fedora 41+
+and Arch reproduce it; Debian 12 and Ubuntu 22.04/24.04 do not.
+
+---
+
 ## iOS Build
 
 The iOS `.ipa` is built via **GitHub Actions** (in `.github/workflows/release.yml`, the `build-ios` job). It runs on a macOS runner, builds the Tauri iOS app, and uploads to both the GitHub Release and App Store Connect.
