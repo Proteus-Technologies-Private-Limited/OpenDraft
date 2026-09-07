@@ -1,22 +1,10 @@
-Everything new since 2.0.0, for iPad and iPhone.
+Everything new since 2.1.0, for iPad and iPhone.
 
-HANDLES ON A SELECTION
-Selecting text highlighted it and left it at that: with no grabber at either end, widening a selection by a word meant throwing it away and starting again. There is now a handle at each end to drag, and dragging one past the other turns the selection around, the way it does everywhere else on the device.
+YOUR OWN TEMPLATE AS THE DEFAULT
+A template you made could be applied to the script in front of you and nowhere else: every new script still started in one of the built-in formats. Your templates are now offered alongside those formats, and Make default — in the template manager, or in Format > Script Format Preferences — puts one at the top of the New Screenplay picker, already selected, so Return takes it. The picker still asks, because keeping several formats means the next script could be any of them.
 
-THE SELECTION STAYS VISIBLE
-Reaching for a menu, or the keyboard coming and going, made the highlight disappear — while the selection itself was still there and still what the next command would act on. Cutting a selected line from the Edit menu also moved the cursor before cutting it. The highlight now stays put, and so does the cursor.
+DUPLICATING A FORMAT KEEPS THE FORMAT
+Duplicating a built-in format copied its fonts and margins but left behind the starter pages, act breaks, title-page fields and dialogue spacing that make it that format. A copy now carries all of it.
 
-A HANDWRITING PANEL THAT STAYS OPEN
-Handwriting opened as a sheet over the script, and the page underneath could not be touched — so moving the insertion point meant closing it, tapping the new line and opening it again. It is a floating panel now. Drag it by its title bar, tap any line behind it to choose where the next insert goes, and it stays up between inserts, so a run of small revisions is one panel and no reopening. Where you leave it is remembered.
-
-A PANEL YOU CAN SIZE AND SEE THROUGH
-Drag its bottom-right corner to make it bigger or smaller; made narrow, the buttons keep their icons and drop their words. The gear in the title bar sets how much of the script shows through the panel and through the writing box — turned right down you can read the line you are adding to straight through the place you are writing — and picks the ink colour your handwriting comes out in, so it stays legible against whatever shows through.
-
-THE PAGE HOLDS STILL WHEN YOU INSERT
-Inserting handwriting scrolled the script so the cursor cleared the panel, which moved the page at the one moment you were looking for what had just landed. It now stays exactly where it was.
-
-HANDWRITING ADDED TO A LINE YOU ALREADY WROTE
-Handwriting inserted mid-line arrived with no space around it — writing "(CONTINUOUS)" at the end of a scene heading gave you DAY(CONTINUOUS). It is now spaced against the words either side, while a full stop, a comma or a bracket stays tight to what it belongs to.
-
-PASTING A LINE INTO THE MIDDLE OF ANOTHER
-Paste as Fountain read an ordinary line of prose as a screenplay element and put it in as a block, which split the line the cursor was in: a scene heading pasted into came back torn in half. A single plain line now goes in as text at the cursor, and a line opening with "…", read as markup for the same reason, no longer is. Anything with real structure — a heading, a character cue and its dialogue, a transition — still arrives as those elements.
+HANDWRITING KEPT UP WITH THE CURSOR
+The handwriting panel floats over the script, so everything that moves the cursor happens behind it: tapping another line, a scribble being converted, the keyboard coming and going. It read the cursor once and trusted it afterwards, so it could offer to insert somewhere the cursor had long left, and its Keyboard on label could describe a keyboard that had gone down. It now keeps up — including when you resize the panel, which rewraps every line inside it.

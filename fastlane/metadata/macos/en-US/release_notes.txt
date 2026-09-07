@@ -1,16 +1,10 @@
-Everything new since 2.0.0.
+Everything new since 2.1.0.
 
-PRINT PRINTS THE PAGES YOU ARE LOOKING AT
-The editor draws its page turns rather than making them, and printing asked the browser to lay the script out a second time by its own rules — so the printed pages could end somewhere you had never seen, which in a screenplay is a change to the script. Print now sends the PDF, the same pages File > Export > PDF produces, so what comes off the printer is what is on screen and what anyone you send it to would read. The date, the title, the address and the page number the browser drew into the margins are gone with it.
+YOUR OWN TEMPLATE AS THE DEFAULT
+A template you made could be applied to the script in front of you and nowhere else: every new script still started in one of the built-in formats. Your templates are now offered alongside those formats, and Make default — in the template manager, or in Format > Script Format Preferences — puts one at the top of the New Screenplay picker, already selected, so Return takes it. The picker still asks, because keeping several formats means the next script could be any of them.
 
-PRINT DID NOTHING AT ALL
-File > Print was a menu item that did nothing, silently and with no error to find: printing had never been permitted inside the app's own window, so the request was refused and the refusal went nowhere. It works, and if it ever cannot it now says why.
+DUPLICATING A FORMAT KEEPS THE FORMAT
+Duplicating a built-in format copied its fonts and margins but left behind the starter pages, act breaks, title-page fields and dialogue spacing that make it that format. A copy now carries all of it.
 
-PRINTING FROM THE FILE MENU PRINTED THE FILE MENU
-The print started before the menu had closed, and a menu is drawn outside everything the print styles hide, so what came out of the printer was a picture of it.
-
-THE OLD WAY, IF YOU WANT IT
-Settings > Printing turns the PDF off and hands the script to the print dialog instead, with its margin and scaling controls, which are quicker on a long script. The page breaks are then the browser's own and need not agree with the ones you see in the editor.
-
-PASTING A LINE INTO THE MIDDLE OF ANOTHER
-Paste as Fountain read an ordinary line of prose as a screenplay element and put it in as a block, which split the line the cursor was in: a scene heading pasted into came back torn in half around it. A single plain line now goes in as text at the cursor, and a line opening with "…", read as markup for the same reason, no longer is. Anything with real structure — a heading, a character cue and its dialogue, a transition, a centred line — still arrives as those elements.
+THE UPDATE NOTICE SAID YOU WERE UP TO DATE
+Running 2.0.0 with 2.1.0 already on sale here, the app told you there was nothing new. The Mac and iOS App Stores share one product page but approve and publish separately, so either can be a release ahead — and the check that watches them asked once and took the iPhone and iPad answer for both. Each store is now asked for itself, and a store that cannot answer leaves the notice looking rather than being told the wrong version.
