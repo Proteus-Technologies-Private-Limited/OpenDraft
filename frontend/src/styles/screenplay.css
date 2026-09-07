@@ -12410,6 +12410,15 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   padding: 1px 6px;
   border-radius: 4px;
 }
+.template-select-default-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--fd-text-dim);
+  background: var(--fd-bg-dim, rgba(255,255,255,0.08));
+  padding: 1px 6px;
+  border-radius: 4px;
+}
 .template-select-mode-badge {
   font-size: 11px;
   padding: 1px 8px;
@@ -12560,6 +12569,52 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   color: var(--fd-text-dim);
   margin-top: 3px;
   line-height: 1.4;
+}
+/* The badge on the card the New Screenplay picker opens on. */
+.fmt-card-default {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--fd-accent, #3b82f6);
+  background: var(--fd-accent-bg, rgba(59,130,246,0.15));
+}
+/* "Make default" sits at the trailing edge of a preferences card, quiet until
+   it marks the format the picker opens on. */
+.fmt-card-default-btn {
+  flex-shrink: 0;
+  align-self: center;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--fd-border, #444);
+  background: transparent;
+  color: var(--fd-text-dim);
+  white-space: nowrap;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+.fmt-card-default-btn:hover {
+  border-color: var(--fd-accent, #3b82f6);
+  color: var(--fd-text);
+}
+.fmt-card-default-btn.is-default {
+  border-color: var(--fd-accent, #3b82f6);
+  background: var(--fd-accent-bg, rgba(59,130,246,0.15));
+  color: var(--fd-accent, #3b82f6);
+}
+/* Heading over the writer's own templates in the preferences dialog. */
+.fmt-dialog-section {
+  margin: 16px 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--fd-text-dim);
 }
 .fmt-empty {
   padding: 20px;

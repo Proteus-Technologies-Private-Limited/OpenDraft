@@ -32,7 +32,7 @@ import PageSetupDialog from './PageSetupDialog';
 import TemplateSelectDialog from './TemplateSelectDialog';
 import ScriptFormatPreferencesDialog from './ScriptFormatPreferencesDialog';
 import ScriptFormatPickerDialog from './ScriptFormatPickerDialog';
-import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { useFormattingTemplateStore, ensureTemplatesLoaded } from '../stores/formattingTemplateStore';
 import { applyScriptFormat } from '../utils/applyScriptFormat';
 import { isTitlePageRuleId } from '../stores/formattingTypes';
 import { INDUSTRY_STANDARD_ID, ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
@@ -1093,9 +1093,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
   /** Run the format-selection flow. Mode 'reset' is the global New Screenplay
    *  action; 'apply-only' is invoked from in-project script creation, where the
    *  caller has already wired up project context. */
-  const promptForNewScreenplayFormat = useCallback((mode: 'reset' | 'apply-only') => {
+  const promptForNewScreenplayFormat = useCallback(async (mode: 'reset' | 'apply-only') => {
     if (!editor) return;
     setFormatPickerMode(mode);
+    // The enabled ids are read back from localStorage the moment the app
+    // starts, but a custom template among them lives in storage and arrives
+    // over a promise. Wait for it, or a writer quick enough to beat the load
+    // gets Industry Standard instead of their own format.
+    await ensureTemplatesLoaded();
     const settings = useSettingsStore.getState();
     const enabled = settings.enabledScriptFormats;
 
@@ -1117,12 +1122,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
       return;
     }
 
-    // 2+ enabled — show the quick single-select picker.
+    // 2+ enabled — show the quick single-select picker. Keeping several formats
+    // enabled is the writer saying the next script could be any of them, so the
+    // question still gets asked; the default is what the picker opens on.
     setFormatPickerOpen(true);
   }, [editor, finishNewScreenplayWithFormat]);
 
   const handleNewScreenplay = useCallback(() => {
-    confirmOrRun(() => promptForNewScreenplayFormat('reset'));
+    confirmOrRun(() => { void promptForNewScreenplayFormat('reset'); });
   }, [confirmOrRun, promptForNewScreenplayFormat]);
 
   // ProjectView sets pendingFormatPromptInProject=true before navigating into
@@ -1133,7 +1140,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   useEffect(() => {
     if (!pendingFormatPromptInProject || !editor) return;
     useEditorStore.getState().setPendingFormatPromptInProject(false);
-    promptForNewScreenplayFormat('apply-only');
+    void promptForNewScreenplayFormat('apply-only');
   }, [pendingFormatPromptInProject, editor, promptForNewScreenplayFormat]);
 
   /**
@@ -2458,7 +2465,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
           setFormatPrefsOpen(null);
           if (next?.afterSave === 'apply-new-screenplay') {
             // After saving prefs, immediately route the new-screenplay action through
-            // the same logic again (1 enabled = apply directly, 2+ = show picker).
+            // the same logic again (1 enabled = apply directly, 2+ = show picker
+            // with the default selected).
             if (ids.length === 1) finishNewScreenplayWithFormat(ids[0], formatPickerMode);
             else if (ids.length > 1) setFormatPickerOpen(true);
             else finishNewScreenplayWithFormat(INDUSTRY_STANDARD_ID, formatPickerMode);
@@ -2470,6 +2478,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {formatPickerOpen && (
       <ScriptFormatPickerDialog
         enabledIds={useSettingsStore.getState().enabledScriptFormats}
+        defaultId={useSettingsStore.getState().defaultScriptFormat}
         onPick={(id) => {
           setFormatPickerOpen(false);
           finishNewScreenplayWithFormat(id, formatPickerMode);
@@ -2514,6 +2523,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 <li><strong>Printing From The File Menu Printed The File Menu</strong> &mdash; The print started before the menu had closed, and the menu is drawn outside everything the print styles hide, so what came out was a picture of it.</li>
                 <li><strong>Pasting A Line Into The Middle Of Another</strong> &mdash; <em>Paste as Fountain</em> read an ordinary line of prose as a screenplay element and put it in as a block, which split the line the cursor was in: a scene heading pasted into came back torn in half around it. A single plain line now goes in as text at the cursor. Anything with real structure &mdash; a heading, a character cue and its dialogue, a transition, a centred line &mdash; still arrives as those elements.</li>
                 <li><strong>Pasting A Line That Starts With An Ellipsis</strong> &mdash; <em>Paste as Fountain</em> read a leading &ldquo;&hellip;&rdquo; as markup, so pasting a continued line of dialogue into the middle of an element broke that element in two. Fountain does not treat an ellipsis as markup and neither does this any more.</li>
+                <li><strong>Your Own Template As The Default</strong> &mdash; A custom template could be applied to the script in front of you and nowhere else: every new script still started in one of the built-in formats. Your templates are now offered alongside those formats, and <em>Make default</em> &mdash; in the template manager, or in <em>Format &rarr; Script Format Preferences</em> &mdash; puts one at the top of the New Screenplay picker, already selected, so Enter takes it. The picker still asks, because keeping several formats means the next script could be any of them. Duplicating a format now also keeps its starter pages, act breaks and dialogue spacing, which a copy used to lose.</li>
               </ul>
               <div className="about-subsection-title">v2.0.0</div>
               <ul className="about-list">

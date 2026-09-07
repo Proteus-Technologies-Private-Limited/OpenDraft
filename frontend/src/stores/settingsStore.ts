@@ -42,10 +42,19 @@ interface SettingsState {
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
 
-  // Script-format preferences — which system templates show up in the new-script picker.
-  // Stored as template ids (e.g. INDUSTRY_STANDARD_ID, MULTICAM_SITCOM_ID, ...).
+  // Script-format preferences — which templates show up in the new-script picker.
+  // Stored as template ids: system formats (INDUSTRY_STANDARD_ID, MULTICAM_SITCOM_ID,
+  // ...) and the ids of the writer's own custom templates.
   enabledScriptFormats: string[];
   setEnabledScriptFormats: (ids: string[]) => void;
+
+  // The format the New Screenplay picker opens on — a built-in format or one of
+  // the writer's own. It orders and preselects the picker; it never replaces
+  // it, because several enabled formats mean the next script could be any of
+  // them. null = no preference. Kept inside `enabledScriptFormats`; an id that
+  // is not enabled is dropped rather than honoured.
+  defaultScriptFormat: string | null;
+  setDefaultScriptFormat: (id: string | null) => void;
 
   // True once the user has seen and confirmed the first-run format-preferences dialog.
   // Until then, the New Screenplay action opens the prefs dialog instead of going straight in.
@@ -121,6 +130,7 @@ const STORAGE_KEY_URL = 'opendraft:collabServerUrl';
 const STORAGE_KEY_AUTH = 'opendraft:collabAuth';
 const STORAGE_KEY_EXPIRY = 'opendraft:defaultInviteExpiry';
 const STORAGE_KEY_FORMATS = 'opendraft:enabledScriptFormats';
+const STORAGE_KEY_DEFAULT_FORMAT = 'opendraft:defaultScriptFormat';
 const STORAGE_KEY_FORMATS_INIT = 'opendraft:formatPreferencesInitialized';
 const STORAGE_KEY_BACKUP_ENABLED = 'opendraft:backupEnabled';
 const STORAGE_KEY_BACKUP_FOLDER = 'opendraft:backupFolder';
@@ -183,6 +193,13 @@ function loadEnabledScriptFormats(): string[] {
   return [];
 }
 
+function loadDefaultScriptFormat(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY_DEFAULT_FORMAT) || null;
+  } catch { /* ignore */ }
+  return null;
+}
+
 const DEFAULT_COLLAB_URL = 'wss://collab.open-draft.com';
 
 function loadAuth(): CollabAuth {
@@ -193,7 +210,7 @@ function loadAuth(): CollabAuth {
   return { accessToken: null, refreshToken: null, user: null };
 }
 
-export const useSettingsStore = create<SettingsState>((set) => ({
+export const useSettingsStore = create<SettingsState>((set, get) => ({
   collabServerUrl: localStorage.getItem(STORAGE_KEY_URL) || DEFAULT_COLLAB_URL,
   setCollabServerUrl: (url) => {
     localStorage.setItem(STORAGE_KEY_URL, url);
@@ -232,7 +249,25 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   enabledScriptFormats: loadEnabledScriptFormats(),
   setEnabledScriptFormats: (ids) => {
     try { localStorage.setItem(STORAGE_KEY_FORMATS, JSON.stringify(ids)); } catch { /* ignore */ }
+    // A default that is no longer on the list is no default at all — drop it
+    // rather than leave the picker pointing at a format the writer just
+    // switched off.
+    const current = get().defaultScriptFormat;
+    if (current && !ids.includes(current)) {
+      try { localStorage.removeItem(STORAGE_KEY_DEFAULT_FORMAT); } catch { /* ignore */ }
+      set({ enabledScriptFormats: ids, defaultScriptFormat: null });
+      return;
+    }
     set({ enabledScriptFormats: ids });
+  },
+
+  defaultScriptFormat: loadDefaultScriptFormat(),
+  setDefaultScriptFormat: (id) => {
+    try {
+      if (id) localStorage.setItem(STORAGE_KEY_DEFAULT_FORMAT, id);
+      else localStorage.removeItem(STORAGE_KEY_DEFAULT_FORMAT);
+    } catch { /* ignore */ }
+    set({ defaultScriptFormat: id });
   },
 
   formatPreferencesInitialized: localStorage.getItem(STORAGE_KEY_FORMATS_INIT) === '1',

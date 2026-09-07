@@ -21,6 +21,7 @@ import TemplateConflictDialog from './TemplateConflictDialog';
 import { detectTemplateConflicts, resolveTemplateConflicts, getEnabledElementOptions } from '../utils/templateConflicts';
 import type { TemplateConflicts } from '../utils/templateConflicts';
 import { showToast } from './Toast';
+import { useSettingsStore } from '../stores/settingsStore';
 
 interface TemplateSelectDialogProps {
   editor: Editor | null;
@@ -38,6 +39,8 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
     deleteTemplate,
     duplicateTemplate,
   } = useFormattingTemplateStore();
+
+  const defaultScriptFormat = useSettingsStore((s) => s.defaultScriptFormat);
 
   const [selectedId, setSelectedId] = useState<string | null>(activeTemplateId);
   const [editingTemplate, setEditingTemplate] = useState<FormattingTemplate | null>(null);
@@ -82,6 +85,30 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
       }
     }
     onClose();
+  };
+
+  /**
+   * Make this template the format a new script starts on — the answer to "can I
+   * set my own template as the default?" put where the writer made the
+   * template, rather than only in Script Format Preferences.
+   *
+   * Being the default implies being one of the offered formats, so it is added
+   * to the enabled list as well. It does not silence the New Screenplay picker:
+   * a writer with several formats enabled means the next script could be any of
+   * them, so the question is still asked with this answer already selected.
+   */
+  const toggleDefaultForNewScripts = (t: FormattingTemplate) => {
+    const settings = useSettingsStore.getState();
+    if (settings.defaultScriptFormat === t.id) {
+      settings.setDefaultScriptFormat(null);
+      showToast('No longer the default format for new scripts', 'success');
+      return;
+    }
+    if (!settings.enabledScriptFormats.includes(t.id)) {
+      settings.setEnabledScriptFormats([...settings.enabledScriptFormats, t.id]);
+    }
+    settings.setDefaultScriptFormat(t.id);
+    showToast(`New scripts will start on "${t.name}"`, 'success');
   };
 
   const handleApply = () => {
@@ -129,6 +156,7 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
     const isSelected = (t.id === INDUSTRY_STANDARD_ID && (!selectedId || selectedId === INDUSTRY_STANDARD_ID))
       || t.id === selectedId;
     const isCurrent = t.id === resolvedActiveId;
+    const isDefault = t.id === defaultScriptFormat;
     return (
       <div
         key={t.id}
@@ -139,6 +167,7 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
           <span className="template-select-item-name">
             {t.name}
             {isCurrent && <span className="template-select-current-badge">current</span>}
+            {isDefault && <span className="template-select-default-badge">default</span>}
           </span>
           <span className={`template-select-mode-badge template-select-mode-${t.mode}`}>
             {t.mode}
@@ -147,8 +176,18 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
         {t.description && (
           <span className="template-select-item-desc">{t.description}</span>
         )}
-        {/* Actions: system = duplicate only; user = edit/duplicate/delete */}
+        {/* Actions: any format can be made the one new scripts start on;
+            system = duplicate only, user = edit/duplicate/delete */}
         <div className="template-select-item-actions" onClick={(e) => e.stopPropagation()}>
+          <button
+            className={`dialog-btn dialog-btn-sm${isDefault ? ' dialog-btn-primary' : ''}`}
+            title={isDefault
+              ? 'The New Screenplay picker opens on this format. Click to clear.'
+              : 'Open the New Screenplay picker on this format'}
+            onClick={() => toggleDefaultForNewScripts(t)}
+          >
+            {isDefault ? 'Default ✓' : 'Make default'}
+          </button>
           {isSystem ? (
             <button
               className="dialog-btn dialog-btn-sm"
