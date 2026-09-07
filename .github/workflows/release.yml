@@ -81,7 +81,8 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libappindicator3-dev \
             librsvg2-dev \
-            patchelf
+            patchelf \
+            squashfs-tools
 
       - name: Install frontend dependencies
         run: |
@@ -260,6 +261,27 @@ jobs:
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: false
+
+      # tauri-action has already uploaded the AppImage linuxdeploy produced,
+      # and that one is broken on any distro newer than this runner: it carries
+      # a bundled libwayland-client the host's libEGL then resolves against,
+      # failing with EGL_BAD_PARAMETER and leaving a blank white window
+      # (issue #113). Strip those libraries out and overwrite the draft asset.
+      - name: Strip bundled Wayland libraries from the AppImage
+        if: matrix.platform == 'ubuntu-22.04'
+        run: .github/scripts/fix-appimage-wayland.sh
+
+      - name: Verify the AppImage bundles no Wayland libraries
+        if: matrix.platform == 'ubuntu-22.04'
+        run: .github/scripts/verify-appimage-wayland.sh
+
+      - name: Upload repacked AppImage to release
+        if: matrix.platform == 'ubuntu-22.04'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: src-tauri/target/release/bundle/appimage/*.AppImage
+          draft: true
 
       # macOS calls the Tauri CLI directly instead of going through
       # tauri-action. In v0.20.0 both tauri-action macOS jobs hung inside
