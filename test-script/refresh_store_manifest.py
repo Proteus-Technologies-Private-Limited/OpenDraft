@@ -86,16 +86,52 @@ def apple_live_version(kind):
     answer it from a copy made for an earlier one.
     """
     entity = 'macSoftware' if kind == 'mac-software' else 'software'
+    seen = set()
+    for params in apple_lookup_shapes(entity):
+        results = apple_lookup(params)
+        if results is None:
+            return None          # the network, not the parameters — stop asking
+        for result in results:
+            if result.get('kind') == kind:
+                return result.get('version')
+            seen.add(str(result.get('kind')))
+    print(f'  ! apple: no {kind} record for app id {APPLE_APP_ID} '
+          f'(lookup returned {", ".join(sorted(seen)) or "nothing"})',
+          file=sys.stderr)
+    return None
+
+
+def apple_lookup_shapes(entity):
+    """The ways to ask for one entity, best first.
+
+    `entity` selects a record *within* a media type, so the API honours it only
+    when the `media` it belongs to is sent alongside. Asked on its own, the
+    parameter is dropped and the response is whatever the default lookup
+    returns — for a Universal Purchase app id that is the iOS record, so every
+    run of the watch from the two-storefront split onwards read
+    `no mac-software record ... (lookup returned software)` and left `mas`
+    pinned wherever it already was. Mac App Store users have not been offered
+    an update since.
+
+    The bare form is kept as a second attempt rather than deleted: it is what
+    the watch has always sent, so anything it can still answer stays answered.
+    """
+    yield {'media': 'software', 'entity': entity}
+    yield {'entity': entity}
+
+
+def apple_lookup(params):
+    """One lookup's results, or None if the request itself could not be made."""
     url = ('https://itunes.apple.com/lookup?'
            + urllib.parse.urlencode({'id': APPLE_APP_ID, 'country': 'us',
-                                     'entity': entity, '_': int(time.time())}))
+                                     **params, '_': int(time.time())}))
     try:
         data = get_json(url, headers={'User-Agent': USER_AGENT,
                                       'Cache-Control': 'no-cache'})
     except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as err:
-        print(f'  ! apple: {kind} lookup failed ({err})', file=sys.stderr)
+        print(f'  ! apple: lookup failed ({err})', file=sys.stderr)
         return None
-    return apple_version_of(data.get('results') or [], kind)
+    return data.get('results') or []
 
 
 def apple_version_of(results, kind):
@@ -103,9 +139,6 @@ def apple_version_of(results, kind):
     for result in results:
         if result.get('kind') == kind:
             return result.get('version')
-    got = ', '.join(sorted({str(r.get('kind')) for r in results})) or 'nothing'
-    print(f'  ! apple: no {kind} record for app id {APPLE_APP_ID} '
-          f'(lookup returned {got})', file=sys.stderr)
     return None
 
 
