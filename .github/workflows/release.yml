@@ -1897,12 +1897,35 @@ jobs:
       # they are actually serving it and then switches itself off. Enabling is
       # separate from dispatching because a disabled workflow ignores every
       # trigger, including this one.
+      #
+      # And enabling is not read-your-writes. On v2.2.0 the dispatch went out
+      # two seconds after the enable and produced a run that never left
+      # `queued` — eighteen hours later it was still sitting there, and the
+      # first check the release actually got was the schedule six and a half
+      # hours later. So the state is read back before dispatching.
       - name: Start the store watch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
-          gh workflow enable  store-watch.yml --repo "${{ github.repository }}" || true
-          gh workflow run     store-watch.yml --repo "${{ github.repository }}" || true
+          gh workflow enable store-watch.yml --repo "$REPO" || true
+
+          state=unknown
+          for attempt in $(seq 12); do
+            state=$(gh api "repos/$REPO/actions/workflows/store-watch.yml" \
+                      --jq .state 2>/dev/null || echo unknown)
+            echo "Store watch state: $state (attempt $attempt)"
+            if [ "$state" = "active" ]; then
+              break
+            fi
+            sleep 5
+          done
+
+          if [ "$state" != "active" ]; then
+            echo "::warning::Store watch is still '$state'; the dispatch may not start. Its schedule will pick the release up regardless."
+          fi
+
+          gh workflow run store-watch.yml --repo "$REPO" || true
           echo "Store watch armed — it will move the store channels as each store goes live."
 
       # Download links are updated in the version bump commit (release.sh)
