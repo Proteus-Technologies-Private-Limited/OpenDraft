@@ -22,6 +22,8 @@ import {
   FaHighlighter,
   FaEllipsisV,
   FaHashtag,
+  FaPlus,
+  FaTrashAlt,
 } from 'react-icons/fa';
 import { useEditorStore, NOTE_COLORS } from '../stores/editorStore';
 import type { ElementType } from '../stores/editorStore';
@@ -41,6 +43,10 @@ import ColorPicker from './ColorPicker';
 import LanguageSelector from './LanguageSelector';
 import { findFont, loadFontByName } from '../utils/fonts';
 import { isTitlePageRuleId } from '../stores/formattingTypes';
+import { AV_CELL_ELEMENT_IDS, isInAvCell } from '../editor/extensions/AvBlock';
+
+/** Element ids valid inside an AV cell (per the avCell schema content rule). */
+const AV_CELL_IDS: readonly string[] = AV_CELL_ELEMENT_IDS;
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -265,18 +271,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   const isInsideAvCell = React.useMemo(() => {
     if (!editor) return false;
     try {
-      const { $from } = editor.state.selection;
-      for (let d = $from.depth; d >= 0; d--) {
-        if ($from.node(d).type.name === 'avCell') return true;
-      }
+      return isInAvCell(editor.state);
     } catch { /* ignore */ }
     return false;
   // Re-evaluate on selection updates
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, activeElement]);
-
-  /** Element ids valid inside an AV cell (per the avCell schema content rule). */
-  const AV_CELL_ELEMENT_IDS = ['avPara', 'avShot', 'avDirection'];
 
   const isActive = (format: string) => {
     if (!editor) return false;
@@ -323,6 +323,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
    * twice.
    */
   const [mobileZoomVisible, setMobileZoomVisible] = useState(false);
+
+  /** Set by the measuring effect below; lets other state changes re-run it. */
+  const remeasureRef = useRef<() => void>(() => {});
+
+  // The AV row group is the one toolbar content that comes and goes with the
+  // cursor rather than with the window, so it is the one the ResizeObserver
+  // below cannot see.
+  useEffect(() => { remeasureRef.current(); }, [isInsideAvCell]);
 
   // Measure toolbar overflow and determine which priority groups to hide
   useEffect(() => {
@@ -387,6 +395,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(measure);
     };
+    // The AV row group appears and disappears with the cursor, which changes
+    // the toolbar's contents without changing its width — the ResizeObserver
+    // below would never hear about it, leaving the overflow menu sized for the
+    // other layout.
+    remeasureRef.current = remeasure;
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry) return;
@@ -909,7 +922,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   if (toolbarMode === 'hidden') return null;
 
   return (
-    <div className={`toolbar${toolbarMode === 'comfortable' ? ' toolbar-comfortable' : ''}`} ref={toolbarRef}>
+    <div
+      className={`toolbar${toolbarMode === 'comfortable' ? ' toolbar-comfortable' : ''}${isInsideAvCell ? ' toolbar-av' : ''}`}
+      ref={toolbarRef}
+    >
       {/* Undo / Redo — always visible */}
       <div className="toolbar-group">
         <button
@@ -955,7 +971,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             .filter((r) => r.enabled && !isTitlePageRuleId(r.id))
             // When inside an AV cell, only cell-valid types make sense — selecting
             // sceneHeading/action/etc. silently fails the schema check anyway.
-            .filter((r) => isInsideAvCell ? AV_CELL_ELEMENT_IDS.includes(r.id) : !AV_CELL_ELEMENT_IDS.includes(r.id))
+            .filter((r) => isInsideAvCell ? AV_CELL_IDS.includes(r.id) : !AV_CELL_IDS.includes(r.id))
             .map((r) => (
               <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]}>
                 {r.label}
@@ -963,6 +979,35 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             ))}
         </select>
       </div>
+
+      {/* AV row controls — the only route to a new row without a hardware
+          keyboard (issue #116), so they are never collapsed into the overflow
+          menu and never hidden on mobile. Shown only inside an AV cell, where
+          they are the actions the writer actually needs. */}
+      {isInsideAvCell && (
+        <>
+          <div className="toolbar-separator" />
+          <div className="toolbar-group av-row-group">
+            <button
+              className="toolbar-btn av-row-btn av-row-btn-add"
+              title="Add AV Row below (Tab from the audio cell, or ⌘↵)"
+              onClick={() => editor?.chain().focus().insertAvRow('below').run()}
+              disabled={!editor}
+            >
+              <FaPlus />
+              <span className="toolbar-btn-label">Row</span>
+            </button>
+            <button
+              className="toolbar-btn av-row-btn av-row-btn-delete"
+              title="Delete this AV Row"
+              onClick={() => editor?.chain().focus().deleteAvRow().run()}
+              disabled={!editor}
+            >
+              <FaTrashAlt />
+            </button>
+          </div>
+        </>
+      )}
 
       <div className="toolbar-separator" />
 
