@@ -51,3 +51,59 @@
 [data-theme='dark'] .ProseMirror .av-cell:focus-within {
   background-color: rgba(120, 180, 255, 0.07);
 }
+
+/* ── Toolbar AV row controls (issue #116) ──────────────────────────────
+ * The only way to add or remove a row without a hardware keyboard, so they
+ * have to survive every width and density the toolbar comes in.
+ *
+ * `flex: 0 0 auto` is not decoration: the toolbar is a flex row that overflows
+ * on a tablet, and the default shrink took the "+" down to zero width, leaving
+ * a button labelled "Row" with no icon on it. The four-class selectors below
+ * are deliberate too — `.toolbar.toolbar-comfortable .toolbar-btn` sets a fixed
+ * 28px width, which outranks anything shorter and clipped the label away. */
+.av-row-group,
+.av-row-group .toolbar-btn,
+.av-row-group .toolbar-btn > svg {
+  flex: 0 0 auto;
+}
+
+/* The labelled button takes its width from the label, not from the fixed one
+ * the icon-only buttons get. */
+.toolbar .av-row-group .toolbar-btn.av-row-btn-add {
+  width: auto;
+  padding: 0 8px;
+  gap: 5px;
+  white-space: nowrap;
+}
+.av-row-group .toolbar-btn-label {
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Touch: a 24px-high button is below every platform's minimum tap target, and
+ * these are the controls a finger has to hit. */
+@media (pointer: coarse) {
+  .toolbar .av-row-group .toolbar-btn.av-row-btn { min-width: 36px; height: 32px; }
+  .av-row-group .toolbar-btn-label { font-size: 12px; }
+}
+
+/* Phone widths: the toolbar does not wrap and everything but the element
+ * selector refuses to shrink, so anything added to it pushes the "\2026"
+ * overflow button — the only route to the controls the narrow layout hides —
+ * off the right edge. Adding the row group costs about 100px, so the selector
+ * gives that back while the group is on screen; it is a dropdown, and the
+ * status bar still spells the element out in full. */
+@media (max-width: 480px) {
+  .toolbar.toolbar-av .element-selector { max-width: 84px; }
+}
+
+/* Smaller still (the 320-360px phones), where even that is not enough room:
+ * the label goes, and so does Delete Row. Add Row is the action issue #116 was
+ * filed about and the one with no other touch route; deleting a row is still a
+ * three-finger tap (Delete AV Row) or Format \25B8 AV Row \25B8 Delete Row away,
+ * and a row whose two cells are empty still goes on Backspace. */
+@media (max-width: 360px) {
+  .toolbar.toolbar-av .av-row-btn-add .toolbar-btn-label { display: none; }
+  .toolbar.toolbar-av .av-row-group .toolbar-btn.av-row-btn-add { padding: 0; }
+  .toolbar.toolbar-av .av-row-btn-delete { display: none; }
+}

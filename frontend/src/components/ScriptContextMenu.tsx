@@ -23,6 +23,7 @@ import { showToast } from './Toast';
 import { removeScriptNoteMarks } from '../editor/scriptNoteMarks';
 import { applyCaseToRange, shouldUpperCase } from '../editor/caseTransform';
 import { TextSelection } from '@tiptap/pm/state';
+import { isAvCellPos } from '../editor/extensions/AvBlock';
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -222,6 +223,10 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   const showSceneProps = currentNodeType === 'sceneHeading';
   // Context-sensitive: show character profile for character/dialogue/parenthetical
   const showCharProfile = ['character', 'dialogue', 'parenthetical'].includes(currentNodeType);
+  // Context-sensitive: AV row actions inside a two-column AV body. On iPhone and
+  // iPad this menu opens on a three-finger tap, so it is one of the row controls
+  // that needs no hardware keyboard — issue #116.
+  const showAvRow = isAvCellPos($from);
 
   // Detect if cursor is on an existing script note
   const existingNoteId = (() => {
@@ -340,6 +345,10 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
     editor.chain().focus().setNode(type).run();
     onClose();
   };
+
+  const handleInsertAvRowAbove = () => { editor.chain().focus().insertAvRow('above').run(); onClose(); };
+  const handleInsertAvRowBelow = () => { editor.chain().focus().insertAvRow('below').run(); onClose(); };
+  const handleDeleteAvRow = () => { editor.chain().focus().deleteAvRow().run(); onClose(); };
 
   const handleBold = () => { editor.chain().focus().toggleBold().run(); onClose(); };
   const handleItalic = () => { editor.chain().focus().toggleItalic().run(); onClose(); };
@@ -827,7 +836,21 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           <span className="ctx-shortcut">{mod}D</span>
         </div>
       )}
-      {(showSceneProps || showDualDialogue || showCharProfile) && <div className="ctx-separator" />}
+      {showAvRow && (
+        <>
+          <div className="ctx-item" onClick={handleInsertAvRowBelow}>
+            <span>Insert AV Row Below</span>
+            <span className="ctx-shortcut">{mod}↵</span>
+          </div>
+          <div className="ctx-item" onClick={handleInsertAvRowAbove}>
+            <span>Insert AV Row Above</span>
+          </div>
+          <div className="ctx-item" onClick={handleDeleteAvRow}>
+            <span>Delete AV Row</span>
+          </div>
+        </>
+      )}
+      {(showSceneProps || showDualDialogue || showCharProfile || showAvRow) && <div className="ctx-separator" />}
 
       {/* Revision */}
       <div className="ctx-item" onClick={() => { setRevisionMode(!revisionMode); onClose(); }}>

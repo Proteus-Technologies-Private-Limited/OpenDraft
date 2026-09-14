@@ -18,6 +18,13 @@
  *   Mod-Enter    — insert new row below
  *   Backspace    — at empty cell with empty sibling, delete the row (& the block if last)
  *   Mod-Shift-A  — toggle: wrap current cursor block into a new avBlock (and back out)
+ *
+ * Every one of those needs a hardware keyboard, which an iPhone or iPad does
+ * not have: there is no Tab on the software keyboard and no Mod-Enter, so row
+ * creation was unreachable on touch (issue #116). The commands below are
+ * therefore the only implementation — the keymap is one caller of them, and the
+ * toolbar, the right-click/long-press menu and the Format menu are the others.
+ * `isInAvCell` is exported for those callers to gate their controls on.
  */
 
 import { Node, Extension, mergeAttributes } from '@tiptap/core';
@@ -26,11 +33,46 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
 
+/** Where `insertAvRow` puts the new row, relative to the one holding the cursor. */
+export type AvRowPlacement = 'above' | 'below';
+
+/**
+ * Depths of the avRow and avBlock enclosing the cursor, or null when the
+ * selection is not inside an AV body. Shared by the commands and by every
+ * caller that has to decide whether to offer an AV row control at all.
+ */
+export function avRowContext(
+  state: import('@tiptap/pm/state').EditorState,
+): { rowDepth: number; blockDepth: number } | null {
+  const { $from } = state.selection;
+  let rowDepth = -1;
+  let blockDepth = -1;
+  for (let d = $from.depth; d >= 0; d--) {
+    const name = $from.node(d).type.name;
+    if (name === 'avRow' && rowDepth < 0) rowDepth = d;
+    if (name === 'avBlock' && blockDepth < 0) blockDepth = d;
+  }
+  return rowDepth < 0 || blockDepth < 0 ? null : { rowDepth, blockDepth };
+}
+
+/** True when `$pos` sits inside an AV cell. */
+export function isAvCellPos($pos: import('@tiptap/pm/model').ResolvedPos): boolean {
+  for (let d = $pos.depth; d >= 0; d--) {
+    if ($pos.node(d).type.name === 'avCell') return true;
+  }
+  return false;
+}
+
+/** True when the cursor sits inside an AV cell — the gate for AV row controls. */
+export function isInAvCell(state: import('@tiptap/pm/state').EditorState): boolean {
+  return isAvCellPos(state.selection.$from);
+}
+
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     avBlock: {
       /** Insert a new AV row at the current selection (wraps a new avBlock if none in scope). */
-      insertAvRow: () => ReturnType;
+      insertAvRow: (where?: AvRowPlacement) => ReturnType;
       /** Delete the AV row containing the cursor; remove the block if it was the last row. */
       deleteAvRow: () => ReturnType;
       /** Wrap the cursor's current block into a fresh avBlock with one row, or unwrap if already inside one. */
@@ -142,31 +184,20 @@ export const AvBlock = Node.create({
 
   addCommands() {
     return {
-      insertAvRow: () => ({ tr, dispatch, state }) => {
-        const { $from } = state.selection;
+      insertAvRow: (where: AvRowPlacement = 'below') => ({ tr, dispatch, state }) => {
+        const ctx = avRowContext(state);
 
-        // Find the enclosing avBlock, if any
-        for (let d = $from.depth; d >= 0; d--) {
-          const node = $from.node(d);
-          if (node.type.name === 'avBlock') {
-            // Insert a row after the current row
-            // Find current avRow depth
-            let rowDepth = -1;
-            for (let r = $from.depth; r >= 0; r--) {
-              if ($from.node(r).type.name === 'avRow') { rowDepth = r; break; }
-            }
-            if (rowDepth < 0) return false;
-            const insertPos = $from.after(rowDepth);
-            if (!dispatch) return true;
-            const newRow = buildEmptyRow(state.schema as never);
-            tr.insert(insertPos, newRow);
-            // Move cursor into the new row's left cell, first paragraph
-            const cellInside = insertPos + 2; // +1 for row, +1 for cell
-            const paraInside = cellInside + 1;
-            tr.setSelection(TextSelection.create(tr.doc, paraInside));
-            dispatch(tr);
-            return true;
-          }
+        if (ctx) {
+          if (!dispatch) return true;
+          const { $from } = state.selection;
+          const insertPos = where === 'above' ? $from.before(ctx.rowDepth) : $from.after(ctx.rowDepth);
+          tr.insert(insertPos, buildEmptyRow(state.schema as never));
+          // Cursor into the new row's left (video) cell, first paragraph. The
+          // new row starts at insertPos either way, so the offsets are the same
+          // for 'above' and 'below': +1 row open, +1 cell open, +1 para open.
+          tr.setSelection(TextSelection.create(tr.doc, insertPos + 3));
+          dispatch(tr);
+          return true;
         }
 
         // Not inside an avBlock — wrap a new one at the cursor.
@@ -178,16 +209,11 @@ export const AvBlock = Node.create({
       },
 
       deleteAvRow: () => ({ tr, dispatch, state }) => {
-        const { $from } = state.selection;
-        let rowDepth = -1;
-        let blockDepth = -1;
-        for (let r = $from.depth; r >= 0; r--) {
-          const n = $from.node(r);
-          if (n.type.name === 'avRow' && rowDepth < 0) rowDepth = r;
-          if (n.type.name === 'avBlock' && blockDepth < 0) blockDepth = r;
-        }
-        if (rowDepth < 0 || blockDepth < 0) return false;
+        const ctx = avRowContext(state);
+        if (!ctx) return false;
         if (!dispatch) return true;
+        const { $from } = state.selection;
+        const { rowDepth, blockDepth } = ctx;
         const block = $from.node(blockDepth);
         if (block.childCount <= 1) {
           // Last row — remove the whole block
