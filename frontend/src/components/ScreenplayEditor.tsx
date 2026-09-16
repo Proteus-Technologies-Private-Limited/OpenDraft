@@ -30,7 +30,7 @@ import {
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvKeymap,
   StartsNewPage,
 } from '../editor/extensions';
-import { registerAvCellPicker } from '../editor/extensions/AvBlock';
+import { registerAvCellPicker, isInAvCell, AV_CELL_ELEMENT_IDS } from '../editor/extensions/AvBlock';
 import { isBlankBlock, previousSiblingBlock, blankLineTypeFor } from '../editor/blankLine';
 import Strike from '@tiptap/extension-strike';
 import Subscript from '@tiptap/extension-subscript';
@@ -1054,7 +1054,14 @@ const ScreenplayEditor: React.FC = () => {
      * and the menu is a plain type chooser again (issue #100).
      */
     blankLine: boolean;
-  }>({ visible: false, position: { top: 0, left: 0 }, defaultType: 'action', blankLine: false });
+    /**
+     * Whether the menu opened inside an AV cell. The type list is already
+     * scoped by `availableTypes`; this additionally offers "New AV Row", which
+     * on touch is the only row control reachable from the keyboard's Return
+     * key (issue #116).
+     */
+    avCell: boolean;
+  }>({ visible: false, position: { top: 0, left: 0 }, defaultType: 'action', blankLine: false, avCell: false });
   /** Read by the shortcut handler, which must not re-open a menu already up. */
   const pickerVisibleRef = useRef(false);
   pickerVisibleRef.current = pickerState.visible;
@@ -1648,6 +1655,18 @@ const ScreenplayEditor: React.FC = () => {
         const field = (ed.getAttributes('titlePage')?.field as string) || 'title';
         setActiveElement(titlePageRuleId(field));
         return;
+      }
+      // An AV cell's paragraph types are deliberately absent from
+      // ALL_ELEMENT_TYPES — they are not top-level screenplay elements and must
+      // stay out of TextAlign's node list — so they need asking about
+      // separately, exactly as the title page does. Without this the store kept
+      // reporting whatever element the writer last stood on outside the AV
+      // body, which froze every control derived from it: the toolbar's element
+      // list stayed the screenplay one (whose types an avCell rejects), and the
+      // AV row buttons, gated on the same value, never appeared at all
+      // (issue #116).
+      for (const type of AV_CELL_ELEMENT_IDS) {
+        if (ed.isActive(type)) { setActiveElement(type as ElementType); return; }
       }
       for (const type of ALL_ELEMENT_TYPES) {
         if (ed.isActive(type)) { setActiveElement(type); break; }
@@ -3300,6 +3319,7 @@ const ScreenplayEditor: React.FC = () => {
         defaultType,
         availableTypes,
         blankLine: isBlankBlock($from.parent),
+        avCell: isInAvCell(editor.state),
       });
     });
   }, [editor]);
@@ -3434,6 +3454,11 @@ const ScreenplayEditor: React.FC = () => {
     setPickerState(s => ({ ...s, visible: false }));
     insertBlankLineRef.current();
   }, []);
+
+  const handlePickerInsertAvRow = useCallback(() => {
+    setPickerState(s => ({ ...s, visible: false }));
+    editor?.chain().focus().insertAvRow('below').run();
+  }, [editor]);
 
   const handlePickerDismiss = useCallback(() => {
     setPickerState(s => ({ ...s, visible: false }));
@@ -4870,6 +4895,7 @@ const ScreenplayEditor: React.FC = () => {
           availableTypes={pickerState.availableTypes}
           onSelect={handlePickerSelect}
           onInsertBlankLine={pickerState.blankLine ? handlePickerInsertLine : undefined}
+          onInsertAvRow={pickerState.avCell ? handlePickerInsertAvRow : undefined}
           onDismiss={handlePickerDismiss}
         />
       )}

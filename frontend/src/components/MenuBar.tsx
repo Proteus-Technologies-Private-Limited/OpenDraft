@@ -8,6 +8,7 @@ import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
 import { requestHandwriting } from '../utils/handwriting';
 import { requestElementMenu } from '../utils/elementMenu';
+import { isInAvCell } from '../editor/extensions/AvBlock';
 import { formatShortcut } from '../utils/shortcuts';
 import { showToast } from './Toast';
 import { downloadFDX, exportFDX } from '../utils/fdxExporter';
@@ -586,6 +587,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const locked = getLockedFormatting(editorRule, isEnforceMode);
   // Manual "start on a new page" flag for the element(s) under the cursor.
   const selectionOnNewPage = selectionStartsNewPage(editor);
+  // AV row actions only mean something inside a two-column AV body.
+  const inAvCell = editor ? isInAvCell(editor.state) : false;
+  const avRowHint = inAvCell
+    ? undefined
+    : 'Put the cursor in an AV script\u2019s Video or Audio cell first';
 
   // ── About / What's New ──
   const [recoverBackupOpen, setRecoverBackupOpen] = useState(false);
@@ -1766,6 +1772,19 @@ const MenuBar: React.FC<MenuBarProps> = ({
         },
         { separator: true, label: '' },
         { icon: <FaColumns />, label: 'Dual Dialogue', shortcut: `${mod}D`, action: () => (editor as any)?.commands?.toggleDualDialogue() },
+        {
+          // Disabled on the children, not on this parent: the renderer honours
+          // `disabled` on a leaf but opens a submenu regardless. The item stays
+          // visible in a screenplay so the AV format's row controls are
+          // findable at all — issue #116 was in the end about discoverability.
+          icon: <FaColumns />, label: 'AV Row',
+          children: [
+            { icon: <FaPlus />, label: 'Insert Row Below', shortcut: `${mod}↵`, disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('below').run() },
+            { icon: <FaPlus />, label: 'Insert Row Above', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('above').run() },
+            { separator: true, label: '' },
+            { icon: <FaTimes />, label: 'Delete Row', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().deleteAvRow().run() },
+          ],
+        },
         {
           icon: <FaFileAlt />,
           label: selectionOnNewPage ? '✓ Start On New Page' : 'Start On New Page',

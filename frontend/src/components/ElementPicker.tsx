@@ -48,11 +48,18 @@ interface ElementPickerProps {
    * the highlighted row straight away, as an ordinary menu does.
    */
   onInsertBlankLine?: () => void;
+  /**
+   * "Start the next AV row." Present only when the menu opened inside an AV
+   * cell, where the list above offers the cell's paragraph types but says
+   * nothing about rows — the gap issue #116 reported. Enter and Tab still do
+   * this on a hardware keyboard; on an iPhone or iPad this row is the way.
+   */
+  onInsertAvRow?: () => void;
   onDismiss: () => void;
 }
 
 const ElementPicker: React.FC<ElementPickerProps> = ({
-  position, defaultType, availableTypes, onSelect, onInsertBlankLine, onDismiss,
+  position, defaultType, availableTypes, onSelect, onInsertBlankLine, onInsertAvRow, onDismiss,
 }) => {
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
   const orderedTypes = useMemo<ElementType[]>(
@@ -202,6 +209,16 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
         >
           <span className="element-picker-label">Blank Line</span>
           <span className="element-picker-hint">{hasNavigated ? '' : '\u23CE'}</span>
+        </div>
+      )}
+      {onInsertAvRow && (
+        <div
+          className="element-picker-blank"
+          onMouseDown={(e) => { e.preventDefault(); onInsertAvRow(); }}
+          title="Start a new AV row instead of changing the element type"
+        >
+          <span className="element-picker-label">New AV Row</span>
+          <span className="element-picker-hint" />
         </div>
       )}
     </div>
