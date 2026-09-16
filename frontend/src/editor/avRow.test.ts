@@ -187,3 +187,60 @@ describe('deleteAvRow', () => {
     expect(run(state, 'deleteAvRow')).toBeNull();
   });
 });
+
+describe('creating a fresh AV body', () => {
+  /**
+   * The caret has to land in the VIDEO cell. It used to be left wherever
+   * `replaceSelectionWith` put it, which resolved into the AUDIO cell — so the
+   * first thing typed after creating an AV body went into the wrong column,
+   * and Tab then (correctly, from the right-hand cell) opened a second row.
+   */
+  it('leaves the caret in the new row’s video cell, not the audio one', () => {
+    const doc = testSchema.nodeFromJSON({
+      type: 'doc',
+      content: [{ type: 'action' }],
+    });
+    const base = EditorState.create({ doc, schema: testSchema });
+    const next = run(base, 'insertAvRow');
+    expect(next).not.toBeNull();
+
+    // Walk up from the caret to the enclosing cell and read its side.
+    const $from = next!.selection.$from;
+    let side: string | null = null;
+    for (let d = $from.depth; d >= 0; d--) {
+      if ($from.node(d).type.name === 'avCell') { side = $from.node(d).attrs.side as string; break; }
+    }
+    expect(side).toBe('video');
+  });
+});
+
+describe('toggleAvBlock', () => {
+  /**
+   * It used to fall back to `editor.commands.insertAvRow()`, which dispatched a
+   * SECOND transaction built from the pre-insert state while the outer command
+   * dispatched its own. ProseMirror rejected the pair — "Applying a mismatched
+   * transaction" — on every Mod-Shift-A, visible only in the console.
+   */
+  it('wraps a new AV body using the caller’s transaction, not a second one', () => {
+    const doc = testSchema.nodeFromJSON({ type: 'doc', content: [{ type: 'action' }] });
+    const base = EditorState.create({ doc, schema: testSchema });
+
+    let dispatched = 0;
+    let produced: Transaction | null = null;
+    const ok = avCommands.toggleAvBlock()({
+      tr: base.tr,
+      state: base,
+      // A real editor is deliberately absent: if the command reaches for
+      // editor.commands it throws, which is the regression.
+      editor: null,
+      dispatch: (tr: Transaction) => { dispatched++; produced = tr; },
+    } as never);
+
+    expect(ok).toBe(true);
+    expect(dispatched).toBe(1);
+    const next = base.apply(produced!);
+    let hasBlock = false;
+    next.doc.descendants(n => { if (n.type.name === 'avBlock') hasBlock = true; return !hasBlock; });
+    expect(hasBlock).toBe(true);
+  });
+});

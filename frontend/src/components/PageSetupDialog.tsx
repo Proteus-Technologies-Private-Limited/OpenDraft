@@ -20,6 +20,18 @@ function inToPt(inches: number): number {
   return Math.round(inches * 72);
 }
 
+/**
+ * Landscape margins.
+ *
+ * A landscape page is 3.5" wider and 2.5" shorter than portrait, and carrying
+ * the screenplay's 1.5" left margin across means a line of AV copy runs most of
+ * a foot before it wraps. Issue #118 asks for "appropriate landscape margins";
+ * these are even, narrower side margins that keep the columns readable and
+ * leave the extra width to the content, which is the point of turning the page.
+ */
+const LANDSCAPE_MARGINS = { leftMargin: 1, rightMargin: 1, topMargin: 54, bottomMargin: 54 };
+const PORTRAIT_MARGINS = { leftMargin: 1.5, rightMargin: 1, topMargin: 72, bottomMargin: 72 };
+
 const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
   const { pageLayout, setPageLayout, setHeaderFooterOpen } = useEditorStore();
 
@@ -37,25 +49,62 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
   );
 
   // Detect current page size label
+  // Matched in either orientation: A4 turned on its side is still A4, and the
+  // dropdown falling to "Custom" the moment you rotate would be wrong.
   const currentSizeLabel = PAGE_SIZES.find(
     (s) =>
-      Math.abs(s.width - layout.pageWidth) < 0.05 &&
-      Math.abs(s.height - layout.pageHeight) < 0.05,
+      (Math.abs(s.width - layout.pageWidth) < 0.05 && Math.abs(s.height - layout.pageHeight) < 0.05) ||
+      (Math.abs(s.height - layout.pageWidth) < 0.05 && Math.abs(s.width - layout.pageHeight) < 0.05),
   )?.label || 'Custom';
 
   const handlePageSizeChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const size = PAGE_SIZES.find((s) => s.label === e.target.value);
       if (size) {
-        setLayout((prev) => ({
-          ...prev,
-          pageWidth: size.width,
-          pageHeight: size.height,
-        }));
+        setLayout((prev) => {
+          // Keep the orientation the document is already in; picking "A4" while
+          // in landscape should give landscape A4, not flip the page back.
+          const landscape = prev.pageWidth > prev.pageHeight;
+          return {
+            ...prev,
+            pageWidth: landscape ? size.height : size.width,
+            pageHeight: landscape ? size.width : size.height,
+          };
+        });
       }
     },
     [],
   );
+
+  /** Portrait when the page is taller than it is wide — derived, not stored, so
+   *  a custom width/height a user types still reads correctly. */
+  const isLandscape = layout.pageWidth > layout.pageHeight;
+
+  /**
+   * Switch orientation by swapping the page dimensions.
+   *
+   * Margins move with it, but only when they are still the defaults for the
+   * orientation being left — a writer who has set their own margins keeps them.
+   */
+  const handleOrientation = useCallback((wantLandscape: boolean) => {
+    setLayout((prev) => {
+      const currentlyLandscape = prev.pageWidth > prev.pageHeight;
+      if (currentlyLandscape === wantLandscape) return prev;
+      const from = currentlyLandscape ? LANDSCAPE_MARGINS : PORTRAIT_MARGINS;
+      const to = wantLandscape ? LANDSCAPE_MARGINS : PORTRAIT_MARGINS;
+      const untouched =
+        Math.abs(prev.leftMargin - from.leftMargin) < 0.01 &&
+        Math.abs(prev.rightMargin - from.rightMargin) < 0.01 &&
+        Math.abs(prev.topMargin - from.topMargin) < 1 &&
+        Math.abs(prev.bottomMargin - from.bottomMargin) < 1;
+      return {
+        ...prev,
+        pageWidth: prev.pageHeight,
+        pageHeight: prev.pageWidth,
+        ...(untouched ? to : {}),
+      };
+    });
+  }, []);
 
   const handleApply = useCallback(() => {
     setPageLayout(layout);
@@ -100,6 +149,29 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
                   <option value="Custom">Custom</option>
                 )}
               </select>
+            </div>
+            <div className="page-setup-row">
+              <label>Orientation</label>
+              <div className="page-setup-orientation">
+                <label className="page-setup-orientation-option">
+                  <input
+                    type="radio"
+                    name="page-orientation"
+                    checked={!isLandscape}
+                    onChange={() => handleOrientation(false)}
+                  />
+                  Portrait
+                </label>
+                <label className="page-setup-orientation-option">
+                  <input
+                    type="radio"
+                    name="page-orientation"
+                    checked={isLandscape}
+                    onChange={() => handleOrientation(true)}
+                  />
+                  Landscape
+                </label>
+              </div>
             </div>
             <div className="page-setup-row-pair">
               <div className="page-setup-row">

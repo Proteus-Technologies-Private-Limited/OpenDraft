@@ -114,5 +114,10 @@ export const AV_SCRIPT_TEMPLATE: FormattingTemplate = {
       nextOnEnter: 'avPara',
       placeholder: '(audio direction)',
     }),
+    avGraphic: rule('avGraphic', 'On-Screen Text', false, {
+      textTransform: 'uppercase',
+      nextOnEnter: 'avPara',
+      placeholder: 'SUPER / LOWER THIRD / CAPTION',
+    }),
   },
 };
