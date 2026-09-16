@@ -74,8 +74,6 @@ jobs:
 
       - name: Build frontend
         run: cd frontend && npm run build
-        env:
-          VITE_API_BASE: http://localhost:18321/api
 
       - name: Import Apple Developer certificate
         env:
@@ -184,8 +182,6 @@ jobs:
 
       - name: Build frontend
         run: cd frontend && npm run build
-        env:
-          VITE_API_BASE: http://localhost:18321/api
 
       - name: Import Apple Developer certificate
         env:

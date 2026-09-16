@@ -80,8 +80,6 @@ jobs:
       - name: Build the AppImage from this branch
         if: inputs.version == ''
         timeout-minutes: 60
-        env:
-          VITE_API_BASE: http://localhost:18321/api
         run: |
           set -euo pipefail
           cd frontend && npm ci && npm run build && cd ..

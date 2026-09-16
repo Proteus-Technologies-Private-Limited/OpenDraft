@@ -1,4 +1,4 @@
-import { API_BASE, getCollabWsUrl } from '../config';
+import { getApiBase, getCollabWsUrl } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
 import { authedFetch } from './authedFetch';
 
@@ -94,7 +94,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
   };
-  const res = await authedFetch(`${API_BASE}${path}`, { ...options, headers });
+  const res = await authedFetch(`${getApiBase()}${path}`, { ...options, headers });
   if (!res.ok) await handleNonOkResponse(res, 'API');
   return res.json();
 }
@@ -359,7 +359,7 @@ export const api = {
     formData.append('file', file);
     if (tags.length) formData.append('tags', tags.join(','));
     // Multipart — do NOT set Content-Type; the browser adds the boundary.
-    const res = await authedFetch(`${API_BASE}/projects/${projectId}/assets/upload`, {
+    const res = await authedFetch(`${getApiBase()}/projects/${projectId}/assets/upload`, {
       method: 'POST',
       body: formData,
     });
@@ -379,7 +379,7 @@ export const api = {
   },
 
   getAssetUrl: (projectId: string, assetId: string, _filename?: string): string => {
-    return `${API_BASE.replace(/\/api$/, '')}/api/projects/${projectId}/assets/${assetId}`;
+    return `${getApiBase().replace(/\/api$/, '')}/api/projects/${projectId}/assets/${assetId}`;
   },
 
   fetchLinkPreview: async (url: string): Promise<LinkPreview> => {

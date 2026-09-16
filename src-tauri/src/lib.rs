@@ -1953,10 +1953,40 @@ fn reveal_path(path: String) -> Result<(), String> {
 // The Tauri WebView loads from https://tauri.localhost, so browser fetch() to
 // plain http:// addresses (collab server, local backends) is blocked.
 
+/// Wall-clock budget for a single `http_fetch` call.
+const HTTP_FETCH_TIMEOUT_SECS: u64 = 10;
+
 #[derive(serde::Serialize)]
 struct HttpFetchResponse {
     status: u16,
     body: String,
+}
+
+/// Render a reqwest error with its full `source()` chain.
+///
+/// reqwest's own `Display` stops at the top frame — a DNS failure, a refused
+/// connection, a rejected certificate and a hit timeout all render as the
+/// identical, useless `error sending request for url (...)`. The cause that
+/// actually names the problem lives further down the chain, so walk it.
+fn describe_reqwest_error(err: &reqwest::Error) -> String {
+    let mut parts = vec![err.to_string()];
+    if err.is_timeout() {
+        parts.push(format!("timed out after {}s", HTTP_FETCH_TIMEOUT_SECS));
+    }
+    if err.is_connect() {
+        parts.push("could not establish a connection".to_string());
+    }
+    let mut source = std::error::Error::source(err);
+    while let Some(cause) = source {
+        let text = cause.to_string();
+        // hyper re-wraps the same string at several levels; skip repeats so the
+        // message stays readable.
+        if !parts.iter().any(|p| p == &text) {
+            parts.push(text);
+        }
+        source = cause.source();
+    }
+    parts.join(": ")
 }
 
 #[tauri::command]
@@ -1966,12 +1996,18 @@ async fn http_fetch(
     body: Option<String>,
     content_type: Option<String>,
     authorization: Option<String>,
+    // Everything other than Content-Type and Authorization. Those two keep
+    // their own parameters so older callers keep working, but anything else the
+    // caller set used to be dropped on the floor here — `X-Device-Id`, which
+    // backend/app/api/auth.py forwards to the collab server so it can name the
+    // device, never arrived from desktop or mobile.
+    headers: Option<std::collections::HashMap<String, String>>,
 ) -> Result<HttpFetchResponse, String> {
     let method_str = method.as_deref().unwrap_or("GET");
     eprintln!("[http_fetch] {} {}", method_str, url);
 
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(HTTP_FETCH_TIMEOUT_SECS))
         .build()
         .map_err(|e| {
             eprintln!("[http_fetch] Client build error: {}", e);
@@ -1991,14 +2027,27 @@ async fn http_fetch(
         req = req.header("Authorization", auth.as_str());
     }
 
+    if let Some(extra) = &headers {
+        for (name, value) in extra {
+            // Skip the two that have dedicated parameters so a caller passing
+            // both cannot set a duplicate header.
+            let lower = name.to_ascii_lowercase();
+            if lower == "content-type" || lower == "authorization" {
+                continue;
+            }
+            req = req.header(name.as_str(), value.as_str());
+        }
+    }
+
     if let Some(b) = &body {
         req = req.body(b.clone());
     }
 
     let resp = req.send().await
         .map_err(|e| {
-            eprintln!("[http_fetch] {} {} → FAILED: {}", method_str, url, e);
-            format!("Request to {} failed: {}", url, e)
+            let detail = describe_reqwest_error(&e);
+            eprintln!("[http_fetch] {} {} → FAILED: {}", method_str, url, detail);
+            format!("Request to {} failed: {}", url, detail)
         })?;
 
     let status = resp.status().as_u16();
