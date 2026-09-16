@@ -93,8 +93,6 @@ jobs:
         run: |
           cd frontend
           npm run build
-        env:
-          VITE_API_BASE: http://localhost:18321/api
 
       - name: Import Windows signing certificate
         if: matrix.platform == 'windows-latest'
@@ -854,8 +852,6 @@ jobs:
 
       - name: Build frontend
         run: cd frontend && npm run build
-        env:
-          VITE_API_BASE: http://localhost:18321/api
 
       - name: Import Apple Developer certificate
         env:
@@ -980,7 +976,6 @@ jobs:
       - name: Build frontend (targeting Safari 13 for Catalina compatibility)
         run: cd frontend && npm run build
         env:
-          VITE_API_BASE: http://localhost:18321/api
           BUILD_TARGET: es2019
 
       - name: Import Apple Developer certificate

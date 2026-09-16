@@ -106,8 +106,11 @@ const SettingsPage: React.FC = () => {
       if (stored) return stored;
     } catch { /* ignore */ }
     // No stored value — pre-fill with the live default so users see the actual
-    // URL the app will hit, not just a faded placeholder.
-    return getApiBase();
+    // server the app will hit, not just a faded placeholder. Show it as the
+    // bare server root: `/api` is appended automatically (normalizeApiBase), so
+    // both forms resolve to the same base, and the placeholder, the help text
+    // above and this value should not disagree about which one to show.
+    return getApiBase().replace(/\/api$/, '');
   });
   const [cloudApiStatus, setCloudApiStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
 

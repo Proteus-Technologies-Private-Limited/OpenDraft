@@ -128,7 +128,7 @@ import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
 import { projectApi } from '../services/projectApi';
 import { scriptApi } from '../services/scriptApi';
-import { API_BASE, getCollabWsUrl } from '../config';
+import { getApiBase, getCollabWsUrl } from '../config';
 import { showToast } from './Toast';
 import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';
@@ -757,7 +757,7 @@ const ScreenplayEditor: React.FC = () => {
         // Derive host from the collab server URL setting so cross-machine access works.
         const collabHost = (() => { try { return new URL(collabHttpUrl).hostname; } catch { return 'localhost'; } })();
         const backends = [
-          API_BASE,
+          getApiBase(),
           `http://${collabHost}:8000/api`,
           `http://${collabHost}:18321/api`,
         ].filter((v, i, a) => a.indexOf(v) === i);
@@ -981,11 +981,11 @@ const ScreenplayEditor: React.FC = () => {
       // Try to load project metadata in the background (non-blocking).
       // This fills in the title and project name if reachable, but is not required.
       try {
-        const pRes = await platformFetch(`${API_BASE}/projects/${session.project_id}`);
+        const pRes = await platformFetch(`${getApiBase()}/projects/${session.project_id}`);
         if (pRes.ok) {
           const project = await pRes.json();
           setCurrentProject(project as any);
-          const sRes = await platformFetch(`${API_BASE}/projects/${session.project_id}/scripts/${session.script_id}`);
+          const sRes = await platformFetch(`${getApiBase()}/projects/${session.project_id}/scripts/${session.script_id}`);
           if (sRes.ok) {
             const scriptResp = await sRes.json();
             setDocumentTitle(scriptResp?.meta?.title || 'Untitled');

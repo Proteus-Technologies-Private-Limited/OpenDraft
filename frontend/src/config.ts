@@ -40,16 +40,40 @@ function normalizeApiBase(raw: string): string {
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
 }
 
+/**
+ * Is this URL pointing at the loopback interface?
+ *
+ * Release builds used to bake `VITE_API_BASE=http://localhost:18321/api` into
+ * the bundle, back when the desktop app shipped a Python sidecar on that port.
+ * The sidecar was removed (app builds use local SQLite), but the env var
+ * outlived it, so every shipped desktop build defaulted to a dead port and the
+ * `https://open-draft.com` fallback below was unreachable — sign-in failed out
+ * of the box with a bare "error sending request for url".
+ *
+ * The env var is gone from the workflows now. This guard keeps it from coming
+ * back: a packaged app runs on the user's machine, not the build machine, so a
+ * loopback default can never be right there. A self-hoster pointing a custom
+ * build at a real host is still honoured.
+ */
+function isLoopbackUrl(raw: string): boolean {
+  try {
+    const host = new URL(raw).hostname;
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+  } catch {
+    return false;
+  }
+}
+
 function computeApiBase(): string {
   const stored = loadStoredCloudApi();
   if (stored) return normalizeApiBase(stored);
-  const env = import.meta.env.VITE_API_BASE;
-  if (env) return normalizeApiBase(String(env));
   // Tauri (desktop + mobile) ships its own webview origins — `tauri://localhost`
   // on macOS/iOS, `https://tauri.localhost` on Windows, `null` on some Linux
   // builds. None of these point at a real backend, so always fall through to
   // the hosted default. Users can override in Settings → Cloud API URL.
   const isTauri = !!(window as any).__TAURI_INTERNALS__;
+  const env = import.meta.env.VITE_API_BASE;
+  if (env && !(isTauri && isLoopbackUrl(String(env)))) return normalizeApiBase(String(env));
   if (isTauri) return 'https://open-draft.com/api';
   const origin = window.location.origin;
   const validOrigin = origin && origin !== 'null';

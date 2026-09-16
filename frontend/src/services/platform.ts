@@ -190,6 +190,31 @@ function pickHeader(headers: HeadersInit | undefined, name: string): string | un
   return undefined;
 }
 
+/**
+ * Flatten any of the three RequestInit.headers shapes into a plain object.
+ *
+ * Content-Type and Authorization keep their dedicated invoke parameters, so
+ * they are left out here; every other header used to be silently dropped on
+ * the way through the Rust side, which is how `X-Device-Id` went missing on
+ * desktop and mobile.
+ */
+function collectExtraHeaders(headers: HeadersInit | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!headers) return out;
+  const skip = new Set(['content-type', 'authorization']);
+  const add = (k: string, v: string) => {
+    if (!skip.has(String(k).toLowerCase())) out[String(k)] = String(v);
+  };
+  if (typeof Headers !== 'undefined' && headers instanceof Headers) {
+    headers.forEach((v, k) => add(k, v));
+  } else if (Array.isArray(headers)) {
+    for (const [k, v] of headers) add(k, v);
+  } else {
+    for (const [k, v] of Object.entries(headers as Record<string, string>)) add(k, v);
+  }
+  return out;
+}
+
 export async function platformFetch(url: string, options?: RequestInit): Promise<Response> {
   if (!isTauri()) return fetch(url, options);
 
@@ -204,6 +229,7 @@ export async function platformFetch(url: string, options?: RequestInit): Promise
       body: typeof options?.body === 'string' ? options.body : undefined,
       contentType: pickHeader(options?.headers, 'Content-Type'),
       authorization: pickHeader(options?.headers, 'Authorization'),
+      headers: collectExtraHeaders(options?.headers),
     });
 
     console.log(`[platformFetch] ${method} ${url} → ${result.status} (${result.body.length} bytes)`);
