@@ -25,6 +25,7 @@ import {
   ImageRun,
   FootnoteReferenceRun,
   EndnoteReferenceRun,
+  Table,
 } from 'docx';
 import type { ISectionOptions } from 'docx';
 import { noteBlockText, type NoteBlock as NoteBlockLike } from './noteContent';
@@ -38,6 +39,10 @@ import { getForceBreakIds, jsonStartsOwnPage } from './pageBreaks';
 import { getSpaceBefore, DEFAULT_SPACE_BEFORE } from './elementSpacing';
 import { sanitizeExportFilename } from './exportFilename';
 import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
+import { extractAvBodies } from './avDocument';
+import { buildAvTable, buildAvTotalParagraph, type AvDocxImage } from './avDocxTable';
+import { avRowNodes, avFrameKey } from './avPdfTable';
+import { readColumnConfig } from '../editor/extensions/AvBlock';
 import { isNonPrintingType } from './nonPrinting';
 
 // --- Layout constants (mirror pdfExporter.ts) ---
@@ -637,13 +642,36 @@ export async function exportDocx(
     titleImageMap.set(i, { data: b.data, w, h, align: (attrs.align as string) || 'center' });
   }
 
+  // Storyboard frames for AV bodies, loaded up front like the inserted images.
+  const avImageMap = new Map<string, AvDocxImage>();
+  for (const node of bodyNodes) {
+    if (node.type !== 'avBlock') continue;
+    for (const rn of avRowNodes(node)) {
+      if (!rn.image) continue;
+      const attrs = (rn.image.attrs || {}) as Record<string, unknown>;
+      const key = avFrameKey(attrs as { src?: string | null; assetId?: string | null });
+      if (!key || avImageMap.has(key)) continue;
+      const url = resolveImageUrl(attrs);
+      if (!url) continue;
+      try {
+        const b = await loadImageBytes(url);
+        if (b) avImageMap.set(key, { data: b.data, width: b.width, height: b.height, type: 'png' });
+      } catch (err) {
+        // A frame that will not load must not fail the whole export.
+        console.warn('[docx] could not load storyboard frame', err);
+      }
+    }
+  }
+
   // Element ids the active template requires to start a new page (e.g. TV newAct).
   const forceBreakIds = getForceBreakIds();
   // Blank lines before each element, from the same template the editor
   // paginates with — resolved once so the whole document uses one answer.
   const spaceBeforeLines = getSpaceBefore();
 
-  const bodyParagraphs: Paragraph[] = [];
+  // Tables live alongside paragraphs: an AV body is written as a real Word
+  // table so Word repeats its header row and keeps each shot whole.
+  const bodyParagraphs: (Paragraph | Table)[] = [];
   for (let i = 0; i < bodyNodes.length; i++) {
     // The title page lives in its own section, and a section break already
     // starts a new page — adding `pageBreakBefore` to the body's first
@@ -651,6 +679,33 @@ export async function exportDocx(
     // The template's forced-break elements and the per-element "start on new
     // page" flag still each open a page of their own.
     const forcePageBreak = i > 0 && jsonStartsOwnPage(bodyNodes[i], forceBreakIds);
+    if (bodyNodes[i].type === 'avBlock') {
+      const node = bodyNodes[i];
+      const body = extractAvBodies({ type: 'doc', content: [node] })[0];
+      if (body) {
+        const cfg = readColumnConfig(node.attrs);
+        const repeatHeaders = (node.attrs as { repeatHeaders?: boolean } | undefined)?.repeatHeaders !== false;
+        // A forced break before a table goes on an empty paragraph — a Table
+        // has no pageBreakBefore of its own.
+        if (forcePageBreak) {
+          bodyParagraphs.push(new Paragraph({ pageBreakBefore: true, children: [] }));
+        }
+        bodyParagraphs.push(buildAvTable(body, node, {
+          widths: cfg.widths,
+          repeatHeaders,
+          contentWidthTw,
+          font: docFont,
+          sizeHalfPt: FONT_SIZE_HALFPT,
+          images: avImageMap,
+        }));
+        const total = buildAvTotalParagraph(body, docFont, FONT_SIZE_HALFPT);
+        if (total) bodyParagraphs.push(total);
+        // Word merges two adjacent tables into one; a trailing empty paragraph
+        // keeps two AV bodies separate.
+        bodyParagraphs.push(new Paragraph({ children: [] }));
+      }
+      continue;
+    }
     const img = imageMap.get(i);
     if (img) {
       bodyParagraphs.push(new Paragraph({

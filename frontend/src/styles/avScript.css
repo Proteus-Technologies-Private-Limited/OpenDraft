@@ -6,11 +6,38 @@
   margin: 12pt 0;
 }
 
+/* Track definition lives on the block (set by AvBlock.renderHTML as --av-grid)
+ * so every row in one body shares it — that is what keeps columns aligned all
+ * the way down a page, and what print and the PDF exporter read back.
+ * The fallback is the original two-column layout, so a body whose attrs have
+ * not been read yet still renders correctly rather than collapsing. */
+.av-block {
+  --av-grid: 2fr 2fr;
+}
+
 .av-row {
   display: grid;
-  grid-template-columns: 1fr 12px 1fr;
+  grid-template-columns: var(--av-grid);
   align-items: stretch;
   margin-bottom: 6pt;
+  column-gap: 12px;
+}
+
+/* The node view wraps the editable cells so it can put a non-editable cue
+ * gutter beside them. `display: contents` keeps the cells themselves as direct
+ * grid children, so they land in the tracks above instead of being boxed.
+ *
+ * Tiptap's NodeViewContent puts its own element inside this wrapper, so there
+ * are TWO levels to flatten, not one. Without the second rule that inner div
+ * becomes the grid item and both cells stack inside it in a single column —
+ * which is exactly what an AV script must never do.
+ *
+ * `:not(.av-cell)` so this only ever flattens the wrapper: if the structure
+ * changes and the cells become direct children, they keep their own box (and
+ * with it their padding and the divider rule) instead of vanishing. */
+.av-row-cells,
+.av-row-cells > :not(.av-cell) {
+  display: contents;
 }
 
 .av-cell {
@@ -20,10 +47,96 @@
   position: relative;
 }
 
-.av-cell-video { grid-column: 1; }
 .av-cell-audio {
-  grid-column: 3;
   border-left: 1px solid #d0d0d0;
+  padding-left: 10pt;
+}
+
+/* ── Cue / Timing column ──────────────────────────────────────────────────
+ * Celtx's first column: shot number, running start timestamp, and the one
+ * editable field — duration. Shot number and start are derived from document
+ * order and the durations above, so they are rendered, never stored. */
+.av-cue {
+  padding: 6pt 4pt;
+  font-size: 0.85em;
+  line-height: 1.35;
+  color: #555;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.av-cue-shot {
+  font-weight: 700;
+  color: #333;
+}
+
+.av-cue-start {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+/* The duration field has to be tappable on a phone, where there is no hardware
+ * keyboard — same constraint that drove the row controls in issue #116. */
+.av-cue-duration {
+  display: block;
+  width: 100%;
+  min-height: 24px;
+  margin-top: 2pt;
+  padding: 2px 4px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  background: transparent;
+  border: 1px solid #d8d8d8;
+  border-radius: 3px;
+}
+
+.av-cue-duration::placeholder { color: #aaa; }
+.av-cue-duration:focus {
+  outline: none;
+  border-color: #0078ff;
+  background: rgba(0, 120, 255, 0.04);
+}
+
+/* A duration that could not be parsed is marked rather than silently treated
+ * as zero — otherwise a typo quietly corrupts the running time. */
+.av-cue-duration.av-cue-invalid {
+  border-color: #d64545;
+  background: rgba(214, 69, 69, 0.06);
+}
+
+/* ── Storyboard / image column ────────────────────────────────────────── */
+.av-image {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin: 6pt 0;
+  background: #f4f4f4;
+  border: 1px solid #d8d8d8;
+  border-radius: 3px;
+}
+
+.av-image-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* An empty frame is meaningful — it is a slot for art not yet drawn — so it
+ * still occupies its aspect ratio instead of collapsing the row. */
+.av-image[data-empty='true']::after {
+  content: 'Storyboard';
+  font-size: 0.75em;
+  color: #999;
+  letter-spacing: 0.04em;
+}
+
+.av-image.ProseMirror-selectednode {
+  outline: 2px solid #0078ff;
+  outline-offset: 1px;
 }
 
 /* Visual focus indication when caret is inside a cell */
@@ -48,6 +161,11 @@
 
 /* Light-on-dark: tone down the divider so it doesn't dominate */
 [data-theme='dark'] .av-cell-audio { border-left-color: #3a3a3a; }
+[data-theme='dark'] .av-cue { color: #9a9a9a; }
+[data-theme='dark'] .av-cue-shot { color: #ccc; }
+[data-theme='dark'] .av-cue-duration { border-color: #3a3a3a; }
+[data-theme='dark'] .av-image { background: #232323; border-color: #3a3a3a; }
+[data-theme='dark'] .av-image[data-empty='true']::after { color: #777; }
 [data-theme='dark'] .ProseMirror .av-cell:focus-within {
   background-color: rgba(120, 180, 255, 0.07);
 }
@@ -106,4 +224,52 @@
   .toolbar.toolbar-av .av-row-btn-add .toolbar-btn-label { display: none; }
   .toolbar.toolbar-av .av-row-group .toolbar-btn.av-row-btn-add { padding: 0; }
   .toolbar.toolbar-av .av-row-btn-delete { display: none; }
+}
+
+
+/* ── Print / PDF ────────────────────────────────────────────────────────
+ * The duration field is an input on screen; on paper it is just the number,
+ * so drop the box and let it sit inline with the rest of the cue column. */
+@media print {
+  .av-cue-duration {
+    border: none;
+    background: transparent;
+    padding: 0;
+    min-height: 0;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .av-image {
+    background: transparent;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* On-screen text (supers, lower thirds, captions) — the fourth AV base style.
+ * Boxed rather than merely styled: a super is what the audience reads, not what
+ * they hear or what the camera does, and it has to be findable at a glance when
+ * a page is scanned on set. */
+.av-cell .av-graphic {
+  margin: 2pt 0;
+  padding: 1pt 4pt;
+  border-left: 3px solid #b0b0b0;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.04em;
+}
+
+[data-theme='dark'] .av-cell .av-graphic { border-left-color: #555; }
+
+/* Page Setup orientation picker. */
+.page-setup-orientation {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.page-setup-orientation-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
 }

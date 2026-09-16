@@ -8,7 +8,7 @@ import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
 import { requestHandwriting } from '../utils/handwriting';
 import { requestElementMenu } from '../utils/elementMenu';
-import { isInAvCell } from '../editor/extensions/AvBlock';
+import { isInAvCell, avRowContext, readColumnConfig, AV_DEFAULT_COLUMNS, AV_ASPECT_RATIOS } from '../editor/extensions/AvBlock';
 import { formatShortcut } from '../utils/shortcuts';
 import { showToast } from './Toast';
 import { downloadFDX, exportFDX } from '../utils/fdxExporter';
@@ -110,6 +110,8 @@ import {
   FaArchive,
   FaSave,
   FaFileExport,
+  FaFileExcel,
+  FaFileCsv,
   FaFileCode,
   FaFilePdf,
   FaFileWord,
@@ -141,6 +143,7 @@ import {
   FaCommentDots,
   FaHeading,
   FaImage,
+  FaClock,
   FaCompass,
   FaTh,
   FaStream,
@@ -593,6 +596,113 @@ const MenuBar: React.FC<MenuBarProps> = ({
     ? undefined
     : 'Put the cursor in an AV script\u2019s Video or Audio cell first';
 
+  /**
+   * The AV body and row under the cursor, for the column and storyboard menus.
+   *
+   * Read straight off the editor state on each render rather than mirrored into
+   * React state: the menus only open on demand, and a stale checkmark is worse
+   * than the cost of two walks up the node tree.
+   */
+  const avContext = (() => {
+    if (!editor || !inAvCell) return null;
+    try {
+      const ctx = avRowContext(editor.state);
+      if (!ctx) return null;
+      const { $from } = editor.state.selection;
+      const block = $from.node(ctx.blockDepth);
+      const row = $from.node(ctx.rowDepth);
+      const frame = row.childCount > 2 ? row.child(row.childCount - 1) : null;
+      return {
+        blockAttrs: block.attrs as Record<string, unknown>,
+        frame: frame && frame.type.name === 'avImage' ? (frame.attrs as Record<string, unknown>) : null,
+      };
+    } catch {
+      return null;
+    }
+  })();
+  const avColumns = readColumnConfig(avContext?.blockAttrs);
+  const avRepeatHeaders = (avContext?.blockAttrs as { repeatHeaders?: boolean } | undefined)?.repeatHeaders !== false;
+  const avFrameImage = avContext?.frame as { src?: string | null; alt?: string | null; assetId?: string | null; aspect?: string } | null;
+  const avFrameAspect = avFrameImage?.aspect || '16:9';
+
+  /** Nudge one AV column's relative width; clamped by the command. */
+  const nudgeAvWidth = useCallback((which: 'cue' | 'video' | 'audio' | 'image', delta: number) => {
+    if (!editor) return;
+    const current = readColumnConfig(avContext?.blockAttrs).widths[which];
+    editor.chain().focus().setAvColumnWidth(which, current + delta).run();
+  }, [editor, avContext]);
+
+  /** Put one AV column back to the default width. */
+  const resetAvWidth = useCallback((which: 'cue' | 'video' | 'audio' | 'image') => {
+    if (!editor) return;
+    editor.chain().focus().setAvColumnWidth(which, AV_DEFAULT_COLUMNS.widths[which]).run();
+  }, [editor]);
+
+  /** Flip whether this AV body repeats its header row on each printed page.
+   *  Defaults to on, so only an explicit `false` counts as off. */
+  const toggleAvRepeatHeaders = useCallback(() => {
+    if (!editor) return;
+    try {
+      const ctx = avRowContext(editor.state);
+      if (!ctx) return;
+      const pos = editor.state.selection.$from.before(ctx.blockDepth);
+      const block = editor.state.doc.nodeAt(pos);
+      if (!block) return;
+      const currentlyOn = (block.attrs as { repeatHeaders?: boolean }).repeatHeaders !== false;
+      editor.view.dispatch(
+        editor.state.tr.setNodeMarkup(pos, undefined, { ...block.attrs, repeatHeaders: !currentlyOn }),
+      );
+    } catch (err) {
+      console.warn('[av] could not toggle repeating headers', err);
+    }
+  }, [editor]);
+
+  /**
+   * Choose an image for the cursor's storyboard frame.
+   *
+   * Reuses the same upload path inserted images take, so a frame lands in the
+   * project's asset store rather than being embedded in the document.
+   */
+  const pickAvFrame = useCallback(async () => {
+    if (!editor) return;
+    try {
+      const file = await new Promise<File | null>((resolve) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.style.display = 'none';
+        // Resolve on cancel too, or the promise never settles and the menu's
+        // click handler is left pending for the life of the session.
+        const done = (f: File | null) => {
+          window.removeEventListener('focus', onFocus);
+          input.remove();
+          resolve(f);
+        };
+        const onFocus = () => setTimeout(() => { if (!input.files?.length) done(null); }, 300);
+        input.onchange = () => done(input.files?.[0] ?? null);
+        window.addEventListener('focus', onFocus, { once: true });
+        document.body.appendChild(input);
+        input.click();
+      });
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        showToast('Please choose an image file', 'error');
+        return;
+      }
+      const { buildImageAttrs } = await import('../utils/insertImage');
+      const attrs = await buildImageAttrs(file) as { assetId?: string | null; scratchId?: string | null; src?: string | null; filename?: string | null };
+      editor.chain().focus().setAvRowImage({
+        src: attrs.src ?? null,
+        assetId: attrs.assetId ?? attrs.scratchId ?? null,
+        alt: attrs.filename ?? null,
+        aspect: avFrameAspect,
+      }).run();
+    } catch (err) {
+      console.error('[av] could not add storyboard frame', err);
+      showToast(`Could not add the frame: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, avFrameAspect]);
+
   // ── About / What's New ──
   const [recoverBackupOpen, setRecoverBackupOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -972,6 +1082,77 @@ const MenuBar: React.FC<MenuBarProps> = ({
     }
   }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
 
+  /**
+   * Import an AV spreadsheet as a new AV document.
+   *
+   * Column mapping is guessed from the header row, because a sheet from another
+   * production will not use OpenDraft's names — see utils/avImport. The guess is
+   * reported in a toast so the writer can see what it decided rather than having
+   * to compare the result against the source by eye.
+   */
+  const handleImportAvSheet = useCallback(async () => {
+    if (!editor) return;
+    try {
+      const result = await openTextOrBinaryFile(
+        [{ name: 'AV Document', extensions: ['yaml', 'yml', 'xlsx', 'csv'] }],
+        ['xlsx'],
+      );
+      if (!result) return;
+
+      const isYaml = /\.(ya?ml)$/i.test(result.name);
+      const isXlsx = /\.xlsx$/i.test(result.name);
+
+      let blocks: JSONContent[];
+      let rowCount: number;
+      let summary: string;
+
+      if (isYaml) {
+        // AvYamlError carries a message written for the writer — a file from a
+        // newer OpenDraft, or one that is not an AV document — so it is shown
+        // as-is rather than wrapped in a generic failure.
+        const { importAvYaml } = await import('../utils/avYaml');
+        const parsed = importAvYaml(result.text ?? '');
+        blocks = parsed.blocks;
+        rowCount = parsed.rowCount;
+        summary = `Imported ${rowCount} shot(s) from AV YAML`;
+      } else {
+        const { importAvCsv, importAvXlsx } = await import('../utils/avImport');
+        const imported = isXlsx
+          ? await importAvXlsx(result.bytes ?? new ArrayBuffer(0))
+          : importAvCsv(result.text ?? '');
+        blocks = [imported.block];
+        rowCount = imported.rowCount;
+        const mapped = imported.roles.filter(r => r !== 'ignore');
+        summary = `Imported ${rowCount} shot(s); matched ${mapped.length} column(s): ${mapped.join(', ')}`;
+      }
+
+      if (rowCount === 0) {
+        showToast('That file had no AV rows to import.', 'error');
+        return;
+      }
+
+      clearTrackChanges();
+      editor.commands.setContent({ type: 'doc', content: blocks }, true);
+      clearEditorHistory(editor);
+
+      const store = useEditorStore.getState();
+      const scriptTitle = result.name.replace(/\.\w+$/, '') || 'Untitled';
+      store.setDocumentTitle(scriptTitle);
+      setCurrentProject(null);
+      setCurrentScriptId(null);
+      setScripts([]);
+      store.setImportedSource({
+        name: result.name,
+        format: isYaml ? 'OpenDraft AV YAML' : isXlsx ? 'AV Spreadsheet (.xlsx)' : 'AV Spreadsheet (.csv)',
+      });
+      useBackupStatusStore.getState().noteDocumentOpened();
+      showToast(summary, 'info');
+    } catch (err) {
+      console.error('AV import failed:', err);
+      showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
+
   // Core Word import: open binary file → parse → apply.  The pre-import
   // warning dialog and the unsaved-changes guard wrap this.
   const handleImportDocxCore = useCallback(async () => {
@@ -1225,6 +1406,55 @@ const MenuBar: React.FC<MenuBarProps> = ({
       await downloadFountain(editor.getJSON(), documentTitle);
     } catch (err) {
       console.error('Fountain export failed:', err);
+      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, documentTitle]);
+
+  /**
+   * AV-specific exports.
+   *
+   * These only appear when the document actually contains an AV body. A
+   * spreadsheet is the interchange format for AV work because the industry has
+   * no structured shot-list standard — FDX, Fountain and OSF are built around
+   * screenplay elements — while production tools exchange CSV and xlsx.
+   */
+  /** Whether the open document contains an AV body, which gates the AV-only
+   *  export formats. Recomputed when the document changes rather than on every
+   *  render — walking the doc is cheap but not free, and the menu re-renders
+   *  on hover. */
+  const [hasAv, setHasAv] = useState(false);
+  useEffect(() => {
+    if (!editor) { setHasAv(false); return; }
+    let cancelled = false;
+    const recompute = () => {
+      try {
+        import('../utils/avDocument')
+          .then(({ hasAvContent }) => { if (!cancelled) setHasAv(hasAvContent(editor.getJSON())); })
+          .catch(() => { if (!cancelled) setHasAv(false); });
+      } catch {
+        if (!cancelled) setHasAv(false);
+      }
+    };
+    recompute();
+    editor.on('update', recompute);
+    return () => { cancelled = true; editor.off('update', recompute); };
+  }, [editor]);
+
+  const handleExportAv = useCallback(async (kind: 'xlsx' | 'csv' | 'txt' | 'yaml') => {
+    if (!editor) return;
+    try {
+      const json = editor.getJSON();
+      if (kind === 'yaml') {
+        const { downloadAvYaml } = await import('../utils/avYaml');
+        await downloadAvYaml(json, documentTitle);
+        return;
+      }
+      const mod = await import('../utils/avSpreadsheet');
+      if (kind === 'xlsx') await mod.downloadAvXlsx(json, documentTitle);
+      else if (kind === 'csv') await mod.downloadAvCsv(json, documentTitle);
+      else await mod.downloadAvText(json, documentTitle);
+    } catch (err) {
+      console.error('AV export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
   }, [editor, documentTitle]);
@@ -1573,6 +1803,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
           children: [
             { icon: <FaFileCode />, label: 'Final Draft / Fountain / Fade In / OpenDraft…', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
             { icon: <FaFileWord />, label: 'Microsoft Word (.docx)…', action: handleImportDocx, disabled: isCollabGuest },
+            { separator: true, label: '' },
+            { icon: <FaFileExcel />, label: 'AV Document (.yaml / .xlsx / .csv)…', action: () => confirmOrRun(handleImportAvSheet), disabled: isCollabGuest },
           ],
         },
         // Opens the library — projects and scripts held by OpenDraft, on this
@@ -1633,6 +1865,17 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaFilePdf />, label: 'PDF', action: handleExportPDF },
             { icon: <FaFileWord />, label: 'Microsoft Word (.docx)', action: handleExportDocx },
             { icon: <FaFile />, label: 'OpenDraft (.odraft)', action: handleExportOdraft, disabled: isCollabGuest },
+            // AV formats are offered only for documents that have an AV body —
+            // a spreadsheet of a screenplay would be meaningless.
+            ...(hasAv
+              ? [
+                  { separator: true, label: '' },
+                  { icon: <FaFileCode />, label: 'AV YAML (.yaml)', action: () => handleExportAv('yaml') },
+                  { icon: <FaFileExcel />, label: 'AV Spreadsheet (.xlsx)', action: () => handleExportAv('xlsx') },
+                  { icon: <FaFileCsv />, label: 'AV Spreadsheet (.csv)', action: () => handleExportAv('csv') },
+                  { icon: <FaFileAlt />, label: 'AV Plain Text (.txt)', action: () => handleExportAv('txt') },
+                ]
+              : []),
           ],
         },
         { separator: true, label: '' },
@@ -1783,6 +2026,65 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaPlus />, label: 'Insert Row Above', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('above').run() },
             { separator: true, label: '' },
             { icon: <FaTimes />, label: 'Delete Row', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().deleteAvRow().run() },
+          ],
+        },
+        {
+          // Column and storyboard controls. Same reasoning as the row controls
+          // above: every one of these has to be reachable without a hardware
+          // keyboard, so the menu is the primary route, not a shortcut.
+          icon: <FaColumns />, label: 'AV Columns',
+          children: [
+            {
+              icon: <FaClock />,
+              label: avColumns.cue ? '✓ Cue / Timing Column' : 'Cue / Timing Column',
+              disabled: !inAvCell, title: avRowHint,
+              action: () => editor?.chain().focus().toggleAvColumn('cue').run(),
+            },
+            {
+              icon: <FaImage />,
+              label: avColumns.image ? '✓ Storyboard Column' : 'Storyboard Column',
+              disabled: !inAvCell, title: avRowHint,
+              action: () => editor?.chain().focus().toggleAvColumn('image').run(),
+            },
+            { separator: true, label: '' },
+            {
+              icon: <FaFileAlt />,
+              label: avRepeatHeaders ? '✓ Repeat Headers On Each Page' : 'Repeat Headers On Each Page',
+              disabled: !inAvCell, title: avRowHint,
+              action: () => toggleAvRepeatHeaders(),
+            },
+            { separator: true, label: '' },
+            {
+              icon: <FaColumns />, label: 'Column Width',
+              children: (['video', 'audio', 'cue', 'image'] as const).map((which) => ({
+                icon: <FaColumns />,
+                label: which === 'cue' ? 'Cue' : which === 'image' ? 'Storyboard' : which === 'video' ? 'Video' : 'Audio',
+                children: [
+                  { icon: <FaColumns />, label: 'Narrower', disabled: !inAvCell, action: () => nudgeAvWidth(which, -0.25) },
+                  { icon: <FaColumns />, label: 'Wider', disabled: !inAvCell, action: () => nudgeAvWidth(which, 0.25) },
+                  { icon: <FaColumns />, label: 'Reset', disabled: !inAvCell, action: () => resetAvWidth(which) },
+                ],
+              })),
+            },
+          ],
+        },
+        {
+          icon: <FaImage />, label: 'AV Storyboard',
+          children: [
+            { icon: <FaImage />, label: 'Add / Replace Frame…', disabled: !inAvCell, title: avRowHint, action: () => pickAvFrame() },
+            { icon: <FaPlus />, label: 'Add Blank Frame', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().setAvRowImage({ src: null }).run() },
+            { separator: true, label: '' },
+            {
+              icon: <FaImage />, label: 'Frame Aspect Ratio',
+              children: AV_ASPECT_RATIOS.map((ratio) => ({
+                icon: <FaImage />,
+                label: avFrameAspect === ratio ? `✓ ${ratio}` : ratio,
+                disabled: !inAvCell,
+                action: () => editor?.chain().focus().setAvRowImage({ ...(avFrameImage || {}), aspect: ratio }).run(),
+              })),
+            },
+            { separator: true, label: '' },
+            { icon: <FaTimes />, label: 'Remove Frame', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().clearAvRowImage().run() },
           ],
         },
         {

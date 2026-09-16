@@ -62,7 +62,7 @@ export function previousSiblingBlock($from: ResolvedPos): PMNode | null {
 export function blankLineTypeFor(currentType: string): string {
   if (currentType === 'general' || currentType === 'titlePage') return currentType;
   if (currentType === 'customElement') return currentType;
-  if (currentType === 'avPara' || currentType === 'avShot' || currentType === 'avDirection') {
+  if (currentType === 'avPara' || currentType === 'avShot' || currentType === 'avDirection' || currentType === 'avGraphic') {
     return 'avPara';
   }
   return 'action';

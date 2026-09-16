@@ -11,6 +11,9 @@ import { jsonBlockRuns } from './nodeText';
 import { wordWrapRuns, type WrapRun } from './wrapText';
 import { sanitizeExportFilename } from './exportFilename';
 import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
+import { extractAvBodies } from './avDocument';
+import { drawAvBody, avRowNodes, avFrameKey } from './avPdfTable';
+import { readColumnConfig } from '../editor/extensions/AvBlock';
 import {
   embedUnicodeFont, needsUnicodeFont, requiredUnicodeStyles,
   type StyledText, type UnicodeFont,
@@ -90,6 +93,9 @@ interface NodeInfo {
   runs: TextRun[];
   plainText: string;
   attrs?: Record<string, unknown>;
+  /** The original JSON node, kept only for `avBlock`: an AV body is a table,
+   *  so the draw pass needs its rows and cells, not a flattened run list. */
+  raw?: JSONContent;
   /** Index in the ORIGINAL document content. `nodes` drops the title page and
    *  the non-printing blocks, and the footnote plan is keyed on the original. */
   srcIndex: number;
@@ -460,6 +466,13 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       return;
     }
 
+    // An AV body is a table and cannot be flattened into a run list — it gets
+    // its own draw pass below, which needs the node itself.
+    if (typeName === 'avBlock') {
+      nodes.push({ typeName, runs: [], plainText: '', attrs: node.attrs as Record<string, unknown> | undefined, raw: node, srcIndex: index });
+      return;
+    }
+
     const rawRuns = extractRuns(node);
     const styled = applyTypeStyles(rawRuns, typeName);
     // References anchored in this block. A superscript rides beside the text
@@ -724,6 +737,23 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     imageMap.set(k, { dataUrl: d.dataUrl, wPt, hPt, align: (attrs.align as string) || 'center' });
   }
 
+  // Storyboard frames, preloaded for the same reason inserted images are: the
+  // render loop below is synchronous.
+  const avImageMap = new Map<string, { dataUrl: string; width: number; height: number }>();
+  for (const n of nodes) {
+    if (n.typeName !== 'avBlock' || !n.raw) continue;
+    for (const rn of avRowNodes(n.raw)) {
+      if (!rn.image) continue;
+      const attrs = (rn.image.attrs || {}) as Record<string, unknown>;
+      const key = avFrameKey(attrs as { src?: string | null; assetId?: string | null });
+      if (!key || avImageMap.has(key)) continue;
+      const url = resolveImageUrl(attrs);
+      if (!url) continue;
+      const d = await loadImageData(url);
+      if (d) avImageMap.set(key, { dataUrl: d.dataUrl, width: d.width, height: d.height });
+    }
+  }
+
   // Element ids the active template requires to start a new page (e.g. TV newAct).
   const forceBreakIds = getForceBreakIds();
   // Blank lines before each element, from the same template the editor
@@ -769,6 +799,41 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       newPage();
       for (const e of claimed) pageEntries.push(e);
     };
+
+    // AV body — a table, drawn by its own pass with row-level pagination and a
+    // repeated header. See utils/avPdfTable.
+    if (typeName === 'avBlock' && node.raw) {
+      if (forcedBreak) breakForBlock();
+      const bodies = extractAvBodies({ type: 'doc', content: [node.raw] });
+      const body = bodies[0];
+      if (body) {
+        const cfg = readColumnConfig(node.attrs);
+        const repeatHeaders = (node.attrs as { repeatHeaders?: boolean } | undefined)?.repeatHeaders !== false;
+        drawAvBody(
+          {
+            pdf,
+            drawLine: (line, xPt, yPt) => renderLine(pdf, line as TextRun[], xPt, yPt, fonts),
+            charWidthPt: FD_CHAR_WIDTH_PT,
+            lineHeightPt: LINE_HEIGHT_PT,
+            leftPt: layout.leftMargin * PTS_PER_INCH,
+            contentWidthPt,
+            topMarginPt,
+            bottomMarginPt,
+            pageHeightPt,
+            getY: () => currentY,
+            setY: (y) => { currentY = y; },
+            newPage,
+            images: avImageMap,
+          },
+          body,
+          avRowNodes(node.raw),
+          { widths: cfg.widths, repeatHeaders },
+        );
+      }
+      isFirstElement = false;
+      i++;
+      continue;
+    }
 
     // Inserted image — place it, paginating if it doesn't fit.
     if (typeName === 'screenplayImage') {

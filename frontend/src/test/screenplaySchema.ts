@@ -29,7 +29,7 @@ import {
   Section, Note,
   TitlePage, CustomElement,
   DualDialogue, DualDialogueColumn,
-  AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection,
+  AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage,
   StartsNewPage,
 } from '../editor/extensions';
 
@@ -44,7 +44,7 @@ export const testSchema = getSchema([
   Section, Note,
   TitlePage, CustomElement,
   DualDialogue, DualDialogueColumn,
-  AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection,
+  AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage,
   StartsNewPage,
   ScriptNoteMark,
   TagMark,

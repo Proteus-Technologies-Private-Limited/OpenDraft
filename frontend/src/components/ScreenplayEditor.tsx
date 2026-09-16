@@ -27,7 +27,7 @@ import {
   ShowEpisode, CastList, FontSize, PasteFormatting, ScriptNoteMark, TagMark,
   FormatOverride, CustomElement, DualDialogue, DualDialogueColumn,
   TitlePage,
-  AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvKeymap,
+  AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
   StartsNewPage,
 } from '../editor/extensions';
 import { registerAvCellPicker, isInAvCell, AV_CELL_ELEMENT_IDS } from '../editor/extensions/AvBlock';
@@ -1610,7 +1610,7 @@ const ScreenplayEditor: React.FC = () => {
       Transition, General, Shot, NewAct, EndOfAct, Lyrics,
       Section, Note,
       ShowEpisode, CastList, DualDialogue, DualDialogueColumn, TitlePage,
-      AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvKeymap,
+      AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
       ScriptNoteMark, TagMark,
       StartsNewPage,
       FootnoteMarkerExtension,
