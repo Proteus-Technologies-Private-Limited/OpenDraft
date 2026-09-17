@@ -13,14 +13,16 @@ import { describe, it, expect } from 'vitest';
 import { EditorState, TextSelection, type Transaction } from '@tiptap/pm/state';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import { testSchema } from '../test/screenplaySchema';
-import { AvBlock, avRowContext, isInAvCell } from './extensions/AvBlock';
+import { AvBlock, AvKeymap, avRowContext, isInAvCell } from './extensions/AvBlock';
 
-/** One avRow whose two cells carry the given text. */
-const row = (video: string, audio: string) => ({
+/** One avRow whose two cells carry the given text, optionally with a
+ *  storyboard frame in the third column. */
+const row = (video: string, audio: string, frame?: Record<string, unknown> | 'empty') => ({
   type: 'avRow',
   content: [
     { type: 'avCell', attrs: { side: 'video' }, content: [{ type: 'avPara', content: video ? [{ type: 'text', text: video }] : [] }] },
     { type: 'avCell', attrs: { side: 'audio' }, content: [{ type: 'avPara', content: audio ? [{ type: 'text', text: audio }] : [] }] },
+    ...(frame ? [{ type: 'avImage', attrs: frame === 'empty' ? {} : frame }] : []),
   ],
 });
 
@@ -242,5 +244,65 @@ describe('toggleAvBlock', () => {
     let hasBlock = false;
     next.doc.descendants(n => { if (n.type.name === 'avBlock') hasBlock = true; return !hasBlock; });
     expect(hasBlock).toBe(true);
+  });
+});
+
+describe('Backspace in an empty AV cell', () => {
+  const keymap = (AvKeymap.config.addKeyboardShortcuts as () => Record<string, (p: unknown) => boolean>).call(
+    { name: 'avKeymap', options: {}, storage: {}, editor: null } as never,
+  );
+
+  /** Run the Backspace handler over a caret position; reports whether it
+   *  handled the key and whether it asked for the row to be deleted. */
+  function backspace(doc: PmNode, rowIndex: number, side: 'video' | 'audio') {
+    const state = stateAt(doc, rowIndex, side);
+    let deleted = false;
+    const handled = keymap.Backspace({
+      editor: { state, commands: { deleteAvRow: () => { deleted = true; return true; } } },
+    } as never);
+    return { handled, deleted };
+  }
+
+  it('deletes a row whose cells are both empty', () => {
+    expect(backspace(docWithRows(row('WIDE', 'V.O.'), row('', '')), 1, 'video').deleted).toBe(true);
+  });
+
+  it('leaves a row alone when the other cell still has content', () => {
+    expect(backspace(docWithRows(row('', 'NARRATOR (V.O.): Hello')), 0, 'video').deleted).toBe(false);
+    expect(backspace(docWithRows(row('WIDE ON STREET', '')), 0, 'audio').deleted).toBe(false);
+  });
+
+  it('still sees the other cell’s content when the row has a storyboard frame', () => {
+    // avImage is an atom whose textContent is '' and it is always the row's
+    // last child, so a handler that assigned rather than accumulated read the
+    // row as empty and took the narration with it.
+    const withFrame = docWithRows(row('', 'NARRATOR (V.O.): Hello', { assetId: 'a1', projectId: 'p1' }));
+    expect(backspace(withFrame, 0, 'video').deleted).toBe(false);
+
+    const audioSide = docWithRows(row('WIDE ON STREET', '', { assetId: 'a1', projectId: 'p1' }));
+    expect(backspace(audioSide, 0, 'audio').deleted).toBe(false);
+  });
+
+  it('will not silently drop a frame from an otherwise empty row', () => {
+    const doc = docWithRows(row('WIDE', 'V.O.'), row('', '', { assetId: 'a1', projectId: 'p1' }));
+    expect(backspace(doc, 1, 'video').deleted).toBe(false);
+  });
+
+  it('deletes an empty row whose frame slot is also empty', () => {
+    // An empty slot is not content — it is just the column being switched on.
+    const doc = docWithRows(row('WIDE', 'V.O.'), row('', '', 'empty'));
+    expect(backspace(doc, 1, 'video').deleted).toBe(true);
+  });
+
+  it('does nothing when the caret is not at the start of the cell', () => {
+    const doc = docWithRows(row('WIDE', 'V.O.'));
+    const state = stateAt(doc, 0, 'video');
+    const moved = EditorState.create({ doc, selection: TextSelection.create(doc, state.selection.from + 2) });
+    let deleted = false;
+    const handled = keymap.Backspace({
+      editor: { state: moved, commands: { deleteAvRow: () => { deleted = true; return true; } } },
+    } as never);
+    expect(handled).toBe(false);
+    expect(deleted).toBe(false);
   });
 });

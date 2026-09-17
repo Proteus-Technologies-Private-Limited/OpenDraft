@@ -149,9 +149,11 @@ export interface AvRowNodes {
  * the preload pass and the draw pass have to agree on one key or every frame
  * silently renders as an empty slot.
  */
-export function avFrameKey(image: { src?: string | null; assetId?: string | null } | null | undefined): string {
+export function avFrameKey(
+  image: { src?: string | null; assetId?: string | null; scratchId?: string | null } | null | undefined,
+): string {
   if (!image) return '';
-  return image.assetId || image.src || '';
+  return image.assetId || image.scratchId || image.src || '';
 }
 
 /** Height a storyboard frame occupies in its column. */
@@ -163,13 +165,42 @@ function frameHeightPt(widthPt: number, aspect: string | null | undefined): numb
   return widthPt * (nh / nw);
 }
 
-/** Draw the header row at the current Y and advance past it. */
+/**
+ * Draw the header row at the current Y and advance past it.
+ *
+ * Each label is wrapped into its own column, the same way the cells beneath it
+ * are. Drawn as one unwrapped line it simply overflowed: the default cue column
+ * is 0.5 units against video and audio's 2, which is narrower than the word
+ * "Shot / Time" it carries, so the cue header printed straight over the video
+ * header and the two came out as one unreadable smear of overlapping glyphs.
+ *
+ * Labels sit on the rule rather than hanging from the top, so a two-line header
+ * beside one-line headers still lines up where the eye expects the column to
+ * begin.
+ */
 function drawHeader(ctx: AvPdfContext, columns: AvPdfColumn[]): void {
   const y = ctx.getY();
-  for (const col of columns) {
-    ctx.drawLine([{ text: col.header, bold: true } as WrapRun], col.xPt, y + ctx.lineHeightPt);
-  }
-  const ruleY = y + ctx.lineHeightPt + 3;
+
+  const wrapped = columns.map(col =>
+    wordWrapRuns(
+      [{ text: col.header, bold: true } as WrapRun],
+      charsPerColumn(col.widthPt, ctx.charWidthPt),
+      false,
+    ),
+  );
+  const lineCount = Math.max(1, ...wrapped.map(w => w.length));
+
+  wrapped.forEach((lines, i) => {
+    // Bottom-aligned: shorter labels start further down so every one of them
+    // ends on the last line.
+    let lineY = y + (lineCount - lines.length) * ctx.lineHeightPt;
+    for (const line of lines) {
+      lineY += ctx.lineHeightPt;
+      ctx.drawLine(line, columns[i].xPt, lineY);
+    }
+  });
+
+  const ruleY = y + lineCount * ctx.lineHeightPt + 3;
   ctx.pdf.setLineWidth(RULE_WEIGHT);
   ctx.pdf.line(ctx.leftPt, ruleY, ctx.leftPt + ctx.contentWidthPt, ruleY);
   ctx.setY(ruleY + CELL_PAD_PT);

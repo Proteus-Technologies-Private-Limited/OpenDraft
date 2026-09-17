@@ -105,6 +105,25 @@ describe('avBodyToGrid', () => {
     expect(grid[1]).toEqual(['1. 0:00', '0:05', 'V', 'A']);
   });
 
+  it('carries a frame’s whole asset reference, not just its id', () => {
+    // The exporters resolve a frame from these fields and key their preloaded
+    // images off them; an id without its project resolves to nothing.
+    const b = extractAvBodies(doc(
+      [row({ video: ['V'], image: { assetId: 'a1', projectId: 'p1', filename: 'frame.png', aspect: '4:3' } })],
+      { columns: { cue: true, image: true } },
+    ))[0];
+    expect(b.rows[0].image).toEqual({
+      src: null, alt: null, assetId: 'a1', projectId: 'p1', scratchId: null, filename: 'frame.png', aspect: '4:3',
+    });
+
+    const scratch = extractAvBodies(doc(
+      [row({ video: ['V'], image: { scratchId: 's1', filename: 'frame.png' } })],
+      { columns: { cue: true, image: true } },
+    ))[0];
+    expect(scratch.rows[0].image!.scratchId).toBe('s1');
+    expect(scratch.rows[0].image!.aspect).toBe('16:9');
+  });
+
   it('adds the storyboard column when the body has one', () => {
     const b = extractAvBodies(
       doc([row({ video: ['V'], image: { src: 'f.png', alt: 'Frame 1', aspect: '16:9' } })], { columns: { cue: true, image: true } }),

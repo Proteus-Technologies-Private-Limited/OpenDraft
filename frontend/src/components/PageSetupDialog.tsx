@@ -30,7 +30,22 @@ function inToPt(inches: number): number {
  * leave the extra width to the content, which is the point of turning the page.
  */
 const LANDSCAPE_MARGINS = { leftMargin: 1, rightMargin: 1, topMargin: 54, bottomMargin: 54 };
-const PORTRAIT_MARGINS = { leftMargin: 1.5, rightMargin: 1, topMargin: 72, bottomMargin: 72 };
+
+/**
+ * The portrait side of that comparison, taken FROM the store rather than
+ * restated here.
+ *
+ * Written out by hand it said `rightMargin: 1`, while every new screenplay is
+ * created with DEFAULT_PAGE_LAYOUT's 0.76. So the "has the writer touched their
+ * margins?" test below failed for the one document that most obviously has not
+ * — an untouched one — and rotating it to landscape kept the portrait margins.
+ */
+const PORTRAIT_MARGINS = {
+  leftMargin: DEFAULT_PAGE_LAYOUT.leftMargin,
+  rightMargin: DEFAULT_PAGE_LAYOUT.rightMargin,
+  topMargin: DEFAULT_PAGE_LAYOUT.topMargin,
+  bottomMargin: DEFAULT_PAGE_LAYOUT.bottomMargin,
+};
 
 const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
   const { pageLayout, setPageLayout, setHeaderFooterOpen } = useEditorStore();

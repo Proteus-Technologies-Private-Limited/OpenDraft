@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/core';
@@ -599,16 +599,23 @@ const MenuBar: React.FC<MenuBarProps> = ({
   /**
    * The AV body and row under the cursor, for the column and storyboard menus.
    *
-   * Read straight off the editor state on each render rather than mirrored into
-   * React state: the menus only open on demand, and a stale checkmark is worse
-   * than the cost of two walks up the node tree.
+   * Read off the editor state rather than mirrored into React state: the menus
+   * only open on demand, and a stale checkmark is worse than the cost of two
+   * walks up the node tree.
+   *
+   * Memoised on the state itself. ProseMirror builds a new EditorState for
+   * every transaction and reuses it across plain re-renders, so its identity is
+   * exactly the right key — the walk runs when the document or the selection
+   * moved, not on every hover — and the callbacks below that depend on the
+   * result get a stable identity with it.
    */
-  const avContext = (() => {
-    if (!editor || !inAvCell) return null;
+  const editorState = editor?.state ?? null;
+  const avContext = useMemo(() => {
+    if (!editorState || !inAvCell) return null;
     try {
-      const ctx = avRowContext(editor.state);
+      const ctx = avRowContext(editorState);
       if (!ctx) return null;
-      const { $from } = editor.state.selection;
+      const { $from } = editorState.selection;
       const block = $from.node(ctx.blockDepth);
       const row = $from.node(ctx.rowDepth);
       const frame = row.childCount > 2 ? row.child(row.childCount - 1) : null;
@@ -619,10 +626,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
     } catch {
       return null;
     }
-  })();
+  }, [editorState, inAvCell]);
   const avColumns = readColumnConfig(avContext?.blockAttrs);
   const avRepeatHeaders = (avContext?.blockAttrs as { repeatHeaders?: boolean } | undefined)?.repeatHeaders !== false;
-  const avFrameImage = avContext?.frame as { src?: string | null; alt?: string | null; assetId?: string | null; aspect?: string } | null;
+  const avFrameImage = avContext?.frame as {
+    src?: string | null;
+    alt?: string | null;
+    assetId?: string | null;
+    scratchId?: string | null;
+    aspect?: string;
+  } | null;
   const avFrameAspect = avFrameImage?.aspect || '16:9';
 
   /** Nudge one AV column's relative width; clamped by the command. */
@@ -689,14 +702,21 @@ const MenuBar: React.FC<MenuBarProps> = ({
         showToast('Please choose an image file', 'error');
         return;
       }
-      const { buildImageAttrs } = await import('../utils/insertImage');
-      const attrs = await buildImageAttrs(file) as { assetId?: string | null; scratchId?: string | null; src?: string | null; filename?: string | null };
+      const { buildImageAttrs, warnIfImageDegraded } = await import('../utils/insertImage');
+      const attrs = await buildImageAttrs(file, ['av-storyboard']);
+      // Every field is carried across. Collapsing projectId/scratchId into a
+      // single assetId left the frame unresolvable: the asset endpoint is built
+      // from BOTH ids, and a scratch id is not an asset id at all.
       editor.chain().focus().setAvRowImage({
         src: attrs.src ?? null,
-        assetId: attrs.assetId ?? attrs.scratchId ?? null,
+        assetId: attrs.assetId ?? null,
+        projectId: attrs.projectId ?? null,
+        scratchId: attrs.scratchId ?? null,
+        filename: attrs.filename ?? null,
         alt: attrs.filename ?? null,
         aspect: avFrameAspect,
       }).run();
+      warnIfImageDegraded(attrs);
     } catch (err) {
       console.error('[av] could not add storyboard frame', err);
       showToast(`Could not add the frame: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -1120,10 +1140,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
         const imported = isXlsx
           ? await importAvXlsx(result.bytes ?? new ArrayBuffer(0))
           : importAvCsv(result.text ?? '');
-        blocks = [imported.block];
+        // One block per body: a document exported with two AV sections comes
+        // back as two, not as one with the second section's header sitting in
+        // the middle of it as a shot.
+        blocks = imported.blocks;
         rowCount = imported.rowCount;
         const mapped = imported.roles.filter(r => r !== 'ignore');
-        summary = `Imported ${rowCount} shot(s); matched ${mapped.length} column(s): ${mapped.join(', ')}`;
+        const bodies = imported.blocks.length > 1 ? ` across ${imported.blocks.length} bodies` : '';
+        summary = `Imported ${rowCount} shot(s)${bodies}; matched ${mapped.length} column(s): ${mapped.join(', ')}`;
       }
 
       if (rowCount === 0) {
@@ -1132,6 +1156,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
       }
 
       clearTrackChanges();
+      // Same reason the Word import does it: beats, notes, tags, character
+      // profiles and scenes live outside the document, so replacing the
+      // document alone leaves the previous script's panels standing beside the
+      // imported shot list as though they belonged to it.
+      resetStoresForImport();
       editor.commands.setContent({ type: 'doc', content: blocks }, true);
       clearEditorHistory(editor);
 
@@ -1425,19 +1454,31 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const [hasAv, setHasAv] = useState(false);
   useEffect(() => {
     if (!editor) { setHasAv(false); return; }
-    let cancelled = false;
+    // Walked straight off the ProseMirror doc, stopping at the first AV body.
+    // It used to serialise the whole document with getJSON() and then read
+    // every AV body out of it in full, twice per keystroke, to answer a yes/no
+    // that only changes when a body is inserted or removed.
     const recompute = () => {
       try {
-        import('../utils/avDocument')
-          .then(({ hasAvContent }) => { if (!cancelled) setHasAv(hasAvContent(editor.getJSON())); })
-          .catch(() => { if (!cancelled) setHasAv(false); });
-      } catch {
-        if (!cancelled) setHasAv(false);
+        let found = false;
+        editor.state.doc.descendants((node) => {
+          if (found) return false;
+          if (node.type.name === 'avBlock') { found = true; return false; }
+          // Inline content cannot hold a body, so there is no reason to enter it.
+          return node.isBlock;
+        });
+        setHasAv(found);
+      } catch (err) {
+        console.warn('[av] could not check the document for AV bodies', err);
+        setHasAv(false);
       }
     };
     recompute();
-    editor.on('update', recompute);
-    return () => { cancelled = true; editor.off('update', recompute); };
+    const onUpdate = ({ transaction }: { transaction: { docChanged: boolean } }) => {
+      if (transaction.docChanged) recompute();
+    };
+    editor.on('update', onUpdate);
+    return () => { editor.off('update', onUpdate); };
   }, [editor]);
 
   const handleExportAv = useCallback(async (kind: 'xlsx' | 'csv' | 'txt' | 'yaml') => {

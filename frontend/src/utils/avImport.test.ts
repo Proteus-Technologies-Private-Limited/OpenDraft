@@ -13,6 +13,8 @@ import {
   readXlsxGrid,
   guessColumnRoles,
   looksLikeHeader,
+  splitCueCell,
+  splitGridSections,
   gridToAvBlock,
   importAvCsv,
   importAvXlsx,
@@ -100,6 +102,28 @@ describe('looksLikeHeader', () => {
   it('rejects an empty row', () => {
     expect(looksLikeHeader([])).toBe(false);
   });
+
+  it('rejects a headerless sheet’s first row of content', () => {
+    // The video/audio fallback in guessColumnRoles assigns those two roles to
+    // columns that matched nothing, and counting its guesses here made any
+    // two-column row look like a header — so importing a headerless sheet ate
+    // the first shot.
+    expect(looksLikeHeader(['Wide street', 'Piano solo'])).toBe(false);
+    expect(looksLikeHeader(['Establishing shot of the harbour', 'Gulls'])).toBe(false);
+  });
+});
+
+describe('splitCueCell', () => {
+  it('splits our own combined shot/start cell', () => {
+    expect(splitCueCell('1. 0:00')).toEqual({ shot: '1.', start: '0:00' });
+    expect(splitCueCell('2. 1:02:03')).toEqual({ shot: '2.', start: '1:02:03' });
+  });
+
+  it('leaves a shot label that merely contains a number alone', () => {
+    expect(splitCueCell('22c')).toEqual({ shot: '22c', start: '' });
+    expect(splitCueCell('SHOT 2')).toEqual({ shot: 'SHOT 2', start: '' });
+    expect(splitCueCell('')).toEqual({ shot: '', start: '' });
+  });
 });
 
 describe('gridToAvBlock', () => {
@@ -131,6 +155,41 @@ describe('gridToAvBlock', () => {
   it('keeps a real shot number like 22c', () => {
     const r = gridToAvBlock([['Shot', 'Video'], ['22c', 'WIDE']]);
     expect(r.block.content![0].attrs!.shot).toBe('22c');
+  });
+
+  it('keeps numbering that is not simply sequential', () => {
+    // 10/20/30 is someone's deliberate scheme; renumbering it to 1/2/3 loses it.
+    const r = gridToAvBlock([['Shot', 'Video'], ['10', 'a'], ['20', 'b'], ['30', 'c']]);
+    expect(r.block.content!.map(x => x.attrs!.shot)).toEqual(['10', '20', '30']);
+  });
+
+  it('keeps the first row of a headerless two-column sheet', () => {
+    const r = gridToAvBlock([['Wide street', 'Piano solo'], ['CU hands', 'SFX: whoosh']]);
+    expect(r.rowCount).toBe(2);
+    expect(r.header).toBeNull();
+    expect(r.block.content![0].content![0].content![0].content![0].text).toBe('Wide street');
+  });
+
+  it('splits our own combined cue cell rather than pinning it as a shot', () => {
+    const r = gridToAvBlock([
+      ['Shot / Time', 'Duration', 'Video', 'Audio'],
+      ['1. 0:00', '0:05', 'a', 'b'],
+      ['2. 0:05', '0:05', 'c', 'd'],
+    ]);
+    // Both values restate what the editor derives from the durations, so both
+    // stay derived and the rows still renumber when one is inserted above.
+    expect(r.block.content!.map(x => x.attrs!.shot)).toEqual([null, null]);
+    expect(r.block.content!.map(x => x.attrs!.start)).toEqual([null, null]);
+  });
+
+  it('pins a start that the durations above would not have produced', () => {
+    const r = gridToAvBlock([
+      ['Shot', 'Start', 'Duration', 'Video'],
+      ['1.', '0:00', '0:05', 'a'],
+      ['2.', '2:00', '0:05', 'b'],
+    ]);
+    expect(r.block.content![0].attrs!.start).toBeNull();
+    expect(r.block.content![1].attrs!.start).toBe('2:00');
   });
 
   it('splits a multi-line cell into paragraphs', () => {
@@ -169,6 +228,43 @@ describe('gridToAvBlock', () => {
   });
 });
 
+describe('splitGridSections', () => {
+  const header = ['Shot / Time', 'Duration', 'Video', 'Audio'];
+
+  it('keeps a single body in one section', () => {
+    expect(splitGridSections([header, ['1. 0:00', '0:05', 'a', 'b']])).toHaveLength(1);
+  });
+
+  it('breaks at a blank row that a header follows', () => {
+    const sections = splitGridSections([
+      header, ['1. 0:00', '0:05', 'a', 'b'],
+      ['', '', '', ''],
+      header, ['1. 0:00', '0:05', 'c', 'd'],
+    ]);
+    expect(sections).toHaveLength(2);
+    expect(sections[1][1][2]).toBe('c');
+  });
+
+  it('does NOT break on a stray blank row inside one body', () => {
+    // Splitting here would cut a single shot list in two and lose the column
+    // mapping for everything below the cut — far more likely than a second body.
+    const sections = splitGridSections([
+      header,
+      ['1. 0:00', '0:05', 'a', 'b'],
+      ['', '', '', ''],
+      ['2. 0:05', '0:05', 'c', 'd'],
+    ]);
+    expect(sections).toHaveLength(1);
+    expect(sections[0]).toHaveLength(3);
+  });
+
+  it('survives junk', () => {
+    expect(splitGridSections([])).toEqual([]);
+    expect(splitGridSections([['', '']])).toEqual([]);
+    expect(() => splitGridSections(null as never)).not.toThrow();
+  });
+});
+
 describe('round trip', () => {
   const cell = (side: 'video' | 'audio', ...l: string[]) => ({
     type: 'avCell', attrs: { side },
@@ -189,7 +285,7 @@ describe('round trip', () => {
     const csv = avDocumentToCsv(doc);
     const r = importAvCsv(csv);
     expect(r.rowCount).toBe(2);
-    const body = extractAvBodies({ type: 'doc', content: [r.block] })[0];
+    const body = extractAvBodies({ type: 'doc', content: r.blocks })[0];
     expect(body.rows[0].video).toBe('WIDE ON STREET');
     expect(body.rows[0].audio).toBe('NARRATOR: Hello, world');
     expect(body.rows[0].duration).toBe('0:05');
@@ -203,10 +299,22 @@ describe('round trip', () => {
     const blob = await avDocumentToXlsx(doc);
     const r = await importAvXlsx(await blob!.arrayBuffer());
     expect(r.rowCount).toBe(2);
-    const body = extractAvBodies({ type: 'doc', content: [r.block] })[0];
+    const body = extractAvBodies({ type: 'doc', content: r.blocks })[0];
     expect(body.rows[0].video).toBe('WIDE ON STREET');
     expect(body.rows[1].audio).toBe('She says "hi"');
     expect(body.totalFormatted).toBe('1:35');
+  });
+
+  it('comes back with its cue values still derived, not pinned', () => {
+    // The cue column exports as one cell — "1. 0:00" — and taking that back in
+    // whole froze every shot number as a manual override, so inserting a row
+    // no longer renumbered anything below it.
+    const r = importAvCsv(avDocumentToCsv(doc));
+    expect(r.blocks[0].content!.map(x => x.attrs!.shot)).toEqual([null, null]);
+    expect(r.blocks[0].content!.map(x => x.attrs!.start)).toEqual([null, null]);
+    const body = extractAvBodies({ type: 'doc', content: r.blocks })[0];
+    expect(body.rows.map(x => x.shot)).toEqual(['1.', '2.']);
+    expect(body.rows.map(x => x.start)).toEqual(['0:00', '0:05']);
   });
 });
 
@@ -240,5 +348,38 @@ describe('readXlsxGrid', () => {
       '<row r="1"><c r="A1" t="inlineStr"><is><t>a</t></is></c><c r="C1" t="inlineStr"><is><t>c</t></is></c></row>' +
       '</sheetData></worksheet>');
     expect(await readXlsxGrid(await zip.generateAsync({ type: 'arraybuffer' }))).toEqual([['a', '', 'c']]);
+  });
+});
+
+describe('a document with two AV bodies', () => {
+  const cell = (side: 'video' | 'audio', ...l: string[]) => ({
+    type: 'avCell', attrs: { side },
+    content: l.map(t => ({ type: 'avPara', content: t ? [{ type: 'text', text: t }] : [] })),
+  });
+  const body = (video: string, audio: string) => ({
+    type: 'avBlock', attrs: { columns: { cue: true, image: false } },
+    content: [{
+      type: 'avRow', attrs: { duration: '0:05', shot: null, start: null },
+      content: [cell('video', video), cell('audio', audio)],
+    }],
+  });
+  const doc = { type: 'doc', content: [body('TEASER WIDE', 'V.O. one'), body('ACT ONE WIDE', 'V.O. two')] };
+
+  it('comes back from CSV as two bodies, not one with a header in the middle', () => {
+    const r = importAvCsv(avDocumentToCsv(doc));
+    expect(r.blocks).toHaveLength(2);
+    expect(r.rowCount).toBe(2);
+    const bodies = extractAvBodies({ type: 'doc', content: r.blocks });
+    expect(bodies.map(b => b.rows.map(x => x.video))).toEqual([['TEASER WIDE'], ['ACT ONE WIDE']]);
+    // The second body's header must not have arrived as a shot.
+    expect(bodies[1].rows).toHaveLength(1);
+  });
+
+  it('comes back from xlsx as two bodies, one per worksheet', async () => {
+    const blob = await avDocumentToXlsx(doc);
+    const r = await importAvXlsx(await blob!.arrayBuffer());
+    expect(r.blocks).toHaveLength(2);
+    const bodies = extractAvBodies({ type: 'doc', content: r.blocks });
+    expect(bodies.map(b => b.rows.map(x => x.audio))).toEqual([['V.O. one'], ['V.O. two']]);
   });
 });

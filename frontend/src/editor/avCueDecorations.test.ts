@@ -9,7 +9,7 @@
  * re-render a node view for.
  */
 import { describe, it, expect } from 'vitest';
-import { EditorState, type Plugin } from '@tiptap/pm/state';
+import { EditorState, TextSelection, type Plugin } from '@tiptap/pm/state';
 import type { DecorationSet } from '@tiptap/pm/view';
 import { testSchema } from '../test/screenplaySchema';
 import { AvCueDecorations, cueFromDecorations, avCuePluginKey } from './extensions/AvBlock';
@@ -39,6 +39,19 @@ function cueValues(doc: ReturnType<typeof docOf>) {
     const d = deco as unknown as { from: number; type: { attrs: Record<string, string> } };
     return { from: d.from, shot: d.type.attrs['data-av-shot'], start: d.type.attrs['data-av-start'] };
   });
+}
+
+/** The plugin's own state, so a test can compare instances across a
+ *  transaction rather than only the values it publishes. */
+function pluginState(state: EditorState): DecorationSet {
+  return avCuePluginKey.getState(state) as unknown as DecorationSet;
+}
+
+function stateOf(doc: ReturnType<typeof docOf>): EditorState {
+  const plugins = (AvCueDecorations.config.addProseMirrorPlugins as () => Plugin[]).call(
+    { name: 'avCueDecorations', options: {}, storage: {}, editor: null } as never,
+  );
+  return EditorState.create({ doc, schema: testSchema, plugins });
 }
 
 describe('AvCueDecorations', () => {
@@ -82,5 +95,31 @@ describe('cueFromDecorations', () => {
     expect(cueFromDecorations([])).toBeNull();
     expect(cueFromDecorations(undefined)).toBeNull();
     expect(cueFromDecorations([{ type: { attrs: { class: 'unrelated' } } }])).toBeNull();
+  });
+});
+
+describe('AvCueDecorations recomputation', () => {
+  it('rebuilds when the document changes', () => {
+    const state = stateOf(docOf('0:05', '0:10'));
+    // Retype the first row's duration; every start below it has to follow.
+    let rowPos = -1;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === 'avRow' && rowPos < 0) rowPos = pos;
+      return rowPos < 0;
+    });
+    const tr = state.tr.setNodeMarkup(rowPos, undefined, { duration: '1:00', shot: null, start: null });
+    const next = state.apply(tr);
+    const values = pluginState(next).find().map(d => (d as unknown as { type: { attrs: Record<string, string> } }).type.attrs['data-av-start']);
+    expect(values).toEqual(['0:00', '1:00']);
+  });
+
+  it('reuses the same set when a transaction only moves the caret', () => {
+    // The reason it is plugin state at all: `decorations(state)` is consulted
+    // on every state change, so rebuilding there walked the whole document
+    // each time the cursor moved.
+    const state = stateOf(docOf('0:05', '0:10'));
+    const before = pluginState(state);
+    const moved = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 4)));
+    expect(pluginState(moved)).toBe(before);
   });
 });

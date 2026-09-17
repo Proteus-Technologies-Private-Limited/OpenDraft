@@ -745,7 +745,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     for (const rn of avRowNodes(n.raw)) {
       if (!rn.image) continue;
       const attrs = (rn.image.attrs || {}) as Record<string, unknown>;
-      const key = avFrameKey(attrs as { src?: string | null; assetId?: string | null });
+      const key = avFrameKey(attrs as { src?: string | null; assetId?: string | null; scratchId?: string | null });
       if (!key || avImageMap.has(key)) continue;
       const url = resolveImageUrl(attrs);
       if (!url) continue;

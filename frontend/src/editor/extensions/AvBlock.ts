@@ -16,7 +16,8 @@
  *   Shift-Tab    — reverse of Tab
  *   Enter        — split paragraph in current cell only
  *   Mod-Enter    — insert new row below
- *   Backspace    — at empty cell with empty sibling, delete the row (& the block if last)
+ *   Backspace    — at an empty cell whose sibling cell is empty and which holds
+ *                  no storyboard frame, delete the row (& the block if last)
  *   Mod-Shift-A  — toggle: wrap current cursor block into a new avBlock (and back out)
  *
  * Every one of those needs a hardware keyboard, which an iPhone or iPad does
@@ -30,6 +31,7 @@
 import { Node, Extension, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { AvRowView } from './AvRowView';
+import { AvImageView } from './AvImageView';
 import { isBlankBlock, previousSiblingBlock, blankLineTypeFor } from '../blankLine';
 import { useSettingsStore } from '../../stores/settingsStore';
 import type { Node as PmNode } from '@tiptap/pm/model';
@@ -88,7 +90,15 @@ declare module '@tiptap/core' {
       /** Set a column's relative width for the whole AV body. */
       setAvColumnWidth: (which: keyof AvColumnConfig['widths'], width: number) => ReturnType;
       /** Put a storyboard frame in the cursor's row (adds the cell if absent). */
-      setAvRowImage: (image: { src?: string | null; alt?: string | null; assetId?: string | null; aspect?: string }) => ReturnType;
+      setAvRowImage: (image: {
+        src?: string | null;
+        alt?: string | null;
+        assetId?: string | null;
+        projectId?: string | null;
+        scratchId?: string | null;
+        filename?: string | null;
+        aspect?: string;
+      }) => ReturnType;
       /** Remove the storyboard frame from the cursor's row. */
       clearAvRowImage: () => ReturnType;
     };
@@ -133,6 +143,13 @@ export const AvDirection = Node.create({
 export const AV_ASPECT_RATIOS = ['16:9', '4:3', '1:1', '9:16', '2.39:1', 'free'] as const;
 export type AvAspectRatio = (typeof AV_ASPECT_RATIOS)[number];
 
+/** True when a storyboard frame actually references an image, rather than
+ *  being the empty slot a row carries once the column is on. */
+export function avImageIsSet(node: PmNode): boolean {
+  const a = node.attrs as { src?: string | null; assetId?: string | null; scratchId?: string | null };
+  return Boolean(a.src || a.assetId || a.scratchId);
+}
+
 /** CSS `aspect-ratio` value for a frame, or null for `free`. */
 export function aspectRatioCss(ratio: string | null | undefined): string | null {
   if (!ratio || ratio === 'free') return null;
@@ -162,8 +179,29 @@ export const AvImage = Node.create({
       alt: { default: null },
       /** Asset id, when the frame came from the project's asset store. */
       assetId: { default: null },
+      /**
+       * Project the asset id belongs to. Stored rather than read from whatever
+       * project happens to be open, because an exporter resolves a document,
+       * not a session. Without it `resolveImageUrl` has no endpoint to build
+       * and the frame silently resolves to nothing.
+       */
+      projectId: { default: null },
+      /**
+       * Bytes in the scratch store, for a document with no project yet. Kept
+       * distinct from `assetId` for the reason ScreenplayImage gives: backup
+       * packing treats every `assetId` it finds as a project asset, so a
+       * scratch id smuggled in as one marks the backup truncated.
+       */
+      scratchId: { default: null },
+      /** Original file name, which the asset endpoint takes as a hint. */
+      filename: { default: null },
       aspect: { default: '16:9' },
     };
+  },
+  // Resolving a frame needs the asset store, which `renderHTML` cannot reach —
+  // see AvImageView. renderHTML below stays as the static export/copy shape.
+  addNodeView() {
+    return ReactNodeViewRenderer(AvImageView);
   },
   parseHTML() { return [{ tag: 'div[data-type="av-image"]' }]; },
   renderHTML({ HTMLAttributes }) {
@@ -570,6 +608,9 @@ export const AvBlock = Node.create({
           src: image.src ?? null,
           alt: image.alt ?? null,
           assetId: image.assetId ?? null,
+          projectId: image.projectId ?? null,
+          scratchId: image.scratchId ?? null,
+          filename: image.filename ?? null,
           aspect: image.aspect || '16:9',
         };
         const existing = row.child(row.childCount - 1);
@@ -682,6 +723,17 @@ export function cueFromDecorations(decorations: readonly unknown[] | undefined):
   return null;
 }
 
+/** `buildCueDecorations`, but a body that cannot be computed must not take the
+ *  editor down — the rows still render, just without derived values. */
+function safeCueDecorations(doc: PmNode): DecorationSet {
+  try {
+    return buildCueDecorations(doc);
+  } catch (err) {
+    console.warn('[av] could not compute cue values', err);
+    return DecorationSet.empty;
+  }
+}
+
 /** Keeps every AV row's derived cue values current as the document changes. */
 export const AvCueDecorations = Extension.create({
   name: 'avCueDecorations',
@@ -689,15 +741,24 @@ export const AvCueDecorations = Extension.create({
     return [
       new Plugin({
         key: avCuePluginKey,
+        // Held as plugin state rather than rebuilt inside `decorations(state)`:
+        // that prop is consulted on every state change, so a bare cursor move
+        // was re-walking the document and rebuilding every row's decoration.
+        // The values derive from the doc alone, so a transaction that does not
+        // change it cannot change them, and the set already belongs to that
+        // same doc.
+        state: {
+          init(_config, state) {
+            return safeCueDecorations(state.doc);
+          },
+          apply(tr, value: DecorationSet) {
+            if (!tr.docChanged) return value;
+            return safeCueDecorations(tr.doc);
+          },
+        },
         props: {
           decorations(state) {
-            try {
-              return buildCueDecorations(state.doc);
-            } catch {
-              // A cue column that cannot be computed must not take the editor
-              // down; the rows still render, just without derived values.
-              return DecorationSet.empty;
-            }
+            return avCuePluginKey.getState(state) ?? DecorationSet.empty;
           },
         },
       }),
@@ -823,9 +884,19 @@ export const AvKeymap = Extension.create({
         const cell = $from.node(ctx.cellDepth);
         if (cell.textContent.length > 0) return false;
         const row = $from.node(ctx.rowDepth);
+        // Only the avCell siblings count. `avImage` is an atom whose
+        // textContent is always '' and it is always the row's LAST child, so
+        // assigning here instead of accumulating let a storyboard frame reset
+        // the check to "empty" — backspacing in an empty video cell then took
+        // the row away along with whatever the audio cell still said.
         let siblingText = '';
-        row.forEach((c) => { if (c !== cell) siblingText = c.textContent; });
+        row.forEach((c) => { if (c !== cell && c.type.name === 'avCell') siblingText += c.textContent; });
         if (siblingText.length > 0) return false;
+        // A frame that holds something is content too, and Backspace is the
+        // one route that could lose it without the writer being told. An empty
+        // slot is not content, so it does not block the delete.
+        const last = row.child(row.childCount - 1);
+        if (last.type.name === 'avImage' && avImageIsSet(last)) return false;
         return editor.commands.deleteAvRow();
       },
 

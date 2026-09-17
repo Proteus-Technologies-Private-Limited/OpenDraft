@@ -124,6 +124,14 @@ describe('avFrameKey', () => {
     expect(avFrameKey({ src: 's.png' })).toBe('s.png');
     expect(avFrameKey(null)).toBe('');
   });
+
+  it('keys a scratch-stored frame by its scratch id', () => {
+    // A frame added before the document has a project has no asset id and no
+    // src at all. Falling through to '' meant the preload pass keyed it one way
+    // and the draw pass another, and every such frame printed as an empty slot.
+    expect(avFrameKey({ scratchId: 's1' })).toBe('s1');
+    expect(avFrameKey({ assetId: 'a1', scratchId: 's1' })).toBe('a1');
+  });
 });
 
 describe('drawAvBody', () => {
@@ -139,6 +147,36 @@ describe('drawAvBody', () => {
     // Cue column carries the derived shot number and start.
     expect(texts).toContain('1.');
     expect(texts).toContain('0:00');
+  });
+
+  it('wraps a header into its own column instead of printing over the next one', () => {
+    // "Shot / Time" is wider than the cue column it labels — the cue track is
+    // 0.5 units against video and audio's 2 — so drawn as one unwrapped line it
+    // printed straight over the "Video" header beside it.
+    const b = block(
+      [row({ video: ['WIDE'], audio: ['V.O.'], duration: '0:05' })],
+      { columns: { cue: true, image: true } },
+    );
+    const body = bodyOf(b);
+    const { ctx, drawn } = makeCtx();
+    drawAvBody(ctx, body, avRowNodes(b), { widths: WIDTHS, repeatHeaders: true });
+
+    const cols = layoutAvColumns(body, WIDTHS, ctx.leftPt, ctx.contentWidthPt);
+    const cue = cols.find(c => c.key === 'cue')!;
+    // The setup only means anything if the label really cannot fit on one line.
+    expect(body.headers.cue.length * ctx.charWidthPt).toBeGreaterThan(cue.widthPt);
+    expect(drawn.map(d => d.text)).not.toContain(body.headers.cue);
+
+    // Nothing drawn in a column may reach the next column's x. The total
+    // runtime is excluded: it sits UNDER the table and is meant to run full
+    // width, so it starts at the first column's x without belonging to it.
+    for (const d of drawn) {
+      if (d.text.startsWith('Total runtime:')) continue;
+      const i = cols.findIndex(c => Math.abs(c.xPt - d.x) < 0.001);
+      if (i < 0) continue;
+      const room = cols[i + 1] ? cols[i + 1].xPt - cols[i].xPt : cols[i].widthPt;
+      expect(d.text.length * ctx.charWidthPt).toBeLessThanOrEqual(room);
+    }
   });
 
   it('keeps a row whole: it breaks the page rather than splitting a shot', () => {

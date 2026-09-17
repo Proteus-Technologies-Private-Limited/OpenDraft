@@ -55,8 +55,22 @@ export interface AvExportRow {
   video: string;
   /** Audio cell text; paragraphs joined by newlines. */
   audio: string;
-  /** Storyboard frame reference, or null when the row has none. */
-  image: { src: string | null; alt: string | null; assetId: string | null; aspect: string } | null;
+  /**
+   * Storyboard frame reference, or null when the row has none.
+   *
+   * The whole reference, not just the asset id: `avFrameKey` keys the exporters'
+   * preloaded frames off it, and it has to agree with the key built from the raw
+   * node attrs during the preload pass or every frame draws as an empty slot.
+   */
+  image: {
+    src: string | null;
+    alt: string | null;
+    assetId: string | null;
+    projectId: string | null;
+    scratchId: string | null;
+    filename: string | null;
+    aspect: string;
+  } | null;
 }
 
 /** One AV body in a document, ready to write out. */
@@ -106,6 +120,29 @@ function readHeaders(attrs: unknown): AvExportHeaders {
   };
 }
 
+/** The full asset reference an `avImage` node carries, with every field
+ *  defaulted so callers never have to test for `undefined`. */
+function readFrameAttrs(node: JSONContent): NonNullable<AvExportRow['image']> {
+  const a = (node.attrs || {}) as {
+    src?: string | null;
+    alt?: string | null;
+    assetId?: string | null;
+    projectId?: string | null;
+    scratchId?: string | null;
+    filename?: string | null;
+    aspect?: string;
+  };
+  return {
+    src: a.src ?? null,
+    alt: a.alt ?? null,
+    assetId: a.assetId ?? null,
+    projectId: a.projectId ?? null,
+    scratchId: a.scratchId ?? null,
+    filename: a.filename ?? null,
+    aspect: a.aspect || '16:9',
+  };
+}
+
 /** Turn one `avBlock` JSON node into an export-ready body. */
 export function readAvBlock(block: JSONContent): AvExportBody {
   const columns = readColumns(block?.attrs);
@@ -138,14 +175,7 @@ export function readAvBlock(block: JSONContent): AvExportBody {
       durationSeconds: t?.durationSeconds ?? 0,
       video: cellText(video),
       audio: cellText(audio),
-      image: imageNode
-        ? {
-            src: ((imageNode.attrs as { src?: string | null })?.src) ?? null,
-            alt: ((imageNode.attrs as { alt?: string | null })?.alt) ?? null,
-            assetId: ((imageNode.attrs as { assetId?: string | null })?.assetId) ?? null,
-            aspect: ((imageNode.attrs as { aspect?: string })?.aspect) || '16:9',
-          }
-        : null,
+      image: imageNode ? readFrameAttrs(imageNode) : null,
     };
   });
 
@@ -219,7 +249,7 @@ export function avBodyToGrid(body: AvExportBody, opts?: { includeImage?: boolean
     if (includeImage) {
       // A spreadsheet cannot hold the frame itself; name it so the row still
       // says which storyboard it refers to.
-      cells.push(r.image ? (r.image.alt || r.image.assetId || r.image.src || 'frame') : '');
+      cells.push(r.image ? (r.image.alt || r.image.filename || r.image.assetId || r.image.scratchId || r.image.src || 'frame') : '');
     }
     return cells;
   });
