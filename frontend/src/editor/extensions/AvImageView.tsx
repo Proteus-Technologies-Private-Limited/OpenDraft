@@ -12,18 +12,37 @@
  * rules in avScript.css (which draw the empty slot and the print layout) apply
  * to both.
  */
-import React from 'react';
+import React, { useCallback } from 'react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { useImageSrc } from '../../hooks/useImageSrc';
 import { aspectRatioCss } from './AvBlock';
+import { chooseAvFrameImage } from '../../utils/avFrame';
 
-export const AvImageView: React.FC<NodeViewProps> = ({ node, selected }) => {
+export const AvImageView: React.FC<NodeViewProps> = ({ node, selected, editor, getPos }) => {
   const attrs = node.attrs as { alt?: string | null; aspect?: string };
   const aspect = attrs.aspect || '16:9';
   const ratio = aspectRatioCss(aspect);
   // A frame carries no width of its own — the column decides that — so only the
   // aspect ratio is worth resolving here.
   const { url } = useImageSrc(node.attrs as Record<string, unknown>);
+
+  /**
+   * The direct way to fill a frame.
+   *
+   * The menu route exists, but nobody looks for it: a writer who has just given
+   * a row an empty frame points at the frame. Double-click rather than click,
+   * so a single click can still do what a click on an atom does — select it, to
+   * be replaced or deleted from the keyboard. The frame's own position is
+   * passed explicitly because the pointer is not the caret: the writer may have
+   * been typing three rows away when they reached over to click this one.
+   */
+  const choose = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!editor?.isEditable) return;
+    const pos = typeof getPos === 'function' ? getPos() : undefined;
+    void chooseAvFrameImage(editor, typeof pos === 'number' ? pos : undefined);
+  }, [editor, getPos]);
 
   return (
     <NodeViewWrapper
@@ -38,6 +57,8 @@ export const AvImageView: React.FC<NodeViewProps> = ({ node, selected }) => {
       // An empty frame still draws its box — a blank storyboard cell is
       // meaningful in an AV document, it is where a frame is yet to be drawn.
       data-empty={url ? undefined : 'true'}
+      title={url ? 'Double-click to replace this frame' : 'Double-click to choose an image'}
+      onDoubleClick={choose}
       style={ratio ? { aspectRatio: ratio } : undefined}
     >
       {url ? <img className="av-image-img" src={url} alt={attrs.alt || ''} /> : null}

@@ -12,7 +12,7 @@
  * and those must keep parsing and editing untouched.
  */
 import { describe, it, expect } from 'vitest';
-import { EditorState, TextSelection, type Transaction } from '@tiptap/pm/state';
+import { EditorState, NodeSelection, TextSelection, type Transaction } from '@tiptap/pm/state';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import { testSchema } from '../test/screenplaySchema';
 import {
@@ -25,6 +25,9 @@ import {
   AV_CUE_MIN_PX,
   avColumnDataCount,
   avBlockAtSelection,
+  isInAvCell,
+  isInAvRow,
+  AV_BLANK_FRAME,
 } from './extensions/AvBlock';
 
 /** A legacy two-cell row: no attrs, no image — exactly what is on disk today. */
@@ -252,6 +255,92 @@ describe('storyboard frames', () => {
 
   it('declines to clear when there is no frame', () => {
     expect(run(stateInFirstCell(docWith([legacyRow()])), 'clearAvRowImage')).toBeNull();
+  });
+
+  /**
+   * A frame update is partial.
+   *
+   * The reported bug was "choose an aspect ratio, get a frame, and then it will
+   * not take an image" — two separate faults, both of them this one: the menu
+   * passed only the field it was changing, and the command replaced the whole
+   * attribute set with it.
+   */
+  it('keeps the picture when only the aspect ratio changes', () => {
+    let s = stateInFirstCell(docWith([legacyRow()]));
+    s = run(s, 'setAvRowImage', { src: 'a.png', assetId: 'asset-1', projectId: 'proj-1', alt: 'a' })!;
+    s = run(s, 'setAvRowImage', { aspect: '9:16' })!;
+    const frame = firstRow(s).child(2);
+    expect(frame.attrs.aspect).toBe('9:16');
+    expect(frame.attrs.src).toBe('a.png');
+    expect(frame.attrs.assetId).toBe('asset-1');
+    expect(frame.attrs.projectId).toBe('proj-1');
+    expect(frame.attrs.alt).toBe('a');
+  });
+
+  it('keeps the aspect ratio when only the picture changes', () => {
+    let s = stateInFirstCell(docWith([legacyRow()]));
+    // Exactly the reported order: pick a ratio on an empty row, then a picture.
+    s = run(s, 'setAvRowImage', { aspect: '2.39:1' })!;
+    expect(firstRow(s).child(2).attrs.src).toBeNull();
+    s = run(s, 'setAvRowImage', { src: 'a.png', alt: 'a' })!;
+    const frame = firstRow(s).child(2);
+    expect(frame.attrs.src).toBe('a.png');
+    expect(frame.attrs.aspect).toBe('2.39:1');
+  });
+
+  it('blanks the picture but keeps the frame and its ratio', () => {
+    let s = stateInFirstCell(docWith([legacyRow()]));
+    s = run(s, 'setAvRowImage', { src: 'a.png', assetId: 'asset-1', aspect: '1:1' })!;
+    s = run(s, 'setAvRowImage', AV_BLANK_FRAME)!;
+    const frame = firstRow(s).child(2);
+    expect(frame.attrs.src).toBeNull();
+    expect(frame.attrs.assetId).toBeNull();
+    expect(frame.attrs.aspect).toBe('1:1');
+  });
+});
+
+/**
+ * Clicking a frame must not switch the AV menu off.
+ *
+ * A frame is an atom, so a click on one leaves a NodeSelection on the frame
+ * rather than a caret in a cell — and the writer who has just been given an
+ * empty frame clicks the frame. Gating the menu on `isInAvCell` meant every AV
+ * control, the one that fills the frame included, greyed out at that exact
+ * moment.
+ */
+describe('a selected storyboard frame', () => {
+  const withFrameSelected = (): EditorState => {
+    let s = stateInFirstCell(docWith([legacyRow()]));
+    s = run(s, 'setAvRowImage', { aspect: '4:3' })!;
+    let framePos = -1;
+    s.doc.descendants((n, p) => { if (framePos < 0 && n.type.name === 'avImage') framePos = p; return framePos < 0; });
+    return s.apply(s.tr.setSelection(NodeSelection.create(s.doc, framePos)));
+  };
+
+  it('is not in a cell — which is why the cell test was the wrong gate', () => {
+    expect(isInAvCell(withFrameSelected())).toBe(false);
+  });
+
+  it('is still in an AV row, so the AV controls stay live', () => {
+    expect(isInAvRow(withFrameSelected())).toBe(true);
+  });
+
+  it('takes a picture while it is the selection', () => {
+    const s = run(withFrameSelected(), 'setAvRowImage', { src: 'a.png' });
+    expect(s).not.toBeNull();
+    const frame = firstRow(s!).child(2);
+    expect(frame.attrs.src).toBe('a.png');
+    expect(frame.attrs.aspect).toBe('4:3');
+  });
+
+  it('takes a new aspect ratio while it is the selection', () => {
+    const s = run(withFrameSelected(), 'setAvRowImage', { aspect: '1:1' });
+    expect(firstRow(s!).child(2).attrs.aspect).toBe('1:1');
+  });
+
+  it('can still be removed, and the row goes back to two cells', () => {
+    const s = run(withFrameSelected(), 'clearAvRowImage');
+    expect(firstRow(s!).childCount).toBe(2);
   });
 });
 

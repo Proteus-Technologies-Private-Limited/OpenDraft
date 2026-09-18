@@ -8,7 +8,8 @@ import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
 import { requestHandwriting } from '../utils/handwriting';
 import { requestElementMenu } from '../utils/elementMenu';
-import { isInAvCell, avRowContext, readColumnConfig, avColumnDataCount, avBlockAtSelection, AV_DEFAULT_COLUMNS, AV_ASPECT_RATIOS } from '../editor/extensions/AvBlock';
+import { isInAvRow, avRowContext, readColumnConfig, avColumnDataCount, avBlockAtSelection, AV_DEFAULT_COLUMNS, AV_ASPECT_RATIOS, AV_BLANK_FRAME } from '../editor/extensions/AvBlock';
+import { chooseAvFrameImage } from '../utils/avFrame';
 import { formatShortcut } from '../utils/shortcuts';
 import { showToast } from './Toast';
 import { downloadFDX, exportFDX } from '../utils/fdxExporter';
@@ -593,9 +594,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const locked = getLockedFormatting(editorRule, isEnforceMode);
   // Manual "start on a new page" flag for the element(s) under the cursor.
   const selectionOnNewPage = selectionStartsNewPage(editor);
-  // AV row actions only mean something inside a two-column AV body.
-  const inAvCell = editor ? isInAvCell(editor.state) : false;
-  const avRowHint = inAvCell
+  // AV row actions only mean something inside a two-column AV body. The gate is
+  // the ROW, not the cell: clicking a storyboard frame selects the frame itself,
+  // which has no cell in its ancestry, and gating on the cell greyed out every
+  // AV control the moment the writer clicked the frame they wanted to fill.
+  const inAvRow = editor ? isInAvRow(editor.state) : false;
+  const avRowHint = inAvRow
     ? undefined
     : 'Put the cursor in an AV script\u2019s Video or Audio cell first';
 
@@ -614,7 +618,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
    */
   const editorState = editor?.state ?? null;
   const avContext = useMemo(() => {
-    if (!editorState || !inAvCell) return null;
+    if (!editorState || !inAvRow) return null;
     try {
       const ctx = avRowContext(editorState);
       if (!ctx) return null;
@@ -629,17 +633,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
     } catch {
       return null;
     }
-  }, [editorState, inAvCell]);
+  }, [editorState, inAvRow]);
   const avColumns = readColumnConfig(avContext?.blockAttrs);
   const avRepeatHeaders = (avContext?.blockAttrs as { repeatHeaders?: boolean } | undefined)?.repeatHeaders !== false;
-  const avFrameImage = avContext?.frame as {
-    src?: string | null;
-    alt?: string | null;
-    assetId?: string | null;
-    scratchId?: string | null;
-    aspect?: string;
-  } | null;
-  const avFrameAspect = avFrameImage?.aspect || '16:9';
+  // Only the ratio is read off the frame now — the checkmark in the Frame
+  // Aspect Ratio submenu. The picture itself is the command's business.
+  const avFrameAspect = (avContext?.frame as { aspect?: string } | null)?.aspect || '16:9';
 
   /** Nudge one AV column's relative width; clamped by the command. */
   const nudgeAvWidth = useCallback((which: 'cue' | 'video' | 'audio' | 'image', delta: number) => {
@@ -713,55 +712,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
   /**
    * Choose an image for the cursor's storyboard frame.
    *
-   * Reuses the same upload path inserted images take, so a frame lands in the
-   * project's asset store rather than being embedded in the document.
+   * Shared with the frame's own double-click handler (utils/avFrame), so both
+   * routes upload to the project's asset store rather than embedding bytes in
+   * the document, and both leave the frame's aspect ratio alone.
    */
-  const pickAvFrame = useCallback(async () => {
-    if (!editor) return;
-    try {
-      const file = await new Promise<File | null>((resolve) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.style.display = 'none';
-        // Resolve on cancel too, or the promise never settles and the menu's
-        // click handler is left pending for the life of the session.
-        const done = (f: File | null) => {
-          window.removeEventListener('focus', onFocus);
-          input.remove();
-          resolve(f);
-        };
-        const onFocus = () => setTimeout(() => { if (!input.files?.length) done(null); }, 300);
-        input.onchange = () => done(input.files?.[0] ?? null);
-        window.addEventListener('focus', onFocus, { once: true });
-        document.body.appendChild(input);
-        input.click();
-      });
-      if (!file) return;
-      if (!file.type.startsWith('image/')) {
-        showToast('Please choose an image file', 'error');
-        return;
-      }
-      const { buildImageAttrs, warnIfImageDegraded } = await import('../utils/insertImage');
-      const attrs = await buildImageAttrs(file, ['av-storyboard']);
-      // Every field is carried across. Collapsing projectId/scratchId into a
-      // single assetId left the frame unresolvable: the asset endpoint is built
-      // from BOTH ids, and a scratch id is not an asset id at all.
-      editor.chain().focus().setAvRowImage({
-        src: attrs.src ?? null,
-        assetId: attrs.assetId ?? null,
-        projectId: attrs.projectId ?? null,
-        scratchId: attrs.scratchId ?? null,
-        filename: attrs.filename ?? null,
-        alt: attrs.filename ?? null,
-        aspect: avFrameAspect,
-      }).run();
-      warnIfImageDegraded(attrs);
-    } catch (err) {
-      console.error('[av] could not add storyboard frame', err);
-      showToast(`Could not add the frame: ${err instanceof Error ? err.message : String(err)}`, 'error');
-    }
-  }, [editor, avFrameAspect]);
+  const pickAvFrame = useCallback(() => {
+    void chooseAvFrameImage(editor);
+  }, [editor]);
 
   // ── About / What's New ──
   const [recoverBackupOpen, setRecoverBackupOpen] = useState(false);
@@ -2244,9 +2201,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
               // only route to toggleAvBlock was ⌘⇧A, which an iPad does not
               // have. Deliberately the first item, and never disabled.
               icon: <FaColumns />,
-              label: inAvCell ? 'Remove AV Columns' : 'Insert AV Columns',
+              label: inAvRow ? 'Remove AV Columns' : 'Insert AV Columns',
               shortcut: `${mod}\u21e7A`,
-              title: inAvCell
+              title: inAvRow
                 ? 'Delete this AV table, and everything in it, back to a single line'
                 : 'Turn this line into a two-column AV table — Video on the left, Audio on the right',
               disabled: !editor,
@@ -2256,10 +2213,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
             {
               icon: <FaColumns />, label: 'Row',
               children: [
-                { icon: <FaPlus />, label: 'Insert Row Below', shortcut: `${mod}\u21b5`, disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('below').run() },
-                { icon: <FaPlus />, label: 'Insert Row Above', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('above').run() },
+                { icon: <FaPlus />, label: 'Insert Row Below', shortcut: `${mod}\u21b5`, disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('below').run() },
+                { icon: <FaPlus />, label: 'Insert Row Above', disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('above').run() },
                 { separator: true, label: '' },
-                { icon: <FaTimes />, label: 'Delete Row', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().deleteAvRow().run() },
+                { icon: <FaTimes />, label: 'Delete Row', disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().deleteAvRow().run() },
               ],
             },
             {
@@ -2272,20 +2229,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 {
                   icon: <FaClock />,
                   label: avColumns.cue ? '\u2713 Cue / Timing Column' : 'Cue / Timing Column',
-                  disabled: !inAvCell, title: avRowHint,
+                  disabled: !inAvRow, title: avRowHint,
                   action: () => toggleAvColumnChecked('cue'),
                 },
                 {
                   icon: <FaImage />,
                   label: avColumns.image ? '\u2713 Storyboard Column' : 'Storyboard Column',
-                  disabled: !inAvCell, title: avRowHint,
+                  disabled: !inAvRow, title: avRowHint,
                   action: () => toggleAvColumnChecked('image'),
                 },
                 { separator: true, label: '' },
                 {
                   icon: <FaFileAlt />,
                   label: avRepeatHeaders ? '\u2713 Repeat Headers On Each Page' : 'Repeat Headers On Each Page',
-                  disabled: !inAvCell, title: avRowHint,
+                  disabled: !inAvRow, title: avRowHint,
                   action: () => toggleAvRepeatHeaders(),
                 },
                 { separator: true, label: '' },
@@ -2295,9 +2252,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
                     icon: <FaColumns />,
                     label: which === 'cue' ? 'Cue' : which === 'image' ? 'Storyboard' : which === 'video' ? 'Video' : 'Audio',
                     children: [
-                      { icon: <FaColumns />, label: 'Narrower', disabled: !inAvCell, title: avRowHint, action: () => nudgeAvWidth(which, -0.25) },
-                      { icon: <FaColumns />, label: 'Wider', disabled: !inAvCell, title: avRowHint, action: () => nudgeAvWidth(which, 0.25) },
-                      { icon: <FaColumns />, label: 'Reset', disabled: !inAvCell, title: avRowHint, action: () => resetAvWidth(which) },
+                      { icon: <FaColumns />, label: 'Narrower', disabled: !inAvRow, title: avRowHint, action: () => nudgeAvWidth(which, -0.25) },
+                      { icon: <FaColumns />, label: 'Wider', disabled: !inAvRow, title: avRowHint, action: () => nudgeAvWidth(which, 0.25) },
+                      { icon: <FaColumns />, label: 'Reset', disabled: !inAvRow, title: avRowHint, action: () => resetAvWidth(which) },
                     ],
                   })),
                 },
@@ -2306,21 +2263,23 @@ const MenuBar: React.FC<MenuBarProps> = ({
             {
               icon: <FaImage />, label: 'Storyboard',
               children: [
-                { icon: <FaImage />, label: 'Add / Replace Frame\u2026', disabled: !inAvCell, title: avRowHint, action: () => pickAvFrame() },
-                { icon: <FaPlus />, label: 'Add Blank Frame', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().setAvRowImage({ src: null }).run() },
+                { icon: <FaImage />, label: 'Add / Replace Frame\u2026', disabled: !inAvRow, title: avRowHint, action: () => pickAvFrame() },
+                { icon: <FaPlus />, label: 'Add Blank Frame', disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().setAvRowImage(AV_BLANK_FRAME).run() },
                 { separator: true, label: '' },
                 {
                   icon: <FaImage />, label: 'Frame Aspect Ratio',
                   children: AV_ASPECT_RATIOS.map((ratio) => ({
                     icon: <FaImage />,
                     label: avFrameAspect === ratio ? `\u2713 ${ratio}` : ratio,
-                    disabled: !inAvCell,
+                    disabled: !inAvRow,
                     title: avRowHint,
-                    action: () => editor?.chain().focus().setAvRowImage({ ...(avFrameImage || {}), aspect: ratio }).run(),
+                    // Only the ratio — setAvRowImage merges, so the picture
+                    // in the frame (if any) stays exactly where it is.
+                    action: () => editor?.chain().focus().setAvRowImage({ aspect: ratio }).run(),
                   })),
                 },
                 { separator: true, label: '' },
-                { icon: <FaTimes />, label: 'Remove Frame', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().clearAvRowImage().run() },
+                { icon: <FaTimes />, label: 'Remove Frame', disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().clearAvRowImage().run() },
               ],
             },
           ],

@@ -69,9 +69,26 @@ export function isAvCellPos($pos: import('@tiptap/pm/model').ResolvedPos): boole
   return false;
 }
 
-/** True when the cursor sits inside an AV cell — the gate for AV row controls. */
+/** True when the cursor sits inside an AV cell. Gates the element picker and
+ *  the toolbar, which only mean something where there is text to restyle. */
 export function isInAvCell(state: import('@tiptap/pm/state').EditorState): boolean {
   return isAvCellPos(state.selection.$from);
+}
+
+/**
+ * True when the selection sits anywhere in an AV row — the gate for the AV row,
+ * column and storyboard controls.
+ *
+ * Wider than `isInAvCell` on purpose, and that is the whole point of it: a
+ * storyboard frame is an atom, so clicking one leaves a NodeSelection on the
+ * frame itself, with no avCell in the ancestry. Gating the menu on
+ * `isInAvCell` greyed every AV control out the moment the writer clicked the
+ * frame they wanted to put a picture in. Every command behind those items
+ * resolves its row through `avRowContext`, which the frame's own position
+ * answers perfectly well, so this is the condition they actually need.
+ */
+export function isInAvRow(state: import('@tiptap/pm/state').EditorState): boolean {
+  return avRowContext(state) !== null;
 }
 
 declare module '@tiptap/core' {
@@ -106,7 +123,16 @@ declare module '@tiptap/core' {
         widths: Partial<AvColumnConfig['widths']>,
         pos?: number,
       ) => ReturnType;
-      /** Put a storyboard frame in the cursor's row (adds the cell if absent). */
+      /**
+       * Put a storyboard frame in the cursor's row (adds the cell if absent).
+       *
+       * A PARTIAL update: a field left out keeps whatever the frame already
+       * has, and only an explicit `null` clears one. Choosing an aspect ratio
+       * for a frame that already holds a picture must not throw the picture
+       * away, and picking a picture must not throw away the ratio the writer
+       * framed it to — which is exactly what replacing the whole attribute set
+       * used to do to whichever of the two the caller forgot to pass through.
+       */
       setAvRowImage: (image: {
         src?: string | null;
         alt?: string | null;
@@ -159,6 +185,23 @@ export const AvDirection = Node.create({
  *  actually framed to; anything else is a crop the user can do elsewhere. */
 export const AV_ASPECT_RATIOS = ['16:9', '4:3', '1:1', '9:16', '2.39:1', 'free'] as const;
 export type AvAspectRatio = (typeof AV_ASPECT_RATIOS)[number];
+
+/** The frame attributes `setAvRowImage` understands, in the order they are
+ *  declared on the node. Kept beside the node spec so a new attribute cannot be
+ *  added to one without the other noticing. */
+export const AV_IMAGE_FIELDS = [
+  'src', 'alt', 'assetId', 'projectId', 'scratchId', 'filename', 'aspect',
+] as const;
+
+/** The image-identifying fields — what has to be cleared for a frame to go back
+ *  to being an empty slot. `aspect` is deliberately not one of them. */
+export const AV_IMAGE_SOURCE_FIELDS = ['src', 'assetId', 'projectId', 'scratchId', 'filename', 'alt'] as const;
+
+/** A partial frame update that blanks the picture but keeps the frame and its
+ *  aspect ratio — what "Add Blank Frame" means on a row that already has one. */
+export const AV_BLANK_FRAME: Record<string, null> = Object.fromEntries(
+  AV_IMAGE_SOURCE_FIELDS.map((k) => [k, null]),
+);
 
 /** True when a storyboard frame actually references an image, rather than
  *  being the empty slot a row carries once the column is on. */
@@ -737,17 +780,19 @@ export const AvBlock = Node.create({
         const row = state.doc.nodeAt(rowPos);
         if (!row) return false;
 
-        const attrs = {
-          src: image.src ?? null,
-          alt: image.alt ?? null,
-          assetId: image.assetId ?? null,
-          projectId: image.projectId ?? null,
-          scratchId: image.scratchId ?? null,
-          filename: image.filename ?? null,
-          aspect: image.aspect || '16:9',
-        };
         const existing = row.child(row.childCount - 1);
-        if (existing.type.name === 'avImage') {
+        const isFrame = existing.type.name === 'avImage';
+        // Merge over what is there, so an untouched field survives. `undefined`
+        // means "leave it"; `null` means "clear it".
+        const attrs: Record<string, unknown> = isFrame ? { ...existing.attrs } : {
+          src: null, alt: null, assetId: null, projectId: null, scratchId: null,
+          filename: null, aspect: '16:9',
+        };
+        for (const key of AV_IMAGE_FIELDS) {
+          if (image[key] !== undefined) attrs[key] = image[key];
+        }
+        if (!attrs.aspect) attrs.aspect = '16:9';
+        if (isFrame) {
           // Replace in place — rowPos+1 opens the row, then skip the two cells.
           let offset = rowPos + 1;
           for (let i = 0; i < row.childCount - 1; i++) offset += row.child(i).nodeSize;

@@ -321,6 +321,11 @@
   letter-spacing: 0.04em;
 }
 
+/* In the editor a frame is a target, not just a box — double-clicking one opens
+ * the image picker (AvImageView). Scoped to .ProseMirror so print, the PDF and
+ * the HTML export never inherit a pointer cursor they cannot act on. */
+.ProseMirror .av-image { cursor: pointer; }
+
 .av-image.ProseMirror-selectednode {
   outline: 2px solid #0078ff;
   outline-offset: 1px;

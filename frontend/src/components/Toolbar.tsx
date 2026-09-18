@@ -43,7 +43,7 @@ import ColorPicker from './ColorPicker';
 import LanguageSelector from './LanguageSelector';
 import { findFont, loadFontByName } from '../utils/fonts';
 import { isTitlePageRuleId } from '../stores/formattingTypes';
-import { AV_CELL_ELEMENT_IDS, isInAvCell } from '../editor/extensions/AvBlock';
+import { AV_CELL_ELEMENT_IDS, isInAvCell, isInAvRow } from '../editor/extensions/AvBlock';
 import { avCellElementRules } from '../utils/avCellElements';
 
 /** Element ids valid inside an AV cell (per the avCell schema content rule). */
@@ -296,6 +296,23 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     return false;
   }, [editorState]);
 
+  /**
+   * The same question one level out, for the row controls.
+   *
+   * A storyboard frame is an atom, so clicking one leaves a NodeSelection on
+   * the frame and no avCell in the ancestry — and the Row buttons disappeared
+   * out from under a writer who had simply clicked the frame in the row they
+   * were working on. The element dropdown above stays on the CELL test, where
+   * it belongs: a selected frame is not text, and has no element type to pick.
+   */
+  const isInsideAvRow = React.useMemo(() => {
+    if (!editorState) return false;
+    try {
+      return isInAvRow(editorState);
+    } catch { /* ignore */ }
+    return false;
+  }, [editorState]);
+
   const isActive = (format: string) => {
     if (!editor) return false;
     return editor.isActive(format);
@@ -348,7 +365,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   // The AV row group is the one toolbar content that comes and goes with the
   // cursor rather than with the window, so it is the one the ResizeObserver
   // below cannot see.
-  useEffect(() => { remeasureRef.current(); }, [isInsideAvCell]);
+  useEffect(() => { remeasureRef.current(); }, [isInsideAvRow]);
 
   // Measure toolbar overflow and determine which priority groups to hide
   useEffect(() => {
@@ -941,7 +958,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
   return (
     <div
-      className={`toolbar${toolbarMode === 'comfortable' ? ' toolbar-comfortable' : ''}${isInsideAvCell ? ' toolbar-av' : ''}`}
+      className={`toolbar${toolbarMode === 'comfortable' ? ' toolbar-comfortable' : ''}${isInsideAvRow ? ' toolbar-av' : ''}`}
       ref={toolbarRef}
     >
       {/* Undo / Redo — always visible */}
@@ -1011,7 +1028,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           keyboard (issue #116), so they are never collapsed into the overflow
           menu and never hidden on mobile. Shown only inside an AV cell, where
           they are the actions the writer actually needs. */}
-      {isInsideAvCell && (
+      {isInsideAvRow && (
         <>
           <div className="toolbar-separator" />
           <div className="toolbar-group av-row-group">
