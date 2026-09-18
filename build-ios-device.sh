@@ -226,9 +226,36 @@ else
   fi
 
   echo "==> Installing on connected device..."
-  DEVICE_ID=$(xcrun devicectl list devices 2>/dev/null | grep -v "unavailable" | grep "available" | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' | head -1)
+  # Two UDID shapes, and a real device may be either.
+  #
+  #   00008030-000105282ED8802E   8 hex, dash, 16 hex — A12 and later, which
+  #                               is every iPhone since the XS and every iPad
+  #                               since the 2018 Pro
+  #   XXXXXXXX-XXXX-...-XXXXXXXXXXXX   a plain UUID — older hardware, and
+  #                               what every simulator reports
+  #
+  # Matching only the second is why this step said "No available iOS device
+  # found" with a modern iPhone sitting right there, paired and unlocked: the
+  # build and the IPA were fine and only the lookup missed.
+  #
+  # The state column was the other half of it. devicectl says `connected` for
+  # a device on the cable and `available (paired)` for one it can reach
+  # otherwise, and both are installable — matching only "available" dropped
+  # the same iPhone on a different day purely because it was plugged in.
+  # `unavailable` has to be filtered BEFORE that, since it contains the word.
+  #
+  # `simulated` rows are dropped explicitly, because broadening the pattern
+  # also made simulator UUIDs matchable and a device build must not install
+  # into one — `--sim` is the route for that.
+  DEVICE_ID=$(xcrun devicectl list devices 2>/dev/null \
+    | grep -Ev "unavailable|simulated" \
+    | grep -E "available|connected" \
+    | grep -oE '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}|[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}' \
+    | head -1)
   if [ -z "$DEVICE_ID" ]; then
     echo "Error: No available iOS device found. Connect a device and try again."
+    echo "  A device must be paired and trusted to show as 'available' —"
+    echo "  check with: xcrun devicectl list devices"
     echo "  IPA is at: $PATCHED_IPA"
     exit 1
   fi
