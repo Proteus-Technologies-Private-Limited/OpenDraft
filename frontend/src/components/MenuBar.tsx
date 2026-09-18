@@ -2246,6 +2246,33 @@ const MenuBar: React.FC<MenuBarProps> = ({
             },
             { separator: true, label: '' },
             {
+              // The way OUT of the table.
+              //
+              // Every other route is a keystroke a soft keyboard does not
+              // have, and the AV Script template's starter document is a
+              // single avBlock and nothing else — so on a phone the format
+              // opened with a table the writer could fill and no way to write
+              // a line anywhere but inside it. Tapping the page below does
+              // not help either: that area is `.page`, not `.ProseMirror`.
+              icon: <FaSignInAlt />,
+              label: 'Line After Table',
+              disabled: !inAvRow,
+              title: inAvRow
+                ? 'Put the cursor on an ordinary script line below this AV table, adding one if it is not there yet'
+                : avRowHint,
+              action: () => editor?.chain().focus().exitAvBlock('after').run(),
+            },
+            {
+              icon: <FaSignInAlt />,
+              label: 'Line Before Table',
+              disabled: !inAvRow,
+              title: inAvRow
+                ? 'Put the cursor on an ordinary script line above this AV table, adding one if it is not there yet'
+                : avRowHint,
+              action: () => editor?.chain().focus().exitAvBlock('before').run(),
+            },
+            { separator: true, label: '' },
+            {
               icon: <FaColumns />, label: 'Row',
               children: [
                 { icon: <FaPlus />, label: 'Insert Row Below', shortcut: `${mod}\u21b5`, disabled: !inAvRow, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('below').run() },

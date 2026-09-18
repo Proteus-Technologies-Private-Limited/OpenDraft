@@ -168,6 +168,23 @@ declare module '@tiptap/core' {
       }) => ReturnType;
       /** Remove the storyboard frame from the cursor's row. */
       clearAvRowImage: () => ReturnType;
+      /**
+       * Put the caret on an ordinary script line just outside the AV table.
+       *
+       * An AV body is a sequence of cells, and every route out of one is a
+       * keystroke a soft keyboard does not have — the AV Script template's
+       * starter document is a single `avBlock` and nothing else, so a writer
+       * who opened it on a phone had the table and no way to write a word
+       * anywhere but inside it. Tapping the page below the table does not
+       * help: that area is `.page`, not `.ProseMirror`, so the tap never
+       * reaches the editor at all. This is the same lesson as issue #116,
+       * one level up: the block needs a door, and the door has to be
+       * something a finger can open.
+       *
+       * An adjacent blank line is REUSED rather than added to, so asking
+       * twice does not stack empty paragraphs above the table.
+       */
+      exitAvBlock: (where?: 'before' | 'after') => ReturnType;
     };
   }
 }
@@ -1007,6 +1024,41 @@ export const AvBlock = Node.create({
         dispatch(tr);
         return true;
       },
+
+      exitAvBlock: (where: 'before' | 'after' = 'after') => ({ tr, dispatch, state }) => {
+        const ctx = avRowContext(state);
+        if (!ctx) return false;
+        const { $from } = state.selection;
+        const blockPos = $from.before(ctx.blockDepth);
+        const block = state.doc.nodeAt(blockPos);
+        if (!block) return false;
+        // The line type is the ordinary body's, never the cell's: `avPara` is
+        // not a node the document can hold outside an `avCell`.
+        const type = state.schema.nodes[blankLineTypeFor('action')] || state.schema.nodes.action;
+        if (!type) return false;
+
+        // `resolve(blockPos).nodeAfter` is the block ITSELF — the node after it
+        // is read from the far side.
+        const after = blockPos + block.nodeSize;
+        const neighbour = where === 'before'
+          ? state.doc.resolve(blockPos).nodeBefore
+          : state.doc.resolve(after).nodeAfter;
+        if (!dispatch) return true;
+
+        // Land on the blank line that is already there rather than adding to it.
+        if (neighbour && neighbour.isTextblock && isBlankBlock(neighbour)) {
+          const at = where === 'before' ? blockPos - neighbour.nodeSize : after;
+          tr.setSelection(TextSelection.near(tr.doc.resolve(at + 1)));
+          dispatch(tr.scrollIntoView());
+          return true;
+        }
+
+        const at = where === 'before' ? blockPos : after;
+        tr.insert(at, type.create());
+        tr.setSelection(TextSelection.near(tr.doc.resolve(at + 1)));
+        dispatch(tr.scrollIntoView());
+        return true;
+      },
     };
   },
 
@@ -1146,6 +1198,46 @@ function findAvCellDepth(
   return { rowDepth, cellDepth, cellSide };
 }
 
+/**
+ * Down (or Up) out of an AV table with nothing beyond it.
+ *
+ * Returns false — leaving the key to ProseMirror — in every other case, so
+ * moving between rows and out to an existing neighbour keeps working exactly
+ * as it did. Only the dead end is handled, and only in the direction of the
+ * dead end: an avBlock that is the document's last node has nothing below it,
+ * so Down there can mean nothing except "let me out".
+ */
+export function avArrowExit(
+  editor: { state: import('@tiptap/pm/state').EditorState; commands: { exitAvBlock: (w: 'before' | 'after') => boolean } },
+  where: 'before' | 'after',
+): boolean {
+  const ctx = avRowContext(editor.state);
+  if (!ctx) return false;
+  const { state } = editor;
+  const { $from, empty } = state.selection;
+  // A live selection is being extended, not navigated out of.
+  if (!empty) return false;
+  const blockPos = $from.before(ctx.blockDepth);
+  const block = state.doc.nodeAt(blockPos);
+  if (!block) return false;
+  const neighbour = where === 'before'
+    ? state.doc.resolve(blockPos).nodeBefore
+    : state.doc.resolve(blockPos + block.nodeSize).nodeAfter;
+  if (neighbour) return false;
+  // Only from the row on the edge being left. Down out of the FIRST row of a
+  // three-row table is a request for the second row, and taking the key there
+  // would break moving through a table that happens to end the document —
+  // which is most of them.
+  const rowPos = $from.before(ctx.rowDepth);
+  const row = state.doc.nodeAt(rowPos);
+  if (!row) return false;
+  const edgeRow = where === 'before'
+    ? rowPos === blockPos + 1
+    : rowPos + row.nodeSize === blockPos + block.nodeSize - 1;
+  if (!edgeRow) return false;
+  return editor.commands.exitAvBlock(where);
+}
+
 /** The element id a node carries, unwrapping the `customElement` envelope so a
  *  template's own element is named by its own id rather than the node type. */
 export function avElementIdOf(node: PmNode): string {
@@ -1280,6 +1372,16 @@ export const AvKeymap = Extension.create({
         if (!ctx) return false;
         return editor.commands.insertAvRow();
       },
+
+      // Arrow out of a table that has nothing on the far side of it.
+      //
+      // Only that case: with a sibling to move to, the default behaviour
+      // already goes there, and taking the key would break ordinary
+      // navigation between the rows. An AV body that is the document's first
+      // or last node has nowhere to arrow to, which is where a writer gets
+      // stuck — and where pressing Down is unambiguously a request to leave.
+      ArrowDown: ({ editor }) => avArrowExit(editor, 'after'),
+      ArrowUp: ({ editor }) => avArrowExit(editor, 'before'),
 
       // Backspace at start of an empty cell: delete the row when both cells are empty
       Backspace: ({ editor }) => {
