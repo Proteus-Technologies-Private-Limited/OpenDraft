@@ -61,6 +61,52 @@ describe('getTextLines agrees with the PDF word wrapper', () => {
     const wrapped = wordWrapRuns(extractRuns(node), cpl, false).length;
     expect(wrapped).toBe(counted);
   });
+
+  // The cases above are the shapes worth naming; this is the whole space.
+  // `getTextLines` measures what `wordWrapRuns` would build without building
+  // it, because pagination runs it over every block on every keystroke — so
+  // the only thing keeping the two honest is that they are asked the same
+  // question about a great many strings. Counting ceil(length / column)
+  // instead is what made the editor and the exported PDF turn the page in
+  // different places (issue #123).
+  it('agrees on forty thousand random strings', () => {
+    const runsFor = (text: string) => text.split('\n').flatMap((seg, i) => (
+      i === 0
+        ? [{ text: seg, bold: false, italic: false, underline: false }]
+        : [
+          { text: '', bold: false, italic: false, underline: false, isBreak: true },
+          { text: seg, bold: false, italic: false, underline: false },
+        ]
+    ));
+    // Mulberry32: the same strings every run, no fixtures on disk.
+    let seed = 99;
+    const rnd = () => {
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    // Words, runs of spaces, hard breaks, and tokens wider than any column.
+    const pieces = ['a', 'bb', 'ccc', 'dddd', 'eeeee', 'ffffffff', 'g'.repeat(40), 'h'.repeat(100)];
+    const bad: string[] = [];
+    for (let n = 0; n < 40_000 && bad.length < 5; n++) {
+      let text = '';
+      const tokens = Math.floor(rnd() * 14);
+      for (let t = 0; t < tokens; t++) {
+        const roll = rnd();
+        if (roll < 0.12) text += '\n';
+        else if (roll < 0.3) text += ' ';
+        else text += pieces[Math.floor(rnd() * pieces.length)];
+      }
+      const cpl = 1 + Math.floor(rnd() * 60);
+      const counted = getTextLines(text, cpl);
+      const wrapped = wordWrapRuns(runsFor(text), cpl, false).length;
+      if (counted !== wrapped) {
+        bad.push(`cpl=${cpl} ${JSON.stringify(text)} counted ${counted}, wrapped ${wrapped}`);
+      }
+    }
+    expect(bad.join('\n')).toBe('');
+  });
 });
 
 describe('a single word longer than the line', () => {

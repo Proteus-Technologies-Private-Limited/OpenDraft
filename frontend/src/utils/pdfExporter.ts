@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import type { JSONContent } from '@tiptap/react';
 import { resolveMoresContds, resolveHeaderFooter, printedPageNumber, resolveHFFields } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
-import { getForceBreakIds, startsOwnPage } from './pageBreaks';
+import { getForceBreakIds, startsOwnPage, elementIdOf, laysItselfOut } from './pageBreaks';
 import { getSpaceBefore } from './elementSpacing';
 import { resolveImageUrl, loadImageData } from './imageAsset';
 import { jsonBlockRuns } from './nodeText';
@@ -21,6 +21,10 @@ import {
 import { embedCustomFonts, type EmbeddedFace } from './pdfCustomFonts';
 import { genericFor } from './fonts';
 import { isNonPrintingType } from './nonPrinting';
+import {
+  dualChildBounds, dualCharsPerLine, dualColumnLeadLines, dualDialogueLineCount,
+  type DualColumns,
+} from './dualDialogue';
 import {
   applyFootnoteMarkers,
   buildEndnotePages,
@@ -467,8 +471,12 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     }
 
     // An AV body is a table and cannot be flattened into a run list — it gets
-    // its own draw pass below, which needs the node itself.
-    if (typeName === 'avBlock') {
+    // its own draw pass below, which needs the node itself. Dual dialogue is
+    // two columns and cannot either: flattening it asked `jsonBlockRuns` for
+    // the text of a node whose children are columns, which is none, so the
+    // block came out of the exporter empty and the speeches were simply
+    // missing from the PDF.
+    if (typeName === 'avBlock' || typeName === 'dualDialogue') {
       nodes.push({ typeName, runs: [], plainText: '', attrs: node.attrs as Record<string, unknown> | undefined, raw: node, srcIndex: index });
       return;
     }
@@ -760,6 +768,18 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   // paginates with — resolved once so the whole document uses one answer.
   const spaceBeforeLines = getSpaceBefore();
 
+  /**
+   * Blank lines above an element, in points.
+   *
+   * Keyed by the element's template id, not its node type — a custom element
+   * is `customElement` to the schema and `sceneCharacters` (say) to the
+   * template that gives it its spacing. Reading the node type dropped that
+   * spacing here while the editor kept it, so a script using a custom element
+   * paginated differently in the file (issue #123).
+   */
+  const spaceBeforePtOf = (n: NodeInfo): number =>
+    (spaceBeforeLines[elementIdOf({ type: n.typeName, attrs: n.attrs })] ?? 0) * LINE_HEIGHT_PT;
+
   /** True when this node must open a fresh page (template rule or manual flag). */
   function mustStartNewPage(node: NodeInfo): boolean {
     if (isFirstElement || currentY <= topMarginPt) return false;
@@ -799,6 +819,51 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       newPage();
       for (const e of claimed) pageEntries.push(e);
     };
+
+    // Dual dialogue — two speeches side by side, each in half the text column.
+    // Drawn by its own pass for the same reason an AV body is: it is not one
+    // run of text, and flattening it lost both speeches entirely.
+    if (typeName === 'dualDialogue' && node.raw) {
+      const columns = (node.raw.content ?? []).map((column) =>
+        (column.content ?? []).map((child) => {
+          const childType = String(child.type ?? 'dialogue');
+          const runs = extractRuns(child);
+          return {
+            type: childType,
+            text: getPlainText(runs),
+            runs: applyTypeStyles(runs, childType),
+          };
+        }));
+      const heightPt = dualDialogueLineCount(columns as DualColumns) * LINE_HEIGHT_PT;
+      const sbPt = isFirstElement ? 0 : spaceBeforePtOf(node);
+
+      if (forcedBreak || (currentY + sbPt + heightPt > bottomPt() && currentY > topMarginPt)) {
+        breakForBlock();
+      }
+      if (!isFirstElement && currentY > topMarginPt) currentY += sbPt;
+
+      const top = currentY;
+      columns.forEach((children, col) => {
+        // Each column's own first cue sits a line below the top of the block,
+        // which is the margin the stylesheet gives it.
+        let y = top + dualColumnLeadLines(children as DualColumns[number]) * LINE_HEIGHT_PT;
+        for (const child of children) {
+          const [leftIn, rightIn] = dualChildBounds(col, child.type);
+          const wrapped = wordWrapRuns(
+            child.runs, dualCharsPerLine(child.type), UPPERCASE_TYPES.has(child.type),
+          );
+          renderElement(
+            pdf, wrapped, leftIn * PTS_PER_INCH, rightIn * PTS_PER_INCH, y, child.type, fonts,
+          );
+          y += wrapped.length * LINE_HEIGHT_PT;
+        }
+      });
+      // The taller column decides how far the page has filled.
+      currentY = top + heightPt;
+      isFirstElement = false;
+      i++;
+      continue;
+    }
 
     // AV body — a table, drawn by its own pass with row-level pagination and a
     // repeated header. See utils/avPdfTable.
@@ -865,165 +930,188 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     const maxChars = CHARS_PER_LINE[typeName] || 62;
     const forceUpper = UPPERCASE_TYPES.has(typeName);
 
-    const spaceBefore = isFirstElement ? 0 : (spaceBeforeLines[typeName] ?? 0);
-    const spaceBeforePt = spaceBefore * LINE_HEIGHT_PT;
+    const spaceBeforePt = isFirstElement ? 0 : spaceBeforePtOf(node);
 
     const wrappedLines = wordWrapRuns(node.runs, maxChars, forceUpper);
     const elementHeightPt = wrappedLines.length * LINE_HEIGHT_PT;
     const totalHeightPt = spaceBeforePt + elementHeightPt;
 
-    // Check if this is a character node starting a dialogue block
-    let isDialogueBlock = false;
-    let dialogueBlockNodes: number[] = [];
-    let dialogueBlockHeight = totalHeightPt;
+    /**
+     * The block this element opens, measured once — the same grouping
+     * `computeBreaks` paginates the editor with, because a group that fits on
+     * screen has to be a group that fits in the file.
+     *
+     * Part 0 is the element itself. A character name takes the paragraphs that
+     * follow it; a scene heading takes the element after it so it is never left
+     * alone at a page foot, and when that element is a character it takes the
+     * whole speech, not just the name.
+     */
+    interface BlockPart {
+      nodeIndex: number; sbPt: number; wrapped: TextRun[][]; lines: number; heightPt: number;
+    }
+    const measure = (at: number): BlockPart => {
+      const n = nodes[at];
+      const w = wordWrapRuns(
+        n.runs, CHARS_PER_LINE[n.typeName] || 62, UPPERCASE_TYPES.has(n.typeName),
+      );
+      const sb = spaceBeforePtOf(n);
+      return {
+        nodeIndex: at, sbPt: sb, wrapped: w, lines: w.length,
+        heightPt: sb + w.length * LINE_HEIGHT_PT,
+      };
+    };
+    const parts: BlockPart[] = [{
+      nodeIndex: i, sbPt: spaceBeforePt, wrapped: wrappedLines,
+      lines: wrappedLines.length, heightPt: totalHeightPt,
+    }];
+    /** Index in `parts` of the character name, when this block is a speech. */
+    let speechAt = -1;
 
-    if (typeName === 'character') {
-      isDialogueBlock = true;
-      dialogueBlockNodes = [i];
-      let j = i + 1;
-      // Never absorb an element that opens its own page — it has to be laid out
-      // separately so its forced break is honoured.
-      while (j < nodes.length && DIALOGUE_BLOCK_TYPES.has(nodes[j].typeName)
-             && !startsOwnPage({ type: nodes[j].typeName, attrs: nodes[j].attrs }, forceBreakIds)) {
-        const dNode = nodes[j];
-        const dMaxChars = CHARS_PER_LINE[dNode.typeName] || 36;
-        const dSb = (spaceBeforeLines[dNode.typeName] ?? 0) * LINE_HEIGHT_PT;
-        const dLines = wordWrapRuns(dNode.runs, dMaxChars, UPPERCASE_TYPES.has(dNode.typeName));
-        dialogueBlockHeight += dSb + dLines.length * LINE_HEIGHT_PT;
-        dialogueBlockNodes.push(j);
+    // Never absorb an element that opens its own page — it has to be laid out
+    // separately so its forced break is honoured.
+    // ...and never one that is drawn by a pass of its own: it is not a run of
+    // text, so a block holding it would measure it as nothing and draw it as
+    // nothing. See laysItselfOut.
+    const absorbable = (at: number) => at < nodes.length
+      && !startsOwnPage({ type: nodes[at].typeName, attrs: nodes[at].attrs }, forceBreakIds)
+      && !laysItselfOut(nodes[at].typeName);
+
+    if (typeName === 'character' && i + 1 < nodes.length) {
+      speechAt = 0;
+    } else if (typeName === 'sceneHeading' && absorbable(i + 1)) {
+      parts.push(measure(i + 1));
+      if (nodes[i + 1].typeName === 'character' && i + 2 < nodes.length) speechAt = 1;
+    }
+
+    if (speechAt >= 0) {
+      let j = parts[speechAt].nodeIndex + 1;
+      while (j < nodes.length && DIALOGUE_BLOCK_TYPES.has(nodes[j].typeName) && absorbable(j)) {
+        parts.push(measure(j));
         j++;
       }
+      // Nothing was said after all — there is no speech to split.
+      if (parts.length - 1 === speechAt) speechAt = -1;
     }
 
-    // Scene heading: try to keep with the next element
-    let keepWithNext = false;
-    let nextElementHeight = 0;
-    if (typeName === 'sceneHeading' && i + 1 < nodes.length
-        && !startsOwnPage({ type: nodes[i + 1].typeName, attrs: nodes[i + 1].attrs }, forceBreakIds)) {
-      keepWithNext = true;
-      const nNode = nodes[i + 1];
-      const nMaxChars = CHARS_PER_LINE[nNode.typeName] || 62;
-      const nSb = (spaceBeforeLines[nNode.typeName] ?? 0) * LINE_HEIGHT_PT;
-      const nLines = wordWrapRuns(nNode.runs, nMaxChars, UPPERCASE_TYPES.has(nNode.typeName));
-      nextElementHeight = nSb + nLines.length * LINE_HEIGHT_PT;
-    }
+    const blockHeightPt = parts.reduce((h, p) => h + p.heightPt, 0);
 
-    // Determine if we need a page break
-    const projectedY = currentY + spaceBeforePt + elementHeightPt;
+    /** Draw one measured part of the block at the cursor. */
+    const drawPart = (part: BlockPart, withSpaceBefore = true): void => {
+      const dNode = nodes[part.nodeIndex];
+      const dIndents = FD_INDENTS[dNode.typeName] || FD_INDENTS.general;
+      if (withSpaceBefore) currentY += part.sbPt;
+      renderElement(
+        pdf, part.wrapped, dIndents[0] * PTS_PER_INCH, dIndents[1] * PTS_PER_INCH,
+        currentY, dNode.typeName, fonts,
+      );
+      currentY += part.lines * LINE_HEIGHT_PT;
+    };
+
+    /**
+     * Where to break a speech that will not fit — the index of the last part
+     * staying on this page, or -1 to move the whole block down.
+     *
+     * This is the rule `computeBreaks` paginates the editor with, and it has to
+     * stay that rule: any other answer puts the (MORE) on a different line on
+     * screen than in the file (issue #123). Final Draft keeps at least two
+     * lines of dialogue on each side of the turn, so the page is filled as far
+     * as it will go and then backed off a paragraph at a time until what is
+     * carried over is worth carrying.
+     */
+    const chooseDialogueSplit = (): number => {
+      const MIN_DIALOGUE_LINES = 2;
+      const remaining = bottomPt() - currentY;
+      // The name, and the scene heading above it when one introduces the
+      // speech: nothing down to there can be divided.
+      let headPt = 0;
+      for (let p = 0; p <= speechAt; p++) headPt += parts[p].heightPt;
+      if (remaining < headPt + MIN_DIALOGUE_LINES * LINE_HEIGHT_PT) return -1;
+      /** Dialogue lines left in the speech after a break following part `p`. */
+      const linesAfter = (p: number): number => {
+        let n = 0;
+        for (let q = p + 1; q < parts.length; q++) n += parts[q].lines;
+        return n;
+      };
+      let fittedPt = headPt;
+      let fittedLines = 0;
+      let chosen = -1;
+      for (let p = speechAt + 1; p < parts.length; p++) {
+        if (fittedPt + parts[p].heightPt > remaining) break;
+        fittedPt += parts[p].heightPt;
+        fittedLines += parts[p].lines;
+        // The fullest boundary that satisfies both sides wins; a fuller one
+        // that would leave a single line behind is passed over for it.
+        if (fittedLines >= MIN_DIALOGUE_LINES && linesAfter(p) >= MIN_DIALOGUE_LINES) chosen = p;
+      }
+      return chosen;
+    };
 
     if (forcedBreak) {
       // Template rule or manual "start on new page" flag — unconditional break.
       breakForBlock();
-    } else if (isDialogueBlock && currentY + dialogueBlockHeight > bottomPt() && currentY > topMarginPt + LINE_HEIGHT_PT) {
-      // Try to split dialogue block across pages
-      const remaining = bottomPt() - currentY;
+    } else if (currentY + blockHeightPt > bottomPt() && currentY > topMarginPt) {
+      const splitAfter = speechAt >= 0 ? chooseDialogueSplit() : -1;
 
-      // Can we fit at least the character name + 2 lines of dialogue?
-      const charHeight = spaceBeforePt + elementHeightPt;
-      const MIN_DIALOGUE_LINES = 2;
-      const minSplitHeight = charHeight + MIN_DIALOGUE_LINES * LINE_HEIGHT_PT;
-
-      if (remaining >= minSplitHeight) {
-        // Render character name
-        currentY += spaceBeforePt;
-        renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, fonts);
-        currentY += elementHeightPt;
+      if (splitAfter > 0) {
+        // The head, then the paragraphs that stay on this page.
+        for (let p = 0; p <= splitAfter; p++) drawPart(parts[p]);
         isFirstElement = false;
 
-        // Render as many dialogue/parenthetical nodes as fit
-        let dIdx = 1;
-
-        while (dIdx < dialogueBlockNodes.length) {
-          const dNodeIdx = dialogueBlockNodes[dIdx];
-          const dNode = nodes[dNodeIdx];
-          const dIndents = FD_INDENTS[dNode.typeName] || FD_INDENTS.general;
-          const dLeftPt = dIndents[0] * PTS_PER_INCH;
-          const dRightPt = dIndents[1] * PTS_PER_INCH;
-          const dMaxChars = CHARS_PER_LINE[dNode.typeName] || 36;
-          const dSb = (spaceBeforeLines[dNode.typeName] ?? 0) * LINE_HEIGHT_PT;
-          const dWrapped = wordWrapRuns(dNode.runs, dMaxChars, UPPERCASE_TYPES.has(dNode.typeName));
-          const dHeight = dSb + dWrapped.length * LINE_HEIGHT_PT;
-
-          if (currentY + dHeight > bottomPt()) {
-            break;
-          }
-
-          currentY += dSb;
-          renderElement(pdf, dWrapped, dLeftPt, dRightPt, currentY, dNode.typeName, fonts);
-          currentY += dWrapped.length * LINE_HEIGHT_PT;
-          dIdx++;
+        const charIndents = FD_INDENTS.character || FD_INDENTS.general;
+        const charLeftPt = charIndents[0] * PTS_PER_INCH;
+        const charName = nodes[parts[speechAt].nodeIndex].plainText.trim().toUpperCase();
+        if (mc.dialogueBreakContd && currentY + LINE_HEIGHT_PT <= bottomPt()) {
+          drawPlain(pdf, mc.moreText, charLeftPt, currentY + LINE_HEIGHT_PT, fonts);
         }
 
-        // Check if we still have dialogue nodes to render on next page
-        if (dIdx < dialogueBlockNodes.length) {
-          // Render (MORE) indicator
-          const moreIndents = FD_INDENTS.character || FD_INDENTS.general;
-          const moreLeftPt = moreIndents[0] * PTS_PER_INCH;
-          if (mc.dialogueBreakContd && currentY + LINE_HEIGHT_PT <= bottomPt()) {
-            drawPlain(pdf, mc.moreText, moreLeftPt, currentY + LINE_HEIGHT_PT, fonts);
-          }
-
-          breakForBlock();
-
-          // Render CONT'D character name
-          const charName = node.plainText.trim().toUpperCase();
-          const contdIndents = FD_INDENTS.character || FD_INDENTS.general;
-          const contdLeftPt = contdIndents[0] * PTS_PER_INCH;
-          if (mc.dialogueBreakContd) {
-            drawPlain(pdf, `${charName} ${mc.contdText}`, contdLeftPt, currentY + LINE_HEIGHT_PT, fonts);
-            currentY += LINE_HEIGHT_PT;
-          }
-
-          // Render remaining dialogue nodes
-          while (dIdx < dialogueBlockNodes.length) {
-            const dNodeIdx = dialogueBlockNodes[dIdx];
-            const dNode = nodes[dNodeIdx];
-            const dIndents = FD_INDENTS[dNode.typeName] || FD_INDENTS.general;
-            const dLeftPt = dIndents[0] * PTS_PER_INCH;
-            const dRightPt = dIndents[1] * PTS_PER_INCH;
-            const dMaxChars = CHARS_PER_LINE[dNode.typeName] || 36;
-            const dSb = (spaceBeforeLines[dNode.typeName] ?? 0) * LINE_HEIGHT_PT;
-            const dWrapped = wordWrapRuns(dNode.runs, dMaxChars, UPPERCASE_TYPES.has(dNode.typeName));
-            const dHeight = dSb + dWrapped.length * LINE_HEIGHT_PT;
-
-            // Check for another page break within continued dialogue
-            if (currentY + dHeight > bottomPt()) {
-              if (mc.dialogueBreakContd && currentY + LINE_HEIGHT_PT <= bottomPt()) {
-                drawPlain(pdf, mc.moreText, contdLeftPt, currentY + LINE_HEIGHT_PT, fonts);
-              }
-              breakForBlock();
-              if (mc.dialogueBreakContd) {
-                drawPlain(pdf, `${charName} ${mc.contdText}`, contdLeftPt, currentY + LINE_HEIGHT_PT, fonts);
-                currentY += LINE_HEIGHT_PT;
-              }
-            }
-
-            currentY += dSb;
-            renderElement(pdf, dWrapped, dLeftPt, dRightPt, currentY, dNode.typeName, fonts);
-            currentY += dWrapped.length * LINE_HEIGHT_PT;
-            dIdx++;
-          }
-        }
-
-        // Skip past all dialogue block nodes
-        i = dialogueBlockNodes[dialogueBlockNodes.length - 1] + 1;
-        continue;
-      } else {
-        // Not enough room to split — push entire block to next page
         breakForBlock();
+
+        /** Open the continued page: the CONT'D line costs a line only when it
+         *  is actually printed, which is how the editor counts it too. */
+        const openContinuation = () => {
+          if (!mc.dialogueBreakContd) return;
+          drawPlain(pdf, `${charName} ${mc.contdText}`, charLeftPt, currentY + LINE_HEIGHT_PT, fonts);
+          currentY += LINE_HEIGHT_PT;
+        };
+        openContinuation();
+
+        let drawnHere = false;
+        for (let p = splitAfter + 1; p < parts.length; p++) {
+          // A speech longer than a whole page turns again, paragraph by
+          // paragraph, as `computeBreaks` turns it. The editor used to lay the
+          // whole remainder out in one run instead, so a monologue ran off the
+          // foot of the page on screen and the file put the rest elsewhere.
+          if (drawnHere && currentY + parts[p].heightPt > bottomPt()) {
+            if (mc.dialogueBreakContd && currentY + LINE_HEIGHT_PT <= bottomPt()) {
+              drawPlain(pdf, mc.moreText, charLeftPt, currentY + LINE_HEIGHT_PT, fonts);
+            }
+            breakForBlock();
+            openContinuation();
+            drawnHere = false;
+          }
+          // The first paragraph after a turn sits at the top of the page, with
+          // no space above it — as every element pushed to a new page does.
+          drawPart(parts[p], drawnHere);
+          drawnHere = true;
+        }
+
+        i = parts[parts.length - 1].nodeIndex + 1;
+        continue;
       }
-    } else if (keepWithNext && projectedY + nextElementHeight > bottomPt() && currentY > topMarginPt + LINE_HEIGHT_PT) {
-      // Scene heading won't fit with at least its next element — push to next page
-      breakForBlock();
-    } else if (projectedY > bottomPt() && currentY > topMarginPt + LINE_HEIGHT_PT) {
-      // Regular page break
+      // Either it is not a speech, or no boundary leaves enough on both sides:
+      // the whole block moves down together.
       breakForBlock();
     }
 
-    // Apply space before. An element that was forced onto its own page sits at
-    // the very top of it — matching the editor, which drops the space-before of
-    // any element pushed to a new page.
-    if (!isFirstElement && !forcedBreak) {
+    // Space before — unless the element has just landed at the top of a page.
+    // The editor drops it there: its page-break decoration sets the element's
+    // margin-top outright rather than adding to it, so on screen nothing ever
+    // stands above the first element of a page. Only a *forced* break used to
+    // be treated that way here, so every ordinary page turn started its page
+    // one or two lines lower in the file than on screen — and being a whole
+    // line, the error stayed for the rest of the page and moved its last
+    // element off it (issue #123).
+    if (!isFirstElement && currentY > topMarginPt) {
       currentY += spaceBeforePt;
     }
 
@@ -1047,23 +1135,11 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     currentY += elementHeightPt;
     isFirstElement = false;
 
-    // If this is a dialogue block, render the rest of the block
-    if (isDialogueBlock && dialogueBlockNodes.length > 1) {
-      for (let dIdx = 1; dIdx < dialogueBlockNodes.length; dIdx++) {
-        const dNodeIdx = dialogueBlockNodes[dIdx];
-        const dNode = nodes[dNodeIdx];
-        const dIndents = FD_INDENTS[dNode.typeName] || FD_INDENTS.general;
-        const dLeftPt = dIndents[0] * PTS_PER_INCH;
-        const dRightPt = dIndents[1] * PTS_PER_INCH;
-        const dMaxChars = CHARS_PER_LINE[dNode.typeName] || 36;
-        const dSb = (spaceBeforeLines[dNode.typeName] ?? 0) * LINE_HEIGHT_PT;
-        const dWrapped = wordWrapRuns(dNode.runs, dMaxChars, UPPERCASE_TYPES.has(dNode.typeName));
-
-        currentY += dSb;
-        renderElement(pdf, dWrapped, dLeftPt, dRightPt, currentY, dNode.typeName, fonts);
-        currentY += dWrapped.length * LINE_HEIGHT_PT;
-      }
-      i = dialogueBlockNodes[dialogueBlockNodes.length - 1] + 1;
+    // Whatever else the block holds — the speech under a character name, or
+    // the element a scene heading was kept with — follows it on this page.
+    if (parts.length > 1) {
+      for (let p = 1; p < parts.length; p++) drawPart(parts[p]);
+      i = parts[parts.length - 1].nodeIndex + 1;
       continue;
     }
 

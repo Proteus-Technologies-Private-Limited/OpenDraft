@@ -43,6 +43,9 @@ export const DEFAULT_SPACE_BEFORE: Record<string, number> = {
   // On screen they get a line of air like any other block; on the page they
   // take none, because pagination skips them outright — see NON_PRINTING_TYPES.
   section: 1, note: 1,
+  // `.dual-dialogue { margin-top: 12pt }`. The line of air above each column's
+  // own first cue is inside the block, and utils/dualDialogue counts it.
+  dualDialogue: 1,
 };
 
 /** The subset of a formatting template this module reads. */

@@ -12,6 +12,8 @@ import { DEFAULT_SPACE_BEFORE, buildSpaceBefore, getSpaceBefore, type SpaceBefor
 import { findTitlePageRegion, titlePageAttrsCarryData } from '../utils/titlePageRegion';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { isNonPrintingType } from '../utils/nonPrinting';
+import { laysItselfOut } from '../utils/pageBreaks';
+import { dualDialogueLineCount, type DualColumns } from '../utils/dualDialogue';
 import {
   buildEndnotePages,
   packFootnotePage,
@@ -91,6 +93,17 @@ function getElementId(node: PmNode): string {
     if (t) return t;
   }
   return node.type.name;
+}
+
+/** The columns of a dual-dialogue node, for {@link dualDialogueLineCount}. */
+function pmDualColumns(node: PmNode): DualColumns {
+  const columns: DualColumns = [];
+  node.forEach((column) => {
+    const children: DualColumns[number] = [];
+    column.forEach((child) => children.push({ type: child.type.name, text: child.textContent }));
+    columns.push(children);
+  });
+  return columns;
 }
 
 const LINE_HEIGHT_PT = 12;
@@ -336,7 +349,12 @@ export function computeBreaks(
       ? 0
       : typeName === 'screenplayImage'
         ? Math.max(1, Number(node.attrs?.heightLines) || 8)
-        : undefined;
+        : typeName === 'dualDialogue'
+          // Two speeches side by side: as deep as the deeper column, not as
+          // deep as both run together, which is what measuring the node's own
+          // textContent came to. See utils/dualDialogue.
+          ? dualDialogueLineCount(pmDualColumns(node))
+          : undefined;
     // A bracketed marker is ordinary inline text and so occupies cells in the
     // character grid; a superscript one overhangs and occupies none. Either way
     // the placeholder count matches exactly what the PDF will wrap, which is
@@ -349,7 +367,11 @@ export function computeBreaks(
       startsNewPage: node.attrs?.startsNewPage === true,
       hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
     });
-    isFirst = false;
+    // A Note or Section above the first element of the script does not make
+    // that element the second thing on the page — nothing was printed before
+    // it, so it still gets no space above it, exactly as the exporters lay it
+    // out (they never see the non-printing blocks at all).
+    if (!nonPrinting) isFirst = false;
   });
 
   const breaks: BreakInfo[] = [];
@@ -366,6 +388,33 @@ export function computeBreaks(
   let lineCount = 0;
   let pageNumber = 2;
   let i = 0;
+  /** What a (CONT'D) costs the page it opens — nothing when it is not shown. */
+  const contdLine = resolveMoresContds(layout).dialogueBreakContd ? 1 : 0;
+
+  /**
+   * How many lines an element occupies — its own measure, read the same way
+   * wherever the page is being filled. An image is a fixed block, a Section or
+   * Note is nothing at all, and everything else is its wrapped text.
+   */
+  const linesOf = (n: NodeInfo): number => (
+    n.fixedLines !== undefined
+      ? n.fixedLines
+      : getTextLines(n.text, CHARS_PER_LINE[n.typeName] || 62) * n.lineMul
+  );
+
+  /**
+   * The next element that reaches the page, from `from` onwards.
+   *
+   * Sections and Notes are invisible to the page, so they have to be invisible
+   * to the grouping too: the exporters never see them at all, and a Note
+   * dropped between a scene heading and its action used to leave the heading
+   * grouped with nothing and orphaned at the page foot in the editor alone.
+   */
+  const nextPrinting = (from: number): number => {
+    let j = from;
+    while (j < nodes.length && isNonPrintingType(nodes[j].typeName)) j++;
+    return j;
+  };
   // Title page handling: the leading title-page region forms a separate,
   // unnumbered page, and the script body starts on a fresh one after it.
   //
@@ -401,12 +450,17 @@ export function computeBreaks(
         isDialogueSplit: false, characterName: '', isTitlePage: true,
       });
       lineCount = 0; // fall through and lay this node out at the top of the body page
+      // At the top of a page, so no space above it — the break decoration
+      // replaces that element's margin on screen, and the exporters draw it
+      // flush with the top margin. Counting the space here made the body's
+      // first page a line or two shorter than the one in the file. It is the
+      // first element that actually prints: a Note above it takes no space in
+      // either, so the space would simply move down onto the next one.
+      const firstBody = nextPrinting(i);
+      if (firstBody < nodes.length) nodes[firstBody].spaceBefore = 0;
     }
 
-    const cpl = CHARS_PER_LINE[node.typeName] || 62;
-    const textLines = node.fixedLines !== undefined
-      ? node.fixedLines
-      : getTextLines(node.text, cpl) * node.lineMul;
+    const textLines = linesOf(node);
     const totalLines = node.spaceBefore + textLines;
 
     // An element that must open its own page can never be absorbed into the
@@ -418,21 +472,39 @@ export function computeBreaks(
     // Build character+dialogue block
     let blockLines = totalLines;
     let blockEnd = i;
+    /**
+     * The character node of the speech in this block, if it is one — `i`
+     * itself, or the element after a scene heading that introduces it. Only a
+     * speech can be split across a page turn, and only after its character
+     * name.
+     */
+    let speechAt = -1;
 
-    if (node.typeName === 'character' && i + 1 < nodes.length) {
-      let j = i + 1;
+    const partner = nextPrinting(i + 1);
+    if (node.typeName === 'character' && partner < nodes.length) {
+      speechAt = i;
+    } else if (node.typeName === 'sceneHeading' && partner < nodes.length
+               && !opensOwnPage(nodes[partner]) && !laysItselfOut(nodes[partner].typeName)) {
+      const nn = nodes[partner];
+      blockLines += nn.spaceBefore + linesOf(nn);
+      blockEnd = partner;
+      // A heading whose next element is a character keeps the whole speech
+      // with it, not just the name. Grouping it with the name alone skipped
+      // past the character, so the speech never went through the rule that
+      // keeps two lines of dialogue under it, and a page could end on a
+      // character name with nothing said (issue #123).
+      if (nn.typeName === 'character' && nextPrinting(partner + 1) < nodes.length) speechAt = partner;
+    }
+
+    if (speechAt >= 0) {
+      let j = nextPrinting(speechAt + 1);
       while (j < nodes.length && DIALOGUE_BLOCK_TYPES.has(nodes[j].typeName) && !opensOwnPage(nodes[j])) {
-        const dn = nodes[j];
-        const dc = CHARS_PER_LINE[dn.typeName] || 36;
-        blockLines += dn.spaceBefore + getTextLines(dn.text, dc) * dn.lineMul;
-        j++;
+        blockLines += nodes[j].spaceBefore + linesOf(nodes[j]);
+        blockEnd = j;
+        j = nextPrinting(j + 1);
       }
-      blockEnd = j - 1;
-    } else if (node.typeName === 'sceneHeading' && i + 1 < nodes.length && !opensOwnPage(nodes[i + 1])) {
-      const nn = nodes[i + 1];
-      const nc = CHARS_PER_LINE[nn.typeName] || 62;
-      blockLines += nn.spaceBefore + getTextLines(nn.text, nc) * nn.lineMul;
-      blockEnd = i + 1;
+      // Nothing was said after all — there is no speech to split.
+      if (blockEnd === speechAt) speechAt = -1;
     }
 
     // Force break: the template can require certain elements to start a new page
@@ -482,12 +554,25 @@ export function computeBreaks(
     const blockNotes = notesFor(i, blockEnd);
     const capacity = capacityWith(blockNotes);
 
-    if ((forceBreak || lineCount + blockLines > capacity) && lineCount > 0) {
+    // A Section or Note prints nothing, so it can no more open a page than
+    // fill one. Letting it carry the break put it at the head of the page and
+    // left the first element that does print with its space still above it —
+    // a line the file does not have, and from there the page ended somewhere
+    // else than on screen (issue #123).
+    const printsNothing = isNonPrintingType(node.typeName);
+
+    if (!printsNothing && (forceBreak || lineCount + blockLines > capacity) && lineCount > 0) {
 
       // Try to split character+dialogue blocks. A forced break is never split —
       // the whole point is that the element opens a page of its own.
-      if (!forceBreak && node.typeName === 'character' && blockEnd > i) {
-        const charLines = node.spaceBefore + getTextLines(node.text, CHARS_PER_LINE[node.typeName] || 41);
+      if (!forceBreak && speechAt >= 0) {
+        // Everything down to and including the character name: the speech
+        // itself, and the scene heading above it when one introduces it. None
+        // of it can be divided.
+        let charLines = 0;
+        for (let h = i; h <= speechAt; h++) {
+          charLines += nodes[h].spaceBefore + linesOf(nodes[h]);
+        }
 
         const MIN_DL = 2; // FD: at least 2 lines of dialogue on each side of split
 
@@ -496,7 +581,7 @@ export function computeBreaks(
         // Each candidate is tested against the room remaining AFTER its own note
         // is accounted for, so an acceptance can never be invalidated by a later
         // one — the sequence only ever tightens.
-        let fittedNotes = notesFor(i, i);
+        let fittedNotes = notesFor(i, speechAt);
         let remaining = capacityWith(fittedNotes) - lineCount;
 
         // Can we fit character + at least 2 lines of dialogue?
@@ -509,10 +594,12 @@ export function computeBreaks(
            * are what to fall back to when it leaves too little behind.
            */
           const candidates: { lastNode: number; lines: number; dl: number; notes: string[] }[] = [];
-          for (let j = i + 1; j <= blockEnd; j++) {
+          for (let j = speechAt + 1; j <= blockEnd; j++) {
             const dn = nodes[j];
-            const dc = CHARS_PER_LINE[dn.typeName] || 36;
-            const dl = getTextLines(dn.text, dc);
+            // A Note between two paragraphs is not a place to turn the page:
+            // it prints nothing, so the turn would land on a blank.
+            if (isNonPrintingType(dn.typeName)) continue;
+            const dl = linesOf(dn);
             const dnTotal = dn.spaceBefore + dl;
             const dnNotes = notesFor(j, j);
             const candNotes = dnNotes.length > 0 ? fittedNotes.concat(dnNotes) : fittedNotes;
@@ -531,9 +618,7 @@ export function computeBreaks(
           /** Dialogue lines left in this speech after a split following `j`. */
           const linesAfter = (j: number): number => {
             let n = 0;
-            for (let k = j + 1; k <= blockEnd; k++) {
-              n += getTextLines(nodes[k].text, CHARS_PER_LINE[nodes[k].typeName] || 36);
-            }
+            for (let k = j + 1; k <= blockEnd; k++) n += linesOf(nodes[k]);
             return n;
           };
 
@@ -560,8 +645,10 @@ export function computeBreaks(
               pageNumber, linesOnPage: lineCount,
               isDialogueSplit: true,
               // One line by definition — this becomes the (MORE)/(CONT'D)
-              // page-break label, which a newline would break.
-              characterName: singleLine(node.text),
+              // page-break label, which a newline would break. It is the
+              // speaker's name, which is not `node` when a scene heading
+              // introduced the speech.
+              characterName: singleLine(nodes[speechAt].text),
               isTitlePage: false,
             });
             if (plan) {
@@ -571,15 +658,40 @@ export function computeBreaks(
               // every note the rest of the page had already claimed, so a page
               // that ended in a (MORE) printed no footnotes at all.
               closePage(pageNotes.concat(committed));
-              pageNotes = notesFor(splitIdx, blockEnd);
+              pageNotes = EMPTY_IDS;
             }
             pageNumber++;
-            lineCount = 1; // CONT'D line
-            for (let j = splitIdx; j <= blockEnd; j++) {
-              if (j >= nodes.length) break;
+            // The CONT'D line costs a line only when it is printed. Counting
+            // it unconditionally left the continued page a line short of what
+            // the PDF drew whenever the writer had turned the label off.
+            lineCount = contdLine;
+            // What is left of the speech, page by page. A speech longer than
+            // the sheet turns again — laying the whole remainder out in one
+            // run let it run off the bottom of the page on screen while the
+            // PDF, which does turn, put the rest somewhere else entirely.
+            let pageFirst = splitIdx;
+            for (let j = splitIdx; j <= blockEnd && j < nodes.length; j++) {
               const dn = nodes[j];
-              const dc = CHARS_PER_LINE[dn.typeName] || 36;
-              lineCount += (j === splitIdx ? getTextLines(dn.text, dc) : dn.spaceBefore + getTextLines(dn.text, dc));
+              const ownNotes = notesFor(j, j);
+              const add = j === pageFirst ? linesOf(dn) : dn.spaceBefore + linesOf(dn);
+              if (lineCount + add > capacityWith(ownNotes) && j > pageFirst) {
+                breaks.push({
+                  nodeIndex: j,
+                  offset: dn.offset, nodeSize: dn.nodeSize,
+                  pageNumber, linesOnPage: lineCount,
+                  isDialogueSplit: true,
+                  characterName: singleLine(nodes[speechAt].text),
+                  isTitlePage: false,
+                });
+                if (plan) { closePage(pageNotes); pageNotes = ownNotes; }
+                pageNumber++;
+                // First on its page: no space above it, under the CONT'D.
+                lineCount = contdLine + linesOf(dn);
+                pageFirst = j;
+                continue;
+              }
+              lineCount += add;
+              if (plan && ownNotes.length > 0) pageNotes = pageNotes.concat(ownNotes);
             }
             i = blockEnd + 1;
             continue;

@@ -55,12 +55,95 @@ function drawsAlike(a: WrapRun, b: WrapRun): boolean {
 
 /**
  * How many rendered lines a block's text occupies at `cpl` characters per line.
+ *
+ * This counts the lines `wordWrapRuns` would produce for the same text — the
+ * same greedy fill, the same treatment of indents, trailing spaces and
+ * over-long tokens — without building any of them, because pagination calls it
+ * for every block in the script on every keystroke.
+ *
+ * It used to answer `ceil(length / cpl)`, as if a line could be cut mid-word.
+ * Nothing breaks text that way: the PDF wraps on spaces and so does the browser
+ * rendering the editor, so on any paragraph whose last word did not happen to
+ * land flush with the margin this returned one line too few. The error is per
+ * paragraph and cumulative — three or four lines into a page is routine — so
+ * the editor drew its page break well after the page had actually filled and
+ * the exported PDF turned over somewhere else entirely (issue #123).
+ *
+ * The one shape it cannot see is a mark that starts or ends inside a word:
+ * `wordWrapRuns` can break at that run boundary, and plain text has no boundary
+ * to break at. Emphasis normally spans whole words, and an extra break
+ * opportunity can only ever save a line, never cost one.
  */
 export function getTextLines(text: string, cpl: number): number {
-  if (text.length === 0) return 1;
-  return text
-    .split('\n')
-    .reduce((n, seg) => n + (seg.length === 0 ? 1 : Math.ceil(seg.length / cpl)), 0);
+  let lines = 0;
+  /** Spaces with no word yet to hang them on — a deliberate indent. */
+  let pendingIndent = 0;
+  /** Characters already on the line being filled, and whether one is open. */
+  let chars = 0;
+  let open = false;
+  let sawToken = false;
+  let wordsInSegment = 0;
+
+  /** Place one word — `len` includes its indent and the spaces trailing it. */
+  const place = (len: number, indent: number) => {
+    sawToken = true;
+    wordsInSegment++;
+    if (len > cpl) {
+      // An unbroken token wider than the line is cut at the margin, exactly as
+      // the wrapper cuts it; whatever is left over opens the next line.
+      if (open) { lines++; chars = 0; open = false; }
+      let rest = len;
+      while (rest > cpl) { lines++; rest -= cpl; }
+      if (rest > 0) { chars = rest; open = true; }
+    } else if (!open) {
+      chars = len;
+      open = true;
+    } else if (chars + len <= cpl) {
+      chars += len;
+    } else {
+      // Wrapped: the word starts the next line, and its leading indent — which
+      // belonged to the gap it has just left — is trimmed off.
+      lines++;
+      chars = len - indent;
+      open = true;
+    }
+  };
+
+  const segments = text.split('\n');
+  for (let s = 0; s < segments.length; s++) {
+    if (s > 0) {
+      // A hard break closes the line whether or not anything is on it.
+      lines++;
+      chars = 0;
+      open = false;
+      sawToken = true;
+      wordsInSegment = 0;
+    }
+    const seg = segments[s];
+    let i = 0;
+    // Spaces with no word ahead of them are held, not counted here — they are
+    // an indent, and they belong to the first word that follows, even if that
+    // word is past a hard break.
+    while (i < seg.length && seg[i] === ' ') { pendingIndent++; i++; }
+    while (i < seg.length) {
+      let j = i;
+      while (j < seg.length && seg[j] !== ' ') j++;
+      // The spaces after a word ride on it, so they are paid for by the line
+      // the word lands on — which is how the wrapper measures them.
+      let k = j;
+      while (k < seg.length && seg[k] === ' ') k++;
+      const indent = pendingIndent;
+      pendingIndent = 0;
+      place(indent + (k - i), indent);
+      i = k;
+    }
+  }
+
+  if (open) lines++;
+  // A trailing break opens a line the writer left empty.
+  else if (segments.length > 1 && wordsInSegment === 0) lines++;
+  // Nothing at all — an empty block still occupies its line.
+  return sawToken ? lines : 1;
 }
 
 /**
