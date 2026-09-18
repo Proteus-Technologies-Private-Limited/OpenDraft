@@ -123,3 +123,36 @@ describe('AvCueDecorations recomputation', () => {
     expect(pluginState(moved)).toBe(before);
   });
 });
+
+describe('cue values across several AV bodies', () => {
+  /** A document of several bodies, each given its own list of row durations. */
+  const multiDoc = (...bodies: (string | null)[][]) =>
+    testSchema.nodeFromJSON({
+      type: 'doc',
+      content: bodies.flatMap((durations, i) => [
+        ...(i > 0 ? [{ type: 'action', content: [{ type: 'text', text: 'Interlude.' }] }] : []),
+        { type: 'avBlock', content: durations.map(row) },
+      ]),
+    });
+
+  it('numbers straight through, rather than restarting at each body', () => {
+    // Celtx numbers shots from 1 through a whole Multi-Column AV script. A
+    // document whose second section began at "1." again was telling the writer
+    // it had two pieces in it when it has one.
+    const cues = cueValues(multiDoc(['0:05', '0:10'], ['0:07']));
+    expect(cues.map(c => c.shot)).toEqual(['1.', '2.', '3.']);
+  });
+
+  it('carries the running clock across the paragraph between them', () => {
+    const cues = cueValues(multiDoc(['0:05', '0:10'], ['0:07', '0:03']));
+    expect(cues.map(c => c.start)).toEqual(['0:00', '0:05', '0:15', '0:22']);
+  });
+
+  it('still numbers a single body from 1', () => {
+    expect(cueValues(multiDoc(['0:05', '0:10'])).map(c => c.shot)).toEqual(['1.', '2.']);
+  });
+
+  it('places a decoration on every row in every body', () => {
+    expect(cueValues(multiDoc(['0:05'], ['0:10'], ['0:15']))).toHaveLength(3);
+  });
+});

@@ -30,7 +30,8 @@ import {
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
   StartsNewPage,
 } from '../editor/extensions';
-import { registerAvCellPicker, isInAvCell, AV_CELL_ELEMENT_IDS } from '../editor/extensions/AvBlock';
+import { registerAvCellPicker, isInAvCell, AV_BASE_CELL_ELEMENT_IDS } from '../editor/extensions/AvBlock';
+import { avCellElementRules } from '../utils/avCellElements';
 import { isBlankBlock, previousSiblingBlock, blankLineTypeFor } from '../editor/blankLine';
 import Strike from '@tiptap/extension-strike';
 import Subscript from '@tiptap/extension-subscript';
@@ -155,7 +156,7 @@ import TitlePageEditor from './TitlePageEditor';
 import MoresContdsDialog from './MoresContdsDialog';
 import FontsDialog from './FontsDialog';
 import { fontStack } from '../utils/fonts';
-import { titlePageRuleId } from '../stores/formattingTypes';
+import { titlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
 import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
@@ -229,7 +230,9 @@ function resolveActiveElement(ed: Editor): ElementType | null {
       const field = (ed.getAttributes('titlePage')?.field as string) || 'title';
       return titlePageRuleId(field) as ElementType;
     }
-    for (const type of AV_CELL_ELEMENT_IDS) {
+    // Only the four AV paragraph types need asking about here — the screenplay
+    // elements a cell also accepts are in ALL_ELEMENT_TYPES below.
+    for (const type of AV_BASE_CELL_ELEMENT_IDS) {
       if (ed.isActive(type)) return type as ElementType;
     }
     for (const type of ALL_ELEMENT_TYPES) {
@@ -1078,8 +1081,9 @@ const ScreenplayEditor: React.FC = () => {
   const [pendingDropFile, setPendingDropFile] = useState<File | null>(null);
   const [dropConfirmOpen, setDropConfirmOpen] = useState(false);
 
-  // Element picker state. `availableTypes`, when set, restricts the picker
-  // to that exact list (used inside AV cells where only avPara/avShot/avDirection apply).
+  // Element picker state. `availableTypes`, when set, restricts the picker to
+  // that exact list — used inside AV cells, where the list is whatever the
+  // active template allows in that column (utils/avCellElements.ts).
   const [pickerState, setPickerState] = useState<{
     visible: boolean;
     position: { top: number; left: number };
@@ -3373,7 +3377,7 @@ const ScreenplayEditor: React.FC = () => {
     if (!editor) return;
     pickerDismissedAtRef.current = null;
     const node = editor.state.selection.$from.parent;
-    const blankType = typeId ?? blankLineTypeFor(node.type.name);
+    const blankType = typeId ?? blankLineTypeFor(node.type.name, isInAvCell(editor.state));
     // setNode is not optional. `splitBlock` gives the new node the schema's
     // default block type whenever the caret sits at the end of a block — always
     // true on a blank one — and this document's default is `sceneHeading`.
@@ -3421,11 +3425,14 @@ const ScreenplayEditor: React.FC = () => {
     };
   }, [editor]);
 
-  // Bridge: let the AvKeymap extension surface the same element picker, but
-  // restricted to the cell-valid types (avPara/avShot/avDirection).
+  // Bridge: let the AvKeymap extension surface the same element picker,
+  // restricted to what this column accepts. The keymap knows the side; the
+  // template — which only exists out here — decides what that means.
   React.useEffect(() => {
-    registerAvCellPicker((defaultType, types) => {
-      showPickerRef.current(defaultType as ElementType, types as readonly ElementType[] as ElementType[]);
+    registerAvCellPicker((defaultType, side) => {
+      const template = useFormattingTemplateStore.getState().getActiveTemplate();
+      const types = avCellElementRules(template, side, defaultType).map(r => r.id as ElementType);
+      showPickerRef.current(defaultType as ElementType, types);
     });
     return () => registerAvCellPicker(null);
   }, []);
@@ -3434,6 +3441,16 @@ const ScreenplayEditor: React.FC = () => {
     if (!editor) return;
     pickerDismissedAtRef.current = null;
     setPickerState(s => ({ ...s, visible: false }));
+
+    // "AV Columns" is not a paragraph type — it inserts a two-column body.
+    // It rides in the element menu because that is where a writer goes to ask
+    // "what is this line?", and a template that offers it has said the format
+    // may contain one. `insertAvRow` places it: beside the current line, never
+    // through it, and joined to an adjacent body rather than stacked on it.
+    if (type === AV_BLOCK_RULE_ID) {
+      editor.chain().focus().insertAvRow('below').run();
+      return;
+    }
 
     // On a blank line, picking the type that line already has cannot mean
     // "convert it" — it would be a no-op, and it is the row a writer lands on

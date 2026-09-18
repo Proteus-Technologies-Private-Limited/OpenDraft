@@ -247,3 +247,87 @@ describe('plain text', () => {
     expect(avDocumentToText({ type: 'doc', content: [] })).toBe('');
   });
 });
+
+describe('extractAvBodies across several AV bodies', () => {
+  /** A document of several bodies with an ordinary paragraph between them. */
+  const multiDoc = (...bodies: JSONContent[][]): JSONContent => ({
+    type: 'doc',
+    content: bodies.flatMap((rows, i) => [
+      ...(i > 0 ? [{ type: 'action', content: [{ type: 'text', text: 'Interlude.' }] }] : []),
+      { type: 'avBlock', content: rows },
+    ]),
+  });
+
+  it('numbers shots straight through, so a spreadsheet matches the editor', () => {
+    const bodies = extractAvBodies(multiDoc(
+      [row({ duration: '0:05' }), row({ duration: '0:10' })],
+      [row({ duration: '0:07' })],
+    ));
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0].rows.map(r => r.shot)).toEqual(['1.', '2.']);
+    expect(bodies[1].rows.map(r => r.shot)).toEqual(['3.']);
+  });
+
+  it('carries the running clock into the next body', () => {
+    const bodies = extractAvBodies(multiDoc(
+      [row({ duration: '0:05' }), row({ duration: '0:10' })],
+      [row({ duration: '0:07' })],
+    ));
+    expect(bodies[0].rows.map(r => r.start)).toEqual(['0:00', '0:05']);
+    expect(bodies[1].rows[0].start).toBe('0:15');
+  });
+
+  it('keeps each body’s own total runtime, not the running one', () => {
+    // The "Total Duration" of a body is the sum of ITS durations — a section
+    // total is the number a producer reads off that section.
+    const bodies = extractAvBodies(multiDoc(
+      [row({ duration: '0:05' }), row({ duration: '0:10' })],
+      [row({ duration: '0:07' })],
+    ));
+    expect(bodies[0].totalSeconds).toBe(15);
+    expect(bodies[1].totalSeconds).toBe(7);
+  });
+
+  it('numbers a lone body from 1 exactly as before', () => {
+    const b = extractAvBodies(doc([row({ duration: '0:05' }), row({ duration: '0:10' })]))[0];
+    expect(b.rows.map(r => r.shot)).toEqual(['1.', '2.']);
+    expect(b.rows.map(r => r.start)).toEqual(['0:00', '0:05']);
+  });
+});
+
+describe('a cell holding screenplay elements', () => {
+  /** A cell whose paragraphs are screenplay elements rather than avParas. */
+  const mixedCell = (side: 'video' | 'audio', paras: [string, string][]) => ({
+    type: 'avCell',
+    attrs: { side },
+    content: paras.map(([type, text]) => ({ type, content: [{ type: 'text', text }] })),
+  });
+
+  const mixedDoc: JSONContent = {
+    type: 'doc',
+    content: [{
+      type: 'avBlock',
+      content: [{
+        type: 'avRow',
+        attrs: { duration: '0:08', shot: null, start: null },
+        content: [
+          mixedCell('video', [['avShot', 'WIDE ON THE FACTORY FLOOR.'], ['action', 'A welder looks up.']]),
+          mixedCell('audio', [['character', 'MARIA'], ['dialogue', 'We build them by hand.']]),
+        ],
+      }],
+    }],
+  };
+
+  it('reads every paragraph out, whatever its element type', () => {
+    const b = extractAvBodies(mixedDoc)[0];
+    expect(b.rows[0].video).toBe('WIDE ON THE FACTORY FLOOR.\nA welder looks up.');
+    expect(b.rows[0].audio).toBe('MARIA\nWe build them by hand.');
+  });
+
+  it('puts them in the spreadsheet grid like any other cell', () => {
+    const grid = avBodyToGrid(extractAvBodies(mixedDoc)[0]);
+    const dataRow = grid[grid.length - 1];
+    expect(dataRow.some(c => c.includes('MARIA'))).toBe(true);
+    expect(dataRow.some(c => c.includes('WIDE ON THE FACTORY FLOOR.'))).toBe(true);
+  });
+});

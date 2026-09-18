@@ -28,6 +28,7 @@ import {
 import type { JSONContent } from '@tiptap/react';
 import { jsonBlockRuns } from './nodeText';
 import type { AvExportBody } from './avDocument';
+import { avParaStyle } from './avDocument';
 import { avRowNodes, avFrameKey, type AvRowNodes } from './avPdfTable';
 
 /** A loaded storyboard frame, keyed by `avFrameKey`. */
@@ -49,8 +50,12 @@ function cellParagraphs(
   const paras = Array.isArray(cellNode?.content) ? cellNode!.content : [];
   for (const para of paras) {
     const runs = jsonBlockRuns(para);
-    // An AV shot line reads uppercase in the editor and in the PDF; keep it.
-    const upper = para.type === 'avShot';
+    // Face flags come from the shared style map in avDocument.ts, so Word and
+    // the PDF set every element a cell can hold the same way — the four AV
+    // types and the screenplay elements a template admits to a column. Word
+    // HAS small caps, so a super keeps them here rather than being uppercased.
+    const style = avParaStyle(para.type);
+    const upper = style.upper && !style.smallCaps;
     const children = runs
       .filter(r => r.text !== '' || r.isBreak)
       .map(r =>
@@ -58,11 +63,9 @@ function cellParagraphs(
           text: upper ? r.text.toUpperCase() : r.text,
           font,
           size: sizeHalfPt,
-          bold: r.bold || para.type === 'avShot',
-          italics: r.italic || para.type === 'avDirection',
-          // On-screen text reads as small caps in the editor; keep it distinct
-          // on the page too, or a super is indistinguishable from narration.
-          smallCaps: para.type === 'avGraphic',
+          bold: r.bold || style.bold,
+          italics: r.italic || style.italic,
+          smallCaps: style.smallCaps,
           underline: r.underline ? {} : undefined,
           break: r.isBreak ? 1 : undefined,
         }),

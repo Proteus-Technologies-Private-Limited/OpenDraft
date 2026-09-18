@@ -52,12 +52,40 @@ export class AvYamlError extends Error {
 /** One paragraph of an AV cell, with its style. */
 interface YamlPara { style: string; text: string }
 
-/** Paragraph style names as they appear in the file — readable, not internal. */
+/**
+ * Paragraph style names as they appear in the file — readable, not internal.
+ *
+ * The first four are the AV paragraph types and their names are FIXED: files
+ * written before the rest existed use them, and renaming one would silently
+ * downgrade every paragraph in an older file to plain body text.
+ *
+ * The rest are the screenplay elements a cell holds when the active template
+ * allows it. Without them a round-trip through YAML flattened an interview to
+ * narration — `yamlToCell` falls back to `body` for a style it does not know,
+ * which is right for a hand-written file and wrong as a way to lose an
+ * element OpenDraft wrote itself.
+ *
+ * `customElement` has no entry: its identity is an attribute, not a type, and
+ * there is nothing here to carry a `customTypeId`. It writes as `body`, which
+ * is what it reads as, and is noted rather than silently assumed.
+ */
 const STYLE_TO_YAML: Record<string, string> = {
   avPara: 'body',
   avShot: 'shot',
   avDirection: 'direction',
   avGraphic: 'onscreen',
+  action: 'action',
+  sceneHeading: 'scene-heading',
+  character: 'character',
+  dialogue: 'dialogue',
+  parenthetical: 'parenthetical',
+  transition: 'transition',
+  // `shot` is already taken by avShot, which has meant "the video column's shot
+  // line" since the format was written. The screenplay element of the same name
+  // is a camera instruction, so it says so.
+  shot: 'camera-shot',
+  general: 'general',
+  lyrics: 'lyrics',
 };
 const YAML_TO_STYLE: Record<string, string> = Object.fromEntries(
   Object.entries(STYLE_TO_YAML).map(([k, v]) => [v, k]),

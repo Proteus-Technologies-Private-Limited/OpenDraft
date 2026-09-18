@@ -4,8 +4,11 @@
  * Schema:
  *   avBlock         group=block, content=`avRow+`, isolating
  *     avRow         content=`avCell avCell`, isolating, defining
- *       avCell      attrs={ side: 'video' | 'audio' }, content=`(avPara | avShot | avDirection)+`
- *         avPara, avShot, avDirection — text-containing paragraphs
+ *       avCell      attrs={ side: 'video' | 'audio' }, content=`AV_CELL_CONTENT`
+ *         avPara, avShot, avDirection, avGraphic — the four AV paragraph types,
+ *         plus the screenplay elements in AV_SCREENPLAY_CELL_ELEMENT_IDS. The
+ *         schema accepts them all; the active template decides which of them
+ *         the writer is offered, and in which column.
  *
  * Why a single avBlock wrapper instead of free-standing avRows: lets pagination,
  * toolbar, and right-click menu identify the AV body as a unit, mirroring how
@@ -34,10 +37,11 @@ import { AvRowView } from './AvRowView';
 import { AvImageView } from './AvImageView';
 import { isBlankBlock, previousSiblingBlock, blankLineTypeFor } from '../blankLine';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useFormattingTemplateStore } from '../../stores/formattingTemplateStore';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import { TextSelection, Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import { computeRowTimings } from '../avTiming';
+import { computeRowTimings, nextTimingOffset, type AvTimingOffset } from '../avTiming';
 
 /** Where `insertAvRow` puts the new row, relative to the one holding the cursor. */
 export type AvRowPlacement = 'above' | 'below';
@@ -73,6 +77,26 @@ export function isAvCellPos($pos: import('@tiptap/pm/model').ResolvedPos): boole
  *  the toolbar, which only mean something where there is text to restyle. */
 export function isInAvCell(state: import('@tiptap/pm/state').EditorState): boolean {
   return isAvCellPos(state.selection.$from);
+}
+
+/**
+ * Which column the cursor is in, or null when it is not in a cell at all.
+ *
+ * The element list a cell offers depends on its side — a template puts Action
+ * and Shot in the video column and Character and Dialogue in the audio one —
+ * so every caller that builds that list needs this, not just `isInAvCell`.
+ */
+export function avCellSideAt(
+  state: import('@tiptap/pm/state').EditorState,
+): 'video' | 'audio' | null {
+  const { $from } = state.selection;
+  for (let d = $from.depth; d >= 0; d--) {
+    const node = $from.node(d);
+    if (node.type.name === 'avCell') {
+      return (node.attrs as { side?: 'video' | 'audio' }).side === 'audio' ? 'audio' : 'video';
+    }
+  }
+  return null;
 }
 
 /**
@@ -301,9 +325,61 @@ export const AvGraphic = Node.create({
 
 // ── Cell ────────────────────────────────────────────────────────────────
 
+/**
+ * The four AV paragraph types. Always valid in either cell, in every document,
+ * whatever template is active — they are what an AV body is made of.
+ *
+ * Order matters twice over: it is the order the element menu lists them in,
+ * and `avPara` being FIRST is what makes it the cell's default child. A content
+ * expression's default type is the first one that can stand alone, so putting
+ * anything else here would make Enter at the end of a cell produce that type.
+ */
+export const AV_BASE_CELL_ELEMENT_IDS = ['avPara', 'avShot', 'avDirection', 'avGraphic'] as const;
+
+/**
+ * Screenplay elements an AV cell also accepts.
+ *
+ * The schema is deliberately permissive and the TEMPLATE decides what is
+ * actually offered — see `FormattingElementRule.avCell`. Two reasons it has to
+ * be this way round:
+ *
+ *   - A template can be switched on a document that already exists. If the
+ *     schema only admitted what the template of the day allowed, changing
+ *     template would make the document unparseable rather than merely
+ *     restyled.
+ *   - The industry formats do mix them. Final Draft AV carried separate styles
+ *     for video description, character and dialogue inside the columns, and
+ *     WriterDuet's A/V template puts Action and Shot in the visual column and
+ *     Character, Dialogue and Parenthetical in the audio one. An on-camera
+ *     interview in a corporate or documentary script is ordinary dialogue, and
+ *     there was no way to write it.
+ *
+ * `customElement` is here so a template's own declared elements work in a cell
+ * too; it is a single node type carrying a `customTypeId`, so one entry covers
+ * all of them.
+ *
+ * Deliberately NOT included: `newAct`, `endOfAct`, `showEpisode`, `castList`,
+ * `titlePage` and the outline types. Those are document-level furniture — an
+ * act break inside one cell of one row of a table is not a thing anyone means.
+ */
+export const AV_SCREENPLAY_CELL_ELEMENT_IDS = [
+  'action', 'sceneHeading', 'character', 'dialogue', 'parenthetical',
+  'transition', 'shot', 'general', 'lyrics', 'customElement',
+] as const;
+
+/** Every element id an `avCell` will hold — the schema's own list. */
+export const AV_CELL_ELEMENT_IDS = [
+  ...AV_BASE_CELL_ELEMENT_IDS,
+  ...AV_SCREENPLAY_CELL_ELEMENT_IDS,
+] as const;
+
+/** The `avCell` content expression, built from the list above so the two can
+ *  never drift. Parenthesised and `+` because a cell is one or more of them. */
+export const AV_CELL_CONTENT = `(${AV_CELL_ELEMENT_IDS.join(' | ')})+`;
+
 export const AvCell = Node.create({
   name: 'avCell',
-  content: '(avPara | avShot | avDirection | avGraphic)+',
+  content: AV_CELL_CONTENT,
   defining: true,
   isolating: true,
   addAttributes() {
@@ -544,25 +620,126 @@ function wrapNewAvBlock(
 ): boolean {
   const blockType = state.schema.nodes.avBlock;
   if (!blockType) return false;
-  const insertAt = state.selection.from;
-  const block = blockType.create(null, buildEmptyRow(state.schema as never));
-  tr.replaceSelectionWith(block);
-  // Caret into the new row's video cell: block open, row open, cell open,
-  // para open. Without this the selection lands in the AUDIO cell, so the
-  // writer's first keystroke goes into the wrong column.
-  try {
-    let blockPos = -1;
-    const from = Math.max(0, insertAt - 1);
-    const to = Math.min(tr.doc.content.size, insertAt + block.nodeSize + 1);
-    tr.doc.nodesBetween(from, to, (n, pos) => {
-      if (blockPos < 0 && n.type.name === 'avBlock') blockPos = pos;
-      return blockPos < 0;
-    });
-    if (blockPos >= 0) tr.setSelection(TextSelection.create(tr.doc, blockPos + 4));
-  } catch {
-    // A caret we could not place is not worth failing the insert over.
+
+  const $from = state.selection.$from;
+  const row = buildEmptyRow(state.schema as never);
+
+  // Put the caret in the new row's VIDEO cell: row open, cell open, para open.
+  // Without it the selection lands in the audio cell and the writer's first
+  // keystroke goes into the wrong column.
+  const caretInRow = (rowStart: number) => {
+    try {
+      tr.setSelection(TextSelection.create(tr.doc, rowStart + 3));
+    } catch {
+      // A caret we could not place is not worth failing the insert over.
+    }
+  };
+
+  // A gap cursor, or anything else resolving between top-level blocks rather
+  // than inside one. There is no line to place the body relative to, so it goes
+  // exactly where the caret is — which is the one case where inserting AT the
+  // selection cannot split anything.
+  if ($from.depth === 0) {
+    if (!$from.parent.canReplaceWith($from.index(), $from.index(), blockType)) return false;
+    tr.insert($from.pos, blockType.create(null, row));
+    caretInRow($from.pos + 1);
+    return true;
   }
+
+  const depth = avBlockInsertDepth($from, blockType);
+  if (depth === null) return false;
+
+  const parent = $from.node(depth - 1);
+  const index = $from.index(depth - 1);
+  const node = $from.node(depth);
+  const before = $from.before(depth);
+  const after = $from.after(depth);
+
+  const prev = index > 0 ? parent.child(index - 1) : null;
+  const next = index + 1 < parent.childCount ? parent.child(index + 1) : null;
+  const blank = isBlankBlock(node);
+
+  // Touching an existing body means joining it, not starting a second one.
+  // Two avBlocks with nothing between them draw as one table but are not one:
+  // they carry separate column widths, repeat the header row, and restart the
+  // shot numbering — a table that looks continuous and behaves as two.
+  if (blank && prev?.type.name === 'avBlock' && next?.type.name === 'avBlock') {
+    // A blank line BETWEEN two bodies. Consuming it would leave the two
+    // touching, which is the very shape this is here to prevent, so the two
+    // become one and the new row is the seam. The first body's column settings
+    // win: it is the one already on screen above the caret, and a merge that
+    // silently re-laid out the rows above would be a worse surprise than one
+    // that re-laid out the rows below.
+    const prevStart = before - prev.nodeSize;
+    const nextEnd = after + next.nodeSize;
+    const merged = blockType.create(prev.attrs, [
+      ...prev.content.content,
+      row,
+      ...next.content.content,
+    ]);
+    tr.replaceWith(prevStart, nextEnd, merged);
+    // Row open, cell open, para open — past the block's own open token and
+    // every row that was already in the first body.
+    caretInRow(prevStart + 1 + prev.content.size);
+    return true;
+  }
+  if (blank && prev?.type.name === 'avBlock') {
+    tr.delete(before, after);
+    const rowStart = before - 1; // inside the previous block, before its close
+    tr.insert(rowStart, row);
+    caretInRow(rowStart);
+    return true;
+  }
+  if (next?.type.name === 'avBlock') {
+    // The caret is immediately above an existing body, so the new row belongs
+    // at the top of it. A blank line in between is consumed; a line with text
+    // stays where the writer put it.
+    const bodyStart = blank ? before : after;
+    if (blank) tr.delete(before, after);
+    const rowStart = bodyStart + 1;
+    tr.insert(rowStart, row);
+    caretInRow(rowStart);
+    return true;
+  }
+
+  const block = blockType.create(null, row);
+  if (blank) {
+    // An empty line is a placeholder, so the body takes its place.
+    tr.replaceWith(before, after, block);
+    caretInRow(before + 1);
+    return true;
+  }
+
+  // A line with text is CONTENT, and the body goes after it — never through it.
+  // `replaceSelectionWith` used to insert at the cursor, which split whatever
+  // the caret was sitting in: starting an AV body from the middle of
+  // "INT. KITCHEN - DAY" left a stray "INT. " scene heading above the table,
+  // and that heading went on to show up in the navigator and the scene
+  // numbering. A scene heading ABOVE an AV body is exactly right — it is how
+  // the two-column format is headed — but it has to survive intact.
+  tr.insert(after, block);
+  caretInRow(after + 1);
   return true;
+}
+
+/**
+ * The depth at which a new `avBlock` can be inserted next to the caret's block.
+ *
+ * Walks outwards from the caret and stops at the first ancestor whose own
+ * parent would accept an `avBlock` beside it — the document, in every case that
+ * exists today. Returns null when nothing in the ancestry will take one, so the
+ * command reports failure instead of dropping a body somewhere invalid.
+ */
+function avBlockInsertDepth(
+  $from: import('@tiptap/pm/model').ResolvedPos,
+  blockType: import('@tiptap/pm/model').NodeType,
+): number | null {
+  for (let d = $from.depth; d >= 1; d--) {
+    const parent = $from.node(d - 1);
+    const index = $from.index(d - 1);
+    if (parent.canReplaceWith(index, index, blockType)) return d;
+  }
+  return null;
 }
 
 export const AvBlock = Node.create({
@@ -858,6 +1035,10 @@ export interface AvCueDecoAttrs {
 
 function buildCueDecorations(doc: PmNode): DecorationSet {
   const decorations: Decoration[] = [];
+  // Numbering and the clock run THROUGH the document, not per body: a scene
+  // heading or an intro paragraph between two AV bodies is a section break in
+  // one piece, not the start of a second piece. See `computeRowTimings`.
+  let carry: AvTimingOffset = {};
   doc.descendants((node, pos) => {
     if (node.type.name !== 'avBlock') return true;
     const rows: { duration: string | null; shot: string | null; start: string | null }[] = [];
@@ -872,7 +1053,8 @@ function buildCueDecorations(doc: PmNode): DecorationSet {
         start: (row.attrs.start as string | null) ?? null,
       });
     });
-    const timings = computeRowTimings(rows);
+    const timings = computeRowTimings(rows, 'auto', carry);
+    carry = nextTimingOffset(rows, timings, carry);
     timings.forEach((timing, i) => {
       const span = spans[i];
       if (!span) return;
@@ -964,13 +1146,52 @@ function findAvCellDepth(
   return { rowDepth, cellDepth, cellSide };
 }
 
-/** Element ids valid inside an avCell — must match the avCell content rule. */
-export const AV_CELL_ELEMENT_IDS = ['avPara', 'avShot', 'avDirection', 'avGraphic'] as const;
+/** The element id a node carries, unwrapping the `customElement` envelope so a
+ *  template's own element is named by its own id rather than the node type. */
+export function avElementIdOf(node: PmNode): string {
+  return node.type.name === 'customElement'
+    ? ((node.attrs?.customTypeId as string) || 'customElement')
+    : node.type.name;
+}
+
+/**
+ * The type the next line takes when Enter splits `currentId` inside an AV cell.
+ *
+ * The template's `nextOnEnter` is the same field that drives Enter in the
+ * ordinary script body, so it names a type that is valid OUT here — Character
+ * flows to Dialogue, Dialogue back to Action. Inside a cell that answer is only
+ * usable when the cell would take it and the template offers it in THIS column:
+ * an Action after a line of Dialogue belongs in the video column, not under the
+ * dialogue it followed.
+ *
+ * Anything that does not survive both tests falls back to `avPara`, the cell's
+ * own neutral paragraph. Returning null means "leave it to ProseMirror", which
+ * is what an element with no flow of its own wants.
+ */
+function avNextTypeOnEnter(currentId: string, side: 'video' | 'audio'): string | null {
+  let next: string | undefined;
+  try {
+    const template = useFormattingTemplateStore.getState().getActiveTemplate();
+    next = template.rules[currentId]?.nextOnEnter;
+    if (!next || next === currentId) return null;
+    if (!AV_CELL_ELEMENT_IDS.includes(next as never)) return 'avPara';
+    if ((AV_BASE_CELL_ELEMENT_IDS as readonly string[]).includes(next)) return next;
+    const placement = template.rules[next]?.avCell;
+    if (placement === 'both' || placement === side) return next;
+    return 'avPara';
+  } catch (err) {
+    // A template that cannot be read is not a reason to swallow the keystroke.
+    console.warn('[av] could not resolve the next element type on Enter', err);
+    return null;
+  }
+}
 
 /** Optional callback set by ScreenplayEditor; AvKeymap calls it on empty-Enter
- *  inside an AV cell to surface the cell-scoped element picker. */
-let __avCellPicker: ((defaultType: string, types: readonly string[]) => void) | null = null;
-export function registerAvCellPicker(fn: ((defaultType: string, types: readonly string[]) => void) | null): void {
+ *  inside an AV cell to surface the cell-scoped element picker. The keymap
+ *  passes only the cell's side — resolving that into a list of elements is the
+ *  template's job, and the template lives on the React side. */
+let __avCellPicker: ((defaultType: string, side: 'video' | 'audio') => void) | null = null;
+export function registerAvCellPicker(fn: ((defaultType: string, side: 'video' | 'audio') => void) | null): void {
   __avCellPicker = fn;
 }
 
@@ -984,7 +1205,7 @@ export const AvKeymap = Extension.create({
     return {
       // Enter inside an AV cell:
       //   - non-empty paragraph → split in place
-      //   - empty paragraph     → pop a picker restricted to avPara/avShot/avDirection
+      //   - empty paragraph     → pop a picker scoped to this cell's side
       // The screenplay-level EnterHandlerExtension assumes top-level blocks and
       // crashes inside an avBlock — we must consume Enter here unconditionally.
       Enter: ({ editor }) => {
@@ -1002,13 +1223,22 @@ export const AvKeymap = Extension.create({
               || isBlankBlock(previousSiblingBlock($from))) {
             return editor.chain()
               .splitBlock()
-              .setNode(blankLineTypeFor(para.type.name))
+              .setNode(blankLineTypeFor(avElementIdOf(para), true))
               .run();
           }
-          if (__avCellPicker) __avCellPicker(para.type.name, AV_CELL_ELEMENT_IDS);
+          if (__avCellPicker) __avCellPicker(avElementIdOf(para), ctx.cellSide);
           return true;
         }
-        return editor.chain().splitBlock().run();
+        // A line WITH text: split, then let the template say what follows.
+        // `splitBlock` at the end of a block takes the cell's default child
+        // (avPara), which is right for the AV paragraph types and wrong for a
+        // Character, whose whole point is that Dialogue comes next.
+        const next = avNextTypeOnEnter(avElementIdOf(para), ctx.cellSide);
+        const chain = editor.chain().splitBlock();
+        if (next && next !== 'customElement' && editor.schema.nodes[next]) {
+          return chain.setNode(next).run();
+        }
+        return chain.run();
       },
 
       // Tab — move to the audio cell; from the audio cell, create a new row.

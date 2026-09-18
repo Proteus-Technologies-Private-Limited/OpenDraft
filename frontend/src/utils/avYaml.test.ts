@@ -240,3 +240,86 @@ describe('column widths', () => {
     expect(w.video).toBe(1);
   });
 });
+
+describe('screenplay elements inside a cell', () => {
+  const el = (type: string, text: string) => ({ type, content: [{ type: 'text', text }] });
+
+  const MIXED = doc([row({
+    duration: '0:08',
+    video: [el('avShot', 'WIDE ON THE FACTORY FLOOR.'), el('action', 'A welder looks up.')],
+    audio: [el('character', 'MARIA'), el('parenthetical', '(to camera)'), el('dialogue', 'We build them by hand.')],
+  })]);
+
+  type YamlFile = { av: { rows: { video: { style: string; text: string }[]; audio: { style: string; text: string }[] }[] }[] };
+
+  it('names each element type in the file, rather than flattening to body', () => {
+    const y = yamlLoad(avDocumentToYaml(MIXED)!) as never as YamlFile;
+    expect(y.av[0].rows[0].video).toEqual([
+      { style: 'shot', text: 'WIDE ON THE FACTORY FLOOR.' },
+      { style: 'action', text: 'A welder looks up.' },
+    ]);
+    expect(y.av[0].rows[0].audio).toEqual([
+      { style: 'character', text: 'MARIA' },
+      { style: 'parenthetical', text: '(to camera)' },
+      { style: 'dialogue', text: 'We build them by hand.' },
+    ]);
+  });
+
+  it('round-trips every element type back to the node it came from', () => {
+    const result = importAvYaml(avDocumentToYaml(MIXED)!);
+    const cells = result.blocks[0].content![0].content as JSONContent[];
+    expect(cells[0].content!.map(p => p.type)).toEqual(['avShot', 'action']);
+    expect(cells[1].content!.map(p => p.type)).toEqual(['character', 'parenthetical', 'dialogue']);
+  });
+
+  it('keeps the two "shot"s apart', () => {
+    // `shot` has meant the video column's shot line since the format was
+    // written; the screenplay element of the same name is a camera instruction.
+    // Reading one as the other would silently restyle every AV file ever saved.
+    const both = doc([row({
+      video: [el('avShot', 'WIDE.'), el('shot', 'CRANE DOWN.')],
+      audio: [para('x')],
+    })]);
+    const y = yamlLoad(avDocumentToYaml(both)!) as never as YamlFile;
+    expect(y.av[0].rows[0].video.map(p => p.style)).toEqual(['shot', 'camera-shot']);
+
+    const result = importAvYaml(avDocumentToYaml(both)!);
+    const cells = result.blocks[0].content![0].content as JSONContent[];
+    expect(cells[0].content!.map(p => p.type)).toEqual(['avShot', 'shot']);
+  });
+
+  it('still reads a file written before these styles existed', () => {
+    const legacy = [
+      `format: ${AV_YAML_FORMAT}`,
+      `schemaVersion: ${AV_YAML_SCHEMA_VERSION}`,
+      'av:',
+      '  - rows:',
+      '      - video:',
+      '          - style: shot',
+      '            text: WIDE.',
+      '        audio:',
+      '          - style: body',
+      '            text: Narration.',
+    ].join('\n');
+    const result = importAvYaml(legacy);
+    const cells = result.blocks[0].content![0].content as JSONContent[];
+    expect(cells[0].content![0].type).toBe('avShot');
+    expect(cells[1].content![0].type).toBe('avPara');
+  });
+
+  it('falls back to body for a style it does not know', () => {
+    const odd = [
+      `format: ${AV_YAML_FORMAT}`,
+      `schemaVersion: ${AV_YAML_SCHEMA_VERSION}`,
+      'av:',
+      '  - rows:',
+      '      - video:',
+      '          - style: interpretive-dance',
+      '            text: Hmm.',
+      '        audio: []',
+    ].join('\n');
+    const result = importAvYaml(odd);
+    const cells = result.blocks[0].content![0].content as JSONContent[];
+    expect(cells[0].content![0].type).toBe('avPara');
+  });
+});

@@ -119,3 +119,31 @@ describe('blankLineTypeFor', () => {
     expect(blankLineTypeFor('customElement')).toBe('customElement');
   });
 });
+
+describe('blankLineTypeFor inside an AV cell', () => {
+  it('gives avPara for every AV paragraph type', () => {
+    for (const type of ['avPara', 'avShot', 'avDirection', 'avGraphic']) {
+      expect(blankLineTypeFor(type, true)).toBe('avPara');
+    }
+  });
+
+  it('gives avPara for a screenplay element too', () => {
+    // `action` is the neutral spacer in the body and the wrong one here: a
+    // blank Action under a line of Dialogue in the audio column is not what
+    // the writer meant, and a template need not even offer Action there.
+    for (const type of ['character', 'dialogue', 'parenthetical', 'sceneHeading', 'action']) {
+      expect(blankLineTypeFor(type, true)).toBe('avPara');
+    }
+  });
+
+  it('keeps General, whose indentation is its content', () => {
+    expect(blankLineTypeFor('general', true)).toBe('general');
+  });
+
+  it('is unchanged outside a cell', () => {
+    expect(blankLineTypeFor('character')).toBe('action');
+    expect(blankLineTypeFor('general')).toBe('general');
+    expect(blankLineTypeFor('titlePage')).toBe('titlePage');
+    expect(blankLineTypeFor('avShot')).toBe('avPara');
+  });
+});

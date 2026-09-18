@@ -8,7 +8,8 @@ import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
 import { requestHandwriting } from '../utils/handwriting';
 import { requestElementMenu } from '../utils/elementMenu';
-import { isInAvRow, avRowContext, readColumnConfig, avColumnDataCount, avBlockAtSelection, AV_DEFAULT_COLUMNS, AV_ASPECT_RATIOS, AV_BLANK_FRAME } from '../editor/extensions/AvBlock';
+import { isInAvRow, isInAvCell, avCellSideAt, avRowContext, readColumnConfig, avColumnDataCount, avBlockAtSelection, AV_DEFAULT_COLUMNS, AV_ASPECT_RATIOS, AV_BLANK_FRAME } from '../editor/extensions/AvBlock';
+import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 import { chooseAvFrameImage } from '../utils/avFrame';
 import { formatShortcut } from '../utils/shortcuts';
 import { showToast } from './Toast';
@@ -36,7 +37,7 @@ import ScriptFormatPreferencesDialog from './ScriptFormatPreferencesDialog';
 import ScriptFormatPickerDialog from './ScriptFormatPickerDialog';
 import { useFormattingTemplateStore, ensureTemplatesLoaded } from '../stores/formattingTemplateStore';
 import { applyScriptFormat } from '../utils/applyScriptFormat';
-import { isTitlePageRuleId } from '../stores/formattingTypes';
+import { isTitlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
 import { INDUSTRY_STANDARD_ID, ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { selectionStartsNewPage } from '../editor/extensions';
@@ -937,8 +938,40 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   const setElement = (type: string) => {
     if (!editor) return;
+    // "AV Columns" is not a paragraph type — it inserts a two-column body, and
+    // `setNode('avBlock')` would be asked to put `avRow+` content into a line
+    // of text. Every route to it goes through the same command.
+    if (type === AV_BLOCK_RULE_ID) {
+      editor.chain().focus().insertAvRow('below').run();
+      return;
+    }
     editor.chain().focus().setNode(type).run();
   };
+
+  /**
+   * The elements Format ▸ Element offers, for wherever the cursor is.
+   *
+   * Inside an AV cell that is the template's list for THAT column, resolved the
+   * same way the toolbar and the element menu resolve it. Outside one, the four
+   * AV paragraph types are dropped: they exist only inside a cell, and
+   * `setNode('avShot')` on a line of Action asks the schema for a node the
+   * document cannot hold there. They were listed here before `avCell` rules
+   * existed — the AV template marks them enabled, and this list only filtered
+   * out the title page.
+   */
+  const elementMenuRules = React.useMemo(() => {
+    const inCell = editorState ? isInAvCell(editorState) : false;
+    if (inCell) {
+      const side = avCellSideAt(editorState!) || 'video';
+      // The caret's own element, so it can always be converted back.
+      const current = editorState!.selection.$from.parent;
+      const currentId = current.type.name === 'customElement'
+        ? String(current.attrs?.customTypeId || 'customElement')
+        : current.type.name;
+      return avCellElementRules(activeTemplate, side, currentId);
+    }
+    return scriptBodyElementRules(activeTemplate, isTitlePageRuleId);
+  }, [editorState, activeTemplate]);
 
   /**
    * Cut, Copy and Paste run off ProseMirror's selection rather than the DOM's.
@@ -2146,7 +2179,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             // Title page fields have template rules but are not conversion
             // targets — "make this line of action a copyright notice" is not a
             // thing. They are reached through the Title Page editor.
-            ...Object.values(activeTemplate.rules).filter((r) => r.enabled && !isTitlePageRuleId(r.id)).map((r) => {
+            ...elementMenuRules.map((r) => {
               const shortcuts: Record<string, string> = {
                 sceneHeading: `${mod}1`, action: `${mod}2`, character: `${mod}3`, dialogue: `${mod}4`,
                 parenthetical: `${mod}5`, transition: `${mod}6`, general: `${mod}7`, shot: `${mod}8`,
@@ -2205,7 +2238,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
               shortcut: `${mod}\u21e7A`,
               title: inAvRow
                 ? 'Delete this AV table, and everything in it, back to a single line'
-                : 'Turn this line into a two-column AV table — Video on the left, Audio on the right',
+                : 'Start a two-column AV table beside this line — Video on the left, Audio on the right. '
+                  + 'A line with text is kept; a blank one makes way for the table, and a table already '
+                  + 'above or below gains a row instead.',
               disabled: !editor,
               action: () => editor?.chain().focus().toggleAvBlock().run(),
             },

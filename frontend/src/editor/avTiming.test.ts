@@ -5,6 +5,7 @@ import {
   computeRowTimings,
   totalRuntimeSeconds,
   formatTotalRuntime,
+  nextTimingOffset,
   MAX_TIMECODE_SECONDS,
 } from './avTiming';
 
@@ -141,5 +142,63 @@ describe('totalRuntimeSeconds', () => {
   it('survives junk input', () => {
     expect(totalRuntimeSeconds(null as never)).toBe(0);
     expect(() => totalRuntimeSeconds([null as never])).not.toThrow();
+  });
+});
+
+describe('numbering across several AV bodies', () => {
+  const rows = (...durations: (string | null)[]) => durations.map((d) => ({ duration: d }));
+
+  it('continues the shot numbers from where the body above left off', () => {
+    const first = computeRowTimings(rows('0:05', '0:10'));
+    const carry = nextTimingOffset(rows('0:05', '0:10'), first);
+    const second = computeRowTimings(rows('0:07'), 'auto', carry);
+
+    expect(first.map(t => t.shot)).toEqual(['1.', '2.']);
+    expect(second.map(t => t.shot)).toEqual(['3.']);
+  });
+
+  it('continues the running clock too', () => {
+    const r1 = rows('0:05', '0:10');
+    const first = computeRowTimings(r1);
+    const second = computeRowTimings(rows('0:07'), 'auto', nextTimingOffset(r1, first));
+
+    expect(first.map(t => t.start)).toEqual(['0:00', '0:05']);
+    // 5s + 10s of the body above.
+    expect(second[0].start).toBe('0:15');
+    expect(second[0].startSeconds).toBe(15);
+  });
+
+  it('numbers from 1 and starts at 0:00 with no offset — a body read alone', () => {
+    const only = computeRowTimings(rows('0:05'));
+    expect(only[0].shot).toBe('1.');
+    expect(only[0].start).toBe('0:00');
+  });
+
+  it('carries the offset through a body with no rows at all', () => {
+    const r1 = rows('0:05');
+    const carry = nextTimingOffset(r1, computeRowTimings(r1));
+    const empty = nextTimingOffset([], computeRowTimings([], 'auto', carry), carry);
+    expect(empty).toEqual(carry);
+  });
+
+  it('lets a manual start in a later body pin the clock, as it does in the first', () => {
+    const r1 = rows('0:05');
+    const carry = nextTimingOffset(r1, computeRowTimings(r1));
+    const r2 = [{ duration: '0:03', start: '1:00' }, { duration: '0:02' }];
+    const second = computeRowTimings(r2, 'auto', carry);
+    expect(second.map(t => t.start)).toEqual(['1:00', '1:03']);
+    // The numbering still continues — only the clock was pinned.
+    expect(second.map(t => t.shot)).toEqual(['2.', '3.']);
+  });
+
+  it('keeps a manual shot number whatever the offset is', () => {
+    const r = [{ duration: '0:05', shot: '12A' }];
+    expect(computeRowTimings(r, 'auto', { startIndex: 7 })[0].shot).toBe('12A');
+  });
+
+  it('clamps a nonsense offset rather than propagating it', () => {
+    const r = rows('0:05');
+    expect(computeRowTimings(r, 'auto', { startIndex: -3 })[0].shot).toBe('1.');
+    expect(computeRowTimings(r, 'auto', { startSeconds: -60 })[0].start).toBe('0:00');
   });
 });

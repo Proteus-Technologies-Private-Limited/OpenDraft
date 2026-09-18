@@ -110,6 +110,35 @@ export interface AvRowTiming {
   invalidDuration: boolean;
 }
 
+/** Where a body's numbering and clock pick up from. See `computeRowTimings`. */
+export interface AvTimingOffset {
+  /** How many rows came before this body — row 1 here is shot `startIndex + 1`. */
+  startIndex?: number;
+  /** Where the running clock stood when this body began, in seconds. */
+  startSeconds?: number;
+}
+
+/**
+ * Where a body's numbering and clock LEAVE off, for the body after it.
+ *
+ * Read off the computed rows rather than recomputed, so the continuation can
+ * never disagree with what was drawn: `startSeconds + durationSeconds` of the
+ * last row is exactly where the next body starts, manual overrides included.
+ */
+export function nextTimingOffset(
+  rows: readonly AvTimingInput[],
+  timings: readonly AvRowTiming[],
+  offset: AvTimingOffset = {},
+): Required<AvTimingOffset> {
+  const last = timings.length ? timings[timings.length - 1] : null;
+  return {
+    startIndex: Math.max(0, Math.floor(offset.startIndex ?? 0)) + rows.length,
+    startSeconds: last
+      ? Math.min(last.startSeconds + last.durationSeconds, MAX_TIMECODE_SECONDS)
+      : Math.max(0, Math.floor(offset.startSeconds ?? 0)),
+  };
+}
+
 /** A row as far as timing is concerned. Kept structural so both ProseMirror
  *  nodes and exporter rows can be mapped onto it without a shared class. */
 export interface AvTimingInput {
@@ -131,14 +160,23 @@ export interface AvTimingInput {
  * A manual `start` override resets the running clock from that row onward,
  * which is what makes it useful — it is how a writer pins a section to a known
  * timestamp without retyping every duration above it.
+ *
+ * `offset` carries the numbering in from the bodies ABOVE this one. A document
+ * may hold several AV bodies — an intro paragraph or a scene heading between
+ * two of them is ordinary — and they are sections of one piece, not separate
+ * pieces: Celtx numbers shots from 1 straight through a Multi-Column AV script,
+ * and a running time that went back to 0:00 at every heading would be telling
+ * the writer something untrue about their own edit.
  */
 export function computeRowTimings(
   rows: readonly AvTimingInput[],
   style: TimecodeStyle = 'auto',
+  offset: AvTimingOffset = {},
 ): AvRowTiming[] {
   if (!Array.isArray(rows)) return [];
   const out: AvRowTiming[] = [];
-  let clock = 0;
+  const firstShot = Math.max(0, Math.floor(offset.startIndex ?? 0));
+  let clock = Math.max(0, Math.floor(offset.startSeconds ?? 0));
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i] || {};
@@ -155,7 +193,7 @@ export function computeRowTimings(
     const manualShot = typeof row.shot === 'string' ? row.shot.trim() : '';
 
     out.push({
-      shot: manualShot || `${i + 1}.`,
+      shot: manualShot || `${firstShot + i + 1}.`,
       start: formatTimecode(clock, style),
       duration: parsedDuration === null ? '' : formatTimecode(parsedDuration, style),
       startSeconds: clock,

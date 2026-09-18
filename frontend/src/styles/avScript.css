@@ -342,6 +342,35 @@
 .av-cell .av-shot  { margin: 0; text-transform: uppercase; font-weight: bold; }
 .av-cell .av-direction { margin: 0; font-style: italic; }
 
+/* ── Screenplay elements inside a cell ──────────────────────────────
+ * A cell holds ordinary screenplay elements too when the active template
+ * allows it (see FormattingElementRule.avCell) — Character and Dialogue in the
+ * audio column, Action and Shot in the video one, which is how the two-column
+ * format is actually written.
+ *
+ * What they must NOT bring with them is their page geometry. Every screenplay
+ * indent is absolute from the page's left edge — Character sits at 3.7in — and
+ * a column is a couple of inches wide, so the indent alone would leave no room
+ * for the text. The typography is the point and survives; the position does
+ * not apply inside a table cell and is dropped.
+ *
+ * `!important` rather than specificity: the template's own CSS is injected
+ * into <head> at runtime, so it wins any tie on document order. templateCss.ts
+ * already omits indents for the four AV paragraph types, which it knows by id;
+ * this covers the screenplay elements, whose rules have to keep their indents
+ * for the ordinary body where the same element also appears. */
+.av-cell .screenplay-element {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* A scene heading heads the row, so it should not also be pushed down by the
+ * two blank lines it takes in the body. The first element in a cell never
+ * carries a top margin — the cell's own padding is the space. */
+.av-cell > :first-child { margin-top: 0 !important; }
+
 /* Print: don't break inside a row by default. (Pagination engine handles row-level breaks
  * when wired in; this is the fallback for raw print and PDF export.) */
 @media print {

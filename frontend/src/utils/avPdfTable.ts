@@ -22,6 +22,7 @@ import type { JSONContent } from '@tiptap/react';
 import { wordWrapRuns, type WrapRun } from './wrapText';
 import { jsonBlockRuns } from './nodeText';
 import type { AvExportBody, AvExportRow } from './avDocument';
+import { avParaStyle } from './avDocument';
 
 /** Vertical padding inside a cell, in points. */
 const CELL_PAD_PT = 3;
@@ -95,11 +96,14 @@ export function wrapCell(
   const lines: AvLine[] = [];
   for (const para of cellNode.content) {
     const runs = jsonBlockRuns(para) as WrapRun[];
-    // A shot line is uppercase in the editor; on-screen text renders as small
-    // caps, which a monospace PDF face cannot do, so it is uppercased too —
-    // otherwise a super reads as ordinary narration on the page.
-    const upper = para.type === 'avShot' || para.type === 'avGraphic';
-    const wrapped = wordWrapRuns(runs, maxChars, upper);
+    // Face flags come from the shared style map, so the PDF and the DOCX agree
+    // about every element a cell can hold — including the screenplay elements a
+    // template admits to a column. Bold and italic ride on the runs themselves.
+    const style = avParaStyle(para.type);
+    const styled = (style.bold || style.italic)
+      ? runs.map(r => ({ ...r, bold: r.bold || style.bold, italic: r.italic || style.italic }))
+      : runs;
+    const wrapped = wordWrapRuns(styled, maxChars, style.upper);
     if (wrapped.length === 0) lines.push([]);
     else lines.push(...wrapped);
   }

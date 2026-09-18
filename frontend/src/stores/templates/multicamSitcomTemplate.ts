@@ -11,7 +11,7 @@
  */
 
 import type { FormattingTemplate, StarterNode } from '../formattingTypes';
-import { rule, disabled, outlineRules } from './_helpers';
+import { rule, disabled, outlineRules, avBlockRule } from './_helpers';
 
 export const MULTICAM_SITCOM_ID = '__multicam_sitcom__';
 
@@ -131,6 +131,10 @@ export const MULTICAM_SITCOM_TEMPLATE: FormattingTemplate = {
       placeholder: 'SHOW TITLE',
     }),
     ...outlineRules(),
+    // A two-column AV body, off by default in this format but present in the
+    // Template Editor so a user template built on it can switch it on. See
+    // avBlockRule() in _helpers.ts.
+    ...avBlockRule(false),
     castList: rule('castList', 'Cast List', true, {
       textTransform: 'uppercase',
       leftIndent: 1.75,

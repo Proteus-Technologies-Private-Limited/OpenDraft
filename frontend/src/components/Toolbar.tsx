@@ -42,12 +42,9 @@ import FontPicker from './FontPicker';
 import ColorPicker from './ColorPicker';
 import LanguageSelector from './LanguageSelector';
 import { findFont, loadFontByName } from '../utils/fonts';
-import { isTitlePageRuleId } from '../stores/formattingTypes';
-import { AV_CELL_ELEMENT_IDS, isInAvCell, isInAvRow } from '../editor/extensions/AvBlock';
-import { avCellElementRules } from '../utils/avCellElements';
-
-/** Element ids valid inside an AV cell (per the avCell schema content rule). */
-const AV_CELL_IDS: readonly string[] = AV_CELL_ELEMENT_IDS;
+import { isTitlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
+import { isInAvCell, isInAvRow, avCellSideAt } from '../editor/extensions/AvBlock';
+import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -249,6 +246,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     //   1. Built-in screenplay element (sceneHeading, action, etc.) — direct setNode
     //   2. Real schema node not in BUILT_IN list (avPara, avShot, avDirection) — also direct setNode
     //   3. Template-declared custom id (sceneCharacters, soundEffect, etc.) — wrap as customElement
+    // "AV Columns" inserts a two-column body rather than restyling the line.
+    if (type === AV_BLOCK_RULE_ID) {
+      editor.chain().focus().insertAvRow('below').run();
+      return;
+    }
     if (BUILT_IN_ELEMENT_IDS.includes(type)) {
       editor.chain().focus().setNode(type).run();
       return;
@@ -294,6 +296,15 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       return isInAvCell(editorState);
     } catch { /* ignore */ }
     return false;
+  }, [editorState]);
+
+  /** Which column the caret is in — the element list differs between them. */
+  const avCellSide = React.useMemo<'video' | 'audio'>(() => {
+    if (!editorState) return 'video';
+    try {
+      return avCellSideAt(editorState) || 'video';
+    } catch { /* ignore */ }
+    return 'video';
   }, [editorState]);
 
   /**
@@ -1003,19 +1014,19 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             </option>
           )}
           {/*
-            Inside an AV cell the list comes from the SCHEMA, not from the
-            template's rules: `avCell` holds exactly these four types in every
-            document, and a template only decides how they look. Filtering the
-            template's rules instead left the dropdown empty — and the body
-            uneditable — for an AV body under a screenplay template (Insert AV
-            Columns puts one in any script) and for an AV document whose
-            template did not come back with it, such as a restored session.
-            Outside a cell, the template is the authority as before.
+            Inside an AV cell the list is resolved by utils/avCellElements.ts:
+            the four AV paragraph types always, plus whatever the template
+            admits to THIS column. The four are unconditional on purpose —
+            `avCell` holds them in every document whatever template is active,
+            and reading the list off the template alone left the dropdown empty
+            (and the body uneditable) for an AV body under a screenplay template
+            and for an AV document whose template did not come back with it,
+            such as a restored session. Outside a cell, the template is the
+            authority as before.
           */}
           {(isInsideAvCell
-            ? avCellElementRules(activeTemplate)
-            : Object.values(activeTemplate.rules)
-                .filter((r) => r.enabled && !isTitlePageRuleId(r.id) && !AV_CELL_IDS.includes(r.id))
+            ? avCellElementRules(activeTemplate, avCellSide, String(activeElement))
+            : scriptBodyElementRules(activeTemplate, isTitlePageRuleId)
           ).map((r) => (
             <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]}>
               {r.label}

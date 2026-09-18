@@ -7,7 +7,7 @@
  */
 
 import type { FormattingTemplate, StarterNode } from '../formattingTypes';
-import { rule, outlineRules } from './_helpers';
+import { rule, outlineRules, avBlockRule } from './_helpers';
 
 export const ONE_HOUR_DRAMA_ID = '__one_hour_drama__';
 
@@ -123,6 +123,10 @@ export const ONE_HOUR_DRAMA_TEMPLATE: FormattingTemplate = {
       placeholder: 'SHOW TITLE',
     }),
     ...outlineRules(),
+    // A two-column AV body, off by default in this format but present in the
+    // Template Editor so a user template built on it can switch it on. See
+    // avBlockRule() in _helpers.ts.
+    ...avBlockRule(false),
     castList: rule('castList', 'Cast List', true, {
       textTransform: 'uppercase',
       leftIndent: 1.75,

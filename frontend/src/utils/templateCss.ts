@@ -6,7 +6,7 @@
  */
 
 import type { FormattingTemplate, FormattingElementRule } from '../stores/formattingTypes';
-import { ELEMENT_CSS_CLASS, titlePageFieldOf, isTitlePageRuleId } from '../stores/formattingTypes';
+import { ELEMENT_CSS_CLASS, titlePageFieldOf, isTitlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
 import type { PageLayout } from '../stores/editorStore';
 import { fontStack } from './fonts';
 
@@ -38,9 +38,12 @@ export function generateTemplateCss(
   for (const [elementId, rule] of Object.entries(template.rules)) {
     if (!rule.enabled) continue;
     if (options.titlePageOnly && !isTitlePageRuleId(elementId)) continue;
+    // "AV Columns" is an insert action, not a paragraph type — there is no
+    // element on the page for its typography to land on.
+    if (elementId === AV_BLOCK_RULE_ID) continue;
 
     const selector = getSelector(elementId, rule);
-    const props = generateRuleProperties(rule, pageLayout);
+    const props = generateRuleProperties(rule, pageLayout, AV_CELL_CSS_CLASS[elementId] !== undefined);
     if (props.length > 0) {
       lines.push(`${selector} {`);
       for (const prop of props) {
@@ -79,11 +82,30 @@ export function generateTemplateCss(
   return lines.join('\n');
 }
 
+/**
+ * The four AV paragraph types and the class each renders with.
+ *
+ * They are not `screenplay-element`s and have no entry in `ELEMENT_CSS_CLASS`,
+ * so without this they fell through to the custom-element selector — which
+ * matches nothing, and left a template's AV typography with no effect at all.
+ * Restyling "Video Shot" in the Template Editor did nothing; the static rules
+ * in styles/avScript.css were the only thing drawing them.
+ */
+const AV_CELL_CSS_CLASS: Record<string, string> = {
+  avPara: 'av-para',
+  avShot: 'av-shot',
+  avDirection: 'av-direction',
+  avGraphic: 'av-graphic',
+};
+
 function getSelector(elementId: string, rule: FormattingElementRule): string {
   // Title page elements are one node type distinguished by a `field` attribute,
   // not a node type each, so they select on the class the node view renders.
   const titleField = titlePageFieldOf(elementId);
   if (titleField) return `.page .screenplay-element.title-page-${titleField}`;
+  // Two class levels deep, so this beats `.av-cell .av-shot` in avScript.css.
+  const avClass = AV_CELL_CSS_CLASS[elementId];
+  if (avClass) return `.page .av-cell .${avClass}`;
   if (rule.isBuiltIn) {
     const cssClass = ELEMENT_CSS_CLASS[elementId];
     if (cssClass) {
@@ -97,6 +119,8 @@ function getSelector(elementId: string, rule: FormattingElementRule): string {
 function getPlaceholderSelector(elementId: string, rule: FormattingElementRule): string {
   const titleField = titlePageFieldOf(elementId);
   if (titleField) return `div[data-type="title-page"][data-field="${titleField}"].is-empty::before`;
+  const avClass = AV_CELL_CSS_CLASS[elementId];
+  if (avClass) return `p[data-type="${avClass}"].is-empty::before`;
   if (rule.isBuiltIn) {
     const cssClass = ELEMENT_CSS_CLASS[elementId];
     // The data-type uses the CSS class name (hyphenated)
@@ -108,6 +132,10 @@ function getPlaceholderSelector(elementId: string, rule: FormattingElementRule):
 function generateRuleProperties(
   rule: FormattingElementRule,
   pageLayout: PageLayout,
+  /** True for an element that lives inside an AV cell. Its indents are dropped:
+   *  they are measured from the PAGE edge, and a 3.7in dialogue indent inside a
+   *  column a couple of inches wide leaves no room for the text at all. */
+  inAvCell = false,
 ): string[] {
   const props: string[] = [];
   const pl = pageLayout.leftMargin;
@@ -146,6 +174,8 @@ function generateRuleProperties(
   } else {
     props.push('margin-top: 0;');
   }
+
+  if (inAvCell) return props;
 
   // Indents — use calc() with CSS variables for responsive layout
   const leftPad = rule.leftIndent - pl;

@@ -37,9 +37,17 @@ see [OpenDraft AV YAML](#opendraft-av-yaml) below.
 avBlock   attrs: { columns: {cue, image, widths}, headers, repeatHeaders }
   avRow   attrs: { shot, start, duration }      content: avCell avCell avImage?
     avCell  attrs: { side: 'video' | 'audio' }
-      avPara | avShot | avDirection | avGraphic
+      avPara | avShot | avDirection | avGraphic          (the AV types)
+      | action | sceneHeading | character | dialogue     (screenplay elements)
+      | parenthetical | transition | shot | general
+      | lyrics | customElement
     avImage attrs: { src, alt, assetId, aspect }
 ```
+
+The cell's content expression is built from `AV_CELL_ELEMENT_IDS` so the list
+and the schema cannot drift. `avPara` leads it deliberately: a content
+expression's default type is the first that can stand alone, and that is what
+Enter at the end of a cell produces.
 
 **Backward compatibility is load-bearing.** Every AV document written before
 this is a row of exactly two cells with no attributes. `avImage?` is optional
@@ -59,6 +67,20 @@ So inserting a row mid-document renumbers and re-times everything below it with
 no migration. Both can be overridden per row (`shot: '22c'`, or a manual `start`
 that pins the clock from that row onward).
 
+**Numbering runs through the document, not through one body.** A script may hold
+several `avBlock`s — an intro paragraph, or a scene heading titling the section,
+between two of them is ordinary — and they are sections of one piece. Celtx
+numbers shots from 1 straight through a Multi-Column AV script, and a clock that
+went back to `0:00` at every heading would be telling the writer something
+untrue about their own edit. `computeRowTimings` takes an `AvTimingOffset` and
+`nextTimingOffset` reads the continuation off the rows it just computed, so a
+manual `start` override carries through correctly. `buildCueDecorations` threads
+it down the document and `extractAvBodies` threads it through the exporters, so
+the spreadsheet and the screen agree.
+
+Each body still reports its **own** `totalSeconds`: a section total is the number
+a producer reads off that section.
+
 `parseTimecode` accepts `5`, `0:05`, `1:30` and `1:02:03`, and returns `null`
 for anything else — a half-typed cell is not an error, so it is left alone
 rather than coerced to zero. `1:75` is rejected rather than read as `2:15`,
@@ -76,6 +98,63 @@ because that is a typo and carrying it would hide the mistake.
 `avGraphic` is the fourth style #118 asked for. A monospace PDF face cannot do
 small caps, so supers are uppercased there instead; DOCX uses real `smallCaps`.
 
+### Screenplay elements in a cell
+
+A cell also holds ordinary screenplay elements. **The schema permits; the
+template decides.**
+
+`FormattingElementRule.avCell` is `'none' | 'video' | 'audio' | 'both'`, edited
+per element in the Template Editor as *In AV columns*. It says which column
+offers that element — not whether the document may contain it, which the schema
+settles either way.
+
+It has to be this way round for two reasons. A template can be switched on a
+document that already exists: if the schema admitted only what the template of
+the day allowed, changing template would make a document unparseable rather than
+merely restyled. And the industry formats do mix them — Final Draft AV carried
+separate styles for video description, character and dialogue inside the
+columns, and WriterDuet's A/V template puts Action and Shot in the visual column
+and Character, Dialogue and Parenthetical in the audio one. An on-camera
+interview in a corporate or documentary script is ordinary dialogue, and there
+was no way to write it.
+
+The AV Script template follows that split:
+
+| Column | Elements |
+|---|---|
+| Video | Action, Shot |
+| Audio | Character, Dialogue, Parenthetical, Lyrics |
+| Both | General |
+
+Film Screenplay leaves every rule at `'none'`, so an AV body inside a screenplay
+offers exactly the four AV types, as it did before the field existed.
+
+Not every element can be placed. `AV_SCREENPLAY_CELL_ELEMENT_IDS` is the set the
+cell will hold; act breaks, cast lists and the title page are document-level
+furniture and are not offered a control. `customElement` is in the list, so a
+template's own elements can be placed too — one node type carrying a
+`customTypeId` covers all of them.
+
+**Geometry does not come with them.** Every screenplay indent is absolute from
+the page's left edge (Character sits at 3.7in) and a column is a couple of
+inches wide, so the indent alone would leave no room for the text.
+`generateRuleProperties` omits indents for the four AV types, and
+`styles/avScript.css` strips them from `.av-cell .screenplay-element` with
+`!important` — the template's CSS is injected at runtime and wins any tie on
+document order. Typography survives; position does not apply inside a cell.
+
+That same pass fixed a gap: the AV types have no `ELEMENT_CSS_CLASS` entry, so
+`getSelector` fell through to the custom-element selector, which matches
+nothing. Restyling *Video Shot* in the Template Editor had never done anything —
+the static rules in `avScript.css` were the only thing drawing it.
+
+Enter inside a cell honours the template's `nextOnEnter`, but only where the
+cell would take the answer and the template offers it in **this** column, so
+Character flows to Dialogue in the audio column and anything that does not
+survive both tests falls back to `avPara`. A rule's `nextOnEnter` must name a
+type that is valid *outside* a cell too — the same field drives Enter in the
+ordinary body, where `avPara` is not a legal node.
+
 ## Export
 
 | Format | Module | Notes |
@@ -88,7 +167,29 @@ small caps, so supers are uppercased there instead; DOCX uses real `smallCaps`.
 | DOCX | `avDocxTable.ts` | A real Word table with `tableHeader` (repeating headers) and `cantSplit` (rows kept whole). Word owns the pagination. |
 
 `avDocument.ts` extracts one shared grid that every writer consumes, so a
-spreadsheet and a PDF cannot disagree about what row 7 says.
+spreadsheet and a PDF cannot disagree about what row 7 says. `AV_CELL_PARA_STYLE`
+there is the matching single source for how a cell paragraph is *set* — upper,
+bold, italic, small caps — covering the four AV types and every screenplay
+element a cell can hold, so Word and the PDF cannot disagree either. It is
+deliberately not read from the active template: an export has to be reproducible
+from the document, and these are the conventions of the format rather than a
+preference. Word has real small caps, so a super keeps them there; the monospace
+PDF face does not, so it is uppercased instead.
+
+The two lossy bridges carry element identity as far as they can:
+
+- **Fountain** is a single column and cannot say "these two are side by side",
+  so rows are flattened in order under a `[[Video]]` / `[[Audio]]` note. Within
+  that, an element with a Fountain form gets it — a cue is a cue and dialogue is
+  dialogue. The AV types, Action, Shot and a scene heading stay *forced* Action:
+  an unforced all-caps line after a blank one is a character cue and would
+  silently pull the next paragraph into dialogue, and a scene heading inside one
+  cell of one row is not a scene in the script's outline.
+- **FDX** emits each cell paragraph with its real Final Draft type, so a
+  Character shows up as a Character rather than one more line of General. The
+  four AV types have no FDX equivalent and stay General, which is the
+  degradation this export has always made. `data-av-side`, `data-av-row-id` and
+  `data-av-style` ride along for an FDX-aware reader.
 
 ### Row-level pagination
 
@@ -228,14 +329,20 @@ the cue gutter is.
 
 ### The element list inside a cell
 
-`avCell`'s content is `(avPara | avShot | avDirection | avGraphic)+` in the
-schema of **every** document. A template decides how those four look, not
-whether they exist — so the toolbar's element list inside a cell is built from
-the schema (`avCellElementRules`) and borrows the active template's labels where
-it has them, rather than being filtered out of the template's rules.
+`avCellElementRules(template, side, currentId)` resolves it, and the order is:
 
-Filtering the rules is what it used to do, and that left an empty dropdown — and
-a body with no way to set an element — in two reachable states:
+1. **The four AV types, always** — whatever the template says, including a type
+   it explicitly disables. They are what an AV body is made of, and a list that
+   omitted one would leave a paragraph the writer could neither convert nor
+   convert back. Labels are borrowed from the template where it has them, so a
+   writer who renamed *Video Shot* still sees their own wording.
+2. **Whatever the template admits to this column**, in the template's own order.
+3. **Whatever the caret is already on**, however it got there — a template
+   switch, an import, a document written under different rules.
+
+Step 1 is load-bearing. Building the list by filtering the template's rules is
+what it used to do, and that left an empty dropdown — and a body with no way to
+set an element — in two reachable states:
 
 - an AV body inside a screenplay, which **Insert AV Columns** now allows in any
   script, where Industry Standard has no `avPara` rule to find;
@@ -261,6 +368,65 @@ shortcut-only route is no route at all.
 to make one — and since every other AV item is gated on the cursor being inside
 an AV cell, the whole group sat permanently greyed out with nothing that could
 ungrey it. It is now the first item in the group, and never disabled.
+
+### Starting a body from the element menu
+
+`avBlock` also carries a `FormattingElementRule`, so a template decides whether
+the **element menu** offers *AV Columns (Two Column)* beside every other
+element. That is where a writer goes to ask "what is this line?", and going to
+the Format menu was the only route before. It is on in Film Screenplay and AV
+Script, off in the other system formats, and `withMissingRules` backfills it —
+switched **off** — into templates saved before it existed, because a writer's
+own format is theirs to decide.
+
+It is not a paragraph type. Picking it runs `insertAvRow`, and its typography
+fields are never read: an AV body is a table, and the formatting lives on the
+elements in its cells. `templateCss` skips it, the Template Editor shows a note
+in place of the formatting pane, and it is kept out of the `nextOnEnter` /
+`nextOnTab` menus.
+
+Four routes reach it, all landing on the same command:
+
+| Route | Where |
+|---|---|
+| Element menu | Enter on a blank line, or the element-menu shortcut (⌥↩ by default) |
+| Toolbar | the element dropdown |
+| Menu | **Format ▸ Element ▸ AV Columns (Two Column)** |
+| Menu | **Format ▸ AV Script ▸ Insert AV Columns**, or ⌘⇧A |
+
+`scriptBodyElementRules` builds the list for the first three. It drops the four
+AV paragraph types, which exist only inside a cell — `setNode('avShot')` on a
+line of Action asks the schema for a node the document cannot hold there. The
+AV template marks them enabled, because that is how their formatting is edited,
+so a list filtering on `enabled` alone offered them everywhere: the toolbar had
+its own filter and **Format ▸ Element** did not. One shared function now, so the
+two cannot drift again.
+
+### Where a new body lands
+
+`wrapNewAvBlock` used to be `tr.replaceSelectionWith(block)`, which put the body
+at the **cursor** — so starting one from the middle of `INT. KITCHEN - DAY` split
+the heading and left a stray `INT. ` scene heading above the table, which then
+turned up in the navigator and in the scene numbering. A scene heading above an
+AV body is exactly right, and is how the format is headed; it just has to
+survive whole.
+
+The rule now, resolved at the shallowest ancestor whose parent will take an
+`avBlock`:
+
+| The caret's line | What happens |
+|---|---|
+| has text | body goes **after** it, line untouched |
+| is blank | body takes its place |
+| is blank, body directly above | that body gains a row |
+| is blank, body directly below | that body gains a row, at the top |
+| is blank, body above **and** below | the two merge, the new row is the seam |
+| a line of text between two bodies | stays its own line |
+
+The adjacency cases are not tidiness. Two `avBlock`s with nothing between them
+draw as one continuous table and are not one: they carry separate column widths,
+repeat the header row, and would restart the numbering. A merge keeps the first
+body's column settings — it is the one already on screen above the caret.
 
 The four entries live under one **AV Script** parent rather than three siblings
 in Format: the menu ran off the bottom of the window otherwise. That needed the
@@ -319,6 +485,11 @@ av:
             text: WIDE ON A BUSY CITY STREET
           - style: onscreen
             text: 'SUPER: Summer 2026'
+        audio:
+          - style: character
+            text: MARIA
+          - style: dialogue
+            text: We build them by hand.
         storyboard:
           description: City wide
           aspect: '16:9'
@@ -336,6 +507,14 @@ Design decisions worth knowing:
   human reading the file and ignored on import.
 - **Widths travel with their column**, so a hand-edited file cannot get a
   separate width map out of step with the columns.
+- **Style names are stable and readable.** `body`, `shot`, `direction` and
+  `onscreen` are the four AV types and may never be renamed: files written
+  before the rest existed use them, and reusing one would silently restyle every
+  AV file ever saved. That is why the screenplay element `shot` — a camera
+  instruction — writes as `camera-shot`: `shot` has meant the video column's
+  shot line since the format was written. An unknown style reads back as `body`,
+  which is right for a hand-written file. `customElement` has no style name: its
+  identity is an attribute, and it writes and reads as `body`.
 - **Every file identifies itself and carries a schema version.** A file from a
   newer OpenDraft is refused by name (`version 99 … reads up to 1`) rather than
   read as a structure we do not understand.

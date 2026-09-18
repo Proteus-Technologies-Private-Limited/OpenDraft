@@ -3,7 +3,7 @@
  */
 
 import type { FormattingElementRule } from '../formattingTypes';
-import { TITLE_PAGE_ELEMENTS, titlePageRuleId } from '../formattingTypes';
+import { TITLE_PAGE_ELEMENTS, titlePageRuleId, AV_BLOCK_RULE_ID } from '../formattingTypes';
 
 /** Build a rule from defaults + overrides — same shape as industryStandardTemplate.ts. */
 export function rule(
@@ -34,7 +34,34 @@ export function rule(
     nextOnTab: null,
     placeholder: '',
     allowFormatOverride: true,
+    avCell: 'none',
     ...overrides,
+  };
+}
+
+/**
+ * The "insert a two-column AV body" entry for a template's element list.
+ *
+ * Not a paragraph type: picking it in the element menu inserts an `avBlock`,
+ * and its typography fields are never read — an AV body is a table, and the
+ * formatting lives on the elements inside its cells. It carries a rule purely
+ * so a template decides whether the menu offers it, which is the same
+ * enable checkbox every other element already has.
+ *
+ * Every script type gets one, because every script type can legitimately want
+ * a two-column section: a documentary feature, a music video inside a drama, a
+ * commercial break in a corporate piece. `enabled` is what varies.
+ */
+export function avBlockRule(enabled = true): Record<string, FormattingElementRule> {
+  return {
+    [AV_BLOCK_RULE_ID]: {
+      // `nextOnEnter` is never read for this rule — nothing "becomes" an AV
+      // body — but `rule()` defaults it to the element's own id, and a rule
+      // pointing at itself reads as a flow that loops. `action` is inert and
+      // every format has one.
+      ...rule(AV_BLOCK_RULE_ID, 'AV Columns (Two Column)', true, { nextOnEnter: 'action' }),
+      enabled,
+    },
   };
 }
 

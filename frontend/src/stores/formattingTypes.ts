@@ -6,6 +6,35 @@ import type { PageLayout } from './editorStore';
 
 
 
+/**
+ * Where an element may be used inside an AV two-column body.
+ *
+ * The schema accepts every screenplay element in either cell — see
+ * `AV_CELL_ELEMENT_IDS` in editor/extensions/AvBlock.ts — so this is a
+ * *template* decision, not a structural one: it says which elements the
+ * writer is OFFERED in a cell, and on which side.
+ *
+ * Splitting by side is how the two-column format is actually written, and how
+ * WriterDuet's A/V template works: shots and staging go in the visual column,
+ * the people talking go in the audio column. A template that wants neither
+ * distinction uses 'both'.
+ *
+ * 'none' is the default, and is what every element in a plain screenplay
+ * template has: an AV body inserted into a screenplay falls back to the four
+ * built-in AV paragraph types, exactly as before this field existed.
+ */
+export type AvCellPlacement = 'none' | 'video' | 'audio' | 'both';
+
+/**
+ * The pseudo-element id for "a two-column AV body".
+ *
+ * It carries a rule like any other element so a template — and the Template
+ * Editor's enable checkbox — decides whether the element menu offers it. It is
+ * NOT a paragraph type: picking it inserts an `avBlock`, and its typography
+ * fields are ignored (an AV body is a table; its cells carry the formatting).
+ */
+export const AV_BLOCK_RULE_ID = 'avBlock';
+
 /** Formatting rules for a single element type within a template. */
 export interface FormattingElementRule {
   /** For built-in: same as ElementType key; for custom: UUID */
@@ -47,6 +76,10 @@ export interface FormattingElementRule {
   /** When true (default), users can override non-template formatting in enforce mode.
    *  When false, ALL formatting is locked for this element type in enforce mode. */
   allowFormatOverride: boolean;
+
+  // ── AV two-column body ──
+  /** Which AV cell (if any) offers this element. Absent is read as 'none'. */
+  avCell?: AvCellPlacement;
 }
 
 /** Template category: system templates are read-only, user templates are editable. */
@@ -123,6 +156,9 @@ export const ELEMENT_DESCRIPTIONS: Record<string, string> = {
     'An outline heading, from Fountain\u2019s # Section. Structure only: it shows in the '
     + 'navigator but never on the printed page. Use New Act for an act break a reader should see.',
   note: 'An aside to yourself, kept in the file and left off the printed page.',
+  [AV_BLOCK_RULE_ID]:
+    'A two-column Audio/Video body — Video on the left, Audio on the right, one row per shot. '
+    + 'Used for commercials, corporate video and documentary.',
 };
 
 /** The 13 built-in element type ids (matches ElementType union). */
@@ -197,6 +233,7 @@ export function createDefaultRule(
     nextOnTab: null,
     placeholder: '',
     allowFormatOverride: true,
+    avCell: 'none',
   };
 }
 

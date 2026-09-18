@@ -13,7 +13,23 @@ import {
   FaPlus, FaTrash,
 } from 'react-icons/fa';
 import type { FormattingTemplate, FormattingElementRule } from '../stores/formattingTypes';
-import { createDefaultRule } from '../stores/formattingTypes';
+import { createDefaultRule, AV_BLOCK_RULE_ID, type AvCellPlacement } from '../stores/formattingTypes';
+import { avPlacementOf } from '../utils/avCellElements';
+import { AV_BASE_CELL_ELEMENT_IDS, AV_SCREENPLAY_CELL_ELEMENT_IDS } from '../editor/extensions/AvBlock';
+
+/** The four AV paragraph types: always offered in both columns, so the control
+ *  shows what they are rather than pretending it is a choice. */
+const AV_BASE_IDS = new Set<string>(AV_BASE_CELL_ELEMENT_IDS);
+
+/** Elements that CAN be placed in an AV column. A template's own custom
+ *  elements ride in on `customElement`, so they qualify too; the document-level
+ *  furniture an `avCell` will not hold (act breaks, cast lists, the title page)
+ *  does not, and gets no control. */
+function avPlaceable(rule: { id: string; isBuiltIn: boolean }): boolean {
+  if (AV_BASE_IDS.has(rule.id)) return true;
+  if (!rule.isBuiltIn) return true;
+  return (AV_SCREENPLAY_CELL_ELEMENT_IDS as readonly string[]).includes(rule.id);
+}
 import FontPicker from './FontPicker';
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
@@ -101,7 +117,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   // Build element options for dropdowns (for nextOnEnter/nextOnTab)
   const elementOptions = Object.values(rules)
-    .filter((r) => r.enabled)
+    .filter((r) => r.enabled && r.id !== AV_BLOCK_RULE_ID)
     .map((r) => ({ id: r.id, label: r.label }));
 
   return (
@@ -207,7 +223,28 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
           {/* Right: element detail */}
           <div className="template-editor-detail">
-            {selectedRule ? (
+            {selectedRule && selectedRule.id === AV_BLOCK_RULE_ID ? (
+              /* An AV body is a table, not a paragraph: the formatting lives on
+                 the elements inside its cells, which are edited on their own
+                 rows in this list. The only decision here is the tick box
+                 beside it — whether the element menu offers it at all. */
+              <div className="template-editor-empty">
+                <p><strong>{selectedRule.label}</strong></p>
+                <p>
+                  Inserts a two-column Audio/Video body &mdash; Video on the left,
+                  Audio on the right, one row per shot.
+                </p>
+                <p>
+                  It has no formatting of its own. Style the elements that go in
+                  its columns instead, and use <em>In AV columns</em> on each of
+                  them to say which column offers it.
+                </p>
+                <p>
+                  Untick it in the list to keep it out of the element menu; the
+                  Format menu&rsquo;s own AV commands are unaffected.
+                </p>
+              </div>
+            ) : selectedRule ? (
               <>
                 {/* Label */}
                 <div className="template-editor-field">
@@ -433,6 +470,30 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     </select>
                   </div>
                 </div>
+
+                {/* AV placement — which column of a two-column AV body offers
+                    this element. The schema accepts every one of them in either
+                    cell; this is what the writer is OFFERED, and it is the whole
+                    of the "what may an AV script contain" decision. */}
+                {avPlaceable(selectedRule) && (
+                  <div className="template-editor-field">
+                    <label>In AV columns</label>
+                    <select
+                      className="dialog-input"
+                      value={avPlacementOf(selectedRule)}
+                      disabled={AV_BASE_IDS.has(selectedRule.id)}
+                      title={AV_BASE_IDS.has(selectedRule.id)
+                        ? 'The four AV paragraph types are offered in both columns in every document — only their formatting is a template choice.'
+                        : 'Which column of a two-column AV body offers this element.'}
+                      onChange={(e) => updateRule(selectedId!, { avCell: e.target.value as AvCellPlacement })}
+                    >
+                      <option value="none">Not offered</option>
+                      <option value="video">Video column</option>
+                      <option value="audio">Audio column</option>
+                      <option value="both">Both columns</option>
+                    </select>
+                  </div>
+                )}
 
                 {/* Placeholder */}
                 <div className="template-editor-field">

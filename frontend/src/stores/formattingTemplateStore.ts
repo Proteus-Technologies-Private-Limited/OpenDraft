@@ -9,7 +9,7 @@ import { create } from 'zustand';
 import type { FormattingTemplate } from './formattingTypes';
 import { INDUSTRY_STANDARD_ID } from './formattingTypes';
 import { INDUSTRY_STANDARD_TEMPLATE } from './industryStandardTemplate';
-import { titlePageRules } from './templates/_helpers';
+import { titlePageRules, avBlockRule } from './templates/_helpers';
 import { MULTICAM_SITCOM_TEMPLATE, MULTICAM_SITCOM_ID } from './templates/multicamSitcomTemplate';
 import { ONE_HOUR_DRAMA_TEMPLATE, ONE_HOUR_DRAMA_ID } from './templates/oneHourDramaTemplate';
 import { STAGE_PLAY_TEMPLATE, STAGE_PLAY_ID } from './templates/stagePlayTemplate';
@@ -80,20 +80,26 @@ function now(): string {
 }
 
 /**
- * Give a stored template the title-page rules it predates.
+ * Give a stored template the rules it predates.
  *
- * Templates are persisted as whole objects, so every one saved before the title
- * page had rules of its own comes back without them — and a missing rule means
- * the template editor cannot show the field and the stylesheet emits nothing
- * for it. Filling the gaps on read costs one object spread and needs no
- * migration pass over storage, which matters because templates live in three
- * places (local SQLite, the backend, and the cloud copy).
+ * Templates are persisted as whole objects, so every one saved before an
+ * element existed comes back without it — and a missing rule means the template
+ * editor cannot show the field and the stylesheet emits nothing for it. Filling
+ * the gaps on read costs one object spread and needs no migration pass over
+ * storage, which matters because templates live in three places (local SQLite,
+ * the backend, and the cloud copy).
+ *
+ * Two sets of rules have arrived this way: the title page's own elements, and
+ * `avBlock` — the element-menu entry for a two-column AV body. The AV one comes
+ * in switched OFF for a template that has never heard of it, because a writer's
+ * own format is theirs to decide: the tick box in the Template Editor is how
+ * they turn it on, not a default chosen for them.
  *
  * Only absent ids are added: a rule the writer has already customised is left
  * exactly as they set it.
  */
-function withTitlePageRules(template: FormattingTemplate): FormattingTemplate {
-  const defaults = titlePageRules();
+function withMissingRules(template: FormattingTemplate): FormattingTemplate {
+  const defaults = { ...titlePageRules(), ...avBlockRule(false) };
   const missing = Object.keys(defaults).filter((id) => !template.rules?.[id]);
   if (missing.length === 0) return template;
   const rules = { ...template.rules };
@@ -138,7 +144,7 @@ function resolveTemplate(
   const sys = SYSTEM_TEMPLATES[id];
   if (sys) return sys;
   const found = templates.find((t) => t.id === id);
-  return found ? withTitlePageRules(found) : null;
+  return found ? withMissingRules(found) : null;
 }
 
 /**
@@ -196,7 +202,7 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
   loadTemplates: async () => {
     try {
       const templates = await (api as any).listFormattingTemplates();
-      set({ templates: (templates as FormattingTemplate[]).map(withTitlePageRules), loaded: true });
+      set({ templates: (templates as FormattingTemplate[]).map(withMissingRules), loaded: true });
     } catch {
       // Storage not available yet or no templates
       set({ loaded: true });

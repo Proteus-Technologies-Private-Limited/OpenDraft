@@ -192,6 +192,45 @@ function sceneHeadingLine(node: JSONContent): string {
  * General exists precisely to hold text that does not follow screenplay shape —
  * guessing which of its lines are safe is the behaviour the element opts out of.
  */
+/**
+ * One paragraph of an AV cell, as Fountain lines.
+ *
+ * The four AV paragraph types have no Fountain equivalent and are forced
+ * Action, which is the downgrade this export has always made — forcing matters,
+ * because an unforced all-caps line preceded by a blank one is a character cue
+ * and would silently pull the next paragraph into dialogue.
+ *
+ * The screenplay elements a cell can also hold DO have a Fountain form, and get
+ * it. Fountain is a single column and cannot say "these two are side by side",
+ * so the column note above is what marks them; within that, a cue is a cue and
+ * dialogue is dialogue.
+ */
+function avCellFountainLines(para: JSONContent): string[] {
+  const text = getTextContent(para);
+  switch (para.type) {
+    case 'character':
+      return ['', characterLine(para)];
+    case 'parenthetical': {
+      const p = lineText(para);
+      return [p.startsWith('(') ? p : `(${p})`];
+    }
+    case 'dialogue':
+      return [dialogueText(para)];
+    case 'lyrics':
+      return [`~${text}`];
+    case 'transition':
+      return ['', `> ${lineText(para)}`, ''];
+    case 'general':
+      return [generalText(text)];
+    default:
+      // avPara, avShot, avDirection, avGraphic, action, sceneHeading, shot —
+      // all forced Action. A scene heading inside one cell of one row is not a
+      // scene in the script's own outline, and writing it as one would put a
+      // phantom scene in every reader's navigator.
+      return text.trim() === '' ? [] : [actionText(text)];
+  }
+}
+
 function generalText(text: string): string {
   return text
     .split('\n')
@@ -421,6 +460,12 @@ export function exportFountain(doc: JSONContent): string {
       // Which column a paragraph came from is kept as a note: `[[Video]]` is
       // not printed, so it labels the file for a human reading it without
       // putting a word into the script itself.
+      //
+      // A cell holds ordinary screenplay elements too when the active template
+      // allows it, and those keep their own Fountain form — see
+      // `avCellFountainLines`. Forcing a Character cue to Action, as every cell
+      // paragraph used to be, turned an on-camera interview into two lines of
+      // description and lost the only thing marking it as speech.
       case 'avBlock':
         for (const row of node.content ?? []) {
           if (row.type !== 'avRow') continue;
@@ -429,10 +474,8 @@ export function exportFountain(doc: JSONContent): string {
             const side = (cell.attrs as { side?: string } | undefined)?.side === 'audio'
               ? 'Audio'
               : 'Video';
-            const paras = (cell.content ?? [])
-              .map((para) => generalText(getTextContent(para)))
-              .filter((para) => para.trim() !== '');
-            if (paras.length === 0) continue;
+            const paras = (cell.content ?? []).flatMap(avCellFountainLines);
+            if (paras.every((para) => para.trim() === '')) continue;
             lines.push('');
             lines.push(`[[${side}]]`);
             lines.push(...paras);

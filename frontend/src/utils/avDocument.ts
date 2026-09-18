@@ -18,7 +18,10 @@
  */
 import type { JSONContent } from '@tiptap/react';
 import { jsonBlockText } from './nodeText';
-import { computeRowTimings, totalRuntimeSeconds, formatTimecode } from '../editor/avTiming';
+import {
+  computeRowTimings, totalRuntimeSeconds, formatTimecode, nextTimingOffset,
+  type AvTimingOffset,
+} from '../editor/avTiming';
 
 /** Which columns an AV body shows, mirrored from the schema's stored attrs. */
 export interface AvExportColumns {
@@ -82,6 +85,52 @@ export interface AvExportBody {
   totalSeconds: number;
   /** Total runtime formatted, for a footer or a summary cell. */
   totalFormatted: string;
+  /** Where the shot numbering and clock stand AFTER this body — what the next
+   *  body in the same document continues from. */
+  nextOffset: Required<AvTimingOffset>;
+}
+
+/**
+ * How a paragraph inside an AV cell is set, by element id.
+ *
+ * One map, shared by the PDF and the DOCX table writers, so the two cannot
+ * disagree about what a line looks like on the page. The four AV types are
+ * here because they always were; the screenplay elements are here because a
+ * cell now holds them when the template allows it, and a Character line that
+ * exported as ordinary narration would lose the only thing that marked it.
+ *
+ * Deliberately NOT read from the active template: an export has to be
+ * reproducible from the document, and the template of the day is not part of
+ * it. These are the conventions of the format, not a preference.
+ */
+export const AV_CELL_PARA_STYLE: Record<string, {
+  upper?: boolean; bold?: boolean; italic?: boolean; smallCaps?: boolean;
+}> = {
+  avShot: { upper: true, bold: true },
+  avDirection: { italic: true },
+  // A super reads as small caps on screen; uppercased in the PDF, whose
+  // monospace face has no small-caps variant, or it reads as narration.
+  avGraphic: { upper: true, smallCaps: true },
+  sceneHeading: { upper: true, bold: true },
+  character: { upper: true, bold: true },
+  transition: { upper: true },
+  shot: { upper: true },
+  parenthetical: { italic: true },
+  lyrics: { italic: true },
+};
+
+/** The style for one cell paragraph — never undefined, so callers can read
+ *  the flags straight off it. */
+export function avParaStyle(type: string | undefined): {
+  upper: boolean; bold: boolean; italic: boolean; smallCaps: boolean;
+} {
+  const s = (type && AV_CELL_PARA_STYLE[type]) || {};
+  return {
+    upper: s.upper === true,
+    bold: s.bold === true,
+    italic: s.italic === true,
+    smallCaps: s.smallCaps === true,
+  };
 }
 
 /** Text of one AV cell: its paragraphs joined by newlines, hard breaks intact. */
@@ -143,8 +192,16 @@ function readFrameAttrs(node: JSONContent): NonNullable<AvExportRow['image']> {
   };
 }
 
-/** Turn one `avBlock` JSON node into an export-ready body. */
-export function readAvBlock(block: JSONContent): AvExportBody {
+/**
+ * Turn one `avBlock` JSON node into an export-ready body.
+ *
+ * `offset` is where the shot numbering and the running clock stood when this
+ * body began — see `computeRowTimings`. Omitted, a body numbers from 1 and
+ * starts at 0:00, which is what a caller reading a single body in isolation
+ * wants; `extractAvBodies` threads the real offsets through so a spreadsheet
+ * and the on-screen document agree.
+ */
+export function readAvBlock(block: JSONContent, offset: AvTimingOffset = {}): AvExportBody {
   const columns = readColumns(block?.attrs);
   const headers = readHeaders(block?.attrs);
   const rowNodes = Array.isArray(block?.content)
@@ -153,13 +210,12 @@ export function readAvBlock(block: JSONContent): AvExportBody {
 
   // Resolve the cue column exactly as the editor does, so a spreadsheet and the
   // on-screen document agree on shot numbers and start times.
-  const timings = computeRowTimings(
-    rowNodes.map(r => ({
-      duration: (r.attrs as { duration?: string | null } | undefined)?.duration ?? null,
-      shot: (r.attrs as { shot?: string | null } | undefined)?.shot ?? null,
-      start: (r.attrs as { start?: string | null } | undefined)?.start ?? null,
-    })),
-  );
+  const timingRows = rowNodes.map(r => ({
+    duration: (r.attrs as { duration?: string | null } | undefined)?.duration ?? null,
+    shot: (r.attrs as { shot?: string | null } | undefined)?.shot ?? null,
+    start: (r.attrs as { start?: string | null } | undefined)?.start ?? null,
+  }));
+  const timings = computeRowTimings(timingRows, 'auto', offset);
 
   const rows: AvExportRow[] = rowNodes.map((row, i) => {
     const cells = Array.isArray(row.content) ? row.content : [];
@@ -169,7 +225,7 @@ export function readAvBlock(block: JSONContent): AvExportBody {
     const t = timings[i];
 
     return {
-      shot: t?.shot ?? `${i + 1}.`,
+      shot: t?.shot ?? `${(offset.startIndex ?? 0) + i + 1}.`,
       start: t?.start ?? '',
       duration: t?.duration ?? '',
       durationSeconds: t?.durationSeconds ?? 0,
@@ -189,24 +245,30 @@ export function readAvBlock(block: JSONContent): AvExportBody {
     rows,
     totalSeconds,
     totalFormatted: formatTimecode(totalSeconds),
+    nextOffset: nextTimingOffset(timingRows, timings, offset),
   };
 }
 
 /**
  * Every AV body in a document, in order.
  *
- * A document can hold more than one `avBlock` (an intro paragraph between two
- * AV sections is legal), so exporters get a list rather than one body.
+ * A document can hold more than one `avBlock` (an intro paragraph or a scene
+ * heading between two AV sections is legal), so exporters get a list rather
+ * than one body. Shot numbers and start times run CONTINUOUSLY across them —
+ * `carry` is what makes the second body start at shot 4 rather than shot 1.
  */
 export function extractAvBodies(doc: JSONContent | null | undefined): AvExportBody[] {
   const out: AvExportBody[] = [];
   if (!doc) return out;
 
+  let carry: AvTimingOffset = {};
   const walk = (node: JSONContent | null | undefined) => {
     if (!node || typeof node !== 'object') return;
     if (node.type === 'avBlock') {
       try {
-        out.push(readAvBlock(node));
+        const body = readAvBlock(node, carry);
+        carry = body.nextOffset;
+        out.push(body);
       } catch (err) {
         // One malformed body must not take the whole export down.
         console.warn('[av] could not read an AV body for export', err);

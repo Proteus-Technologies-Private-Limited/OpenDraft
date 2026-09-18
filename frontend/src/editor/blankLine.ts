@@ -59,7 +59,13 @@ export function previousSiblingBlock($from: ResolvedPos): PMNode | null {
  * and inside an AV cell the neutral paragraph is `avPara`, because `action` is
  * not among the children an `avCell` accepts at all.
  */
-export function blankLineTypeFor(currentType: string): string {
+export function blankLineTypeFor(currentType: string, inAvCell = false): string {
+  // Inside a cell the neutral paragraph is always `avPara`. The cell now also
+  // holds screenplay elements, and for those the ordinary answer (`action`) is
+  // both the wrong neutral — a blank Action in the audio column is not what a
+  // blank line under a line of Dialogue means — and, when the template does not
+  // offer Action in that column, not something the writer could have typed.
+  if (inAvCell) return currentType === 'general' ? currentType : 'avPara';
   if (currentType === 'general' || currentType === 'titlePage') return currentType;
   if (currentType === 'customElement') return currentType;
   if (currentType === 'avPara' || currentType === 'avShot' || currentType === 'avDirection' || currentType === 'avGraphic') {

@@ -586,7 +586,14 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
                 // Hard breaks come through as newlines, which esc() encodes as
                 // &#10; — the same in-paragraph break encoding used above.
                 const text = jsonBlockText(para);
-                lines.push(`    <Paragraph Type="General" data-av-side="${esc(side)}" data-av-row-id="${esc(rowId)}"><Text>${esc(text)}</Text></Paragraph>`);
+                // A cell holds ordinary screenplay elements too, when the
+                // active template allows it. Those have a real FDX type, so
+                // they get it: Final Draft then shows a Character as a
+                // Character instead of one more line of General. The four AV
+                // paragraph types have no FDX equivalent and stay General,
+                // which is what this export has always degraded them to.
+                const fdxType = resolveFdxExportType(para);
+                lines.push(`    <Paragraph Type="${esc(fdxType)}" data-av-side="${esc(side)}" data-av-row-id="${esc(rowId)}" data-av-style="${esc(para.type || 'avPara')}"><Text>${esc(text)}</Text></Paragraph>`);
               }
             }
           }
