@@ -1,14 +1,53 @@
 import type { Editor } from '@tiptap/react';
-import { NodeSelection } from '@tiptap/pm/state';
+import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { api } from '../services/api';
 import { useProjectStore } from '../stores/projectStore';
 import { putScratchAsset } from '../services/scratchAssets';
 import { showToast } from '../components/Toast';
+import { isAvCellPos, AV_IMAGE_SOURCE_FIELDS } from '../editor/extensions/AvBlock';
+
+/**
+ * An image landing inside an AV row becomes that row's storyboard frame.
+ *
+ * `screenplayImage` is not in `AV_CELL_CONTENT`, so a cell cannot hold one.
+ * Inserting it at a position inside a cell asked ProseMirror to make room, and
+ * it made room the only way it can: by splitting the avBlock in two. What the
+ * writer saw was their two-row table growing a third, empty row that belonged
+ * to a second table with its own column widths — and no picture anywhere,
+ * since the node it split the document for was never valid there either.
+ *
+ * A storyboard frame is what an image in an AV row means, so that is what it
+ * becomes. `setAvRowImage` reads the row off the SELECTION rather than a
+ * position, so the selection is moved to the target first: a drop carries
+ * coordinates that have nothing to do with where the caret happens to be, and
+ * without this the picture would land in whichever row the writer last typed
+ * in. It turns the storyboard column on by itself.
+ */
+function setAvFrameFromImage(editor: Editor, attrs: Record<string, unknown>, at: number): boolean {
+  const { state } = editor;
+  try {
+    editor.view.dispatch(state.tr.setSelection(TextSelection.near(state.doc.resolve(at))));
+  } catch {
+    return false;
+  }
+  const image: Record<string, unknown> = {};
+  for (const key of AV_IMAGE_SOURCE_FIELDS) {
+    if (key === 'alt') continue;
+    image[key] = (attrs[key] ?? null) as unknown;
+  }
+  // `aspect` is left out on purpose — an existing frame keeps the ratio it was
+  // given, exactly as the menu's Add / Replace Frame does.
+  image.alt = (attrs.filename ?? null) as unknown;
+  return editor.chain().focus().setAvRowImage(image).run();
+}
 
 /**
  * Insert a screenplayImage node at a valid block position (end of the containing
  * block if `pos` is inside a text line) and SELECT it, so the writer sees the
  * image with its resize handle rather than a bare gapcursor "blue line".
+ *
+ * Inside an AV row the image becomes the row's storyboard frame instead — see
+ * `setAvFrameFromImage`.
  */
 export function insertImageNode(editor: Editor, attrs: Record<string, unknown>, pos?: number) {
   const type = editor.schema.nodes.screenplayImage;
@@ -16,8 +55,9 @@ export function insertImageNode(editor: Editor, attrs: Record<string, unknown>, 
   const { state } = editor;
   let at = Math.min(pos ?? state.selection.to, state.doc.content.size);
   const $at = state.doc.resolve(at);
+  if (isAvCellPos($at) && setAvFrameFromImage(editor, attrs, at)) return;
   if ($at.parent.isTextblock && $at.depth > 0) at = $at.after($at.depth);
-  let tr = state.tr.insert(at, type.create(attrs));
+  let tr = editor.state.tr.insert(at, type.create(attrs));
   try { tr = tr.setSelection(NodeSelection.create(tr.doc, at)); } catch { /* node not selectable at pos */ }
   editor.view.dispatch(tr.scrollIntoView());
   editor.view.focus();
