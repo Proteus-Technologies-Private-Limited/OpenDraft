@@ -443,6 +443,13 @@ body {
   background: var(--fd-dropdown-bg); border: 1px solid var(--fd-border);
   border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,.4);
   padding: 4px 0; z-index: 2147483647;
+  /* A menu taller than the window scrolls rather than losing its last items
+     off the bottom edge. max-height comes from JS, which knows where the top
+     of the dropdown landed. Submenus are positioned fixed by positionSubmenu()
+     so they escape this scroll container instead of being clipped by it —
+     nothing here may create a containing block (transform, filter, contain),
+     or fixed descendants would be clipped after all. */
+  overflow-y: auto; overscroll-behavior: contain;
 }
 .menu-dropdown-item {
   display: flex; align-items: center; gap: 8px;
@@ -556,15 +563,15 @@ body {
   display: none; position: absolute; left: 100%; top: -4px;
   min-width: 240px; background: var(--fd-dropdown-bg);
   border: 1px solid var(--fd-border); border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0,0,0,.4); padding: 4px 0; z-index: 10001;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4); padding: 4px 0; z-index: 2147483647;
+  /* Same bargain as the dropdown: scroll a long submenu (the Element list) and
+     let the next level out, since it is fixed too. */
+  overflow-y: auto; overscroll-behavior: contain;
 }
 .menu-submenu.submenu-visible { display: block; }
-/* Flip submenu to the left when it would overflow the viewport */
-.menu-submenu.submenu-flip { left: auto; right: 100%; }
-/* Flip submenu upward when it would overflow the bottom */
-.menu-submenu.submenu-flip-y { top: auto; bottom: -4px; }
-/* When the dropdown itself opens above, flip ALL submenus upward */
-.menu-dropdown--above .menu-submenu { top: auto; bottom: -4px; }
+/* No flip classes here any more: positionSubmenu() measures the open submenu
+   and writes fixed left/top. A `bottom` from a stylesheet would fight that
+   inline `top` and stretch the box to span both edges. */
 
 /* ============ TOOLBAR ============ */
 .toolbar {
@@ -10379,6 +10386,11 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
     top: auto;
     width: 100%;
     min-width: 0;
+    /* Stacked inline inside the scrolling dropdown, so no scroll box of its
+       own and no height cap — positionSubmenu() clears its inline styles at
+       this width for the same reason. */
+    max-height: none;
+    overflow: visible;
     box-shadow: none;
     border: none;
     border-radius: 0;
@@ -10393,6 +10405,10 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
     min-height: 40px;
     color: var(--fd-text);
   }
+  /* One more step in for each level, so a stacked three-deep menu still reads
+     as a tree rather than one flat list. */
+  .menu-submenu .menu-submenu .menu-dropdown-item { padding-left: 48px; }
+  .menu-submenu .menu-submenu .menu-submenu .menu-dropdown-item { padding-left: 64px; }
 
   /* Status bar: compact */
   .status-center { display: none; }

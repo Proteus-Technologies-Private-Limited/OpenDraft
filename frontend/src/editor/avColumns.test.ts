@@ -23,6 +23,8 @@ import {
   aspectRatioCss,
   AV_DEFAULT_COLUMNS,
   AV_CUE_MIN_PX,
+  avColumnDataCount,
+  avBlockAtSelection,
 } from './extensions/AvBlock';
 
 /** A legacy two-cell row: no attrs, no image — exactly what is on disk today. */
@@ -250,5 +252,145 @@ describe('storyboard frames', () => {
 
   it('declines to clear when there is no frame', () => {
     expect(run(stateInFirstCell(docWith([legacyRow()])), 'clearAvRowImage')).toBeNull();
+  });
+});
+
+/**
+ * What a column toggle would take out of sight.
+ *
+ * Switching a column off keeps the data — it is the flag that decides whether
+ * the gutter draws and whether `readAvBlock` writes the column out — so the
+ * menu asks first, and it can only ask when it knows there is something there.
+ */
+describe('avColumnDataCount', () => {
+  it('counts nothing on a legacy body with no times and no frames', () => {
+    const block = firstBlock(stateInFirstCell(docWith([legacyRow(), legacyRow()])));
+    expect(avColumnDataCount(block, 'cue')).toBe(0);
+    expect(avColumnDataCount(block, 'image')).toBe(0);
+  });
+
+  it('counts a row the writer typed a duration into', () => {
+    let s = stateInFirstCell(docWith([legacyRow(), legacyRow()]));
+    s = run(s, 'setAvRowCue', { duration: '0:05' })!;
+    expect(avColumnDataCount(firstBlock(s), 'cue')).toBe(1);
+  });
+
+  it('counts a manual shot number or start override, not a derived one', () => {
+    // Nothing is stored for a shot number the editor would have derived, so a
+    // body that merely *displays* 1. 2. 3. has nothing to warn about.
+    let s = stateInFirstCell(docWith([legacyRow()]));
+    expect(avColumnDataCount(firstBlock(s), 'cue')).toBe(0);
+    s = run(s, 'setAvRowCue', { shot: '10.' })!;
+    expect(avColumnDataCount(firstBlock(s), 'cue')).toBe(1);
+  });
+
+  it('ignores a duration cleared back to empty', () => {
+    let s = stateInFirstCell(docWith([legacyRow()]));
+    s = run(s, 'setAvRowCue', { duration: '0:05' })!;
+    s = run(s, 'setAvRowCue', { duration: '' })!;
+    expect(avColumnDataCount(firstBlock(s), 'cue')).toBe(0);
+  });
+
+  it('counts a frame with a picture in it', () => {
+    let s = stateInFirstCell(docWith([legacyRow()]));
+    s = run(s, 'setAvRowImage', { src: 'a.png' })!;
+    expect(avColumnDataCount(firstBlock(s), 'image')).toBe(1);
+  });
+
+  it('does not count a blank frame — an empty slot is not work to lose', () => {
+    let s = stateInFirstCell(docWith([legacyRow()]));
+    s = run(s, 'setAvRowImage', { src: null })!;
+    expect(avColumnDataCount(firstBlock(s), 'image')).toBe(0);
+  });
+});
+
+describe('avBlockAtSelection', () => {
+  it('finds the body the cursor is in', () => {
+    const block = avBlockAtSelection(stateInFirstCell(docWith([legacyRow()])));
+    expect(block?.type.name).toBe('avBlock');
+  });
+
+  it('returns null outside an AV body', () => {
+    const doc = testSchema.nodeFromJSON({
+      type: 'doc',
+      content: [{ type: 'action', content: [{ type: 'text', text: 'A plain line.' }] }],
+    });
+    const state = EditorState.create({ doc, schema: testSchema });
+    expect(avBlockAtSelection(state)).toBeNull();
+  });
+});
+
+/**
+ * The command behind the drag handle.
+ *
+ * Two columns move together, so they have to be written in one transaction:
+ * one undo step for one gesture, and no intermediate state where a body is
+ * wider than its page.
+ */
+describe('setAvColumnWidths', () => {
+  it('writes both sides of a divider at once', () => {
+    const next = run(stateInFirstCell(docWith([legacyRow()])), 'setAvColumnWidths', { video: 3, audio: 1 });
+    const w = readColumnConfig(firstBlock(next!).attrs).widths;
+    expect(w.video).toBe(3);
+    expect(w.audio).toBe(1);
+  });
+
+  it('leaves the columns it was not given alone', () => {
+    const next = run(stateInFirstCell(docWith([legacyRow()])), 'setAvColumnWidths', { video: 3 });
+    const w = readColumnConfig(firstBlock(next!).attrs).widths;
+    expect(w.cue).toBe(AV_DEFAULT_COLUMNS.widths.cue);
+    expect(w.audio).toBe(AV_DEFAULT_COLUMNS.widths.audio);
+  });
+
+  it('keeps the column visibility flags', () => {
+    let s = stateInFirstCell(docWith([legacyRow()]));
+    s = run(s, 'toggleAvColumn', 'image')!;
+    s = run(s, 'setAvColumnWidths', { video: 3 })!;
+    expect(readColumnConfig(firstBlock(s).attrs).image).toBe(true);
+  });
+
+  it('clamps what it is handed', () => {
+    const next = run(stateInFirstCell(docWith([legacyRow()])), 'setAvColumnWidths', { video: 999, audio: -4 });
+    const w = readColumnConfig(firstBlock(next!).attrs).widths;
+    expect(w.video).toBe(10);
+    expect(w.audio).toBe(1);
+  });
+
+  it('declines a change that changes nothing, so a click is not an undo step', () => {
+    const s = stateInFirstCell(docWith([legacyRow()]));
+    expect(run(s, 'setAvColumnWidths', { video: AV_DEFAULT_COLUMNS.widths.video })).toBeNull();
+    expect(run(s, 'setAvColumnWidths', {})).toBeNull();
+  });
+
+  it('takes an explicit block position, for a drag whose body is not the cursor’s', () => {
+    // The pointer is on a divider in one body while the caret sits in another.
+    const doc = docWith([legacyRow()]);
+    const state = stateInFirstCell(doc);
+    let blockPos = -1;
+    state.doc.descendants((n, p) => { if (blockPos < 0 && n.type.name === 'avBlock') blockPos = p; return blockPos < 0; });
+    const next = run(state, 'setAvColumnWidths', { video: 3 }, blockPos);
+    expect(readColumnConfig(firstBlock(next!).attrs).widths.video).toBe(3);
+  });
+
+  it('refuses a position that is not an AV body', () => {
+    const state = stateInFirstCell(docWith([legacyRow()]));
+    expect(run(state, 'setAvColumnWidths', { video: 3 }, 99999)).toBeNull();
+    expect(run(state, 'setAvColumnWidths', { video: 3 }, -1)).toBeNull();
+  });
+
+  it('is why the singular command cannot just be chained', () => {
+    // Tiptap hands every command in a chain the SAME starting state, so a
+    // second setAvColumnWidth reads the block's pre-chain attrs and its
+    // setNodeMarkup drops what the first wrote. Demonstrated rather than
+    // asserted in prose, because it is the entire reason this command exists.
+    let s = stateInFirstCell(docWith([legacyRow()]));
+    const start = s;
+    s = run(s, 'setAvColumnWidth', 'video', 3)!;
+    // Re-running the second command against the ORIGINAL state, as a chain does:
+    const chained = run(start, 'setAvColumnWidth', 'audio', 1)!;
+    expect(readColumnConfig(firstBlock(chained).attrs).widths.video)
+      .toBe(AV_DEFAULT_COLUMNS.widths.video);
+    expect(readColumnConfig(firstBlock(s).attrs).widths.audio)
+      .toBe(AV_DEFAULT_COLUMNS.widths.audio);
   });
 });

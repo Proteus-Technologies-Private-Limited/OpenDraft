@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import Document from '@tiptap/extension-document';
 import Text from '@tiptap/extension-text';
 import { ScreenplayHardBreak, HardBreakLeafText } from '../editor/extensions/ScreenplayHardBreak';
@@ -202,6 +202,44 @@ const ALL_ELEMENT_TYPES: ElementType[] = [
   'transition', 'general', 'shot', 'newAct', 'endOfAct', 'lyrics',
   'showEpisode', 'castList', 'section', 'note',
 ];
+
+/**
+ * Which element the caret is standing on, or null when nothing answers.
+ *
+ * Shared by `onSelectionUpdate` and every path that replaces the document
+ * wholesale. Tiptap raises `selectionUpdate` only when the mapped selection
+ * differs from the old one, so swapping in a whole new document can leave the
+ * store reporting the element the *previous* document's caret was on — and
+ * every control derived from it reading the wrong script: the toolbar's element
+ * list, the AV row buttons, the language selector.
+ *
+ * Order matters. Custom elements and title-page fields are one node type with
+ * an attribute, and the four AV cell paragraph types are deliberately absent
+ * from ALL_ELEMENT_TYPES (they are not top-level screenplay elements and have
+ * to stay out of TextAlign's node list), so each needs asking about separately
+ * before the general sweep.
+ */
+function resolveActiveElement(ed: Editor): ElementType | null {
+  try {
+    if (ed.isActive('customElement')) {
+      const attrs = ed.getAttributes('customElement');
+      if (attrs?.customTypeId) return attrs.customTypeId as ElementType;
+    }
+    if (ed.isActive('titlePage')) {
+      const field = (ed.getAttributes('titlePage')?.field as string) || 'title';
+      return titlePageRuleId(field) as ElementType;
+    }
+    for (const type of AV_CELL_ELEMENT_IDS) {
+      if (ed.isActive(type)) return type as ElementType;
+    }
+    for (const type of ALL_ELEMENT_TYPES) {
+      if (ed.isActive(type)) return type;
+    }
+  } catch (err) {
+    console.warn('[editor] could not resolve the active element', err);
+  }
+  return null;
+}
 
 const SAMPLE_CONTENT = {
   type: 'doc',
@@ -1638,39 +1676,8 @@ const ScreenplayEditor: React.FC = () => {
       transformPastedHTML: (html) => stripNoteBackgrounds(html),
     },
     onSelectionUpdate: ({ editor: ed }) => {
-      // Check custom element first
-      if (ed.isActive('customElement')) {
-        // Use customTypeId as the active element label
-        const attrs = ed.getAttributes('customElement');
-        if (attrs?.customTypeId) {
-          setActiveElement(attrs.customTypeId as ElementType);
-          return;
-        }
-      }
-      // A title page node is one type with a `field` attribute, so it needs
-      // asking about separately — and it has to be asked at all: leaving it out
-      // meant the selector kept whatever it last showed, which for a fresh
-      // document is Action. Putting the cursor in the title reported "Action".
-      if (ed.isActive('titlePage')) {
-        const field = (ed.getAttributes('titlePage')?.field as string) || 'title';
-        setActiveElement(titlePageRuleId(field));
-        return;
-      }
-      // An AV cell's paragraph types are deliberately absent from
-      // ALL_ELEMENT_TYPES — they are not top-level screenplay elements and must
-      // stay out of TextAlign's node list — so they need asking about
-      // separately, exactly as the title page does. Without this the store kept
-      // reporting whatever element the writer last stood on outside the AV
-      // body, which froze every control derived from it: the toolbar's element
-      // list stayed the screenplay one (whose types an avCell rejects), and the
-      // AV row buttons, gated on the same value, never appeared at all
-      // (issue #116).
-      for (const type of AV_CELL_ELEMENT_IDS) {
-        if (ed.isActive(type)) { setActiveElement(type as ElementType); return; }
-      }
-      for (const type of ALL_ELEMENT_TYPES) {
-        if (ed.isActive(type)) { setActiveElement(type); break; }
-      }
+      const type = resolveActiveElement(ed);
+      if (type) setActiveElement(type);
     },
   }, [editorKey]);
 
@@ -2483,6 +2490,15 @@ const ScreenplayEditor: React.FC = () => {
     editor.commands.setContent(pmDoc, true);
     clearEditorHistory(editor);
     hydrateEditorStoresFromContent(snapshot.content);
+    // Resync by hand: `setContent` raises `selectionUpdate` only when the
+    // mapped selection differs from the old one, so a restore can leave the
+    // store naming the element the *previous* document's caret was on. For a
+    // recovered AV script that meant the toolbar was still scoped to the blank
+    // screenplay it replaced — an element list whose types an avCell rejects,
+    // and no AV row buttons — with nothing left to move the caret and put it
+    // right.
+    const restoredElement = resolveActiveElement(editor);
+    if (restoredElement) setActiveElement(restoredElement);
     setDocumentTitle(snapshot.title || 'Untitled Screenplay');
     // Recovered content is not the file any in-place origin points at, and the
     // snapshot does not carry the origin's security-scoped bookmark. Clearing
@@ -2508,7 +2524,7 @@ const ScreenplayEditor: React.FC = () => {
     // restored document is protected again rather than staying over the size
     // limit until the writer happens to save it somewhere.
     if (docHasInlineImageBytes(snapshot.content)) void demoteDataUrlsToScratch(editor);
-  }, [editor, currentProject, currentScriptId, setDocumentTitle, setCurrentProject, setCurrentScriptId]);
+  }, [editor, currentProject, currentScriptId, setDocumentTitle, setCurrentProject, setCurrentScriptId, setActiveElement]);
 
   // Crash-recovery copy. Unlike the two above it covers every platform and
   // every document, including one that was never saved to the library — which

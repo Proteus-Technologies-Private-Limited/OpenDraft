@@ -89,6 +89,23 @@ declare module '@tiptap/core' {
       toggleAvColumn: (which: 'cue' | 'image', on?: boolean) => ReturnType;
       /** Set a column's relative width for the whole AV body. */
       setAvColumnWidth: (which: keyof AvColumnConfig['widths'], width: number) => ReturnType;
+      /**
+       * Set several column widths at once, in ONE transaction.
+       *
+       * Dragging a divider moves two columns together, and chaining two
+       * `setAvColumnWidth` calls cannot do it: Tiptap gives every command in a
+       * chain the same starting `state`, so the second reads the block's
+       * pre-chain attrs and its `setNodeMarkup` discards what the first wrote.
+       *
+       * `pos` names the block to change. The drag handle needs it because the
+       * selection is wherever the writer left it, not necessarily in the body
+       * whose divider is under the pointer. Omitted, it falls back to the
+       * block at the cursor, which is what the menu wants.
+       */
+      setAvColumnWidths: (
+        widths: Partial<AvColumnConfig['widths']>,
+        pos?: number,
+      ) => ReturnType;
       /** Put a storyboard frame in the cursor's row (adds the cell if absent). */
       setAvRowImage: (image: {
         src?: string | null;
@@ -339,12 +356,26 @@ export const AV_DEFAULT_COLUMNS: AvColumnConfig = {
   widths: { cue: 0.5, video: 2, audio: 2, image: 1.5 },
 };
 
-/** Clamp a width to something that can still be clicked into. Returned in the
- *  same relative units the grid uses, so "0" cannot make a column vanish. */
+/** Narrowest and widest a column may be, in the grid's relative units. */
+export const AV_MIN_COLUMN_WIDTH = 0.2;
+export const AV_MAX_COLUMN_WIDTH = 10;
+
+/**
+ * Clamp a width READ FROM A DOCUMENT to something that can still be clicked
+ * into. Returned in the same relative units the grid uses, so "0" cannot make a
+ * column vanish.
+ *
+ * Note what a nonsense value does: it becomes 1, not the minimum. That is right
+ * for a stored attribute, where `0`, `null` or `"wide"` means the width was
+ * never really set and a middling column is the best guess. It is wrong for a
+ * drag, where a column pushed past zero would suddenly jump WIDER than the
+ * writer had just dragged it — so `avColumnDrag` saturates at the bounds
+ * instead. Both use the same two numbers.
+ */
 export function clampColumnWidth(n: unknown): number {
   const v = Number(n);
   if (!Number.isFinite(v) || v <= 0) return 1;
-  return Math.min(Math.max(v, 0.2), 10);
+  return Math.min(Math.max(v, AV_MIN_COLUMN_WIDTH), AV_MAX_COLUMN_WIDTH);
 }
 
 /** Read a block's column config, filling in anything missing or malformed.
@@ -377,15 +408,81 @@ export function readColumnConfig(attrs: unknown): AvColumnConfig {
  */
 export const AV_CUE_MIN_PX = 64;
 
+/**
+ * How many rows of `block` carry something that switching `which` off would
+ * stop showing — and stop exporting, since `readAvBlock` writes a column out
+ * only when its flag is on.
+ *
+ * Nothing is deleted by turning a column off: durations stay on their rows and
+ * frames stay in theirs, and turning it back on brings them back untouched.
+ * But a writer who has timed forty shots and then loses the gutter, the PDF
+ * column and the spreadsheet column in one click has lost that work as far as
+ * they can tell, so the menu asks first. Zero means there is nothing to ask
+ * about.
+ */
+export function avColumnDataCount(block: PmNode, which: 'cue' | 'image'): number {
+  let count = 0;
+  try {
+    block.forEach((row) => {
+      if (row.type.name !== 'avRow') return;
+      if (which === 'cue') {
+        // A manual shot number or start is an override the writer typed; a
+        // derived one is not data and costs nothing to hide.
+        const a = row.attrs as { duration?: string | null; shot?: string | null; start?: string | null };
+        if ((a.duration && a.duration.trim()) || (a.shot && a.shot.trim()) || (a.start && a.start.trim())) count += 1;
+        return;
+      }
+      // An empty frame is a slot, not work — only a frame with a picture in it
+      // is worth stopping for.
+      row.forEach((child) => {
+        if (child.type.name === 'avImage' && avImageIsSet(child)) count += 1;
+      });
+    });
+  } catch (err) {
+    console.warn('[av] could not count column data', err);
+  }
+  return count;
+}
+
+/** The avBlock the cursor is in, or null. Used by the menu, which has to look
+ *  at the body's contents before offering to change it. */
+export function avBlockAtSelection(state: import('@tiptap/pm/state').EditorState): PmNode | null {
+  const ctx = avRowContext(state);
+  if (!ctx) return null;
+  try {
+    return state.selection.$from.node(ctx.blockDepth);
+  } catch {
+    return null;
+  }
+}
+
+/** A column of the grid, in the order the tracks are written. */
+export type AvColumnKey = keyof AvColumnConfig['widths'];
+
+/**
+ * The columns this config actually draws, left to right.
+ *
+ * The same order as the tracks `gridTemplateFor` emits, which is what lets a
+ * resize handle map a track index back to the width it should be changing.
+ */
+export function visibleColumns(cfg: AvColumnConfig): AvColumnKey[] {
+  const cols: AvColumnKey[] = [];
+  if (cfg.cue) cols.push('cue');
+  cols.push('video', 'audio');
+  if (cfg.image) cols.push('image');
+  return cols;
+}
+
 /** The CSS `grid-template-columns` for a config — one source of truth shared by
  *  the editor, print and the PDF exporter so all three line up. */
 export function gridTemplateFor(cfg: AvColumnConfig): string {
-  const parts: string[] = [];
-  if (cfg.cue) parts.push(`minmax(${AV_CUE_MIN_PX}px, ${cfg.widths.cue}fr)`);
-  parts.push(`${cfg.widths.video}fr`);
-  parts.push(`${cfg.widths.audio}fr`);
-  if (cfg.image) parts.push(`${cfg.widths.image}fr`);
-  return parts.join(' ');
+  return visibleColumns(cfg)
+    .map((key) => (key === 'cue'
+      // The cue track holds a duration field, and a plain `fr` shrinks with the
+      // others as columns are added. See AV_CUE_MIN_PX.
+      ? `minmax(${AV_CUE_MIN_PX}px, ${cfg.widths.cue}fr)`
+      : `${cfg.widths[key]}fr`))
+    .join(' ');
 }
 
 /**
@@ -588,6 +685,42 @@ export const AvBlock = Node.create({
         tr.setNodeMarkup(blockPos, undefined, {
           ...block.attrs,
           columns: { ...cfg, widths: { ...cfg.widths, [which]: clampColumnWidth(width) } },
+        });
+        dispatch(tr);
+        return true;
+      },
+
+      setAvColumnWidths: (widths, pos) => ({ tr, dispatch, state }) => {
+        let blockPos = pos;
+        if (blockPos === undefined) {
+          const ctx = avRowContext(state);
+          if (!ctx) return false;
+          blockPos = state.selection.$from.before(ctx.blockDepth);
+        }
+        // A position handed in from a node view can be stale by the time the
+        // pointer is released — the document may have changed underneath — so
+        // it is checked rather than trusted.
+        if (blockPos < 0 || blockPos > state.doc.content.size) return false;
+        const block = state.doc.nodeAt(blockPos);
+        if (!block || block.type.name !== 'avBlock') return false;
+        const cfg = readColumnConfig(block.attrs);
+        const next = { ...cfg.widths };
+        let changed = false;
+        for (const key of Object.keys(widths) as AvColumnKey[]) {
+          const value = widths[key];
+          if (value === undefined) continue;
+          const clamped = clampColumnWidth(value);
+          if (clamped !== next[key]) changed = true;
+          next[key] = clamped;
+        }
+        // A drag that ends where it started, or one the clamp swallowed
+        // entirely, must not push an undo step the writer would have to press
+        // Cmd-Z through for nothing.
+        if (!changed) return false;
+        if (!dispatch) return true;
+        tr.setNodeMarkup(blockPos, undefined, {
+          ...block.attrs,
+          columns: { ...cfg, widths: next },
         });
         dispatch(tr);
         return true;

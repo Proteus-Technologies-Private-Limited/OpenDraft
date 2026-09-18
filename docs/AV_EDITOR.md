@@ -114,16 +114,159 @@ so the row still renumbers when one is inserted above it.
 
 ## UI
 
-- **Format ▸ AV Row** — insert above/below, delete
-- **Format ▸ AV Columns** — toggle Cue and Storyboard, repeat headers, column widths
-- **Format ▸ AV Storyboard** — add/replace/remove frame, aspect ratio
+- **Format ▸ AV Script ▸ Insert AV Columns** — turn the line at the cursor into
+  an AV table, in *any* script, not only one started from the AV template
+  (⌘⇧A). Reads **Remove AV Columns** when the cursor is already inside one.
+- **Format ▸ AV Script ▸ Row** — insert above/below, delete
+- **Format ▸ AV Script ▸ Columns** — toggle Cue and Storyboard, repeat headers, column widths
+- **Format ▸ AV Script ▸ Storyboard** — add/replace/remove frame, aspect ratio
 - **File ▸ Export** — AV YAML (.yaml), AV Spreadsheet (.xlsx / .csv), AV Plain Text
 - **File ▸ Import** — AV Document (.yaml / .xlsx / .csv)
 - **Page Setup** — Portrait / Landscape, with landscape-appropriate margins
 
+### Switching a column off
+
+A column is on or off for the whole body, as one flag on the avBlock. Nothing is
+deleted when it goes off — durations stay on their rows, storyboard frames stay
+in theirs — so turning it back on restores exactly what was there. But the same
+flag decides what `readAvBlock` writes, so the column also leaves the printed
+page, the PDF and the spreadsheet. `avColumnDataCount` counts the rows that
+would go quiet (a typed duration or a *manual* shot/start override; a frame with
+a picture in it, not an empty slot) and the menu asks before hiding any.
+
+**What is drawn is decided by CSS, from the block's own `data-cue` /
+`data-image`, never by a child node view reading its parent's attributes.**
+`renderHTML` writes those flags and the track list (`--av-grid`) onto the same
+element in the same pass, so the two cannot disagree. Anything still drawn in a
+grid with no track for it takes the next column's track and shunts every column
+after it along one — the whole row out of alignment, which is what switching a
+column off looked like. For the storyboard column that needed no timing subtlety
+at all: `toggleAvColumn` flips the flag and nothing else, so every row that
+already had a frame kept it as a grid item with nowhere to sit.
+
+### Resizing a column
+
+Drag the divider between any two columns; double-click it to put that pair back
+to the built-in widths. `Format ▸ AV Script ▸ Columns ▸ Column Width` does the
+same in steps, and remains the keyboard and touch route — the dividers are
+`aria-hidden` and out of the tab order, because a hundred-row body would
+otherwise put three hundred tab stops through the document.
+
+Three things are worth knowing about how it works.
+
+**Widths are relative, the pointer is not.** A width is stored in grid `fr`
+units so the same body lays out on screen, on Letter and on A4. `avColumnDrag`
+converts: the visible tracks share the row's width, so their total `fr` over
+their total px is the exchange rate, read back from the row's *computed*
+`grid-template-columns` (the used pixel values — the cue track may be sitting on
+its 64px floor rather than the 0.5fr it asks for).
+
+**The two columns either side of a divider trade width, and both stop when
+either one hits a limit.** Letting them clamp independently makes the divider
+slide on while only one side responds, which reads as the handle coming loose
+from the line. That is also why the drag uses its own saturating clamp instead
+of `clampColumnWidth`: that one answers `1` for anything at or below zero, which
+is the right reading of a malformed stored attribute and quite wrong mid-drag,
+where a column being squeezed to nothing would snap to a middling width.
+
+**The listeners are native, and attached to the handle itself — not React's.**
+ProseMirror binds `mousedown` on `view.dom`; React 19 delegates to the root
+container, which is an *ancestor* of it. So a synthetic `onPointerDown` runs
+strictly after ProseMirror's handler, by which point `MouseDown` has moved the
+selection to the divider and registered its own document-level mousemove/mouseup
+to drag a text selection against ours — and `stopPropagation` from React cannot
+prevent any of it. From a listener on the handle, below `view.dom` in the tree,
+it can. The move and release listeners then go on `window` rather than relying
+on `setPointerCapture`, so the drag survives the pointer leaving the 16px strip,
+which it does on the first frame. This was the bug in the first version: it was
+not that the arithmetic was wrong, it was that the gesture never reached it.
+
+**Nothing inside the editor is touched while a drag is live, and this is the
+part that bites.** The first version previewed by writing `--av-grid` onto the
+`.av-block` element. ProseMirror's DOMObserver watches attributes across
+`view.dom`; `registerMutation` lets a `style` change through unless there was no
+old value — the block always has one, from `renderHTML` — and `avBlock`, having
+no custom node view, falls back to a `ignoreMutation` that returns false
+whenever a `contentDOM` exists. So every frame of the drag was read as a user
+edit to the document: the style was reverted on the spot (the columns never
+appeared to move) and the block was re-rendered, which remounted the row node
+views underneath the gesture. What the writer saw was a resize that did nothing,
+then an editor that had stopped responding to clicks — because the drag state
+died with the remounted node view, the release handler found nothing, and its
+teardown never ran.
+
+So: a guide line, parented to `document.body`, outside `view.dom` entirely.
+Word, Google Docs and prosemirror-tables all draw the same thing for the same
+reason. The guide follows the COLUMNS rather than the pointer, so it stops when
+one hits its limit instead of drifting away from the layout it claims to be
+setting. The widths change once, on release.
+
+**The session is module state (`avColumnResize.ts`), not a `useRef` in the node
+view.** A node view can be remounted mid-drag, and state that dies with it
+strands the window listeners and the `av-col-resizing` class. That class carried
+`cursor: col-resize !important` and `user-select: none !important` across the
+whole app, so leaking it looked like the editor had died rather than like
+anything to do with column widths. It is now owned by a session that cannot be
+unmounted, released on pointerup, pointercancel, Escape and window blur, and
+scoped to `.ProseMirror` so that even a leak could not take the app with it.
+`avColumnResize.test.ts` holds that invariant down.
+
+The divider is drawn at rest, faintly. Showing it only on hover was the other
+half of "resize is not working": a control nobody can see is a control nobody
+finds. It brightens under the pointer, and a class on `<body>` keeps it lit and
+holds the `col-resize` cursor for the duration of a drag, since `:hover` and
+`:active` both stop applying the moment the pointer leaves the strip.
+
+The handles are absolutely positioned, which is load-bearing rather than
+cosmetic: an in-flow grid item with an explicit `grid-column` is placed before
+the auto-placed cells, and auto-placement then *skips* the track it occupies —
+so an in-flow handle on track 1 would push Video into Audio's column. Out of
+flow it takes no part in placement and `grid-column` still names the area its
+offsets resolve against. Which line each one sits on, and which exist at all, is
+decided in CSS from the block's `data-cue` / `data-image`, for the same reason
+the cue gutter is.
+
+### The element list inside a cell
+
+`avCell`'s content is `(avPara | avShot | avDirection | avGraphic)+` in the
+schema of **every** document. A template decides how those four look, not
+whether they exist — so the toolbar's element list inside a cell is built from
+the schema (`avCellElementRules`) and borrows the active template's labels where
+it has them, rather than being filtered out of the template's rules.
+
+Filtering the rules is what it used to do, and that left an empty dropdown — and
+a body with no way to set an element — in two reachable states:
+
+- an AV body inside a screenplay, which **Insert AV Columns** now allows in any
+  script, where Industry Standard has no `avPara` rule to find;
+- an AV script whose template did not come back with it: a restored session, an
+  import, a `.odraft` from a backup. The AV nodes are intact; only the
+  formatting preference is missing, and that is no reason to make the document
+  uneditable.
+
+The restore path has a second half. `setContent` raises `selectionUpdate` only
+when the mapped selection differs from the old one, so swapping in a whole new
+document can leave `activeElement` naming the element the *previous* document's
+caret was on. `resolveActiveElement` is called explicitly after a recovery
+restore for that reason, and `Toolbar`'s `isInsideAvCell` is keyed on the editor
+STATE rather than on `activeElement`, so it cannot hold an answer computed
+against a document that no longer exists.
+
 Every AV control is reachable from a menu, not only a keyboard shortcut. That is
 the lesson of issue #116: an iPhone or iPad has no Tab and no Mod-Enter, so a
 shortcut-only route is no route at all.
+
+`toggleAvBlock` was the last thing still missing from that list. It had only
+⌘⇧A, so in a script that did not already contain an AV table there was no way
+to make one — and since every other AV item is gated on the cursor being inside
+an AV cell, the whole group sat permanently greyed out with nothing that could
+ungrey it. It is now the first item in the group, and never disabled.
+
+The four entries live under one **AV Script** parent rather than three siblings
+in Format: the menu ran off the bottom of the window otherwise. That needed the
+menu renderer to recurse (`renderMenuNode` in `MenuBar.tsx`) — it drew exactly
+two levels before, so **Column Width** and **Frame Aspect Ratio**, already three
+deep, were rendering as rows with no arrow and no action.
 
 The duration field is an `<input>` in a node view (`AvRowView.tsx`) rather than a
 ProseMirror cell, for the same reason — it is structured data an exporter wants

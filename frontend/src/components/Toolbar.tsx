@@ -44,6 +44,7 @@ import LanguageSelector from './LanguageSelector';
 import { findFont, loadFontByName } from '../utils/fonts';
 import { isTitlePageRuleId } from '../stores/formattingTypes';
 import { AV_CELL_ELEMENT_IDS, isInAvCell } from '../editor/extensions/AvBlock';
+import { avCellElementRules } from '../utils/avCellElements';
 
 /** Element ids valid inside an AV cell (per the avCell schema content rule). */
 const AV_CELL_IDS: readonly string[] = AV_CELL_ELEMENT_IDS;
@@ -268,15 +269,32 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   /** True when the selection is inside an AV cell — used to scope the element dropdown. */
   const isInTitlePage = isTitlePageRuleId(String(activeElement));
 
+  // The live state, so anything derived from where the caret is re-runs when
+  // the caret (or the document) actually moves. See isInsideAvCell below.
+  const editorState = editor?.state ?? null;
+
+  /**
+   * Keyed on the editor STATE, not on `activeElement`.
+   *
+   * ProseMirror builds a new EditorState for every transaction and reuses it
+   * across plain re-renders, so its identity is exactly the right key: the walk
+   * runs when the document or the selection moved, and not otherwise.
+   *
+   * `activeElement` was the wrong key because it is only ever written from
+   * `onSelectionUpdate`, and a wholesale content replacement — restoring a
+   * session, opening a file — need not fire one: Tiptap raises it only when the
+   * mapped selection differs from the old one. When it did not fire, this memo
+   * held a value computed against a document that no longer existed, and every
+   * control gated on it (the element list, the AV row buttons) was answering
+   * for the wrong place in the wrong script.
+   */
   const isInsideAvCell = React.useMemo(() => {
-    if (!editor) return false;
+    if (!editorState) return false;
     try {
-      return isInAvCell(editor.state);
+      return isInAvCell(editorState);
     } catch { /* ignore */ }
     return false;
-  // Re-evaluate on selection updates
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor, activeElement]);
+  }, [editorState]);
 
   const isActive = (format: string) => {
     if (!editor) return false;
@@ -967,16 +985,25 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
               {activeTemplate.rules[activeElement]?.label || 'Title Page'}
             </option>
           )}
-          {Object.values(activeTemplate.rules)
-            .filter((r) => r.enabled && !isTitlePageRuleId(r.id))
-            // When inside an AV cell, only cell-valid types make sense — selecting
-            // sceneHeading/action/etc. silently fails the schema check anyway.
-            .filter((r) => isInsideAvCell ? AV_CELL_IDS.includes(r.id) : !AV_CELL_IDS.includes(r.id))
-            .map((r) => (
-              <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]}>
-                {r.label}
-              </option>
-            ))}
+          {/*
+            Inside an AV cell the list comes from the SCHEMA, not from the
+            template's rules: `avCell` holds exactly these four types in every
+            document, and a template only decides how they look. Filtering the
+            template's rules instead left the dropdown empty — and the body
+            uneditable — for an AV body under a screenplay template (Insert AV
+            Columns puts one in any script) and for an AV document whose
+            template did not come back with it, such as a restored session.
+            Outside a cell, the template is the authority as before.
+          */}
+          {(isInsideAvCell
+            ? avCellElementRules(activeTemplate)
+            : Object.values(activeTemplate.rules)
+                .filter((r) => r.enabled && !isTitlePageRuleId(r.id) && !AV_CELL_IDS.includes(r.id))
+          ).map((r) => (
+            <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]}>
+              {r.label}
+            </option>
+          ))}
         </select>
       </div>
 

@@ -13,6 +13,12 @@
  * not been read yet still renders correctly rather than collapsing. */
 .av-block {
   --av-grid: 2fr 2fr;
+  /* The colour of a column divider at rest. A variable rather than a rule per
+     theme, because the divider also has a hover and a dragging colour: as a
+     plain `[data-theme='dark'] .av-col-handle::before` override it tied on
+     specificity with the dragging rule and, coming later in the file, quietly
+     won — so in dark mode the divider being dragged stayed grey. */
+  --av-divider: #d0d0d0;
 }
 
 .av-row {
@@ -21,6 +27,9 @@
   align-items: stretch;
   margin-bottom: 6pt;
   column-gap: 12px;
+  /* Positioned so the dividers, and anything else drawn over a row, have a
+     containing block that is the row rather than the page. */
+  position: relative;
 }
 
 /* The node view wraps the editable cells so it can put a non-editable cue
@@ -48,8 +57,186 @@
 }
 
 .av-cell-audio {
-  border-left: 1px solid #d0d0d0;
   padding-left: 10pt;
+}
+
+/* ── Which columns are on ───────────────────────────────────────
+ * A column is switched off on the avBlock, and `renderHTML` writes the track
+ * list (--av-grid) and these data-* flags onto the SAME element in the same
+ * pass. Hiding the cells from those flags is the only arrangement where the
+ * two cannot disagree: anything still drawn in a grid with no track for it
+ * takes the next column's track and shunts every column after it one place
+ * along, which is the whole row out of alignment.
+ *
+ * That is not hypothetical for the storyboard column — `toggleAvColumn` flips
+ * a flag on the block and nothing else, so every row that already had a frame
+ * kept it as a grid item with no track to put it in.
+ *
+ * Both are real content the document keeps: durations stay on their rows and a
+ * frame stays in its row, so turning the column back on brings them back
+ * exactly as they were. Switching one off is not a delete — and the menu says
+ * so first when there is anything to lose sight of. */
+.av-block[data-cue='false'] .av-cue { display: none; }
+.av-block[data-image='false'] .av-image { display: none; }
+
+/* ── Column dividers ────────────────────────────────────────────
+ * Drag to change how the body divides its width, on the line between two
+ * columns, as a table does. Every row draws them, so the line is grabbable
+ * beside whatever the writer is looking at rather than only at the top of a
+ * body that may be pages long.
+ *
+ * EVERY grid item in the row is placed explicitly — the cue gutter, the cells,
+ * the frame and the handles — and that is the point of the block below.
+ *
+ * The first attempt made the handles `position: absolute` and leaned on grid
+ * placing an out-of-flow child into a grid AREA, which keeps it out of
+ * auto-placement. It did not place them: all three landed on the row's padding
+ * edge, stacked at the far right, so the only draggable thing in the body was a
+ * bar past the end of the last column. Explicit placement for everything needs
+ * no such guarantee — auto-placement has nothing left to get wrong, so an
+ * in-flow handle sharing a track with a cell cannot push it along. */
+.av-col-handle {
+  /* An IN-FLOW grid item, explicitly placed — see the note above. */
+  grid-row: 1;
+  justify-self: end;
+  align-self: stretch;
+  position: relative;
+  z-index: 3;
+  width: 16px;
+  /* Pulls the strip off the end of its column and across the 12px gap, so the
+     grabbable area is the gap plus about 2px of the cell either side: enough to
+     hit without stealing the click that puts the caret at the end of a line.
+     The margin also cancels the width, so the handle adds nothing to the
+     track's min-content size and cannot widen the column it sits in. */
+  margin-right: -14px;
+  cursor: col-resize;
+  /* Without this the browser claims the gesture for panning and the divider
+     never moves on a touchscreen. */
+  touch-action: none;
+}
+
+/* The line itself, and the ONLY thing that draws a column divider.
+ *
+ * It used to be `.av-cell-audio { border-left }` that drew the one line an AV
+ * body had, between Video and Audio. Adding a second line here put two rules
+ * side by side on that boundary and none of the others, so the divider the
+ * handle actually moves was never the divider the eye was following. The cell
+ * border is gone; every boundary is drawn here, at the 1px the cell used, in
+ * the same grey.
+ *
+ * Which means it also has to draw where there is nothing to drag — a read-only
+ * document, a collab guest, the printed page — so the handles render whatever
+ * the editor's state, and only their interactivity is switched off. */
+.av-col-handle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--av-divider, #d0d0d0);
+  transition: background-color 0.12s ease, width 0.12s ease, margin-left 0.12s ease;
+}
+
+/* Under the pointer, and while dragging: thicker and in the accent colour.
+ * Centred, so growing it moves nothing — the line stays where the boundary is. */
+.av-col-handle[data-interactive='true']:hover::before,
+.av-col-handle--active::before {
+  width: 2px;
+  margin-left: -1px;
+  background: var(--fd-accent, #0078ff);
+}
+
+/* Nothing to grab when the document cannot be edited, but the line still
+   belongs there — it is the table's own rule, not a control. */
+.av-col-handle[data-interactive='false'] {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* A drag that has left the handle behind still owns the gesture: hold the
+   resize cursor over the script, and stop the pointer painting a text selection
+   across it on the way past.
+ *
+ * Scoped to the editor rather than `body *`. An earlier version put
+ * `cursor: col-resize !important; user-select: none !important` on every
+ * element in the app, which was survivable only for as long as the class was
+ * guaranteed to come off — and it was not: a node view remounted mid-drag
+ * stranded it, and the whole UI went unselectable behind a resize cursor. The
+ * session in avColumnResize now owns the class and cannot leak it, and the
+ * blast radius is small enough that a leak would not take the app with it. */
+.av-col-resizing .ProseMirror,
+.av-col-resizing .ProseMirror * {
+  cursor: col-resize !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+/* The line that follows the pointer while dragging — the live preview of where
+ * the boundary will land.
+ *
+ * Parented to <body>, outside the editor, and that is the whole point: the
+ * preview used to be written onto the avBlock's own style attribute, which
+ * ProseMirror's DOMObserver reads as a user edit to the document — reverting it
+ * on the spot and re-rendering the block, which remounted the node view holding
+ * the drag. Nothing inside view.dom may be touched while a drag is live. */
+.av-col-guide {
+  position: fixed;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--fd-accent, #0078ff);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  z-index: 2147483000;
+}
+
+/* A finger needs more than 16px of strip to land on. The line itself is the
+   same weight it is everywhere else. */
+@media (pointer: coarse) {
+  .av-col-handle { width: 24px; margin-right: -18px; }
+}
+
+/* Explicit placement for every item in the row.
+ *
+ * Written out per column combination rather than computed in the node view,
+ * because the view must not read the parent block's attributes to decide its
+ * own DOM — see the "Which columns are on" note above. The block carries
+ * data-cue / data-image beside --av-grid, so these cannot disagree with the
+ * track list they place against. */
+.av-row > .av-cue { grid-row: 1; grid-column: 1; }
+
+.av-block[data-cue='true'] .av-cell-video { grid-row: 1; grid-column: 2; }
+.av-block[data-cue='false'] .av-cell-video { grid-row: 1; grid-column: 1; }
+.av-block[data-cue='true'] .av-cell-audio { grid-row: 1; grid-column: 3; }
+.av-block[data-cue='false'] .av-cell-audio { grid-row: 1; grid-column: 2; }
+.av-block[data-cue='true'] .av-image { grid-row: 1; grid-column: 4; }
+.av-block[data-cue='false'] .av-image { grid-row: 1; grid-column: 3; }
+
+/* Which track line each divider sits on.
+ *
+ * Written out per column combination rather than computed in the node view,
+ * because the view must not read the parent block's attributes to decide its
+ * own DOM — see the "Which columns are on" note above. The block carries
+ * data-cue / data-image beside --av-grid, so these cannot disagree with the
+ * track list they are placing against. */
+.av-block[data-cue='true'] .av-col-handle[data-boundary='cue-video'] { grid-column: 1; }
+.av-block[data-cue='false'] .av-col-handle[data-boundary='cue-video'] { display: none; }
+
+.av-block[data-cue='true'] .av-col-handle[data-boundary='video-audio'] { grid-column: 2; }
+.av-block[data-cue='false'] .av-col-handle[data-boundary='video-audio'] { grid-column: 1; }
+
+.av-block[data-image='false'] .av-col-handle[data-boundary='audio-image'] { display: none; }
+.av-block[data-image='true'][data-cue='true'] .av-col-handle[data-boundary='audio-image'] { grid-column: 3; }
+.av-block[data-image='true'][data-cue='false'] .av-col-handle[data-boundary='audio-image'] { grid-column: 2; }
+
+/* On paper the line is still the table's rule; only the handle's cursor and
+   its hover state mean nothing there. */
+@media print {
+  .av-col-handle { cursor: default; }
+  /* Explicitly the light grey: a script written in dark mode still prints on
+     white paper. */
+  .av-col-handle::before { background: #d0d0d0; width: 1px; margin-left: -0.5px; }
 }
 
 /* ── Cue / Timing column ──────────────────────────────────────────────────
@@ -160,7 +347,7 @@
 }
 
 /* Light-on-dark: tone down the divider so it doesn't dominate */
-[data-theme='dark'] .av-cell-audio { border-left-color: #3a3a3a; }
+[data-theme='dark'] .av-block { --av-divider: #3a3a3a; }
 [data-theme='dark'] .av-cue { color: #9a9a9a; }
 [data-theme='dark'] .av-cue-shot { color: #ccc; }
 [data-theme='dark'] .av-cue-duration { border-color: #3a3a3a; }

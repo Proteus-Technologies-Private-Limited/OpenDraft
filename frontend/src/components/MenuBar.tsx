@@ -8,7 +8,7 @@ import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
 import { requestHandwriting } from '../utils/handwriting';
 import { requestElementMenu } from '../utils/elementMenu';
-import { isInAvCell, avRowContext, readColumnConfig, AV_DEFAULT_COLUMNS, AV_ASPECT_RATIOS } from '../editor/extensions/AvBlock';
+import { isInAvCell, avRowContext, readColumnConfig, avColumnDataCount, avBlockAtSelection, AV_DEFAULT_COLUMNS, AV_ASPECT_RATIOS } from '../editor/extensions/AvBlock';
 import { formatShortcut } from '../utils/shortcuts';
 import { showToast } from './Toast';
 import { downloadFDX, exportFDX } from '../utils/fdxExporter';
@@ -466,6 +466,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   // ── Word import: best-effort warning shown before opening the file picker ──
   const [docxImportWarningOpen, setDocxImportWarningOpen] = useState(false);
+  /** Pending "you are about to hide N rows' worth of work" confirmation, for
+   *  the AV column toggles. Null when nothing is being asked. */
+  const [avColumnWarning, setAvColumnWarning] = useState<{ which: 'cue' | 'image'; rows: number } | null>(null);
 
   /**
    * Set when a file in someone else's format has been opened in place, so the
@@ -650,6 +653,43 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (!editor) return;
     editor.chain().focus().setAvColumnWidth(which, AV_DEFAULT_COLUMNS.widths[which]).run();
   }, [editor]);
+
+  /**
+   * Turn an AV column on or off, asking first when switching one off would take
+   * work out of sight.
+   *
+   * Off is not a delete — durations stay on their rows, frames stay in theirs,
+   * and turning the column back on brings them back exactly as they were. But
+   * the flag also decides what `readAvBlock` writes, so a writer who has timed
+   * their shots loses the gutter, the PDF column and the spreadsheet column in
+   * one click, and from where they sit that is indistinguishable from losing
+   * the timings. Turning a column ON never asks.
+   */
+  const toggleAvColumnChecked = useCallback((which: 'cue' | 'image') => {
+    if (!editor) return;
+    try {
+      const block = avBlockAtSelection(editor.state);
+      const turningOff = block ? readColumnConfig(block.attrs)[which] : false;
+      const rows = block && turningOff ? avColumnDataCount(block, which) : 0;
+      if (rows > 0) {
+        setAvColumnWarning({ which, rows });
+        return;
+      }
+    } catch (err) {
+      // A count we could not take is not a reason to refuse the toggle; the
+      // worst case is the writer is not asked about something reversible.
+      console.warn('[av] could not check the column for data', err);
+    }
+    editor.chain().focus().toggleAvColumn(which).run();
+  }, [editor]);
+
+  /** The writer said yes to hiding the column. */
+  const confirmAvColumnToggle = useCallback(() => {
+    const pending = avColumnWarning;
+    setAvColumnWarning(null);
+    if (!editor || !pending) return;
+    editor.chain().focus().toggleAvColumn(pending.which, false).run();
+  }, [editor, avColumnWarning]);
 
   /** Flip whether this AV body repeats its header row on each printed page.
    *  Defaults to on, so only an explicit `false` counts as off. */
@@ -1796,18 +1836,149 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setOpenSubmenu(null);
   };
 
+  /**
+   * Which submenu is open, as a path of labels rather than a single one.
+   *
+   * Submenus nest more than one deep (Format ▸ AV Script ▸ Columns ▸ Column
+   * Width ▸ Video), so "the open submenu" is a trail, not a label: opening the
+   * innermost one has to leave every ancestor open behind it. The separator is
+   * a unit separator so no menu label can ever collide with it.
+   */
+  const SUBMENU_SEP = '\u241F';
+  const submenuPath = (parentPath: string, label: string) =>
+    parentPath ? `${parentPath}${SUBMENU_SEP}${label}` : label;
+  /** True when `path`'s submenu is on the open trail — itself or an ancestor
+   *  of whatever is open. */
+  const isSubmenuOpen = (path: string) =>
+    openSubmenu === path || (openSubmenu != null && openSubmenu.startsWith(path + SUBMENU_SEP));
+
   // Mouse: hover switches submenu (desktop) — no pointerleave to avoid layout shift
-  const handleSubmenuPointerEnter = (label: string, e: React.PointerEvent) => {
-    if (e.pointerType === 'mouse') setOpenSubmenu(label);
+  const handleSubmenuPointerEnter = (path: string, e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse') setOpenSubmenu(path);
   };
-  const handleItemPointerEnter = (e: React.PointerEvent) => {
-    if (e.pointerType === 'mouse') setOpenSubmenu(null);
+  /** Hovering a plain row closes anything open *below* its own level, and
+   *  leaves its ancestors alone — at depth 0 that is the old "close all". */
+  const handleItemPointerEnter = (parentPath: string, e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse') setOpenSubmenu(parentPath || null);
   };
-  // Touch: tap toggles submenu (mobile)
-  const handleSubmenuTouchEnd = (label: string, e: React.TouchEvent) => {
+  // Touch: tap toggles submenu (mobile) — closing falls back to the parent
+  // level so a tap on an inner submenu does not dismiss the whole trail.
+  const handleSubmenuTouchEnd = (parentPath: string, path: string, e: React.TouchEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setOpenSubmenu((prev) => (prev === label ? null : label));
+    setOpenSubmenu((prev) => (prev === path || (prev != null && prev.startsWith(path + SUBMENU_SEP))
+      ? (parentPath || null)
+      : path));
+  };
+
+  /**
+   * Place an open submenu, pinned to the viewport rather than to its parent.
+   *
+   * Fixed, not absolute, because the dropdown itself scrolls when it is taller
+   * than the window (see `dropdownPos.maxHeight`): an absolutely positioned
+   * flyout sitting outside its scroll container's padding box gets clipped
+   * away entirely. Fixed coordinates leave the scroll container behind, which
+   * also lets a deep submenu open past the bottom of a short window.
+   *
+   * Measured after clearing the previous placement, so a submenu that fits
+   * only *because* it was flipped last render does not read as fitting and
+   * flip back on the render after — easy to hit three levels deep, where every
+   * level shifts another 240px right.
+   *
+   * Below the mobile breakpoint submenus render inline (`position: static`),
+   * so there is nothing to place and inline coordinates would break the
+   * stacked layout.
+   */
+  const positionSubmenu = (el: HTMLElement) => {
+    const row = el.parentElement;
+    if (!row) return;
+    if (window.matchMedia('(max-width: 600px)').matches) {
+      el.style.position = '';
+      el.style.left = '';
+      el.style.top = '';
+      el.style.maxHeight = '';
+      return;
+    }
+    el.style.position = 'fixed';
+    el.style.left = '0px';
+    el.style.top = '0px';
+    el.style.maxHeight = `${Math.max(120, window.innerHeight - 16)}px`;
+    const anchor = row.getBoundingClientRect();
+    const box = el.getBoundingClientRect();
+    // Out to the right of the parent row, or back to its left when that would
+    // leave the window.
+    let left = anchor.right;
+    if (left + box.width > window.innerWidth - 8) left = anchor.left - box.width;
+    // Top-aligned with the row, lifted just enough to stay on screen.
+    let top = anchor.top - 4;
+    if (top + box.height > window.innerHeight - 8) top = window.innerHeight - 8 - box.height;
+    el.style.left = `${Math.max(8, left)}px`;
+    el.style.top = `${Math.max(8, top)}px`;
+  };
+
+  /**
+   * One dropdown row, at any depth.
+   *
+   * Recursive because submenus nest: the old renderer drew exactly two levels,
+   * so an item with children *inside* a submenu (Column Width, Frame Aspect
+   * Ratio) rendered as a row with no arrow and no action — a dead end.
+   */
+  const renderMenuNode = (item: MenuItem, parentPath: string, index: number): React.ReactNode => {
+    if (item.separator) {
+      return (
+        <div
+          key={`sep-${index}`}
+          className="menu-separator"
+          onPointerEnter={(e) => handleItemPointerEnter(parentPath, e)}
+        />
+      );
+    }
+    if (item.children && item.children.length > 0) {
+      const path = submenuPath(parentPath, item.label);
+      const open = isSubmenuOpen(path);
+      return (
+        // Never marked `disabled` here: the class kills pointer events, and a
+        // parent that cannot be opened hides its children instead of
+        // explaining them. Leaves carry the disabled state and the hint.
+        <div
+          key={path}
+          className={`menu-dropdown-item has-children ${open ? 'submenu-open' : ''}`}
+          title={item.title}
+          onPointerEnter={(e) => handleSubmenuPointerEnter(path, e)}
+          onTouchEnd={(e) => handleSubmenuTouchEnd(parentPath, path, e)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpenSubmenu((prev) => (prev === path || (prev != null && prev.startsWith(path + SUBMENU_SEP))
+              ? (parentPath || null)
+              : path));
+          }}
+        >
+          {item.icon && <span className="menu-dropdown-icon">{item.icon}</span>}
+          <span>{item.label}</span>
+          <span className="menu-submenu-arrow">{open ? '\u25BE' : '\u25B8'}</span>
+          <div
+            className={`menu-submenu ${open ? 'submenu-visible' : ''}`}
+            ref={(el) => { if (el && open) positionSubmenu(el); }}
+          >
+            {item.children.map((child, j) => renderMenuNode(child, path, j))}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div
+        key={submenuPath(parentPath, item.label)}
+        className={`menu-dropdown-item ${item.disabled ? 'disabled' : ''}`}
+        title={item.title}
+        onPointerEnter={(e) => handleItemPointerEnter(parentPath, e)}
+        onTouchEnd={(e) => e.stopPropagation()}
+        onClick={(e) => handleItemClick(item, e)}
+      >
+        {item.icon && <span className="menu-dropdown-icon">{item.icon}</span>}
+        <span>{item.label}</span>
+        {item.shortcut && <span className="menu-shortcut">{item.shortcut}</span>}
+      </div>
+    );
   };
 
   const menus: MenuSection[] = [
@@ -2057,75 +2228,101 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { separator: true, label: '' },
         { icon: <FaColumns />, label: 'Dual Dialogue', shortcut: `${mod}D`, action: () => (editor as any)?.commands?.toggleDualDialogue() },
         {
-          // Disabled on the children, not on this parent: the renderer honours
-          // `disabled` on a leaf but opens a submenu regardless. The item stays
-          // visible in a screenplay so the AV format's row controls are
-          // findable at all — issue #116 was in the end about discoverability.
-          icon: <FaColumns />, label: 'AV Row',
-          children: [
-            { icon: <FaPlus />, label: 'Insert Row Below', shortcut: `${mod}↵`, disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('below').run() },
-            { icon: <FaPlus />, label: 'Insert Row Above', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('above').run() },
-            { separator: true, label: '' },
-            { icon: <FaTimes />, label: 'Delete Row', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().deleteAvRow().run() },
-          ],
-        },
-        {
-          // Column and storyboard controls. Same reasoning as the row controls
-          // above: every one of these has to be reachable without a hardware
-          // keyboard, so the menu is the primary route, not a shortcut.
-          icon: <FaColumns />, label: 'AV Columns',
+          // Every AV control under one roof. Three sibling entries (Row,
+          // Columns, Storyboard) pushed the Format menu past the bottom of the
+          // window on a laptop, and they are one feature, not three.
+          //
+          // Disabled is set on the leaves, not on a parent: the renderer
+          // honours `disabled` on a leaf but opens a submenu regardless, so a
+          // screenplay still shows what AV can do rather than hiding it —
+          // issue #116 was in the end about discoverability.
+          icon: <FaColumns />, label: 'AV Script',
           children: [
             {
-              icon: <FaClock />,
-              label: avColumns.cue ? '✓ Cue / Timing Column' : 'Cue / Timing Column',
-              disabled: !inAvCell, title: avRowHint,
-              action: () => editor?.chain().focus().toggleAvColumn('cue').run(),
-            },
-            {
-              icon: <FaImage />,
-              label: avColumns.image ? '✓ Storyboard Column' : 'Storyboard Column',
-              disabled: !inAvCell, title: avRowHint,
-              action: () => editor?.chain().focus().toggleAvColumn('image').run(),
-            },
-            { separator: true, label: '' },
-            {
-              icon: <FaFileAlt />,
-              label: avRepeatHeaders ? '✓ Repeat Headers On Each Page' : 'Repeat Headers On Each Page',
-              disabled: !inAvCell, title: avRowHint,
-              action: () => toggleAvRepeatHeaders(),
+              // The way INTO the AV format, and the reason everything below it
+              // used to sit permanently greyed out in a normal script: the
+              // only route to toggleAvBlock was ⌘⇧A, which an iPad does not
+              // have. Deliberately the first item, and never disabled.
+              icon: <FaColumns />,
+              label: inAvCell ? 'Remove AV Columns' : 'Insert AV Columns',
+              shortcut: `${mod}\u21e7A`,
+              title: inAvCell
+                ? 'Delete this AV table, and everything in it, back to a single line'
+                : 'Turn this line into a two-column AV table — Video on the left, Audio on the right',
+              disabled: !editor,
+              action: () => editor?.chain().focus().toggleAvBlock().run(),
             },
             { separator: true, label: '' },
             {
-              icon: <FaColumns />, label: 'Column Width',
-              children: (['video', 'audio', 'cue', 'image'] as const).map((which) => ({
-                icon: <FaColumns />,
-                label: which === 'cue' ? 'Cue' : which === 'image' ? 'Storyboard' : which === 'video' ? 'Video' : 'Audio',
-                children: [
-                  { icon: <FaColumns />, label: 'Narrower', disabled: !inAvCell, action: () => nudgeAvWidth(which, -0.25) },
-                  { icon: <FaColumns />, label: 'Wider', disabled: !inAvCell, action: () => nudgeAvWidth(which, 0.25) },
-                  { icon: <FaColumns />, label: 'Reset', disabled: !inAvCell, action: () => resetAvWidth(which) },
-                ],
-              })),
+              icon: <FaColumns />, label: 'Row',
+              children: [
+                { icon: <FaPlus />, label: 'Insert Row Below', shortcut: `${mod}\u21b5`, disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('below').run() },
+                { icon: <FaPlus />, label: 'Insert Row Above', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().insertAvRow('above').run() },
+                { separator: true, label: '' },
+                { icon: <FaTimes />, label: 'Delete Row', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().deleteAvRow().run() },
+              ],
             },
-          ],
-        },
-        {
-          icon: <FaImage />, label: 'AV Storyboard',
-          children: [
-            { icon: <FaImage />, label: 'Add / Replace Frame…', disabled: !inAvCell, title: avRowHint, action: () => pickAvFrame() },
-            { icon: <FaPlus />, label: 'Add Blank Frame', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().setAvRowImage({ src: null }).run() },
-            { separator: true, label: '' },
             {
-              icon: <FaImage />, label: 'Frame Aspect Ratio',
-              children: AV_ASPECT_RATIOS.map((ratio) => ({
-                icon: <FaImage />,
-                label: avFrameAspect === ratio ? `✓ ${ratio}` : ratio,
-                disabled: !inAvCell,
-                action: () => editor?.chain().focus().setAvRowImage({ ...(avFrameImage || {}), aspect: ratio }).run(),
-              })),
+              // Column and storyboard controls. Same reasoning as the row
+              // controls: every one of these has to be reachable without a
+              // hardware keyboard, so the menu is the primary route, not a
+              // shortcut.
+              icon: <FaColumns />, label: 'Columns',
+              children: [
+                {
+                  icon: <FaClock />,
+                  label: avColumns.cue ? '\u2713 Cue / Timing Column' : 'Cue / Timing Column',
+                  disabled: !inAvCell, title: avRowHint,
+                  action: () => toggleAvColumnChecked('cue'),
+                },
+                {
+                  icon: <FaImage />,
+                  label: avColumns.image ? '\u2713 Storyboard Column' : 'Storyboard Column',
+                  disabled: !inAvCell, title: avRowHint,
+                  action: () => toggleAvColumnChecked('image'),
+                },
+                { separator: true, label: '' },
+                {
+                  icon: <FaFileAlt />,
+                  label: avRepeatHeaders ? '\u2713 Repeat Headers On Each Page' : 'Repeat Headers On Each Page',
+                  disabled: !inAvCell, title: avRowHint,
+                  action: () => toggleAvRepeatHeaders(),
+                },
+                { separator: true, label: '' },
+                {
+                  icon: <FaColumns />, label: 'Column Width',
+                  children: (['video', 'audio', 'cue', 'image'] as const).map((which) => ({
+                    icon: <FaColumns />,
+                    label: which === 'cue' ? 'Cue' : which === 'image' ? 'Storyboard' : which === 'video' ? 'Video' : 'Audio',
+                    children: [
+                      { icon: <FaColumns />, label: 'Narrower', disabled: !inAvCell, title: avRowHint, action: () => nudgeAvWidth(which, -0.25) },
+                      { icon: <FaColumns />, label: 'Wider', disabled: !inAvCell, title: avRowHint, action: () => nudgeAvWidth(which, 0.25) },
+                      { icon: <FaColumns />, label: 'Reset', disabled: !inAvCell, title: avRowHint, action: () => resetAvWidth(which) },
+                    ],
+                  })),
+                },
+              ],
             },
-            { separator: true, label: '' },
-            { icon: <FaTimes />, label: 'Remove Frame', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().clearAvRowImage().run() },
+            {
+              icon: <FaImage />, label: 'Storyboard',
+              children: [
+                { icon: <FaImage />, label: 'Add / Replace Frame\u2026', disabled: !inAvCell, title: avRowHint, action: () => pickAvFrame() },
+                { icon: <FaPlus />, label: 'Add Blank Frame', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().setAvRowImage({ src: null }).run() },
+                { separator: true, label: '' },
+                {
+                  icon: <FaImage />, label: 'Frame Aspect Ratio',
+                  children: AV_ASPECT_RATIOS.map((ratio) => ({
+                    icon: <FaImage />,
+                    label: avFrameAspect === ratio ? `\u2713 ${ratio}` : ratio,
+                    disabled: !inAvCell,
+                    title: avRowHint,
+                    action: () => editor?.chain().focus().setAvRowImage({ ...(avFrameImage || {}), aspect: ratio }).run(),
+                  })),
+                },
+                { separator: true, label: '' },
+                { icon: <FaTimes />, label: 'Remove Frame', disabled: !inAvCell, title: avRowHint, action: () => editor?.chain().focus().clearAvRowImage().run() },
+              ],
+            },
           ],
         },
         {
@@ -2356,7 +2553,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   // Track the active menu item's position for the portal dropdown
   const menuItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; left: number }>({ top: 0, left: 0 });
+  // `maxHeight` keeps a long menu (Format, on a short window in comfortable
+  // density) inside the viewport instead of running off the bottom where the
+  // last few items cannot be reached at all. Submenus are positioned fixed, so
+  // they still fly out past the scroll container.
+  const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; left: number; maxHeight?: number }>({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!activeMenu) return;
@@ -2372,15 +2573,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
       // In floating mode, position relative to the panel edges (not individual items)
       // so the dropdown clears the rounded, padded floating menu panel.
+      const fit = (edge: number) => Math.max(160, window.innerHeight - edge - 8);
       if (toolbarMode === 'hidden' && menuRef.current) {
         const panelRect = menuRef.current.getBoundingClientRect();
         if (panelRect.bottom > window.innerHeight * 0.55) {
-          setDropdownPos({ bottom: window.innerHeight - panelRect.top + 4, left, top: undefined });
+          const bottom = window.innerHeight - panelRect.top + 4;
+          setDropdownPos({ bottom, left, top: undefined, maxHeight: fit(bottom) });
         } else {
-          setDropdownPos({ top: panelRect.bottom + 4, left, bottom: undefined });
+          const top = panelRect.bottom + 4;
+          setDropdownPos({ top, left, bottom: undefined, maxHeight: fit(top) });
         }
       } else {
-        setDropdownPos({ top: rect.bottom, left, bottom: undefined });
+        setDropdownPos({ top: rect.bottom, left, bottom: undefined, maxHeight: fit(rect.bottom) });
       }
     }
   }, [activeMenu, toolbarMode]);
@@ -2676,76 +2880,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
       <div
         className={`menu-dropdown${toolbarMode === 'comfortable' ? ' menu-dropdown--comfortable' : ''}${dropdownPos.bottom != null ? ' menu-dropdown--above' : ''}`}
         onMouseDown={keepEditorSelection}
-        style={{ top: dropdownPos.top, bottom: dropdownPos.bottom, left: dropdownPos.left }}
+        style={{ top: dropdownPos.top, bottom: dropdownPos.bottom, left: dropdownPos.left, maxHeight: dropdownPos.maxHeight }}
       >
-        {activeMenuData.items.map((item, i) =>
-          item.separator ? (
-            <div key={i} className="menu-separator" onPointerEnter={handleItemPointerEnter} />
-          ) : item.children ? (
-            <div
-              key={item.label}
-              className={`menu-dropdown-item has-children ${openSubmenu === item.label ? 'submenu-open' : ''}`}
-              onPointerEnter={(e) => handleSubmenuPointerEnter(item.label!, e)}
-              onTouchEnd={(e) => handleSubmenuTouchEnd(item.label!, e)}
-              onClick={(e) => { e.stopPropagation(); setOpenSubmenu((prev) => (prev === item.label ? null : item.label!)); }}
-            >
-              {item.icon && <span className="menu-dropdown-icon">{item.icon}</span>}
-              <span>{item.label}</span>
-              <span className="menu-submenu-arrow">{openSubmenu === item.label ? '\u25BE' : '\u25B8'}</span>
-              <div
-                className={`menu-submenu ${openSubmenu === item.label ? 'submenu-visible' : ''}`}
-                ref={(el) => {
-                  if (el && openSubmenu === item.label) {
-                    const rect = el.getBoundingClientRect();
-                    if (rect.right > window.innerWidth) {
-                      el.classList.add('submenu-flip');
-                    } else {
-                      el.classList.remove('submenu-flip');
-                    }
-                    if (rect.bottom > window.innerHeight) {
-                      el.classList.add('submenu-flip-y');
-                    } else {
-                      el.classList.remove('submenu-flip-y');
-                    }
-                  }
-                }}
-              >
-                {item.children.map((child, j) =>
-                  child.separator ? (
-                    <div key={j} className="menu-separator" />
-                  ) : (
-                    <div
-                      key={child.label}
-                      className={`menu-dropdown-item ${child.disabled ? 'disabled' : ''}`}
-                      title={child.title}
-                      onTouchEnd={(e) => e.stopPropagation()}
-                      onClick={(e) => handleItemClick(child, e)}
-                    >
-                      {child.icon && <span className="menu-dropdown-icon">{child.icon}</span>}
-                      <span>{child.label}</span>
-                      {child.shortcut && (
-                        <span className="menu-shortcut">{child.shortcut}</span>
-                      )}
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-          ) : (
-            <div
-              key={item.label}
-              className={`menu-dropdown-item ${item.disabled ? 'disabled' : ''}`}
-              onPointerEnter={handleItemPointerEnter}
-              onClick={(e) => handleItemClick(item, e)}
-            >
-              {item.icon && <span className="menu-dropdown-icon">{item.icon}</span>}
-              <span>{item.label}</span>
-              {item.shortcut && (
-                <span className="menu-shortcut">{item.shortcut}</span>
-              )}
-            </div>
-          )
-        )}
+        {activeMenuData.items.map((item, i) => renderMenuNode(item, '', i))}
       </div>,
       document.body,
     )}
@@ -3326,6 +3463,38 @@ const MenuBar: React.FC<MenuBarProps> = ({
         </div>
       </div>
     )}
+    {avColumnWarning && (() => {
+      const isCue = avColumnWarning.which === 'cue';
+      const rows = avColumnWarning.rows;
+      const what = isCue
+        ? `${rows} ${rows === 1 ? 'shot has' : 'shots have'} a time on`
+        : `${rows} ${rows === 1 ? 'row has' : 'rows have'} a storyboard frame in`;
+      return (
+        <div className="dialog-overlay" onClick={() => setAvColumnWarning(null)}>
+          <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-header">
+              Hide the {isCue ? 'Cue / Timing' : 'Storyboard'} Column?
+            </div>
+            <div className="dialog-body">
+              <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
+                {what} it. Hiding the column takes {isCue ? 'those times' : 'them'} out
+                of the script on screen, off the printed page, and out of
+                exported spreadsheets and PDFs.
+              </p>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-muted, #888)' }}>
+                Nothing is deleted — {isCue ? 'the times' : 'the frames'} stay with their
+                rows, and turning the column back on brings them back exactly as
+                they are now.
+              </p>
+            </div>
+            <div className="dialog-actions">
+              <button onClick={() => setAvColumnWarning(null)}>Cancel</button>
+              <button className="dialog-primary" onClick={confirmAvColumnToggle}>Hide Column</button>
+            </div>
+          </div>
+        </div>
+      );
+    })()}
     {docxImportWarningOpen && (
       <div className="dialog-overlay" onClick={() => setDocxImportWarningOpen(false)}>
         <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
