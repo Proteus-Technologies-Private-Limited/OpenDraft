@@ -17,20 +17,52 @@ import { showToast } from '../components/Toast';
  * click handler pending for the life of the session, and there is no `cancel`
  * event on a file input to hang that on — the window regaining focus with no
  * file chosen is the only signal there is.
+ *
+ * **The bytes are read here, while the input is still in the document, and the
+ * caller gets a copy that owns them.** Android's WebView hands back a `File`
+ * backed by a `content://` URI whose read permission does not outlive the
+ * `<input>` it came from: taking the element out of the DOM first made every
+ * later `arrayBuffer()` throw a bare `DOMException`, so the picker opened, the
+ * writer chose a picture, and the frame silently never arrived. iOS and the
+ * desktop webviews are happy either way, so there is one path for all of them.
+ *
+ * Rejects when the chosen file cannot be read — that is a failure the writer
+ * needs told about, and it is not the same thing as cancelling.
  */
 export function pickImageFile(): Promise<File | null> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
     input.style.display = 'none';
-    const done = (f: File | null) => {
+    let settled = false;
+    const cleanup = () => {
       window.removeEventListener('focus', onFocus);
       input.remove();
+    };
+    const done = (f: File | null) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
       resolve(f);
     };
+    const failed = (err: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(err instanceof Error ? err : new Error(String(err)));
+    };
     const onFocus = () => setTimeout(() => { if (!input.files?.length) done(null); }, 300);
-    input.onchange = () => done(input.files?.[0] ?? null);
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) { done(null); return; }
+      try {
+        const bytes = await file.arrayBuffer();
+        done(new File([bytes], file.name, { type: file.type }));
+      } catch (err) {
+        failed(err);
+      }
+    };
     window.addEventListener('focus', onFocus, { once: true });
     document.body.appendChild(input);
     input.click();
