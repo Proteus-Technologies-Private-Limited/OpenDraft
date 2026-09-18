@@ -4,6 +4,7 @@ import {
   readRecoverySnapshot,
   readRecoverableSnapshot,
   clearRecoverySnapshot,
+  recoverySlotKey,
   snapshotMatchesDocument,
   type RecoverySnapshot,
 } from './recoveryService';
@@ -57,18 +58,18 @@ describe('recoveryService', () => {
 
   // A snapshot that fails to parse must not resurface on every launch.
   it('discards an unreadable snapshot instead of failing repeatedly', () => {
-    localStorage.setItem(STORAGE_KEY, '{ not json');
+    localStorage.setItem(recoverySlotKey(), '{ not json');
     expect(readRecoverySnapshot()).toBeNull();
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(recoverySlotKey())).toBeNull();
   });
 
   it('discards a snapshot written by an incompatible version', () => {
     localStorage.setItem(
-      STORAGE_KEY,
+      recoverySlotKey(),
       JSON.stringify({ version: 99, savedAt: Date.now(), content: CONTENT }),
     );
     expect(readRecoverySnapshot()).toBeNull();
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(recoverySlotKey())).toBeNull();
   });
 
   it('discards a snapshot with no usable content', () => {
@@ -394,11 +395,209 @@ describe('recoveryService', () => {
       expect(survivor.readRecoverySnapshot()?.title).toBe('Main window');
     });
 
-    it('falls back to the shared slot outside Tauri', async () => {
+  });
+
+  /**
+   * A browser has no window label, so every tab was sharing the one unsuffixed
+   * slot: opening the app in a second tab destroyed the unsaved work the first
+   * tab was protecting, within ten seconds and with nothing said.
+   */
+  describe('per-tab slots in the browser', () => {
+    const write = (
+      svc: typeof import('./recoveryService'),
+      title: string,
+    ) => svc.writeRecoverySnapshot({ content: CONTENT, title, projectId: null, scriptId: null });
+
+    /** Let a ping and its answers cross between the simulated tabs. */
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 30));
+
+    /** Every tab this test opened, so none is left answering the next one. */
+    const open: (typeof import('./recoveryService'))[] = [];
+
+    afterEach(() => {
+      for (const tab of open.splice(0)) tab.closeRecoveryPresence();
+    });
+
+    /** A fresh run of the app in a tab of its own: new session, new sessionStorage. */
+    const newTab = async () => {
+      sessionStorage.clear();
       vi.resetModules();
-      const svc = await import('./recoveryService');
-      expect(write(svc, 'Browser tab')).toBe(true);
-      expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull();
+      const tab = await import('./recoveryService');
+      open.push(tab);
+      return tab;
+    };
+
+    /** The same tab again — sessionStorage survives a reload, a session id does not. */
+    const reloadTab = async () => {
+      vi.resetModules();
+      const tab = await import('./recoveryService');
+      open.push(tab);
+      return tab;
+    };
+
+    it('gives a tab a slot of its own rather than the shared one', async () => {
+      const tab = await newTab();
+      expect(write(tab, 'First tab')).toBe(true);
+      expect(tab.recoverySlotKey()).toMatch(/^opendraft:recovery:tab-/);
+      expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    });
+
+    it('comes back to the same slot after a reload', async () => {
+      const tab = await newTab();
+      write(tab, 'Before the reload');
+      const slot = tab.recoverySlotKey();
+
+      const reloaded = await reloadTab();
+      expect(reloaded.recoverySlotKey()).toBe(slot);
+      // ...and the work from before the reload is what it offers back.
+      expect(reloaded.readRecoverableSnapshot()?.title).toBe('Before the reload');
+    });
+
+    it('does not overwrite what another tab is protecting', async () => {
+      const first = await newTab();
+      write(first, 'Unsaved work in the first tab');
+      const firstSlot = first.recoverySlotKey();
+
+      const second = await newTab();
+      write(second, 'A script imported in the second tab');
+
+      expect(second.recoverySlotKey()).not.toBe(firstSlot);
+      const survivor = JSON.parse(localStorage.getItem(firstSlot) || 'null');
+      expect(survivor?.title).toBe('Unsaved work in the first tab');
+    });
+
+    it('steps over a slot a duplicated tab brought with it', async () => {
+      // Duplicating a tab copies its sessionStorage, so the copy would
+      // otherwise write straight into the original's slot. What gives it away
+      // is the original still snapshotting after the copy opened, so the clock
+      // has to move for the test to mean anything.
+      vi.useFakeTimers();
+      try {
+        const start = new Date('2026-01-01T00:00:00Z').getTime();
+        vi.setSystemTime(start);
+        const first = await newTab();
+        write(first, 'Unsaved work in the first tab');
+        const firstSlot = first.recoverySlotKey();
+
+        vi.setSystemTime(start + 5_000);
+        vi.resetModules(); // a new run, but the same sessionStorage
+        const duplicate = await import('./recoveryService');
+        open.push(duplicate);
+
+        vi.setSystemTime(start + 15_000);
+        write(first, 'Unsaved work in the first tab');
+        write(duplicate, 'The duplicate');
+
+        expect(duplicate.recoverySlotKey()).not.toBe(firstSlot);
+        expect(JSON.parse(localStorage.getItem(firstSlot) || 'null')?.title)
+          .toBe('Unsaved work in the first tab');
+        expect(JSON.parse(localStorage.getItem(duplicate.recoverySlotKey()) || 'null')?.title)
+          .toBe('The duplicate');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('still offers back work left by a tab that is gone', async () => {
+      const first = await newTab();
+      write(first, 'Left behind by a closed tab');
+      first.closeRecoveryPresence(); // the tab is closed: it answers nothing
+
+      const second = await newTab();
+      await settle();
+      write(second, 'This tab');
+      expect(second.readRecoverableSnapshot()?.title).toBe('Left behind by a closed tab');
+    });
+
+    /**
+     * Opening a second tab used to greet the writer with their own live
+     * document, described as unsaved work from their last session and "edited
+     * just now". The tabs are asked who is using what, and a tab that is open
+     * answers for its own slot.
+     */
+    it('does not offer back work another open tab is looking after', async () => {
+      const first = await newTab();
+      write(first, 'Being edited in the first tab right now');
+
+      const second = await newTab();
+      await settle(); // the ping and the answer
+      expect(second.readRecoverableSnapshot()).toBeNull();
+      expect(second.hasRecoverableSnapshot()).toBe(false);
+    });
+
+    it('offers that same work back once the tab holding it has gone', async () => {
+      const first = await newTab();
+      write(first, 'Unsaved when the tab went away');
+
+      const second = await newTab();
+      await settle();
+      expect(second.readRecoverableSnapshot()).toBeNull();
+
+      first.closeRecoveryPresence();
+      const third = await newTab();
+      await settle();
+      expect(third.readRecoverableSnapshot()?.title).toBe('Unsaved when the tab went away');
+    });
+
+    it('falls back to how fresh the work is when tabs cannot be asked', async () => {
+      // Engines without BroadcastChannel have nothing to ask, so a snapshot
+      // written moments ago is taken for a live tab's rather than offered.
+      const real = globalThis.BroadcastChannel;
+      try {
+        const first = await newTab();
+        write(first, 'Fresh work from somewhere');
+        first.closeRecoveryPresence();
+
+        // @ts-expect-error — modelling an engine that does not have it.
+        delete globalThis.BroadcastChannel;
+        const second = await newTab();
+        await settle();
+        expect(second.readRecoverableSnapshot()).toBeNull();
+      } finally {
+        globalThis.BroadcastChannel = real;
+      }
+    });
+
+    it('falls back to the shared slot when sessionStorage is unavailable', async () => {
+      // Safari in private browsing, and anything else that refuses storage.
+      const spy = vi.spyOn(sessionStorage, 'getItem').mockImplementation(() => {
+        throw new Error('storage disabled');
+      });
+      try {
+        vi.resetModules();
+        const svc = await import('./recoveryService');
+        expect(svc.recoverySlotKey()).toBe(STORAGE_KEY);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('frees the oldest stranded snapshot rather than leave the open document unprotected', async () => {
+      const stale = await newTab();
+      write(stale, 'Old and never answered for');
+      const staleSlot = stale.recoverySlotKey();
+      // Age it, so it is unmistakably the oldest.
+      const aged = JSON.parse(localStorage.getItem(staleSlot)!);
+      aged.savedAt = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      localStorage.setItem(staleSlot, JSON.stringify(aged));
+
+      const live = await newTab();
+      const liveSlot = live.recoverySlotKey();
+      // The next write hits a full disk, once.
+      let full = true;
+      const setItem = localStorage.setItem.bind(localStorage);
+      const spy = vi.spyOn(localStorage, 'setItem').mockImplementation((key, value) => {
+        if (full && key === liveSlot) { full = false; throw new Error('QuotaExceededError'); }
+        setItem(key, value);
+      });
+      try {
+        expect(write(live, 'The document being typed')).toBe(true);
+      } finally {
+        spy.mockRestore();
+      }
+      expect(localStorage.getItem(staleSlot)).toBeNull();
+      expect(JSON.parse(localStorage.getItem(liveSlot) || 'null')?.title)
+        .toBe('The document being typed');
     });
   });
 });

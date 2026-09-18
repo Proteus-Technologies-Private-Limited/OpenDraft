@@ -49,44 +49,237 @@ const SESSION_ID = uuid();
 /** Resolved once: a window's label cannot change while it is open. */
 let cachedStorageKey: string | null = null;
 
+/** Where this tab remembers which slot is its own, across reloads. */
+const TAB_SLOT_KEY = 'opendraft:recoveryTab';
+
 /**
- * Where this window keeps its snapshot.
+ * Where this window or tab keeps its snapshot.
  *
  * Every window of the app shares one localStorage, so a single slot meant two
  * windows overwrote each other's unsaved work every ten seconds, and saving in
  * one threw away the other's protection. Since iPad gained real windows (issue
  * #63) that stopped being a desktop-only corner case.
  *
- * The slot is keyed by the Tauri window label, which is the one identifier that
- * is both unique among open windows and stable across launches — so a window
- * finds its own predecessor's snapshot after a crash, and never picks up one
- * belonging to a sibling that is still running. The main window keeps the
- * unsuffixed key so snapshots written by earlier versions are still offered
- * back after an update.
+ * Under Tauri the slot is keyed by the window label, which is both unique among
+ * open windows and stable across launches — so a window finds its own
+ * predecessor's snapshot after a crash, and never picks up one belonging to a
+ * sibling that is still running. The main window keeps the unsuffixed key so
+ * snapshots written by earlier versions are still offered back after an update.
  *
- * Tauri publishes the label synchronously, which matters: the last-moment flush
- * on `pagehide` has no room to await anything.
+ * In a browser there is no label, and every tab was therefore sharing the one
+ * unsuffixed slot — so opening the app in a second tab quietly destroyed the
+ * unsaved work the first tab was protecting, within ten seconds and with
+ * nothing said. A tab gets a slot of its own instead, remembered in
+ * sessionStorage so a reload comes back to the same one.
+ *
+ * Both paths are synchronous, which matters: the last-moment flush on
+ * `pagehide` has no room to await anything.
  */
 function storageKey(): string {
   if (cachedStorageKey !== null) return cachedStorageKey;
+  cachedStorageKey = resolveStorageKey();
+  return cachedStorageKey;
+}
 
-  let key = STORAGE_KEY_BASE;
+function resolveStorageKey(): string {
   try {
-    const label = (
+    const internals = (
       window as unknown as {
         __TAURI_INTERNALS__?: { metadata?: { currentWindow?: { label?: string } } };
       }
-    ).__TAURI_INTERNALS__?.metadata?.currentWindow?.label;
-    if (typeof label === 'string' && label.length > 0 && label !== 'main') {
-      key = `${STORAGE_KEY_BASE}:${label}`;
+    ).__TAURI_INTERNALS__;
+    if (internals) {
+      const label = internals.metadata?.currentWindow?.label;
+      return typeof label === 'string' && label.length > 0 && label !== 'main'
+        ? `${STORAGE_KEY_BASE}:${label}`
+        : STORAGE_KEY_BASE;
     }
   } catch (err) {
-    // Not Tauri, or the internals moved: one shared slot is the old behaviour,
-    // which is still correct for the single window a browser tab has.
-    console.warn('[recovery] could not identify this window, using the shared slot:', err);
+    console.warn('[recovery] could not identify this window:', err);
   }
-  cachedStorageKey = key;
-  return key;
+
+  const suffix = browserTabSuffix();
+  return suffix ? `${STORAGE_KEY_BASE}:${suffix}` : STORAGE_KEY_BASE;
+}
+
+/**
+ * This tab's own slot name, minted once and kept in sessionStorage.
+ *
+ * A tab keeps the slot it had. Finding its own last snapshot still in there is
+ * the normal case rather than a clash: the tab reloaded, or the browser came
+ * back after a crash, and that work is exactly what the launch prompt is about
+ * to offer back — the same way a Tauri window finds its predecessor's.
+ *
+ * The one case sessionStorage cannot tell apart at load is a duplicated tab,
+ * which inherits the original's storage and would point straight at its slot.
+ * That is settled at the first write instead — see {@link slotTakenByLiveTab}.
+ */
+function browserTabSuffix(): string | null {
+  try {
+    return sessionStorage.getItem(TAB_SLOT_KEY) ?? mintTabSlot();
+  } catch (err) {
+    // Storage disabled (Safari private browsing): the one shared slot is the
+    // old behaviour, and still correct for a single tab.
+    console.warn('[recovery] no per-tab slot available, using the shared one:', err);
+    return null;
+  }
+}
+
+function mintTabSlot(): string {
+  const id = `tab-${uuid().slice(0, 8)}`;
+  sessionStorage.setItem(TAB_SLOT_KEY, id);
+  return id;
+}
+
+/**
+ * Stop answering other tabs.
+ *
+ * A closed tab stops answering by simply ceasing to exist, so this is for
+ * teardown — and for tests, which need a way to retire one simulated tab
+ * without ending the process it is running in.
+ */
+export function closeRecoveryPresence(): void {
+  try {
+    presenceChannel?.close();
+  } catch (err) {
+    console.warn('[recovery] could not close the presence channel:', err);
+  }
+  presenceChannel = null;
+}
+
+/**
+ * The storage slot this window or tab writes to.
+ *
+ * Exposed for diagnostics and for tests that need to plant or inspect a
+ * snapshot where this run will actually look for it.
+ */
+export function recoverySlotKey(): string {
+  return storageKey();
+}
+
+/** When this run of the app started; see {@link slotTakenByLiveTab}. */
+const RUN_STARTED_AT = Date.now();
+
+/**
+ * Which slots belong to tabs that are open right now.
+ *
+ * "A snapshot from another session" is not the same as "work nobody is looking
+ * after". Opening a second tab while the first has unsaved pages found the
+ * first tab's snapshot, saw a session id that was not its own, and offered the
+ * writer their own live document back as unsaved work from last time — with
+ * the prompt itself admitting it had been "edited just now".
+ *
+ * Recency cannot tell the two apart: a snapshot written five seconds ago came
+ * either from a tab that is alive or from one that died five seconds ago, and
+ * a tab in the background is throttled and writes nothing at all while still
+ * very much alive. So the tabs are asked instead. Every run answers a ping
+ * with the slot it is using, and a run that has ended answers nothing.
+ */
+const PRESENCE_CHANNEL = 'opendraft:recovery-presence';
+
+const liveSlots = new Set<string>();
+let presenceChannel: BroadcastChannel | null = null;
+let presenceAsked = false;
+/** Whether the tabs can be asked at all — false only on a very old engine. */
+let presenceSupported = false;
+
+interface PresenceMessage {
+  type: 'who' | 'here';
+  sessionId: string;
+  slot?: string;
+}
+
+/**
+ * Join the conversation between tabs: answer pings, and send one.
+ *
+ * Called as this module loads, so replies are in long before the launch prompt
+ * — which waits for the editor to be ready — asks anything. Failure is not
+ * worth reporting: `BroadcastChannel` is missing only in very old engines, and
+ * {@link recentEnoughToBeLive} covers that case.
+ */
+function openPresenceChannel(): void {
+  if (presenceAsked) return;
+  presenceAsked = true;
+  try {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel(PRESENCE_CHANNEL);
+    channel.onmessage = (event: MessageEvent<PresenceMessage>) => {
+      const message = event.data;
+      if (!message || message.sessionId === SESSION_ID) return;
+      if (message.type === 'who') {
+        // Someone just opened. Tell them which slot is spoken for.
+        channel.postMessage({ type: 'here', sessionId: SESSION_ID, slot: storageKey() });
+      } else if (message.type === 'here' && typeof message.slot === 'string') {
+        liveSlots.add(message.slot);
+      }
+    };
+    // Node's implementation holds the event loop open; a browser's has no unref.
+    (channel as unknown as { unref?: () => void }).unref?.();
+    presenceChannel = channel;
+    presenceSupported = true;
+    channel.postMessage({ type: 'who', sessionId: SESSION_ID });
+  } catch (err) {
+    console.warn('[recovery] could not ask other tabs what they are using:', err);
+  }
+}
+
+/**
+ * How fresh a snapshot has to be to be taken for a live tab's when nothing has
+ * answered the ping.
+ *
+ * Only reached where `BroadcastChannel` is missing. Ten seconds is the
+ * snapshot interval, so anything inside this window is more likely a tab still
+ * at work than one that died in the last moment — and a snapshot wrongly held
+ * back is not lost, it is offered at the next launch instead.
+ */
+const LIVE_SLOT_MS = 30_000;
+
+function recentEnoughToBeLive(snapshot: RecoverySnapshot): boolean {
+  return Date.now() - snapshot.savedAt < LIVE_SLOT_MS;
+}
+
+/**
+ * Is this slot being used by a tab that is open right now?
+ *
+ * Its work is not lost and must not be offered back — nor written over.
+ */
+function slotIsLive(key: string, snapshot: RecoverySnapshot): boolean {
+  if (snapshot.sessionId === SESSION_ID) return false;
+  if (liveSlots.has(key)) return true;
+  // Nothing can be asked, so fall back to how recently the slot was written.
+  return !presenceSupported && recentEnoughToBeLive(snapshot);
+}
+
+/**
+ * Is another tab, running right now, writing to this slot?
+ *
+ * Either it said so when it answered the ping, or the snapshot in the slot was
+ * written *after this run began* — which only a tab that is still running can
+ * have done. Work left by an earlier run, this tab before a reload or a tab
+ * that has since closed, was written before by definition and is left alone to
+ * be offered back.
+ */
+function slotTakenByLiveTab(key: string): boolean {
+  if (liveSlots.has(key)) return true;
+  const existing = readSlot(key);
+  if (!existing || existing.sessionId === SESSION_ID) return false;
+  return existing.savedAt > RUN_STARTED_AT;
+}
+
+/**
+ * Move to a slot of our own, leaving the live tab the one it is using.
+ *
+ * Only possible in a browser, where the slot name is ours to choose; a Tauri
+ * window's label is fixed, and two of them cannot collide in the first place.
+ */
+function moveToFreeSlot(): void {
+  try {
+    mintTabSlot();
+    cachedStorageKey = null;
+    console.warn('[recovery] another tab is using this slot — moved to a new one.');
+  } catch (err) {
+    console.warn('[recovery] could not move to a free recovery slot:', err);
+  }
 }
 
 /**
@@ -203,13 +396,72 @@ export function writeRecoverySnapshot(input: WriteRecoveryInput): boolean {
     return reportUnavailable('too-large');
   }
 
+  // A duplicated tab starts out pointed at the original's slot; stepping off
+  // it here is what stops the two overwriting each other's unsaved work.
+  if (slotTakenByLiveTab(storageKey())) moveToFreeSlot();
+
   try {
     localStorage.setItem(storageKey(), serialized);
     return true;
   } catch (err) {
-    // Quota exceeded, or storage disabled (Safari private browsing).
+    // Quota exceeded, or storage disabled (Safari private browsing). Since a
+    // tab keeps a slot of its own, a machine that has been through many
+    // sessions can be holding several snapshots nobody ever answered for, and
+    // between them and the document being typed right now, the document being
+    // typed right now wins.
+    if (dropOldestStrandedSlot()) {
+      try {
+        localStorage.setItem(storageKey(), serialized);
+        return true;
+      } catch (retryErr) {
+        console.warn('[recovery] still could not write after freeing a slot:', retryErr);
+        return reportUnavailable('storage');
+      }
+    }
     console.warn('[recovery] could not write the recovery snapshot:', err);
     return reportUnavailable('storage');
+  }
+}
+
+/**
+ * Free the least recently written slot belonging to neither this run nor the
+ * prompt currently on screen.
+ *
+ * Only ever called because storage is full and the open document would
+ * otherwise go unprotected. An unreadable slot goes first — it is occupying
+ * space and can be offered to nobody.
+ *
+ * @returns true when something was freed and the write is worth retrying.
+ */
+function dropOldestStrandedSlot(): boolean {
+  const own = storageKey();
+  let oldest: { key: string; savedAt: number } | null = null;
+  for (const key of allSlotKeys()) {
+    if (key === own || key === offeredKey) continue;
+    const snapshot = readSlot(key);
+    if (!snapshot) {
+      try {
+        localStorage.removeItem(key);
+        return true;
+      } catch {
+        continue;
+      }
+    }
+    if (!oldest || snapshot.savedAt < oldest.savedAt) {
+      oldest = { key, savedAt: snapshot.savedAt };
+    }
+  }
+  if (!oldest) return false;
+  console.warn(
+    '[recovery] storage is full — dropping the oldest unclaimed snapshot from '
+    + `${new Date(oldest.savedAt).toISOString()} so the open document stays protected.`,
+  );
+  try {
+    localStorage.removeItem(oldest.key);
+    return true;
+  } catch (err) {
+    console.warn('[recovery] could not free a slot:', err);
+    return false;
   }
 }
 
@@ -309,7 +561,7 @@ function readSlot(key: string): RecoverySnapshot | null {
  */
 export function readRecoverableSnapshot(): RecoverySnapshot | null {
   const own = readSlot(storageKey());
-  if (own && own.sessionId !== SESSION_ID) {
+  if (own && own.sessionId !== SESSION_ID && !slotIsLive(storageKey(), own)) {
     offeredKey = storageKey();
     markOffered(offeredKey, own);
     return own;
@@ -320,6 +572,9 @@ export function readRecoverableSnapshot(): RecoverySnapshot | null {
   for (const key of allSlotKeys()) {
     const snapshot = readSlot(key);
     if (!snapshot || snapshot.sessionId === SESSION_ID) continue;
+    // A tab that is open right now is looking after its own work; offering it
+    // back would hand the writer their own live document as something lost.
+    if (slotIsLive(key, snapshot)) continue;
     // Another window of this run is already asking about it. The claim expires:
     // it was written to stop two windows opening together from presenting the
     // same snapshot twice, which is a matter of seconds, but it persisted, so a
@@ -445,3 +700,8 @@ export function snapshotMatchesDocument(
 ): boolean {
   return snapshot.projectId === projectId && snapshot.scriptId === scriptId;
 }
+
+// Ask as the module loads, so the answers are in by the time the launch prompt
+// runs — it waits for the editor to be ready, which is far longer than a
+// same-origin message takes.
+openPresenceChannel();
