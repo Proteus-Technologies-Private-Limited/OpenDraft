@@ -17,6 +17,7 @@ import { EditorState, TextSelection } from '@tiptap/pm/state';
 import { testSchema } from '../test/screenplaySchema';
 import { AvBlock as AvBlockExt } from './extensions';
 import { avArrowExit } from './extensions/AvBlock';
+import { AV_SCRIPT_TEMPLATE } from '../stores/templates/avScriptTemplate';
 
 const commands = (AvBlockExt.config.addCommands as () => Record<
   string,
@@ -170,5 +171,38 @@ describe('arrow escape rule', () => {
 
   it('does not take Up when there is a line before the table', () => {
     expect(wouldExit(docWith([ACTION('A street.'), { type: 'avBlock', content: [AV_ROW] }]), 'before')).toBe(false);
+  });
+});
+
+/**
+ * The AV Script template's own starting point.
+ *
+ * `exitAvBlock` covers every AV body in every document, but the one case it
+ * should not take a menu to reach is the first: a writer who has just picked
+ * the format. The starter was the avBlock alone, which on a phone is a
+ * document with nowhere to write that is not a cell.
+ */
+describe('AV Script starter document', () => {
+  it('parses, and holds a line outside the table', () => {
+    const starter = AV_SCRIPT_TEMPLATE.starterDocument;
+    expect(starter).toBeDefined();
+    // Parsed through the real schema: a starter the document cannot hold is
+    // worse than no starter at all.
+    const doc = testSchema.nodeFromJSON({ type: 'doc', content: starter as never });
+    const names: string[] = [];
+    doc.forEach((n) => { names.push(n.type.name); });
+    expect(names).toContain('avBlock');
+    // At least one top-level node that is an ordinary script line.
+    expect(names.some((n) => n !== 'avBlock')).toBe(true);
+  });
+
+  it('puts that line where a caret can reach it without leaving the document', () => {
+    const doc = testSchema.nodeFromJSON({
+      type: 'doc',
+      content: AV_SCRIPT_TEMPLATE.starterDocument as never,
+    });
+    const last = doc.child(doc.childCount - 1);
+    expect(last.type.name).not.toBe('avBlock');
+    expect(last.isTextblock).toBe(true);
   });
 });

@@ -36,6 +36,17 @@ const STARTER: StarterNode[] = [
       },
     ],
   },
+  // A line outside the table, so the format opens with somewhere to write
+  // that is not a cell.
+  //
+  // The starter used to be the avBlock and nothing else, which on a phone
+  // meant a document with no ordinary line anywhere in it: no Tab, no
+  // Mod-Enter, and the empty page below the table is `.page` rather than
+  // `.ProseMirror`, so tapping it reaches nothing. `exitAvBlock` is the fix
+  // for that and covers every AV body in every document; this is the one
+  // case it should not take a menu to reach, because it is where a writer
+  // starts.
+  { type: 'action' },
 ];
 
 export const AV_SCRIPT_TEMPLATE: FormattingTemplate = {
