@@ -175,6 +175,11 @@
 
     <h2 id="whats-new">What's New</h2>
 
+    <h3>v2.3.1</h3>
+    <ul>
+      <li><strong>Export And Print On Older Android</strong> &mdash; On Android 12 and earlier, <em>File &rarr; Export</em> stopped with &ldquo;Permission denied (os error 13)&rdquo; and no permission anywhere to grant, and <em>File &rarr; Print</em> did nothing at all. Every format went the same way &mdash; PDF, Final Draft, Fountain, Word &mdash; because each of them writes the file out before handing it to Android&rsquo;s save dialog, and it was writing it to a folder no app is allowed into. It writes inside the app&rsquo;s own storage now. Android 13 and later were never affected.</li>
+    </ul>
+
     <h3>v2.3.0</h3>
     <ul>
       <li><strong>A Cue Column, And A Clock That Keeps Itself</strong> &mdash; An AV script can carry shot numbers and timings beside its columns. Type a duration on a row and every start time below it moves with it; insert a row in the middle and the numbering follows. Neither is stored &mdash; both are worked out from the script as it stands, so there is nothing to renumber by hand &mdash; and either can be overridden on the row that needs it. The running total is the section&rsquo;s runtime, and it carries on through a script that has several tables in it rather than starting again at each one.</li>
