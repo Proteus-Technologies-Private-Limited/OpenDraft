@@ -135,6 +135,27 @@ $NDK_HOME/toolchains/llvm/prebuilt/*/bin/llvm-readelf -l libopendraft_lib.so | g
 # the last column must be 0x4000, not 0x1000
 ```
 
+### Compiling the Android Rust before a release
+
+`.github/workflows/test.yml` type-checks `src-tauri` against
+`aarch64-linux-android` on every push and pull request. The desktop jobs build
+for the host, so without it every `#[cfg(target_os = "android")]` block — the
+JNI behind export, print, the file picker and backups — first compiles inside
+`build-android`, during a release, on the one workflow that cannot be re-run
+without a tag.
+
+It is `cargo check`, not a build: no Gradle, no APK, nothing about Kotlin or
+R8. Two things it needs that a desktop check does not, and that the Tauri CLI
+would otherwise set:
+
+- `CC_aarch64_linux_android` and friends pointing into the NDK. cc-rs looks for
+  `aarch64-linux-android-clang`, which no NDK ships, so C build scripts (ring's
+  among them) fail before any OpenDraft code is reached.
+- A real `frontend/dist`, because `tauri::generate_context!()` embeds it at
+  compile time.
+
+The NDK version is pinned to the one `build-android` uses. Keep the two in step.
+
 ### GitHub Secrets for Android signing
 
 For unsigned builds (testing), no secrets are needed. For signed/production builds, add these repository secrets:

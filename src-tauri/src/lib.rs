@@ -579,6 +579,25 @@ fn extract_filename_from_uri(uri: &str) -> String {
 // Instead, we write to the cache directory and present an Android share
 // intent so the user can save to Files, share via any app, etc.
 
+/// Where an export or a print job stages its file before Android takes over.
+///
+/// Not `std::env::temp_dir()`, which is what this used to be: Android sets no
+/// TMPDIR, so that resolves to the `/data/local/tmp` fallback Rust compiles in
+/// — a directory owned by the shell user and closed to every app. Exporting or
+/// printing anything failed on the staging write with "Permission denied (os
+/// error 13)", with no permission available to ask for (issue #125).
+/// MainActivity hands back the app's own cache directory instead, which needs
+/// none.
+#[cfg(target_os = "android")]
+fn android_staging_path(filename: &str) -> Result<std::path::PathBuf, String> {
+    let dir = android_static_call("exportStagingDir", &[])?
+        .ok_or("Could not open a place to write the file")?;
+    // Only the last segment is ours to name: a filename carrying separators
+    // would otherwise land outside the directory we just asked for.
+    let name = filename.rsplit('/').next().unwrap_or(filename);
+    Ok(std::path::Path::new(&dir).join(name))
+}
+
 /// Android export: write file to cache, then present a "Save As" document picker
 /// via ACTION_CREATE_DOCUMENT.  The user picks a location and Android copies the
 /// content from our temp file to the chosen URI via ContentResolver.
@@ -660,8 +679,7 @@ fn android_share_file(file_path: &str, mime_type: &str) -> Result<(), String> {
 fn android_save_and_share(filename: String, contents: String) -> Result<(), String> {
     #[cfg(target_os = "android")]
     {
-        let cache_dir = std::env::temp_dir();
-        let path = cache_dir.join(&filename);
+        let path = android_staging_path(&filename)?;
         std::fs::write(&path, &contents)
             .map_err(|e| format!("Failed to write temp file: {}", e))?;
         // Use application/octet-stream so Android's save-as dialog
@@ -679,8 +697,7 @@ fn android_save_and_share(filename: String, contents: String) -> Result<(), Stri
 fn android_save_and_share_binary(filename: String, contents: Vec<u8>) -> Result<(), String> {
     #[cfg(target_os = "android")]
     {
-        let cache_dir = std::env::temp_dir();
-        let path = cache_dir.join(&filename);
+        let path = android_staging_path(&filename)?;
         std::fs::write(&path, &contents)
             .map_err(|e| format!("Failed to write temp file: {}", e))?;
         let mime = if filename.ends_with(".pdf") { "application/pdf" } else { "application/octet-stream" };
@@ -713,7 +730,7 @@ fn android_save_and_share_binary(filename: String, contents: Vec<u8>) -> Result<
 fn android_print_pdf(filename: String, contents: Vec<u8>) -> Result<(), String> {
     #[cfg(target_os = "android")]
     {
-        let path = std::env::temp_dir().join(&filename);
+        let path = android_staging_path(&filename)?;
         std::fs::write(&path, &contents)
             .map_err(|e| format!("Failed to write the file to print: {}", e))?;
 
