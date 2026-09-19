@@ -152,6 +152,41 @@ class MainActivity : TauriActivity() {
             }
         }
 
+        /**
+         * The folder a file waits in between being written and being handed
+         * to the rest of Android — the save-as picker, or the print spooler.
+         *
+         * The Rust side reached for `std::env::temp_dir()` first, which on
+         * Android means `/data/local/tmp`: TMPDIR is unset, and that is the
+         * fallback Rust compiles in. It belongs to the shell user, so every
+         * export and every print died on the staging write with "Permission
+         * denied (os error 13)" — and no permission exists that would have
+         * opened it, which is why the report read as a missing permission
+         * prompt (issue #125). The app's own cache directory needs no
+         * permission at all, and Android reclaims it under storage pressure,
+         * which is the right lifetime for files this short-lived.
+         *
+         * `context` is passed in because a companion object has none.
+         *
+         * Returns null on any failure; the Rust side turns that into a
+         * user-facing error.
+         */
+        @JvmStatic
+        fun exportStagingDir(context: Context): String? {
+            return try {
+                val dir = File(context.cacheDir, "exports")
+                if (!dir.isDirectory && !dir.mkdirs()) {
+                    android.util.Log.e("OpenDraft", "[export] could not create ${dir.path}")
+                    null
+                } else {
+                    dir.absolutePath
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("OpenDraft", "[export] exportStagingDir failed: ${e.message}")
+                null
+            }
+        }
+
         /** Request code for the document picker activity. */
         const val PICK_FILE_REQUEST = 42
 
