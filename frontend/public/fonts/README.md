@@ -77,7 +77,78 @@ done
 ```
 
 Upstream: <https://github.com/notofonts/devanagari> — SIL Open Font License
-1.1, see `LICENSE-NotoSansDevanagari.txt`.
+1.1, see `LICENSE-Noto.txt`, which covers every Noto face here.
+
+## The other Indic scripts, and Thai
+
+Bengali, Gujarati, Gurmukhi, Kannada, Malayalam, Odia, Sinhala, Tamil, Telugu
+and Thai, on exactly the same terms as Devanagari above: a Noto Sans subset cut
+to the script's block, regular and bold, 12–28 kB a weight. Ten scripts for
+around 400 kB in total, which is what dropping the layout features buys.
+
+Cut them with `./test-script/fetch-export-fonts.sh`, which holds the ranges and
+does every face in one pass. The same ranges are repeated in
+`src/utils/pdfUnicodeFont.ts` and have to agree with it.
+
+Nine of the ten need the vowel reordering in `src/utils/indic.ts` — the pre-base
+sign is a different code point in each, and Tamil, Bengali, Malayalam, Odia and
+Sinhala also have vowels written as one character and drawn as two, which are
+split before the left half is moved. Telugu and Kannada draw no sign to the
+left of its consonant and so pass through untouched. Thai needs no reordering
+at all: it stores its pre-base vowels before the consonant already.
+
+All ten are SIL Open Font License 1.1 — `LICENSE-Noto.txt`, which covers every
+Noto face here.
+
+## CJK — fetched, not bundled
+
+Chinese, Japanese and Korean are **not** in this directory. Noto Sans SC, TC,
+JP and KR are 5–10 MB apiece and no subset helps: which ideographs a screenplay
+uses is not known until it is exported, so there is nothing to cut to. Shipping
+even one would more than double the size of the app for every writer, almost
+none of whom would ever draw a glyph from it.
+
+They are fetched from Google's font CDN on first use instead, and kept in the
+Cache API afterwards, so the download happens once per machine rather than once
+per export. `pdfUnicodeFont.ts` holds the pinned URLs and
+`./test-script/fetch-export-fonts.sh --cjk-urls` refreshes them.
+
+Which of the four a document gets is decided by what is in it: kana means
+Japanese, hangul means Korean, a handful of traditional-only characters mean
+Traditional Chinese, and Han on its own is taken as Simplified. All four carry
+both Chinese character sets, so a misread document is drawn in the other one's
+glyph shapes rather than left blank.
+
+Two consequences worth knowing:
+
+- **A CJK export needs a network the first time.** Every other script here
+  works offline, as they always have. When the fetch fails the export still
+  happens and the writer is told which face is missing.
+- **CJK is drawn double-width**, two cells of the Final Draft grid per
+  character — `textColumns` in `src/utils/wrapText.ts` is what keeps a Chinese
+  line inside the margin. Measured at 12pt, jsPDF gives exactly 12pt per
+  character against the grid's 6.97pt, which is where that rule comes from.
+
+What is not done is kinsoku shori: the rules that stop a line beginning with a
+closing bracket or a full stop. Lines break at the margin wherever it falls.
+
+## Right-to-left — not yet
+
+Hebrew and Arabic have no face here, and the gap is not the font: both subset
+smaller than Devanagari (14 kB and 35 kB a weight), and
+`fetch-export-fonts.sh` carries the commented-out lines that would cut them.
+
+They are waiting on the Unicode bidirectional algorithm. Text is stored in
+logical order and drawn left to right, so without it a Hebrew line comes out
+reversed — which is worse than the blank page this whole directory exists to
+prevent, because it looks like text and a writer who cannot read the script
+would send it out. Arabic needs one thing more: its letters take four shapes
+depending on what they join to, and since jsPDF reaches a font only through the
+`cmap`, the joined forms have to be substituted as the real characters of
+Presentation Forms-B (U+FE70–FEFF) before drawing. That block is in the subset
+range already for when this is taken on.
+
+Until then both are reported as unsupported, by name, at the end of an export.
 
 ### Why the layout features are dropped
 

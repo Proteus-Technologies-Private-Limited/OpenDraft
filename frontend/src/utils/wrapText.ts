@@ -47,6 +47,88 @@ export interface WrapRun {
 
 const emptyRun = (): WrapRun => ({ text: '', bold: false, italic: false, underline: false });
 
+/**
+ * The characters that occupy two cells of the grid rather than one.
+ *
+ * Han, kana and hangul are drawn square — as wide as they are tall — which is
+ * twice the width of the Courier cell everything here counts in. Counting them
+ * as one cell each would break a Chinese line at twice the margin: the count
+ * says the line fits, and the glyphs run off the page. This is the East Asian
+ * Wide and Fullwidth classification, which is what every terminal and text
+ * editor uses for the same purpose.
+ *
+ * Nothing else is affected. For any text without these blocks in it — Latin,
+ * Cyrillic, Greek, and every Indic script, which are drawn narrow — the column
+ * count and the character count are the same number, so this changes no
+ * pagination that existed before it.
+ */
+const WIDE_RANGES: readonly (readonly [number, number])[] = [
+  [0x1100, 0x115f], // hangul jamo
+  [0x2e80, 0x303e], // CJK radicals, kangxi, CJK symbols and punctuation
+  [0x3041, 0x33ff], // kana, hangul compatibility jamo, CJK compatibility
+  [0x3400, 0x4dbf], // CJK extension A
+  [0x4e00, 0x9fff], // CJK unified ideographs
+  [0xa000, 0xa4cf], // yi
+  [0xa960, 0xa97f], // hangul jamo extended-A
+  [0xac00, 0xd7a3], // hangul syllables
+  [0xf900, 0xfaff], // CJK compatibility ideographs
+  [0xfe10, 0xfe19], // vertical forms
+  [0xfe30, 0xfe6f], // CJK compatibility forms, small form variants
+  [0xff00, 0xff60], // fullwidth forms
+  [0xffe0, 0xffe6], // fullwidth signs
+  [0x1f300, 0x1f64f], // emoji, which browsers and readers also draw square
+  [0x1f900, 0x1f9ff],
+  [0x20000, 0x3fffd], // CJK extensions B and beyond
+];
+
+function isWide(codePoint: number): boolean {
+  for (const [lo, hi] of WIDE_RANGES) {
+    if (codePoint >= lo && codePoint <= hi) return true;
+  }
+  return false;
+}
+
+/**
+ * How many cells of the grid `text` occupies.
+ *
+ * Pagination calls this for every block in the script on every keystroke, so
+ * the common case has to be cheap: one comparison per character establishes
+ * that a Latin script has nothing wide in it, and only a character above the
+ * hangul jamo block is looked up properly.
+ */
+export function textColumns(text: string): number {
+  let columns = 0;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code < 0x1100) { columns += 1; continue; }
+    const codePoint = text.codePointAt(i)!;
+    if (codePoint > 0xffff) i++; // a surrogate pair is one character
+    columns += isWide(codePoint) ? 2 : 1;
+  }
+  return columns;
+}
+
+/**
+ * The longest prefix of `text` that fits in `max` cells.
+ *
+ * Always at least one character, even where that one character is wider than
+ * the whole line: a prefix of nothing would leave the caller slicing forever.
+ * Both the counter and the wrapper cut over-long tokens through here, which is
+ * what keeps them agreeing on where a wide character lands.
+ */
+export function sliceColumns(text: string, max: number): string {
+  let taken = '';
+  let columns = 0;
+  for (const char of text) {
+    const width = isWide(char.codePointAt(0)!) ? 2 : 1;
+    if (taken.length > 0 && columns + width > max) break;
+    taken += char;
+    columns += width;
+    if (columns >= max) break;
+  }
+  return taken;
+}
+
 /** Would merging these two runs change how either is drawn? */
 function drawsAlike(a: WrapRun, b: WrapRun): boolean {
   return a.bold === b.bold && a.italic === b.italic
@@ -84,17 +166,30 @@ export function getTextLines(text: string, cpl: number): number {
   let sawToken = false;
   let wordsInSegment = 0;
 
-  /** Place one word — `len` includes its indent and the spaces trailing it. */
-  const place = (len: number, indent: number) => {
+  /**
+   * Place one word — `token` includes its indent and the spaces trailing it.
+   *
+   * It is the text rather than its width because an over-long token has to be
+   * cut exactly where the wrapper cuts it, and with a double-width character
+   * straddling the margin that is not something a width alone can say.
+   */
+  const place = (token: string, indent: number) => {
     sawToken = true;
     wordsInSegment++;
+    const len = textColumns(token);
     if (len > cpl) {
       // An unbroken token wider than the line is cut at the margin, exactly as
       // the wrapper cuts it; whatever is left over opens the next line.
       if (open) { lines++; chars = 0; open = false; }
-      let rest = len;
-      while (rest > cpl) { lines++; rest -= cpl; }
-      if (rest > 0) { chars = rest; open = true; }
+      let rest = token;
+      let left = len;
+      while (left > cpl) {
+        const head = sliceColumns(rest, cpl);
+        lines++;
+        rest = rest.slice(head.length);
+        left -= textColumns(head);
+      }
+      if (left > 0) { chars = left; open = true; }
     } else if (!open) {
       chars = len;
       open = true;
@@ -134,7 +229,7 @@ export function getTextLines(text: string, cpl: number): number {
       while (k < seg.length && seg[k] === ' ') k++;
       const indent = pendingIndent;
       pendingIndent = 0;
-      place(indent + (k - i), indent);
+      place(' '.repeat(indent) + seg.slice(i, k), indent);
       i = k;
     }
   }
@@ -232,18 +327,21 @@ export function wordWrapRuns(
     // `getTextLines`, which has always counted it as ceil(length / cpl). The
     // editor's own page thumbnail broke it too (`.page-thumb-el`), so the PDF
     // was the last place a script could still overflow its margin.
-    if (word.text.length > maxChars) {
+    if (textColumns(word.text) > maxChars) {
       if (currentLine.length > 0) flush();
       let rest = word.text;
-      while (rest.length > maxChars) {
-        lines.push([{ ...word, text: rest.slice(0, maxChars) }]);
-        rest = rest.slice(maxChars);
+      let left = textColumns(rest);
+      while (left > maxChars) {
+        const head = sliceColumns(rest, maxChars);
+        lines.push([{ ...word, text: head }]);
+        rest = rest.slice(head.length);
+        left -= textColumns(head);
       }
       // Whatever is left starts the next line, so a following word can still
       // share it — `getTextLines` counts the segment as one run of characters.
       if (rest.length > 0) {
         currentLine = [{ ...word, text: rest }];
-        currentLineChars = rest.length;
+        currentLineChars = left;
       } else if (word.marker) {
         // The token divided exactly; the reference belongs to its last piece.
         const tail = lines[lines.length - 1];
@@ -252,7 +350,7 @@ export function wordWrapRuns(
       continue;
     }
 
-    const wordLen = word.text.length;
+    const wordLen = textColumns(word.text);
 
     const asRun = (text: string): WrapRun => ({
       text, bold: word.bold, italic: word.italic, underline: word.underline,
@@ -281,7 +379,7 @@ export function wordWrapRuns(
       lines.push(currentLine);
       const trimmedWord = word.text.replace(/^ +/, '');
       currentLine = [asRun(trimmedWord)];
-      currentLineChars = trimmedWord.length;
+      currentLineChars = textColumns(trimmedWord);
     }
   }
 

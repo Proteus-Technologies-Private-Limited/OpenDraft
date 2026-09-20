@@ -120,31 +120,66 @@ for individual runs, so all three behave the same way.
 
 The screen has every font the machine has; a PDF has only what is embedded in
 it. jsPDF's built-in faces are the PDF Standard 14, which are WinAnsi-encoded
-and cannot write a single character outside Latin-1, so OpenDraft bundles two
-faces of its own and draws that text in whichever one covers it:
+and cannot write a single character outside Latin-1, so OpenDraft carries faces
+of its own and draws that text in whichever one covers it:
 
 | Script | Face | On the page |
 |--------|------|-------------|
 | Cyrillic, Greek, Armenian, Georgian | DejaVu Sans Mono | Monospaced on Final Draft's cell, like Courier |
 | Devanagari — Hindi, Marathi, Nepali, Sanskrit | Noto Sans Devanagari | Proportional; no monospaced Devanagari face exists |
+| Bengali, Gujarati, Gurmukhi, Kannada, Malayalam, Odia, Sinhala, Tamil, Telugu | Noto Sans, one per script | Proportional, narrower than the cell |
+| Thai | Noto Sans Thai | Proportional |
+| Chinese, Japanese, Korean | Noto Sans SC / TC / JP / KR | **Fetched on first use**; drawn two cells wide |
 
-Both are subsets, both are in `frontend/public/fonts`, and neither is
-downloaded or embedded unless a script actually uses it — a Latin screenplay
-exports exactly as it did before either existed. Text is split by face
-character by character, so a Latin word inside a Hindi line keeps Courier's
-fixed cell instead of being pulled into a proportional face with it.
+Everything but CJK is bundled and works offline. Nothing is embedded unless the
+script uses it — a Latin screenplay exports exactly as it did before any of
+this existed — and only the glyphs it actually draws go into the file: a
+Japanese page embeds around 260 kB of a 5 MB face.
 
-Page geometry is unaffected either way. Line breaking counts characters, not
-millimetres, so the PDF turns its pages where the editor does; Devanagari at
-12pt measures around 60% of the cell the layout reserved for it, so a line set
-in it finishes well inside the margin.
+Text is split by face character by character, so a Latin word inside a Hindi
+line keeps Courier's fixed cell instead of being pulled into a proportional
+face with it.
 
-Devanagari is reordered before it is drawn — the vowel sign ि is stored after
-its consonant and painted before it, and jsPDF does no shaping of its own — but
-it is not fully shaped: conjuncts and reph come out as an explicit halant,
-which reads correctly but is not how a typesetter would set it.
-`frontend/public/fonts/README.md` explains why, and what closing that gap would
-take. Hebrew, Thai and CJK are not covered at all, and Arabic is unshaped.
+### CJK needs a network the first time
+
+Those four families are 5–10 MB each and cannot be subset in advance, so
+shipping them would more than double the size of the app for every writer.
+They are fetched instead, and kept per machine afterwards, so it happens once
+rather than once per export. Which one a document gets is read off the text:
+kana means Japanese, hangul Korean, and Han on its own Simplified Chinese.
+
+If the fetch fails — offline, or a blocked request — the export still happens
+and says which face is missing.
+
+### What is still not covered
+
+**Hebrew and Arabic.** Both are right-to-left, and text stored in logical order
+and drawn left to right comes out reversed. That is worse than a blank page,
+because it looks like text, so these are reported as unsupported rather than
+drawn wrongly. They need the Unicode bidirectional algorithm, and Arabic also
+needs its letters substituted for their joined forms. The fonts are ready; the
+algorithm is not written.
+
+**Full shaping.** The Indic scripts are reordered before drawing — the vowel
+sign is stored after its consonant and painted before it, and jsPDF does no
+shaping of its own — but conjuncts and reph come out as an explicit halant,
+which reads correctly and is not how a typesetter would set it.
+
+**Kinsoku shori.** A CJK line breaks at the margin wherever it falls, with no
+rule against starting one with a closing bracket or a full stop.
+
+Anything OpenDraft cannot draw is named at the end of the export rather than
+left to be discovered in the file.
+`frontend/public/fonts/README.md` has the detail on all three.
+
+### Page geometry
+
+Line breaking counts cells, not millimetres, so the PDF turns its pages where
+the editor does. The Indic and Thai faces measure around 60% of the cell the
+layout reserved, so a line set in one finishes well inside the margin. CJK is
+the exception that needed a rule: Han, kana and hangul are drawn square, which
+is exactly two cells, and both the editor's pagination and the exporter count
+them that way.
 
 ## Adding a font to the built-in library
 

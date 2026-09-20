@@ -15,8 +15,8 @@ import { extractAvBodies } from './avDocument';
 import { drawAvBody, avRowNodes, avFrameKey } from './avPdfTable';
 import { readColumnConfig } from '../editor/extensions/AvBlock';
 import {
-  embedUnicodeFonts, requiredUnicodeFaces, segmentByFace,
-  type StyledText, type UnicodeFallbacks,
+  embedUnicodeFonts, requiredUnicodeFaces, segmentByFace, unsupportedScripts,
+  type ProgressHandler, type StyledText, type UnicodeFallbacks,
 } from './pdfUnicodeFont';
 import { embedCustomFonts, type EmbeddedFace } from './pdfCustomFonts';
 import { genericFor } from './fonts';
@@ -436,6 +436,15 @@ export interface PDFExportOptions {
    * not edit the script (issue #98).
    */
   includeTitlePage?: boolean;
+  /**
+   * Told how a font fetch is going, for the faces that are not in the bundle.
+   *
+   * Only CJK is: those families are 5-10 MB, far too large to ship to every
+   * user, so the first export of a Chinese, Japanese or Korean script fetches
+   * one.  That takes long enough that saying nothing reads as a hang.  Every
+   * other script is bundled and reports nothing at all.
+   */
+  onFontProgress?: ProgressHandler;
 }
 
 /** Resolve dynamic field placeholders in header/footer text. Shared with the
@@ -457,11 +466,30 @@ export interface RenderedPDF {
   warning?: string;
 }
 
-/** What to tell the writer about `fallbacks`, or nothing when all is well. */
+/**
+ * What to tell the writer about `fallbacks`, or nothing when all is well.
+ *
+ * Two different failures, and the difference matters to whoever reads it. A
+ * face that would not load is a bad day — the network, a blocked request — and
+ * exporting again may well fix it. A script with no face at all will not fix
+ * itself, and the writer is better off knowing that now than after sending the
+ * file to a producer.
+ */
 function fallbackWarning(fallbacks: UnicodeFallbacks): string | undefined {
-  if (fallbacks.missing.length === 0) return undefined;
-  return `The ${fallbacks.missing.join(' and ')} font could not be loaded, `
-    + 'so that text is blank in the PDF.';
+  const parts: string[] = [];
+
+  if (fallbacks.missing.length > 0) {
+    parts.push(`The ${fallbacks.missing.join(' and ')} font could not be loaded, `
+      + 'so that text is blank in the PDF.');
+  }
+
+  if (fallbacks.unsupported.length > 0) {
+    const names = fallbacks.unsupported.join(' and ');
+    parts.push(`${names} cannot be written to a PDF yet, so that text is `
+      + 'missing or garbled. The rest of the script exported normally.');
+  }
+
+  return parts.length > 0 ? parts.join(' ') : undefined;
 }
 
 /**
@@ -662,7 +690,10 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   const fonts: FontContext = {
     documentFont,
     courierSpace,
-    fallbacks: await embedUnicodeFonts(pdf, requiredUnicodeFaces(drawn), FD_CHAR_WIDTH_PT),
+    fallbacks: await embedUnicodeFonts(pdf, requiredUnicodeFaces(drawn), FD_CHAR_WIDTH_PT, {
+      unsupported: unsupportedScripts(drawn),
+      onProgress: options?.onFontProgress,
+    }),
     embedded: embedCustomFonts(pdf, usedFamilies),
   };
 
