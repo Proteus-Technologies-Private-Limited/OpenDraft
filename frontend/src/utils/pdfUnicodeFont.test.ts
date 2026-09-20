@@ -6,7 +6,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  needsUnicodeFont, requiredUnicodeStyles, styleKey, embedUnicodeFont, UNICODE_FONT_ID,
+  needsUnicodeFont, requiredUnicodeFaces, styleKey, embedUnicodeFonts, segmentByFace,
+  NO_FALLBACKS, UNICODE_FONT_ID, DEVANAGARI_FONT_ID, type FontStyle, type RequiredFaces,
 } from './pdfUnicodeFont';
 
 describe('needsUnicodeFont', () => {
@@ -29,28 +30,52 @@ describe('needsUnicodeFont', () => {
       'Αθήνα',          // Greek
       'თბილი',          // Georgian
       'Հայ',                       // Armenian
-      '你好',                             // Chinese (beyond the bundled font, but still not WinAnsi)
+      'हिन्दी',                          // Devanagari — issue #128
+      'एक अंग्रेज़ी word बीच में',        // one Devanagari word is enough
+      '你好',                             // Chinese (beyond the bundled fonts, but still not WinAnsi)
     ]) {
       expect(needsUnicodeFont(text), text).toBe(true);
     }
   });
 });
 
-describe('requiredUnicodeStyles', () => {
+describe('requiredUnicodeFaces', () => {
   it('asks for nothing when the script is Latin', () => {
-    expect(requiredUnicodeStyles([
+    expect(requiredUnicodeFaces([
       { text: 'INT. LIBRARY - DAY', bold: true },
       { text: 'A PROGRAMMER types.' },
     ]).size).toBe(0);
   });
 
   it('asks only for the styles the untypable text is actually drawn in', () => {
-    const styles = requiredUnicodeStyles([
+    const faces = requiredUnicodeFaces([
       { text: 'ИНТ. БИБЛИОТЕКА', bold: true }, // scene heading
       { text: 'Привет' },                                                          // dialogue
       { text: 'A Latin line in italics', italic: true },                                                          // no fallback needed
     ]);
-    expect([...styles].sort()).toEqual(['bold', 'normal']);
+    expect([...faces.keys()]).toEqual([UNICODE_FONT_ID]);
+    expect([...faces.get(UNICODE_FONT_ID)!].sort()).toEqual(['bold', 'normal']);
+  });
+
+  it('sends Devanagari to its own face, not to the one that cannot draw it', () => {
+    const faces = requiredUnicodeFaces([{ text: 'नमस्ते' }]);
+    expect([...faces.keys()]).toEqual([DEVANAGARI_FONT_ID]);
+  });
+
+  it('asks for both faces when a script mixes the two', () => {
+    const faces = requiredUnicodeFaces([
+      { text: 'नमस्ते', bold: true },
+      { text: 'Привет' },
+    ]);
+    expect([...faces.keys()].sort()).toEqual([DEVANAGARI_FONT_ID, UNICODE_FONT_ID].sort());
+    expect([...faces.get(DEVANAGARI_FONT_ID)!]).toEqual(['bold']);
+    expect([...faces.get(UNICODE_FONT_ID)!]).toEqual(['normal']);
+  });
+
+  it('asks for nothing for a script no bundled face covers', () => {
+    // Chinese is outside both subsets; there is nothing to embed for it, and
+    // asking for a face that cannot draw it would only cost the download.
+    expect(requiredUnicodeFaces([{ text: '你好' }]).size).toBe(0);
   });
 });
 
@@ -63,7 +88,7 @@ describe('styleKey', () => {
   });
 });
 
-// --- embedUnicodeFont ------------------------------------------------------
+// --- embedUnicodeFonts -----------------------------------------------------
 
 /** A jsPDF stand-in that records what was registered and set. */
 function fakePdf() {
@@ -86,6 +111,10 @@ function fakePdf() {
 
 const FD_CHAR_WIDTH_PT = 72 / 10.33;
 
+/** The shape `embedUnicodeFonts` takes, written the way a caller reads. */
+const asked = (...pairs: [string, FontStyle[]][]): RequiredFaces =>
+  new Map(pairs.map(([id, styles]) => [id, new Set(styles)]));
+
 beforeEach(() => {
   vi.unstubAllGlobals();
 });
@@ -101,12 +130,14 @@ function stubFontFetch(missing: string[] = []) {
   return requested;
 }
 
-describe('embedUnicodeFont', () => {
+describe('embedUnicodeFonts', () => {
   it('embeds nothing, and fetches nothing, for a Latin script', async () => {
     const requested = stubFontFetch();
     const pdf = fakePdf();
 
-    expect(await embedUnicodeFont(pdf as never, new Set(), FD_CHAR_WIDTH_PT)).toBeNull();
+    const fallbacks = await embedUnicodeFonts(pdf as never, new Map(), FD_CHAR_WIDTH_PT);
+
+    expect(fallbacks.none).toBe(true);
     expect(requested).toEqual([]);
     expect(pdf.registered).toEqual([]);
   });
@@ -115,11 +146,63 @@ describe('embedUnicodeFont', () => {
     stubFontFetch();
     const pdf = fakePdf();
 
-    const font = await embedUnicodeFont(pdf as never, new Set(['normal', 'bold']), FD_CHAR_WIDTH_PT);
+    const fallbacks = await embedUnicodeFonts(
+      pdf as never, asked([UNICODE_FONT_ID, ['normal', 'bold']]), FD_CHAR_WIDTH_PT,
+    );
 
-    expect(font).toEqual({ id: UNICODE_FONT_ID, charSpace: FD_CHAR_WIDTH_PT - 8 });
+    const face = fallbacks.faceFor('П'.codePointAt(0)!)!;
+    expect(face.id).toBe(UNICODE_FONT_ID);
+    expect(face.monospace).toBe(true);
+    expect(face.charSpace).toBe(FD_CHAR_WIDTH_PT - 8);
     expect(pdf.registered.map((r) => r.style).sort()).toEqual(['bold', 'normal']);
     for (const entry of pdf.registered) expect(entry.id).toBe(UNICODE_FONT_ID);
+  });
+
+  it('draws Devanagari at its own advances, with no cell correction', async () => {
+    stubFontFetch();
+    const pdf = fakePdf();
+
+    const fallbacks = await embedUnicodeFonts(
+      pdf as never, asked([DEVANAGARI_FONT_ID, ['normal']]), FD_CHAR_WIDTH_PT,
+    );
+
+    const face = fallbacks.faceFor('न'.codePointAt(0)!)!;
+    expect(face.id).toBe(DEVANAGARI_FONT_ID);
+    expect(face.monospace).toBe(false);
+    expect(face.charSpace).toBe(0);
+    // No monospaced Devanagari face exists, so there is no 'M' to measure and
+    // the current font must not have been disturbed looking for one.
+    expect(pdf.current()).toEqual({ fontName: 'courier', fontStyle: 'normal' });
+  });
+
+  it('reorders Devanagari for drawing, and leaves Cyrillic alone', async () => {
+    stubFontFetch();
+    const pdf = fakePdf();
+
+    const fallbacks = await embedUnicodeFonts(
+      pdf as never,
+      asked([DEVANAGARI_FONT_ID, ['normal']], [UNICODE_FONT_ID, ['normal']]),
+      FD_CHAR_WIDTH_PT,
+    );
+
+    expect(fallbacks.faceFor('ह'.codePointAt(0)!)!.shape('हिन्दी')).toBe('िहन्दी');
+    expect(fallbacks.faceFor('П'.codePointAt(0)!)!.shape('Привет')).toBe('Привет');
+  });
+
+  it('keeps each face to the code points it can actually write', async () => {
+    stubFontFetch();
+    const pdf = fakePdf();
+
+    const fallbacks = await embedUnicodeFonts(
+      pdf as never,
+      asked([DEVANAGARI_FONT_ID, ['normal']], [UNICODE_FONT_ID, ['normal']]),
+      FD_CHAR_WIDTH_PT,
+    );
+
+    expect(fallbacks.faceFor('क'.codePointAt(0)!)!.id).toBe(DEVANAGARI_FONT_ID);
+    expect(fallbacks.faceFor('Я'.codePointAt(0)!)!.id).toBe(UNICODE_FONT_ID);
+    // Nothing bundled has Chinese; the built-in faces keep it and do their worst.
+    expect(fallbacks.faceFor('好'.codePointAt(0)!)).toBeNull();
   });
 
   it('leaves the current face selected, so the export draws on unaffected', async () => {
@@ -127,7 +210,7 @@ describe('embedUnicodeFont', () => {
     const pdf = fakePdf();
     pdf.setFont('times', 'italic');
 
-    await embedUnicodeFont(pdf as never, new Set(['normal']), FD_CHAR_WIDTH_PT);
+    await embedUnicodeFonts(pdf as never, asked([UNICODE_FONT_ID, ['normal']]), FD_CHAR_WIDTH_PT);
 
     expect(pdf.current()).toEqual({ fontName: 'times', fontStyle: 'italic' });
   });
@@ -136,7 +219,7 @@ describe('embedUnicodeFont', () => {
     stubFontFetch();
     const pdf = fakePdf();
 
-    await embedUnicodeFont(pdf as never, new Set(['bolditalic']), FD_CHAR_WIDTH_PT);
+    await embedUnicodeFonts(pdf as never, asked([UNICODE_FONT_ID, ['bolditalic']]), FD_CHAR_WIDTH_PT);
 
     expect(pdf.registered.map((r) => r.style).sort()).toEqual(['bolditalic', 'normal']);
   });
@@ -145,12 +228,46 @@ describe('embedUnicodeFont', () => {
     stubFontFetch(['Bold']);
     const pdf = fakePdf();
 
-    const font = await embedUnicodeFont(pdf as never, new Set(['normal', 'bold']), FD_CHAR_WIDTH_PT);
+    const fallbacks = await embedUnicodeFonts(
+      pdf as never, asked([UNICODE_FONT_ID, ['normal', 'bold']]), FD_CHAR_WIDTH_PT,
+    );
 
-    expect(font).not.toBeNull();
+    expect(fallbacks.none).toBe(false);
     const bold = pdf.registered.find((r) => r.style === 'bold')!;
     const normal = pdf.registered.find((r) => r.style === 'normal')!;
     expect(pdf.vfs.get(bold.vfs)).toBe(pdf.vfs.get(normal.vfs));
+  });
+
+  it('backs a style the family has not got with the regular weight', async () => {
+    stubFontFetch();
+    const pdf = fakePdf();
+
+    // Noto Sans Devanagari ships no italic at all, so an italic Hindi lyric has
+    // to come out as upright Hindi rather than as a jsPDF lookup error.
+    await embedUnicodeFonts(pdf as never, asked([DEVANAGARI_FONT_ID, ['italic']]), FD_CHAR_WIDTH_PT);
+
+    const italic = pdf.registered.find((r) => r.style === 'italic')!;
+    const normal = pdf.registered.find((r) => r.style === 'normal')!;
+    expect(pdf.vfs.get(italic.vfs)).toBe(pdf.vfs.get(normal.vfs));
+  });
+
+  it('keeps the face that did load when another one could not', async () => {
+    stubFontFetch(['NotoSansDevanagari']);
+    // A fresh copy of the module, for the reason given below: the Devanagari
+    // bytes are cached for the session and a load that has already succeeded
+    // would be reused however this fetch answers.
+    vi.resetModules();
+    const fresh = await import('./pdfUnicodeFont');
+    const pdf = fakePdf();
+
+    const fallbacks = await fresh.embedUnicodeFonts(
+      pdf as never,
+      asked([DEVANAGARI_FONT_ID, ['normal']], [UNICODE_FONT_ID, ['normal']]),
+      FD_CHAR_WIDTH_PT,
+    );
+
+    expect(fallbacks.faceFor('क'.codePointAt(0)!)).toBeNull();
+    expect(fallbacks.faceFor('Я'.codePointAt(0)!)!.id).toBe(UNICODE_FONT_ID);
   });
 
   it('gives up quietly when the font cannot be loaded at all', async () => {
@@ -161,7 +278,79 @@ describe('embedUnicodeFont', () => {
     const fresh = await import('./pdfUnicodeFont');
     const pdf = fakePdf();
 
-    expect(await fresh.embedUnicodeFont(pdf as never, new Set(['normal']), FD_CHAR_WIDTH_PT)).toBeNull();
+    const fallbacks = await fresh.embedUnicodeFonts(
+      pdf as never, asked([UNICODE_FONT_ID, ['normal']]), FD_CHAR_WIDTH_PT,
+    );
+
+    expect(fallbacks.none).toBe(true);
     expect(pdf.registered).toEqual([]);
+  });
+});
+
+// --- segmentByFace ---------------------------------------------------------
+
+/** The faces a document with both fallbacks in it would draw through. */
+async function bothFaces() {
+  stubFontFetch();
+  return embedUnicodeFonts(
+    fakePdf() as never,
+    asked([DEVANAGARI_FONT_ID, ['normal']], [UNICODE_FONT_ID, ['normal']]),
+    FD_CHAR_WIDTH_PT,
+  );
+}
+
+/** Segments as `[text, face]` pairs, which is what the assertions are about. */
+const split = (text: string, fallbacks: Awaited<ReturnType<typeof bothFaces>>) =>
+  segmentByFace(text, fallbacks).map((s) => [s.text, s.fallback?.id ?? null]);
+
+describe('segmentByFace', () => {
+  it('hands a Latin script back whole, with no fallback at all', async () => {
+    expect(segmentByFace('INT. LIBRARY - DAY', NO_FALLBACKS))
+      .toEqual([{ text: 'INT. LIBRARY - DAY', fallback: null }]);
+  });
+
+  it('hands Latin back whole even when a document has fallbacks in it', async () => {
+    expect(split('INT. LIBRARY - DAY', await bothFaces()))
+      .toEqual([['INT. LIBRARY - DAY', null]]);
+  });
+
+  it('keeps a Cyrillic sentence one piece, spaces and full stops included', async () => {
+    // DejaVu covers Latin too, so a sentence that starts in it stays in it —
+    // which is what it did before there was more than one fallback.
+    expect(split('Что бы ни было.', await bothFaces()))
+      .toEqual([['Что бы ни было.', UNICODE_FONT_ID]]);
+  });
+
+  it('keeps a Hindi sentence one piece, with its own word spacing', async () => {
+    expect(split('नमस्ते दोस्त', await bothFaces()))
+      .toEqual([['नमस्ते दोस्त', DEVANAGARI_FONT_ID]]);
+  });
+
+  it('leaves a Latin word inside a Hindi line on the built-in face', async () => {
+    // The Devanagari subset has no Latin letters, and dragging them into a
+    // proportional face would take them off Final Draft's cell besides.
+    expect(split('मैं CUT TO: लिख', await bothFaces())).toEqual([
+      ['मैं ', DEVANAGARI_FONT_ID],
+      ['CUT TO: ', null],
+      ['लिख', DEVANAGARI_FONT_ID],
+    ]);
+  });
+
+  it('starts in the document face when the line opens in Latin', async () => {
+    expect(split('EXT. सड़क', await bothFaces())).toEqual([
+      ['EXT. ', null],
+      ['सड़क', DEVANAGARI_FONT_ID],
+    ]);
+  });
+
+  it('parts the two fallbacks where the script changes', async () => {
+    expect(split('Привет नमस्ते', await bothFaces())).toEqual([
+      ['Привет ', UNICODE_FONT_ID],
+      ['नमस्ते', DEVANAGARI_FONT_ID],
+    ]);
+  });
+
+  it('leaves a script no bundled face covers to the built-ins', async () => {
+    expect(split('你好', await bothFaces())).toEqual([['你好', null]]);
   });
 });

@@ -116,6 +116,36 @@ answer, which is how OpenDraft has always rendered unknown fonts.
 The same stacks are used for the page font, for formatting-template rules, and
 for individual runs, so all three behave the same way.
 
+## Scripts other than Latin, in exported PDFs
+
+The screen has every font the machine has; a PDF has only what is embedded in
+it. jsPDF's built-in faces are the PDF Standard 14, which are WinAnsi-encoded
+and cannot write a single character outside Latin-1, so OpenDraft bundles two
+faces of its own and draws that text in whichever one covers it:
+
+| Script | Face | On the page |
+|--------|------|-------------|
+| Cyrillic, Greek, Armenian, Georgian | DejaVu Sans Mono | Monospaced on Final Draft's cell, like Courier |
+| Devanagari — Hindi, Marathi, Nepali, Sanskrit | Noto Sans Devanagari | Proportional; no monospaced Devanagari face exists |
+
+Both are subsets, both are in `frontend/public/fonts`, and neither is
+downloaded or embedded unless a script actually uses it — a Latin screenplay
+exports exactly as it did before either existed. Text is split by face
+character by character, so a Latin word inside a Hindi line keeps Courier's
+fixed cell instead of being pulled into a proportional face with it.
+
+Page geometry is unaffected either way. Line breaking counts characters, not
+millimetres, so the PDF turns its pages where the editor does; Devanagari at
+12pt measures around 60% of the cell the layout reserved for it, so a line set
+in it finishes well inside the margin.
+
+Devanagari is reordered before it is drawn — the vowel sign ि is stored after
+its consonant and painted before it, and jsPDF does no shaping of its own — but
+it is not fully shaped: conjuncts and reph come out as an explicit halant,
+which reads correctly but is not how a typesetter would set it.
+`frontend/public/fonts/README.md` explains why, and what closing that gap would
+take. Hebrew, Thai and CJK are not covered at all, and Arabic is unshaped.
+
 ## Adding a font to the built-in library
 
 Add an entry to `FONT_REGISTRY` in `frontend/src/utils/fonts.ts`:
