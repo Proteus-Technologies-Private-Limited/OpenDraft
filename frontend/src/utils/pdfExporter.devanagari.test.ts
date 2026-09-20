@@ -14,7 +14,7 @@
  *
  * @vitest-environment node
  */
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { JSONContent } from '@tiptap/react';
@@ -34,8 +34,13 @@ if (testWindow && typeof testWindow.atob !== 'function') {
   testWindow.btoa = btoa;
 }
 
-/** The bundled fonts, served off disk — see pdfExporter.unicode.test.ts. */
-beforeAll(() => {
+/**
+ * The bundled fonts, served off disk — see pdfExporter.unicode.test.ts.
+ *
+ * Re-installed before every test, because one of them below replaces it with a
+ * fetch that fails and the rest must not inherit that.
+ */
+beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     try {
       const bytes = readFileSync(join(process.cwd(), 'public', url));
@@ -189,6 +194,30 @@ describe('a Hindi screenplay', () => {
     for (const cp of devanagariIn('लेखक')) {
       expect(mapped.has(cp), String.fromCodePoint(cp)).toBe(true);
     }
+  });
+});
+
+describe('a font that will not load', () => {
+  it('says so, instead of handing over a script with holes in it', async () => {
+    // However the font came to be unreachable — a platform whose web view
+    // serves assets differently, a stripped bundle, a corrupted file — the
+    // writer must not find out from whoever they sent the PDF to. This is the
+    // shape issue #128 was reported in, so it is the one failure that is never
+    // allowed to be silent.
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false })));
+    vi.resetModules(); // the font bytes are cached for the session
+    const fresh = await import('./pdfExporter');
+
+    saved.length = 0;
+    const warning = await fresh.exportPDF(hindi, 'Test', DEFAULT_PAGE_LAYOUT);
+
+    expect(warning).toMatch(/Devanagari font could not be loaded/);
+    expect(saved).toHaveLength(1); // still written — a script is not lost over a font
+  });
+
+  it('says nothing when the font is there', async () => {
+    saved.length = 0;
+    expect(await exportPDF(hindi, 'Test', DEFAULT_PAGE_LAYOUT)).toBeUndefined();
   });
 });
 

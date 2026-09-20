@@ -55,6 +55,8 @@ function inRanges(codePoint: number, ranges: readonly Range[]): boolean {
 /** One of the bundled fallback faces, and what it is good for. */
 interface FallbackSpec {
   id: string;
+  /** What this face is for, as the writer would name it if it failed to load. */
+  label: string;
   files: Partial<Record<FontStyle, string>>;
   /** The code points this face's subset actually carries. */
   coverage: readonly Range[];
@@ -75,6 +77,7 @@ interface FallbackSpec {
 const FALLBACKS: readonly FallbackSpec[] = [
   {
     id: DEVANAGARI_FONT_ID,
+    label: 'Devanagari',
     files: {
       normal: '/fonts/NotoSansDevanagari-Regular.ttf',
       bold: '/fonts/NotoSansDevanagari-Bold.ttf',
@@ -89,6 +92,7 @@ const FALLBACKS: readonly FallbackSpec[] = [
   },
   {
     id: UNICODE_FONT_ID,
+    label: 'Cyrillic, Greek, Armenian and Georgian',
     files: {
       normal: '/fonts/DejaVuSansMono-Regular.ttf',
       bold: '/fonts/DejaVuSansMono-Bold.ttf',
@@ -217,11 +221,21 @@ export interface UnicodeFont {
 export interface UnicodeFallbacks {
   /** True when the script needed none — the common, Latin case. */
   readonly none: boolean;
+  /**
+   * The faces this script needed and did not get, named for the writer.
+   *
+   * A font that will not load is the one failure this module cannot absorb:
+   * the text has no other face to go to, so it is drawn with nothing and the
+   * page comes out blank exactly where the writer was looking. The export
+   * still happens — a script is not worth losing over a font — but the caller
+   * has to say so rather than hand over a file with holes in it.
+   */
+  readonly missing: readonly string[];
   /** The embedded face that has to write this code point, or null. */
   faceFor(codePoint: number): UnicodeFont | null;
 }
 
-export const NO_FALLBACKS: UnicodeFallbacks = { none: true, faceFor: () => null };
+export const NO_FALLBACKS: UnicodeFallbacks = { none: true, missing: [], faceFor: () => null };
 
 /**
  * Embed one face for the styles given, and return how to draw in it — or null
@@ -283,16 +297,19 @@ export async function embedUnicodeFonts(
   if (required.size === 0) return NO_FALLBACKS;
 
   const faces: UnicodeFont[] = [];
+  const missing: string[] = [];
   for (const spec of FALLBACKS) {
     const styles = required.get(spec.id);
     if (!styles) continue;
     const face = await embedOne(pdf, spec, styles, fdCharWidthPt);
     if (face) faces.push(face);
+    else missing.push(spec.label);
   }
-  if (faces.length === 0) return NO_FALLBACKS;
+  if (faces.length === 0) return { ...NO_FALLBACKS, missing };
 
   return {
     none: false,
+    missing,
     faceFor(codePoint: number) {
       if (isStandardEncodable(codePoint)) return null;
       return faces.find((face) => face.covers(codePoint)) ?? null;

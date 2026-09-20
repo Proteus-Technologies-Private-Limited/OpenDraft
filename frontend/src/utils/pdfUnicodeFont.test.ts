@@ -138,6 +138,7 @@ describe('embedUnicodeFonts', () => {
     const fallbacks = await embedUnicodeFonts(pdf as never, new Map(), FD_CHAR_WIDTH_PT);
 
     expect(fallbacks.none).toBe(true);
+    expect(fallbacks.missing).toEqual([]);
     expect(requested).toEqual([]);
     expect(pdf.registered).toEqual([]);
   });
@@ -268,6 +269,9 @@ describe('embedUnicodeFonts', () => {
 
     expect(fallbacks.faceFor('क'.codePointAt(0)!)).toBeNull();
     expect(fallbacks.faceFor('Я'.codePointAt(0)!)!.id).toBe(UNICODE_FONT_ID);
+    // Named for the writer, because the Hindi in their script is now blank and
+    // nothing else on the page will tell them so.
+    expect(fallbacks.missing).toEqual(['Devanagari']);
   });
 
   it('gives up quietly when the font cannot be loaded at all', async () => {
@@ -283,7 +287,21 @@ describe('embedUnicodeFonts', () => {
     );
 
     expect(fallbacks.none).toBe(true);
+    expect(fallbacks.missing).toEqual(['Cyrillic, Greek, Armenian and Georgian']);
     expect(pdf.registered).toEqual([]);
+  });
+
+  it('reports nothing missing when every face asked for loaded', async () => {
+    stubFontFetch();
+    const pdf = fakePdf();
+
+    const fallbacks = await embedUnicodeFonts(
+      pdf as never,
+      asked([DEVANAGARI_FONT_ID, ['normal']], [UNICODE_FONT_ID, ['normal']]),
+      FD_CHAR_WIDTH_PT,
+    );
+
+    expect(fallbacks.missing).toEqual([]);
   });
 });
 

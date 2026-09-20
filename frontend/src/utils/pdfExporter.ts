@@ -446,6 +446,22 @@ const resolveFields = resolveHFFields;
 export interface RenderedPDF {
   bytes: Uint8Array;
   filename: string;
+  /**
+   * Something the writer has to be told about the file they just got.
+   *
+   * At present only one thing qualifies: a bundled face that would not load,
+   * which leaves the script it was for blank on the page. That is the shape
+   * issue #128 was reported in — a PDF that had simply lost its dialogue — and
+   * it must never be silent again, on any platform.
+   */
+  warning?: string;
+}
+
+/** What to tell the writer about `fallbacks`, or nothing when all is well. */
+function fallbackWarning(fallbacks: UnicodeFallbacks): string | undefined {
+  if (fallbacks.missing.length === 0) return undefined;
+  return `The ${fallbacks.missing.join(' and ')} font could not be loaded, `
+    + 'so that text is blank in the PDF.';
 }
 
 /**
@@ -1314,14 +1330,26 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     }
   }
 
-  return { bytes: new Uint8Array(pdf.output('arraybuffer')), filename };
+  return {
+    bytes: new Uint8Array(pdf.output('arraybuffer')),
+    filename,
+    warning: fallbackWarning(fonts.fallbacks),
+  };
 }
 
-/** Render the script and put it somewhere the writer chose. */
-export async function exportPDF(doc: JSONContent, title: string, layout: PageLayout, options?: PDFExportOptions): Promise<void> {
+/**
+ * Render the script and put it somewhere the writer chose.
+ *
+ * Returns whatever the writer needs telling about the file, or nothing — see
+ * `RenderedPDF.warning`.
+ */
+export async function exportPDF(
+  doc: JSONContent, title: string, layout: PageLayout, options?: PDFExportOptions,
+): Promise<string | undefined> {
   const { saveFile } = await import('./fileOps');
-  const { bytes, filename } = await renderPDF(doc, title, layout, options);
+  const { bytes, filename, warning } = await renderPDF(doc, title, layout, options);
   await saveFile(bytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
+  return warning;
 }
 
 // --- Render helpers ---
