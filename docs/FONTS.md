@@ -130,6 +130,8 @@ of its own and draws that text in whichever one covers it:
 | Bengali, Gujarati, Gurmukhi, Kannada, Malayalam, Odia, Sinhala, Tamil, Telugu | Noto Sans, one per script | Proportional, narrower than the cell |
 | Thai | Noto Sans Thai | Proportional |
 | Chinese, Japanese, Korean | Noto Sans SC / TC / JP / KR | **Fetched on first use**; drawn two cells wide |
+| Hebrew | Noto Sans Hebrew | Reordered right-to-left before drawing |
+| Arabic, Persian, Urdu | Noto Sans Arabic | Reordered, and letters joined into their cursive shapes |
 
 Everything but CJK is bundled and works offline. Nothing is embedded unless the
 script uses it — a Latin screenplay exports exactly as it did before any of
@@ -153,12 +155,11 @@ and says which face is missing.
 
 ### What is still not covered
 
-**Hebrew and Arabic.** Both are right-to-left, and text stored in logical order
-and drawn left to right comes out reversed. That is worse than a blank page,
-because it looks like text, so these are reported as unsupported rather than
-drawn wrongly. They need the Unicode bidirectional algorithm, and Arabic also
-needs its letters substituted for their joined forms. The fonts are ready; the
-algorithm is not written.
+**A mirrored page.** Hebrew and Arabic read correctly — the line is reordered
+before it is drawn, and Arabic letters are given their joined shapes — but the
+page itself is not flipped. Margins, indents and alignment stay where Final
+Draft puts them, so a Hebrew line starts at the left margin of its block rather
+than the right.
 
 **Full shaping.** The Indic scripts are reordered before drawing — the vowel
 sign is stored after its consonant and painted before it, and jsPDF does no

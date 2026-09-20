@@ -8,7 +8,8 @@ import { getForceBreakIds, startsOwnPage, elementIdOf, laysItselfOut } from './p
 import { getSpaceBefore } from './elementSpacing';
 import { resolveImageUrl, loadImageData } from './imageAsset';
 import { jsonBlockRuns } from './nodeText';
-import { wordWrapRuns, type WrapRun } from './wrapText';
+import type { WrapRun } from './wrapText';
+import { wrapForDrawing } from './bidi';
 import { sanitizeExportFilename } from './exportFilename';
 import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
 import { extractAvBodies } from './avDocument';
@@ -317,7 +318,19 @@ function drawPieces(
     // charSpace stretches a monospace face to Final Draft's cell; a
     // proportional one must be drawn at its own advances or the letters come
     // out scattered.
-    pdf.text(piece.text, cursorX, y, { charSpace: piece.charSpace });
+    //
+    // `isInputVisual: false` switches off half of jsPDF's own bidi pass, which
+    // runs on every text() call whether it is wanted or not.  Left at its
+    // default it reverses Arabic a second time, undoing utils/bidi and
+    // painting the line back in the order it was typed — and only Arabic, since
+    // the same engine ignores Hebrew entirely, so the two scripts came out
+    // contradicting each other.  The naming is inherited from Globalize and
+    // reads backwards here; what the flag does is stop the reordering while
+    // leaving text that is already in presentation forms untouched.  The
+    // painted order is asserted end to end in pdfExporter.rtl.test.ts, so a
+    // jsPDF upgrade that changes this fails there rather than in a writer's
+    // PDF.
+    pdf.text(piece.text, cursorX, y, { charSpace: piece.charSpace, isInputVisual: false });
     cursorX += pieceWidth(pdf, piece);
   }
   return cursorX;
@@ -810,7 +823,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   function noteLines(entry: FootnoteEntry, label: string | null): TextRun[][] {
     const out: TextRun[][] = [];
     const wrap = (text: string, bold = false) => {
-      for (const line of wordWrapRuns(
+      for (const line of wrapForDrawing(
         [{ text, bold, italic: false, underline: false }], FOOTNOTE_CPL, false,
       )) out.push(line as TextRun[]);
     };
@@ -996,7 +1009,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
         let y = top + dualColumnLeadLines(children as DualColumns[number]) * LINE_HEIGHT_PT;
         for (const child of children) {
           const [leftIn, rightIn] = dualChildBounds(col, child.type);
-          const wrapped = wordWrapRuns(
+          const wrapped = wrapForDrawing(
             child.runs, dualCharsPerLine(child.type), UPPERCASE_TYPES.has(child.type),
           );
           renderElement(
@@ -1079,7 +1092,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
 
     const spaceBeforePt = isFirstElement ? 0 : spaceBeforePtOf(node);
 
-    const wrappedLines = wordWrapRuns(node.runs, maxChars, forceUpper);
+    const wrappedLines = wrapForDrawing(node.runs, maxChars, forceUpper);
     const elementHeightPt = wrappedLines.length * LINE_HEIGHT_PT;
     const totalHeightPt = spaceBeforePt + elementHeightPt;
 
@@ -1098,7 +1111,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     }
     const measure = (at: number): BlockPart => {
       const n = nodes[at];
-      const w = wordWrapRuns(
+      const w = wrapForDrawing(
         n.runs, CHARS_PER_LINE[n.typeName] || 62, UPPERCASE_TYPES.has(n.typeName),
       );
       const sb = spaceBeforePtOf(n);

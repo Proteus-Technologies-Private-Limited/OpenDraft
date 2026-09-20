@@ -27,14 +27,12 @@
  *
  * ## What is still beyond this module
  *
- * **Right-to-left.**  Hebrew and Arabic have no face here, though both subset
- * to a smaller file than Devanagari.  A font is not what they are waiting on:
- * text stored in logical order and drawn left to right comes out reversed,
- * which is worse than the blank page this module exists to prevent, because it
- * looks like text.  They need the Unicode bidirectional algorithm applied to a
- * whole line, above the per-face splitting done here, and Arabic needs its
- * letters substituted for the joined forms of Presentation Forms-B.  Until
- * then they are reported as unsupported rather than drawn wrongly.
+ * **Right-to-left** is handled a level up.  Hebrew and Arabic have faces here,
+ * but the reordering a line needs before it can be drawn spans the whole line
+ * rather than one face's share of it, so `utils/bidi` does it first and this
+ * module receives text already in the order it is painted.  Arabic arrives
+ * substituted for its joined forms, which is why the coverage above carries
+ * the presentation blocks.
  *
  * **Shaping.**  Conjuncts and reph are substitutions, and jsPDF addresses a
  * font only through its `cmap` — see `utils/indic.ts` and
@@ -201,6 +199,41 @@ const FALLBACKS: readonly FallbackSpec[] = [
   indicFace(byName('Sinhala'), 'NotoSansSinhala',
     [[0x0d80, 0x0dff], ...JOINERS, ...SHARED]),
   {
+    // Hebrew and Arabic are drawn right to left, which is not this module's
+    // business: the line is reordered by utils/bidi before it ever gets here,
+    // and by then it is in the order it is painted.  What is this module's
+    // business is that Arabic arrives already substituted for its joined
+    // forms, so the coverage has to carry the presentation blocks as well as
+    // the letters themselves.
+    id: 'NotoSansHebrew',
+    coverage: [[0x0590, 0x05ff], [0xfb1d, 0xfb4f], [0x200e, 0x200f],
+      [0x0020, 0x0020], [0x00a0, 0x00a0]],
+    monospace: false,
+    variants: [{
+      key: 'NotoSansHebrew',
+      label: 'Hebrew',
+      files: {
+        normal: '/fonts/NotoSansHebrew-Regular.ttf',
+        bold: '/fonts/NotoSansHebrew-Bold.ttf',
+      },
+    }],
+  },
+  {
+    id: 'NotoSansArabic',
+    coverage: [[0x0600, 0x06ff], [0x0750, 0x077f], [0x08a0, 0x08ff],
+      [0xfb50, 0xfbb1], [0xfbd3, 0xfbe9], [0xfbfc, 0xfbff], [0xfe70, 0xfefc],
+      [0x200e, 0x200f], [0x0020, 0x0020], [0x00a0, 0x00a0]],
+    monospace: false,
+    variants: [{
+      key: 'NotoSansArabic',
+      label: 'Arabic',
+      files: {
+        normal: '/fonts/NotoSansArabic-Regular.ttf',
+        bold: '/fonts/NotoSansArabic-Bold.ttf',
+      },
+    }],
+  },
+  {
     // Thai stores its pre-base vowels before the consonant already, so unlike
     // every Indic script above it needs no reordering at all.
     id: 'NotoSansThai',
@@ -303,11 +336,6 @@ const FALLBACKS: readonly FallbackSpec[] = [
  * recognises, not a complete census of Unicode.
  */
 const UNSUPPORTED_SCRIPTS: readonly (readonly [Range, string])[] = [
-  [[0x0590, 0x05ff], 'Hebrew'],
-  [[0xfb1d, 0xfb4f], 'Hebrew'],
-  [[0x0600, 0x06ff], 'Arabic'],
-  [[0x0750, 0x077f], 'Arabic'],
-  [[0xfb50, 0xfeff], 'Arabic'],
   [[0x0700, 0x074f], 'Syriac'],
   [[0x0780, 0x07bf], 'Thaana'],
   [[0x07c0, 0x07ff], "N'Ko"],

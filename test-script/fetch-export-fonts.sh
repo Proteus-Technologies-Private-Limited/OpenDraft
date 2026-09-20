@@ -59,19 +59,16 @@ FACES=(
   "Noto Sans Oriya|NotoSansOriya|U+0B00-0B7F,U+200C-200D,U+20B9,U+0020,U+00A0,U+25CC"
   "Noto Sans Telugu|NotoSansTelugu|U+0C00-0C7F,U+200C-200D,U+20B9,U+0020,U+00A0,U+25CC"
   "Noto Sans Sinhala|NotoSansSinhala|U+0D80-0DFF,U+200C-200D,U+0020,U+00A0,U+25CC"
+  # The two right-to-left faces.  Their presentation-form ranges are not
+  # decoration: jsPDF reaches a font only through its cmap, so Arabic's joined
+  # shapes have to be substituted as the real characters of those blocks before
+  # drawing — see src/utils/arabicShaping.ts, whose table is generated from the
+  # same Unicode decompositions these ranges were taken from.  Hebrew needs
+  # only its own block; FB1D-FB4F is the pointed forms, which cost almost
+  # nothing and save a writer who uses them.
+  "Noto Sans Hebrew|NotoSansHebrew|U+0590-05FF,U+FB1D-FB4F,U+200E-200F,U+0020,U+00A0"
+  "Noto Sans Arabic|NotoSansArabic|U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FBB1,U+FBD3-FBE9,U+FBFC-FBFF,U+FE70-FEFC,U+200E-200F,U+0020,U+00A0"
 )
-
-# Hebrew and Arabic are deliberately not here yet, though both subset cleanly
-# (14 kB and 35 kB a weight).  A font is not what those scripts are waiting on:
-# they are right-to-left, and text stored in logical order and drawn left to
-# right comes out reversed — a worse failure than the blank page, because it
-# looks like text.  They need the Unicode bidirectional algorithm applied at
-# the line level, above the per-face splitting this module does, and Arabic
-# needs its letters substituted for the joined forms in Presentation Forms-B
-# as well.  Restore these two lines when that work is taken on:
-#
-#   "Noto Sans Hebrew|NotoSansHebrew|U+0590-05FF,U+FB1D-FB4F,U+200E-200F,U+0020,U+00A0"
-#   "Noto Sans Arabic|NotoSansArabic|U+0600-06FF,U+0750-077F,U+FE70-FEFF,U+200E-200F,U+0020,U+00A0"
 
 want=("$@")
 wanted() {

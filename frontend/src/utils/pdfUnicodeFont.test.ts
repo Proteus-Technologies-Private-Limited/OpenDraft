@@ -75,10 +75,9 @@ describe('requiredUnicodeFaces', () => {
   });
 
   it('asks for nothing for a script no face covers at all', () => {
-    // Hebrew is right-to-left and has no face here on purpose; asking for one
-    // that cannot draw it would only cost the download.  unsupportedScripts()
-    // is what tells the writer about it.
-    expect(requiredUnicodeFaces([{ text: 'שלום' }]).size).toBe(0);
+    // Khmer has no face here; asking for one that cannot draw it would only
+    // cost the download.  unsupportedScripts() is what tells the writer.
+    expect(requiredUnicodeFaces([{ text: 'សួស្ដី' }]).size).toBe(0);
   });
 });
 
@@ -386,22 +385,28 @@ describe('unsupportedScripts', () => {
       { text: 'नमस्ते' },          // Devanagari
       { text: 'வணக்கம்' },        // Tamil
       { text: '你好' },            // the remote CJK face
+      { text: 'שלום' },            // Hebrew, reordered before it is drawn
+      { text: 'مرحبا' },           // Arabic, shaped and reordered
     ])).toEqual([]);
   });
 
-  it('names the right-to-left scripts, which are deliberately absent', () => {
+  it('names a script that has no face', () => {
     // The failure this prevents is the one issue #128 was reported as: a PDF
     // that had quietly lost its dialogue.  Naming the script is the whole
     // point — "some characters" would send the writer looking at the wrong
     // part of their script.
-    expect(unsupportedScripts([{ text: 'שלום' }])).toEqual(['Hebrew']);
-    expect(unsupportedScripts([{ text: 'مرحبا' }])).toEqual(['Arabic']);
+    expect(unsupportedScripts([{ text: 'សួស្ដី' }])).toEqual(['Khmer']);
+    expect(unsupportedScripts([{ text: 'ᑕᐋᒥ' }])).toEqual(['an unsupported script']);
+  });
+
+  it('says nothing about Hebrew or Arabic, which are drawn now', () => {
+    expect(unsupportedScripts([{ text: 'שלום' }, { text: 'مرحبا' }])).toEqual([]);
   });
 
   it('names each script once, however much of it there is', () => {
     expect(unsupportedScripts([
-      { text: 'שלום' }, { text: 'עולם', bold: true }, { text: 'שלום' },
-    ])).toEqual(['Hebrew']);
+      { text: 'សួស្ដី' }, { text: 'សួស្ដី', bold: true }, { text: 'សួស្ដី' },
+    ])).toEqual(['Khmer']);
   });
 
   it('falls back to a generic name for a script it has no name for', () => {

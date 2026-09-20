@@ -132,44 +132,41 @@ Two consequences worth knowing:
 What is not done is kinsoku shori: the rules that stop a line beginning with a
 closing bracket or a full stop. Lines break at the margin wherever it falls.
 
-## Right-to-left — not yet
+## Hebrew and Arabic
 
-Hebrew and Arabic have no face here, and the gap is not the font: both subset
-smaller than Devanagari (14 kB and 35 kB a weight), and
-`fetch-export-fonts.sh` carries the commented-out lines that would cut them.
+Noto Sans Hebrew and Noto Sans Arabic, 10 kB and 49 kB a weight. Arabic's
+subset is the larger because it carries the presentation-form blocks as well as
+the letters, and that is not decoration: it is how the script gets drawn at all.
 
-They are waiting on the Unicode bidirectional algorithm. Text is stored in
-logical order and drawn left to right, so without it a Hebrew line comes out
-reversed — which is worse than the blank page this whole directory exists to
-prevent, because it looks like text and a writer who cannot read the script
-would send it out. Arabic needs one thing more: its letters take four shapes
-depending on what they join to, and since jsPDF reaches a font only through the
-`cmap`, the joined forms have to be substituted as the real characters of
-Presentation Forms-B (U+FE70–FEFF) before drawing. That block is in the subset
-range already for when this is taken on.
+**Both are reordered before drawing.** They are written right to left and
+stored in the order they are read, and jsPDF paints characters in the order it
+is handed them, so שלום would go out as םולש. `src/utils/bidi.ts` runs the
+Unicode bidirectional algorithm over each wrapped line first — via `bidi-js`,
+which implements the whole of UAX #9 — so what reaches the drawing code is
+already in the order it is painted.
 
-Until then both are reported as unsupported, by name, at the end of an export.
+**Arabic is also shaped.** Its letters take four different shapes depending on
+what they join to, and an OpenType engine normally picks between them. There is
+no OpenType engine here, so `src/utils/arabicShaping.ts` substitutes each letter
+for the Presentation Forms character that *is* the shape it needs — a code
+point the `cmap` can reach. The table is generated from Unicode's own
+decomposition data, 76 letters, which is Arabic plus what Persian and Urdu add.
+The one mandatory ligature, lam-alef, is substituted too; the decorative ones
+are not.
 
-### Why the layout features are dropped
+Two things to know about the result:
 
-`--layout-features=` throws away GSUB and GPOS, and with them the ~600 conjunct
-and half-form glyphs, which is the whole difference between 16 kB and 159 kB
-per weight. Nothing can reach those glyphs: jsPDF addresses a font only through
-its `cmap`, one character to one glyph, and a conjunct has no character of its
-own to be looked up by. Keeping them would ship 300 kB that no export could
-ever draw.
+- **The page is not mirrored.** Margins, indents and alignment stay where Final
+  Draft puts them, so a Hebrew line reads correctly but starts at the left
+  margin of its block rather than the right. A conventionally laid-out RTL
+  screenplay reaches the editor and every other exporter, and is its own piece
+  of work.
+- **jsPDF has a bidi engine of its own**, which runs on every `text()` call. It
+  reorders Arabic and ignores Hebrew, so left alone it reversed Arabic a second
+  time and the two scripts contradicted each other. `pdfExporter.ts` passes
+  `isInputVisual: false` to switch that half off, and
+  `pdfExporter.rtl.test.ts` asserts the painted order end to end so a jsPDF
+  upgrade cannot quietly undo it.
 
-What that costs is shaping. `src/utils/devanagari.ts` does the one reordering
-the script cannot be read without — the vowel sign ि, stored after its
-consonant and drawn before it — because that is a permutation of characters and
-needs no glyph a `cmap` cannot reach. Conjuncts and reph are substitutions and
-are not done: क्ष comes out as an explicit halant क्ष, and कर्म keeps its र्
-rather than raising it. Both read correctly and are how Devanagari is written
-when a conjunct is spelled out; a typesetter would not have set them that way.
-
-Closing that gap means shaping the text before it is drawn and addressing
-glyphs by index rather than by character. jsPDF cannot do the second, so it
-would take either a different PDF writer, or a build step that maps each
-shaped glyph to a private-use code point and a generated table to look the
-sequences up in. Re-subset with `--layout-features='*'` if that is ever taken
-on.
+Mark positioning is left to the font's default anchors, since GPOS is as
+unreachable as GSUB. Arabic screenplays are normally written without harakat.
