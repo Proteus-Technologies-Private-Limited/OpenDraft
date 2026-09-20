@@ -1548,7 +1548,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (!editor) return;
     try {
       const json = editor.getJSON();
-      await exportPDF(json, documentTitle, pageLayout, pdfOptions(json));
+      // A font that would not load leaves the script it was for blank on the
+      // page — the writer has to hear that now, not from whoever they send it
+      // to. See RenderedPDF.warning.
+      const warning = await exportPDF(json, documentTitle, pageLayout, pdfOptions(json));
+      if (warning) showToast(warning, 'error');
     } catch (err) {
       console.error('PDF export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -1578,11 +1582,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
         const json = editor.getJSON();
         const { renderPDF } = await import('../utils/pdfExporter');
         const { printPDFBytes } = await import('../utils/printPdf');
-        const { bytes, filename } = await renderPDF(json, documentTitle, pageLayout, pdfOptions(json));
+        const { bytes, filename, warning } = await renderPDF(json, documentTitle, pageLayout, pdfOptions(json));
         // The desktop web view cannot print a frame, so there the file is
         // opened in whatever the machine uses for PDFs and printed from there.
         const outcome = await printPDFBytes(bytes, filename, isDesktopTauri());
-        if (outcome === 'opened-externally') {
+        if (warning) showToast(warning, 'error');
+        else if (outcome === 'opened-externally') {
           showToast('Opened your script as a PDF — print it from there.');
         }
       } catch (err) {
@@ -1632,12 +1637,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
       const json = editor.getJSON();
       if (route === 'ios-share-sheet') {
-        await exportPDF(json, documentTitle, pageLayout, pdfOptions(json));
+        const warning = await exportPDF(json, documentTitle, pageLayout, pdfOptions(json));
+        if (warning) showToast(warning, 'error');
         return;
       }
-      const { bytes, filename } = await renderPDF(json, documentTitle, pageLayout, pdfOptions(json));
+      const { bytes, filename, warning } = await renderPDF(json, documentTitle, pageLayout, pdfOptions(json));
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('android_print_pdf', { filename, contents: Array.from(bytes) });
+      if (warning) showToast(warning, 'error');
     } catch (err) {
       console.error('Print failed:', err);
       showToast(`Print failed: ${err instanceof Error ? err.message : String(err)}`, 'error');

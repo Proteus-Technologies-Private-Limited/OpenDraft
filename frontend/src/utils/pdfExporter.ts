@@ -8,15 +8,16 @@ import { getForceBreakIds, startsOwnPage, elementIdOf, laysItselfOut } from './p
 import { getSpaceBefore } from './elementSpacing';
 import { resolveImageUrl, loadImageData } from './imageAsset';
 import { jsonBlockRuns } from './nodeText';
-import { wordWrapRuns, type WrapRun } from './wrapText';
+import type { WrapRun } from './wrapText';
+import { wrapForDrawing } from './bidi';
 import { sanitizeExportFilename } from './exportFilename';
 import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
 import { extractAvBodies } from './avDocument';
 import { drawAvBody, avRowNodes, avFrameKey } from './avPdfTable';
 import { readColumnConfig } from '../editor/extensions/AvBlock';
 import {
-  embedUnicodeFont, needsUnicodeFont, requiredUnicodeStyles,
-  type StyledText, type UnicodeFont,
+  embedUnicodeFonts, requiredUnicodeFaces, segmentByFace, unsupportedScripts,
+  type ProgressHandler, type StyledText, type UnicodeFallbacks,
 } from './pdfUnicodeFont';
 import { embedCustomFonts, type EmbeddedFace } from './pdfCustomFonts';
 import { genericFor } from './fonts';
@@ -134,6 +135,27 @@ function applyTypeStyles(runs: TextRun[], typeName: string): TextRun[] {
   }));
 }
 
+/**
+ * Every string a block holds, however deeply it is nested, with the style it
+ * will be drawn in.
+ *
+ * An AV body and a dual-dialogue block keep `runs` empty — a table and two
+ * columns cannot be flattened into one line of text, so each gets a draw pass
+ * of its own further down. Their text still has to be declared, or a face that
+ * can write it is never embedded and a Hindi AV script or a Cyrillic
+ * simultaneous speech comes out of the exporter blank.
+ */
+function collectNestedText(node: JSONContent, out: StyledText[]): void {
+  const content = node.content ?? [];
+  if (content.some((child) => child.type === 'text')) {
+    const runs = applyTypeStyles(extractRuns(node), String(node.type ?? ''));
+    for (const run of runs) out.push({ text: run.text, bold: run.bold, italic: run.italic });
+  }
+  for (const child of content) {
+    if (child.type !== 'text') collectNestedText(child, out);
+  }
+}
+
 function getPlainText(runs: TextRun[]): string {
   // A break contributes a newline, matching `leafText` on the editor side, so
   // the plain text this produces agrees with pagination's line counting.
@@ -162,14 +184,14 @@ export function pdfFontFor(family: string | undefined): 'courier' | 'times' | 'h
 /**
  * Everything the exporter needs to know about faces while it draws.
  *
- * `unicode` is the embedded fallback, present only when the script contains
+ * `fallbacks` are the embedded fonts, present only when the script contains
  * text no built-in face can encode — see utils/pdfUnicodeFont.
  */
 interface FontContext {
   documentFont?: string;
   /** Character spacing that stretches jsPDF's Courier to the Final Draft cell. */
   courierSpace: number;
-  unicode: UnicodeFont | null;
+  fallbacks: UnicodeFallbacks;
   /**
    * The writer's own installed fonts, whose bytes are in this document — keyed
    * by lowercased family name. Empty when the script uses none.
@@ -178,32 +200,78 @@ interface FontContext {
 }
 
 /**
- * The face a piece of text is drawn in.
- *
- * Its own family, or the document's — unless the built-in faces cannot write
- * it, in which case the embedded Unicode face, which can.
+ * A piece of a run, resolved down to the face that draws it and how it is
+ * spaced and measured there.
  */
-function faceFor(text: string, family: string | undefined, fonts: FontContext): string {
+interface DrawnPiece {
+  /** The text as the face needs it ordered — see utils/devanagari. */
+  text: string;
+  face: string;
+  charSpace: number;
+  /** Whether its width is the character count on Final Draft's cell. */
+  fdCell: boolean;
+}
+
+/**
+ * The run's own face: its family, or the document's, or the nearest built-in.
+ *
+ * An installed font is drawn in itself — it carries its own glyphs, so it needs
+ * no Unicode fallback and no Standard 14 approximation.
+ */
+function baseFaceFor(family: string | undefined, fonts: FontContext): string {
   const named = family || fonts.documentFont;
-  // An installed font is drawn in itself — it carries its own glyphs, so it
-  // needs no Unicode fallback and no Standard 14 approximation.
   if (named && fonts.embedded.size > 0) {
     const own = fonts.embedded.get(named.trim().toLowerCase());
     if (own) return own.id;
   }
-  if (fonts.unicode && needsUnicodeFont(text)) return fonts.unicode.id;
   return pdfFontFor(named);
 }
 
-/** Whether a face sits on Final Draft's fixed cell — Courier and the fallback do. */
-function isFdCell(face: string, fonts: FontContext): boolean {
-  return face === 'courier' || face === fonts.unicode?.id;
+/** Whether the run's own face is one of the writer's, which draws the lot itself. */
+function isOwnFont(family: string | undefined, fonts: FontContext): boolean {
+  const named = family || fonts.documentFont;
+  return !!named && fonts.embedded.has(named.trim().toLowerCase());
 }
 
-/** The spacing correction that puts a face on the FD cell; none for a proportional one. */
-function charSpaceFor(face: string, fonts: FontContext): number {
-  if (fonts.unicode && face === fonts.unicode.id) return fonts.unicode.charSpace;
-  return face === 'courier' ? fonts.courierSpace : 0;
+/**
+ * Break a piece of text into the faces that have to draw it.
+ *
+ * Usually one piece: a Latin script, or one of the writer's own fonts, which is
+ * left to write whatever it carries. A script the built-in faces cannot encode
+ * is split by the bundled font each part needs, so a Latin word inside a Hindi
+ * line stays on Courier's cell rather than being pulled into a proportional
+ * face with it.
+ */
+function drawnPieces(
+  text: string,
+  family: string | undefined,
+  fonts: FontContext,
+  opts: { freeFlow?: boolean } = {},
+): DrawnPiece[] {
+  const base = baseFaceFor(family, fonts);
+  const asBase = (s: string): DrawnPiece => ({
+    text: s,
+    face: base,
+    charSpace: base === 'courier' ? fonts.courierSpace : 0,
+    fdCell: base === 'courier',
+  });
+
+  const pieces = isOwnFont(family, fonts)
+    ? [asBase(text)]
+    : segmentByFace(text, fonts.fallbacks).map((segment): DrawnPiece => (segment.fallback
+      ? {
+        text: segment.fallback.shape(segment.text),
+        face: segment.fallback.id,
+        charSpace: segment.fallback.charSpace,
+        fdCell: segment.fallback.monospace,
+      }
+      : asBase(segment.text)));
+
+  // The title page is laid out free-flow rather than on the Final Draft cell,
+  // and has been since it was written: nothing there is stretched to the cell
+  // and nothing is measured by character count.
+  if (opts.freeFlow) return pieces.map((piece) => ({ ...piece, charSpace: 0, fdCell: false }));
+  return pieces;
 }
 
 /**
@@ -218,20 +286,54 @@ function drawPlain(
   fonts: FontContext,
   opts: { bold?: boolean } = {},
 ): void {
-  const face = selectFace(pdf, text, fonts, opts);
-  pdf.text(text, x, y, { charSpace: charSpaceFor(face, fonts) });
+  drawPieces(pdf, drawnPieces(text, undefined, fonts), x, y, !!opts.bold, false);
 }
 
-/** Select the face for a piece of text and hand it back, so callers can space and measure it. */
-function selectFace(
+/** How wide a piece of furniture draws, across every face it needs. */
+function measurePlain(
   pdf: jsPDF,
   text: string,
   fonts: FontContext,
-  opts: { bold?: boolean; italic?: boolean; family?: string } = {},
-): string {
-  const face = faceFor(text, opts.family, fonts);
-  setFontStyle(pdf, !!opts.bold, !!opts.italic, face);
-  return face;
+  opts: { bold?: boolean } = {},
+): number {
+  return measurePieces(pdf, drawnPieces(text, undefined, fonts), !!opts.bold, false);
+}
+
+/**
+ * Draw the pieces of one run, left to right, and return where the cursor
+ * ended up.
+ */
+function drawPieces(
+  pdf: jsPDF,
+  pieces: DrawnPiece[],
+  x: number,
+  y: number,
+  bold: boolean,
+  italic: boolean,
+): number {
+  let cursorX = x;
+  for (const piece of pieces) {
+    if (piece.text.length === 0) continue;
+    setFontStyle(pdf, bold, italic, piece.face);
+    // charSpace stretches a monospace face to Final Draft's cell; a
+    // proportional one must be drawn at its own advances or the letters come
+    // out scattered.
+    //
+    // `isInputVisual: false` switches off half of jsPDF's own bidi pass, which
+    // runs on every text() call whether it is wanted or not.  Left at its
+    // default it reverses Arabic a second time, undoing utils/bidi and
+    // painting the line back in the order it was typed — and only Arabic, since
+    // the same engine ignores Hebrew entirely, so the two scripts came out
+    // contradicting each other.  The naming is inherited from Globalize and
+    // reads backwards here; what the flag does is stop the reordering while
+    // leaving text that is already in presentation forms untouched.  The
+    // painted order is asserted end to end in pdfExporter.rtl.test.ts, so a
+    // jsPDF upgrade that changes this fails there rather than in a writer's
+    // PDF.
+    pdf.text(piece.text, cursorX, y, { charSpace: piece.charSpace, isInputVisual: false });
+    cursorX += pieceWidth(pdf, piece);
+  }
+  return cursorX;
 }
 
 function setFontStyle(pdf: jsPDF, bold: boolean, italic: boolean, face = 'courier'): void {
@@ -251,14 +353,29 @@ function setFontStyle(pdf: jsPDF, bold: boolean, italic: boolean, face = 'courie
  *
  * A monospace face keeps Final Draft's fixed 10.33-CPI cell, which is what
  * every indent, centre and page-break calculation in the app is built on — and
- * the Unicode fallback is monospace precisely so that stays true when a script
+ * the DejaVu fallback is monospace precisely so that stays true when a script
  * switches to it.  A proportional face has no such cell, so it is measured — it
- * still sits in the line box the monospace layout assigned, and since Times and
- * Helvetica are narrower than Courier at the same size, it fits inside it.
+ * still sits in the line box the monospace layout assigned, and since Times,
+ * Helvetica and Noto Sans Devanagari are all narrower than Courier at the same
+ * size, it fits inside it.
+ *
+ * `getTextWidth` reads whatever face is currently set, so a measured piece has
+ * to have its own selected first.
  */
-function widthOf(pdf: jsPDF, text: string, face: string, fonts: FontContext): number {
-  if (isFdCell(face, fonts)) return text.length * FD_CHAR_WIDTH_PT;
-  return pdf.getTextWidth(text);
+function pieceWidth(pdf: jsPDF, piece: DrawnPiece): number {
+  if (piece.fdCell) return piece.text.length * FD_CHAR_WIDTH_PT;
+  return pdf.getTextWidth(piece.text);
+}
+
+/** Total width of a run's pieces, selecting each face it has to measure. */
+function measurePieces(pdf: jsPDF, pieces: DrawnPiece[], bold: boolean, italic: boolean): number {
+  let total = 0;
+  for (const piece of pieces) {
+    if (piece.text.length === 0) continue;
+    if (!piece.fdCell) setFontStyle(pdf, bold, italic, piece.face);
+    total += pieceWidth(pdf, piece);
+  }
+  return total;
 }
 
 /**
@@ -274,27 +391,21 @@ function renderLine(
   let cursorX = x;
   for (const run of lineRuns) {
     if (run.text.length === 0) continue;
-    const face = selectFace(pdf, run.text, fonts, { bold: run.bold, italic: run.italic, family: run.fontFamily });
-    // charSpace stretches a monospace face to Final Draft's cell; a
-    // proportional one must be drawn at its own advances or the letters come
-    // out scattered.
-    pdf.text(run.text, cursorX, y, { charSpace: charSpaceFor(face, fonts) });
-    const w = widthOf(pdf, run.text, face, fonts);
+    const pieces = drawnPieces(run.text, run.fontFamily, fonts);
+    const nextX = drawPieces(pdf, pieces, cursorX, y, run.bold, run.italic);
     if (run.underline) {
       const ulY = y + 1.5;
       pdf.setLineWidth(0.5);
-      pdf.line(cursorX, ulY, cursorX + w, ulY);
+      pdf.line(cursorX, ulY, nextX, ulY);
     }
-    cursorX += w;
+    cursorX = nextX;
     if (run.marker) {
       // Raised, small, and advancing nothing: it overhangs into the space that
       // follows, which is what the editor's marker decoration does and what
       // keeps this line the same length in both. See utils/footnotes.
-      const markerFace = selectFace(pdf, run.marker, fonts, {});
       pdf.setFontSize(8);
-      pdf.text(run.marker, cursorX, y - 3.5, { charSpace: charSpaceFor(markerFace, fonts) });
+      drawPieces(pdf, drawnPieces(run.marker, undefined, fonts), cursorX, y - 3.5, false, false);
       pdf.setFontSize(12);
-      setFontStyle(pdf, run.bold, run.italic, face);
     }
   }
 }
@@ -304,10 +415,7 @@ function measureLine(pdf: jsPDF, lineRuns: TextRun[], fonts: FontContext): numbe
   let total = 0;
   for (const run of lineRuns) {
     if (run.text.length === 0) continue;
-    const face = faceFor(run.text, run.fontFamily, fonts);
-    // getTextWidth reads the current font, so it has to be set first.
-    if (!isFdCell(face, fonts)) setFontStyle(pdf, run.bold, run.italic, face);
-    total += widthOf(pdf, run.text, face, fonts);
+    total += measurePieces(pdf, drawnPieces(run.text, run.fontFamily, fonts), run.bold, run.italic);
   }
   return total;
 }
@@ -341,6 +449,15 @@ export interface PDFExportOptions {
    * not edit the script (issue #98).
    */
   includeTitlePage?: boolean;
+  /**
+   * Told how a font fetch is going, for the faces that are not in the bundle.
+   *
+   * Only CJK is: those families are 5-10 MB, far too large to ship to every
+   * user, so the first export of a Chinese, Japanese or Korean script fetches
+   * one.  That takes long enough that saying nothing reads as a hang.  Every
+   * other script is bundled and reports nothing at all.
+   */
+  onFontProgress?: ProgressHandler;
 }
 
 /** Resolve dynamic field placeholders in header/footer text. Shared with the
@@ -351,6 +468,41 @@ const resolveFields = resolveHFFields;
 export interface RenderedPDF {
   bytes: Uint8Array;
   filename: string;
+  /**
+   * Something the writer has to be told about the file they just got.
+   *
+   * At present only one thing qualifies: a bundled face that would not load,
+   * which leaves the script it was for blank on the page. That is the shape
+   * issue #128 was reported in — a PDF that had simply lost its dialogue — and
+   * it must never be silent again, on any platform.
+   */
+  warning?: string;
+}
+
+/**
+ * What to tell the writer about `fallbacks`, or nothing when all is well.
+ *
+ * Two different failures, and the difference matters to whoever reads it. A
+ * face that would not load is a bad day — the network, a blocked request — and
+ * exporting again may well fix it. A script with no face at all will not fix
+ * itself, and the writer is better off knowing that now than after sending the
+ * file to a producer.
+ */
+function fallbackWarning(fallbacks: UnicodeFallbacks): string | undefined {
+  const parts: string[] = [];
+
+  if (fallbacks.missing.length > 0) {
+    parts.push(`The ${fallbacks.missing.join(' and ')} font could not be loaded, `
+      + 'so that text is blank in the PDF.');
+  }
+
+  if (fallbacks.unsupported.length > 0) {
+    const names = fallbacks.unsupported.join(' and ');
+    parts.push(`${names} cannot be written to a PDF yet, so that text is `
+      + 'missing or garbled. The rest of the script exported normally.');
+  }
+
+  return parts.length > 0 ? parts.join(' ') : undefined;
 }
 
 /**
@@ -516,6 +668,8 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     for (const run of node.runs) drawn.push({ text: run.text, bold: run.bold, italic: run.italic });
     // A dialogue block broken across a page repeats the character name.
     if (node.typeName === 'character') drawn.push({ text: node.plainText });
+    // A block that draws itself carries its text below the run list.
+    if (node.raw) collectNestedText(node.raw, drawn);
   }
   for (const it of titleItems) {
     if (it.kind === 'text') drawn.push({ text: it.text || '', bold: it.field === 'title' });
@@ -549,7 +703,10 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   const fonts: FontContext = {
     documentFont,
     courierSpace,
-    unicode: await embedUnicodeFont(pdf, requiredUnicodeStyles(drawn), FD_CHAR_WIDTH_PT),
+    fallbacks: await embedUnicodeFonts(pdf, requiredUnicodeFaces(drawn), FD_CHAR_WIDTH_PT, {
+      unsupported: unsupportedScripts(drawn),
+      onProgress: options?.onFontProgress,
+    }),
     embedded: embedCustomFonts(pdf, usedFamilies),
   };
 
@@ -603,12 +760,15 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
         for (const line of lines) {
           const drawnLine = isTitle ? line.toUpperCase() : line;
           // Per line, so a Cyrillic title above a Latin credit each get a face
-          // that can write them. jsPDF aligns on its own measurement here, as
-          // the title page has always been laid out free-flow rather than on
-          // the Final Draft cell.
-          selectFace(pdf, drawnLine, fonts, { bold: isTitle, family: it.font });
+          // that can write them — and a line that needs two faces is drawn and
+          // aligned piece by piece, since jsPDF's own `align` can only measure
+          // one. Measured widths, free-flow: the same numbers jsPDF's `align`
+          // was reaching for when this drew every line in a single face.
           if (line && y + lineH <= bottom) {
-            pdf.text(drawnLine, x, y + lineH, { align });
+            const pieces = drawnPieces(drawnLine, it.font, fonts, { freeFlow: true });
+            const w = measurePieces(pdf, pieces, isTitle, false);
+            const startX = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
+            drawPieces(pdf, pieces, startX, y + lineH, isTitle, false);
           } else if (line) {
             dropped++;
           }
@@ -663,7 +823,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   function noteLines(entry: FootnoteEntry, label: string | null): TextRun[][] {
     const out: TextRun[][] = [];
     const wrap = (text: string, bold = false) => {
-      for (const line of wordWrapRuns(
+      for (const line of wrapForDrawing(
         [{ text, bold, italic: false, underline: false }], FOOTNOTE_CPL, false,
       )) out.push(line as TextRun[]);
     };
@@ -849,7 +1009,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
         let y = top + dualColumnLeadLines(children as DualColumns[number]) * LINE_HEIGHT_PT;
         for (const child of children) {
           const [leftIn, rightIn] = dualChildBounds(col, child.type);
-          const wrapped = wordWrapRuns(
+          const wrapped = wrapForDrawing(
             child.runs, dualCharsPerLine(child.type), UPPERCASE_TYPES.has(child.type),
           );
           renderElement(
@@ -932,7 +1092,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
 
     const spaceBeforePt = isFirstElement ? 0 : spaceBeforePtOf(node);
 
-    const wrappedLines = wordWrapRuns(node.runs, maxChars, forceUpper);
+    const wrappedLines = wrapForDrawing(node.runs, maxChars, forceUpper);
     const elementHeightPt = wrappedLines.length * LINE_HEIGHT_PT;
     const totalHeightPt = spaceBeforePt + elementHeightPt;
 
@@ -951,7 +1111,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     }
     const measure = (at: number): BlockPart => {
       const n = nodes[at];
-      const w = wordWrapRuns(
+      const w = wrapForDrawing(
         n.runs, CHARS_PER_LINE[n.typeName] || 62, UPPERCASE_TYPES.has(n.typeName),
       );
       const sb = spaceBeforePtOf(n);
@@ -1123,12 +1283,12 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       const sceneNum = String(node.attrs.sceneNumber);
       const y = currentY + LINE_HEIGHT_PT; // baseline of first line
       pdf.setFontSize(12);
-      const numFace = selectFace(pdf, sceneNum, fonts, { bold: true }); // bold like scene heading
       // Left side: just inside left margin
       const leftNumX = 1.0 * PTS_PER_INCH;
       drawPlain(pdf, sceneNum, leftNumX, y, fonts, { bold: true });
       // Right side: near right margin, right-aligned
-      const rightNumX = 7.75 * PTS_PER_INCH - widthOf(pdf, sceneNum, numFace, fonts);
+      const rightNumX = 7.75 * PTS_PER_INCH
+        - measurePlain(pdf, sceneNum, fonts, { bold: true }); // bold like scene heading
       drawPlain(pdf, sceneNum, rightNumX, y, fonts, { bold: true });
     }
 
@@ -1164,8 +1324,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       let y = topMarginPt + LINE_HEIGHT_PT;
       if (page.hasHeading) {
         const heading = 'NOTES';
-        const face = selectFace(pdf, heading, fonts, {});
-        const x = (endnoteLeftPt + endnoteRightPt) / 2 - widthOf(pdf, heading, face, fonts) / 2;
+        const x = (endnoteLeftPt + endnoteRightPt) / 2 - measurePlain(pdf, heading, fonts) / 2;
         drawPlain(pdf, heading, x, y, fonts, {});
         y += ENDNOTE_HEADING_LINES * LINE_HEIGHT_PT;
       }
@@ -1215,14 +1374,26 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     }
   }
 
-  return { bytes: new Uint8Array(pdf.output('arraybuffer')), filename };
+  return {
+    bytes: new Uint8Array(pdf.output('arraybuffer')),
+    filename,
+    warning: fallbackWarning(fonts.fallbacks),
+  };
 }
 
-/** Render the script and put it somewhere the writer chose. */
-export async function exportPDF(doc: JSONContent, title: string, layout: PageLayout, options?: PDFExportOptions): Promise<void> {
+/**
+ * Render the script and put it somewhere the writer chose.
+ *
+ * Returns whatever the writer needs telling about the file, or nothing — see
+ * `RenderedPDF.warning`.
+ */
+export async function exportPDF(
+  doc: JSONContent, title: string, layout: PageLayout, options?: PDFExportOptions,
+): Promise<string | undefined> {
   const { saveFile } = await import('./fileOps');
-  const { bytes, filename } = await renderPDF(doc, title, layout, options);
+  const { bytes, filename, warning } = await renderPDF(doc, title, layout, options);
   await saveFile(bytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
+  return warning;
 }
 
 // --- Render helpers ---
@@ -1256,15 +1427,13 @@ function renderHFLine(
   // Center
   const centerText = resolveFields(content.center, pageNum, totalPages, title, revisionColor);
   if (centerText) {
-    const face = selectFace(pdf, centerText, fonts);
-    drawPlain(pdf, centerText, centerPt - widthOf(pdf, centerText, face, fonts) / 2, y, fonts);
+    drawPlain(pdf, centerText, centerPt - measurePlain(pdf, centerText, fonts) / 2, y, fonts);
   }
 
   // Right
   const rightText = resolveFields(content.right, pageNum, totalPages, title, revisionColor);
   if (rightText) {
-    const face = selectFace(pdf, rightText, fonts);
-    drawPlain(pdf, rightText, rightMarginPt - widthOf(pdf, rightText, face, fonts), y, fonts);
+    drawPlain(pdf, rightText, rightMarginPt - measurePlain(pdf, rightText, fonts), y, fonts);
   }
 }
 

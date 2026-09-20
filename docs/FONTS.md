@@ -116,6 +116,72 @@ answer, which is how OpenDraft has always rendered unknown fonts.
 The same stacks are used for the page font, for formatting-template rules, and
 for individual runs, so all three behave the same way.
 
+## Scripts other than Latin, in exported PDFs
+
+The screen has every font the machine has; a PDF has only what is embedded in
+it. jsPDF's built-in faces are the PDF Standard 14, which are WinAnsi-encoded
+and cannot write a single character outside Latin-1, so OpenDraft carries faces
+of its own and draws that text in whichever one covers it:
+
+| Script | Face | On the page |
+|--------|------|-------------|
+| Cyrillic, Greek, Armenian, Georgian | DejaVu Sans Mono | Monospaced on Final Draft's cell, like Courier |
+| Devanagari — Hindi, Marathi, Nepali, Sanskrit | Noto Sans Devanagari | Proportional; no monospaced Devanagari face exists |
+| Bengali, Gujarati, Gurmukhi, Kannada, Malayalam, Odia, Sinhala, Tamil, Telugu | Noto Sans, one per script | Proportional, narrower than the cell |
+| Thai | Noto Sans Thai | Proportional |
+| Chinese, Japanese, Korean | Noto Sans SC / TC / JP / KR | **Fetched on first use**; drawn two cells wide |
+| Hebrew | Noto Sans Hebrew | Reordered right-to-left before drawing |
+| Arabic, Persian, Urdu | Noto Sans Arabic | Reordered, and letters joined into their cursive shapes |
+
+Everything but CJK is bundled and works offline. Nothing is embedded unless the
+script uses it — a Latin screenplay exports exactly as it did before any of
+this existed — and only the glyphs it actually draws go into the file: a
+Japanese page embeds around 260 kB of a 5 MB face.
+
+Text is split by face character by character, so a Latin word inside a Hindi
+line keeps Courier's fixed cell instead of being pulled into a proportional
+face with it.
+
+### CJK needs a network the first time
+
+Those four families are 5–10 MB each and cannot be subset in advance, so
+shipping them would more than double the size of the app for every writer.
+They are fetched instead, and kept per machine afterwards, so it happens once
+rather than once per export. Which one a document gets is read off the text:
+kana means Japanese, hangul Korean, and Han on its own Simplified Chinese.
+
+If the fetch fails — offline, or a blocked request — the export still happens
+and says which face is missing.
+
+### What is still not covered
+
+**A mirrored page.** Hebrew and Arabic read correctly — the line is reordered
+before it is drawn, and Arabic letters are given their joined shapes — but the
+page itself is not flipped. Margins, indents and alignment stay where Final
+Draft puts them, so a Hebrew line starts at the left margin of its block rather
+than the right.
+
+**Full shaping.** The Indic scripts are reordered before drawing — the vowel
+sign is stored after its consonant and painted before it, and jsPDF does no
+shaping of its own — but conjuncts and reph come out as an explicit halant,
+which reads correctly and is not how a typesetter would set it.
+
+**Kinsoku shori.** A CJK line breaks at the margin wherever it falls, with no
+rule against starting one with a closing bracket or a full stop.
+
+Anything OpenDraft cannot draw is named at the end of the export rather than
+left to be discovered in the file.
+`frontend/public/fonts/README.md` has the detail on all three.
+
+### Page geometry
+
+Line breaking counts cells, not millimetres, so the PDF turns its pages where
+the editor does. The Indic and Thai faces measure around 60% of the cell the
+layout reserved, so a line set in one finishes well inside the margin. CJK is
+the exception that needed a rule: Han, kana and hangul are drawn square, which
+is exactly two cells, and both the editor's pagination and the exporter count
+them that way.
+
 ## Adding a font to the built-in library
 
 Add an entry to `FONT_REGISTRY` in `frontend/src/utils/fonts.ts`:

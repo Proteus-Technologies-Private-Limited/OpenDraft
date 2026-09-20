@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { getTextLines, wordWrapRuns } from '../utils/wrapText';
+import {
+  getTextLines, wordWrapRuns, textColumns, sliceColumns,
+} from '../utils/wrapText';
 import { jsonBlockText, jsonBlockRuns } from '../utils/nodeText';
 import { block, BR } from '../test/screenplaySchema';
 
@@ -248,5 +250,78 @@ describe('wordWrapRuns keeps deliberate indentation', () => {
   it('still collapses a single separating space between words', () => {
     expect(plain(wordWrapRuns(extractRuns(block('action', 'one two')), 60, false)))
       .toEqual(['one two']);
+  });
+});
+
+describe('double-width characters', () => {
+  const run = (text: string) => ({ text, bold: false, italic: false, underline: false });
+
+  it('counts Han, kana and hangul as two cells', () => {
+    expect(textColumns('你好')).toBe(4);
+    expect(textColumns('こんにちは')).toBe(10);
+    expect(textColumns('안녕')).toBe(4);
+  });
+
+  it('counts everything else exactly as the character count, as it always did', () => {
+    // The guarantee that makes this change safe for every script that already
+    // worked: for text without a wide character in it, nothing moved.
+    for (const text of [
+      'INT. LIBRARY - DAY',
+      'Привет, как дела',
+      'नमस्ते दुनिया',
+      'வணக்கம் உலகம்',
+      'สวัสดีชาวโลก',
+      "He said “no” — and left…",
+      '',
+    ]) {
+      expect(textColumns(text)).toBe(text.length);
+    }
+  });
+
+  it('counts a mixed line by what is actually drawn', () => {
+    expect(textColumns('OK 你好')).toBe(3 + 4);
+  });
+
+  it('never cuts a wide character in half', () => {
+    // Five cells asked for, and the third character cannot be halved, so the
+    // slice stops one cell short rather than splitting a glyph.
+    expect(sliceColumns('你好你', 5)).toBe('你好');
+    expect(sliceColumns('你好你', 6)).toBe('你好你');
+  });
+
+  it('takes at least one character even when it will not fit', () => {
+    // A prefix of nothing would leave the caller slicing the same string for
+    // ever. One cell over the margin is the lesser evil, and only reachable
+    // with a column limit of one.
+    expect(sliceColumns('你好', 1)).toBe('你');
+  });
+
+  it('wraps a Chinese line at the margin instead of twice past it', () => {
+    // Twenty characters at forty columns: one full line, since each is two
+    // cells wide. Counting them as one cell each would have fitted forty
+    // characters and run the line off the page.
+    const line = '你'.repeat(20);
+    expect(wordWrapRuns([run(line)], 40, false)).toHaveLength(1);
+    expect(wordWrapRuns([run(`${line}你`)], 40, false)).toHaveLength(2);
+  });
+
+  it('agrees with getTextLines on Chinese, which has no spaces to break at', () => {
+    // The contract this whole module exists for (issue #123), on the script
+    // most likely to break it: CJK is one unbroken token, so it goes through
+    // the over-long path in both functions and they have to cut it alike.
+    for (const length of [1, 19, 20, 21, 40, 41, 99]) {
+      const text = '好'.repeat(length);
+      expect(getTextLines(text, 40)).toBe(wordWrapRuns([run(text)], 40, false).length);
+    }
+  });
+
+  it('agrees with getTextLines on a line that mixes both widths', () => {
+    for (const text of [
+      'Tokyo 東京 at night',
+      '你好 world 你好 world 你好 world 你好 world',
+      'A 你 B 好 C 你 D 好 E 你 F 好 G 你 H 好 I 你 J 好',
+    ]) {
+      expect(getTextLines(text, 35)).toBe(wordWrapRuns([run(text)], 35, false).length);
+    }
   });
 });

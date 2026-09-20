@@ -19,7 +19,8 @@
  */
 import type { jsPDF } from 'jspdf';
 import type { JSONContent } from '@tiptap/react';
-import { wordWrapRuns, type WrapRun } from './wrapText';
+import type { WrapRun } from './wrapText';
+import { wrapForDrawing } from './bidi';
 import { jsonBlockRuns } from './nodeText';
 import type { AvExportBody, AvExportRow } from './avDocument';
 import { avParaStyle } from './avDocument';
@@ -103,7 +104,7 @@ export function wrapCell(
     const styled = (style.bold || style.italic)
       ? runs.map(r => ({ ...r, bold: r.bold || style.bold, italic: r.italic || style.italic }))
       : runs;
-    const wrapped = wordWrapRuns(styled, maxChars, style.upper);
+    const wrapped = wrapForDrawing(styled, maxChars, style.upper);
     if (wrapped.length === 0) lines.push([]);
     else lines.push(...wrapped);
   }
@@ -186,7 +187,7 @@ function drawHeader(ctx: AvPdfContext, columns: AvPdfColumn[]): void {
   const y = ctx.getY();
 
   const wrapped = columns.map(col =>
-    wordWrapRuns(
+    wrapForDrawing(
       [{ text: col.header, bold: true } as WrapRun],
       charsPerColumn(col.widthPt, ctx.charWidthPt),
       false,
