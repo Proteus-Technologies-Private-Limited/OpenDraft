@@ -5,7 +5,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['test-script/hindi_*_export.test.ts'],
+    include: ['test-script/hindi_*.test.ts'],
     setupFiles: ['./frontend/src/test/setup.ts'],
   },
 })
