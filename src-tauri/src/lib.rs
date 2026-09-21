@@ -56,6 +56,52 @@ fn android_context() -> Option<AndroidCtx> {
 #[cfg(target_os = "android")]
 const NO_ANDROID_CONTEXT: &str = "Android activity is not available yet";
 
+/// Clears a pending Java exception when it goes out of scope.
+///
+/// A JNI call that throws leaves the exception set on the thread, and the jni
+/// crate reports it as `Error::JavaException` — so the `?` on the next line
+/// returns while the exception is still pending. Nothing fails at that point.
+/// ART aborts the process on the *next* JNI call made on that thread, with
+/// "No pending exception expected", which is a SIGABRT with no error anywhere
+/// near the code that caused it.
+///
+/// That is how a `SecurityException` from `ContentResolver` — a file the user
+/// picked that we turned out not to be allowed to read — became a crash rather
+/// than a message. Any Java-side failure on these paths does the same: a
+/// revoked URI grant, a deleted file, a full disk.
+///
+/// Clearing on drop is what makes this reliable. The check has to cover every
+/// `?` in the function, and one written at the end of the body does not: the
+/// early return jumps straight over it. Declare the guard immediately after
+/// attaching and every exit is covered, including the `?` that returns the
+/// error being reported.
+#[cfg(target_os = "android")]
+struct ExceptionGuard(*mut jni::sys::JNIEnv);
+
+#[cfg(target_os = "android")]
+impl ExceptionGuard {
+    fn new(env: &jni::JNIEnv) -> Self {
+        Self(env.get_raw())
+    }
+}
+
+#[cfg(target_os = "android")]
+impl Drop for ExceptionGuard {
+    fn drop(&mut self) {
+        // The attachment that produced this pointer is declared before the
+        // guard, and locals drop in reverse, so the thread is still attached.
+        let Ok(env) = (unsafe { jni::JNIEnv::from_raw(self.0) }) else {
+            return;
+        };
+        if env.exception_check().unwrap_or(false) {
+            // describe() writes the Java stack trace to logcat, which is the
+            // only place the class and message survive — clear() discards it.
+            let _ = env.exception_describe();
+            let _ = env.exception_clear();
+        }
+    }
+}
+
 // ── Android content URI reading (JNI) ────────────────────────────────────
 // On Android, files opened via intents use content:// URIs. These cannot be
 // read with std::fs — we must go through Android's ContentResolver via JNI.
@@ -138,6 +184,7 @@ fn android_read_clipboard_html() -> Result<Option<String>, String> {
         .map_err(|e| format!("Failed to get JVM: {}", e))?;
     let mut env = vm.attach_current_thread()
         .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+    let _exc = ExceptionGuard::new(&env);
     let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
 
     // In Kotlin rather than raw JNI for the same reason as readUriBytes: the
@@ -170,6 +217,7 @@ fn android_read_content_uri_bytes(uri_str: &str) -> Result<ContentUriBytes, Stri
         .map_err(|e| format!("Failed to get JVM: {}", e))?;
     let mut env = vm.attach_current_thread()
         .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+    let _exc = ExceptionGuard::new(&env);
     let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
 
     // Converted to a JObject once: the URI string is needed twice below, and
@@ -272,6 +320,7 @@ fn android_write_content_uri(uri_str: &str, contents: &[u8]) -> Result<(), Strin
         .map_err(|e| format!("Failed to get JVM: {}", e))?;
     let mut env = vm.attach_current_thread()
         .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+    let _exc = ExceptionGuard::new(&env);
     let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
 
     let uri_jstr = env.new_string(uri_str)
@@ -346,6 +395,7 @@ fn android_read_content_uri(uri_str: &str) -> Result<ContentUriResult, String> {
         .map_err(|e| format!("Failed to get JVM: {}", e))?;
     let mut env = vm.attach_current_thread()
         .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+    let _exc = ExceptionGuard::new(&env);
     let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
 
     // Parse URI string → android.net.Uri
@@ -435,6 +485,14 @@ fn android_query_display_name(
 ) -> Option<String> {
     use jni::objects::{JObject, JValue};
 
+    // This one matters more than most. `query()` below is what threw the
+    // SecurityException behind the SIGABRT reported from a vivo on 0.23.0 —
+    // a picked `content://` URI that turned out to belong to the contacts
+    // provider. Every failure here is an `.ok()?`, which discards the error
+    // and returns None with the exception still pending, so the caller
+    // carried on to `openInputStream` and aborted there instead.
+    let _exc = ExceptionGuard::new(&*env);
+
     // Create projection array: ["_display_name"]
     let col_name = env.new_string("_display_name").ok()?;
     let string_class = env.find_class("java/lang/String").ok()?;
@@ -486,6 +544,10 @@ fn android_query_mime_extension(
 ) -> Option<String> {
     use jni::objects::{JObject, JValue};
 
+    // Same shape as the display-name query: every exit is an `.ok()?` that
+    // leaves a throw pending for whoever calls JNI next.
+    let _exc = ExceptionGuard::new(&*env);
+
     // resolver.getType(uri) → String (MIME type)
     let mime_obj = env.call_method(
         resolver, "getType",
@@ -533,6 +595,7 @@ fn android_get_intent_data() -> Option<String> {
     let ctx = android_context()?;
     let vm = unsafe { JavaVM::from_raw(ctx.vm().cast()) }.ok()?;
     let mut env = vm.attach_current_thread().ok()?;
+    let _exc = ExceptionGuard::new(&env);
     let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
 
     // activity.getIntent()
@@ -614,6 +677,7 @@ fn android_share_file(file_path: &str, mime_type: &str) -> Result<(), String> {
         .map_err(|e| format!("Failed to get JVM: {}", e))?;
     let mut env = vm.attach_current_thread()
         .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+    let _exc = ExceptionGuard::new(&env);
     let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
 
     // Store the temp file path so onActivityResult can copy it to the user's chosen location
@@ -765,6 +829,7 @@ fn android_pick_file() -> Result<(), String> {
             .map_err(|e| format!("Failed to get JVM: {}", e))?;
         let mut env = vm.attach_current_thread()
             .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+        let _exc = ExceptionGuard::new(&env);
         let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
 
         // Clear any previous picked file URI
@@ -879,6 +944,7 @@ fn android_read_and_clear_companion_field(getter: &str, setter: &str) -> Option<
     let ctx = android_context()?;
     let vm = unsafe { JavaVM::from_raw(ctx.vm().cast()) }.ok()?;
     let mut env = vm.attach_current_thread().ok()?;
+    let _exc = ExceptionGuard::new(&env);
 
     let result = env.call_static_method(
         "com/proteus/opendraft/MainActivity",
@@ -1389,6 +1455,7 @@ fn android_static_call(method: &str, args: &[&str]) -> Result<Option<String>, St
     let mut env = vm
         .attach_current_thread()
         .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+    let _exc = ExceptionGuard::new(&env);
     let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
 
     // Built up front: JValue borrows each string, so they have to outlive the
@@ -1458,6 +1525,7 @@ fn android_pick_backup_folder() -> Result<(), String> {
         let mut env = vm
             .attach_current_thread()
             .map_err(|e| format!("Failed to attach JNI thread: {}", e))?;
+        let _exc = ExceptionGuard::new(&env);
         let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
 
         // Clear any previous result, so a stale one is never mistaken for this
