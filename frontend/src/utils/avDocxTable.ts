@@ -30,6 +30,7 @@ import { jsonBlockRuns } from './nodeText';
 import type { AvExportBody } from './avDocument';
 import { avParaStyle } from './avDocument';
 import { avRowNodes, avFrameKey, type AvRowNodes } from './avPdfTable';
+import { runFont } from './docxScriptFonts';
 
 /** A loaded storyboard frame, keyed by `avFrameKey`. */
 export interface AvDocxImage {
@@ -58,18 +59,21 @@ function cellParagraphs(
     const upper = style.upper && !style.smallCaps;
     const children = runs
       .filter(r => r.text !== '' || r.isBreak)
-      .map(r =>
-        new TextRun({
-          text: upper ? r.text.toUpperCase() : r.text,
-          font,
+      .map(r => {
+        const text = upper ? r.text.toUpperCase() : r.text;
+        return new TextRun({
+          text,
+          // Named per script, so Hindi in an AV column is not handed to a
+          // Latin face — see utils/docxScriptFonts.
+          font: runFont(text, font),
           size: sizeHalfPt,
           bold: r.bold || style.bold,
           italics: r.italic || style.italic,
           smallCaps: style.smallCaps,
           underline: r.underline ? {} : undefined,
           break: r.isBreak ? 1 : undefined,
-        }),
-      );
+        });
+      });
     out.push(new Paragraph({ children: children.length ? children : [new TextRun({ text: '', font, size: sizeHalfPt })] }));
   }
   if (out.length === 0) out.push(new Paragraph({ children: [new TextRun({ text: '', font, size: sizeHalfPt })] }));
@@ -153,7 +157,7 @@ export function buildAvTable(
       if (k === 'cue') {
         const lines = [row.shot, row.start, row.duration ? `(${row.duration})` : ''].filter(Boolean);
         children = lines.map((text, li) => new Paragraph({
-          children: [new TextRun({ text, font: opts.font, size: opts.sizeHalfPt, bold: li === 0 })],
+          children: [new TextRun({ text, font: runFont(text, opts.font), size: opts.sizeHalfPt, bold: li === 0 })],
         }));
         if (!children.length) children = [new Paragraph({ children: [new TextRun({ text: '', font: opts.font, size: opts.sizeHalfPt })] })];
       } else if (k === 'video') {
@@ -178,7 +182,7 @@ export function buildAvTable(
         } else {
           const label = row.image ? (row.image.alt || '') : '';
           children = [new Paragraph({
-            children: [new TextRun({ text: label, font: opts.font, size: opts.sizeHalfPt, italics: true })],
+            children: [new TextRun({ text: label, font: runFont(label, opts.font), size: opts.sizeHalfPt, italics: true })],
           })];
         }
       }

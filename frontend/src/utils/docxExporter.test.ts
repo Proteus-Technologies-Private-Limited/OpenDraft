@@ -68,19 +68,20 @@ describe('DOCX buildTextRuns with hard breaks', () => {
  * Fonts. The OOXML element for a run's typeface is `w:rFonts`, whose
  * attributes name the face; read it back rather than trusting the input.
  */
-function fontOf(node: unknown): string | undefined {
+function fontOf(node: unknown, attr = 'w:ascii'): string | undefined {
   if (node === null || typeof node !== 'object') return undefined;
   const n = node as { rootKey?: string; root?: unknown; key?: string; value?: string };
-  // w:rFonts carries the face on its w:ascii attribute.
-  if (n.key === 'w:ascii' && typeof n.value === 'string') return n.value;
+  // w:rFonts carries the face on its w:ascii attribute, and the face Word uses
+  // for a complex script — Devanagari, Arabic, Thai — on w:cs.
+  if (n.key === attr && typeof n.value === 'string') return n.value;
   const children = Array.isArray(n.root) ? n.root : n.root !== undefined ? [n.root] : [];
   for (const child of children) {
-    const found = fontOf(child);
+    const found = fontOf(child, attr);
     if (found !== undefined) return found;
   }
   for (const value of Object.values(node as Record<string, unknown>)) {
     if (value === n.root) continue;
-    const found = fontOf(value);
+    const found = fontOf(value, attr);
     if (found !== undefined) return found;
   }
   return undefined;
@@ -109,5 +110,35 @@ describe('DOCX buildTextRuns and fonts', () => {
 
     expect(fontOf(runs[0])).toBe('Times New Roman');
     expect(fontOf(runs[1])).toBe('Georgia');
+  });
+});
+
+/**
+ * A Hindi screenplay in Word.
+ *
+ * Word picks a run's face per script: `w:ascii` for Latin, `w:cs` for the
+ * complex ones. Writing the document's family into both told Word that the
+ * Devanagari was set in Courier Prime, which has none of it, and the dialogue
+ * came out of the exporter missing. See utils/docxScriptFonts.
+ */
+describe('DOCX fonts for a script Word draws from w:cs', () => {
+  const csOf = (node: unknown) => fontOf(node, 'w:cs');
+
+  it('names a Devanagari face for Hindi instead of the document Latin one', () => {
+    const runs = buildTextRuns(jsonBlockRuns(block('action', 'जीवन से भरी तेरी आँखें')));
+    expect(fontOf(runs[0])).toBe('Courier Prime');
+    expect(csOf(runs[0])).toBe('Noto Sans Devanagari');
+  });
+
+  it('does the same when the writer chose a Latin font of their own', () => {
+    const runs = buildTextRuns(jsonBlockRuns(block('action', 'नमस्ते')), 'Roboto');
+    expect(fontOf(runs[0])).toBe('Roboto');
+    expect(csOf(runs[0])).toBe('Noto Sans Devanagari');
+  });
+
+  it('leaves an English screenplay naming one face, as it always did', () => {
+    const runs = buildTextRuns(jsonBlockRuns(block('action', 'INT. LIBRARY - DAY')));
+    expect(fontOf(runs[0])).toBe('Courier Prime');
+    expect(csOf(runs[0])).toBe('Courier Prime');
   });
 });

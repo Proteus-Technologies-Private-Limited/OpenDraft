@@ -44,6 +44,7 @@ import { buildAvTable, buildAvTotalParagraph, type AvDocxImage } from './avDocxT
 import { avRowNodes, avFrameKey } from './avPdfTable';
 import { readColumnConfig } from '../editor/extensions/AvBlock';
 import { isNonPrintingType } from './nonPrinting';
+import { runFont } from './docxScriptFonts';
 
 // --- Layout constants (mirror pdfExporter.ts) ---
 
@@ -157,8 +158,10 @@ export function buildTextRuns(
         : new TextRun({
             text: r.text,
             // A run styled with its own face keeps it; everything else follows
-            // the document.
-            font: r.fontFamily || docFont,
+            // the document.  Either way the face is named per script, so the
+            // Hindi in the run is not drawn in a Latin one — see
+            // utils/docxScriptFonts.
+            font: runFont(r.text, r.fontFamily || docFont),
             size: FONT_SIZE_HALFPT,
             bold: r.bold || undefined,
             italics: r.italic || undefined,
@@ -220,7 +223,7 @@ function templateToChildren(
 
   const pushText = (txt: string) => {
     if (txt.length === 0) return;
-    out.push(new TextRun({ text: txt, font: docFont, size: FONT_SIZE_HALFPT }));
+    out.push(new TextRun({ text: txt, font: runFont(txt, docFont), size: FONT_SIZE_HALFPT }));
   };
 
   while ((m = tokenRe.exec(template)) !== null) {
@@ -341,13 +344,16 @@ function buildTitlePageFlow(
         : AlignmentType.CENTER;
     const size = isTitle ? (Number(node.attrs?.tpTitleFontSize) || 12) * 2 : FONT_SIZE_HALFPT;
     const lines = nodeText(node).split('\n');
-    const children = lines.map((line, idx) => new TextRun({
-      text: isTitle ? line.toUpperCase() : line,
-      font: docFont,
-      size,
-      bold: isTitle || undefined,
-      break: idx > 0 ? 1 : undefined,
-    }));
+    const children = lines.map((line, idx) => {
+      const txt = isTitle ? line.toUpperCase() : line;
+      return new TextRun({
+        text: txt,
+        font: runFont(txt, docFont),
+        size,
+        bold: isTitle || undefined,
+        break: idx > 0 ? 1 : undefined,
+      });
+    });
     paras.push(new Paragraph({
       alignment: align,
       spacing: { line: size * 10, lineRule: LineRuleType.EXACT },
@@ -417,7 +423,7 @@ function buildRunsWithReferences(
 
   const styled = (r: RunStyle, text: string) => new TextRun({
     text,
-    font: r.fontFamily || docFont,
+    font: runFont(text, r.fontFamily || docFont),
     size: FONT_SIZE_HALFPT,
     bold: r.bold || undefined,
     italics: r.italic || undefined,
@@ -560,7 +566,7 @@ export async function exportDocx(
     for (const b of entry.blocks as NoteBlockLike[]) {
       if (b.kind === 'image') continue;
       paragraphs.push(new Paragraph({
-        children: [new TextRun({ text: noteBlockText(b), font: docFont, size: FONT_SIZE_HALFPT })],
+        children: [new TextRun({ text: noteBlockText(b), font: runFont(noteBlockText(b), docFont), size: FONT_SIZE_HALFPT })],
       }));
     }
     if (paragraphs.length === 0) {
@@ -737,13 +743,13 @@ export async function exportDocx(
       const head = entry.title ? `${entry.entryLabel} ${entry.title}` : entry.entryLabel;
       bodyParagraphs.push(new Paragraph({
         spacing: { before: LINE_HEIGHT_PT * TWIPS_PER_POINT, line: LINE_HEIGHT_PT * TWIPS_PER_POINT, lineRule: LineRuleType.EXACT },
-        children: [new TextRun({ text: head, font: docFont, size: FONT_SIZE_HALFPT, bold: !!entry.title })],
+        children: [new TextRun({ text: head, font: runFont(head, docFont), size: FONT_SIZE_HALFPT, bold: !!entry.title })],
       }));
       for (const b of entry.blocks) {
         if (b.kind === 'image') continue;
         bodyParagraphs.push(new Paragraph({
           spacing: { line: LINE_HEIGHT_PT * TWIPS_PER_POINT, lineRule: LineRuleType.EXACT },
-          children: [new TextRun({ text: noteBlockText(b), font: docFont, size: FONT_SIZE_HALFPT })],
+          children: [new TextRun({ text: noteBlockText(b), font: runFont(noteBlockText(b), docFont), size: FONT_SIZE_HALFPT })],
         }));
       }
     }
