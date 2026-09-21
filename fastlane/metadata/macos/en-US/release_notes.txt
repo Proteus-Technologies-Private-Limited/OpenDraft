@@ -1,19 +1,11 @@
-Everything new since 2.2.0.
+WRITE IN YOUR OWN SCRIPT
+A screenplay written in Hindi, Bengali, Gujarati, Punjabi, Kannada, Malayalam, Odia, Sinhala, Tamil, Telugu or Thai now exports to PDF with a typeface that can draw it. These used to come out as blank space where the dialogue should have been. Chinese, Japanese and Korean arrive the first time you need them.
 
-AV SCRIPTS FOR COMMERCIALS, CORPORATE AND DOCUMENTARY
-Write in two columns — picture on one side, sound on the other — with shot numbers and timings that look after themselves. Give a shot a duration and every start time below it moves to match. The running total is your runtime.
+HEBREW AND ARABIC, THE RIGHT WAY ROUND
+Both now export right to left, with Arabic letters joined the way they are written rather than standing apart.
 
-STORYBOARD INSIDE THE SCRIPT
-Any row can hold a frame: a picture of the shot, at 16:9, 4:3, 1:1, 9:16 or 2.39:1. Double-click a frame to choose the picture. Your boards sit beside the words they belong to, and they travel with the script.
+WORD FILES THAT KEEP YOUR SCRIPT
+A Word export now asks Word for a typeface that can draw what you actually wrote instead of a Latin one, so the Hindi in your script is still Hindi when a producer opens it.
 
-COLUMNS THAT FIT YOUR SCRIPT
-Drag the divider to make the video or audio column as wide as it needs to be, and double-click it to put the pair back where they started. What you set is what you get on the page, in the PDF and in the spreadsheet.
-
-INTERVIEWS AND NARRATION, WRITTEN PROPERLY
-Character, dialogue, parentheticals, lyrics, action and shots can all go inside the columns now — so an on-camera interview or a piece to camera reads like a screenplay instead of a note in a box.
-
-HAND YOUR SCRIPT TO A SPREADSHEET
-Send an AV script out to Excel or CSV for a shot list, and bring a producer's spreadsheet back in — OpenDraft works out which column is picture, which is sound and which is timing. PDF and Word come out as a proper table, with the headings repeated on every page.
-
-ALSO FIXED
-The PDF now breaks its pages exactly where the editor does, so your script is paginated the way you wrote it. A picture added to an AV row becomes that row's storyboard frame instead of splitting the table. And signing in works straight after a fresh install, which it did not always do before.
+WHEN A TYPEFACE WILL NOT LOAD
+The export now tells you which one, instead of quietly leaving a gap where your words should be.
