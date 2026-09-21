@@ -1,10 +1,19 @@
-Everything new since 2.1.0.
+Everything new since 2.2.0.
 
-YOUR OWN TEMPLATE AS THE DEFAULT
-A template you made could be applied to the script in front of you and nowhere else: every new script still started in one of the built-in formats. Your templates are now offered alongside those formats, and Make default — in the template manager, or in Format > Script Format Preferences — puts one at the top of the New Screenplay picker, already selected, so Return takes it. The picker still asks, because keeping several formats means the next script could be any of them.
+AV SCRIPTS FOR COMMERCIALS, CORPORATE AND DOCUMENTARY
+Write in two columns — picture on one side, sound on the other — with shot numbers and timings that look after themselves. Give a shot a duration and every start time below it moves to match. The running total is your runtime.
 
-DUPLICATING A FORMAT KEEPS THE FORMAT
-Duplicating a built-in format copied its fonts and margins but left behind the starter pages, act breaks, title-page fields and dialogue spacing that make it that format. A copy now carries all of it.
+STORYBOARD INSIDE THE SCRIPT
+Any row can hold a frame: a picture of the shot, at 16:9, 4:3, 1:1, 9:16 or 2.39:1. Double-click a frame to choose the picture. Your boards sit beside the words they belong to, and they travel with the script.
 
-THE UPDATE NOTICE SAID YOU WERE UP TO DATE
-Running 2.0.0 with 2.1.0 already on sale here, the app told you there was nothing new. The Mac and iOS App Stores share one product page but approve and publish separately, so either can be a release ahead — and the check that watches them asked once and took the iPhone and iPad answer for both. Each store is now asked for itself, and a store that cannot answer leaves the notice looking rather than being told the wrong version.
+COLUMNS THAT FIT YOUR SCRIPT
+Drag the divider to make the video or audio column as wide as it needs to be, and double-click it to put the pair back where they started. What you set is what you get on the page, in the PDF and in the spreadsheet.
+
+INTERVIEWS AND NARRATION, WRITTEN PROPERLY
+Character, dialogue, parentheticals, lyrics, action and shots can all go inside the columns now — so an on-camera interview or a piece to camera reads like a screenplay instead of a note in a box.
+
+HAND YOUR SCRIPT TO A SPREADSHEET
+Send an AV script out to Excel or CSV for a shot list, and bring a producer's spreadsheet back in — OpenDraft works out which column is picture, which is sound and which is timing. PDF and Word come out as a proper table, with the headings repeated on every page.
+
+ALSO FIXED
+The PDF now breaks its pages exactly where the editor does, so your script is paginated the way you wrote it. A picture added to an AV row becomes that row's storyboard frame instead of splitting the table. And signing in works straight after a fresh install, which it did not always do before.
