@@ -2696,8 +2696,68 @@ async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// WebKitGTK renders the window on the GPU, and some Linux drivers can't take it.
+/// Its DMA-BUF renderer leaves a blank window on a range of drivers, and nouveau
+/// (old NVIDIA cards the proprietary driver no longer supports) can lock the GPU
+/// outright, freezing the whole desktop (issue #132). Both are WebKit's own
+/// switches, so a variable the user has already set, `=0` included, is left alone.
+#[cfg(target_os = "linux")]
+fn webkit_env_for_drivers(drivers: &[String]) -> Vec<(&'static str, &'static str)> {
+    let mut vars = vec![("WEBKIT_DISABLE_DMABUF_RENDERER", "1")];
+    if drivers.iter().any(|d| d == "nouveau") {
+        vars.push(("WEBKIT_DISABLE_COMPOSITING_MODE", "1"));
+    }
+    vars
+}
+
+/// Kernel drivers bound to the machine's DRM cards, e.g. ["nouveau"] or ["i915", "nvidia"].
+#[cfg(target_os = "linux")]
+fn drm_drivers() -> Vec<String> {
+    let entries = match std::fs::read_dir("/sys/class/drm") {
+        Ok(entries) => entries,
+        Err(e) => {
+            eprintln!("[gpu] Could not read /sys/class/drm: {}", e);
+            return Vec::new();
+        }
+    };
+    let mut drivers: Vec<String> = entries
+        .flatten()
+        .filter_map(|entry| {
+            // card0, card1… — not the connectors (card0-HDMI-A-1) or render nodes
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if !name.starts_with("card") || name.contains('-') {
+                return None;
+            }
+            let target = std::fs::read_link(entry.path().join("device/driver")).ok()?;
+            Some(target.file_name()?.to_string_lossy().into_owned())
+        })
+        .collect();
+    drivers.sort();
+    drivers.dedup();
+    drivers
+}
+
+#[cfg(target_os = "linux")]
+fn configure_webkit_rendering() {
+    let drivers = drm_drivers();
+    eprintln!("[gpu] DRM drivers: {:?}", drivers);
+    for (key, value) in webkit_env_for_drivers(&drivers) {
+        match std::env::var_os(key) {
+            Some(existing) => eprintln!("[gpu] {} already set to {:?}, leaving it", key, existing),
+            None => {
+                // Runs first thing in run(), before Tauri or WebKit start any threads.
+                std::env::set_var(key, value);
+                eprintln!("[gpu] Set {}={}", key, value);
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    configure_webkit_rendering();
+
     #[cfg(target_os = "ios")]
     let _ = STARTED_AT.set(std::time::Instant::now());
 
@@ -3123,4 +3183,32 @@ pub fn run() {
             }
         }
     });
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod webkit_env_tests {
+    use super::webkit_env_for_drivers;
+
+    fn drivers(names: &[&str]) -> Vec<String> {
+        names.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn dmabuf_renderer_is_always_disabled() {
+        assert_eq!(
+            webkit_env_for_drivers(&drivers(&["i915"])),
+            vec![("WEBKIT_DISABLE_DMABUF_RENDERER", "1")]
+        );
+        assert_eq!(
+            webkit_env_for_drivers(&[]),
+            vec![("WEBKIT_DISABLE_DMABUF_RENDERER", "1")]
+        );
+    }
+
+    #[test]
+    fn nouveau_also_disables_compositing() {
+        let vars = webkit_env_for_drivers(&drivers(&["i915", "nouveau"]));
+        assert!(vars.contains(&("WEBKIT_DISABLE_COMPOSITING_MODE", "1")));
+        assert!(vars.contains(&("WEBKIT_DISABLE_DMABUF_RENDERER", "1")));
+    }
 }
