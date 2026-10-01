@@ -3037,6 +3037,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 2.3.2</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v2.3.3</div>
+              <ul className="about-list">
+                <li><strong>Linux On Older Graphics Cards</strong> &mdash; On some Linux machines the OpenDraft window came up dark and empty, and on an older NVIDIA card using the open-source <em>nouveau</em> driver it could freeze the whole desktop until a restart. The page is drawn by the web engine on the graphics card, and two of the ways it does that are ones those drivers cannot handle. OpenDraft now turns off the faster buffer-sharing path on every Linux machine, and on nouveau it also draws the window without the graphics card &mdash; slower to scroll, but a window you can write in. Setting <code>WEBKIT_DISABLE_DMABUF_RENDERER</code> or <code>WEBKIT_DISABLE_COMPOSITING_MODE</code> yourself still wins, <code>=0</code> included.</li>
+                <li><strong>A Crash On Android From Another App&rsquo;s Link</strong> &mdash; Another app could ask OpenDraft to open something it was not allowed to read &mdash; a contact, say &mdash; and OpenDraft closed instead of saying no. It now turns the request down and keeps running.</li>
+              </ul>
               <div className="about-subsection-title">v2.3.2</div>
               <ul className="about-list">
                 <li><strong>A PDF In The Script You Wrote It In</strong> &mdash; Write in Hindi and export, and the page came back blank where the dialogue had been: the words were in the file, but the only embedded typeface had no Devanagari in it and drew nothing. Eleven writing systems now travel with the app &mdash; Devanagari, Bengali, Gujarati, Gurmukhi, Kannada, Malayalam, Odia, Sinhala, Tamil, Telugu and Thai &mdash; each cut down to its own block, so the lot adds under half a megabyte. The vowel signs that are stored after their consonant and read before it are put back into reading order, so &#2361;&#2367;&#2344;&#2381;&#2342;&#2368; comes out as it was typed. A Latin word inside an Indic line keeps Courier&rsquo;s fixed cell, and an English screenplay&rsquo;s PDF is byte for byte what it was.</li>
