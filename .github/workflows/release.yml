@@ -15,6 +15,11 @@ on:
         description: 'Existing release tag to rebuild, e.g. v0.21.0'
         required: true
         type: string
+      stores:
+        description: 'Upload to App Store Connect and Google Play. Untick for a fix that only touches desktop or Linux.'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -1700,6 +1705,10 @@ jobs:
           path: android-artifacts
 
       - name: Upload iOS IPA to App Store Connect
+        # A tag push has no inputs and always uploads. Not `inputs.stores != false`:
+        # GitHub coerces both sides to numbers, so null equals false and a tag push
+        # would skip the stores.
+        if: github.event_name != 'workflow_dispatch' || inputs.stores
         env:
           APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
           APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
@@ -1740,7 +1749,7 @@ jobs:
 
       - name: Upload macOS pkg to App Store Connect
         # Always run, even if iOS upload above failed — they're independent.
-        if: always() && !cancelled()
+        if: always() && !cancelled() && (github.event_name != 'workflow_dispatch' || inputs.stores)
         continue-on-error: true
         env:
           APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
@@ -1777,6 +1786,7 @@ jobs:
           fi
 
       - name: Upload Android AAB to Google Play (production)
+        if: github.event_name != 'workflow_dispatch' || inputs.stores
         # Don't fail the release if the Play Store credentials are stale or
         # the AAB version was already uploaded — submit-stores must still
         # complete so publish-release can flip the GitHub release out of draft.
