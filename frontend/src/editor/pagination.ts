@@ -13,6 +13,7 @@ import { findTitlePageRegion, titlePageAttrsCarryData } from '../utils/titlePage
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { isNonPrintingType } from '../utils/nonPrinting';
 import { laysItselfOut } from '../utils/pageBreaks';
+import { lockedPageLabels, lockedPageOf, startPages, startsLockedPage, type PageAnchor } from '../utils/lockedPages';
 import { dualDialogueLineCount, type DualColumns } from '../utils/dualDialogue';
 import {
   buildEndnotePages,
@@ -190,6 +191,9 @@ export interface PaginationState {
    *  They are counted in `pageCount`, so the status bar, the header/footer
    *  `{pages}` field and the PDF all agree without any further plumbing. */
   endnotePages?: EndnotePage[];
+  /** Present only while pages are locked: the printed label of every page,
+   *  index 0 being script page 1 (see utils/lockedPages). */
+  pageLabels?: string[];
 }
 
 /** True when two break sets would place content differently on the page. */
@@ -324,6 +328,34 @@ export function computeBreaks(
   // null not one line below behaves differently from before footnotes existed.
   plan: FootnotePlan | null = null,
 ): PaginationState {
+  const result = computeBreaksUnlabelled(doc, layout, hints, plan);
+  const labels = lockedLabelsFor(doc, result);
+  return labels ? { ...result, pageLabels: labels } : result;
+}
+
+/** Page labels while pages are locked, or null when no block is anchored. */
+function lockedLabelsFor(doc: PmNode, result: PaginationState): string[] | null {
+  const found: Array<{ index: number; label: string; mid: boolean }> = [];
+  const seen = new Set<string>();
+  doc.forEach((node, _offset, index) => {
+    const a = lockedPageOf(node.attrs);
+    // A label seen twice (a block copied with its anchor) counts once.
+    if (!a || seen.has(a.label)) return;
+    seen.add(a.label);
+    found.push({ index, ...a });
+  });
+  if (found.length === 0) return null;
+  const pages = startPages(doc.childCount, result.breaks);
+  const anchors: PageAnchor[] = found.map((f) => ({ page: pages[f.index] ?? 1, label: f.label, mid: f.mid }));
+  return lockedPageLabels(result.pageCount, anchors);
+}
+
+function computeBreaksUnlabelled(
+  doc: PmNode,
+  layout: PageLayout,
+  hints: TemplateHints,
+  plan: FootnotePlan | null,
+): PaginationState {
   const { linesPerPage } = getPageMetrics(layout);
 
   interface NodeInfo {
@@ -364,7 +396,8 @@ export function computeBreaks(
       typeName, elementId, spaceBefore: nonPrinting ? 0 : sb,
       text: plan ? plan.textWithMarkers(index, rawText) : rawText,
       offset, nodeSize: node.nodeSize, lineMul, fixedLines,
-      startsNewPage: node.attrs?.startsNewPage === true,
+      // A locked page's first block opens its page — see utils/lockedPages.
+      startsNewPage: node.attrs?.startsNewPage === true || startsLockedPage(node.attrs),
       hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
     });
     // A Note or Section above the first element of the script does not make

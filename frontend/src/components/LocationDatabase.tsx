@@ -313,7 +313,7 @@ const LocationDatabase: React.FC<Props> = ({ editor, style }) => {
 interface DetailViewProps {
   loc: LocationEntry;
   sceneIndices: number[];
-  scenes: Array<{ id: string; heading: string; synopsis: string; color: string; sceneNumber?: number | null }>;
+  scenes: Array<{ id: string; heading: string; synopsis: string; color: string; sceneNumber?: string | null }>;
   onEdit: () => void;
   onDelete: () => void;
   onGoToScene: (sceneIndex: number) => void;

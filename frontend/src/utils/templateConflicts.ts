@@ -327,7 +327,19 @@ export function resolveTemplateConflicts(
         if (isMarkLocked(markName, locked)) {
           const markType = editor.schema.marks[markName];
           if (markType) {
+            // textStyle also carries Revision Mode's mark: the template owns
+            // the font and size, not the record of what was revised.
+            const revisions: Array<{ from: number; to: number; color: unknown }> = [];
+            if (markName === 'textStyle') {
+              tr.doc.nodesBetween(from, to, (n, p) => {
+                const m = n.isText ? n.marks.find((mk) => mk.type === markType) : undefined;
+                if (m?.attrs.revision) {
+                  revisions.push({ from: Math.max(p, from), to: Math.min(p + n.nodeSize, to), color: m.attrs.revision });
+                }
+              });
+            }
             tr.removeMark(from, to, markType);
+            for (const r of revisions) tr.addMark(r.from, r.to, markType.create({ revision: r.color }));
           }
         }
       }

@@ -10,6 +10,8 @@ interface HeaderFooterBandProps {
   content: HeaderFooterContent;
   /** Printed page number for this band, already shifted by the start offset. */
   printedPage: number;
+  /** A locked page's label ("12A"), printed for `{page}` instead of the number. */
+  pageLabel?: string;
   totalPages: number;
   docTitle: string;
   revisionColor: string;
@@ -147,6 +149,7 @@ const HeaderFooterBand: React.FC<HeaderFooterBandProps> = ({
   kind,
   content,
   printedPage,
+  pageLabel,
   totalPages,
   docTitle,
   revisionColor,
@@ -188,7 +191,7 @@ const HeaderFooterBand: React.FC<HeaderFooterBandProps> = ({
     >
       {SLOTS.map((slot) => (
         <span key={slot} className={SLOT_CLASS[slot]}>
-          {resolveHFFields(content[slot], printedPage, totalPages, docTitle, revisionColor)}
+          {resolveHFFields(content[slot], pageLabel ?? printedPage, totalPages, docTitle, revisionColor)}
         </span>
       ))}
       {editable && isEmpty && (

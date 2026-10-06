@@ -227,6 +227,7 @@ export async function migrateFileFallbackToSqlite(
       const created: ScriptResponse = await sqliteApi.createScript(newProjectId, {
         title,
         content,
+        format: entry.meta.format,
       });
       // Carry presentation fields the createScript signature doesn't accept.
       await sqliteApi.saveScript(newProjectId, created.meta.id, {

@@ -9,6 +9,7 @@ import type { FormattingTemplate, FormattingElementRule } from '../stores/format
 import { ELEMENT_CSS_CLASS, titlePageFieldOf, isTitlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
 import type { PageLayout } from '../stores/editorStore';
 import { fontStack } from './fonts';
+import { pageInk, pagePaper } from './inkColor';
 
 const STYLE_ELEMENT_ID = 'opendraft-template-css';
 
@@ -53,6 +54,17 @@ export function generateTemplateCss(
       lines.push('');
     }
 
+    // Dark Pages only: near-black text and near-white fill follow the page's
+    // ink and paper (utils/inkColor). Scoped to the mode, because on white
+    // paper a #333 text or #f0f0f0 band is a choice and must print as chosen.
+    const dark = darkPagesProperties(rule);
+    if (dark.length > 0) {
+      lines.push(`${DARK_PAGES_ROOT} ${selector} {`);
+      for (const prop of dark) lines.push(`  ${prop}`);
+      lines.push('}');
+      lines.push('');
+    }
+
     // First-child override: remove margin-top
     if (rule.marginTop > 0) {
       lines.push(`${selector}:first-child { margin-top: 0; }`);
@@ -64,7 +76,7 @@ export function generateTemplateCss(
       const placeholderSelector = getPlaceholderSelector(elementId, rule);
       const pStyles: string[] = [];
       pStyles.push(`content: '${escapeCssString(rule.placeholder)}';`);
-      pStyles.push('color: #ccc;');
+      pStyles.push('color: var(--page-ink-placeholder);');
       pStyles.push('pointer-events: none;');
       pStyles.push('float: left;');
       pStyles.push('height: 0;');
@@ -127,6 +139,21 @@ function getPlaceholderSelector(elementId: string, rule: FormattingElementRule):
     return `div[data-type="${cssClass}"].is-empty::before`;
   }
   return `div[data-type="custom-element"][data-custom-type="${elementId}"].is-empty::before`;
+}
+
+/** The root selector Dark Pages is switched on under (styles/screenplay.css). */
+const DARK_PAGES_ROOT = ':root[data-dark-pages="on"]:not([data-theme="light"])';
+
+/** A template's colours that Dark Pages swaps for the page's ink and paper. */
+function darkPagesProperties(rule: FormattingElementRule): string[] {
+  const props: string[] = [];
+  if (rule.textColor && pageInk(rule.textColor) !== rule.textColor) {
+    props.push(`color: ${pageInk(rule.textColor)};`);
+  }
+  if (rule.backgroundColor && pagePaper(rule.backgroundColor) !== rule.backgroundColor) {
+    props.push(`background-color: ${pagePaper(rule.backgroundColor)};`);
+  }
+  return props;
 }
 
 function generateRuleProperties(
@@ -192,7 +219,9 @@ function generateRuleProperties(
     props.push('padding-right: 0;');
   }
 
-  // Colors
+  // Colors, exactly as the template chose them. Dark Pages adds its own rule
+  // (darkPagesProperties) so a plain black or white can follow the page there
+  // without a deliberate grey changing anywhere else.
   if (rule.textColor) {
     props.push(`color: ${rule.textColor};`);
   }

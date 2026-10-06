@@ -14,6 +14,9 @@ export const SceneHeading = Node.create({
       sceneColor: { default: '' },
       timingOverride: { default: null },  // seconds (null = auto-calculate)
       sequenceId: { default: null },       // links scene to a sequence defined at document level
+      // A scene cut after its number was locked: the heading stays, reading
+      // OMITTED, so the numbers around it never move (editor/omitScene.ts).
+      omitted: { default: false },
     };
   },
 
@@ -26,6 +29,7 @@ export const SceneHeading = Node.create({
           synopsis: dom.getAttribute('data-synopsis') || '',
           sceneColor: dom.getAttribute('data-scene-color') || '',
           sequenceId: dom.getAttribute('data-sequence-id') || null,
+          omitted: dom.getAttribute('data-omitted') === 'true',
         };
       },
     }];
@@ -47,6 +51,9 @@ export const SceneHeading = Node.create({
     }
     if (node.attrs.sequenceId) {
       attrs['data-sequence-id'] = node.attrs.sequenceId;
+    }
+    if (node.attrs.omitted) {
+      attrs['data-omitted'] = 'true';
     }
     return [
       'div',

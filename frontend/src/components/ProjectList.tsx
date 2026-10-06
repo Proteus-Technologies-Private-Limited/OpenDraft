@@ -582,10 +582,21 @@ const ProjectList: React.FC = () => {
                     { name: 'ZIP Archive', extensions: ['zip'] },
                   ]);
                   if (!result) return;
-                  const newId = await importProjectFromZip(result.content);
+                  const res = await importProjectFromZip(result.content, result.name);
                   await fetchProjects();
-                  showToast('Project imported', 'success');
-                  openProject(newId);
+                  const problems: string[] = [];
+                  if (res.failed.length > 0) {
+                    problems.push(`${res.failed.length} script${res.failed.length === 1 ? '' : 's'} could not be imported (${res.failed.join(', ')})`);
+                  }
+                  if (res.assetsOmitted) problems.push('images were not included in this archive');
+                  if (res.assetsFailed > 0) problems.push(`${res.assetsFailed} image${res.assetsFailed === 1 ? '' : 's'} could not be restored`);
+                  if (!res.propertiesRestored) problems.push('project properties could not be restored');
+                  if (problems.length > 0) {
+                    showToast(`Project imported, but ${problems.join('; ')}`, 'info');
+                  } else {
+                    showToast('Project imported', 'success');
+                  }
+                  openProject(res.projectId);
                 } catch (err) {
                   showToast(
                     `Import failed: ${err instanceof Error ? err.message : String(err)}`,

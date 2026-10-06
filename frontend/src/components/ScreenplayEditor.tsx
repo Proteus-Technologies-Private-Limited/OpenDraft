@@ -13,8 +13,10 @@ import Dropcursor from '@tiptap/extension-dropcursor';
 import Gapcursor from '@tiptap/extension-gapcursor';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
-import TextStyle from '@tiptap/extension-text-style';
-import Color from '@tiptap/extension-color';
+import { InkAwareColor } from '../editor/extensions/InkAwareColor';
+import { RevisionMark, RevisionTextStyle } from '../editor/extensions/RevisionMark';
+import { LockedPages } from '../editor/extensions/LockedPages';
+import { assignSceneNumbers } from '../utils/sceneNumbers';
 import FontFamily from '../editor/extensions/ScreenplayFontFamily';
 import { Extension } from '@tiptap/core';
 import * as Y from 'yjs';
@@ -51,7 +53,7 @@ import { demoteDataUrlsToScratch, promoteScratchImages } from '../services/promo
 import { docHasInlineImageBytes, docHasScratchImages } from '../utils/scratchRefs';
 import { setLiveScratchDocSource } from '../services/scratchSweep';
 
-import { useEditorStore, DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES, resolveMoresContds, resolveHeaderFooter, printedPageNumber } from '../stores/editorStore';
+import { useEditorStore, DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES, resolveMoresContds, resolveHeaderFooter, printedPageNumber, type SceneInfo } from '../stores/editorStore';
 import type { ElementType, HeaderFooterContent } from '../stores/editorStore';
 import HeaderFooterBand from './HeaderFooterBand';
 import HeaderFooterDialog from './HeaderFooterDialog';
@@ -102,6 +104,7 @@ import { spellChecker, BUILTIN_LANGUAGE } from '../editor/spellchecker';
 import { grammarIgnore } from '../editor/grammar/grammarIgnore';
 import { buildSaveContent as buildSaveContentShared, stripSaveMetadata } from '../utils/saveContent';
 import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
+import { restoreRevisionState } from '../utils/revisionState';
 import { characterKey } from '../utils/nodeText';
 import { computeContdChanges, type ContdBlock } from '../editor/contdAuto';
 import { useBackupScheduler } from '../hooks/useBackupScheduler';
@@ -327,6 +330,10 @@ const ScreenplayEditor: React.FC = () => {
   const navigate = useNavigate();
   const goBack = useGoBack();
   const isHistoryMode = Boolean(urlCommitHash);
+  // Read by the revision plugin, which lives as long as the editor does —
+  // longer than any one render's isHistoryMode.
+  const isHistoryModeRef = useRef(isHistoryMode);
+  isHistoryModeRef.current = isHistoryMode;
   // Leaving read-only history mode unwinds to the editor entry it was opened
   // from; pushing a second one instead left the version sitting on the stack
   // for the next Back press to walk into (issue #66).
@@ -346,6 +353,7 @@ const ScreenplayEditor: React.FC = () => {
     setDocumentTitle,
     sceneNumbersVisible, sceneNumbersLocked,
     includeTitlePageInOutput,
+    showRevisionColors,
     saveStatus, saveError, setSaveStatus,
   } = useEditorStore();
 
@@ -1242,6 +1250,7 @@ const ScreenplayEditor: React.FC = () => {
             (state) => {
               setPageCountRef.current(state.pageCount);
               breaksRef.current = state.breaks;
+              useEditorStore.getState().setPageLabels(state.pageLabels ?? null);
               // Keep the identity stable when nothing prints, so the overlays
               // do not re-render for a change that cannot have happened.
               setFootnotePagesRef.current(state.footnotePages ?? NO_FOOTNOTE_PAGES);
@@ -1613,7 +1622,7 @@ const ScreenplayEditor: React.FC = () => {
       Bold, Italic, Underline, Strike, Dropcursor, Gapcursor,
       Subscript, Superscript,
       PastedHighlight.configure({ multicolor: true }),
-      TextStyle, Color, FontFamily, FontSize, PasteFormatting,
+      RevisionTextStyle, InkAwareColor, FontFamily, FontSize, PasteFormatting,
       FormatOverride, CustomElement, ScreenplayImage,
       // Use History in normal mode, Collaboration in collab mode
       ...(collabMode ? collabExtensions : [History.configure({ newGroupDelay: 150 })]),
@@ -1654,7 +1663,17 @@ const ScreenplayEditor: React.FC = () => {
       ShowEpisode, CastList, DualDialogue, DualDialogueColumn, TitlePage,
       AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
       ScriptNoteMark, TagMark,
+      RevisionMark.configure({
+        // A checked-in draft is read-only: draw its revisions, add none.
+        getConfig: () => {
+          if (isHistoryModeRef.current) return null;
+          const st = useEditorStore.getState();
+          return { enabled: st.revisionMode, color: st.revisionColor };
+        },
+        getSettings: () => useEditorStore.getState().revisionSettings,
+      }),
       StartsNewPage,
+      LockedPages,
       FootnoteMarkerExtension,
       PaginationExtension,
       ContdCaseExtension,
@@ -1692,6 +1711,12 @@ const ScreenplayEditor: React.FC = () => {
   useEffect(() => {
     if (!editor) return;
     const handleBeforeInput = (e: Event) => {
+      // prosemirror-history (1.5+) answers historyUndo/historyRedo itself when
+      // the event reaches the editor, and marks it handled. Acting again here
+      // undid two steps for one Cmd+Z whenever the browser routed its native
+      // undo through the editor — after any click outside it, a closed dialog
+      // or a menu. This is only for the events ProseMirror never saw.
+      if (e.defaultPrevented) return;
       const ie = e as InputEvent;
       if (ie.inputType === 'historyUndo') {
         e.preventDefault();
@@ -1828,46 +1853,50 @@ const ScreenplayEditor: React.FC = () => {
     }
   }, [editor]);
 
+  // The revision gutter measures on editor updates; a change of mark (Revision
+  // Settings, or a collaborator's) changes no document, so nudge it to redraw.
+  const revisionSettings = useEditorStore((st) => st.revisionSettings);
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    try {
+      editor.view.dispatch(editor.state.tr.setMeta('addToHistory', false));
+    } catch (err) {
+      console.warn('[revisions] could not redraw revision marks', err);
+    }
+  }, [editor, revisionSettings]);
+
   // --- Scene navigator + scene number assignment ---
+  // The numbering rules — locked numbers kept, A-numbers for inserted scenes,
+  // numbers that survive being hidden — live in utils/sceneNumbers.
   const updateScenes = useCallback(() => {
     if (!editor) return;
-    const list: { id: string; heading: string; sceneNumber: number | null; color: string; synopsis: string }[] = [];
-    const locked = useEditorStore.getState().sceneNumbersLocked;
-    const visible = useEditorStore.getState().sceneNumbersVisible;
-    let idx = 0;
-    // Collect scene positions for attribute updates
-    const attrUpdates: { pos: number; number: string }[] = [];
+    const { sceneNumbersLocked: locked, sceneNumbersVisible: visible } = useEditorStore.getState();
+    const headings: { pos: number; node: import('@tiptap/pm/model').Node }[] = [];
     editor.state.doc.descendants((node, pos) => {
-      if (node.type.name === 'sceneHeading') {
-        idx++;
-        let num: string;
-        if (locked && node.attrs.sceneNumber != null) {
-          // Keep the locked number
-          num = String(node.attrs.sceneNumber);
-        } else {
-          num = String(idx);
-        }
-        const sceneId = `scene-${idx}`;
-        list.push({ id: sceneId, heading: node.textContent || 'Untitled Scene', sceneNumber: parseInt(num, 10), color: node.attrs.sceneColor || '', synopsis: node.attrs.synopsis || '' });
-        // Update node attrs if scene numbers are visible and the number changed
-        if (visible && String(node.attrs.sceneNumber) !== num) {
-          attrUpdates.push({ pos, number: num });
-        }
-        // Clear scene number attr if not visible and it was set
-        if (!visible && node.attrs.sceneNumber != null) {
-          attrUpdates.push({ pos, number: '' });
-        }
-      }
+      if (node.type.name === 'sceneHeading') headings.push({ pos, node });
       return true;
     });
+    const numbers = assignSceneNumbers(
+      headings.map((h) => (h.node.attrs.sceneNumber == null ? null : String(h.node.attrs.sceneNumber))),
+      { visible, locked },
+    );
+    const list: SceneInfo[] = headings.map(({ node }, i) => ({
+      id: `scene-${i + 1}`,
+      heading: node.textContent || 'Untitled Scene',
+      // The navigator always shows a number; hidden unlocked numbers are
+      // just the scene's place in the script.
+      sceneNumber: numbers[i] ?? String(i + 1),
+      color: node.attrs.sceneColor || '',
+      synopsis: node.attrs.synopsis || '',
+    }));
+    const attrUpdates = headings
+      .map((h, i) => ({ pos: h.pos, number: numbers[i], was: h.node.attrs.sceneNumber }))
+      .filter((u) => (u.was == null ? null : String(u.was)) !== u.number);
     // Batch attribute updates in a single transaction
     if (attrUpdates.length > 0) {
       const { tr } = editor.state;
       for (const { pos, number } of attrUpdates) {
-        tr.setNodeMarkup(pos, undefined, {
-          ...editor.state.doc.nodeAt(pos)?.attrs,
-          sceneNumber: number || null,
-        });
+        tr.setNodeAttribute(pos, 'sceneNumber', number);
       }
       tr.setMeta('addToHistory', false);
       editor.view.dispatch(tr);
@@ -1927,17 +1956,24 @@ const ScreenplayEditor: React.FC = () => {
     [setHeaderFooterOpen],
   );
 
-  const { documentTitle: hfDocTitle, revisionColor: hfRevColor, pageCount: hfPageCount } = useEditorStore();
+  const { documentTitle: hfDocTitle, revisionColor: hfRevColor, pageCount: hfPageCount, pageLabels } = useEditorStore();
+  /** A locked page's printed label, by script page index; undefined when
+   *  pages are not locked and the band prints its number. */
+  const lockedLabel = useCallback(
+    (pageIndex: number): string | undefined => pageLabels?.[pageIndex - 1],
+    [pageLabels],
+  );
   // `{pages}` reads as the number on the LAST page, so it stays consistent with
   // `{page}` once the starting number is offset.
   const hfTotalPrinted = printedPageNumber(Math.max(1, hfPageCount || 1), headerFooter.startingPageNumber);
 
   const renderHFBand = useCallback(
-    (kind: BandKind, printedPage: number) => (
+    (kind: BandKind, printedPage: number, pageLabel?: string) => (
       <HeaderFooterBand
         kind={kind}
         content={kind === 'header' ? headerFooter.headerContent : headerFooter.footerContent}
         printedPage={printedPage}
+        pageLabel={pageLabel}
         totalPages={hfTotalPrinted}
         docTitle={hfDocTitle}
         revisionColor={hfRevColor}
@@ -3022,9 +3058,11 @@ const ScreenplayEditor: React.FC = () => {
         // Strip app metadata keys before feeding to ProseMirror
         let pmDoc: Record<string, unknown> | null = null;
         if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-          const { _notes, _generalNotes: _gn, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode, _templateId: _tpl, _ignoredWords: _iw, _ignoredOnce: _io, _customDictWords: _cdw, _enabledGlobalDicts: _egd, _projectDictEnabled: _pde, _enabledLanguages: _elx, _ignoredGrammarRules: _igr, _ignoredGrammarOnce: _igo, _spellCheckEnabled: _sce, _grammarCheckEnabled: _gce, _sceneNumbersVisible: _snv, _sceneNumbersLocked: _snl, _pageLayout: _pl, ...rest } = content as any;
-          pmDoc = rest;
+          pmDoc = stripSaveMetadata(content).pmDoc;
         }
+        // Before setContent: the load must not be marked as a revision by the
+        // document that was open before it still being in Revision Mode.
+        restoreRevisionState(isHistoryMode ? null : content);
 
         try {
           if (pmDoc && Array.isArray(pmDoc.content) && pmDoc.content.length > 0) {
@@ -3550,11 +3588,12 @@ const ScreenplayEditor: React.FC = () => {
         setCurrentScriptId(scriptId);
         // Opening a project script clears any prior "imported file" notice.
         useEditorStore.getState().setImportedSource(null);
+        // Before setContent, so the load is not marked as a revision.
+        restoreRevisionState(content);
 
         try {
           if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _generalNotes: _gn2, _tags, _tagCategories, _characterProfiles, _characterRelationships, _beats, _beatColumns, _beatArrangeMode: _bam, _templateId: _tpl2, _ignoredWords: _iw2, _ignoredOnce: _io2, _customDictWords: _cdw2, _enabledGlobalDicts: _egd2, _projectDictEnabled: _pde2, _enabledLanguages: _elx2, _ignoredGrammarRules: _igr2, _ignoredGrammarOnce: _igo2, _spellCheckEnabled: _sce2, _grammarCheckEnabled: _gce2, _sceneNumbersVisible: _snv2, _sceneNumbersLocked: _snl2, _pageLayout: _pl2, ...pmDoc } = content as any;
-            editor.commands.setContent(pmDoc);
+            editor.commands.setContent(stripSaveMetadata(content).pmDoc);
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             editor.commands.setContent(content);
           } else {
@@ -4738,7 +4777,7 @@ const ScreenplayEditor: React.FC = () => {
                 }}
               >
                 <div
-                  className={`page${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}`}
+                  className={`page${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
                   ref={pageRef}
                   style={{
                     fontFamily: fontStack(fontFamily),
@@ -4786,7 +4825,7 @@ const ScreenplayEditor: React.FC = () => {
                         {ov.isDialogueSplit && moresContds.dialogueBreakContd && (
                           <div className="page-sep-more">{moresContds.moreText}</div>
                         )}
-                        {showFooterForPrev && renderHFBand('footer', footerPrinted)}
+                        {showFooterForPrev && renderHFBand('footer', footerPrinted, lockedLabel(ov.pageNumber - 1))}
                         {/* The bottom band belongs to the page above this
                             break, which is the page whose footnotes these are —
                             the same off-by-one `footerPrinted` accounts for. */}
@@ -4794,7 +4833,7 @@ const ScreenplayEditor: React.FC = () => {
                       </div>
                       <div className="page-sep-gap" />
                       <div className="page-sep-top" style={{ height: `${pageLayout.topMargin}pt` }}>
-                        {showHeader && renderHFBand('header', headerPrinted)}
+                        {showHeader && renderHFBand('header', headerPrinted, lockedLabel(ov.pageNumber))}
                       </div>
                       {ov.isDialogueSplit && ov.characterName && moresContds.dialogueBreakContd && (
                         <div className="page-sep-contd">
@@ -4818,7 +4857,7 @@ const ScreenplayEditor: React.FC = () => {
                     return (
                       <div className="page-sep page-sep-first" style={{ top: 0 }}>
                         <div className="page-sep-top" style={{ height: `${pageLayout.topMargin}pt` }}>
-                          {renderHFBand('header', printed)}
+                          {renderHFBand('header', printed, lockedLabel(1))}
                         </div>
                       </div>
                     );
@@ -4842,7 +4881,7 @@ const ScreenplayEditor: React.FC = () => {
                         style={{ top: `${lastPageEnd}px` }}
                       >
                         <div className="page-sep-bottom" style={{ height: `${pageLayout.bottomMargin}pt`, position: 'relative' }}>
-                          {showFooter && renderHFBand('footer', printed)}
+                          {showFooter && renderHFBand('footer', printed, lockedLabel(lastPage))}
                           {footnotes}
                         </div>
                       </div>
@@ -4860,9 +4899,9 @@ const ScreenplayEditor: React.FC = () => {
                         const printed = printedPageNumber(pageNumber, headerFooter.startingPageNumber);
                         return {
                           header: printed >= headerFooter.headerStartPage
-                            ? renderHFBand('header', printed) : null,
+                            ? renderHFBand('header', printed, lockedLabel(pageNumber)) : null,
                           footer: printed >= headerFooter.footerStartPage
-                            ? renderHFBand('footer', printed - 1) : null,
+                            ? renderHFBand('footer', printed - 1, lockedLabel(pageNumber - 1)) : null,
                         };
                       }}
                     />

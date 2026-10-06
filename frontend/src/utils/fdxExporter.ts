@@ -10,6 +10,9 @@ import { noteBlockText } from './noteContent';
 import type { FootnotePlan } from './footnotes';
 import { DEFAULT_TITLE_PAGE_CREDIT } from './titlePageBlocks';
 import { titlePageAttrsCarryData } from './titlePageRegion';
+import {
+  REVISION_COLORS, findRevisionColor, revisionMarkFor, type RevisionSettings,
+} from '../editor/revisionColors';
 
 const NODE_TO_FDX: Record<string, string> = {
   sceneHeading: 'Scene Heading',
@@ -249,9 +252,70 @@ function buildElementSettings(lm: number, ri: number, font: string, size: string
 
 interface MarkInfo { type: string; attrs?: Record<string, unknown>; }
 
-function getTextAttributes(marks?: MarkInfo[]): string {
-  if (!marks || marks.length === 0) return '';
+/**
+ * Final Draft numbers revisions; a run's RevisionID points into the file's
+ * `<Revisions>` list. OpenDraft numbers them by the colour's place in the
+ * production sequence, so the same colour is the same ID in every file.
+ */
+function fdxRevisionId(color: string): number {
+  const i = REVISION_COLORS.findIndex((c) => c.name === findRevisionColor(color)?.name);
+  return i < 0 ? 1 : i + 1;
+}
+
+/** Every revision colour a document's text or blocks carry. */
+function collectRevisionColors(node: JSONContent, out: Set<string> = new Set()): Set<string> {
+  if (typeof node.attrs?.revised === 'string' && node.attrs.revised) out.add(node.attrs.revised);
+  for (const mark of node.marks ?? []) {
+    if (mark.type === 'textStyle' && mark.attrs?.revision) out.add(String(mark.attrs.revision));
+  }
+  for (const child of node.content ?? []) collectRevisionColors(child, out);
+  return out;
+}
+
+/** Revision Mode's state at export, for the `<Revisions>` block. */
+export interface FDXExportOptions {
+  /** False leaves scene numbers out, as hiding them did before they could be
+   *  locked. Absent writes whatever numbers the scenes carry. */
+  sceneNumbersVisible?: boolean;
+}
+
+export interface FDXRevisionState {
+  mode: boolean;
+  color: string;
+  /** The marks to write for each revision; absent writes an asterisk. */
+  settings?: RevisionSettings | null;
+}
+
+function buildRevisions(doc: JSONContent, state?: FDXRevisionState): string[] {
+  const used = collectRevisionColors(doc);
+  if (state?.mode) used.add(state.color);
+  if (used.size === 0) return [];
+  const listed = REVISION_COLORS.filter((c) => [...used].some((u) => findRevisionColor(u)?.name === c.name));
+  // The active set has to be one the file defines: the current colour when
+  // it is listed, otherwise the latest round that is.
+  const current = state?.color ? findRevisionColor(state.color)?.name : undefined;
+  const active = current && listed.some((c) => c.name === current)
+    ? fdxRevisionId(current)
+    : fdxRevisionId(listed[listed.length - 1]?.name ?? 'White');
+  const out = [
+    '',
+    `  <Revisions ActiveSet="${active}" Location="7.75" RevisionMode="${state?.mode ? 'Yes' : 'No'}" RevisionsShown="Active" ShowAllMarks="Yes" ShowAllSets="Yes" ShowPageColor="No">`,
+  ];
+  for (const c of listed) {
+    out.push(`    <Revision Color="#000000000000" FullRevision="No" ID="${fdxRevisionId(c.name)}" Mark="${esc(revisionMarkFor(state?.settings, c.name))}" Name="${esc(c.name)} Revision" PageColor="${c.fdx}" Style=""/>`);
+  }
+  out.push('  </Revisions>');
+  return out;
+}
+
+function getTextAttributes(marks?: MarkInfo[], blockRevision?: string): string {
   const parts: string[] = [];
+  let revision = blockRevision;
+  for (const mark of marks ?? []) {
+    if (mark.type === 'textStyle' && mark.attrs?.revision) revision = String(mark.attrs.revision);
+  }
+  if (revision) parts.push(`RevisionID="${fdxRevisionId(revision)}"`);
+  if (!marks || marks.length === 0) return parts.length > 0 ? ' ' + parts.join(' ') : '';
   const styles: string[] = [];
   let fontName = '', fontSize = '', fontColor = '';
 
@@ -287,7 +351,7 @@ export interface FDXDocumentFont {
  * positional, and `downloadFDX` still names the file after it.
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- see above
-export function exportFDX(doc: JSONContent, _title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont, footnotes?: FootnotePlan | null): string {
+export function exportFDX(doc: JSONContent, _title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont, footnotes?: FootnotePlan | null, revisions?: FDXRevisionState, options: FDXExportOptions = {}): string {
   // Printing notes reach a file only when the writer asked them to.
   const plan = footnotes && footnotes.settings.includeInExports ? footnotes : null;
   // Final Draft keeps the typeface on each element's FontSpec; the screenplay
@@ -454,7 +518,9 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
     const fdxType = resolveFdxExportType(node);
     const paraAttrs: string[] = [`Type="${fdxType}"`];
 
-    if (node.attrs?.sceneNumber) paraAttrs.push(`Number="${node.attrs.sceneNumber}"`);
+    // Hidden numbers are not printed numbers. Locked ones are kept on the
+    // scenes while hidden, so they are left out here rather than by clearing.
+    if (node.attrs?.sceneNumber && options.sceneNumbersVisible !== false) paraAttrs.push(`Number="${node.attrs.sceneNumber}"`);
     if (node.attrs?.textAlign) {
       const a = ALIGNMENT_TO_FDX[node.attrs.textAlign as string];
       if (a) paraAttrs.push(`Alignment="${a}"`);
@@ -489,6 +555,9 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
       // A Character paragraph must stay on one line — a break there would
       // read as a second, phantom speaker. Collapse rather than encode.
       const collapseBreaks = fdxType === 'Character';
+      // A block flagged for an edit with no text of its own (a deletion, an
+      // element change) puts its revision on its first run.
+      let blockRevision = typeof node.attrs?.revised === 'string' && node.attrs.revised ? node.attrs.revised : undefined;
       for (const child of node.content) {
         if (child.type === 'hardBreak') {
           if (!collapseBreaks) {
@@ -499,7 +568,8 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
             lines.push(`${indent}  <Text> </Text>`);
           }
         } else if (child.type === 'text' && child.text) {
-          const ta = getTextAttributes(child.marks as MarkInfo[] | undefined);
+          const ta = getTextAttributes(child.marks as MarkInfo[] | undefined, blockRevision);
+          blockRevision = undefined;
           lines.push(`${indent}  <Text${ta}>${esc(child.text)}</Text>`);
         }
       }
@@ -661,13 +731,15 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
     lines.push('  </DisplayBoards>');
   }
 
+  lines.push(...buildRevisions(doc, revisions));
+
   lines.push('</FinalDraft>');
 
   return lines.join('\n');
 }
 
-export async function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont, footnotes?: FootnotePlan | null) {
-  const xml = exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns, pageLayout, documentFont, footnotes);
+export async function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont, footnotes?: FootnotePlan | null, revisions?: FDXRevisionState, options: FDXExportOptions = {}) {
+  const xml = exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns, pageLayout, documentFont, footnotes, revisions, options);
   const filename = `${sanitizeExportFilename(title)}.fdx`;
   const { saveFile } = await import('./fileOps');
   await saveFile(xml, filename, [{ name: 'Final Draft', extensions: ['fdx'] }]);

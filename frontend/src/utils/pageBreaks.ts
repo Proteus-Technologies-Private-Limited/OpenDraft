@@ -11,6 +11,7 @@
 
 import type { JSONContent } from '@tiptap/react';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { startsLockedPage } from './lockedPages';
 
 /** Minimal node shape both exporters can satisfy. */
 export interface BreakableNode {
@@ -43,9 +44,21 @@ export function getForceBreakIds(): Set<string> {
   }
 }
 
-/** True when this node must open its own page. */
-export function startsOwnPage(node: BreakableNode, forceBreakIds: Set<string>): boolean {
+/**
+ * True when this node must open its own page.
+ *
+ * `lockedPages` also honours a locked page's anchor (utils/lockedPages). Only
+ * the paginated outputs ask for it — the editor and the PDF. Word lays its own
+ * pages out, and a forced break at every page we would have turned is how a
+ * DOCX ends up with half-empty sheets.
+ */
+export function startsOwnPage(
+  node: BreakableNode,
+  forceBreakIds: Set<string>,
+  opts: { lockedPages?: boolean } = {},
+): boolean {
   if (node.attrs?.startsNewPage === true) return true;
+  if (opts.lockedPages && startsLockedPage(node.attrs)) return true;
   return forceBreakIds.has(elementIdOf(node));
 }
 

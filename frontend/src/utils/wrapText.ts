@@ -17,6 +17,8 @@
  * Deliberately dependency-free so it is testable in the node environment.
  */
 
+import { latestRevision } from '../editor/revisionColors';
+
 export interface WrapRun {
   text: string;
   bold: boolean;
@@ -30,6 +32,15 @@ export interface WrapRun {
    * on, so a font change must not move a page break.
    */
   fontFamily?: string;
+  /**
+   * Revision Mode marked this text. Carried so the PDF can put an asterisk in
+   * the margin of every line holding revised words; like the typeface it never
+   * affects where a line breaks.
+   */
+  revised?: boolean;
+  /** The revision colour of revised text, so the line can print that
+   *  revision's own mark. */
+  revision?: string;
   /**
    * A footnote reference drawn immediately after this run's text, raised and
    * small.
@@ -282,6 +293,8 @@ export function wordWrapRuns(
           italic: run.italic,
           underline: run.underline,
           fontFamily: run.fontFamily,
+          ...(run.revised ? { revised: true } : {}),
+          ...(run.revised && run.revision ? { revision: run.revision } : {}),
         });
         pendingIndent = '';
       }
@@ -355,6 +368,8 @@ export function wordWrapRuns(
     const asRun = (text: string): WrapRun => ({
       text, bold: word.bold, italic: word.italic, underline: word.underline,
       fontFamily: word.fontFamily, ...(word.marker ? { marker: word.marker } : {}),
+      ...(word.revised ? { revised: true } : {}),
+      ...(word.revised && word.revision ? { revision: word.revision } : {}),
     });
 
     if (currentLine.length === 0) {
@@ -369,6 +384,12 @@ export function wordWrapRuns(
       if (drawsAlike(last, word) && !last.marker) {
         last.text += word.text;
         if (word.marker) last.marker = word.marker;
+        // Drawn the same either way; the line still holds revised words.
+        if (word.revised) {
+          last.revised = true;
+          const rev = latestRevision([last.revision, word.revision]);
+          if (rev) last.revision = rev;
+        }
       } else {
         currentLine.push(asRun(word.text));
       }

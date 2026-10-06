@@ -40,6 +40,7 @@ import type {
   LinkPreview,
   DemoInfo,
 } from './api';
+import { normalizeFormat } from '../utils/scriptFormat';
 
 const INDEX_KEY = 'opendraft:file-fallback:index';
 const LEGACY_FALLBACK_KEY = 'opendraft:fallback';
@@ -377,7 +378,7 @@ export async function createFileFallbackStorage() {
 
     createScript: async (
       projectId: string,
-      scriptData: { title: string; content?: any },
+      scriptData: { title: string; content?: Record<string, unknown>; format?: string },
     ): Promise<ScriptResponse> => {
       const idx = loadIndex();
       const id = uuid();
@@ -385,7 +386,7 @@ export async function createFileFallbackStorage() {
       const content = scriptData.content ?? null;
       const sizeBytes = content == null ? 0 : await writeScriptContent(id, content);
       const meta: ScriptMeta = {
-        id, title: scriptData.title, author: '', format: 'screenplay',
+        id, title: scriptData.title, author: '', format: normalizeFormat(scriptData.format),
         created_at: ts, updated_at: ts, page_count: 0,
         size_bytes: sizeBytes, color: '', pinned: false, sort_order: 0, preview: '',
       };

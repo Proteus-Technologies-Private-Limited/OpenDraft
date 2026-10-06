@@ -262,7 +262,7 @@ const SectionOutline: React.FC<SectionOutlineProps> = ({
 // ── Main component ──────────────────────────────────────────────────────
 
 const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style }) => {
-  const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis, updateSceneColor } = useEditorStore();
+  const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis, updateSceneColor, pageLabels } = useEditorStore();
   const pageLayout = useEditorStore((s) => s.pageLayout);
   const fontFamily = useEditorStore((s) => s.fontFamily);
   const fontSize = useEditorStore((s) => s.fontSize);
@@ -1016,7 +1016,8 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                       </div>
                     </div>
                   </div>
-                  <div className="page-thumb-number">Page {page.pageNumber}</div>
+                  {/* A locked page reads by its label: "Page 12A". */}
+                  <div className="page-thumb-number">Page {pageLabels?.[page.pageNumber - 1] ?? page.pageNumber}</div>
                 </div>
               ))}
             </div>

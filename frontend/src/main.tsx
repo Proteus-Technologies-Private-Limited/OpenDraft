@@ -9,6 +9,7 @@ import { initDemoInfo } from './services/demoInfo';
 import { getOS, isTauri } from './services/platform';
 import { initCustomFonts } from './services/customFonts';
 import { detectDeviceFonts } from './utils/deviceFonts';
+import { applyAppearance, readAppearance } from './utils/appearance';
 
 /**
  * Keep the `ios-windowed` class in sync with whether the app is running in an
@@ -73,9 +74,8 @@ function trackIpadWindowMode(): void {
 }
 
 async function init() {
-  // Apply saved theme before first render to avoid flash
-  const savedTheme = localStorage.getItem('opendraft:theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', savedTheme);
+  // Apply the remembered appearance before first render to avoid a flash.
+  applyAppearance(readAppearance());
 
   // Platform class for the safe-area rules in screenplay.css.  viewport-fit
   // now lives in the static meta tag in index.html — patching it here ran too

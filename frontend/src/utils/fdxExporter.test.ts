@@ -137,3 +137,36 @@ describe('FDX title page — a script that has none', () => {
     expect(tp.match(/<Text[^>]*>[^<]+<\/Text>/g)).toBeNull();
   });
 });
+
+describe('FDX export of Revision Mode marks', () => {
+  const revised = (text: string, color: string) => ({
+    type: 'text', text, marks: [{ type: 'textStyle', attrs: { revision: color } }],
+  });
+
+  it('puts a RevisionID on revised runs, numbered by the colour sequence', () => {
+    const out = fdx(doc({ type: 'action', content: [{ type: 'text', text: 'Old. ' }, revised('New.', 'Blue'), revised(' Newer.', 'Pink')] }));
+    expect(out).toContain('<Text>Old. </Text>');
+    expect(out).toContain('<Text RevisionID="2">New.</Text>');
+    expect(out).toContain('<Text RevisionID="3"> Newer.</Text>');
+  });
+
+  it('lists the colours used in a <Revisions> block', () => {
+    const out = exportFDX(
+      doc({ type: 'action', content: [revised('New.', 'Blue')] }),
+      'T', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+      { mode: true, color: 'Pink' },
+    );
+    expect(out).toMatch(/<Revisions ActiveSet="3"[^>]*RevisionMode="Yes"/);
+    expect(out).toContain('ID="2" Mark="*" Name="Blue Revision"');
+    expect(out).toContain('ID="3" Mark="*" Name="Pink Revision"');
+  });
+
+  it('gives a block flagged for a deletion its revision on the first run', () => {
+    const out = fdx(doc({ type: 'action', attrs: { revised: 'Blue' }, content: [{ type: 'text', text: 'Shorter now.' }] }));
+    expect(out).toContain('<Text RevisionID="2">Shorter now.</Text>');
+  });
+
+  it('writes no <Revisions> block for a script that was never revised', () => {
+    expect(fdx(doc(block('action', 'Plain.')))).not.toContain('<Revisions');
+  });
+});

@@ -23,6 +23,8 @@
 import JSZip from 'jszip';
 import { isDocumentFont, isDocumentSize } from './fonts';
 import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
+import { parseOsfRevisionColors } from './revisionExport';
+import { REVISION_COLORS, latestRevision } from '../editor/revisionColors';
 
 interface TipTapMark {
   type: string;
@@ -790,12 +792,27 @@ export function parseOSF(xmlString: string): OSFParseResult {
   const documentFont = documentFontOf(styles, warnings);
   const { nodes: titlePageNodes, title } = parseTitlePage(root, legacyInline);
 
+  // Fade In's revision table, which each paragraph's <mark revision> points
+  // into (see utils/revisionExport).
+  const listsEl = firstChildNamed(root, 'lists');
+  const revisionTable = listsEl ? firstChildNamed(listsEl, 'revision_colors') : null;
+  const revisions = parseOsfRevisionColors(revisionTable ? childrenNamed(revisionTable, 'revision_color') : []);
+
   const paragraphsEl = firstChildNamed(root, 'paragraphs');
   const parsed: ParsedPara[] = [];
   if (paragraphsEl) {
     for (const para of childrenNamed(paragraphsEl, 'para')) {
       const item = parseParagraph(para, styles, warnings, legacyInline, documentFont);
-      if (item) parsed.push(item);
+      if (!item) continue;
+      const marksEl = firstChildNamed(para, 'marks');
+      const markRevs = marksEl
+        ? childrenNamed(marksEl, 'mark')
+          .map((m) => revisions.byIndex.get(attr(m, 'revision') ?? '') ?? REVISION_COLORS[Number(attr(m, 'revision'))]?.name)
+          .filter((c): c is string => !!c && c !== REVISION_COLORS[0].name)
+        : [];
+      const revised = latestRevision(markRevs);
+      if (revised) item.node.attrs = { ...item.node.attrs, revised };
+      parsed.push(item);
     }
   } else {
     warnings.push('File contains no <paragraphs> block — the script body is empty.');

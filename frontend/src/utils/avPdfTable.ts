@@ -22,6 +22,7 @@ import type { JSONContent } from '@tiptap/react';
 import type { WrapRun } from './wrapText';
 import { wrapForDrawing } from './bidi';
 import { jsonBlockRuns } from './nodeText';
+import { latestRevision } from '../editor/revisionColors';
 import type { AvExportBody, AvExportRow } from './avDocument';
 import { avParaStyle } from './avDocument';
 
@@ -96,7 +97,19 @@ export function wrapCell(
   if (!cellNode || !Array.isArray(cellNode.content)) return [];
   const lines: AvLine[] = [];
   for (const para of cellNode.content) {
-    const runs = jsonBlockRuns(para) as WrapRun[];
+    const runs: WrapRun[] = jsonBlockRuns(para).map((r) => ({
+      ...r,
+      ...(r.revision ? { revised: true } : {}),
+    }));
+    // A paragraph Revision Mode flagged (a deletion, an element change) gets
+    // its asterisk on its first line, as in the rest of the script.
+    if (para.attrs?.revised) {
+      const first = runs.find((r) => !r.isBreak && r.text.length > 0);
+      if (first) {
+        first.revised = true;
+        first.revision = latestRevision([first.revision, String(para.attrs.revised)]) ?? undefined;
+      }
+    }
     // Face flags come from the shared style map, so the PDF and the DOCX agree
     // about every element a cell can hold — including the screenplay elements a
     // template admits to a column. Bold and italic ride on the runs themselves.

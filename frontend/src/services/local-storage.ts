@@ -37,6 +37,7 @@ import type {
   CollabSession,
   LinkPreview,
 } from './api';
+import { looksLikeTreatment, normalizeFormat } from '../utils/scriptFormat';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -242,7 +243,7 @@ export async function createLocalStorage() {
     async listScripts(projectId: string): Promise<ScriptMeta[]> {
       const rows = await db.select<any[]>(
         `SELECT id, project_id, title, page_count, size_bytes, created_at, updated_at,
-                color, pinned, sort_order
+                color, pinned, sort_order, format
          FROM scripts WHERE project_id = $1 ORDER BY created_at`,
         [projectId],
       );
@@ -251,15 +252,16 @@ export async function createLocalStorage() {
 
     async createScript(
       projectId: string,
-      data: { title: string; content?: any },
+      data: { title: string; content?: Record<string, unknown>; format?: string },
     ): Promise<ScriptResponse> {
       const id = uuid();
       const ts = now();
       const contentStr = data.content ? JSON.stringify(data.content) : null;
       const sizeBytes = contentStr ? new Blob([contentStr]).size : 0;
+      const format = normalizeFormat(data.format);
       await db.execute(
-        'INSERT INTO scripts (id, project_id, title, size_bytes, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)',
-        [id, projectId, data.title, sizeBytes, ts, ts],
+        'INSERT INTO scripts (id, project_id, title, size_bytes, created_at, updated_at, format) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [id, projectId, data.title, sizeBytes, ts, ts, format],
       );
       if (contentStr) {
         await db.execute(
@@ -270,7 +272,7 @@ export async function createLocalStorage() {
       await db.execute('UPDATE projects SET updated_at = $1 WHERE id = $2', [ts, projectId]);
       return {
         meta: {
-          id, title: data.title, author: '', format: 'screenplay',
+          id, title: data.title, author: '', format,
           created_at: ts, updated_at: ts, page_count: 0, size_bytes: sizeBytes,
           color: '', pinned: false, sort_order: 0, preview: '',
         },
@@ -407,8 +409,8 @@ export async function createLocalStorage() {
       const title = `${original.meta.title} (Copy)`;
 
       await db.execute(
-        'INSERT INTO scripts (id, project_id, title, size_bytes, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)',
-        [id, projectId, title, sizeBytes, ts, ts],
+        'INSERT INTO scripts (id, project_id, title, size_bytes, created_at, updated_at, format) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [id, projectId, title, sizeBytes, ts, ts, normalizeFormat(original.meta.format)],
       );
       if (contentStr) {
         await db.execute(
@@ -573,7 +575,8 @@ export async function createLocalStorage() {
 
       return {
         meta: {
-          id: found.script_id, title: found.title, author: '', format: 'screenplay',
+          id: found.script_id, title: found.title, author: '',
+          format: looksLikeTreatment(content) ? 'treatment' : 'screenplay',
           created_at: '', updated_at: '', page_count: 0, size_bytes: 0,
           color: '', pinned: false, sort_order: 0, preview: '',
         },
@@ -596,6 +599,13 @@ export async function createLocalStorage() {
       const versionScripts = await storage._resolveVersionScripts(hash);
       const ts = now();
 
+      // Versions record no format; keep each script's own across the restore.
+      const formatRows = await db.select<Array<{ id: string; format: string | null }>>(
+        'SELECT id, format FROM scripts WHERE project_id = $1',
+        [projectId],
+      );
+      const formats = new Map(formatRows.map((r) => [r.id, r.format]));
+
       // Delete current scripts and content
       await db.execute(
         'DELETE FROM script_content WHERE script_id IN (SELECT id FROM scripts WHERE project_id = $1)',
@@ -606,9 +616,13 @@ export async function createLocalStorage() {
       // Re-insert from version
       for (const s of versionScripts) {
         const sizeBytes = s.content ? new Blob([s.content]).size : 0;
+        let format = formats.get(s.script_id);
+        if (!format && s.content) {
+          try { format = looksLikeTreatment(JSON.parse(s.content)) ? 'treatment' : null; } catch { /* keep default */ }
+        }
         await db.execute(
-          'INSERT INTO scripts (id, project_id, title, size_bytes, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)',
-          [s.script_id, projectId, s.title, sizeBytes, ts, ts],
+          'INSERT INTO scripts (id, project_id, title, size_bytes, created_at, updated_at, format) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [s.script_id, projectId, s.title, sizeBytes, ts, ts, normalizeFormat(format)],
         );
         if (s.content) {
           await db.execute(
@@ -991,7 +1005,7 @@ function rowToScriptMeta(r: any): ScriptMeta {
     id: r.id,
     title: r.title,
     author: '',
-    format: 'screenplay',
+    format: normalizeFormat(r.format),
     created_at: r.created_at,
     updated_at: r.updated_at,
     page_count: r.page_count ?? 0,

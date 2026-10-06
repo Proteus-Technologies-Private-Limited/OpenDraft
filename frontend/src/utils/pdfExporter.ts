@@ -8,6 +8,11 @@ import { getForceBreakIds, startsOwnPage, elementIdOf, laysItselfOut } from './p
 import { getSpaceBefore } from './elementSpacing';
 import { resolveImageUrl, loadImageData } from './imageAsset';
 import { jsonBlockRuns } from './nodeText';
+import { lineRevision, revisionMarkXPt } from './revisionPdf';
+import { blockRevision } from './revisionExport';
+import {
+  REVISION_COLORS, latestRevision, revisionMarkFor, revisionPaper, type RevisionSettings,
+} from '../editor/revisionColors';
 import type { WrapRun } from './wrapText';
 import { wrapForDrawing } from './bidi';
 import { sanitizeExportFilename } from './exportFilename';
@@ -111,14 +116,25 @@ interface NodeInfo {
 
 /** Styled runs for a node, with hard breaks flagged. See utils/nodeText. */
 export function extractRuns(node: JSONContent): TextRun[] {
-  return jsonBlockRuns(node).map((r) => ({
+  const runs: TextRun[] = jsonBlockRuns(node).map((r) => ({
     text: r.text,
     bold: r.bold,
     italic: r.italic,
     underline: r.underline,
     isBreak: r.isBreak,
     fontFamily: r.fontFamily,
+    ...(r.revision ? { revised: true, revision: r.revision } : {}),
   }));
+  // A block Revision Mode flagged for an edit that left no text to mark (a
+  // deletion, a join, an element change) gets its asterisk on its first line.
+  if (node.attrs?.revised) {
+    const first = runs.find((r) => !r.isBreak && r.text.length > 0);
+    if (first) {
+      first.revised = true;
+      first.revision = latestRevision([first.revision, String(node.attrs.revised)]) ?? undefined;
+    }
+  }
+  return runs;
 }
 
 /** Apply type-level CSS styles (bold, italic, underline) to runs */
@@ -429,6 +445,30 @@ export interface PDFExportOptions {
   /** Current revision color for {revision} field */
   revisionColor?: string;
   /**
+   * Draw an asterisk in the right margin of every line Revision Mode marked.
+   * Absent or true draws them — a script with no revisions is unaffected.
+   */
+  showRevisionMarks?: boolean;
+  /** The mark printed beside a revised line — a custom character, or one per
+   *  revision. Absent: an asterisk. */
+  revisionSettings?: RevisionSettings | null;
+  /**
+   * Print each revised page on its revision's paper colour (the latest round
+   * on the page). Absent or false: every page is white.
+   */
+  colorRevisedPages?: boolean;
+  /**
+   * Only the pages that carry a revision — what goes out to cast and crew
+   * between full drafts. Throws when the script has none.
+   */
+  revisedPagesOnly?: boolean;
+  /**
+   * Printed labels while pages are locked ("12", "12A", "13-14"), from the
+   * editor's pagination — which this exporter's own matches page for page.
+   * Index 0 is script page 1. Absent: pages are numbered.
+   */
+  pageLabels?: string[] | null;
+  /**
    * The document's typeface.  Omitted or any Courier keeps the Final Draft
    * Courier output untouched; anything else is what the writer chose, and the
    * script is drawn in the closest face jsPDF embeds.
@@ -527,6 +567,17 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   }
 
   const pageWidthPt = layout.pageWidth * PTS_PER_INCH;
+  // Which revision each sheet carries, for coloured paper and revised-only
+  // output: every mark drawn records the latest round on its sheet.
+  const sheetRevisions = new Map<number, string>();
+  const revisionMarkX: RevisionMarker | null = options?.showRevisionMarks === false ? null : {
+    x: revisionMarkXPt(pageWidthPt),
+    settings: options?.revisionSettings ?? null,
+    onMark: (color) => {
+      const latest = latestRevision([sheetRevisions.get(pageNumber), color]);
+      sheetRevisions.set(pageNumber, latest ?? sheetRevisions.get(pageNumber) ?? '');
+    },
+  };
   const pageHeightPt = layout.pageHeight * PTS_PER_INCH;
   const topMarginPt = layout.topMargin;
   const bottomMarginPt = layout.bottomMargin;
@@ -684,6 +735,12 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       drawn.push({ text: entry.entryLabel });
       for (const b of entry.blocks) drawn.push({ text: noteBlockText(b) });
     }
+  }
+  // Only a script that has revisions draws a mark; asking for a custom mark's
+  // face otherwise fetches a font no page uses.
+  if (revisionMarkX && docNodes.some((n) => blockRevision(n) !== null)) {
+    drawn.push({ text: revisionMarkFor(revisionMarkX.settings, null), bold: true });
+    for (const c of REVISION_COLORS) drawn.push({ text: revisionMarkFor(revisionMarkX.settings, c.name), bold: true });
   }
   drawn.push(
     { text: mc.moreText }, { text: mc.contdText },
@@ -943,7 +1000,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   /** True when this node must open a fresh page (template rule or manual flag). */
   function mustStartNewPage(node: NodeInfo): boolean {
     if (isFirstElement || currentY <= topMarginPt) return false;
-    return startsOwnPage({ type: node.typeName, attrs: node.attrs }, forceBreakIds);
+    return startsOwnPage({ type: node.typeName, attrs: node.attrs }, forceBreakIds, { lockedPages: true });
   }
 
   // Process each node
@@ -1014,6 +1071,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
           );
           renderElement(
             pdf, wrapped, leftIn * PTS_PER_INCH, rightIn * PTS_PER_INCH, y, child.type, fonts,
+            revisionMarkX,
           );
           y += wrapped.length * LINE_HEIGHT_PT;
         }
@@ -1037,7 +1095,11 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
         drawAvBody(
           {
             pdf,
-            drawLine: (line, xPt, yPt) => renderLine(pdf, line as TextRun[], xPt, yPt, fonts),
+            drawLine: (line, xPt, yPt) => {
+              renderLine(pdf, line as TextRun[], xPt, yPt, fonts);
+              // Same margin as the rest of the script — not beside the cell.
+              drawRevisionMark(pdf, line as TextRun[], yPt, fonts, revisionMarkX);
+            },
             charWidthPt: FD_CHAR_WIDTH_PT,
             lineHeightPt: LINE_HEIGHT_PT,
             leftPt: layout.leftMargin * PTS_PER_INCH,
@@ -1133,7 +1195,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     // text, so a block holding it would measure it as nothing and draw it as
     // nothing. See laysItselfOut.
     const absorbable = (at: number) => at < nodes.length
-      && !startsOwnPage({ type: nodes[at].typeName, attrs: nodes[at].attrs }, forceBreakIds)
+      && !startsOwnPage({ type: nodes[at].typeName, attrs: nodes[at].attrs }, forceBreakIds, { lockedPages: true })
       && !laysItselfOut(nodes[at].typeName);
 
     if (typeName === 'character' && i + 1 < nodes.length) {
@@ -1162,7 +1224,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       if (withSpaceBefore) currentY += part.sbPt;
       renderElement(
         pdf, part.wrapped, dIndents[0] * PTS_PER_INCH, dIndents[1] * PTS_PER_INCH,
-        currentY, dNode.typeName, fonts,
+        currentY, dNode.typeName, fonts, revisionMarkX,
       );
       currentY += part.lines * LINE_HEIGHT_PT;
     };
@@ -1276,7 +1338,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     }
 
     // Render the element
-    renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, fonts);
+    renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, fonts, revisionMarkX);
 
     // Render scene numbers on both sides if enabled
     if (typeName === 'sceneHeading' && options?.sceneNumbersVisible && node.attrs?.sceneNumber) {
@@ -1358,19 +1420,42 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   const hStart = hf.headerStartPage;
   const fStart = hf.footerStartPage;
 
+  const labels = options?.pageLabels ?? null;
   for (let sheet = 1; sheet <= totalSheets; sheet++) {
     if (sheet <= titleSheets) continue; // the title page is never numbered
     const p = printedPageNumber(sheet - titleSheets, hf.startingPageNumber);
+    // A locked page prints its label ("12A"); the start-page rules still go by
+    // where the page falls.
+    const label = labels?.[sheet - titleSheets - 1] || p;
     pdf.setPage(sheet);
     // Header
     if (p >= hStart && (hContent.left || hContent.center || hContent.right)) {
       const headerY = layout.headerMargin + 12;
-      renderHFLine(pdf, hContent, p, totalPages, docTitle, revColor, headerY, layout, fonts);
+      renderHFLine(pdf, hContent, label, totalPages, docTitle, revColor, headerY, layout, fonts);
     }
     // Footer
     if (p >= fStart && (fContent.left || fContent.center || fContent.right)) {
       const footerY = pageHeightPt - layout.footerMargin;
-      renderHFLine(pdf, fContent, p, totalPages, docTitle, revColor, footerY, layout, fonts);
+      renderHFLine(pdf, fContent, label, totalPages, docTitle, revColor, footerY, layout, fonts);
+    }
+  }
+
+  if (options?.colorRevisedPages) {
+    for (const [sheet, color] of sheetRevisions) {
+      if (sheet <= titleSheets) continue;
+      const paper = revisionPaper(color);
+      if (paper) tintPage(pdf, sheet, paper, pageWidthPt, pageHeightPt);
+    }
+  }
+
+  if (options?.revisedPagesOnly) {
+    const keep = new Set([...sheetRevisions.keys()].filter((sheet) => sheet > titleSheets));
+    if (keep.size === 0) {
+      throw new Error('This script has no revised pages. Revision marks are added while Revision Mode is on.');
+    }
+    // Back to front, so deleting a sheet does not renumber the ones still to go.
+    for (let sheet = totalSheets; sheet >= 1; sheet--) {
+      if (!keep.has(sheet)) pdf.deletePage(sheet);
     }
   }
 
@@ -1402,7 +1487,7 @@ export async function exportPDF(
 function renderHFLine(
   pdf: jsPDF,
   content: HeaderFooterContent,
-  pageNum: number,
+  pageNum: number | string,
   totalPages: number,
   title: string,
   revisionColor: string,
@@ -1446,6 +1531,8 @@ function renderElement(
   startY: number,
   typeName: string,
   fonts: FontContext,
+  /** Where to draw a revised line's margin mark; null draws none. */
+  revisionMarkX: RevisionMarker | null = null,
 ): void {
   const isCentered = CENTERED_TYPES.has(typeName);
   const isRightAligned = RIGHT_ALIGNED_TYPES.has(typeName);
@@ -1466,7 +1553,48 @@ function renderElement(
     } else {
       renderLine(pdf, lineRuns, leftPt, y, fonts);
     }
+    drawRevisionMark(pdf, lineRuns, y, fonts, revisionMarkX);
   }
+}
+
+/** Where and how revised lines are marked, and who hears about each mark. */
+interface RevisionMarker {
+  /** The mark's x position, in the right margin. */
+  x: number;
+  settings: RevisionSettings | null;
+  /** Called for every mark drawn, with the line's revision colour. */
+  onMark: (color: string) => void;
+}
+
+/** The margin mark beside one line, when the line holds revised text. */
+function drawRevisionMark(
+  pdf: jsPDF, line: TextRun[], y: number, fonts: FontContext, marker: RevisionMarker | null,
+): void {
+  if (!marker) return;
+  const color = lineRevision(line);
+  if (color === null) return;
+  drawPlain(pdf, revisionMarkFor(marker.settings, color), marker.x, y, fonts, { bold: true });
+  marker.onMark(color);
+}
+
+/**
+ * Lay a revision's paper colour under everything already on a sheet.
+ *
+ * jsPDF draws in order and has no blend modes, so the tint goes in at the
+ * front of the sheet's content stream — painted first, beneath the text —
+ * rather than being drawn over it. `q`/`Q` keep its fill colour from leaking
+ * into what follows.
+ */
+function tintPage(pdf: jsPDF, sheet: number, hex: string, widthPt: number, heightPt: number): void {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  const pages = (pdf as unknown as { internal: { pages?: unknown[] } }).internal.pages;
+  const stream = pages?.[sheet];
+  if (!m || !Array.isArray(stream)) {
+    console.warn(`[pdf] could not colour page ${sheet}: unexpected page structure`);
+    return;
+  }
+  const [r, g, b] = [m[1], m[2], m[3]].map((h) => (parseInt(h, 16) / 255).toFixed(3));
+  stream.unshift(`q ${r} ${g} ${b} rg 0 0 ${widthPt.toFixed(2)} ${heightPt.toFixed(2)} re f Q`);
 }
 
 // Convenience download function matching the pattern of other exporters

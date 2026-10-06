@@ -27,7 +27,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
     documentTitle,
     saveStatus,
     documentOrigin,
+    pageLabels,
   } = useEditorStore();
+  // Locked pages read by their label ("Page 12A"), which is what the writer
+  // will be asked for by the production.
+  const currentLabel = pageLabels?.[currentPage - 1];
 
   const { currentProject } = useProjectStore();
   const getActiveTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate);
@@ -118,7 +122,9 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
           </span>
         )}
         <span className="status-item status-page">
-          Page {currentPage} of {pageCount}
+          {currentLabel
+            ? <>Page {currentLabel} <span className="status-locked" title="Pages are locked">(locked)</span></>
+            : <>Page {currentPage} of {pageCount}</>}
         </span>
       </div>
     </div>

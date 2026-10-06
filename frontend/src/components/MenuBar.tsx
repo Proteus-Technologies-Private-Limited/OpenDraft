@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/core';
-import { useEditorStore, DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
+import { useEditorStore, DEFAULT_PAGE_LAYOUT, printedPageNumber, resolveHeaderFooter } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
@@ -178,7 +178,28 @@ import {
   FaLock,
   FaFileSignature,
   FaFont,
+  FaSun,
+  FaMoon,
+  FaRegFileAlt,
+  FaStepForward,
+  FaEraser,
+  FaUnlock,
+  FaSlidersH,
+  FaBan,
 } from 'react-icons/fa';
+import { REVISION_COLORS, nextRevisionColor } from '../editor/revisionColors';
+import RevisionSettingsDialog from './RevisionSettingsDialog';
+import { pagesLocked } from '../editor/extensions/LockedPages';
+import { omitSceneTransaction, sceneOmittedAt } from '../editor/omitScene';
+
+/** What Fade In carries beyond the text: Revision Mode's colour and marks,
+ *  and how scenes are numbered. */
+function osfExtras(s: ReturnType<typeof useEditorStore.getState>) {
+  return {
+    revisions: { color: s.revisionMode ? s.revisionColor : '', settings: s.revisionSettings },
+    sceneNumbers: { visible: s.sceneNumbersVisible, locked: s.sceneNumbersLocked },
+  };
+}
 
 interface MenuBarProps {
   editor: Editor | null;
@@ -266,6 +287,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setTagsVisible,
     revisionMode,
     setRevisionMode,
+    revisionColor,
+    setRevisionColor,
+    advanceRevisionColor,
+    showRevisionColors,
+    setShowRevisionColors,
     documentTitle,
     pageLayout,
     setSearchOpen,
@@ -280,8 +306,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setOpenFileOpen,
     setPostSaveAction,
     setSaveAsOpen,
-    theme,
-    setTheme,
+    appearance,
+    setAppearance,
     toolbarMode,
     setToolbarMode,
     zoomLevel,
@@ -295,6 +321,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setSceneNumbersVisible,
     sceneNumbersLocked,
     setSceneNumbersLocked,
+    pageLabels,
   } = useEditorStore();
 
   const {
@@ -332,17 +359,19 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
       if (format === 'fdx') {
         return exportFDX(doc, s.documentTitle, s.characterProfiles, s.tagCategories, s.tags,
-          s.beats, s.beatColumns, s.pageLayout, { family: s.fontFamily, size: s.fontSize });
+          s.beats, s.beatColumns, s.pageLayout, { family: s.fontFamily, size: s.fontSize },
+          undefined, { mode: s.revisionMode, color: s.revisionColor, settings: s.revisionSettings },
+          { sceneNumbersVisible: s.sceneNumbersVisible });
       }
       if (format === 'fountain' || format === 'txt') {
-        return exportFountain(doc);
+        return exportFountain(doc, { revisionSettings: s.revisionSettings, sceneNumbersVisible: s.sceneNumbersVisible });
       }
       const font = { family: s.fontFamily, size: String(s.fontSize) };
       if (format === 'fadein') {
-        return exportFadeIn(doc, { font });
+        return exportFadeIn(doc, { font, ...osfExtras(s) });
       }
       if (format === 'osf') {
-        return exportOSF(doc, { font });
+        return exportOSF(doc, { font, ...osfExtras(s) });
       }
       if (format === 'odraft') {
         // The native format, and the only one that carries everything: the
@@ -775,6 +804,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   // ── Check in (git commit) ──
   const [checkinOpen, setCheckinOpen] = useState(false);
+  const [clearRevisionsOpen, setClearRevisionsOpen] = useState(false);
+  const [revisionSettingsOpen, setRevisionSettingsOpen] = useState(false);
   const [checkinMessage, setCheckinMessage] = useState('');
   const [checkinSaving, setCheckinSaving] = useState(false);
   const checkinInputRef = useRef<HTMLInputElement>(null);
@@ -1297,6 +1328,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     store.setCharacterProfiles([]);
     store.setScenes([]);
     store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
+    store.resetRevisionState();
     if (window.location.pathname !== '/') {
       window.history.replaceState(null, '', '/');
     }
@@ -1438,7 +1470,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const s = useEditorStore.getState();
       await downloadFDX(editor.getJSON(), documentTitle, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns, s.pageLayout,
         { family: s.fontFamily, size: s.fontSize },
-        buildExportFootnotePlan(editor.getJSON(), s.pageLayout, s.notes, s.generalNotes));
+        buildExportFootnotePlan(editor.getJSON(), s.pageLayout, s.notes, s.generalNotes),
+        { mode: s.revisionMode, color: s.revisionColor, settings: s.revisionSettings },
+          { sceneNumbersVisible: s.sceneNumbersVisible });
     } catch (err) {
       console.error('FDX export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -1452,6 +1486,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const { downloadFadeIn } = await import('../utils/osfExporter');
       await downloadFadeIn(editor.getJSON(), documentTitle, {
         font: { family: s.fontFamily, size: String(s.fontSize) },
+        ...osfExtras(s),
       });
     } catch (err) {
       console.error('Fade In export failed:', err);
@@ -1462,7 +1497,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const handleExportFountain = useCallback(async () => {
     if (!editor) return;
     try {
-      await downloadFountain(editor.getJSON(), documentTitle);
+      await downloadFountain(editor.getJSON(), documentTitle, {
+        revisionSettings: useEditorStore.getState().revisionSettings,
+        sceneNumbersVisible: useEditorStore.getState().sceneNumbersVisible,
+      });
     } catch (err) {
       console.error('Fountain export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -1541,8 +1579,71 @@ const MenuBar: React.FC<MenuBarProps> = ({
       documentFont: store.fontFamily,
       footnotes: buildExportFootnotePlan(json, pageLayout, store.notes, store.generalNotes),
       includeTitlePage: store.includeTitlePageInOutput,
+      revisionSettings: store.revisionSettings,
+      colorRevisedPages: store.revisionSettings.colorPages,
+      pageLabels: store.pageLabels,
     };
   }, [pageLayout]);
+
+  /** File → Export → PDF (Revised Pages Only): the pages that go out to cast
+   *  and crew between full drafts. */
+  const handleExportRevisedPDF = useCallback(async () => {
+    if (!editor) return;
+    try {
+      const json = editor.getJSON();
+      const warning = await exportPDF(json, `${documentTitle || 'Untitled'} - Revised Pages`, pageLayout, {
+        ...pdfOptions(json),
+        revisedPagesOnly: true,
+      });
+      if (warning) showToast(warning, 'error');
+    } catch (err) {
+      console.error('Revised-pages PDF export failed:', err);
+      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, documentTitle, pageLayout, pdfOptions]);
+
+  /** Tools → Production → Lock Pages / Unlock Pages. */
+  const handleToggleLockPages = useCallback(() => {
+    if (!editor) return;
+    try {
+      if (pagesLocked(editor.state.doc)) {
+        editor.chain().focus().unlockPages().run();
+        showToast('Pages unlocked — page numbers flow freely again', 'info');
+        return;
+      }
+      const start = resolveHeaderFooter(pageLayout).startingPageNumber;
+      const ok = editor.chain().focus().lockPages((page) => String(printedPageNumber(page, start))).run();
+      if (ok) showToast('Pages locked — new text spills onto A pages instead of renumbering', 'success');
+      else showToast('Could not lock pages: the script has not been paginated yet', 'error');
+    } catch (err) {
+      console.error('[lockedPages] toggle failed', err);
+      showToast(`Could not change page locking: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, pageLayout]);
+
+  /** Tools → Production → Omit Scene: the scene at the cursor becomes an
+   *  OMITTED heading that keeps its locked number. */
+  const handleOmitScene = useCallback(() => {
+    if (!editor) return;
+    try {
+      const pos = editor.state.selection.from;
+      if (sceneOmittedAt(editor.state, pos)) {
+        showToast('This scene is already omitted', 'info');
+        return;
+      }
+      const tr = omitSceneTransaction(editor.state, pos);
+      if (!tr) {
+        showToast('Put the cursor in the scene you want to omit', 'info');
+        return;
+      }
+      editor.view.dispatch(tr);
+      editor.commands.focus();
+      showToast('Scene omitted — Edit → Undo brings it back', 'success');
+    } catch (err) {
+      console.error('[omitScene] failed', err);
+      showToast(`Could not omit the scene: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor]);
 
   const handleExportPDF = useCallback(async () => {
     if (!editor) return;
@@ -1706,6 +1807,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       await downloadDocx(editor.getJSON(), documentTitle, pageLayout, {
         footnotes: buildExportFootnotePlan(editor.getJSON(), pageLayout, store.notes, store.generalNotes),
         documentTitle: store.documentTitle,
+        revisionSettings: store.revisionSettings,
         revisionColor: store.revisionMode ? store.revisionColor : '',
         documentFont: store.fontFamily,
         // So `{pages}` matches what the editor and the PDF report, rather than
@@ -2072,6 +2174,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaFileAlt />, label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
             { icon: <FaFileCode />, label: 'Fade In (.fadein)', action: handleExportFadeIn, disabled: isCollabGuest },
             { icon: <FaFilePdf />, label: 'PDF', action: handleExportPDF },
+            {
+              icon: <FaFilePdf />, label: 'PDF (Revised Pages Only)', action: handleExportRevisedPDF,
+              title: 'Only the pages that carry a revision mark',
+            },
             { icon: <FaFileWord />, label: 'Microsoft Word (.docx)', action: handleExportDocx },
             { icon: <FaFile />, label: 'OpenDraft (.odraft)', action: handleExportOdraft, disabled: isCollabGuest },
             // AV formats are offered only for documents that have an AV body —
@@ -2402,9 +2508,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
         },
         { separator: true, label: '' },
         {
-          icon: <FaAdjust />,
-          label: theme === 'light' ? '\u2713 Light Theme' : 'Light Theme',
-          action: () => setTheme(theme === 'light' ? 'dark' : 'light'),
+          icon: <FaAdjust />, label: 'Theme',
+          children: [
+            { icon: <FaSun />, label: appearance === 'light' ? '\u2713 Light' : 'Light', action: () => setAppearance('light') },
+            { icon: <FaMoon />, label: appearance === 'dark' ? '\u2713 Dark' : 'Dark', action: () => setAppearance('dark') },
+            { icon: <FaRegFileAlt />, label: appearance === 'dark-pages' ? '\u2713 Dark Pages' : 'Dark Pages', action: () => setAppearance('dark-pages') },
+          ],
         },
         { separator: true, label: '' },
         {
@@ -2473,6 +2582,32 @@ const MenuBar: React.FC<MenuBarProps> = ({
           icon: <FaFilm />, label: 'Production',
           children: [
             { icon: <FaToggleOn />, label: revisionMode ? '\u2713 Revision Mode' : 'Revision Mode', action: () => setRevisionMode(!revisionMode) },
+            {
+              icon: <FaHighlighter />, label: `Revision Color (${revisionColor})`,
+              children: REVISION_COLORS.map((c) => ({
+                label: c.name === revisionColor ? `\u2713 ${c.name}` : c.name,
+                action: () => setRevisionColor(c.name),
+              })),
+            },
+            {
+              icon: <FaStepForward />, label: 'Next Revision Color',
+              title: `Start the ${nextRevisionColor(revisionColor)} revision and turn Revision Mode on`,
+              action: () => {
+                advanceRevisionColor();
+                showToast(`Revising in ${useEditorStore.getState().revisionColor}`, 'info');
+              },
+            },
+            {
+              icon: <FaEye />,
+              label: showRevisionColors ? '\u2713 Show Revision Colors' : 'Show Revision Colors',
+              action: () => setShowRevisionColors(!showRevisionColors),
+            },
+            { icon: <FaEraser />, label: 'Clear Revision Marks\u2026', action: () => setClearRevisionsOpen(true), disabled: !editor },
+            {
+              icon: <FaSlidersH />, label: 'Revision Settings\u2026',
+              title: 'The revision mark, a mark for each revision, and colored pages',
+              action: () => setRevisionSettingsOpen(true),
+            },
             { separator: true, label: '' },
             {
               icon: <FaListUl />,
@@ -2483,10 +2618,27 @@ const MenuBar: React.FC<MenuBarProps> = ({
               icon: <FaLock />,
               label: sceneNumbersLocked ? '\u2713 Lock Scene Numbers' : 'Lock Scene Numbers',
               action: () => setSceneNumbersLocked(!sceneNumbersLocked),
-              disabled: !sceneNumbersVisible,
+              // Unlocking is always allowed; locking needs numbers to lock.
+              disabled: !sceneNumbersVisible && !sceneNumbersLocked,
+            },
+            {
+              icon: <FaBan />, label: 'Omit Scene',
+              title: sceneNumbersLocked
+                ? 'Replace the scene at the cursor with an OMITTED heading that keeps its number'
+                : 'Lock scene numbers first — an unlocked script can simply delete the scene',
+              action: handleOmitScene,
+              disabled: !editor || !sceneNumbersLocked,
             },
             { separator: true, label: '' },
-            { icon: <FaLock />, label: 'Lock Pages', disabled: true },
+            {
+              icon: pageLabels ? <FaUnlock /> : <FaLock />,
+              label: pageLabels ? 'Unlock Pages' : 'Lock Pages',
+              title: pageLabels
+                ? 'Let page numbers flow again; A pages are renumbered'
+                : 'Keep every page number where it is; new text spills onto A pages',
+              action: handleToggleLockPages,
+              disabled: !editor,
+            },
           ],
         },
       ],
@@ -3037,6 +3189,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 2.3.3</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v2.4.0</div>
+              <ul className="about-list">
+                <li><strong>Dark Pages</strong> &mdash; View &rarr; Theme is one menu now: Light, Dark, and Dark Pages. Dark Pages turns the script page itself dark, with light text, for writing at night. Black text that came in from a formatting template, or was pasted from Word or Google Docs, turns light with the page instead of disappearing into it, and a colour you actually chose is left alone. It is a screen setting only &mdash; PDF, print and every export are still black on white. Whichever theme you pick is remembered.</li>
+                <li><strong>Revision Mode Marks What You Change</strong> &mdash; Revision Mode used to put the revision colour in the header and nothing more. Now every line you change while it is on gets an asterisk in the right margin &mdash; text you type or paste, a line you shorten, join, split or turn into another element &mdash; and it prints on the PDF beside each revised line, AV tables included. Tools &rarr; Production has the colour, <em>Next Revision Color</em> to start the next round in the White, Blue, Pink, Yellow&hellip; sequence, <em>Show Revision Colors</em>, and <em>Clear Revision Marks</em>. The marks are saved with the script and shared with collaborators. An older version of OpenDraft still opens a revised script; it just does not show the asterisks.</li>
+                <li><strong>Your Own Revision Mark</strong> &mdash; <em>Tools &rarr; Production &rarr; Revision Settings</em> sets the character printed beside a revised line, and can give each revision a mark of its own, so a page carrying Blue and Pink changes shows which is which. A line changed in two rounds shows the later round&rsquo;s mark. The marks are used on screen, in the PDF and in print.</li>
+                <li><strong>Revised Pages On Coloured Paper</strong> &mdash; Revision Settings can tint every revised page in the PDF and in print with its revision&rsquo;s colour, the way revised pages go out on coloured stock. <em>File &rarr; Export &rarr; PDF (Revised Pages Only)</em> writes just the pages that carry a revision &mdash; what goes to cast and crew between full drafts.</li>
+                <li><strong>Locked Pages And A Pages</strong> &mdash; <em>Tools &rarr; Production &rarr; Lock Pages</em> fixes every page where it is. Text added to page 12 then spills onto 12A and 12B instead of pushing every later page along, text added above page 1 goes onto A1, and a page whose text is all cut is folded into the one before it as 12-13. The labels show in the header, the status bar and the page thumbnails, and print on the PDF.</li>
+                <li><strong>Locked Scene Numbers That Stay Put</strong> &mdash; With scene numbers locked, a scene added after 12 is now 12A rather than taking a number another scene already has, and one added before scene 1 is A1. A copied heading never brings its number with it, and hiding the numbers no longer erases the locked ones. Scripts locked in an earlier version that ended up with two scenes sharing a number are put right when they open. <em>Omit Scene</em> cuts a scene but leaves its heading, numbered, reading OMITTED.</li>
+                <li><strong>Revisions In Every Format</strong> &mdash; Final Draft files keep their revisions both ways: export writes each revision with its colour and mark, and import now reads them back &mdash; the revised text, the colours, the marks and the current revision &mdash; and keeps a production&rsquo;s locked scene numbers instead of renumbering them. Word marks each revised paragraph in the right margin, Fountain carries the mark in a note on each revised line, and Fade In gets its own revision table and marks; all three read them back in.</li>
+                <li><strong>Exporting And Importing A Project</strong> &mdash; Importing a project that had been exported as a zip brought every screenplay in twice &mdash; once as itself, and once as a script named after its <code>.meta.json</code> file. Each script now comes back once, in the order it was in, with its colour, pin and the project&rsquo;s properties, and with its images when the project was exported from the app. A script that cannot be read stops the export with its name rather than being quietly left out of the zip.</li>
+                <li><strong>Treatments Stay Treatments</strong> &mdash; On the desktop, iPhone, iPad and Android apps a treatment opened in the treatment editor the first time and in the screenplay editor every time after. It now always opens as a treatment, and treatments written before this update are recognised and put right the first time the app starts.</li>
+              </ul>
               <div className="about-subsection-title">v2.3.3</div>
               <ul className="about-list">
                 <li><strong>Linux On Older Graphics Cards</strong> &mdash; On some Linux machines the OpenDraft window came up dark and empty, and on an older NVIDIA card using the open-source <em>nouveau</em> driver it could freeze the whole desktop until a restart. The page is drawn by the web engine on the graphics card, and two of the ways it does that are ones those drivers cannot handle. OpenDraft now turns off the faster buffer-sharing path on every Linux machine, and on nouveau it also draws the window without the graphics card &mdash; slower to scroll, but a window you can write in. Setting <code>WEBKIT_DISABLE_DMABUF_RENDERER</code> or <code>WEBKIT_DISABLE_COMPOSITING_MODE</code> yourself still wins, <code>=0</code> included.</li>
@@ -3437,6 +3601,43 @@ const MenuBar: React.FC<MenuBarProps> = ({
               {diagnosticsCopied ? 'Copied ✓' : 'Copy Report'}
             </button>
             <button className="dialog-primary" onClick={() => setDiagnosticsOpen(false)}>Close</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {revisionSettingsOpen && (
+      <RevisionSettingsDialog onClose={() => setRevisionSettingsOpen(false)} />
+    )}
+    {clearRevisionsOpen && (
+      <div className="dialog-overlay" onClick={() => setClearRevisionsOpen(false)}>
+        <div className="dialog-box" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+          <div className="dialog-header">Clear Revision Marks</div>
+          <div className="dialog-body">
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--fd-text)' }}>
+              Remove every revision asterisk from this script? The text itself is not changed, and Edit &rarr; Undo brings the marks back.
+            </p>
+          </div>
+          <div className="dialog-actions">
+            <button onClick={() => setClearRevisionsOpen(false)}>Cancel</button>
+            <button
+              className="dialog-primary"
+              onClick={() => {
+                setClearRevisionsOpen(false);
+                try {
+                  editor?.chain().focus().clearRevisionMarks().run();
+                  // The dialog's button had focus; once it unmounts focus
+                  // falls to <body>. Put it back in the script so the Undo
+                  // the dialog promises is one keystroke away.
+                  requestAnimationFrame(() => { if (editor && !editor.isDestroyed) editor.commands.focus(); });
+                  showToast('Revision marks cleared', 'success');
+                } catch (err) {
+                  console.error('[revisions] clear failed', err);
+                  showToast(`Could not clear revision marks: ${err instanceof Error ? err.message : String(err)}`, 'error');
+                }
+              }}
+            >
+              Clear Marks
+            </button>
           </div>
         </div>
       </div>

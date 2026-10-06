@@ -94,20 +94,80 @@
     </div>
 
     <h1>Revision Mode &amp; Track Changes</h1>
-    <p class="page-subtitle">Mark revisions and compare script versions visually.</p>
+    <p class="page-subtitle">Mark production revisions with margin asterisks, and compare script versions visually.</p>
 
     <h2 id="revision-mode">Revision Mode</h2>
 
-    <p>Revision Mode is a production tool used when a script goes through multiple drafts after being distributed to the production team. Enable it via <strong>Tools &gt; Production &gt; Revision Mode</strong>.</p>
+    <p>Revision Mode is a production tool for a script that has already gone out to cast and crew. While it is on, every change you make is marked, so the next draft shows exactly what changed. Turn it on with <strong>Tools &gt; Production &gt; Revision Mode</strong>.</p>
 
-    <p>When Revision Mode is active, any edits you make are visually marked in a configurable color. This lets production crew quickly see what has changed in the latest revision.</p>
+    <h3 id="what-gets-marked">What gets marked</h3>
+    <ul>
+      <li><strong>Text you type or paste</strong> is marked in the current revision color, and an asterisk (<strong>*</strong>) appears in the right margin beside every line it is on.</li>
+      <li><strong>A line you shortened, joined, split or changed to another element</strong> has no new text to mark, so the line itself gets an asterisk.</li>
+      <li>Undo and redo take the marks with the text. Edits from collaborators are marked on their side, not yours. Pagination, scene renumbering and automatic CONT'D never count as revisions.</li>
+      <li>With Revision Mode off, nothing new is marked. Marks already in the script stay until you clear them.</li>
+    </ul>
 
-    <div class="callout callout-info">
-      <span class="callout-icon">&#8505;&#65039;</span>
-      <div class="callout-content">
-        <p><strong>Industry convention:</strong> In professional production, each revision round uses a different color paper (white, blue, pink, yellow, green, goldenrod). Revision Mode helps replicate this workflow digitally.</p>
-      </div>
-    </div>
+    <h3 id="revision-colors">Revision colors</h3>
+    <p>Each round of revisions traditionally goes out on a new color of paper: White, Blue, Pink, Yellow, Green, Goldenrod, Buff, Salmon, Cherry, then the second round of Blue, Pink, Yellow and Green.</p>
+    <ul>
+      <li><strong>Tools &gt; Production &gt; Revision Color</strong> picks the color new edits are marked in.</li>
+      <li><strong>Tools &gt; Production &gt; Next Revision Color</strong> starts the next round in the sequence and turns Revision Mode on.</li>
+      <li><strong>Tools &gt; Production &gt; Show Revision Colors</strong> shows revised text in its round's color on screen, so you can tell the rounds apart. It never changes what prints.</li>
+      <li>The <code>{revision}</code> field in a header or footer prints the current color.</li>
+    </ul>
+
+    <h3 id="revision-settings">Choosing the mark</h3>
+    <p><strong>Tools &gt; Production &gt; Revision Settings&hellip;</strong> sets the character printed beside a revised line. It is an asterisk unless you change it.</p>
+    <ul>
+      <li><strong>Revision mark</strong> &mdash; one character for every revision, such as <code>*</code>, <code>+</code> or <code>#</code>.</li>
+      <li><strong>Mark for each revision</strong> &mdash; give a round a mark of its own, so a page carrying Blue and Pink changes shows which is which. Leave a round blank to use the main mark. A line changed in two rounds shows the later round&rsquo;s mark.</li>
+      <li>The marks are saved with the script and shared with collaborators. They are used on screen, in PDF and Print, and in every format that carries revisions.</li>
+    </ul>
+
+    <h3 id="revised-pages">Colored pages and revised pages only</h3>
+    <ul>
+      <li><strong>Print revised pages on colored paper</strong> (in Revision Settings) tints each revised page in the PDF and in Print with its revision&rsquo;s color, so the pages can be told apart without colored stock. A page carrying more than one round takes the latest round&rsquo;s color. Unrevised pages stay white.</li>
+      <li><strong>File &gt; Export &gt; PDF (Revised Pages Only)</strong> writes just the pages that carry a revision mark: the pages that go out to cast and crew between full drafts. With pages locked they keep their locked numbers, such as 12 and 12A.</li>
+      <li>Both work from the PDF that Print also uses. If you have turned off <em>Print the PDF</em> in Settings &gt; Printing, the browser&rsquo;s own print shows the marks but not the colored pages.</li>
+    </ul>
+
+    <h3 id="locked-pages">Locked pages</h3>
+    <p>Once a script has gone out, everyone refers to its page numbers. <strong>Tools &gt; Production &gt; Lock Pages</strong> fixes every page where it is now. After that:</p>
+    <ul>
+      <li><strong>Text added to a page</strong> spills onto an A page instead of pushing everything along: page 12 overflows onto 12A, then 12B. Page 13 still starts where it did.</li>
+      <li><strong>Text added above page 1</strong> goes onto A1, B1 and so on.</li>
+      <li><strong>A page whose text is all deleted</strong> is absorbed into the page before it, which is then numbered for both, such as <strong>12-13</strong>. If page 12 has overflowed meanwhile, the overflow takes the number 13 back instead of becoming 12A.</li>
+      <li>The page labels appear in the header and footer (<code>{page}</code>), in the status bar, on the Navigator&rsquo;s page thumbnails, and in the PDF.</li>
+      <li><strong>Unlock Pages</strong> numbers the pages straight through again.</li>
+    </ul>
+    <p>Locking is saved with the script and shared with collaborators. An older version of OpenDraft opens a locked script with its pages numbered straight through. Word lays out its own pages, so a Word export is not locked.</p>
+
+    <h3 id="scene-numbers">Locked scene numbers and OMITTED scenes</h3>
+    <p>With <strong>Lock Scene Numbers</strong> on, every scene keeps its number for good:</p>
+    <ul>
+      <li>A scene added after scene 12 is <strong>12A</strong>, then 12B. A scene added before scene 1 is <strong>A1</strong>.</li>
+      <li>A scene heading copied, pasted or split in two never duplicates a number. The scene that had the number first keeps it, and the other is numbered as a new scene.</li>
+      <li>Hiding scene numbers only hides them. The locked numbers stay on the scenes and come back when you show them again.</li>
+      <li><strong>Tools &gt; Production &gt; Omit Scene</strong> cuts the scene the cursor is in but keeps its heading, which then reads <strong>OMITTED</strong> with its number. The numbers around it never move. It is one edit, so <strong>Edit &gt; Undo</strong> brings the scene back. In Revision Mode it is marked like any other change.</li>
+    </ul>
+
+    <h3 id="clear-revisions">Clearing marks</h3>
+    <p>When a new full draft goes out, <strong>Tools &gt; Production &gt; Clear Revision Marks&hellip;</strong> removes every mark and asterisk. The text is not changed, and <strong>Edit &gt; Undo</strong> brings the marks back.</p>
+
+    <h3 id="revisions-saved">Saved, shared and exported</h3>
+    <ul>
+      <li>Revision Mode, its color and the marks are saved with the script and come back when you reopen it.</li>
+      <li>In a collaboration session, everyone works with the same Revision Mode setting and color.</li>
+      <li><strong>PDF and Print</strong> put an asterisk in the right margin of every revised line, inside AV tables too.</li>
+      <li>An older version of OpenDraft still opens a revised script; it shows no asterisks, and saving it there drops them.</li>
+      <li><strong>Final Draft (.fdx)</strong> export writes each revised run's revision, and the list of revision colors with each one&rsquo;s mark. Importing an .fdx reads them back: the revised text, which revision it belongs to, Revision Mode, the current color and the marks. A Final Draft revision is matched to an OpenDraft color by its name (&ldquo;Blue Rev.&rdquo;), then by its page color, then by its place in the list.</li>
+      <li>Importing an .fdx whose scene numbers are production numbers (an A-number such as 12A, or a gap left by a cut scene) shows them and locks them, so opening the script does not renumber it. Plain 1, 2, 3 numbering is left to your own scene-number settings, as before.</li>
+      <li>If Final Draft was set to show only the current revision, only that revision&rsquo;s marks come in.</li>
+      <li><strong>Word (.docx)</strong> puts the mark in the right margin of each revised paragraph. Word wraps the lines itself, so the mark is on the paragraph&rsquo;s last line rather than on every line.</li>
+      <li><strong>Fountain</strong> has no revisions, and a bare <code>*</code> at the end of a line would stop a transition or scene number being recognised. Each revised element ends with a Fountain note carrying the mark and the revision, such as <code>CUT TO: [[* Blue revision]]</code>. Apps that show notes show the mark, and OpenDraft reads it back as the revision. Your own notes are never mistaken for one.</li>
+      <li><strong>Fade In (.fadein, .osf)</strong> gets Fade In&rsquo;s own revision table, with each revision&rsquo;s mark, and a mark on each revised paragraph. Importing reads them back.</li>
+    </ul>
 
     <h2 id="track-changes">Track Changes</h2>
 

@@ -50,6 +50,10 @@ export const SAVE_METADATA_KEYS = [
   '_sceneNumbersLocked',
   '_pageLayout',
   '_sceneHeadingSpaceBefore',
+  '_revisionMode',
+  '_revisionColor',
+  '_revisionHistory',
+  '_revisionSettings',
 ] as const;
 
 export type SaveMetadataKey = (typeof SAVE_METADATA_KEYS)[number];
@@ -96,6 +100,12 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
     // spacing prompt keys off — so writing it unconditionally is what stops the
     // prompt reappearing after the writer has answered it.
     _sceneHeadingSpaceBefore: store.sceneHeadingSpaceBefore,
+    // Revision Mode is part of the script: a locked production draft opens
+    // still revising, in the colour it was being revised in.
+    _revisionMode: store.revisionMode,
+    _revisionColor: store.revisionColor,
+    _revisionHistory: store.revisionHistory,
+    _revisionSettings: store.revisionSettings,
   };
 }
 

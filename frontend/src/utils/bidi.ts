@@ -112,6 +112,8 @@ function rebuild(ordered: Cell[], runs: WrapRun[]): WrapRun[] {
       italic: source.italic,
       underline: source.underline,
       ...(source.fontFamily ? { fontFamily: source.fontFamily } : {}),
+      ...(source.revised ? { revised: true } : {}),
+      ...(source.revised && source.revision ? { revision: source.revision } : {}),
     });
     openRun = cell.run;
   }

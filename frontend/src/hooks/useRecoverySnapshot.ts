@@ -104,7 +104,12 @@ function metadataUnchanged(a: StoreState, b: StoreState): boolean {
     a.sceneNumbersLocked === b.sceneNumbersLocked &&
     a.sceneHeadingSpaceBefore === b.sceneHeadingSpaceBefore &&
     a.pageLayout === b.pageLayout &&
-    a.documentTitle === b.documentTitle
+    a.documentTitle === b.documentTitle &&
+    // Saved with the script too (utils/saveContent), so a change of revision
+    // colour or mark is worth a snapshot of its own.
+    a.revisionMode === b.revisionMode &&
+    a.revisionColor === b.revisionColor &&
+    a.revisionSettings === b.revisionSettings
   );
 }
 

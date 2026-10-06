@@ -4,6 +4,16 @@ import { jsonBlockRuns, mergeRuns, singleLine } from './nodeText';
 import { sanitizeExportFilename } from './exportFilename';
 import { clampSectionLevel } from '../editor/extensions/Section';
 import { DEFAULT_TITLE_PAGE_CREDIT } from './titlePageBlocks';
+import { blockRevision, fountainRevisionNote } from './revisionExport';
+import type { RevisionSettings } from '../editor/revisionColors';
+
+export interface FountainExportOptions {
+  /** The marks revised lines are written with; absent writes `*`. */
+  revisionSettings?: RevisionSettings | null;
+  /** False leaves `#12#` scene numbers out — hidden numbers, kept on the
+   *  scenes while locked, are not printed ones. Absent writes them. */
+  sceneNumbersVisible?: boolean;
+}
 
 /**
  * Escape the characters Fountain reads as emphasis markup, so text the writer
@@ -168,10 +178,10 @@ function actionText(text: string): string {
  * cue and drags the following action into dialogue. The scene number is
  * re-attached in the spec's trailing `#…#` form rather than being dropped.
  */
-function sceneHeadingLine(node: JSONContent): string {
+function sceneHeadingLine(node: JSONContent, withNumber = true): string {
   let heading = lineText(node).toUpperCase();
   const sceneNumber = node.attrs?.sceneNumber;
-  if (typeof sceneNumber === 'string' && sceneNumber.trim() !== '') {
+  if (withNumber && typeof sceneNumber === 'string' && sceneNumber.trim() !== '') {
     heading = `${heading} #${sceneNumber.trim()}#`;
   }
   // `..X` is not a forced heading — the parser reads a second dot as literal —
@@ -278,7 +288,7 @@ function synopsisLines(node: JSONContent): string[] {
   return synopsis.split('\n').map((line) => `= ${line.trim()}`);
 }
 
-export function exportFountain(doc: JSONContent): string {
+export function exportFountain(doc: JSONContent, options: FountainExportOptions = {}): string {
   const lines: string[] = [];
 
   if (!doc.content) return '';
@@ -331,6 +341,9 @@ export function exportFountain(doc: JSONContent): string {
   doc.content.forEach((node, index) => {
     const text = getTextContent(node);
     const next = doc.content?.[index + 1];
+    // Where this element's lines start, so a revised one can be marked on its
+    // last line once it is written (see utils/revisionExport).
+    const firstLine = lines.length;
 
     // A manual page break before this element — Fountain spells it `===`.
     if (node.attrs?.startsNewPage && node.type !== 'titlePage') {
@@ -348,7 +361,7 @@ export function exportFountain(doc: JSONContent): string {
         break;
       case 'sceneHeading':
         lines.push('');
-        lines.push(sceneHeadingLine(node));
+        lines.push(sceneHeadingLine(node, options.sceneNumbersVisible !== false));
         lines.push(...synopsisLines(node));
         lines.push('');
         break;
@@ -487,13 +500,24 @@ export function exportFountain(doc: JSONContent): string {
         lines.push(text);
         break;
     }
+
+    if (node.type !== 'titlePage' && node.type !== 'note' && node.type !== 'section') {
+      const revision = blockRevision(node);
+      if (revision !== null) {
+        for (let k = lines.length - 1; k >= firstLine; k--) {
+          if (lines[k].trim() === '' || lines[k] === '===') continue;
+          lines[k] = `${lines[k]} ${fountainRevisionNote(revision, options.revisionSettings)}`;
+          break;
+        }
+      }
+    }
   });
 
   return lines.join('\n');
 }
 
-export async function downloadFountain(doc: JSONContent, title: string = 'Untitled') {
-  const text = exportFountain(doc);
+export async function downloadFountain(doc: JSONContent, title: string = 'Untitled', options: FountainExportOptions = {}) {
+  const text = exportFountain(doc, options);
   const filename = `${sanitizeExportFilename(title)}.fountain`;
   const { saveFile } = await import('./fileOps');
   await saveFile(text, filename, [{ name: 'Fountain', extensions: ['fountain'] }]);

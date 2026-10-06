@@ -33,7 +33,8 @@ import {
   StartsNewPage,
 } from '../editor/extensions';
 
-export const testSchema = getSchema([
+/** The extensions `testSchema` is built from, for a test that needs one more. */
+export const testExtensions = [
   Document.extend({ content: 'block+' }),
   Text,
   ScreenplayHardBreak,
@@ -52,7 +53,9 @@ export const testSchema = getSchema([
   // carries no colour at all. It is here because a script note's own colour
   // used to be re-read through its parse rule — see editor/scriptNoteMarks.
   PastedHighlight.configure({ multicolor: true }),
-]);
+];
+
+export const testSchema = getSchema(testExtensions);
 
 /** A hard break, for use in the `block()` builder. */
 export const BR = { type: 'hardBreak' } as const;

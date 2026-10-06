@@ -86,6 +86,7 @@ const NewDocumentButton: React.FC<{
   );
 };
 import { showToast } from './Toast';
+import { readRevisionState } from '../utils/revisionState';
 
 const ITEM_COLORS = [
   '#e06060', '#e89b4f', '#f4d35e', '#6abf69',
@@ -616,6 +617,7 @@ const ProjectView: React.FC = () => {
     edStore.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
     edStore.setCharacterProfiles([]);
     edStore.setScenes([]);
+    edStore.resetRevisionState();
     // Tell MenuBar (which mounts inside ScreenplayEditor on '/') to prompt
     // for a script format. The flag is consumed by MenuBar's mount effect.
     edStore.setPendingFormatPromptInProject(true);
@@ -781,13 +783,24 @@ const ProjectView: React.FC = () => {
 
         switch (format) {
           case 'fdx':
-            await downloadFDX(content as any, title, profiles, cats, tags);
+            {
+              const rev = readRevisionState(content);
+              await downloadFDX(content as Parameters<typeof downloadFDX>[0], title, profiles, cats, tags,
+                undefined, undefined, undefined, undefined, undefined,
+                { mode: rev.revisionMode, color: rev.revisionColor, settings: rev.revisionSettings },
+                { sceneNumbersVisible: (content as Record<string, unknown>)?._sceneNumbersVisible !== false });
+            }
             break;
           case 'fountain':
-            await downloadFountain(content as any, title);
+            await downloadFountain(content as any, title, {
+              revisionSettings: readRevisionState(content).revisionSettings,
+              sceneNumbersVisible: (content as Record<string, unknown>)?._sceneNumbersVisible !== false,
+            });
             break;
           case 'pdf':
-            await exportPDF(content as any, title, DEFAULT_PAGE_LAYOUT);
+            await exportPDF(content as any, title, DEFAULT_PAGE_LAYOUT, {
+              revisionSettings: readRevisionState(content).revisionSettings,
+            });
             break;
           case 'odraft':
             await downloadOdraft(resp.meta, content);
@@ -856,7 +869,8 @@ const ProjectView: React.FC = () => {
           );
           const resp = await client.createScript(projectId, {
             title: imported.title || fallbackTitle,
-            content: imported.doc as Record<string, unknown>,
+            // The file's revisions and scene numbering travel with it.
+            content: { ...(imported.doc as Record<string, unknown>), ...(imported.metadata ?? {}) },
           });
           await fetchScripts();
           navigate(`/project/${projectId}/edit/${resp.meta.id}`, { state: { from: `/project/${projectId}` } });
@@ -960,8 +974,17 @@ const ProjectView: React.FC = () => {
             className="project-action-btn"
             onClick={() => {
               if (!projectId) return;
-              exportProjectAsZip(projectId)
-                .then(() => showToast('Project exported as zip', 'success'))
+              exportProjectAsZip(projectId, client)
+                .then(({ saved, assetsOmitted, missingAssets }) => {
+                  if (!saved) return;
+                  if (assetsOmitted) {
+                    showToast('Project exported as zip — images are only included when exporting a local project in the app', 'info');
+                  } else if (missingAssets.length > 0) {
+                    showToast(`Project exported as zip, but ${missingAssets.length} image${missingAssets.length === 1 ? '' : 's'} could not be read`, 'info');
+                  } else {
+                    showToast('Project exported as zip', 'success');
+                  }
+                })
                 .catch((err) => showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error'));
             }}
           >

@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { uuid } from '../utils/uuid';
+import { applyAppearance, readAppearance, saveAppearance, themeOf, type Appearance } from '../utils/appearance';
+import { DEFAULT_REVISION_COLOR, DEFAULT_REVISION_SETTINGS, nextRevisionColor, type RevisionSettings } from '../editor/revisionColors';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { findLanguage, urlsFor } from '../editor/languageCatalog';
 import {
@@ -27,6 +29,19 @@ interface ViewState {
   grammarRulesEnabled?: Record<string, boolean>;
   spellingSettings?: SpellingSettings;
   includeTitlePageInOutput?: boolean;
+}
+
+/** One colour a script has been revised in. */
+export interface RevisionHistoryEntry {
+  color: string;
+  /** ISO date the colour was first used. */
+  date: string;
+}
+
+/** `history` with `color` recorded, if it isn't already. */
+export function withRevisionColor(history: RevisionHistoryEntry[], color: string): RevisionHistoryEntry[] {
+  if (history.some((h) => h.color === color)) return history;
+  return [...history, { color, date: new Date().toISOString() }];
 }
 
 export interface SpellingSettings {
@@ -399,7 +414,8 @@ export function printedPageNumber(index: number, startingPageNumber: number): nu
  *  already shifted by the starting-number offset. */
 export function resolveHFFields(
   text: string,
-  pageNum: number,
+  /** A number, or a locked page's label such as "12A". */
+  pageNum: number | string,
   totalPages: number,
   title: string,
   revisionColor: string,
@@ -426,7 +442,8 @@ export function showsHeaderFooter(
 export interface SceneInfo {
   id: string;
   heading: string;
-  sceneNumber: number | null;
+  /** "12", or "12A" for a scene added while numbers are locked. */
+  sceneNumber: string | null;
   color: string;
   synopsis: string;
 }
@@ -747,11 +764,31 @@ interface EditorState {
   sceneHeadingSpaceBefore: number | null;
   setSceneHeadingSpaceBefore: (v: number | null) => void;
 
-  // Revision
+  // Revision — saved with the script (see utils/revisionState.ts)
   revisionMode: boolean;
   revisionColor: string;
+  /** Each colour this script has been revised in, first use first. */
+  revisionHistory: RevisionHistoryEntry[];
+  /** Colour revised text in its revision colour (screen only). */
+  showRevisionColors: boolean;
   setRevisionMode: (on: boolean) => void;
   setRevisionColor: (color: string) => void;
+  /** Move on to the next colour in the production sequence and turn the mode on. */
+  advanceRevisionColor: () => void;
+  setRevisionHistory: (h: RevisionHistoryEntry[]) => void;
+  setShowRevisionColors: (on: boolean) => void;
+  /** Mark characters and coloured-page output — saved with the script. */
+  revisionSettings: RevisionSettings;
+  setRevisionSettings: (patch: Partial<RevisionSettings>) => void;
+  /**
+   * Printed page labels while pages are locked ("12", "12A", "13-14"), index
+   * 0 being the script's first page; null when they are not. Derived from the
+   * document by the pagination plugin — see utils/lockedPages.ts.
+   */
+  pageLabels: string[] | null;
+  setPageLabels: (labels: string[] | null) => void;
+  /** Back to defaults — a new or freshly loaded document. */
+  resetRevisionState: () => void;
 
   // Character profiles (Final Draft CastList + CharacterHighlighting)
   characters: string[];
@@ -809,7 +846,10 @@ interface EditorState {
   pageLayout: PageLayout;
   setPageLayout: (layout: PageLayout) => void;
 
-  // Theme
+  // Theme — `appearance` is the user's choice (remembered); `theme` is the
+  // light/dark half of it, for code that only cares about the interface.
+  appearance: Appearance;
+  setAppearance: (a: Appearance) => void;
   theme: 'dark' | 'light';
   setTheme: (t: 'dark' | 'light') => void;
 
@@ -1218,9 +1258,38 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSceneHeadingSpaceBefore: (v) => set({ sceneHeadingSpaceBefore: v }),
 
   revisionMode: false,
-  revisionColor: 'White',
-  setRevisionMode: (on) => set({ revisionMode: on }),
-  setRevisionColor: (color) => set({ revisionColor: color }),
+  revisionColor: DEFAULT_REVISION_COLOR,
+  revisionHistory: [],
+  showRevisionColors: false,
+  setRevisionMode: (on) => set((st) => ({
+    revisionMode: on,
+    revisionHistory: on ? withRevisionColor(st.revisionHistory, st.revisionColor) : st.revisionHistory,
+  })),
+  setRevisionColor: (color) => set((st) => ({
+    revisionColor: color,
+    revisionHistory: st.revisionMode ? withRevisionColor(st.revisionHistory, color) : st.revisionHistory,
+  })),
+  advanceRevisionColor: () => set((st) => {
+    const color = nextRevisionColor(st.revisionColor);
+    return { revisionMode: true, revisionColor: color, revisionHistory: withRevisionColor(st.revisionHistory, color) };
+  }),
+  setRevisionHistory: (h) => set({ revisionHistory: h }),
+  setShowRevisionColors: (on) => set({ showRevisionColors: on }),
+  revisionSettings: DEFAULT_REVISION_SETTINGS,
+  setRevisionSettings: (patch) => set((st) => ({ revisionSettings: { ...st.revisionSettings, ...patch } })),
+  pageLabels: null,
+  setPageLabels: (labels) => set((st) => (
+    st.pageLabels === labels || (st.pageLabels && labels && st.pageLabels.join('\u0000') === labels.join('\u0000'))
+      ? st
+      : { pageLabels: labels }
+  )),
+  resetRevisionState: () => set({
+    revisionMode: false,
+    revisionColor: DEFAULT_REVISION_COLOR,
+    revisionHistory: [],
+    showRevisionColors: false,
+    revisionSettings: DEFAULT_REVISION_SETTINGS,
+  }),
 
   characters: [],
   setCharacters: (names) => set({ characters: names }),
@@ -1358,12 +1427,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   pageLayout: DEFAULT_PAGE_LAYOUT,
   setPageLayout: (layout) => set({ pageLayout: layout }),
 
-  theme: (localStorage.getItem('opendraft:theme') as 'dark' | 'light') || 'dark',
-  setTheme: (t) => {
-    localStorage.setItem('opendraft:theme', t);
-    document.documentElement.setAttribute('data-theme', t);
-    set({ theme: t });
+  appearance: readAppearance(),
+  setAppearance: (a) => {
+    saveAppearance(a);
+    applyAppearance(a);
+    set({ appearance: a, theme: themeOf(a) });
   },
+  theme: themeOf(readAppearance()),
+  setTheme: (t) => get().setAppearance(t),
 
   toolbarMode: (_vs.toolbarMode as 'compact' | 'comfortable' | 'hidden') ?? defaultToolbarMode(),
   setToolbarMode: (mode) => { set({ toolbarMode: mode }); saveViewState({ toolbarMode: mode }); },

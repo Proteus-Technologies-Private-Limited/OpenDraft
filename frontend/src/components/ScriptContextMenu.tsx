@@ -24,6 +24,7 @@ import { removeScriptNoteMarks } from '../editor/scriptNoteMarks';
 import { applyCaseToRange, shouldUpperCase } from '../editor/caseTransform';
 import { TextSelection } from '@tiptap/pm/state';
 import { isAvCellPos } from '../editor/extensions/AvBlock';
+import { REVISION_COLORS } from '../editor/revisionColors';
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -115,12 +116,6 @@ const ELEMENT_MENU_ITEMS: { type: ElementType; shortcut: string }[] = [
   { type: 'castList', shortcut: '' },
 ];
 
-// Revision colors matching Final Draft production standard
-const REVISION_COLORS = [
-  'White', 'Blue', 'Pink', 'Yellow', 'Green',
-  'Goldenrod', 'Buff', 'Salmon', 'Cherry',
-  '2nd Blue', '2nd Pink', '2nd Yellow', '2nd Green',
-];
 
 interface SpellInfo {
   word: string;
@@ -868,14 +863,14 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
         </div>
         {revisionSubOpen && (
           <CtxSubmenu anchorRef={revisionSubAnchor} className="ctx-submenu-colors">
-            {REVISION_COLORS.map((color) => (
+            {REVISION_COLORS.map(({ name, slug }) => (
               <div
-                key={color}
-                className={`ctx-item${revisionColor === color ? ' ctx-active' : ''}`}
-                onClick={() => handleRevisionColor(color)}
+                key={name}
+                className={`ctx-item${revisionColor === name ? ' ctx-active' : ''}`}
+                onClick={() => handleRevisionColor(name)}
               >
-                <span className="ctx-color-swatch" data-color={color.toLowerCase().replace(/\s/g, '-')} />
-                <span>{color}</span>
+                <span className="ctx-color-swatch" data-color={slug} />
+                <span>{name}</span>
               </div>
             ))}
           </CtxSubmenu>

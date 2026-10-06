@@ -53,6 +53,10 @@ const { pmDoc } = await import('../test/screenplaySchema');
 const { getTextLines } = await import('./wrapText');
 const { useFormattingTemplateStore } = await import('../stores/formattingTemplateStore');
 const { INDUSTRY_STANDARD_TEMPLATE } = await import('../stores/industryStandardTemplate');
+const { testExtensions } = await import('../test/screenplaySchema');
+const { LockedPages } = await import('../editor/extensions/LockedPages');
+const { getSchema } = await import('@tiptap/core');
+const lockedSchema = getSchema([...testExtensions, LockedPages]);
 
 type Layout = typeof DEFAULT_PAGE_LAYOUT;
 const LINES_PER_PAGE = getPageMetrics(DEFAULT_PAGE_LAYOUT).linesPerPage;
@@ -360,4 +364,61 @@ describe('whole scripts paginate alike', () => {
       });
     }
   }
+  /**
+   * Locked pages: each anchored block opens its page in both (see
+   * utils/lockedPages). Lock a script where it falls, then grow some pages and
+   * shrink others, and the two must still agree on every element.
+   */
+  for (const seed of [4, 5]) {
+    it(`a locked script after edits, seed ${seed}`, async () => {
+      const { lockPlan } = await import('./lockedPages');
+      const json = script(seed, 240);
+      const nodes = json.content ?? [];
+      const { breaks } = computeBreaks(pmDoc(json), DEFAULT_PAGE_LAYOUT, activeTemplateHints());
+      for (const p of lockPlan(nodes.length, breaks, String)) {
+        nodes[p.nodeIndex] = { ...nodes[p.nodeIndex], attrs: { ...nodes[p.nodeIndex].attrs, lockedPage: p.label, lockedPageMid: p.mid } };
+      }
+      // Grow: a long paragraph after every 30th element. Shrink: drop every
+      // 17th element that is not anchored. Tags keep their original numbers,
+      // so re-tag in the new order.
+      const edited: JSONContent[] = [];
+      nodes.forEach((n, i) => {
+        const anchored = !!n.attrs?.lockedPage;
+        if (i % 17 === 5 && !anchored) return;
+        edited.push(n);
+        if (i % 30 === 7) edited.push(block('action', `${'added words '.repeat(40)}`));
+      });
+      const retagged = edited.map((n, i) => {
+        const text = n.content?.[0]?.text;
+        if (typeof text !== 'string' || !/^E\d{4} /.test(text)) {
+          return n.content?.[0]?.type === 'text' ? { ...n, content: [{ type: 'text', text: `E${String(i).padStart(4, '0')} ${text}` }] } : n;
+        }
+        return { ...n, content: [{ type: 'text', text: text.replace(/^E\d{4}/, `E${String(i).padStart(4, '0')}`) }] };
+      });
+      const locked = doc(...retagged);
+      const editor = lockedEditorPages(locked);
+      const pdf = await pdfPages(locked, DEFAULT_PAGE_LAYOUT);
+      const disagree = editor
+        .map((p, i) => ({ i, type: retagged[i].type, editor: p, pdf: pdf[i] }))
+        .filter((r) => r.pdf !== -1 && r.pdf !== r.editor);
+      expect(disagree.slice(0, 3)).toEqual([]);
+      // And the edits really did push pages onto A pages, or fold one away.
+      const labels = computeBreaks(lockedSchema.nodeFromJSON(locked), DEFAULT_PAGE_LAYOUT, activeTemplateHints()).pageLabels ?? [];
+      expect(labels.some((l) => /[A-Z]$|-/.test(l))).toBe(true);
+    });
+  }
 });
+
+/** As `editorPages`, on a schema that keeps the locked-page anchors. */
+function lockedEditorPages(json: JSONContent): number[] {
+  const nodes = json.content ?? [];
+  const { breaks } = computeBreaks(lockedSchema.nodeFromJSON(json), DEFAULT_PAGE_LAYOUT, activeTemplateHints());
+  const pages: number[] = new Array(nodes.length).fill(1);
+  let page = 1;
+  let b = 0;
+  for (let i = 0; i < nodes.length; i++) {
+    while (b < breaks.length && breaks[b].nodeIndex === i) { page = breaks[b].pageNumber; b++; }
+    pages[i] = page;
+  }
+  return pages;
+}

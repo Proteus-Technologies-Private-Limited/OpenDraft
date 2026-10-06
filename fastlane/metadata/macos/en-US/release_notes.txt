@@ -1,11 +1,18 @@
-WRITE IN YOUR OWN SCRIPT
-A screenplay written in Hindi, Bengali, Gujarati, Punjabi, Kannada, Malayalam, Odia, Sinhala, Tamil, Telugu or Thai now exports to PDF with a typeface that can draw it. These used to come out as blank space where the dialogue should have been. Chinese, Japanese and Korean arrive the first time you need them.
+REVISIONS THE WAY A PRODUCTION WORKS
+Turn on Revision Mode and every line you change gets a mark in the margin, in the PDF and in print. Choose your own mark, or a different one for each revision, so the Blue and Pink changes can be told apart.
 
-HEBREW AND ARABIC, THE RIGHT WAY ROUND
-Both now export right to left, with Arabic letters joined the way they are written rather than standing apart.
+COLOURED REVISED PAGES
+Print revised pages tinted in their revision's colour, or export just the revised pages to send to cast and crew.
 
-WORD FILES THAT KEEP YOUR SCRIPT
-A Word export now asks Word for a typeface that can draw what you actually wrote instead of a Latin one, so the Hindi in your script is still Hindi when a producer opens it.
+LOCKED PAGES AND SCENE NUMBERS
+Lock your pages and new text goes onto A pages instead of moving every page after it. With scene numbers locked, a new scene after scene 12 becomes 12A, and a cut scene can stay in the script marked OMITTED.
 
-WHEN A TYPEFACE WILL NOT LOAD
-The export now tells you which one, instead of quietly leaving a gap where your words should be.
+FINAL DRAFT REVISIONS COME WITH YOU
+Revisions now travel both ways with Final Draft, and are marked in Word, Fountain and Fade In files too.
+
+DARK PAGES
+A new theme that turns the page itself dark for writing at night. What you print and export stays black on white.
+
+ALSO FIXED
+Importing an exported project no longer brings every script in twice.
+Treatments always open as treatments.

@@ -15,7 +15,7 @@
   --av-grid: 2fr 2fr;
   /* The colour of a column divider at rest. A variable rather than a rule per
      theme, because the divider also has a hover and a dragging colour: as a
-     plain `[data-theme='dark'] .av-col-handle::before` override it tied on
+     plain dark-page `.av-col-handle::before` override it tied on
      specificity with the dragging rule and, coming later in the file, quietly
      won — so in dark mode the divider being dragged stayed grey. */
   --av-divider: #d0d0d0;
@@ -380,15 +380,20 @@
   }
 }
 
-/* Light-on-dark: tone down the divider so it doesn't dominate */
-[data-theme='dark'] .av-block { --av-divider: #3a3a3a; }
-[data-theme='dark'] .av-cue { color: #9a9a9a; }
-[data-theme='dark'] .av-cue-shot { color: #ccc; }
-[data-theme='dark'] .av-cue-duration { border-color: #3a3a3a; }
-[data-theme='dark'] .av-image { background: #232323; border-color: #3a3a3a; }
-[data-theme='dark'] .av-image[data-empty='true']::after { color: #777; }
-[data-theme='dark'] .ProseMirror .av-cell:focus-within {
+/* Dark Pages: light-on-dark, and tone the divider down so it doesn't dominate.
+   Keyed to the page, not the theme — under the plain dark theme the paper is
+   still white, and these painted #ccc shot text and dark image wells on it.
+   Screen only: print is always on white paper. */
+@media screen {
+:root[data-dark-pages='on']:not([data-theme='light']) .av-block { --av-divider: #3a3a3a; }
+:root[data-dark-pages='on']:not([data-theme='light']) .av-cue { color: #9a9a9a; }
+:root[data-dark-pages='on']:not([data-theme='light']) .av-cue-shot { color: #ccc; }
+:root[data-dark-pages='on']:not([data-theme='light']) .av-cue-duration { border-color: #3a3a3a; }
+:root[data-dark-pages='on']:not([data-theme='light']) .av-image { background: #232323; border-color: #3a3a3a; }
+:root[data-dark-pages='on']:not([data-theme='light']) .av-image[data-empty='true']::after { color: #777; }
+:root[data-dark-pages='on']:not([data-theme='light']) .ProseMirror .av-cell:focus-within {
   background-color: rgba(120, 180, 255, 0.07);
+}
 }
 
 /* ── Toolbar AV row controls (issue #116) ──────────────────────────────
@@ -479,7 +484,9 @@
   letter-spacing: 0.04em;
 }
 
-[data-theme='dark'] .av-cell .av-graphic { border-left-color: #555; }
+@media screen {
+  :root[data-dark-pages='on']:not([data-theme='light']) .av-cell .av-graphic { border-left-color: #555; }
+}
 
 /* Page Setup orientation picker. */
 .page-setup-orientation {

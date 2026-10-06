@@ -23,6 +23,7 @@ import type {
   LinkPreview,
   DemoInfo,
 } from './api';
+import { normalizeFormat } from '../utils/scriptFormat';
 
 const STORAGE_KEY = 'opendraft:fallback';
 
@@ -167,14 +168,14 @@ export function createFallbackStorage() {
         .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
     },
 
-    createScript: async (projectId: string, scriptData: { title: string; content?: any }): Promise<ScriptResponse> => {
+    createScript: async (projectId: string, scriptData: { title: string; content?: Record<string, unknown>; format?: string }): Promise<ScriptResponse> => {
       const data = loadData();
       const id = uuid();
       const ts = now();
       const content = scriptData.content || null;
       const contentStr = content ? JSON.stringify(content) : '';
       const meta: ScriptMeta = {
-        id, title: scriptData.title, author: '', format: 'screenplay',
+        id, title: scriptData.title, author: '', format: normalizeFormat(scriptData.format),
         created_at: ts, updated_at: ts, page_count: 0,
         size_bytes: contentStr.length, color: '', pinned: false, sort_order: 0, preview: '',
       };

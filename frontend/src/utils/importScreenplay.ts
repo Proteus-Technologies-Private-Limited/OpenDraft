@@ -18,6 +18,7 @@ import { parseOSF, parseFadeIn, type DocumentFont } from './osfParser';
 import { COURIER_FONTS } from './fonts';
 import { parseOdraft } from './odraftFormat';
 import { hydrateEditorStoresFromContent } from './hydrateStores';
+import { restoreRevisionState } from './revisionState';
 import { useEditorStore, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
 
 /** Every extension File ▸ Import, drag-and-drop and the OS can hand us. */
@@ -80,6 +81,13 @@ export interface ImportedScreenplay {
   formatLabel: string;
   /** Non-fatal notes worth surfacing to the user. */
   warnings: string[];
+  /**
+   * Script settings the file carries, under the keys a saved script stores
+   * them (`_revisionMode`, `_sceneNumbersLocked`…). Already applied to the
+   * stores when they were hydrated; a caller saving the import straight into
+   * a project merges them into the content it saves.
+   */
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -97,11 +105,67 @@ export function resetStoresForImport(): void {
   store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
   store.setCharacterProfiles([]);
   store.setScenes([]);
+  store.resetRevisionState();
+}
+
+/**
+ * Scene numbers a production script arrived with.
+ *
+ * Only production numbering — an A-number such as 12A, or a gap left by a cut
+ * scene — changes anything: it is shown and locked, because opening it with
+ * numbers hidden would clear them and showing them unlocked would renumber
+ * them, and either undoes the numbers a schedule was built on. Plain 1, 2, 3
+ * numbering leaves the script's settings as they were, exactly as before:
+ * it is what renumbering would produce anyway. Null means "leave them alone".
+ */
+export function importedSceneNumbering(doc: { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> }): { visible: boolean; locked: boolean } | null {
+  const numbered = (doc.content ?? [])
+    .filter((n) => n.type === 'sceneHeading')
+    .map((n) => (n.attrs?.sceneNumber == null ? '' : String(n.attrs.sceneNumber).trim()))
+    .filter(Boolean);
+  if (numbered.length === 0) return null;
+  const production = numbered.some((n) => !/^\d+$/.test(n))
+    || numbered.some((n, i) => Number(n) !== i + 1);
+  return production ? { visible: true, locked: true } : null;
+}
+
+/**
+ * The script settings an .fdx carries, as the keys a saved script stores them
+ * under (see utils/saveContent): its revisions — the mode, the active colour,
+ * every colour used and the marks — and its scene numbering.
+ */
+export function fdxMetadata(parsed: ReturnType<typeof parseFDXFull>): Record<string, unknown> {
+  const meta: Record<string, unknown> = {};
+  const r = parsed.revisions;
+  if (r) {
+    meta._revisionMode = r.mode;
+    meta._revisionColor = r.color ?? r.colors[r.colors.length - 1] ?? undefined;
+    meta._revisionHistory = r.colors.map((color) => ({ color, date: '' }));
+    meta._revisionSettings = r.settings;
+  }
+  const numbering = importedSceneNumbering(parsed.doc as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> });
+  if (numbering) {
+    meta._sceneNumbersVisible = numbering.visible;
+    meta._sceneNumbersLocked = numbering.locked;
+  }
+  // Any app setting in a saved payload marks it as written by OpenDraft, and
+  // one with no spacing key is then taken for a script from before the
+  // two-line scene-heading standard (utils/elementSpacing). An import is new,
+  // so it says so: null follows the template, exactly as a bare import did.
+  if (Object.keys(meta).length > 0) meta._sceneHeadingSpaceBefore = null;
+  return meta;
 }
 
 /** Apply the page layout, beats and cast an .fdx carries alongside its text. */
 function applyFdxSideEffects(parsed: ReturnType<typeof parseFDXFull>): void {
   const store = useEditorStore.getState();
+
+  // Revisions and scene numbering: what fdxMetadata() reads, put into the
+  // store exactly as reopening a saved script would.
+  const meta = fdxMetadata(parsed);
+  if (meta._revisionHistory) restoreRevisionState(meta);
+  if (typeof meta._sceneNumbersVisible === 'boolean') store.setSceneNumbersVisible(meta._sceneNumbersVisible);
+  if (typeof meta._sceneNumbersLocked === 'boolean') store.setSceneNumbersLocked(meta._sceneNumbersLocked);
 
   if (parsed.pageLayout) {
     store.setPageLayout({ ...store.pageLayout, ...parsed.pageLayout });
@@ -209,7 +273,7 @@ export async function parseScreenplayImport(
       applyFdxSideEffects(parsed);
       applyDocumentFont(parsed.documentFont);
     }
-    return { doc: parsed.doc, title: '', formatLabel, warnings: [] };
+    return { doc: parsed.doc, title: '', formatLabel, warnings: [], metadata: fdxMetadata(parsed) };
   }
 
   if (ext === 'odraft') {

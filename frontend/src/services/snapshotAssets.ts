@@ -84,7 +84,19 @@ function fromBase64(b64: string): Uint8Array {
   return out;
 }
 
-function mimeFor(filename: string): string {
+type AssetBytesReader = (projectId: string, assetId: string) => Promise<Uint8Array>;
+
+/**
+ * The client's asset-byte reader, bound to it — or null when the client has
+ * none. Only local storage (desktop, iOS, Android) can hand back raw bytes; the
+ * HTTP and cloud clients serve assets by URL only.
+ */
+export function assetBytesReader(client: object = api): AssetBytesReader | null {
+  const fn = (client as { getAssetBytes?: AssetBytesReader }).getAssetBytes;
+  return typeof fn === 'function' ? (p, a) => fn.call(client, p, a) : null;
+}
+
+export function mimeFor(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   if (ext === 'png') return 'image/png';
   if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
@@ -110,16 +122,14 @@ export async function packAssets(
   let total = 0;
   let truncated = false;
 
-  const getBytes = (api as unknown as {
-    getAssetBytes?: (p: string, a: string) => Promise<Uint8Array>;
-  }).getAssetBytes;
-  if (typeof getBytes !== 'function') {
+  const getBytes = assetBytesReader(api);
+  if (!getBytes) {
     return { assets: [], truncated: refs.length > 0 };
   }
 
   for (const ref of refs) {
     try {
-      const bytes = await getBytes.call(api, projectId, ref.id);
+      const bytes = await getBytes(projectId, ref.id);
       if (total + bytes.byteLength > capBytes) {
         truncated = true;
         break;

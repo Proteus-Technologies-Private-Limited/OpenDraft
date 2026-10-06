@@ -70,6 +70,35 @@
   --screenplay-font: 'Courier Final Draft', 'Courier Prime', 'Courier New', 'Courier', monospace;
   --screenplay-font-size: 12pt;
   --screenplay-line-height: 1;
+
+  /* The script page itself — paper and ink. Kept apart from --fd-page-bg,
+     which treatment pages, the diff view and the template preview also use
+     with their own hard-coded dark text. Only Dark Pages changes these. */
+  --page-paper: #ffffff;
+  --page-ink: #000000;
+  --page-ink-muted: #8a8a8a;
+  --page-ink-faint: #b0b0b0;
+  --page-ink-placeholder: #cccccc;
+  --page-grammar-style: #2e7dd7;
+}
+
+/* ── Dark Pages (View → Theme → Dark Pages) ──
+   Screen only: the @media print block below puts the paper back to white, and
+   PDF export never reads these. The :not() guard keeps a stray attribute from
+   darkening pages under the light theme. */
+:root[data-dark-pages="on"]:not([data-theme="light"]) {
+  --page-paper: #1e1e1e;
+  --page-ink: #d8d8d8;
+  --page-ink-muted: #8c8c8c;
+  --page-ink-faint: #6e6e6e;
+  --page-ink-placeholder: #5a5a5a;
+  --page-grammar-style: #64a8f5;
+}
+/* Explicit near-black text (pasted from Word/Docs, or the colour picker's
+   default) is ink, not a choice — see InkAwareColor.ts. Beats the inline
+   style; the stored colour, and every export, is unchanged. */
+:root[data-dark-pages="on"]:not([data-theme="light"]) .page [data-ink="dark"] {
+  color: var(--page-ink) !important;
 }
 
 /* ── Light theme ── */
@@ -2085,7 +2114,7 @@ body {
 
 /* ============ PAGE ============ */
 .page {
-  background: var(--fd-page-bg);
+  background: var(--page-paper);
   min-height: var(--page-min-height);
   padding: var(--page-margin-top) var(--page-margin-right) var(--page-margin-bottom) var(--page-margin-left);
   box-shadow: 0 1px 4px rgba(0,0,0,.3), 0 0 0 1px rgba(0,0,0,.06);
@@ -2100,7 +2129,7 @@ body {
   /* Adjust letter-spacing so Courier New matches Final Draft Courier width.
      FD: 62 chars in 6.0" = 9.29px/char. Courier New: 9.60px/char. Diff: -0.31px */
   letter-spacing: -0.31px;
-  color: #000;
+  color: var(--page-ink);
   outline: none;
   overflow: visible;
 }
@@ -2152,6 +2181,88 @@ body {
 .show-scene-numbers .scene-heading[data-scene-number]::after {
   left: calc(100% + 0.15in);
   text-align: left;
+}
+
+/* ── Revision marks (Tools → Production → Revision Mode) ──
+   One asterisk in the right margin beside every line holding revised text,
+   placed by measuring the lines (RevisionGutter in editor/revisionMarks.ts):
+   the layer sits beside the text column and draws nothing itself. Past the
+   right scene number, which sits at +0.15in and can be "123A" wide. */
+.rev-gutter {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 5;
+}
+.rev-star {
+  position: absolute;
+  font-family: var(--screenplay-font);
+  font-weight: bold;
+  color: var(--page-ink);
+}
+/* Printing from the browser lays the script out afresh, so the measured layer
+   would be in the wrong place. There, each revised run draws its own asterisk
+   on the line it starts on — close enough for a print that is not the PDF
+   route (the default), which marks every line exactly. */
+@media print {
+  .rev-gutter { display: none !important; }
+  .rev-mark::before {
+    content: var(--rev-mark, '*');
+    position: absolute;
+    left: calc(100% + 0.65in);
+    font-weight: bold;
+    font-style: normal;
+    text-decoration: none;
+    color: #000;
+  }
+  .av-cell .rev-mark::before { left: calc(100% + 2px); }
+  /* A mark of its own for each revision (Revision Settings), handed over as
+     custom properties by RevisionGutter. */
+  .rev-mark[data-rev="blue"]::before       { content: var(--rev-mark-blue, var(--rev-mark, '*')); }
+  .rev-mark[data-rev="pink"]::before       { content: var(--rev-mark-pink, var(--rev-mark, '*')); }
+  .rev-mark[data-rev="yellow"]::before     { content: var(--rev-mark-yellow, var(--rev-mark, '*')); }
+  .rev-mark[data-rev="green"]::before      { content: var(--rev-mark-green, var(--rev-mark, '*')); }
+  .rev-mark[data-rev="goldenrod"]::before  { content: var(--rev-mark-goldenrod, var(--rev-mark, '*')); }
+  .rev-mark[data-rev="buff"]::before       { content: var(--rev-mark-buff, var(--rev-mark, '*')); }
+  .rev-mark[data-rev="salmon"]::before     { content: var(--rev-mark-salmon, var(--rev-mark, '*')); }
+  .rev-mark[data-rev="cherry"]::before     { content: var(--rev-mark-cherry, var(--rev-mark, '*')); }
+  .rev-mark[data-rev="2nd-blue"]::before   { content: var(--rev-mark-2nd-blue, var(--rev-mark, '*')); }
+  .rev-mark[data-rev="2nd-pink"]::before   { content: var(--rev-mark-2nd-pink, var(--rev-mark, '*')); }
+  .rev-mark[data-rev="2nd-yellow"]::before { content: var(--rev-mark-2nd-yellow, var(--rev-mark, '*')); }
+  .rev-mark[data-rev="2nd-green"]::before  { content: var(--rev-mark-2nd-green, var(--rev-mark, '*')); }
+}
+
+/* View the colours: revised text in its revision's colour. Screen only. */
+.rev-mark[data-rev="blue"]       { --rev-ink: #2f5f9e; }
+.rev-mark[data-rev="pink"]       { --rev-ink: #b03a72; }
+.rev-mark[data-rev="yellow"]     { --rev-ink: #8a7400; }
+.rev-mark[data-rev="green"]      { --rev-ink: #2e7d32; }
+.rev-mark[data-rev="goldenrod"]  { --rev-ink: #8b6508; }
+.rev-mark[data-rev="buff"]       { --rev-ink: #7a5c33; }
+.rev-mark[data-rev="salmon"]     { --rev-ink: #c0503f; }
+.rev-mark[data-rev="cherry"]     { --rev-ink: #b02525; }
+.rev-mark[data-rev="2nd-blue"]   { --rev-ink: #1f4e79; }
+.rev-mark[data-rev="2nd-pink"]   { --rev-ink: #8e3563; }
+.rev-mark[data-rev="2nd-yellow"] { --rev-ink: #6f5f00; }
+.rev-mark[data-rev="2nd-green"]  { --rev-ink: #256b25; }
+:root[data-dark-pages="on"]:not([data-theme="light"]) .rev-mark[data-rev="blue"]       { --rev-ink: #6fa8dc; }
+:root[data-dark-pages="on"]:not([data-theme="light"]) .rev-mark[data-rev="pink"]       { --rev-ink: #e06c9f; }
+:root[data-dark-pages="on"]:not([data-theme="light"]) .rev-mark[data-rev="yellow"]     { --rev-ink: #f4d35e; }
+:root[data-dark-pages="on"]:not([data-theme="light"]) .rev-mark[data-rev="green"]      { --rev-ink: #6abf69; }
+:root[data-dark-pages="on"]:not([data-theme="light"]) .rev-mark[data-rev="goldenrod"]  { --rev-ink: #daa520; }
+:root[data-dark-pages="on"]:not([data-theme="light"]) .rev-mark[data-rev="buff"]       { --rev-ink: #d2b48c; }
+:root[data-dark-pages="on"]:not([data-theme="light"]) .rev-mark[data-rev="salmon"]     { --rev-ink: #fa8072; }
+:root[data-dark-pages="on"]:not([data-theme="light"]) .rev-mark[data-rev="cherry"]     { --rev-ink: #e05555; }
+:root[data-dark-pages="on"]:not([data-theme="light"]) .rev-mark[data-rev="2nd-blue"]   { --rev-ink: #7aaee0; }
+:root[data-dark-pages="on"]:not([data-theme="light"]) .rev-mark[data-rev="2nd-pink"]   { --rev-ink: #d77fae; }
+:root[data-dark-pages="on"]:not([data-theme="light"]) .rev-mark[data-rev="2nd-yellow"] { --rev-ink: #e0c84e; }
+:root[data-dark-pages="on"]:not([data-theme="light"]) .rev-mark[data-rev="2nd-green"]  { --rev-ink: #6cc46c; }
+/* !important: revised text may also carry its own inline colour, and showing
+   which round it belongs to is the whole point of this view. White has none. */
+@media screen {
+  .show-revision-colors .rev-mark[data-rev]:not([data-rev="white"]) { color: var(--rev-ink) !important; }
 }
 
 /* Action */
@@ -2447,19 +2558,19 @@ body {
 }
 
 /* ============ PLACEHOLDER TEXT ============ */
-div[data-type="scene-heading"].is-empty::before { content: 'INT./EXT. LOCATION - TIME'; color: #ccc; pointer-events: none; float: left; height: 0; text-transform: uppercase; }
-div[data-type="action"].is-empty::before { content: 'Describe the action...'; color: #ccc; pointer-events: none; float: left; height: 0; font-style: italic; }
-div[data-type="character"].is-empty::before { content: 'CHARACTER NAME'; color: #ccc; pointer-events: none; float: left; height: 0; text-transform: uppercase; }
-div[data-type="dialogue"].is-empty::before { content: 'Dialogue...'; color: #ccc; pointer-events: none; float: left; height: 0; font-style: italic; }
-div[data-type="parenthetical"].is-empty::before { content: '(direction)'; color: #ccc; pointer-events: none; float: left; height: 0; font-style: italic; }
-div[data-type="transition"].is-empty::before { content: 'TRANSITION:'; color: #ccc; pointer-events: none; float: left; height: 0; text-transform: uppercase; }
-div[data-type="general"].is-empty::before { content: 'Text...'; color: #ccc; pointer-events: none; float: left; height: 0; }
-div[data-type="shot"].is-empty::before { content: 'SHOT DESCRIPTION'; color: #ccc; pointer-events: none; float: left; height: 0; text-transform: uppercase; }
-div[data-type="new-act"].is-empty::before { content: 'ACT ONE'; color: #ccc; pointer-events: none; float: left; height: 0; text-transform: uppercase; }
-div[data-type="end-of-act"].is-empty::before { content: 'END OF ACT'; color: #ccc; pointer-events: none; float: left; height: 0; text-transform: uppercase; }
-div[data-type="lyrics"].is-empty::before { content: 'Lyrics...'; color: #ccc; pointer-events: none; float: left; height: 0; font-style: italic; }
-div[data-type="show-episode"].is-empty::before { content: 'SHOW TITLE'; color: #ccc; pointer-events: none; float: left; height: 0; text-transform: uppercase; }
-div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; pointer-events: none; float: left; height: 0; }
+div[data-type="scene-heading"].is-empty::before { content: 'INT./EXT. LOCATION - TIME'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; text-transform: uppercase; }
+div[data-type="action"].is-empty::before { content: 'Describe the action...'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; font-style: italic; }
+div[data-type="character"].is-empty::before { content: 'CHARACTER NAME'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; text-transform: uppercase; }
+div[data-type="dialogue"].is-empty::before { content: 'Dialogue...'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; font-style: italic; }
+div[data-type="parenthetical"].is-empty::before { content: '(direction)'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; font-style: italic; }
+div[data-type="transition"].is-empty::before { content: 'TRANSITION:'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; text-transform: uppercase; }
+div[data-type="general"].is-empty::before { content: 'Text...'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; }
+div[data-type="shot"].is-empty::before { content: 'SHOT DESCRIPTION'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; text-transform: uppercase; }
+div[data-type="new-act"].is-empty::before { content: 'ACT ONE'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; text-transform: uppercase; }
+div[data-type="end-of-act"].is-empty::before { content: 'END OF ACT'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; text-transform: uppercase; }
+div[data-type="lyrics"].is-empty::before { content: 'Lyrics...'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; font-style: italic; }
+div[data-type="show-episode"].is-empty::before { content: 'SHOW TITLE'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; text-transform: uppercase; }
+div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; }
 
 
 /* ====================================================================
@@ -2504,7 +2615,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   right: var(--page-margin-right);
   font-family: var(--screenplay-font);
   font-size: 12pt;
-  color: #000;
+  color: var(--page-ink);
   line-height: 1;
 }
 
@@ -2518,7 +2629,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   align-items: baseline;
   font-family: var(--screenplay-font);
   font-size: 12pt;
-  color: #000;
+  color: var(--page-ink);
   line-height: 1;
 }
 .page-sep-header {
@@ -2576,7 +2687,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   font-family: var(--fd-font, system-ui, sans-serif);
   font-size: 10px;
   letter-spacing: 0.3px;
-  color: #8a8a8a;
+  color: var(--page-ink-muted);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.12s ease;
@@ -2593,7 +2704,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;
-  color: #000;
+  color: var(--page-ink);
   background: transparent;
   border: none;
   outline: none;
@@ -2601,7 +2712,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   min-width: 0;
 }
 .page-sep-hf-input::placeholder {
-  color: #b0b0b0;
+  color: var(--page-ink-faint);
 }
 .page-sep-hf-settings {
   position: absolute;
@@ -2637,7 +2748,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   right: 0;
   font-family: var(--screenplay-font);
   font-size: 12pt;
-  color: #000;
+  color: var(--page-ink);
   line-height: 1;
   text-align: center;
   padding-left: calc(var(--page-margin-left) + 1.31in);
@@ -2651,7 +2762,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
 .page-sep-contd {
   font-family: var(--screenplay-font);
   font-size: 12pt;
-  color: #000;
+  color: var(--page-ink);
   line-height: 16px;
   height: 16px;
   text-transform: uppercase;
@@ -2847,6 +2958,28 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: #ccc; p
   background: var(--fd-accent); border-color: var(--fd-accent); color: #fff;
 }
 .dialog-btn-primary:hover { opacity: .9; }
+
+/* Tools → Production → Revision Settings */
+.revision-settings-dialog { max-width: 460px; width: 100%; }
+.revision-settings-row { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--fd-text); }
+.revision-settings-dialog input[type="text"] {
+  width: 3.5em; height: 32px; text-align: center; font-family: var(--screenplay-font, 'Courier Prime', monospace);
+  font-size: 16px; font-weight: bold; background: var(--fd-input-bg); color: var(--fd-text);
+  border: 1px solid var(--fd-border); border-radius: 4px; outline: none;
+}
+.revision-settings-dialog input[type="text"]:focus { border-color: var(--fd-accent); }
+.revision-settings-help { display: block; margin: 6px 0 0; font-size: 12px; color: var(--fd-text-muted); line-height: 1.4; }
+.revision-settings-subhead { margin-top: 18px; font-size: 14px; font-weight: 600; color: var(--fd-text); }
+.revision-settings-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px 14px; margin-top: 10px;
+}
+.revision-settings-color { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fd-text-muted); }
+.revision-settings-color.used { color: var(--fd-text); font-weight: 600; }
+.revision-settings-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--fd-border); flex-shrink: 0; }
+.revision-settings-name { flex: 1; }
+.revision-settings-check { display: flex; align-items: flex-start; gap: 10px; margin-top: 18px; font-size: 14px; color: var(--fd-text); cursor: pointer; }
+.revision-settings-check input { margin-top: 3px; }
+.revision-settings-error { margin: 12px 0 0; font-size: 13px; color: #dc2626; }
 .dialog-btn-primary:disabled { opacity: .5; cursor: default; }
 .dialog-label { display: block; font-size: 13px; color: var(--fd-text-muted); margin-bottom: 4px; }
 .dialog-input {
@@ -5380,7 +5513,7 @@ sup.footnote-marker {
   font-family: var(--screenplay-font);
   font-size: 12pt;
   line-height: 16px;
-  color: #000;
+  color: var(--page-ink);
   /* .page-sep is pointer-events:none, so opt back in to allow the click
      through to the note in the panel. */
   pointer-events: auto;
@@ -5390,7 +5523,7 @@ sup.footnote-marker {
 .footnote-rule {
   width: 2in;
   height: 0;
-  border-top: 1px solid #000;
+  border-top: 1px solid var(--page-ink);
   /* The blank line above the rule is the second of the two lines the reserve
      charges for; the rule itself sits on the first. */
   margin: 8px 0 0;
@@ -5448,7 +5581,7 @@ sup.footnote-marker {
   font-family: var(--screenplay-font);
   font-size: 12pt;
   line-height: 16px;
-  color: #000;
+  color: var(--page-ink);
   z-index: 5;
 }
 .endnote-entry-title {
@@ -6839,7 +6972,7 @@ html.android .spell-error {
 /* ============ GRAMMAR / WRITING SUGGESTIONS ============ */
 /* Style suggestions (passive voice, weak words, wordy phrases): blue dotted */
 .grammar-issue.grammar-style {
-  text-decoration: underline dotted #2e7dd7;
+  text-decoration: underline dotted var(--page-grammar-style);
   text-decoration-skip-ink: none;
   text-underline-offset: 2px;
 }
@@ -6850,6 +6983,10 @@ html.android .grammar-issue.grammar-style {
   background-position: 0 100%;
   background-size: 4px 2px;
   padding-bottom: 1px;
+}
+/* A data URI can't read a custom property; same dots in --page-grammar-style's dark value. */
+html.android[data-dark-pages="on"]:not([data-theme="light"]) .grammar-issue.grammar-style {
+  background-image: url("data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 2'><circle cx='1' cy='1.5' r='0.6' fill='%2364a8f5'/></svg>");
 }
 /* Grammar errors (a/an, repeated words): teal wavy — distinct from spelling red */
 .grammar-issue.grammar-grammar {
@@ -7179,8 +7316,8 @@ html.android .version-history-panel {
 
 /* An explicit caret on the page, so nothing upstream can quietly turn it
    transparent. It must contrast with the *paper*, not with the app chrome:
-   --fd-page-bg is #ffffff in every theme and .screenplay-content sets the text
-   to #000, so the caret follows the text. Using the chrome's --fd-text here
+   .screenplay-content sets the text to --page-ink, which is chosen against
+   --page-paper, so the caret follows the text. Using the chrome's --fd-text here
    painted a #e0e0e0 caret on white paper in the dark theme — present, focused,
    and invisible. The history-mode rule below is more specific and still wins,
    so a read-only draft stays caret-free. */
@@ -7197,7 +7334,7 @@ body.pencil-caret-active .page .ProseMirror { caret-color: transparent; }
   position: absolute;
   width: 2px;
   background: currentColor;
-  color: #000;
+  color: var(--page-ink);
   pointer-events: none;
   z-index: 40;
   animation: pencil-caret-blink 1.06s steps(1, end) infinite;
@@ -10994,6 +11131,18 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
    * being made of it. `size` is left alone so the paper chosen in the print
    * dialog is the paper used. */
   @page { margin: 0; }
+
+  /* Dark Pages is a screen preference. Paper is white: the same selector as
+     the screen rule, later in the file, so it wins. Without this a dark page
+     printed as near-white text on white, since browsers drop backgrounds. */
+  :root[data-dark-pages="on"]:not([data-theme="light"]) {
+    --page-paper: #ffffff;
+    --page-ink: #000000;
+    --page-ink-muted: #8a8a8a;
+    --page-ink-faint: #b0b0b0;
+    --page-ink-placeholder: #cccccc;
+    --page-grammar-style: #2e7dd7;
+  }
 
   /* Hide all chrome */
   /* The dropdown is portalled to the body, so hiding .menu-bar never reached

@@ -26,6 +26,7 @@ import {
   FootnoteReferenceRun,
   EndnoteReferenceRun,
   Table,
+  Tab,
 } from 'docx';
 import type { ISectionOptions } from 'docx';
 import { noteBlockText, type NoteBlock as NoteBlockLike } from './noteContent';
@@ -33,6 +34,9 @@ import type { FootnotePlan, FootnoteRef } from './footnotes';
 import { resolveImageUrl, loadImageBytes } from './imageAsset';
 import { jsonBlockRuns, jsonBlockText, type Run } from './nodeText';
 import type { JSONContent } from '@tiptap/react';
+import { blockRevision } from './revisionExport';
+import { revisionMarkXPt } from './revisionPdf';
+import { DEFAULT_REVISION_SETTINGS, revisionMarkFor, type RevisionSettings } from '../editor/revisionColors';
 import { resolveHeaderFooter, printedPageNumber } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
 import { getForceBreakIds, jsonStartsOwnPage } from './pageBreaks';
@@ -375,16 +379,50 @@ function buildElementParagraph(
   /** References anchored in this block, with the note number each carries. */
   refs: readonly FootnoteRef[] = [],
   isEndnote: (noteId: string) => boolean = () => false,
+  /** How revised paragraphs are marked; null writes no marks. */
+  revisionMarks: RevisionSettings | null = null,
 ): Paragraph {
   const typeName = node.type || 'general';
   const indent = indentForType(typeName, layout);
-  const alignment = alignmentForType(typeName);
+  let alignment = alignmentForType(typeName);
   const sb = isFirst ? 0 : (spaceBeforeLines[typeName] ?? 0) * LINE_HEIGHT_PT;
   const styledRuns = applyTypeStyles(extractRuns(node), typeName);
-  const children = buildTextRuns(styledRuns, docFont, refs, isEndnote);
+  let children: (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] = buildTextRuns(styledRuns, docFont, refs, isEndnote);
+
+  // A revised paragraph's mark, in the right margin where the PDF prints it.
+  // Word wraps the text itself, so it is one mark on the paragraph's last
+  // line: a tab to a stop past the right indent, which Word lets the text run
+  // out to. A right-aligned or centred line would carry the tab off with it,
+  // so a single-line one is laid out with tab stops instead — the same place
+  // on the page, and room for the mark after it.
+  const revision = revisionMarks ? blockRevision(node) : null;
+  let tabStops: { type: (typeof TabStopType)[keyof typeof TabStopType]; position: number }[] | undefined;
+  if (revision !== null) {
+    const markX = Math.round((revisionMarkXPt(layout.pageWidth * 72) / 72 - layout.leftMargin) * TWIPS_PER_INCH);
+    tabStops = [{ type: TabStopType.LEFT, position: markX }];
+    const singleLine = !styledRuns.some((r) => r.isBreak);
+    const textRight = Math.round((layout.pageWidth - layout.leftMargin - layout.rightMargin) * TWIPS_PER_INCH) - indent.right;
+    if (singleLine && alignment !== AlignmentType.LEFT) {
+      const lead = alignment === AlignmentType.RIGHT
+        ? { type: TabStopType.RIGHT, position: textRight }
+        : { type: TabStopType.CENTER, position: Math.round((indent.left + textRight) / 2) };
+      tabStops = [lead, ...tabStops];
+      children = [new TextRun({ children: [new Tab()], font: docFont, size: FONT_SIZE_HALFPT }), ...children];
+      alignment = AlignmentType.LEFT;
+    }
+    children = [
+      ...children,
+      // A real <w:tab/>: a tab character inside the text is not one to Word.
+      new TextRun({
+        children: [new Tab(), revisionMarkFor(revisionMarks, revision)],
+        font: docFont, size: FONT_SIZE_HALFPT, bold: true,
+      }),
+    ];
+  }
 
   return new Paragraph({
     alignment,
+    ...(tabStops ? { tabStops } : {}),
     style: STYLE_NAMES[typeName] ? typeName : undefined,
     indent: {
       left: indent.left,
@@ -479,6 +517,10 @@ export interface DocxExportOptions {
   /** Whether the title page is written at all. Absent or true keeps it. The
    *  writer's preference, shared with print and PDF — see `PDFExportOptions`. */
   includeTitlePage?: boolean;
+  /** Revised paragraphs get a mark in the right margin, in these characters.
+   *  Absent: an asterisk. `showRevisionMarks: false` writes none. */
+  revisionSettings?: RevisionSettings | null;
+  showRevisionMarks?: boolean;
 }
 
 export async function exportDocx(
@@ -544,6 +586,9 @@ export async function exportDocx(
 
   const docTitle = options?.documentTitle || title;
   const revColor = options?.revisionColor || '';
+  const revisionMarks = options?.showRevisionMarks === false
+    ? null
+    : (options?.revisionSettings ?? DEFAULT_REVISION_SETTINGS);
   const docFont = options?.documentFont || FONT_FAMILY;
 
   // Printing notes reach a file only when the writer asked them to.
@@ -726,6 +771,7 @@ export async function exportDocx(
         bodyNodes[i], layout, i === 0, forcePageBreak, docFont, spaceBeforeLines,
         plan?.refsByNode.get(bodySrcIndex[i]) ?? [],
         (noteId) => !!plan && !plan.footnoteIds.has(noteId),
+        revisionMarks,
       ),
     );
   }

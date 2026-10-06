@@ -3,6 +3,8 @@
 import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
 import { clampSectionLevel } from '../editor/extensions/Section';
 import { isNonPrintingType } from './nonPrinting';
+import { parseFountainRevisionNote } from './revisionExport';
+import { REVISABLE_BLOCK_TYPES } from '../editor/extensions/RevisionMark';
 
 interface TipTapMark {
   type: string;
@@ -326,6 +328,18 @@ export function parseFountain(text: string): TipTapNode {
     while (flushedThrough < limit) {
       flushedThrough++;
       for (const note of noteLines.get(flushedThrough) ?? []) {
+        // `[[* Blue]]` is a revision mark OpenDraft wrote, not a note: it goes
+        // back onto the element it marked (see utils/revisionExport).
+        const revision = parseFountainRevisionNote(note);
+        if (revision) {
+          const target = [...nodes].reverse().find((n) => !isNonPrintingType(n.type) && n.type !== 'titlePage');
+          // Only onto an element that can carry a revision; anything else
+          // keeps the note rather than losing it.
+          if (target && REVISABLE_BLOCK_TYPES.includes(target.type)) {
+            target.attrs = { ...target.attrs, revised: revision };
+            continue;
+          }
+        }
         nodes.push(makeNode('note', note));
       }
     }

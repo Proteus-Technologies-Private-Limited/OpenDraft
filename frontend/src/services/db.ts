@@ -9,6 +9,7 @@
  */
 
 import Database from '@tauri-apps/plugin-sql';
+import { looksLikeTreatment } from '../utils/scriptFormat';
 
 let _db: Database | null = null;
 
@@ -271,6 +272,30 @@ async function migrateFromOldSchema(db: Database): Promise<void> {
   }
   if (!scriptColNames.has('template_id')) {
     await db.execute(`ALTER TABLE scripts ADD COLUMN template_id TEXT DEFAULT NULL`);
+  }
+  // A script's format (screenplay / treatment). Before this column a treatment
+  // written on this device reopened in the screenplay editor; the ones already
+  // saved are recognised by their content, once, as the column is added.
+  if (!scriptColNames.has('format')) {
+    await db.execute(`ALTER TABLE scripts ADD COLUMN format TEXT NOT NULL DEFAULT 'screenplay'`);
+    try {
+      const rows = await db.select<Array<{ script_id: string; content: string | null }>>(
+        // A loose prefilter — only a parse can say — that also matches JSON
+        // written with spaces after the colons.
+        `SELECT script_id, content FROM script_content WHERE content LIKE '%"paragraph"%' OR content LIKE '%"heading"%'`,
+      );
+      for (const row of rows) {
+        let parsed: unknown = null;
+        try { parsed = row.content ? JSON.parse(row.content) : null; } catch { /* not JSON — leave it */ }
+        if (looksLikeTreatment(parsed)) {
+          await db.execute(`UPDATE scripts SET format = 'treatment' WHERE id = $1`, [row.script_id]);
+        }
+      }
+    } catch (err) {
+      // The column is in place either way; a missed backfill only means an old
+      // treatment still opens as a screenplay, as it did before.
+      console.error('[db] could not recognise existing treatments', err);
+    }
   }
 
   // Formatting templates gained per-element page-break rules (JSON array of
