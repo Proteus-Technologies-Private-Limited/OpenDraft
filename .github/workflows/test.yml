@@ -97,12 +97,12 @@ jobs:
           # The Tauri CLI sets these during `tauri android build`; cargo on its
           # own does not, and cc-rs then looks for an `aarch64-linux-android-clang`
           # that no NDK has ever shipped — C build scripts (ring's, among others)
-          # fail before any of our code is reached. API 24 is the template's
-          # minSdk.
-          export CC_aarch64_linux_android="$BIN/aarch64-linux-android24-clang"
-          export CXX_aarch64_linux_android="$BIN/aarch64-linux-android24-clang++"
+          # fail before any of our code is reached. API 26 is the app's minSdk
+          # (bundle.android.minSdkVersion in tauri.conf.json); keep them in step.
+          export CC_aarch64_linux_android="$BIN/aarch64-linux-android26-clang"
+          export CXX_aarch64_linux_android="$BIN/aarch64-linux-android26-clang++"
           export AR_aarch64_linux_android="$BIN/llvm-ar"
-          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$BIN/aarch64-linux-android24-clang"
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$BIN/aarch64-linux-android26-clang"
           cd src-tauri
           # --lib because that is what Android loads: the binary in main.rs is
           # the desktop entry point and is never built for the platform.

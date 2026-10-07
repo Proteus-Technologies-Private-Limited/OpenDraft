@@ -104,7 +104,7 @@ class MainActivity : TauriActivity() {
          * that is not UTF-8 text, which meant archive formats — .fadein is a
          * zip — could never be imported on Android at all.
          *
-         * Done in Kotlin rather than JNI because minSdk is 24, so
+         * Done in Kotlin rather than JNI because minSdk is 26, so
          * InputStream.readAllBytes() (API 33) is unavailable and the
          * alternative is a hand-rolled read loop across the JNI boundary.
          * `context` is passed in because a companion object has none.

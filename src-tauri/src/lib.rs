@@ -250,7 +250,7 @@ fn android_read_content_uri_bytes(uri_str: &str) -> Result<ContentUriBytes, Stri
         }
     }
 
-    // The read itself lives in MainActivity.readUriBytes: minSdk is 24, so
+    // The read itself lives in MainActivity.readUriBytes: minSdk is 26, so
     // InputStream.readAllBytes() is unavailable and a JNI read loop would be
     // far more code than a Kotlin one-liner.
     let bytes_obj = env.call_static_method(
