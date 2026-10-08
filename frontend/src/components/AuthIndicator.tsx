@@ -12,7 +12,7 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { flushPendingSave } from '../services/pendingSave';
+import { leaveEditor } from '../services/pendingSave';
 import { FaCloud, FaUserCircle } from 'react-icons/fa';
 import { useSettingsStore } from '../stores/settingsStore';
 import { performLogout } from '../services/collabAuth';
@@ -122,10 +122,11 @@ const AuthIndicator: React.FC = () => {
             className="auth-indicator__menu-item"
             onClick={() => {
               setMenuOpen(false);
-              // Flush first: leaving the editor by router navigation fires
-              // neither `beforeunload` nor Tauri's close handler, and the
-              // auto-save tick is 30s wide (issue #65).
-              void flushPendingSave().then(() => navigate('/settings'));
+              // Leaving the editor by router navigation fires neither
+              // `beforeunload` nor Tauri's close handler, so the open document
+              // is flushed — or, with auto-save off, asked about — first
+              // (issues #65, #135).
+              void leaveEditor(() => navigate('/settings'));
             }}
           >
             <FaUserCircle /> Account settings

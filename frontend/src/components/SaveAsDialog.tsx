@@ -222,6 +222,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
    * to it.
    */
   const trimmedProjectName = projectName.trim();
+  const defaultProjectFolder = useSettingsStore((s) => s.defaultProjectFolder);
   const isNewProject = trimmedProjectName !== ''
     && !projects.some((p) => p.name.toLowerCase() === trimmedProjectName.toLowerCase());
 
@@ -277,7 +278,18 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
         project = cached;
       } else {
         try {
-          project = await client.createProject(trimmedProject);
+          // With a projects folder set in Settings, a new local project is
+          // kept in a folder of its own there, like one made from the
+          // project list (issue #135).
+          const lf = destination === 'local' ? await import('../services/linkedFiles') : null;
+          const folder = lf?.defaultFolderFor(trimmedProject) ?? null;
+          if (lf && folder) {
+            project = (await lf.createProjectInFolder(
+              trimmedProject, folder, lf.projectFileFormat(null),
+            )).project;
+          } else {
+            project = await client.createProject(trimmedProject);
+          }
         } catch (err: any) {
           if (err?.status === 409) {
             const fresh = await client.listProjects().catch(() => [] as ProjectInfo[]);
@@ -490,7 +502,8 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
               )}
               {isNewProject && (
                 <div style={{ fontSize: 12, color: 'var(--fd-text-muted)', marginTop: 6 }}>
-                  New project &mdash; &ldquo;{trimmedProjectName}&rdquo; will be created when you save.
+                  New project &mdash; &ldquo;{trimmedProjectName}&rdquo; will be created when you save
+                  {destination === 'local' && defaultProjectFolder ? <>, in a folder of its own in {defaultProjectFolder}</> : null}.
                 </div>
               )}
             </div>

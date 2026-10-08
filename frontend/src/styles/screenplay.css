@@ -7690,6 +7690,18 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 .source-badge--local {
   color: var(--fd-text-muted);
 }
+/* A file name or folder path: shown as written. Upper-casing it misstates the
+   name on a case-sensitive drive and makes a long path harder to read. */
+.source-badge--path {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .project-list-header {
   display: flex;

@@ -161,6 +161,46 @@ async function migrate(db: Database): Promise<void> {
     );
   `);
 
+  // ── Files on disk linked to scripts (issue #135) ──────────────────────────
+  // A script can be linked to a file the writer keeps outside the app — on its
+  // own, or because its project is linked to a folder. The library row stays
+  // the working copy; this records where the file is and what was last written
+  // to or read from it, so a change made by something else can be noticed.
+  //
+  // Deliberately no foreign key to scripts: restoring a version deletes and
+  // re-inserts every script in the project, and a cascading delete would drop
+  // the links with them. Links are cleaned up explicitly instead.
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS script_files (
+      script_id     TEXT PRIMARY KEY,
+      project_id    TEXT NOT NULL,
+      path          TEXT NOT NULL,
+      format        TEXT NOT NULL,
+      -- SHA-256 of the file's text as last written or read; '' = unknown
+      synced_hash   TEXT NOT NULL DEFAULT '',
+      -- the file's modification time at that moment (ms since the epoch)
+      synced_mtime  INTEGER NOT NULL DEFAULT 0,
+      -- 1 = the library holds changes the file has not received yet
+      pending       INTEGER NOT NULL DEFAULT 0,
+      last_error    TEXT NOT NULL DEFAULT ''
+    );
+  `);
+
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_script_files_project ON script_files(project_id);
+  `);
+
+  // Files in a linked folder the writer removed from the project but kept on
+  // disk. Without this, the next scan of the folder would add them right back.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS project_folder_ignores (
+      project_id    TEXT NOT NULL,
+      name          TEXT NOT NULL,
+      PRIMARY KEY (project_id, name)
+    );
+  `);
+
   // ── Migration from old schema ─────────────────────────────────────────────
   // If the old `versions` table (full-snapshot) exists, migrate data.
   // If the old `scripts` table has a `content` column, migrate it.

@@ -76,6 +76,19 @@ const TreatmentEditor: React.FC = () => {
     let cancelled = false;
     (async () => {
       try {
+        // A treatment in a project folder is an .odraft file there (issue
+        // #135); pick up a change made to it elsewhere before showing it.
+        try {
+          const lf = await import('../services/linkedFiles');
+          if (lf.linkingSupported()) {
+            const sync = await lf.syncScriptWithFile(projectId, scriptId);
+            if (sync.kind === 'loaded-from-file' && !cancelled) {
+              showToast(`${lf.basenameOf(sync.path)} was changed outside OpenDraft — opened that version.`, 'info');
+            }
+          }
+        } catch (err) {
+          console.warn('[TreatmentEditor] linked file check failed:', err);
+        }
         const resp = await api.getScript(projectId, scriptId);
         if (cancelled) return;
         setTitle(resp.meta.title || 'Untitled Treatment');

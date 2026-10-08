@@ -1649,5 +1649,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // Screenplay" — one keystroke away from overwriting their screenplay in
   // Dropbox with nothing. Re-opening the file from Files re-establishes it.
   documentOrigin: null,
-  setDocumentOrigin: (origin) => set({ documentOrigin: origin }),
+  // A file just opened in place matches its file exactly, so it starts out
+  // clean. Without the reset it inherited the previous document's status, and
+  // an "unsaved" left over from that one would prompt about — or auto-save — a
+  // file nobody had touched.
+  setDocumentOrigin: (origin) =>
+    set(origin ? { documentOrigin: origin, saveStatus: 'idle', saveError: null } : { documentOrigin: null }),
 }));

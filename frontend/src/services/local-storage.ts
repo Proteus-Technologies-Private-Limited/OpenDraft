@@ -143,6 +143,21 @@ async function collabRequest<T>(path: string, options?: RequestInit): Promise<T>
   return res.json();
 }
 
+/**
+ * Run one of the linked-file hooks (issue #135) without letting it fail the
+ * write that triggered it. The library copy is already safe by the time these
+ * run; a file that could not be written is recorded as pending by the hook.
+ */
+async function linkedFileHook(run: (lf: typeof import('./linkedFiles')) => Promise<void>): Promise<void> {
+  try {
+    const lf = await import('./linkedFiles');
+    if (!lf.linkingSupported()) return;
+    await run(lf);
+  } catch (err) {
+    console.error('[local-storage] linked-file update failed:', err);
+  }
+}
+
 // ── Public factory ───────────────────────────────────────────────────────────
 
 /**
@@ -223,6 +238,7 @@ export async function createLocalStorage() {
       await db.execute('DELETE FROM version_commits WHERE project_id = $1', [id]);
       await db.execute('DELETE FROM assets WHERE project_id = $1', [id]);
       await db.execute('DELETE FROM projects WHERE id = $1', [id]);
+      await linkedFileHook((lf) => lf.afterProjectDeleted(id));
       return { message: 'deleted' };
     },
 
@@ -252,7 +268,7 @@ export async function createLocalStorage() {
 
     async createScript(
       projectId: string,
-      data: { title: string; content?: Record<string, unknown>; format?: string },
+      data: { title: string; content?: Record<string, unknown>; format?: string; skipFileSync?: boolean },
     ): Promise<ScriptResponse> {
       const id = uuid();
       const ts = now();
@@ -270,6 +286,11 @@ export async function createLocalStorage() {
         );
       }
       await db.execute('UPDATE projects SET updated_at = $1 WHERE id = $2', [ts, projectId]);
+      if (!data.skipFileSync) {
+        await linkedFileHook((lf) => lf.afterScriptCreated(projectId, {
+          id, title: data.title, format, content: data.content ?? null,
+        }));
+      }
       return {
         meta: {
           id, title: data.title, author: '', format,
@@ -299,7 +320,7 @@ export async function createLocalStorage() {
     async saveScript(
       projectId: string,
       scriptId: string,
-      data: { title?: string; content?: Record<string, unknown>; color?: string; pinned?: boolean; sort_order?: number; allowEmptyBody?: boolean },
+      data: { title?: string; content?: Record<string, unknown>; color?: string; pinned?: boolean; sort_order?: number; allowEmptyBody?: boolean; skipFileSync?: boolean },
     ): Promise<ScriptResponse> {
       const existing = await storage.getScript(projectId, scriptId);
       const title = data.title ?? existing.meta.title;
@@ -368,10 +389,20 @@ export async function createLocalStorage() {
 
       await db.execute('UPDATE projects SET updated_at = $1 WHERE id = $2', [ts, projectId]);
 
-      return {
-        meta: { ...existing.meta, title, size_bytes: sizeBytes, updated_at: ts, color, pinned, sort_order },
-        content,
-      };
+      const meta = { ...existing.meta, title, size_bytes: sizeBytes, updated_at: ts, color, pinned, sort_order };
+      // A pin or a colour is library-only; the file hears about the text and
+      // the title (which names the file in a project folder).
+      if (!data.skipFileSync && (data.content !== undefined || title !== existing.meta.title)) {
+        await linkedFileHook((lf) => lf.afterScriptSaved(projectId, scriptId, {
+          title,
+          titleChanged: title !== existing.meta.title,
+          contentChanged: data.content !== undefined,
+          content: content as Record<string, unknown> | null,
+          meta,
+        }));
+      }
+
+      return { meta, content };
     },
 
     async deleteScript(
@@ -381,6 +412,7 @@ export async function createLocalStorage() {
       await db.execute('DELETE FROM script_content WHERE script_id = $1', [scriptId]);
       await db.execute('DELETE FROM scripts WHERE id = $1 AND project_id = $2', [scriptId, projectId]);
       await db.execute('UPDATE projects SET updated_at = $1 WHERE id = $2', [now(), projectId]);
+      await linkedFileHook((lf) => lf.afterScriptDeleted(projectId, scriptId));
       return { message: 'deleted' };
     },
 
@@ -419,6 +451,10 @@ export async function createLocalStorage() {
         );
       }
       await db.execute('UPDATE projects SET updated_at = $1 WHERE id = $2', [ts, projectId]);
+      await linkedFileHook((lf) => lf.afterScriptCreated(projectId, {
+        id, title, format: normalizeFormat(original.meta.format),
+        content: (original.content as Record<string, unknown> | null) ?? null,
+      }));
 
       return {
         meta: {
@@ -633,6 +669,7 @@ export async function createLocalStorage() {
       }
 
       await db.execute('UPDATE projects SET updated_at = $1 WHERE id = $2', [ts, projectId]);
+      await linkedFileHook((lf) => lf.afterVersionRestored(projectId));
 
       return {
         hash,

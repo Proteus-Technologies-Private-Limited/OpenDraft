@@ -157,6 +157,13 @@ export interface ProjectProperties {
   manager_contact: string;
   submissions: SubmissionEntry[];
   dictionary_words?: string[];
+  /**
+   * Folder on disk this project's scripts are saved to, desktop only
+   * (issue #135). Absent or '' = the project lives in the library only.
+   */
+  folder_path?: string;
+  /** Format new scripts in the linked folder are written in: odraft, fountain or fdx. */
+  file_format?: string;
 }
 
 export interface ProjectInfo {
@@ -271,7 +278,9 @@ export const api = {
   listScripts: (projectId: string, includePreview: boolean = false) =>
     request<ScriptMeta[]>(`/projects/${projectId}/scripts/${includePreview ? '?include_preview=true' : ''}`),
 
-  createScript: (projectId: string, data: { title: string; content?: any; format?: string }) =>
+  // skipFileSync: desktop only — the write came from a linked file, so it must
+  // not be written straight back to it (services/linkedFiles). Ignored elsewhere.
+  createScript: (projectId: string, data: { title: string; content?: any; format?: string; skipFileSync?: boolean }) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -280,7 +289,7 @@ export const api = {
   getScript: (projectId: string, scriptId: string) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/${scriptId}`),
 
-  saveScript: (projectId: string, scriptId: string, data: { title?: string; content?: Record<string, unknown>; color?: string; pinned?: boolean; sort_order?: number }) =>
+  saveScript: (projectId: string, scriptId: string, data: { title?: string; content?: Record<string, unknown>; color?: string; pinned?: boolean; sort_order?: number; allowEmptyBody?: boolean; skipFileSync?: boolean }) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/${scriptId}`, {
       method: 'PUT',
       body: JSON.stringify(data),

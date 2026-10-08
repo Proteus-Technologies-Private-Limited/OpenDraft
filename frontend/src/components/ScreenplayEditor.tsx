@@ -167,6 +167,7 @@ import CompareVersionPicker from './CompareVersionPicker';
 import ZoomPanel from './ZoomPanel';
 import { useIsTouchDevice, useSwipeEdge, usePinchZoom } from '../hooks/useTouch';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useLinkedFileStore, autoSaveAppliesToOpenDocument } from '../stores/linkedFileStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
 import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, isCollabAuthenticated } from '../services/collabAuth';
 import { platformFetch, isTauri, isDesktopTauri, needsSelectionHandles } from '../services/platform';
@@ -174,6 +175,56 @@ import { reportSaveError } from '../stores/saveErrorStore';
 import { pluginRegistry } from '../plugins/registry';
 import { createTrackChangesPlugin, trackChangesPluginKey } from '../editor/trackChanges';
 import type { VersionInfo } from '../services/api';
+
+/**
+ * Bring a linked script's library copy and its file on disk into agreement
+ * before the script is shown (issue #135), and tell the writer what happened.
+ * Returns the linked file's path, or null when the script is not linked.
+ *
+ * Never throws: a file that cannot be reached is reported, and the library
+ * copy — which is always there — is what opens.
+ */
+async function syncLinkedFileBeforeOpen(
+  projectId: string,
+  scriptId: string,
+  scriptTitle?: string,
+): Promise<string | null> {
+  try {
+    if (useProjectStore.getState().isCloudScript(projectId, scriptId)) return null;
+    const lf = await import('../services/linkedFiles');
+    if (!lf.linkingSupported()) return null;
+    const result = await lf.syncScriptWithFile(projectId, scriptId, { scriptTitle });
+    const name = 'path' in result && result.path ? lf.basenameOf(result.path) : '';
+    switch (result.kind) {
+      case 'none':
+        return null;
+      case 'loaded-from-file':
+        showToast(`${name} was changed outside OpenDraft — opened that version.`, 'info');
+        break;
+      case 'kept-library':
+        showToast(
+          result.preservedAs
+            ? `Kept OpenDraft's version and saved it to ${name}. The other version was kept as ${lf.basenameOf(result.preservedAs)}.`
+            : `Kept OpenDraft's version and saved it to ${name}.`,
+          'success',
+        );
+        break;
+      case 'missing':
+        showToast(`${name} is no longer in its folder. Saving will create it again.`, 'error');
+        break;
+      case 'unreachable':
+        showToast(
+          `Could not reach ${name || 'the linked file'}: ${result.error}. Showing OpenDraft's copy — it will be saved to the file when the drive is back.`,
+          'error',
+        );
+        break;
+    }
+    return result.path || (await lf.getLink(scriptId))?.path || null;
+  } catch (err) {
+    console.error('[linked-files] check before opening failed:', err);
+    return null;
+  }
+}
 
 // Vibrant dark colors for collaboration cursors and avatars
 const COLLAB_COLORS = [
@@ -2268,9 +2319,16 @@ const ScreenplayEditor: React.FC = () => {
     [editor],
   );
 
-  // --- Auto-save to backend every 30 seconds if a project/script is active ---
+  // --- Auto-save to the library on a timer if a project/script is active ---
   // Skip for collab guests — they don't own the document and the project may
-  // not exist on their local backend.
+  // not exist on their local backend. The writer can switch it off or change
+  // the interval in Settings → Saving (issue #135).
+  // A script saved to a file on disk (issue #135) follows this setting too —
+  // see autoSaveAppliesToOpenDocument.
+  const autoSaveLibrary = useSettingsStore((s) => s.autoSaveLibrary);
+  const openScriptFile = useLinkedFileStore((s) => s.openScriptFile);
+  const scriptIsLinked = Boolean(openScriptFile && openScriptFile.scriptId === currentScriptId);
+  const autoSaveIntervalSeconds = useSettingsStore((s) => s.autoSaveIntervalSeconds);
   const lastSavedJsonRef = useRef<string>('');
   // Tracks whether the script currently in the editor has real (textful) content
   // saved. When true, an auto-save that finds the editor body suddenly empty is
@@ -2584,7 +2642,7 @@ const ScreenplayEditor: React.FC = () => {
   });
 
   useEffect(() => {
-    if (!editor || !currentProject || !currentScriptId || isCollabGuest) return;
+    if (!editor || !currentProject || !currentScriptId || isCollabGuest || !autoSaveLibrary) return;
     const { setSaveStatus } = useEditorStore.getState();
     const timer = setInterval(() => {
       if (scriptSwitchingRef.current) return;
@@ -2613,9 +2671,9 @@ const ScreenplayEditor: React.FC = () => {
           reportSaveError(err, 'auto-save');
         });
       }
-    }, 30000);
+    }, autoSaveIntervalSeconds * 1000);
     return () => clearInterval(timer);
-  }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
+  }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest, autoSaveLibrary, autoSaveIntervalSeconds]);
 
   // Let the scratch sweeper see the document on screen, so it never mistakes a
   // picture in the open screenplay for an orphan.
@@ -2656,8 +2714,13 @@ const ScreenplayEditor: React.FC = () => {
   }, [editor, currentProject, currentScriptId, isCollabGuest, isHistoryMode]);
 
   // --- Track unsaved changes for status bar ---
+  // A file opened in place needs this as much as a library script: it is what
+  // the close prompt and the file auto-save both read. It used to be tracked
+  // for library scripts only, so edits to an opened file never counted as
+  // unsaved and closing the window dropped them without asking.
+  const hasSaveTarget = Boolean((currentProject && currentScriptId) || documentOriginPath);
   useEffect(() => {
-    if (!editor || !currentProject || !currentScriptId || isCollabGuest) return;
+    if (!editor || !hasSaveTarget || isCollabGuest) return;
     const markUnsaved = () => {
       const { saveStatus } = useEditorStore.getState();
       // Only mark unsaved if we're in idle or saved state (not during saving or error)
@@ -2667,17 +2730,112 @@ const ScreenplayEditor: React.FC = () => {
     };
     editor.on('update', markUnsaved);
     return () => { editor.off('update', markUnsaved); };
-  }, [editor, currentProject, currentScriptId, isCollabGuest]);
+  }, [editor, hasSaveTarget, isCollabGuest]);
+
+  // --- Keep a linked script and its file on disk in agreement (issue #135) ---
+  // The link belongs to one script; opening anything else drops it.
+  useEffect(() => {
+    const open = useLinkedFileStore.getState().openScriptFile;
+    if (open && open.scriptId !== currentScriptId) useLinkedFileStore.getState().setOpenScriptFile(null);
+  }, [currentScriptId]);
+
+  // The file may be edited elsewhere while the script is open — on another
+  // machine, in another app, by a sync client. Check again whenever the window
+  // comes back into focus, and whenever a save finds the file changed under
+  // it; load the file's version if nothing here is unsaved, and ask if both
+  // changed. Auto-save is held off while that happens, so it cannot write the
+  // editor's copy over the one the writer is choosing between.
+  const linkCheckRunningRef = useRef(false);
+  const recheckLinkedFile = useCallback(async () => {
+    if (!editor || !currentProject || !currentScriptId || !scriptIsLinked || isCollabGuest || collabMode) return;
+    if (linkCheckRunningRef.current || scriptSwitchingRef.current) return;
+    linkCheckRunningRef.current = true;
+    const pid = currentProject.id;
+    const sid = currentScriptId;
+    scriptSwitchingRef.current = true;
+    let reload = false;
+    let storedJson: string | null = null;
+    try {
+      const lf = await import('../services/linkedFiles');
+      const status = useEditorStore.getState().saveStatus;
+      const result = await lf.syncScriptWithFile(pid, sid, {
+        scriptTitle: useEditorStore.getState().documentTitle,
+        hasUnsavedEdits: status === 'unsaved' || status === 'error',
+        // Edits only on screen go into the library once the writer has
+        // answered: kept, they are what goes to the file; replaced, they are
+        // in the version recorded first.
+        saveUnsavedEdits: async () => {
+          const content = buildSaveContent();
+          if (!content) return;
+          await api.saveScript(pid, sid, { content, skipFileSync: true });
+          storedJson = JSON.stringify(content);
+        },
+      });
+      if (result.kind === 'loaded-from-file') {
+        // What the editor holds is now superseded by the file. Mark it as
+        // saved so nothing on the way to the reload writes it back.
+        const current = buildSaveContent();
+        if (current) lastSavedJsonRef.current = JSON.stringify(current);
+        useEditorStore.getState().setSaveStatus('idle');
+        showToast(`${lf.basenameOf(result.path)} was changed outside OpenDraft — loaded that version.`, 'info');
+        reload = true;
+      } else if (result.kind === 'kept-library') {
+        // What was on screen is now in the library and the file. Edits typed
+        // while the question was open stay unsaved and go with the next save.
+        if (result.unsavedStored && storedJson !== null) {
+          lastSavedJsonRef.current = storedJson;
+          const now = buildSaveContent();
+          useEditorStore.getState().setSaveStatus(now && JSON.stringify(now) !== storedJson ? 'unsaved' : 'saved');
+        }
+        showToast(
+          result.preservedAs
+            ? `Kept OpenDraft's version in ${lf.basenameOf(result.path)}. The other version was kept as ${lf.basenameOf(result.preservedAs)}.`
+            : `Kept OpenDraft's version and saved it to ${lf.basenameOf(result.path)}.`,
+          'success',
+        );
+      }
+    } catch (err) {
+      console.error('[linked-files] re-check failed:', err);
+    } finally {
+      scriptSwitchingRef.current = false;
+      linkCheckRunningRef.current = false;
+    }
+    if (reload) {
+      if (urlProjectId === pid && urlScriptId === sid) useProjectStore.getState().triggerScriptReload();
+      else navigate(`/project/${pid}/edit/${sid}`, { replace: true });
+    }
+  }, [editor, currentProject, currentScriptId, scriptIsLinked, isCollabGuest, collabMode, buildSaveContent, urlProjectId, urlScriptId, navigate]);
+
+  useEffect(() => {
+    if (!scriptIsLinked || !currentScriptId) return;
+    const onFocus = () => { void recheckLinkedFile(); };
+    window.addEventListener('focus', onFocus);
+    // A save that found the file changed under it raises 'conflict' rather
+    // than overwrite it; that is the same question, asked now.
+    const sid = currentScriptId;
+    const unsub = useLinkedFileStore.subscribe((state, prev) => {
+      if (state.byScript[sid]?.state === 'conflict' && prev.byScript[sid]?.state !== 'conflict') {
+        void recheckLinkedFile();
+      }
+    });
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      unsub();
+    };
+  }, [scriptIsLinked, currentScriptId, recheckLinkedFile]);
 
   // --- Flush metadata-only changes to backend ---
   // Store metadata (profiles, relationships, notes, etc.) can change without an
   // editor document update.  The 30s auto-save would eventually persist them, but
   // users expect "Save" to mean "saved" — a refresh within 30s would lose data.
   // This effect watches key metadata fields and triggers a debounced save (2s).
+  // With auto-save off — or for a file opened in place, whose own auto-save
+  // runs from the menu bar — it only marks the document unsaved.
   useEffect(() => {
-    if (!editor || !currentProject || !currentScriptId || isCollabGuest) return;
-    const pid = currentProject.id;
+    if (!editor || !hasSaveTarget || isCollabGuest) return;
+    const pid = currentProject?.id ?? null;
     const sid = currentScriptId;
+    const saveToLibrary = Boolean(pid && sid) && autoSaveLibrary;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const unsub = useEditorStore.subscribe((state, prev) => {
@@ -2697,6 +2855,7 @@ const ScreenplayEditor: React.FC = () => {
       // Mark unsaved immediately
       const { saveStatus, setSaveStatus } = useEditorStore.getState();
       if (saveStatus === 'idle' || saveStatus === 'saved') setSaveStatus('unsaved');
+      if (!saveToLibrary || !pid || !sid) return;
       // Debounce the actual save (2s)
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
@@ -2727,7 +2886,7 @@ const ScreenplayEditor: React.FC = () => {
     });
 
     return () => { unsub(); if (timer) clearTimeout(timer); };
-  }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
+  }, [editor, hasSaveTarget, currentProject, currentScriptId, buildSaveContent, isCollabGuest, autoSaveLibrary]);
 
   // --- Persist project dictionary words when they change ---
   // Words live on the Project entity (shared by every script in the project).
@@ -2783,10 +2942,36 @@ const ScreenplayEditor: React.FC = () => {
     const pid = currentProject.id;
     const sid = currentScriptId;
 
+    // Auto-save off: nothing is written on the way out. The desktop close
+    // button is asked about by the menu bar, leaving for another screen by the
+    // leave guard; all that is left here is the browser's own "Leave page?"
+    // for a tab with unsaved changes.
+    if (!autoSaveLibrary) {
+      const promptBeforeUnload = (event: BeforeUnloadEvent) => {
+        if (editor.isDestroyed) return;
+        const status = useEditorStore.getState().saveStatus;
+        if (status !== 'unsaved' && status !== 'error') return;
+        event.preventDefault();
+        event.returnValue = '';
+      };
+      window.addEventListener('beforeunload', promptBeforeUnload);
+      return () => window.removeEventListener('beforeunload', promptBeforeUnload);
+    }
+
+    // The timed auto-save's data-loss guard, for the saves on the way out: an
+    // empty body never goes over a script that has text saved. An editor reset
+    // while still bound to a script would otherwise be written over it by
+    // closing the tab or leaving the screen.
+    const blankOverSaved = (content: Record<string, unknown>): boolean => {
+      if (docHasAnyText(content) || !lastSavedNonEmptyRef.current) return false;
+      console.warn('Save on leaving skipped: editor body is empty but saved content is not.');
+      return true;
+    };
+
     const flushPendingSave = async (): Promise<void> => {
       if (editor.isDestroyed) return;
       const content = buildSaveContent();
-      if (!content) return;
+      if (!content || blankOverSaved(content)) return;
       const json = JSON.stringify(content);
       if (json === lastSavedJsonRef.current) return;
       lastSavedJsonRef.current = json;
@@ -2814,7 +2999,7 @@ const ScreenplayEditor: React.FC = () => {
           const unlisten = await win.onCloseRequested(async (event) => {
             if (editor.isDestroyed) return;
             const content = buildSaveContent();
-            if (!content) return;
+            if (!content || blankOverSaved(content)) return;
             const json = JSON.stringify(content);
             if (json === lastSavedJsonRef.current) return;
             // We have unsaved edits.  Block the close, run the save, then
@@ -2845,7 +3030,7 @@ const ScreenplayEditor: React.FC = () => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (editor.isDestroyed) return;
       const content = buildSaveContent();
-      if (!content) return;
+      if (!content || blankOverSaved(content)) return;
       const json = JSON.stringify(content);
       if (json === lastSavedJsonRef.current) return;
       lastSavedJsonRef.current = json;
@@ -2876,7 +3061,7 @@ const ScreenplayEditor: React.FC = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       unregisterFlush();
     };
-  }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest]);
+  }, [editor, currentProject, currentScriptId, buildSaveContent, isCollabGuest, autoSaveLibrary]);
 
   // --- Keep the open document across route changes ---
   // Going to Settings (or any other route) unmounts this component and destroys
@@ -2950,13 +3135,19 @@ const ScreenplayEditor: React.FC = () => {
     if (lastSessionRestoreRef.current) return;
     lastSessionRestoreRef.current = true;
     if (urlScriptId || urlCommitHash || currentScriptId) return;
+    // A project with no script is a new screenplay being started in it
+    // (Project ▸ New Document). The store starts empty on launch, so this never
+    // holds there; reopening the last script here would put the blank page the
+    // format prompt is about to create on top of that script, and the first
+    // auto-save would write it over the script.
+    if (currentProject) return;
     if (useEditorStore.getState().documentOrigin) return;
 
     const last = readLastSession();
     if (!last) return;
     setShowWelcome(false);
     navigate(`/project/${last.projectId}/edit/${last.scriptId}`, { replace: true });
-  }, [editor, collabMode, isHistoryMode, urlScriptId, urlCommitHash, currentScriptId, navigate]);
+  }, [editor, collabMode, isHistoryMode, urlScriptId, urlCommitHash, currentScriptId, currentProject, navigate]);
 
   // Keep that record current. Cleared for anything without a library identity,
   // so closing a script or starting a blank one does not leave the last script
@@ -3028,7 +3219,9 @@ const ScreenplayEditor: React.FC = () => {
         // Only do this if we actually loaded a prior script in this mount —
         // otherwise the "pending" content is just the editor's default empty
         // state and would clobber a stored screenplay.
-        if (prevLoadKey && currentProject && currentScriptId) {
+        // With auto-save off the writer was already asked on the way here,
+        // and "Discard" has to mean discard.
+        if (prevLoadKey && currentProject && currentScriptId && autoSaveAppliesToOpenDocument(useSettingsStore.getState(), false)) {
           const pendingContent = buildSaveContent();
           if (pendingContent) {
             const pendingJson = JSON.stringify(pendingContent);
@@ -3051,6 +3244,10 @@ const ScreenplayEditor: React.FC = () => {
           scriptResp = await api.getScriptAtVersion(urlProjectId, urlCommitHash, urlScriptId);
           setHistoryVersionLabel(urlCommitHash.slice(0, 7));
         } else {
+          const linkedPath = await syncLinkedFileBeforeOpen(urlProjectId, urlScriptId);
+          useLinkedFileStore.getState().setOpenScriptFile(
+            linkedPath ? { scriptId: urlScriptId, path: linkedPath } : null,
+          );
           scriptResp = await scriptApi.getScript(urlProjectId, urlScriptId);
         }
         const content = scriptResp.content as Record<string, unknown> | null;
@@ -3567,8 +3764,10 @@ const ScreenplayEditor: React.FC = () => {
       clearTrackChanges();
       scriptSwitchingRef.current = true;
       try {
-        // Flush unsaved changes to the CURRENT script before switching
-        if (currentProject && currentScriptId) {
+        // Flush unsaved changes to the CURRENT script before switching —
+        // unless auto-save is off, in which case File → Open has already
+        // asked, and "Discard" has to mean discard.
+        if (currentProject && currentScriptId && autoSaveAppliesToOpenDocument(useSettingsStore.getState(), false)) {
           const pendingContent = buildSaveContent();
           if (pendingContent) {
             const pendingJson = JSON.stringify(pendingContent);
@@ -3579,6 +3778,8 @@ const ScreenplayEditor: React.FC = () => {
           }
         }
 
+        const linkedPath = await syncLinkedFileBeforeOpen(projectId, scriptId, scriptTitle);
+        useLinkedFileStore.getState().setOpenScriptFile(linkedPath ? { scriptId, path: linkedPath } : null);
         const scriptResp = await scriptApi.getScript(projectId, scriptId);
         const content = scriptResp.content as Record<string, unknown> | null;
 
@@ -4277,6 +4478,17 @@ const ScreenplayEditor: React.FC = () => {
         setCurrentProject(project);
         setCurrentScriptId(scriptId);
         setDocumentTitle(scriptTitle);
+        // In a project kept in a folder the new script already has a file of
+        // its own (issue #135), which every library save also writes.
+        if (destination !== 'cloud') {
+          try {
+            const lf = await import('../services/linkedFiles');
+            const link = await lf.getLink(scriptId);
+            useLinkedFileStore.getState().setOpenScriptFile(link ? { scriptId, path: link.path } : null);
+          } catch (err) {
+            console.warn('[linked-files] could not look up the new script\'s file', err);
+          }
+        }
         // Save-as resolved an imported document into a real project script —
         // the "imported file" notice is no longer relevant.
         store.setImportedSource(null);

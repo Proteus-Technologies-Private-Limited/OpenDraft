@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useEditorStore, ELEMENT_LABELS, type BuiltInElementType } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
+import { useLinkedFileStore } from '../stores/linkedFileStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { computeSceneTiming, formatRuntime } from '../utils/scriptTiming';
 import { computeScriptStructure } from '../utils/scriptStructure';
@@ -33,7 +34,25 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
   // will be asked for by the production.
   const currentLabel = pageLabels?.[currentPage - 1];
 
-  const { currentProject } = useProjectStore();
+  const { currentProject, currentScriptId } = useProjectStore();
+  // The file on disk a library script also saves to (issue #135), and whether
+  // the last save reached it.
+  const openScriptFile = useLinkedFileStore((s) => s.openScriptFile);
+  const linkedStatus = useLinkedFileStore((s) => (currentScriptId ? s.byScript[currentScriptId] : undefined));
+  const linkedPath = openScriptFile && openScriptFile.scriptId === currentScriptId
+    ? (linkedStatus?.path || openScriptFile.path)
+    : null;
+  const linkedName = linkedPath ? linkedPath.split(/[/\\]/).pop() || linkedPath : '';
+  const linkedProblem =
+    linkedStatus?.state === 'pending' && linkedStatus.error ? 'not saved to file'
+    : linkedStatus?.state === 'missing' ? 'file not found'
+    : linkedStatus?.state === 'conflict' ? 'changed outside OpenDraft'
+    : '';
+  const retryLinkedFile = () => {
+    void import('../services/linkedFiles')
+      .then((lf) => lf.retryPendingWrites())
+      .catch((err) => console.error('[linked-files] retry failed:', err));
+  };
   const getActiveTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate);
 
   const saveDisplay = SAVE_STATUS_DISPLAY[saveStatus] || SAVE_STATUS_DISPLAY.idle;
@@ -90,6 +109,21 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
               title={`Save writes back to ${documentOrigin.name}`}
             >
               {documentOrigin.name}
+            </span>
+          </>
+        )}
+        {linkedPath && (
+          <>
+            <span className="status-sep">&middot;</span>
+            <span
+              className={`status-item status-origin${linkedProblem ? ' status-save-error' : ''}`}
+              title={linkedProblem
+                ? `${linkedPath}\n${linkedStatus?.error || linkedProblem}${linkedStatus?.state === 'pending' ? '\nClick to try again.' : ''}`
+                : `Every save also writes ${linkedPath}`}
+              onClick={linkedStatus?.state === 'pending' ? retryLinkedFile : undefined}
+              style={linkedStatus?.state === 'pending' ? { cursor: 'pointer' } : undefined}
+            >
+              {linkedName}{linkedProblem ? ` — ${linkedProblem}` : ''}
             </span>
           </>
         )}

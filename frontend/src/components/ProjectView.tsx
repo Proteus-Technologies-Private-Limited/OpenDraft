@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaCloud, FaDesktop } from 'react-icons/fa';
+import { FaCloud, FaDesktop, FaFolder, FaExclamationTriangle } from 'react-icons/fa';
 import {
   DndContext,
   closestCenter,
@@ -36,6 +36,53 @@ import { DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES, useEditorStore } from '../
 import { useProjectStore } from '../stores/projectStore';
 import AssetManager from './AssetManager';
 import ProjectPropertiesDialog from './ProjectPropertiesDialog';
+import ProjectStorageDialog from './ProjectStorageDialog';
+import { isDesktopTauri } from '../services/platform';
+import { useLinkedFileStore, type LinkedFileState } from '../stores/linkedFileStore';
+
+/** What can be done with a script's file on disk from its menu (issue #135). */
+type FileAction = 'reveal' | 'link' | 'unlink';
+
+function fileNameOf(path: string): string {
+  return path.split(/[/\\]/).pop() || path;
+}
+
+const FILE_PROBLEMS: Partial<Record<LinkedFileState, string>> = {
+  pending: 'Not saved to the file yet — OpenDraft will keep trying',
+  missing: 'The file is not where it was',
+  conflict: 'The file was changed outside OpenDraft',
+};
+
+/** The file a script is saved to, shown beside its other details. */
+const FileBadge: React.FC<{ path: string; state?: LinkedFileState }> = ({ path, state }) => {
+  const problem = state ? FILE_PROBLEMS[state] : undefined;
+  return (
+    <span className="source-badge source-badge--local source-badge--path" title={problem ? `${path}\n${problem}` : `Saved to ${path}`}>
+      {problem ? <FaExclamationTriangle /> : <FaFolder />}
+      {fileNameOf(path)}
+    </span>
+  );
+};
+
+/** The file-related entries of a script's actions menu. */
+const FileMenuItems: React.FC<{
+  scriptId: string;
+  filePath?: string;
+  onFileAction: (id: string, action: FileAction) => void;
+  close: () => void;
+}> = ({ scriptId, filePath, onFileAction, close }) => (
+  <>
+    <div className="dropdown-separator" />
+    {filePath ? (
+      <>
+        <div className="dropdown-item" onClick={() => { onFileAction(scriptId, 'reveal'); close(); }}>Show File</div>
+        <div className="dropdown-item" onClick={() => { onFileAction(scriptId, 'unlink'); close(); }}>Stop Saving to File</div>
+      </>
+    ) : (
+      <div className="dropdown-item" onClick={() => { onFileAction(scriptId, 'link'); close(); }}>Save to File…</div>
+    )}
+  </>
+);
 
 /** Dropdown button: "+ New Document" → Screenplay | Treatment. */
 const NewDocumentButton: React.FC<{
@@ -113,6 +160,11 @@ interface SortableScriptRowProps {
   onExport: (id: string, format: string) => void;
   formatDate: (iso: string) => string;
   formatSize: (bytes: number) => string;
+  /** The file on disk this script is saved to, if any (issue #135). */
+  filePath?: string;
+  fileState?: LinkedFileState;
+  /** Present where scripts can be saved to files (desktop, local project). */
+  onFileAction?: (id: string, action: FileAction) => void;
 }
 
 const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
@@ -128,6 +180,9 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
   onExport,
   formatDate,
   formatSize,
+  filePath,
+  fileState,
+  onFileAction,
 }) => {
   const {
     attributes,
@@ -237,6 +292,12 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
             {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
             {source === 'cloud' ? 'Cloud' : 'Local'}
           </span>
+          {filePath && (
+            <>
+              <span className="project-card-dot">&middot;</span>
+              <FileBadge path={filePath} state={fileState} />
+            </>
+          )}
         </div>
       </div>
 
@@ -278,6 +339,9 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
           <div className="dropdown-item" onClick={() => { onExport(script.id, 'fountain'); setShowActions(false); }}>Export as Fountain</div>
           <div className="dropdown-item" onClick={() => { onExport(script.id, 'pdf'); setShowActions(false); }}>Export as PDF</div>
           <div className="dropdown-item" onClick={() => { onExport(script.id, 'odraft'); setShowActions(false); }}>Export as .odraft</div>
+          {onFileAction && (
+            <FileMenuItems scriptId={script.id} filePath={filePath} onFileAction={onFileAction} close={() => setShowActions(false)} />
+          )}
           <div className="dropdown-separator" />
           <div className="dropdown-item dropdown-item-danger" onClick={() => { onDelete(script.id); setShowActions(false); }}>Delete</div>
         </div>
@@ -315,6 +379,9 @@ interface ScriptCardProps {
   onExport: (id: string, format: string) => void;
   onDelete: (id: string) => void;
   formatDate: (iso: string) => string;
+  filePath?: string;
+  fileState?: LinkedFileState;
+  onFileAction?: (id: string, action: FileAction) => void;
 }
 
 const ScriptCard: React.FC<ScriptCardProps> = ({
@@ -328,6 +395,9 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
   onExport,
   onDelete,
   formatDate,
+  filePath,
+  fileState,
+  onFileAction,
 }) => {
   const {
     attributes,
@@ -447,13 +517,17 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
       <div className="script-card-meta">
         {script.page_count > 0 && <span>{script.page_count} pg</span>}
         <span>{formatDate(script.updated_at)}</span>
-        <span
-          className={`source-badge source-badge--${source}`}
-          title={source === 'cloud' ? 'Stored on OpenDraft Cloud' : 'Stored on this device'}
-        >
-          {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
-          {source === 'cloud' ? 'Cloud' : 'Local'}
-        </span>
+        {filePath ? (
+          <FileBadge path={filePath} state={fileState} />
+        ) : (
+          <span
+            className={`source-badge source-badge--${source}`}
+            title={source === 'cloud' ? 'Stored on OpenDraft Cloud' : 'Stored on this device'}
+          >
+            {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
+            {source === 'cloud' ? 'Cloud' : 'Local'}
+          </span>
+        )}
       </div>
 
       {/* Actions dropdown */}
@@ -466,6 +540,9 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
           <div className="dropdown-item" onClick={() => { onExport(script.id, 'fountain'); setShowActions(false); }}>Export as Fountain</div>
           <div className="dropdown-item" onClick={() => { onExport(script.id, 'pdf'); setShowActions(false); }}>Export as PDF</div>
           <div className="dropdown-item" onClick={() => { onExport(script.id, 'odraft'); setShowActions(false); }}>Export as .odraft</div>
+          {onFileAction && (
+            <FileMenuItems scriptId={script.id} filePath={filePath} onFileAction={onFileAction} close={() => setShowActions(false)} />
+          )}
           <div className="dropdown-separator" />
           <div className="dropdown-item dropdown-item-danger" onClick={() => { onDelete(script.id); setShowActions(false); }}>Delete</div>
         </div>
@@ -498,7 +575,17 @@ const ProjectView: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const [showProperties, setShowProperties] = useState(false);
+  const [showStorage, setShowStorage] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deleteFileToo, setDeleteFileToo] = useState(false);
+  // Scripts saved to files on disk (issue #135): script id → file path.
+  // Desktop and local projects only; a cloud project has no files here.
+  const canLinkFiles = isDesktopTauri() && !isCloud;
+  const [fileLinks, setFileLinks] = useState<Record<string, string>>({});
+  const fileStates = useLinkedFileStore((s) => s.byScript);
+  const projectFolder = typeof project?.properties?.folder_path === 'string' && project.properties.folder_path.trim()
+    ? project.properties.folder_path
+    : null;
   const [editingProjectName, setEditingProjectName] = useState(false);
   const [editProjectName, setEditProjectName] = useState('');
   const [scriptSortKey, setScriptSortKey] = useState<ScriptSortKey>(() => {
@@ -534,6 +621,17 @@ const ProjectView: React.FC = () => {
     }
   }, [projectId]);
 
+  const fetchFileLinks = useCallback(async () => {
+    if (!projectId || !canLinkFiles) { setFileLinks({}); return; }
+    try {
+      const lf = await import('../services/linkedFiles');
+      const links = await lf.listProjectLinks(projectId);
+      setFileLinks(Object.fromEntries(links.map((l) => [l.scriptId, l.path])));
+    } catch (err) {
+      console.warn('[project] could not read linked files', err);
+    }
+  }, [projectId, canLinkFiles]);
+
   const fetchVersions = useCallback(async () => {
     if (!projectId) return;
     try {
@@ -546,10 +644,90 @@ const ProjectView: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchProject(), fetchScripts(), fetchVersions()]).finally(() =>
+    Promise.all([fetchProject(), fetchScripts(), fetchVersions(), fetchFileLinks()]).finally(() =>
       setLoading(false),
     );
-  }, [fetchProject, fetchScripts, fetchVersions]);
+  }, [fetchProject, fetchScripts, fetchVersions, fetchFileLinks]);
+
+  // A project kept in a folder picks up files added to the folder since it
+  // was last opened — copied in from another machine, exported from another
+  // app. Once per visit, in the background; the list fills in when it is done.
+  const scannedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!projectId || !canLinkFiles || !projectFolder || scannedForRef.current === projectId) return;
+    scannedForRef.current = projectId;
+    void (async () => {
+      try {
+        const lf = await import('../services/linkedFiles');
+        const scan = await lf.scanProjectFolder(projectId);
+        if (scan.added > 0) {
+          showToast(`${scan.added} new file${scan.added === 1 ? '' : 's'} in the project folder added.`, 'info');
+          await fetchScripts();
+        }
+        if (scan.failed.length > 0) {
+          showToast(`Could not read ${scan.failed.join(', ')} in the project folder.`, 'error');
+        }
+        await fetchFileLinks();
+      } catch (err) {
+        console.warn('[project] folder scan failed', err);
+        showToast(`Could not read the project folder: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      }
+    })();
+  }, [projectId, canLinkFiles, projectFolder, fetchScripts, fetchFileLinks]);
+
+  /** Show, link or unlink a script's file on disk. */
+  const handleFileAction = useCallback(async (scriptId: string, action: FileAction) => {
+    if (!projectId) return;
+    try {
+      const lf = await import('../services/linkedFiles');
+      if (action === 'reveal') {
+        const path = fileLinks[scriptId];
+        if (path) await lf.revealPath(path);
+        return;
+      }
+      if (action === 'unlink') {
+        await lf.unlinkScript(scriptId);
+        await fetchFileLinks();
+        showToast('This script is no longer saved to the file. The file is still on disk.', 'success');
+        return;
+      }
+      const script = scripts.find((s) => s.id === scriptId);
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const { linkedFileName } = await import('../utils/linkedFileFormat');
+      const format = lf.projectFileFormat(project);
+      let dir = projectFolder;
+      if (!dir) {
+        const { documentDir } = await import('@tauri-apps/api/path');
+        dir = await documentDir();
+      }
+      const picked = await save({
+        title: 'Save to File',
+        defaultPath: lf.joinPath(dir, linkedFileName(script?.title || 'Untitled', format)),
+        filters: [
+          { name: 'OpenDraft', extensions: ['odraft'] },
+          { name: 'Fountain', extensions: ['fountain'] },
+          { name: 'Final Draft', extensions: ['fdx'] },
+        ],
+      });
+      if (!picked) return;
+      const taken = await lf.findLinkByPath(picked);
+      if (taken && taken.scriptId !== scriptId) {
+        showToast(`${lf.basenameOf(picked)} is already where another script is saved.`, 'error');
+        return;
+      }
+      const outcome = await lf.linkScriptToFile(projectId, scriptId, picked);
+      await fetchFileLinks();
+      showToast(
+        outcome === 'written'
+          ? `Saved to ${lf.basenameOf(picked)}. Every save of this script now updates that file too.`
+          : `Linked to ${lf.basenameOf(picked)}, but it could not be written yet. OpenDraft will keep trying.`,
+        outcome === 'written' ? 'success' : 'error',
+      );
+    } catch (err) {
+      console.error('[project] file action failed', err);
+      showToast(`Could not do that: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [projectId, project, projectFolder, scripts, fileLinks, fetchFileLinks]);
 
   useEffect(() => {
     localStorage.setItem('opendraft:scriptSort', scriptSortKey);
@@ -663,14 +841,22 @@ const ProjectView: React.FC = () => {
   }, [projectId, scripts, navigate]);
 
   const handleDeleteScript = (scriptId: string) => {
+    setDeleteFileToo(false);
     setPendingDeleteId(scriptId);
   };
 
   const confirmDeleteScript = async () => {
     if (!projectId || !pendingDeleteId) return;
     try {
+      // Only when asked: the file is the writer's, and by default it outlives
+      // the script.
+      if (deleteFileToo && fileLinks[pendingDeleteId]) {
+        const lf = await import('../services/linkedFiles');
+        await lf.deleteLinkedFile(pendingDeleteId);
+      }
       await client.deleteScript(projectId, pendingDeleteId);
       await fetchScripts();
+      await fetchFileLinks();
     } catch (err) {
       showToast(
         `Delete failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -721,6 +907,8 @@ const ProjectView: React.FC = () => {
       );
       try {
         await client.saveScript(projectId, id, { title });
+        // In a project folder the file follows the new title.
+        await fetchFileLinks();
       } catch (err) {
         // Roll back on failure and surface the reason — silently swallowing
         // here is what made "rename doesn't work" so confusing in the cloud
@@ -736,7 +924,7 @@ const ProjectView: React.FC = () => {
         );
       }
     },
-    [projectId, scripts, client],
+    [projectId, scripts, client, fetchFileLinks],
   );
 
   const handleDuplicateScript = useCallback(
@@ -757,6 +945,7 @@ const ProjectView: React.FC = () => {
           await api.duplicateScript(projectId, id);
         }
         await fetchScripts();
+        await fetchFileLinks();
         showToast('Script duplicated', 'success');
       } catch (err) {
         showToast(
@@ -765,7 +954,7 @@ const ProjectView: React.FC = () => {
         );
       }
     },
-    [projectId, fetchScripts, isCloud],
+    [projectId, fetchScripts, fetchFileLinks, isCloud],
   );
 
   const handleExportScript = useCallback(
@@ -966,6 +1155,19 @@ const ProjectView: React.FC = () => {
               <span>Created {formatDate(project.created_at)}</span>
               <span className="project-card-dot">&middot;</span>
               <span>Modified {formatDate(project.updated_at)}</span>
+              {canLinkFiles && projectFolder && (
+                <>
+                  <span className="project-card-dot">&middot;</span>
+                  <span
+                    className="source-badge source-badge--local source-badge--path"
+                    title={`Scripts are saved to ${projectFolder}`}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setShowStorage(true)}
+                  >
+                    <FaFolder /> {projectFolder}
+                  </span>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -990,6 +1192,15 @@ const ProjectView: React.FC = () => {
           >
             Export Project
           </button>
+          {canLinkFiles && (
+            <button
+              className="project-action-btn"
+              onClick={() => setShowStorage(true)}
+              title="Where this project's scripts are saved"
+            >
+              Storage
+            </button>
+          )}
           <button
             className="project-action-btn"
             onClick={() => setShowProperties(true)}
@@ -1091,6 +1302,9 @@ const ProjectView: React.FC = () => {
                             onExport={handleExportScript}
                             onDelete={handleDeleteScript}
                             formatDate={formatDate}
+                            filePath={fileLinks[script.id]}
+                            fileState={fileStates[script.id]?.state}
+                            onFileAction={canLinkFiles ? handleFileAction : undefined}
                           />
                         ))}
                       </div>
@@ -1118,6 +1332,9 @@ const ProjectView: React.FC = () => {
                             onExport={handleExportScript}
                             onDelete={handleDeleteScript}
                             formatDate={formatDate}
+                            filePath={fileLinks[script.id]}
+                            fileState={fileStates[script.id]?.state}
+                            onFileAction={canLinkFiles ? handleFileAction : undefined}
                           />
                         ))}
                       </div>
@@ -1156,6 +1373,9 @@ const ProjectView: React.FC = () => {
                             onExport={handleExportScript}
                             formatDate={formatDate}
                             formatSize={formatSize}
+                            filePath={fileLinks[script.id]}
+                            fileState={fileStates[script.id]?.state}
+                            onFileAction={canLinkFiles ? handleFileAction : undefined}
                           />
                         ))}
                       </div>
@@ -1186,6 +1406,9 @@ const ProjectView: React.FC = () => {
                             onExport={handleExportScript}
                             formatDate={formatDate}
                             formatSize={formatSize}
+                            filePath={fileLinks[script.id]}
+                            fileState={fileStates[script.id]?.state}
+                            onFileAction={canLinkFiles ? handleFileAction : undefined}
                           />
                         ))}
                       </div>
@@ -1282,6 +1505,19 @@ const ProjectView: React.FC = () => {
                 Are you sure you want to delete this script? This cannot be
                 undone.
               </p>
+              {fileLinks[pendingDeleteId] && (
+                <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={deleteFileToo}
+                    onChange={(e) => setDeleteFileToo(e.target.checked)}
+                  />
+                  <span>
+                    Also delete <strong>{fileNameOf(fileLinks[pendingDeleteId])}</strong> from
+                    disk. Otherwise the file stays where it is.
+                  </span>
+                </label>
+              )}
             </div>
             <div className="dialog-actions">
               <button onClick={() => setPendingDeleteId(null)}>Cancel</button>
@@ -1295,6 +1531,15 @@ const ProjectView: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {showStorage && project && (
+        <ProjectStorageDialog
+          project={project}
+          onClose={() => setShowStorage(false)}
+          onProjectChanged={(updated) => setProject(updated)}
+          onScriptsChanged={() => { void fetchScripts(); void fetchFileLinks(); }}
+        />
       )}
 
       {/* Properties Dialog */}

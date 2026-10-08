@@ -1852,7 +1852,12 @@ struct DirEntryInfo {
 /// mid-listing, a stale handle on a network share) are skipped rather than
 /// failing the whole call — a single bad entry must not make the backup folder
 /// look empty.
-#[tauri::command]
+// The folder commands below run on the async thread pool, not the main thread
+// (`async` in the attribute). They are pointed at network shares — the backup
+// folder, project folders (issue #135) — and a share that has gone away can
+// block a filesystem call for a long time. On the main thread that froze the
+// whole window; off it, the caller's own timeout gets to report the problem.
+#[tauri::command(async)]
 fn list_dir_entries(path: String, extension: Option<String>) -> Result<Vec<DirEntryInfo>, String> {
     let want_ext = extension.map(|e| e.trim_start_matches('.').to_lowercase());
     let read = std::fs::read_dir(&path).map_err(|e| format!("Failed to read {}: {}", path, e))?;
@@ -1890,7 +1895,7 @@ fn list_dir_entries(path: String, extension: Option<String>) -> Result<Vec<DirEn
     Ok(out)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn ensure_dir(path: String) -> Result<(), String> {
     std::fs::create_dir_all(&path).map_err(|e| format!("Failed to create {}: {}", path, e))
 }
@@ -1898,7 +1903,7 @@ fn ensure_dir(path: String) -> Result<(), String> {
 /// Delete a single file. Refuses directories outright — the pruner runs
 /// unattended against a user-chosen folder, so it must never be able to remove
 /// a directory tree.
-#[tauri::command]
+#[tauri::command(async)]
 fn delete_file(path: String) -> Result<(), String> {
     let meta = std::fs::metadata(&path).map_err(|e| format!("Failed to stat {}: {}", path, e))?;
     if meta.is_dir() {
@@ -1915,7 +1920,7 @@ fn delete_file(path: String) -> Result<(), String> {
 /// the rename means a reader sees either the old snapshot or the new one, never
 /// a half-written file. The temp file is created in the same directory so the
 /// rename stays within one filesystem.
-#[tauri::command]
+#[tauri::command(async)]
 fn save_text_atomic(path: String, contents: String) -> Result<(), String> {
     use std::io::Write;
 
@@ -1948,6 +1953,72 @@ fn save_text_atomic(path: String, contents: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Read a text file off the main thread, for files in a linked project folder.
+/// `read_text_file` stays as it is because of its iOS security-scope fallback.
+#[tauri::command(async)]
+fn read_text_path(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
+}
+
+#[derive(serde::Serialize)]
+struct PathStat {
+    exists: bool,
+    is_dir: bool,
+    size: u64,
+    /// Milliseconds since the Unix epoch; 0 when the platform won't say.
+    modified_ms: u64,
+}
+
+/// Size and modification time of one path, for noticing that a file linked to
+/// a script was changed by something other than OpenDraft (issue #135).
+///
+/// A path that does not exist is data, not an error: a project folder on a
+/// network drive that is offline right now is an everyday state the caller has
+/// to describe, not a failure.
+#[tauri::command(async)]
+fn stat_path(path: String) -> Result<PathStat, String> {
+    match std::fs::metadata(&path) {
+        Ok(meta) => {
+            let modified_ms = meta
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            Ok(PathStat { exists: true, is_dir: meta.is_dir(), size: meta.len(), modified_ms })
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            Ok(PathStat { exists: false, is_dir: false, size: 0, modified_ms: 0 })
+        }
+        Err(e) => Err(format!("Failed to stat {}: {}", path, e)),
+    }
+}
+
+/// Rename a file, used when a script in a folder-linked project is renamed.
+///
+/// Refuses to replace an existing file: the target is in the writer's own
+/// folder, and silently overwriting something of theirs that happens to share
+/// the new name would destroy it. A change of letter case only is allowed,
+/// since on macOS and Windows that "existing file" is the source itself.
+/// Refuses directories for the same reason `delete_file` does.
+#[tauri::command(async)]
+fn rename_path(from: String, to: String) -> Result<(), String> {
+    let src = std::path::Path::new(&from);
+    let dst = std::path::Path::new(&to);
+    let meta = std::fs::metadata(src).map_err(|e| format!("Failed to stat {}: {}", from, e))?;
+    if meta.is_dir() {
+        return Err(format!("Refusing to rename directory {}", from));
+    }
+    let case_only = from != to && from.to_lowercase() == to.to_lowercase();
+    if dst.exists() && !case_only {
+        return Err(format!("A file named {} already exists", to));
+    }
+    if let Some(dir) = dst.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("Failed to create {}: {}", dir.display(), e))?;
+    }
+    std::fs::rename(src, dst).map_err(|e| format!("Failed to rename {} to {}: {}", from, to, e))
+}
+
 #[derive(serde::Serialize)]
 struct PathProbe {
     exists: bool,
@@ -1963,7 +2034,7 @@ struct PathProbe {
 /// TCC. A missing or unwritable folder is *data*, not an error — the settings
 /// UI needs to describe the problem, so `Err` is reserved for genuinely
 /// unexpected failures.
-#[tauri::command]
+#[tauri::command(async)]
 fn probe_directory(path: String) -> Result<PathProbe, String> {
     let p = std::path::Path::new(&path);
     let meta = match std::fs::metadata(p) {
@@ -2810,6 +2881,9 @@ pub fn run() {
             delete_file,
             save_text_atomic,
             probe_directory,
+            stat_path,
+            rename_path,
+            read_text_path,
             reveal_path,
             http_fetch,
             fetch_link_preview,

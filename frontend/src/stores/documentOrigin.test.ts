@@ -39,6 +39,23 @@ describe('documentOrigin', () => {
     expect(useEditorStore.getState().documentOrigin).toBeNull();
   });
 
+  // The file was just read, so it matches the editor exactly. A status left
+  // over from the previous document would prompt about — or auto-save — a file
+  // nobody has touched (issue #135).
+  it('starts a newly opened file out clean', () => {
+    useEditorStore.getState().setSaveStatus('error', 'disk full');
+    useEditorStore.getState().setDocumentOrigin(ORIGIN);
+    expect(useEditorStore.getState().saveStatus).toBe('idle');
+    expect(useEditorStore.getState().saveError).toBeNull();
+  });
+
+  it('leaves the save status alone when the origin is cleared', () => {
+    useEditorStore.getState().setDocumentOrigin(ORIGIN);
+    useEditorStore.getState().setSaveStatus('unsaved');
+    useEditorStore.getState().setDocumentOrigin(null);
+    expect(useEditorStore.getState().saveStatus).toBe('unsaved');
+  });
+
   it('starts out unset, so Save never targets a file by default', () => {
     expect(useEditorStore.getState().documentOrigin).toBeNull();
   });

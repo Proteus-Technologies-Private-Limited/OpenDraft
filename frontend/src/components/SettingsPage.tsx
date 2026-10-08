@@ -8,6 +8,7 @@ import { showToast } from './Toast';
 import { getApiBase } from '../config';
 import { getDeviceId } from '../services/deviceId';
 import BackupSettingsSection from './BackupSettingsSection';
+import SaveSettingsSection from './SaveSettingsSection';
 import { formatShortcut, isMacPlatform, shortcutFromEvent } from '../utils/shortcuts';
 import { printRoute } from '../services/platform';
 
@@ -673,6 +674,8 @@ const SettingsPage: React.FC = () => {
             )}
           </div>
         </section>
+
+        <SaveSettingsSection />
 
         <BackupSettingsSection />
 

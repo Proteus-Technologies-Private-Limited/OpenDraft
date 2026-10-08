@@ -14,10 +14,10 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { FaCloud, FaDesktop, FaArrowLeft } from 'react-icons/fa';
+import { FaCloud, FaDesktop, FaArrowLeft, FaFolder } from 'react-icons/fa';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
-import { isWeb } from '../services/platform';
+import { isWeb, isDesktopTauri } from '../services/platform';
 import { getApiBase } from '../config';
 import { useProjectStore } from '../stores/projectStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -25,6 +25,20 @@ import type { ProjectInfo } from '../services/api';
 import { importProjectFromZip } from '../utils/zipImport';
 import { showToast } from './Toast';
 import { useGoBack } from '../hooks/useGoBack';
+import {
+  LINKED_FILE_FORMATS, LINKED_FORMAT_LABELS, normalizeLinkedFormat, projectFolderName,
+} from '../utils/linkedFileFormat';
+
+/** The folder a project is kept in on disk (issue #135), or null. */
+function folderOf(project: ProjectInfo): string | null {
+  const f = project.properties?.folder_path;
+  return typeof f === 'string' && f.trim() ? f : null;
+}
+
+function joinFolder(dir: string, name: string): string {
+  const sep = dir.includes('\\') && !dir.includes('/') ? '\\' : '/';
+  return `${dir.replace(/[/\\]+$/, '')}${sep}${name}`;
+}
 
 type ProjectSource = 'local' | 'cloud';
 
@@ -163,13 +177,19 @@ const SortableCard: React.FC<SortableCardProps> = ({
             {project.script_count} screenplay{project.script_count !== 1 ? 's' : ''}
           </span>
           <span className="project-card-dot">&middot;</span>
-          <span
-            className={`source-badge source-badge--${source}`}
-            title={source === 'cloud' ? 'Stored on OpenDraft Cloud' : 'Stored on this device'}
-          >
-            {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
-            {source === 'cloud' ? 'Cloud' : 'Local'}
-          </span>
+          {source === 'local' && folderOf(project) ? (
+            <span className="source-badge source-badge--local" title={`Saved to ${folderOf(project)}`}>
+              <FaFolder /> Folder
+            </span>
+          ) : (
+            <span
+              className={`source-badge source-badge--${source}`}
+              title={source === 'cloud' ? 'Stored on OpenDraft Cloud' : 'Stored on this device'}
+            >
+              {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
+              {source === 'cloud' ? 'Cloud' : 'Local'}
+            </span>
+          )}
         </div>
         <div className="project-card-meta">
           <span>Created {formatDate(project.created_at)}</span>
@@ -261,6 +281,15 @@ const ProjectList: React.FC = () => {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [creating, setCreating] = useState(false);
+  // Where a new local project is kept (desktop, issue #135): the library, or a
+  // folder on disk. `newFolderPicked` is a folder the writer chose outright —
+  // an existing "MyFilm/scripts", say — rather than one named after the project.
+  const defaultProjectFolder = useSettingsStore((s) => s.defaultProjectFolder);
+  const defaultFileFormat = useSettingsStore((s) => s.defaultFileFormat);
+  const canUseFolders = isDesktopTauri();
+  const [newLocation, setNewLocation] = useState<'library' | 'folder'>('library');
+  const [newFolderPicked, setNewFolderPicked] = useState<string | null>(null);
+  const [newFileFormat, setNewFileFormat] = useState<string>('odraft');
   const [source, setSource] = useState<ProjectSource>(() => {
     if (WEB_ONLY_CLOUD) return 'cloud';
     return ((localStorage.getItem('opendraft:projectSource') as ProjectSource) || 'local');
@@ -374,6 +403,26 @@ const ProjectList: React.FC = () => {
    *  Cloud view → cloudApi. Local view → api (local SQLite on Tauri). */
   const client = source === 'cloud' ? cloudApi : api;
 
+  /** The folder a new project would be created in, or null for none chosen yet. */
+  const newProjectFolderPath = (): string | null => {
+    if (newFolderPicked) return newFolderPicked;
+    if (!defaultProjectFolder || !newProjectName.trim()) return null;
+    return joinFolder(defaultProjectFolder, projectFolderName(newProjectName.trim()));
+  };
+
+  const chooseNewProjectFolder = async () => {
+    try {
+      const lf = await import('../services/linkedFiles');
+      const picked = await lf.pickFolder('Folder for this project', newFolderPicked || defaultProjectFolder || undefined);
+      if (picked) {
+        setNewFolderPicked(picked);
+        setNewLocation('folder');
+      }
+    } catch (err) {
+      showToast(`Could not open the folder picker: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  };
+
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
     if (source === 'cloud' && !signedIn) {
@@ -382,6 +431,26 @@ const ProjectList: React.FC = () => {
     }
     setCreating(true);
     try {
+      const folder = newProjectFolderPath();
+      if (source === 'local' && newLocation === 'folder') {
+        if (!folder) {
+          showToast('Choose a folder for the project first.', 'error');
+          setCreating(false);
+          return;
+        }
+        const lf = await import('../services/linkedFiles');
+        const { project, scan } = await lf.createProjectInFolder(
+          newProjectName.trim(), folder, normalizeLinkedFormat(newFileFormat),
+        );
+        setShowNewDialog(false);
+        setNewProjectName('');
+        if (scan.added > 0) {
+          showToast(`Created ${project.name} — ${scan.added} script${scan.added === 1 ? '' : 's'} already in the folder were added.`, 'success');
+        }
+        await fetchProjects();
+        setCreating(false);
+        return;
+      }
       const created = await client.createProject(newProjectName.trim());
       if (source === 'cloud') markCloudProject(created.id);
       setShowNewDialog(false);
@@ -610,7 +679,12 @@ const ProjectList: React.FC = () => {
           )}
           <button
             className="project-new-btn"
-            onClick={() => setShowNewDialog(true)}
+            onClick={() => {
+              setNewLocation(canUseFolders && source === 'local' && defaultProjectFolder ? 'folder' : 'library');
+              setNewFolderPicked(null);
+              setNewFileFormat(normalizeLinkedFormat(defaultFileFormat));
+              setShowNewDialog(true);
+            }}
           >
             + New Project
           </button>
@@ -721,13 +795,69 @@ const ProjectList: React.FC = () => {
                   autoFocus
                 />
               </div>
+              {canUseFolders && source === 'local' && (
+                <>
+                  <div className="dialog-row" style={{ marginTop: 14 }}>
+                    <label>Save in:</label>
+                    <select
+                      className="dialog-input"
+                      value={newLocation}
+                      onChange={(e) => {
+                        const next = e.target.value as 'library' | 'folder';
+                        setNewLocation(next);
+                        if (next === 'folder' && !defaultProjectFolder && !newFolderPicked) void chooseNewProjectFolder();
+                      }}
+                    >
+                      <option value="library">The OpenDraft library</option>
+                      <option value="folder">A folder on disk</option>
+                    </select>
+                  </div>
+                  {newLocation === 'folder' && (
+                    <>
+                      <div className="dialog-row" style={{ marginTop: 14 }}>
+                        <label>Folder:</label>
+                        <div style={{ display: 'flex', gap: 6, flex: 1, minWidth: 0 }}>
+                          <input
+                            type="text"
+                            readOnly
+                            // Show the end of a long path: the project's own
+                            // folder is the part worth seeing.
+                            ref={(el) => { if (el) el.scrollLeft = el.scrollWidth; }}
+                            value={newProjectFolderPath() ?? ''}
+                            placeholder={defaultProjectFolder ? 'Type a project name' : 'Choose a folder'}
+                            title={newProjectFolderPath() ?? ''}
+                            style={{ flex: 1, minWidth: 0 }}
+                          />
+                          <button type="button" onClick={() => void chooseNewProjectFolder()}>Change…</button>
+                        </div>
+                      </div>
+                      <div className="dialog-row" style={{ marginTop: 14 }}>
+                        <label>Save scripts as:</label>
+                        <select
+                          className="dialog-input"
+                          value={newFileFormat}
+                          onChange={(e) => setNewFileFormat(e.target.value)}
+                        >
+                          {LINKED_FILE_FORMATS.map((f) => (
+                            <option key={f} value={f}>{LINKED_FORMAT_LABELS[f]}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--fd-text-muted)' }}>
+                        Each script is saved there as its own file. Screenplay
+                        files already in the folder are added to the project.
+                      </p>
+                    </>
+                  )}
+                </>
+              )}
             </div>
             <div className="dialog-actions">
               <button onClick={() => setShowNewDialog(false)}>Cancel</button>
               <button
                 className="dialog-primary"
                 onClick={handleCreateProject}
-                disabled={creating || !newProjectName.trim()}
+                disabled={creating || !newProjectName.trim() || (source === 'local' && newLocation === 'folder' && !newProjectFolderPath())}
               >
                 {creating ? 'Creating...' : 'Create'}
               </button>
@@ -746,6 +876,16 @@ const ProjectList: React.FC = () => {
                 Are you sure you want to delete this project? This cannot be
                 undone.
               </p>
+              {(() => {
+                const p = projects.find((x) => x.id === pendingDeleteId);
+                const folder = p ? folderOf(p) : null;
+                return folder ? (
+                  <p style={{ fontSize: 13 }}>
+                    The script files in <strong style={{ wordBreak: 'break-all' }}>{folder}</strong> are
+                    not deleted — they stay on disk.
+                  </p>
+                ) : null;
+              })()}
             </div>
             <div className="dialog-actions">
               <button onClick={() => setPendingDeleteId(null)}>Cancel</button>

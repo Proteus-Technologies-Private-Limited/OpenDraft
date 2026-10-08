@@ -89,6 +89,36 @@ interface SettingsState {
   backupUnsavedDocs: boolean;
   setBackupUnsavedDocs: (v: boolean) => void;
 
+  // ── Saving ────────────────────────────────────────────────────────────
+  /**
+   * Whether a script in the library is saved on a timer and when the writer
+   * leaves it. Off means nothing is written until they save — leaving,
+   * switching scripts or closing the window asks first instead (issue #135).
+   * The crash-recovery snapshot runs either way.
+   */
+  autoSaveLibrary: boolean;
+  setAutoSaveLibrary: (v: boolean) => void;
+  /**
+   * Whether a file opened from disk is written back on the same timer. Off by
+   * default: Save to File rewrites the writer's own file, and in another
+   * application's format that rewrite can lose what the format cannot hold, so
+   * doing it unasked is opt-in.
+   */
+  autoSaveFiles: boolean;
+  setAutoSaveFiles: (v: boolean) => void;
+  /** Seconds between auto-saves, for both of the above. */
+  autoSaveIntervalSeconds: number;
+  setAutoSaveIntervalSeconds: (s: number) => void;
+  /**
+   * Folder new projects are created in, each in a subfolder of its own;
+   * '' = new projects live in the library only. Desktop only (issue #135).
+   */
+  defaultProjectFolder: string;
+  setDefaultProjectFolder: (path: string) => void;
+  /** Format scripts in a project folder are written in: odraft, fountain or fdx. */
+  defaultFileFormat: string;
+  setDefaultFileFormat: (format: string) => void;
+
   // ── Editing ───────────────────────────────────────────────────────────
   /**
    * Whether Enter on a blank line offers the element menu. Off means Enter is
@@ -139,6 +169,11 @@ const STORAGE_KEY_BACKUP_INTERVAL = 'opendraft:backupIntervalMinutes';
 const STORAGE_KEY_BACKUP_RETENTION = 'opendraft:backupRetentionCount';
 const STORAGE_KEY_BACKUP_IMAGES = 'opendraft:backupIncludeImages';
 const STORAGE_KEY_BACKUP_UNSAVED = 'opendraft:backupUnsavedDocs';
+const STORAGE_KEY_AUTO_SAVE_LIBRARY = 'opendraft:autoSaveLibrary';
+const STORAGE_KEY_AUTO_SAVE_FILES = 'opendraft:autoSaveFiles';
+const STORAGE_KEY_AUTO_SAVE_INTERVAL = 'opendraft:autoSaveIntervalSeconds';
+const STORAGE_KEY_DEFAULT_PROJECT_FOLDER = 'opendraft:defaultProjectFolder';
+const STORAGE_KEY_DEFAULT_FILE_FORMAT = 'opendraft:defaultFileFormat';
 const STORAGE_KEY_ELEMENT_MENU_ON_ENTER = 'opendraft:elementMenuOnEnter';
 const STORAGE_KEY_PRINT_VIA_PDF = 'opendraft:printViaPdf';
 const STORAGE_KEY_ELEMENT_MENU_SHORTCUT = 'opendraft:elementMenuShortcut';
@@ -147,7 +182,12 @@ export const BACKUP_INTERVAL_OPTIONS = [5, 10, 15, 30, 60] as const;
 /** 0 means "keep every snapshot". */
 export const BACKUP_RETENTION_OPTIONS = [10, 25, 50, 100, 0] as const;
 
+export const AUTO_SAVE_INTERVAL_OPTIONS = [15, 30, 60, 120, 300] as const;
+
 const DEFAULT_BACKUP_INTERVAL_MINUTES = 10;
+const DEFAULT_AUTO_SAVE_INTERVAL_SECONDS = 30;
+const MIN_AUTO_SAVE_INTERVAL_SECONDS = 5;
+const MAX_AUTO_SAVE_INTERVAL_SECONDS = 3600;
 const DEFAULT_BACKUP_RETENTION = 25;
 
 /**
@@ -173,6 +213,14 @@ function loadElementMenuShortcut(): string {
     return raw && parseShortcut(raw) ? raw : '';
   } catch {
     return DEFAULT_ELEMENT_MENU_SHORTCUT;
+  }
+}
+
+function loadString(key: string, fallback: string): string {
+  try {
+    return localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
   }
 }
 
@@ -322,6 +370,43 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setBackupUnsavedDocs: (v) => {
     try { localStorage.setItem(STORAGE_KEY_BACKUP_UNSAVED, v ? '1' : '0'); } catch { /* ignore */ }
     set({ backupUnsavedDocs: v });
+  },
+
+  // ── Saving ────────────────────────────────────────────────────────────
+  autoSaveLibrary: loadBool(STORAGE_KEY_AUTO_SAVE_LIBRARY, true),
+  setAutoSaveLibrary: (v) => {
+    try { localStorage.setItem(STORAGE_KEY_AUTO_SAVE_LIBRARY, v ? '1' : '0'); } catch { /* ignore */ }
+    set({ autoSaveLibrary: v });
+  },
+
+  autoSaveFiles: loadBool(STORAGE_KEY_AUTO_SAVE_FILES, false),
+  setAutoSaveFiles: (v) => {
+    try { localStorage.setItem(STORAGE_KEY_AUTO_SAVE_FILES, v ? '1' : '0'); } catch { /* ignore */ }
+    set({ autoSaveFiles: v });
+  },
+
+  autoSaveIntervalSeconds: loadClampedInt(
+    STORAGE_KEY_AUTO_SAVE_INTERVAL,
+    DEFAULT_AUTO_SAVE_INTERVAL_SECONDS,
+    MIN_AUTO_SAVE_INTERVAL_SECONDS,
+    MAX_AUTO_SAVE_INTERVAL_SECONDS,
+  ),
+  setAutoSaveIntervalSeconds: (sec) => {
+    const clamped = Math.min(MAX_AUTO_SAVE_INTERVAL_SECONDS, Math.max(MIN_AUTO_SAVE_INTERVAL_SECONDS, sec));
+    try { localStorage.setItem(STORAGE_KEY_AUTO_SAVE_INTERVAL, String(clamped)); } catch { /* ignore */ }
+    set({ autoSaveIntervalSeconds: clamped });
+  },
+
+  defaultProjectFolder: loadString(STORAGE_KEY_DEFAULT_PROJECT_FOLDER, ''),
+  setDefaultProjectFolder: (path) => {
+    try { localStorage.setItem(STORAGE_KEY_DEFAULT_PROJECT_FOLDER, path); } catch { /* ignore */ }
+    set({ defaultProjectFolder: path });
+  },
+
+  defaultFileFormat: loadString(STORAGE_KEY_DEFAULT_FILE_FORMAT, 'odraft'),
+  setDefaultFileFormat: (format) => {
+    try { localStorage.setItem(STORAGE_KEY_DEFAULT_FILE_FORMAT, format); } catch { /* ignore */ }
+    set({ defaultFileFormat: format });
   },
 
   elementMenuOnEnter: loadBool(STORAGE_KEY_ELEMENT_MENU_ON_ENTER, true),

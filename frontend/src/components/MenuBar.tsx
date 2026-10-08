@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/core';
 import { useEditorStore, DEFAULT_PAGE_LAYOUT, printedPageNumber, resolveHeaderFooter } from '../stores/editorStore';
+import type { DocumentOrigin } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useAssetStore } from '../stores/assetStore';
 import { api } from '../services/api';
@@ -13,14 +14,18 @@ import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellEleme
 import { chooseAvFrameImage } from '../utils/avFrame';
 import { formatShortcut } from '../utils/shortcuts';
 import { showToast } from './Toast';
-import { downloadFDX, exportFDX } from '../utils/fdxExporter';
-import { downloadFountain, exportFountain } from '../utils/fountainExporter';
-import { exportFadeIn, exportOSF } from '../utils/osfExporter';
+import { downloadFDX } from '../utils/fdxExporter';
+import { downloadFountain } from '../utils/fountainExporter';
+import { exportFadeIn } from '../utils/osfExporter';
+import {
+  serializeContentForFormat, extensionOfPath, isLinkableExtension, normalizeLinkedFormat, linkedFileName,
+} from '../utils/linkedFileFormat';
+import { useLinkedFileStore, autoSaveAppliesToOpenDocument } from '../stores/linkedFileStore';
 import { exportPDF, renderPDF, type PDFExportOptions } from '../utils/pdfExporter';
 import { buildExportFootnotePlan } from '../utils/exportFootnotes';
 import { downloadDocx } from '../utils/docxExporter';
 import { parseDocx } from '../utils/docxImporter';
-import { serializeOdraft, downloadOdraft } from '../utils/odraftFormat';
+import { downloadOdraft } from '../utils/odraftFormat';
 import { packScratchAssets } from '../services/snapshotAssets';
 import { pasteAsFountain } from '../utils/pasteFountain';
 import { copySelection, cutSelection, pasteIntoEditor } from '../utils/clipboardCommands';
@@ -44,7 +49,7 @@ import { selectionStartsNewPage } from '../editor/extensions';
 import { pluginRegistry } from '../plugins/registry';
 import AuthIndicator from './AuthIndicator';
 import { useNavigate } from 'react-router-dom';
-import { flushPendingSave } from '../services/pendingSave';
+import { flushPendingSave, setLeaveGuard, leaveEditor as leaveEditorScreen } from '../services/pendingSave';
 import { scriptApi } from '../services/scriptApi';
 import { useSettingsStore } from '../stores/settingsStore';
 import { clearEditorHistory } from '../editor/clearHistory';
@@ -84,6 +89,7 @@ import {
 } from '../services/backupService';
 import { useBackupStatusStore, describeBackupError } from '../stores/backupStatusStore';
 import RecoverBackupDialog from './RecoverBackupDialog';
+import BackupFolderPrompt from './BackupFolderPrompt';
 import UserManualDialog from './UserManualDialog';
 import {
   openBinaryFile,
@@ -354,44 +360,71 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const serializeForOrigin = useCallback(
     async (format: string): Promise<string | Uint8Array> => {
       if (!editor) throw new Error('No document is open.');
-      const doc = editor.getJSON();
       const s = useEditorStore.getState();
-
-      if (format === 'fdx') {
-        return exportFDX(doc, s.documentTitle, s.characterProfiles, s.tagCategories, s.tags,
-          s.beats, s.beatColumns, s.pageLayout, { family: s.fontFamily, size: s.fontSize },
-          undefined, { mode: s.revisionMode, color: s.revisionColor, settings: s.revisionSettings },
-          { sceneNumbersVisible: s.sceneNumbersVisible });
-      }
-      if (format === 'fountain' || format === 'txt') {
-        return exportFountain(doc, { revisionSettings: s.revisionSettings, sceneNumbersVisible: s.sceneNumbersVisible });
-      }
-      const font = { family: s.fontFamily, size: String(s.fontSize) };
+      // Fade In's archive is the one binary format; it stays here because
+      // only a file opened in place is ever written in it.
       if (format === 'fadein') {
-        return exportFadeIn(doc, { font, ...osfExtras(s) });
+        return exportFadeIn(editor.getJSON(), { font: { family: s.fontFamily, size: String(s.fontSize) }, ...osfExtras(s) });
       }
-      if (format === 'osf') {
-        return exportOSF(doc, { font, ...osfExtras(s) });
-      }
-      if (format === 'odraft') {
-        // The native format, and the only one that carries everything: the
-        // notes, tags, beats and profiles the others have nowhere to put. It
-        // therefore saves the whole payload, not the bare editor JSON.
-        const content = buildSaveContent();
-        if (!content) throw new Error('No document is open.');
-        return serializeOdraft(
-          {
-            id: '', title: s.documentTitle, author: '', format: 'json',
-            created_at: '', updated_at: '', page_count: s.pageCount,
-            size_bytes: 0, color: '', pinned: false, sort_order: 0, preview: '',
-          },
-          content,
-        );
-      }
-      throw new Error(`OpenDraft cannot write .${format} files.`);
+      // Everything else goes through the same serializer as files linked to
+      // library scripts (issue #135), so the two can never write a format
+      // differently. It works from the saved payload, which carries the
+      // notes, beats and profiles .odraft keeps and .fdx partly does.
+      const content = buildSaveContent();
+      if (!content) throw new Error('No document is open.');
+      return serializeContentForFormat(format, content, s.documentTitle, {
+        font: { family: s.fontFamily, size: s.fontSize },
+        meta: { page_count: s.pageCount },
+      });
     },
     [editor, buildSaveContent],
   );
+
+  /**
+   * Write the open document back over the file it was opened from.
+   *
+   * Shared by Save and the file auto-save. Returns whether the file now holds
+   * the document. An auto-save that keeps failing — a network drive that has
+   * gone away — reports it once, when it starts failing, rather than on every
+   * tick; the status bar carries the error in between.
+   */
+  const saveInPlace = useCallback(async (origin: DocumentOrigin, auto: boolean): Promise<boolean> => {
+    const { setSaveStatus, saveStatus: before } = useEditorStore.getState();
+    // ProseMirror documents are immutable, so a different object afterwards
+    // means the writer kept typing while the file was written — and those
+    // edits are not in it. Edits made during 'saving' do not mark the document
+    // unsaved on their own, so this is the only thing that would notice.
+    const docBefore = editor?.state.doc;
+    setSaveStatus('saving');
+    try {
+      await saveDocumentInPlace(origin.bookmark, await serializeForOrigin(origin.format));
+      // The writer may have opened something else while the write was in
+      // flight; the status now belongs to that document, not this one.
+      if (useEditorStore.getState().documentOrigin?.bookmark !== origin.bookmark) return true;
+      if (editor && !editor.isDestroyed && editor.state.doc !== docBefore) {
+        setSaveStatus('unsaved');
+        return true;
+      }
+      setSaveStatus('saved');
+      // The file now holds this document, so the editor's library bookkeeping
+      // and the recovery snapshot must both stop treating it as unsaved work.
+      const savedPayload = buildSaveContent();
+      if (savedPayload) onDocumentSaved?.(JSON.stringify(savedPayload));
+      clearRecoverySnapshot();
+      return true;
+    } catch (err) {
+      console.error(auto ? 'Auto-save in place failed:' : 'Save in place failed:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      // Left in the error state on purpose: the file did NOT receive this
+      // text, and showing "saved" would be telling the writer their work is
+      // safe somewhere it is not.
+      setSaveStatus('error', msg);
+      if (!auto || before !== 'error') {
+        showToast(`Could not save to ${origin.name}: ${msg}`, 'error');
+      }
+      return false;
+    }
+  }, [editor, serializeForOrigin, buildSaveContent, onDocumentSaved]);
 
   // ── Save current editor content to backend ──
   const handleSave = useCallback(async () => {
@@ -403,26 +436,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     // is the whole point of opening in place.
     const origin = useEditorStore.getState().documentOrigin;
     if (origin) {
-      const { setSaveStatus } = useEditorStore.getState();
-      setSaveStatus('saving');
-      try {
-        await saveDocumentInPlace(origin.bookmark, await serializeForOrigin(origin.format));
-        setSaveStatus('saved');
-        // The file now holds this document, so the editor's auto-save and the
-        // recovery snapshot must both stop treating it as unsaved work. An
-        // in-place document has no auto-save tick to correct them later.
-        const savedPayload = buildSaveContent();
-        if (savedPayload) onDocumentSaved?.(JSON.stringify(savedPayload));
-        clearRecoverySnapshot();
-      } catch (err) {
-        console.error('Save in place failed:', err);
-        const msg = err instanceof Error ? err.message : String(err);
-        // Left in the error state on purpose: the file did NOT receive this
-        // text, and showing "saved" would be telling the writer their work is
-        // safe somewhere it is not.
-        setSaveStatus('error', msg);
-        showToast(`Could not save to ${origin.name}: ${msg}`, 'error');
-      }
+      await saveInPlace(origin, false);
       return;
     }
 
@@ -437,6 +451,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const content = buildSaveContent();
       await scriptApi.saveScript(currentProject.id, currentScriptId, { content });
       setSaveStatus('saved');
+      // A script linked to a file on disk is safe in the library either way,
+      // but the writer pressed Save expecting their file to have it too.
+      const fileStatus = useLinkedFileStore.getState().byScript[currentScriptId];
+      if (fileStatus?.state === 'pending' && fileStatus.error) {
+        const name = fileStatus.path.split(/[/\\]/).pop() || fileStatus.path;
+        showToast(`Saved in OpenDraft, but not to ${name}: ${fileStatus.error}. OpenDraft will keep trying.`, 'error');
+      }
       // The user's real copy now holds this text, so there is nothing left to
       // recover. Done here as well as in the snapshot hook because an explicit
       // save goes through this path without touching the auto-save bookkeeping
@@ -451,7 +472,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // get the blocking modal so the user can't miss them.
       reportSaveError(err, 'manual-save');
     }
-  }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen, serializeForOrigin, onDocumentSaved]);
+  }, [editor, currentProject, currentScriptId, buildSaveContent, setSaveAsOpen, saveInPlace]);
 
   /**
    * Leave the editor for another screen of the app.
@@ -470,8 +491,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
    * no document with somewhere to save to.
    */
   const leaveEditor = useCallback(async (go: () => void) => {
-    await flushPendingSave();
-    go();
+    // Through the shared guard registered below, so the account menu leaves
+    // the editor the same way this menu does.
+    await leaveEditorScreen(go);
   }, []);
 
   const goToProjects = useCallback(
@@ -490,6 +512,151 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (!editor) return;
     setSaveAsOpen(true);
   }, [editor, setSaveAsOpen]);
+
+  /**
+   * Save to File As… (desktop, issue #135).
+   *
+   * For a library script: write it to a file the writer picks and keep it
+   * linked, so every later save updates that file too. For a file opened from
+   * disk or a document not in the library: write it there and carry on
+   * editing that file, as Open File from Disk would.
+   */
+  const handleSaveToFileAs = useCallback(async () => {
+    if (!editor) return;
+    const s = useEditorStore.getState();
+    try {
+      const lf = await import('../services/linkedFiles');
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const origin = s.documentOrigin;
+      const ps = useProjectStore.getState();
+      if (!origin && currentProject && currentScriptId && ps.isCloudScript(currentProject.id, currentScriptId)) {
+        showToast('A cloud script cannot be linked to a file on this computer. Use File ▸ Export to save a copy.', 'error');
+        return;
+      }
+      const library = !origin && currentProject && currentScriptId
+        ? { projectId: currentProject.id, scriptId: currentScriptId }
+        : null;
+
+      let defaultDir: string | null = origin ? lf.dirnameOf(origin.bookmark) : null;
+      if (!defaultDir && library) {
+        const link = await lf.getLink(library.scriptId);
+        defaultDir = link ? lf.dirnameOf(link.path) : lf.projectFolder(currentProject);
+      }
+      if (!defaultDir) {
+        const { documentDir } = await import('@tauri-apps/api/path');
+        defaultDir = await documentDir();
+      }
+      const preferred = origin && isLinkableExtension(origin.format)
+        ? origin.format
+        : normalizeLinkedFormat(useSettingsStore.getState().defaultFileFormat);
+
+      const picked = await save({
+        title: 'Save to File',
+        defaultPath: lf.joinPath(defaultDir, linkedFileName(s.documentTitle || 'Untitled', preferred)),
+        filters: [
+          { name: 'OpenDraft', extensions: ['odraft'] },
+          { name: 'Fountain', extensions: ['fountain'] },
+          { name: 'Final Draft', extensions: ['fdx'] },
+        ],
+      });
+      if (!picked) return;
+      let path = picked;
+      let ext = extensionOfPath(path);
+      if (!isLinkableExtension(ext)) {
+        path = `${path}.${preferred}`;
+        ext = preferred;
+      }
+      const name = lf.basenameOf(path);
+
+      // One file, one script: two scripts saving to one file would overwrite
+      // each other on every save.
+      const taken = await lf.findLinkByPath(path);
+      if (taken && taken.scriptId !== library?.scriptId) {
+        showToast(`${name} is already where another script is saved. Choose a different name.`, 'error');
+        return;
+      }
+
+      if (library) {
+        const content = buildSaveContent();
+        if (!content) throw new Error('No document is open.');
+        s.setSaveStatus('saving');
+        // The library first, so the file gets exactly what is on screen.
+        await scriptApi.saveScript(library.projectId, library.scriptId, { content });
+        const outcome = await lf.linkScriptToFile(library.projectId, library.scriptId, path);
+        useLinkedFileStore.getState().setOpenScriptFile({ scriptId: library.scriptId, path });
+        s.setSaveStatus('saved');
+        onDocumentSaved?.(JSON.stringify(content));
+        clearRecoverySnapshot();
+        if (outcome === 'written') {
+          showToast(`Saved to ${name}. From now on, saving this script updates that file too.`, 'success');
+        } else {
+          const err = useLinkedFileStore.getState().byScript[library.scriptId]?.error;
+          showToast(`Linked to ${name}, but it could not be written yet${err ? `: ${err}` : ''}. OpenDraft will keep trying.`, 'error');
+        }
+        return;
+      }
+
+      s.setSaveStatus('saving');
+      await saveDocumentInPlace(path, await serializeForOrigin(ext));
+      // The document is that file now: Save writes back to it from here on.
+      s.setDocumentOrigin({ bookmark: path, name, format: ext });
+      // A draft still called "Untitled …" takes the file's name, as it would
+      // if the file were opened; a title the writer chose is kept.
+      const fileTitle = name.replace(/\.\w+$/, '');
+      if (fileTitle && (!s.documentTitle.trim() || /^untitled\b/i.test(s.documentTitle.trim()))) {
+        s.setDocumentTitle(fileTitle);
+      }
+      s.setSaveStatus('saved');
+      const saved = buildSaveContent();
+      if (saved) onDocumentSaved?.(JSON.stringify(saved));
+      clearRecoverySnapshot();
+      showToast(`Saved to ${name}. Save now writes to this file.`, 'success');
+    } catch (err) {
+      console.error('Save to File As failed:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      s.setSaveStatus('error', msg);
+      showToast(`Could not save to the file: ${msg}`, 'error');
+    }
+  }, [editor, currentProject, currentScriptId, buildSaveContent, serializeForOrigin, onDocumentSaved]);
+
+  /**
+   * Open Folder as Project… (desktop, issue #135): the folder becomes a
+   * project, its screenplay files become its scripts, and the project keeps
+   * saving to them.
+   */
+  const handleOpenFolderAsProject = useCallback(async () => {
+    try {
+      const lf = await import('../services/linkedFiles');
+      const folder = await lf.pickFolder('Open Folder as Project');
+      if (!folder) return;
+
+      const existing = (await api.listProjects()).find((p) => {
+        const f = lf.projectFolder(p);
+        return f !== null && lf.samePath(f, folder);
+      });
+      if (existing) {
+        showToast(`That folder is already the project "${existing.name}".`, 'info');
+        void leaveEditor(() => navigate(`/project/${existing.id}`, { state: { from: '/projects' } }));
+        return;
+      }
+
+      const { project, scan } = await lf.createProjectInFolder(
+        lf.projectNameForFolder(folder),
+        folder,
+        normalizeLinkedFormat(useSettingsStore.getState().defaultFileFormat),
+      );
+      const found = `${scan.added} script${scan.added === 1 ? '' : 's'} found`;
+      if (scan.failed.length > 0) {
+        showToast(`Opened ${project.name}: ${found}; could not read ${scan.failed.join(', ')}.`, 'info');
+      } else {
+        showToast(`Opened ${project.name}: ${found}.`, 'success');
+      }
+      void leaveEditor(() => navigate(`/project/${project.id}`, { state: { from: '/projects' } }));
+    } catch (err) {
+      console.error('Open folder as project failed:', err);
+      showToast(`Could not open the folder: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [leaveEditor, navigate]);
 
   // ── Unsaved-changes confirmation before New / Import ──
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
@@ -597,6 +764,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   const handleDiscardConfirmDiscard = useCallback(() => {
     setDiscardConfirmOpen(false);
+    // The crash-recovery copy holds exactly the edits just thrown away. Left
+    // behind — leaving the editor for another screen unmounts it before the
+    // snapshot hook can notice — the next launch offers to "recover" them.
+    clearRecoverySnapshot();
     pendingAction?.();
     setPendingAction(null);
   }, [pendingAction]);
@@ -605,6 +776,47 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setDiscardConfirmOpen(false);
     setPendingAction(null);
   }, []);
+
+  // ── Leaving the editor for another screen ──
+  // With library auto-save on, outstanding work is flushed and the writer goes.
+  // With it off nothing may be written unasked (issue #135), and a library
+  // script is reloaded from the database on the way back, so they are asked —
+  // the same Save / Discard / Cancel as File → Open. Anything else open (a
+  // file from disk, an unsaved draft) is held in memory across the move by the
+  // editor's session stash, so it needs no question.
+  useEffect(() => {
+    return setLeaveGuard((go) => {
+      const libraryScript =
+        Boolean(currentProject && currentScriptId) && !useEditorStore.getState().documentOrigin;
+      if (libraryScript && !autoSaveAppliesToOpenDocument(useSettingsStore.getState(), false) && editorHasUnsavedChanges()) {
+        confirmOrRun(go);
+        return;
+      }
+      void flushPendingSave().then(go);
+    });
+  }, [currentProject, currentScriptId, editorHasUnsavedChanges, confirmOrRun]);
+
+  // ── Auto-save for a file opened from disk ──
+  // Opt-in (Settings → Saving): it rewrites the writer's own file unasked, and
+  // in another application's format that rewrite can drop what the format
+  // cannot hold. Retries while the last attempt failed, so a network drive that
+  // drops out and comes back catches up on its own.
+  const autoSaveFiles = useSettingsStore((s) => s.autoSaveFiles);
+  const autoSaveIntervalSeconds = useSettingsStore((s) => s.autoSaveIntervalSeconds);
+  useEffect(() => {
+    if (!hasFileOrigin || !autoSaveFiles || isCollabGuest) return;
+    let running = false;
+    const timer = setInterval(() => {
+      if (running) return;
+      const { documentOrigin, saveStatus } = useEditorStore.getState();
+      if (!documentOrigin || (saveStatus !== 'unsaved' && saveStatus !== 'error')) return;
+      running = true;
+      saveInPlace(documentOrigin, true)
+        .catch((err) => console.error('Auto-save in place threw:', err))
+        .finally(() => { running = false; });
+    }, autoSaveIntervalSeconds * 1000);
+    return () => clearInterval(timer);
+  }, [hasFileOrigin, autoSaveFiles, autoSaveIntervalSeconds, isCollabGuest, saveInPlace]);
 
   // ── Page Setup ──
   const [pageSetupOpen, setPageSetupOpen] = useState(false);
@@ -752,6 +964,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   // ── About / What's New ──
   const [recoverBackupOpen, setRecoverBackupOpen] = useState(false);
+  // Backups asked for before a folder was chosen: ask for one here, then go on.
+  const [backupFolderPrompt, setBackupFolderPrompt] = useState<'backup' | 'open' | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
   // Asked of the platform rather than assumed: iPad can tile a second window
   // but iPhone cannot, and Android needs API 32+ (issue #63). Desktop answers
@@ -1063,6 +1277,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
       const opened = outcome.document;
 
+      // A file that is linked to a script in a project folder is that script.
+      // Editing it here as well would leave two copies writing one file.
+      if (isDesktopTauri()) {
+        const lf = await import('../services/linkedFiles');
+        const link = await lf.findLinkByPath(opened.bookmark);
+        if (link) {
+          showToast(`${opened.name} belongs to one of your projects — opened it there.`, 'info');
+          navigate(`/project/${link.projectId}/edit/${link.scriptId}`);
+          return;
+        }
+      }
+
       // Asked before the document is put on screen. The editor notices a
       // duplicate after the fact as well, but being shown a screenplay and
       // then asked whether you meant to open it reads as if opening it caused
@@ -1078,7 +1304,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       console.error('Open in place failed:', err);
       showToast(`Could not open the file: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
-  }, [editor, applyInPlaceDocument]);
+  }, [editor, applyInPlaceDocument, navigate]);
 
   /** Put an opened-in-place document into the editor. */
   const applyInPlaceDocumentImpl = useCallback(async (opened: InPlaceDocument) => {
@@ -1440,11 +1666,24 @@ const MenuBar: React.FC<MenuBarProps> = ({
       try {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const appWindow = getCurrentWindow();
-        const stop = await appWindow.onCloseRequested((event) => {
+        const stop = await appWindow.onCloseRequested(async (event) => {
           if (!editorHasUnsavedChanges()) return;
-          // Held open until the writer has answered; the dialog's Save and
-          // Discard both end in destroy(), and Cancel simply leaves it open.
+          const origin = useEditorStore.getState().documentOrigin;
+          const settings = useSettingsStore.getState();
+          const autoSaveFile = settings.autoSaveFiles;
+          // A library script with auto-save on is saved on the way out by the
+          // editor's own close handler; asking as well only raced it.
+          if (!origin && currentProject && currentScriptId && autoSaveAppliesToOpenDocument(settings, false)) return;
+          // Held open until the work is saved or the writer has answered; the
+          // dialog's Save and Discard both end in destroy(), and Cancel simply
+          // leaves it open.
           event.preventDefault();
+          // Auto-save covers closing too. If the file cannot be written, fall
+          // through to the question rather than lose the edits.
+          if (origin && autoSaveFile && await saveInPlace(origin, true)) {
+            void appWindow.destroy();
+            return;
+          }
           confirmOrRun(() => {
             void appWindow.destroy();
           });
@@ -1462,7 +1701,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       cancelled = true;
       unlisten?.();
     };
-  }, [editorHasUnsavedChanges, confirmOrRun]);
+  }, [editorHasUnsavedChanges, confirmOrRun, currentProject, currentScriptId, saveInPlace]);
 
   const handleExportFDX = useCallback(async () => {
     if (!editor) return;
@@ -1827,12 +2066,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // .odraft: Export is "give me a file to send somewhere", Back Up Now is "pin
   // this moment in my safety net". Same bytes, different lifecycle — manual
   // snapshots are never pruned by the retention limit.
-  const handleBackupNow = useCallback(async () => {
-    if (!backupsAvailable()) {
-      showToast('Choose a backup folder first', 'info');
-      goToSettings();
-      return;
-    }
+  const backUpNow = useCallback(async () => {
     const content = buildSaveContent();
     if (!content) return;
     try {
@@ -1853,21 +2087,40 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const reason = describeBackupError(err instanceof Error ? err.message : String(err));
       showToast(`Backup failed — ${reason}`, 'error');
     }
-  }, [buildSaveContent, currentProject, currentScriptId, goToSettings]);
+  }, [buildSaveContent, currentProject, currentScriptId]);
 
-  const handleOpenBackupFolder = useCallback(async () => {
-    const folder = useSettingsStore.getState().backupFolder;
-    if (!folder) {
-      showToast('Choose a backup folder first', 'info');
-      goToSettings();
+  const handleBackupNow = useCallback(() => {
+    if (!backupsAvailable()) {
+      setBackupFolderPrompt('backup');
       return;
     }
+    void backUpNow();
+  }, [backUpNow]);
+
+  const openBackupFolder = useCallback(async () => {
+    const folder = useSettingsStore.getState().backupFolder;
+    if (!folder) return;
     try {
+      // The Documents default is only created by the first backup; make it
+      // now so opening it straight after choosing it works.
+      if (isDesktopTauri()) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('ensure_dir', { path: folder });
+      }
       await revealSnapshot(folder);
-    } catch {
-      showToast('Could not open the backup folder', 'error');
+    } catch (err) {
+      console.error('[backup] could not open the backup folder:', err);
+      showToast(`Could not open the backup folder: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
-  }, [goToSettings]);
+  }, []);
+
+  const handleOpenBackupFolder = useCallback(() => {
+    if (!useSettingsStore.getState().backupFolder) {
+      setBackupFolderPrompt('open');
+      return;
+    }
+    void openBackupFolder();
+  }, [openBackupFolder]);
 
   const handleExportOdraft = useCallback(async () => {
     if (!editor) return;
@@ -2135,6 +2388,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
           action: () => confirmOrRun(handleOpenInPlace),
           disabled: isCollabGuest,
         }] : []),
+        // Desktop: a folder of screenplay files becomes a project that keeps
+        // saving to them (issue #135).
+        ...(isDesktopTauri() ? [{
+          icon: <FaFolderOpen />,
+          label: 'Open Folder as Project…',
+          action: () => { void handleOpenFolderAsProject(); },
+          disabled: isCollabGuest,
+        }] : []),
         {
           // "Close Script", not "Close": the menu bar lives inside the window on
           // touch platforms, with no window chrome around it to make plain
@@ -2166,6 +2427,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
           action: handleSaveAs,
           disabled: isCollabGuest,
         },
+        // Desktop: keep the script in a file of the writer's choosing — on a
+        // RAID, a network share, a project's own folder (issue #135).
+        ...(isDesktopTauri() ? [{
+          icon: <FaSave />,
+          label: 'Save to File As…',
+          action: () => { void handleSaveToFileAs(); },
+          disabled: isCollabGuest,
+        }] : []),
         { separator: true, label: '' },
         {
           icon: <FaFileExport />, label: 'Export',
@@ -3163,6 +3432,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
           finishNewScreenplayWithFormat(id, formatPickerMode);
         }}
         onCancel={() => setFormatPickerOpen(false)}
+      />
+    )}
+    {backupFolderPrompt && (
+      <BackupFolderPrompt
+        then={backupFolderPrompt}
+        onClose={() => setBackupFolderPrompt(null)}
+        onFolderChosen={() => {
+          if (backupFolderPrompt === 'backup') void backUpNow();
+          else void openBackupFolder();
+        }}
       />
     )}
     <RecoverBackupDialog

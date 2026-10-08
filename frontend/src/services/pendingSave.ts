@@ -46,3 +46,43 @@ export async function flushPendingSave(): Promise<void> {
     console.error('Flush before leaving the editor failed:', err);
   }
 }
+
+/**
+ * Decides how the open document is left behind. Registered by the menu bar,
+ * which owns the unsaved-changes dialog; null while no editor is mounted.
+ */
+type LeaveGuard = (go: () => void) => void;
+
+let leaveGuard: LeaveGuard | null = null;
+
+/**
+ * Register the guard that runs before leaving the editor for another screen.
+ * Returns an unregister function, for the same reason as the flush above.
+ */
+export function setLeaveGuard(fn: LeaveGuard): () => void {
+  leaveGuard = fn;
+  return () => {
+    if (leaveGuard === fn) leaveGuard = null;
+  };
+}
+
+/**
+ * Leave the editor for another screen of the app.
+ *
+ * With auto-save on, that means flushing first and going. With it off, the
+ * writer has said nothing is written unless they ask (issue #135), so the
+ * guard asks rather than saving on their behalf — a script reloaded from the
+ * library on the way back would otherwise come back without their edits.
+ */
+export async function leaveEditor(go: () => void): Promise<void> {
+  if (leaveGuard) {
+    try {
+      leaveGuard(go);
+      return;
+    } catch (err) {
+      console.error('Leave guard failed; flushing instead:', err);
+    }
+  }
+  await flushPendingSave();
+  go();
+}
