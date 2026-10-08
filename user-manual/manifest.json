@@ -1,167 +1,167 @@
 {
-  "version": "6e008f4bea0f1017",
+  "version": "64c2c0571b4cb807",
   "pages": [
     {
       "slug": "index.html",
       "title": "Home",
       "section": "Getting Started",
-      "hash": "8c3ba9cecf900aac"
+      "hash": "59ba5562c2990398"
     },
     {
       "slug": "getting-started.html",
       "title": "Getting Started",
       "section": "Getting Started",
-      "hash": "fabc7771b9a710a6"
+      "hash": "4e861c2cf23f2348"
     },
     {
       "slug": "installation.html",
       "title": "Installation",
       "section": "Getting Started",
-      "hash": "ad7be978b33cb10e"
+      "hash": "9c59da190eb3782c"
     },
     {
       "slug": "writing-screenplay.html",
       "title": "Writing Your Screenplay",
       "section": "Writing",
-      "hash": "67f49d714ea6730c"
+      "hash": "6eb36ae822efc9bf"
     },
     {
       "slug": "formatting.html",
       "title": "Formatting",
       "section": "Writing",
-      "hash": "96d03a16e5adfaf8"
+      "hash": "de54924d2f11b480"
     },
     {
       "slug": "title-page.html",
       "title": "Title Page",
       "section": "Writing",
-      "hash": "5adb1347c195fd2f"
+      "hash": "dc300da75c595bfd"
     },
     {
       "slug": "find-replace.html",
       "title": "Find & Replace",
       "section": "Writing",
-      "hash": "c0d98e84cb476892"
+      "hash": "b5072ce943c5f56c"
     },
     {
       "slug": "spell-check.html",
       "title": "Spell Check",
       "section": "Writing",
-      "hash": "042ca26b5e81d2da"
+      "hash": "a35c361353b15402"
     },
     {
       "slug": "scene-navigator.html",
       "title": "Scene Navigator",
       "section": "Story Planning",
-      "hash": "050a20da650ba7d1"
+      "hash": "efc6ec786398522b"
     },
     {
       "slug": "index-cards.html",
       "title": "Index Cards",
       "section": "Story Planning",
-      "hash": "58323fe2b999c8f8"
+      "hash": "cea58f7e2f35d331"
     },
     {
       "slug": "beat-board.html",
       "title": "Beat Board",
       "section": "Story Planning",
-      "hash": "4e3ab27e436e8b60"
+      "hash": "030a9dcaf1cf881f"
     },
     {
       "slug": "characters.html",
       "title": "Characters",
       "section": "Characters & Notes",
-      "hash": "8dbaecee284ea8dd"
+      "hash": "55c36cb073257b75"
     },
     {
       "slug": "script-notes.html",
       "title": "Script Notes",
       "section": "Characters & Notes",
-      "hash": "d811d56c8b92daf4"
+      "hash": "d32de06cff480da4"
     },
     {
       "slug": "script-statistics.html",
       "title": "Script Statistics & Timing",
       "section": "Analysis",
-      "hash": "60504e64ae507bb0"
+      "hash": "c72ce8b874925ef9"
     },
     {
       "slug": "table-read.html",
       "title": "Table Read",
       "section": "Analysis",
-      "hash": "868ba44369c8d270"
+      "hash": "09dd77147d84f6a3"
     },
     {
       "slug": "tags.html",
       "title": "Tags & Entities",
       "section": "Production",
-      "hash": "f703cccd04841352"
+      "hash": "bdc469782c1f8cdd"
     },
     {
       "slug": "locations.html",
       "title": "Locations",
       "section": "Production",
-      "hash": "1c68c0adb52d0773"
+      "hash": "94570a7612937523"
     },
     {
       "slug": "revision-mode.html",
       "title": "Revision Mode",
       "section": "Production",
-      "hash": "cd7611db212c7c85"
+      "hash": "95e427031c62a6f2"
     },
     {
       "slug": "projects.html",
       "title": "Managing Projects",
       "section": "Projects & Files",
-      "hash": "22f65e3346055897"
+      "hash": "b303dddcba65de6e"
     },
     {
       "slug": "version-history.html",
       "title": "Version History",
       "section": "Projects & Files",
-      "hash": "1709561601733ccb"
+      "hash": "61a0e231ec32de4d"
     },
     {
       "slug": "backups.html",
       "title": "Backups & Recovery",
       "section": "Projects & Files",
-      "hash": "09e917f33df964cc"
+      "hash": "d60379a2c8bb4431"
     },
     {
       "slug": "import-export.html",
       "title": "Import & Export",
       "section": "Projects & Files",
-      "hash": "7bba7354356ecb3a"
+      "hash": "c3e118f8b73c049d"
     },
     {
       "slug": "format-compatibility.html",
       "title": "Format Compatibility",
       "section": "Projects & Files",
-      "hash": "6ae8ea642087a954"
+      "hash": "5bfa7b7a6e5db941"
     },
     {
       "slug": "collaboration.html",
       "title": "Real-Time Collaboration",
       "section": "Collaboration",
-      "hash": "060ca989b2439174"
+      "hash": "42ccec9cd553bf9e"
     },
     {
       "slug": "themes.html",
       "title": "Themes",
       "section": "Customization",
-      "hash": "1d87f7345388e513"
+      "hash": "b833a4296f013ab7"
     },
     {
       "slug": "page-setup.html",
       "title": "Page Setup",
       "section": "Customization",
-      "hash": "13d1972fb727db0a"
+      "hash": "adeace85dda3421f"
     },
     {
       "slug": "keyboard-shortcuts.html",
       "title": "Keyboard Shortcuts",
       "section": "Customization",
-      "hash": "9bd9d56bded7dfde"
+      "hash": "8d1d781dce802b75"
     }
   ]
 }
