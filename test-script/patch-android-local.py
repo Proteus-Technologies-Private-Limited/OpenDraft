@@ -13,6 +13,8 @@ a local build does not, so a locally-built APK is missing:
   - the <activity> entries for WindowActivity1..3, without which
     File -> New Window fails: tao starts a window *by class name*, and an
     undeclared activity cannot be started at all
+  - the TTS_SERVICE <queries> entry, without which Android 11+ hides every
+    text-to-speech engine and Table Read finds no voices (issue #131)
 
 Run this after `tauri android init` and before `tauri android build`. It is
 idempotent — patching an already-patched manifest changes nothing.
@@ -46,6 +48,30 @@ def copy_sources() -> None:
     xml_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy(SRC / "file_paths.xml", xml_dir / "file_paths.xml")
     print("copied file_paths.xml")
+
+
+TTS_QUERY = (
+    '<intent>\n'
+    '            <action android:name="android.intent.action.TTS_SERVICE" />\n'
+    '        </intent>'
+)
+
+
+def patch_tts_query() -> None:
+    content = MANIFEST.read_text()
+    if "android.intent.action.TTS_SERVICE" in content:
+        print("manifest already declares the TTS query — nothing to do")
+        return
+    if "<queries>" in content:
+        content = content.replace("<queries>", "<queries>\n        " + TTS_QUERY, 1)
+    elif "<application" in content:
+        content = content.replace(
+            "<application", "<queries>\n        " + TTS_QUERY + "\n    </queries>\n\n    <application", 1
+        )
+    else:
+        sys.exit("<application> not found in the manifest — cannot add the TTS query")
+    MANIFEST.write_text(content)
+    print("manifest patched with the TTS_SERVICE query")
 
 
 def patch_manifest() -> None:
@@ -99,3 +125,4 @@ if __name__ == "__main__":
         sys.exit("src-tauri/gen/android does not exist — run `tauri android init` first")
     copy_sources()
     patch_manifest()
+    patch_tts_query()

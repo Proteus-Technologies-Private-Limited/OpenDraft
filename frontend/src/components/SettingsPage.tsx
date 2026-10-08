@@ -9,8 +9,9 @@ import { getApiBase } from '../config';
 import { getDeviceId } from '../services/deviceId';
 import BackupSettingsSection from './BackupSettingsSection';
 import SaveSettingsSection from './SaveSettingsSection';
+import VoiceProviderSettings from './VoiceProviderSettings';
 import { formatShortcut, isMacPlatform, shortcutFromEvent } from '../utils/shortcuts';
-import { printRoute } from '../services/platform';
+import { printRoute, isTauri as isTauriApp } from '../services/platform';
 
 const EXPIRY_OPTIONS = [
   { label: '30 minutes', hours: 0.5 },
@@ -1217,6 +1218,17 @@ const SettingsPage: React.FC = () => {
           </div>
         </section>
         )}
+
+        {/* ── Table Read (issue #131) ── */}
+        <section className="settings-section">
+          <h2 className="settings-section-title">Table Read Voices</h2>
+          <p className="settings-section-desc">
+            The voices Tools &rarr; Table Read uses to read the script aloud: the ones
+            installed on this {isTauriApp() ? 'device' : 'computer'}, or an AI voice provider.
+            Each character&rsquo;s voice is chosen on their profile in the Characters panel.
+          </p>
+          <VoiceProviderSettings />
+        </section>
 
         {/* ── Editing ── */}
         <section className="settings-section">

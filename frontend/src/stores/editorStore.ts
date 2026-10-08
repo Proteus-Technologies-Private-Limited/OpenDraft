@@ -608,6 +608,26 @@ export interface CharacterProfile {
   sampleDialogue: string;
   /** Asset IDs of images associated with this character */
   images: string[];
+  /**
+   * The voice Table Read gives this character (OpenDraft-only). Optional, and
+   * absent on every profile written before Table Read existed.
+   */
+  voice?: CharacterVoice;
+}
+
+/**
+ * A character's Table Read voice, one slot per kind of engine.
+ *
+ * Kept apart because the two never share ids: a system voice is whatever the
+ * machine reading the script has installed — a script opened on another
+ * computer may not find it, and then falls back to an automatic pick — while
+ * an AI voice belongs to a provider and travels with the script intact.
+ */
+export interface CharacterVoice {
+  /** Voice id of an installed system voice. */
+  system?: string;
+  /** `<provider>:<voice id>` of an AI provider's voice. */
+  ai?: string;
 }
 
 export interface CharacterRelationship {

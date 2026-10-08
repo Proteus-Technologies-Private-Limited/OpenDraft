@@ -1,4 +1,7 @@
 use std::sync::Mutex;
+
+/// Platform text-to-speech for Table Read (issue #131).
+mod tts;
 use percent_encoding::percent_decode_str;
 use tauri::{Emitter, Manager};
 #[cfg(desktop)]
@@ -2925,6 +2928,10 @@ pub fn run() {
             focus_window,
             set_window_title,
             open_url,
+            tts::tts_native_voices,
+            tts::tts_native_speak,
+            tts::tts_native_poll,
+            tts::tts_native_stop,
         ]);
 
         // ── Native menu (desktop only) ────────────────────────────────

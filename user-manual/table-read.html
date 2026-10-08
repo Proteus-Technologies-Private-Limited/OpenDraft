@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Table Read - OpenDraft User Manual</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="../">Home</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="title-page.html" class="sidebar-link">Title Page</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Analysis</div>
+    <a href="script-statistics.html" class="sidebar-link">Script Statistics &amp; Timing</a>
+    <a href="table-read.html" class="sidebar-link active">Table Read</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="backups.html" class="sidebar-link">Backups &amp; Recovery</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+    <a href="format-compatibility.html" class="sidebar-link">Format Compatibility</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Table Read
+    </div>
+
+    <h1>Table Read</h1>
+    <p class="page-subtitle">Hear your script read aloud, with a different voice for each character.</p>
+
+    <h2 id="start">Starting a Table Read</h2>
+
+    <p>Choose <strong>Tools &gt; Table Read</strong>. A panel opens along the bottom of the editor and shows the script line by line. Press <strong>Play</strong> to start reading from the line shown, or <strong>From cursor</strong> to start wherever your cursor is in the script.</p>
+
+    <p>While the script is read:</p>
+    <ul>
+      <li>The panel shows the <strong>line being read</strong> in large type, with the <strong>word being spoken</strong> highlighted, the line before it, and the lines coming up.</li>
+      <li>The same line and word are highlighted <strong>in the script itself</strong>, which scrolls to keep up. Turn off <em>Follow along in the script</em> in the options if you want to keep reading elsewhere.</li>
+      <li>Click any line in the panel to read from there.</li>
+    </ul>
+
+    <h3 id="controls">Controls</h3>
+    <table>
+      <thead><tr><th>Control</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Play / Pause</strong></td><td>Pausing remembers the word the voice reached; Play picks up from there. <kbd>Space</kbd> does the same while the panel has focus.</td></tr>
+        <tr><td><strong>Previous / Next line</strong></td><td>Skip a line either way. <kbd>&uarr;</kbd> and <kbd>&darr;</kbd> work too.</td></tr>
+        <tr><td><strong>Previous / Next scene</strong></td><td>Jump to the start of the scene, or the next one.</td></tr>
+        <tr><td><strong>Stop</strong></td><td>Ends the read and clears the highlight.</td></tr>
+        <tr><td><strong>Speed</strong></td><td>From half speed to double speed.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="what-is-read">What Gets Read</h2>
+
+    <p>Each character&rsquo;s dialogue (and lyrics) is read in that character&rsquo;s voice. Everything else &mdash; scene headings, action and transitions &mdash; is read by the <strong>narrator</strong>. Open the options (<strong>&#9881;</strong>) to choose which of these are read, and whether parentheticals and character names are read aloud too.</p>
+
+    <p>Scene headings are read the way a reader would say them: <em>INT. KITCHEN - NIGHT</em> is read &ldquo;Interior. Kitchen. Night.&rdquo; Names written in capitals are read as names rather than spelled out. The title page, notes and outline sections are never read.</p>
+
+    <h2 id="voices">Choosing Voices</h2>
+
+    <p>Every character gets a voice automatically &mdash; a different one for each, as long as there are enough voices to go round, matched to the character&rsquo;s <strong>Gender</strong> where the profile gives one and the voice&rsquo;s gender is known.</p>
+
+    <p>To choose a voice yourself, open the character in the <a href="characters.html">Characters panel</a> and pick one under <strong>Table Read Voice</strong>. The &#9654; button plays a sample &mdash; a line from the character&rsquo;s <em>Sample Dialogue</em> if you have written one. The same choice is available for every character, and for the narrator, in the <strong>Cast</strong> list in the Table Read options.</p>
+
+    <p>A character&rsquo;s voice is saved with the script. If you open the script on a computer that does not have that voice installed, an automatic voice reads instead, and the voice you chose is kept for when the script is back on a machine that has it.</p>
+
+    <h2 id="voice-sources">Where the Voices Come From</h2>
+
+    <p>Table Read can speak with the <strong>voices installed on your device</strong>, or with an <strong>AI voice provider</strong>. Switch between them with <strong>System voices</strong> / <strong>AI voices</strong> at the top of the Table Read panel, or in <strong>Tools &gt; System Settings &gt; Table Read Voices</strong>. The app starts on the installed voices; in a browser, Table Read asks which you want the first time you open it.</p>
+
+    <h3 id="installed-voices">System voices: the voices on your device</h3>
+    <p>Installed voices are free, and in the app they work offline.</p>
+    <ul>
+      <li><strong>macOS</strong>: System Settings &gt; Accessibility &gt; Spoken Content &gt; System Voice &gt; Manage Voices adds more voices. The <em>Premium</em> and <em>Enhanced</em> voices sound best.</li>
+      <li><strong>Windows</strong>: Settings &gt; Time &amp; language &gt; Speech &gt; Add voices.</li>
+      <li><strong>iPhone and iPad</strong>: Settings &gt; Accessibility &gt; Spoken Content &gt; Voices.</li>
+      <li><strong>Android</strong>: Settings &gt; Accessibility &gt; Text-to-speech output, and the voice data of your speech engine.</li>
+      <li><strong>Linux</strong>: install <code>speech-dispatcher</code> (which provides <code>spd-say</code>) or <code>espeak-ng</code> from your distribution.</li>
+    </ul>
+    <p><strong>In a browser</strong>, the browser offers your computer&rsquo;s installed voices, so the same steps add more. Which ones appear depends on the browser. Some also list online voices of their own &mdash; Chrome&rsquo;s &ldquo;Google&rdquo; voices, Edge&rsquo;s &ldquo;Online (Natural)&rdquo; voices &mdash; which send the text to that company to be spoken; they are marked <em>online</em> in the voice lists.</p>
+    <p>macOS also lists sound-effect voices such as Bubbles and Zarvox. They are marked <em>novelty</em> and are never chosen automatically, but you can pick one for a character if you want to.</p>
+
+    <h3 id="ai-voices">AI voices</h3>
+    <p>Choose <strong>AI voices</strong> on the panel, and Table Read asks you to pick a provider (and add your API key, if it needs one) the first time. The choices:</p>
+    <table>
+      <thead><tr><th>Provider</th><th>Cost</th><th>What you need</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Kokoro</strong></td><td>Free</td><td>Nothing. Runs on your own device, so the script is never sent anywhere. The first read downloads the voice model from Hugging Face: about 165&ndash;330 MB when your device&rsquo;s graphics chip can run it, which reads quickly, or about 90 MB on the processor, which is much slower than speech. English voices only.</td></tr>
+        <tr><td><strong>Google Gemini</strong></td><td>Free tier, with daily limits</td><td>A Gemini API key from Google AI Studio. Gemini takes each character&rsquo;s parentheticals and <em>Speech Pattern</em> as directions for how to say their lines.</td></tr>
+        <tr><td><strong>OpenAI</strong></td><td>Paid</td><td>An OpenAI API key.</td></tr>
+        <tr><td><strong>ElevenLabs</strong></td><td>Small free allowance</td><td>An ElevenLabs API key. The word highlight follows the audio exactly.</td></tr>
+        <tr><td><strong>Microsoft Azure Speech</strong></td><td>500,000 characters a month free</td><td>A Speech resource key and its region (e.g. <code>eastus</code>) from the Azure portal.</td></tr>
+        <tr><td><strong>OpenAI-compatible server</strong></td><td>Whatever your server costs</td><td>The address of a server that offers OpenAI&rsquo;s speech API &mdash; for example Kokoro-FastAPI or LocalAI on your own machine.</td></tr>
+      </tbody>
+    </table>
+    <p>Use <strong>Test voice</strong> to check the setup before a read. API keys are kept only in your browser or on your device, and are sent only to the provider you chose.</p>
+
+    <div class="callout callout-warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Confidentiality.</strong> Every AI voice except Kokoro sends the text of your script to the provider to be spoken. This may breach your data security or confidentiality obligations &mdash; an NDA, a studio&rsquo;s policy, or your own rules for unreleased work. <strong>OpenDraft does not guarantee the confidentiality of anything sent to a third-party provider.</strong> On Gemini&rsquo;s free tier, Google may use what you send to improve its products, and human reviewers may read it. Table Read shows this warning whenever such a provider is in use. For a confidential script, use the voices installed on your device or Kokoro.</p>
+      </div>
+    </div>
+
+    <div class="page-nav">
+      <a href="script-statistics.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Script Statistics &amp; Timing</span>
+      </a>
+      <a href="tags.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Tags &amp; Entities</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v2.4.0 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

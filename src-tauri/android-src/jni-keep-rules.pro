@@ -29,4 +29,8 @@
     public static java.lang.String startPrintJob(android.content.Context, java.lang.String, java.lang.String);
     public static java.lang.String readClipboardHtml(android.content.Context);
     public static java.lang.String exportStagingDir(android.content.Context);
+    public static java.lang.String ttsVoices(android.content.Context);
+    public static java.lang.String ttsSpeak(android.content.Context, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String);
+    public static java.lang.String ttsPoll(android.content.Context);
+    public static java.lang.String ttsStop(android.content.Context);
 }

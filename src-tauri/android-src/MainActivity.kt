@@ -187,6 +187,147 @@ class MainActivity : TauriActivity() {
             }
         }
 
+        // ── Table Read (issue #131) ──────────────────────────────────────
+        // Android's WebView has no speechSynthesis, so Table Read speaks
+        // through the platform's TextToSpeech. Rust starts a line with
+        // ttsSpeak and polls ttsPoll for what happened since — start, each
+        // word (onRangeStart, API 26+, which is minSdk), done or error — so no
+        // JNI call is held open while a sentence plays.
+        //
+        // The engine binds its service asynchronously; ttsVoices returns null
+        // until it is ready and the frontend retries.
+
+        private var tts: android.speech.tts.TextToSpeech? = null
+        /** null = still binding; SUCCESS or ERROR once onInit has run. */
+        @Volatile private var ttsStatus: Int? = null
+        private val ttsEvents = java.util.concurrent.ConcurrentLinkedQueue<JSONObject>()
+        private val ttsLock = Any()
+
+        private fun ttsEvent(id: String?, kind: String, start: Int? = null, end: Int? = null, message: String? = null) {
+            val n = id?.toLongOrNull() ?: return
+            val ev = JSONObject().put("id", n).put("kind", kind)
+            if (start != null) ev.put("start", start)
+            if (end != null) ev.put("end", end)
+            if (message != null) ev.put("message", message)
+            // A frontend that stopped polling must not grow this forever.
+            while (ttsEvents.size > 500) ttsEvents.poll()
+            ttsEvents.add(ev)
+        }
+
+        /** The engine, created on first use. Null until it has finished binding. */
+        private fun ttsEngine(context: Context): android.speech.tts.TextToSpeech? {
+            synchronized(ttsLock) {
+                if (tts == null) {
+                    ttsStatus = null
+                    // The application context: the engine outlives any one activity.
+                    tts = android.speech.tts.TextToSpeech(context.applicationContext) { status ->
+                        ttsStatus = status
+                        if (status != android.speech.tts.TextToSpeech.SUCCESS) {
+                            android.util.Log.e("OpenDraft", "[tts] engine failed to start: $status")
+                        }
+                    }.also { engine ->
+                        engine.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+                            override fun onStart(utteranceId: String?) = ttsEvent(utteranceId, "start")
+                            override fun onDone(utteranceId: String?) = ttsEvent(utteranceId, "done")
+                            @Deprecated("Deprecated in Java")
+                            override fun onError(utteranceId: String?) =
+                                ttsEvent(utteranceId, "error", message = "The voice could not speak this line.")
+                            override fun onError(utteranceId: String?, errorCode: Int) =
+                                ttsEvent(utteranceId, "error", message = "The voice could not speak this line (error $errorCode).")
+                            override fun onStop(utteranceId: String?, interrupted: Boolean) = ttsEvent(utteranceId, "done")
+                            override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) =
+                                ttsEvent(utteranceId, "word", start, end)
+                        })
+                    }
+                }
+                return if (ttsStatus == android.speech.tts.TextToSpeech.SUCCESS) tts else null
+            }
+        }
+
+        /**
+         * Installed voices as a JSON array of {id, name, lang, detail}; null
+         * while the engine is still starting; {"error": …} if it never will.
+         */
+        @JvmStatic
+        fun ttsVoices(context: Context): String? {
+            return try {
+                val engine = ttsEngine(context)
+                if (engine == null) {
+                    val status = ttsStatus
+                    if (status != null && status != android.speech.tts.TextToSpeech.SUCCESS) {
+                        // Let the next attempt rebind — the writer may install an engine meanwhile.
+                        synchronized(ttsLock) { tts?.shutdown(); tts = null; ttsStatus = null }
+                        return JSONObject().put("error", "No text-to-speech engine is available on this device.").toString()
+                    }
+                    return null
+                }
+                val out = JSONArray()
+                val voices = engine.voices ?: emptySet()
+                for (v in voices.sortedBy { it.name }) {
+                    // Voices that would need a download, or the network, cannot read offline.
+                    if (v.features?.contains(android.speech.tts.TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) == true) continue
+                    if (v.isNetworkConnectionRequired) continue
+                    val locale = v.locale
+                    val detail = listOfNotNull(
+                        locale.getDisplayCountry().takeIf { it.isNotEmpty() },
+                        if (v.quality >= android.speech.tts.Voice.QUALITY_HIGH) "high quality" else null,
+                    ).joinToString(", ")
+                    out.put(JSONObject()
+                        .put("id", v.name)
+                        .put("name", v.name)
+                        .put("lang", locale.toLanguageTag())
+                        .put("detail", detail.ifEmpty { JSONObject.NULL }))
+                }
+                out.toString()
+            } catch (e: Exception) {
+                android.util.Log.e("OpenDraft", "[tts] listing voices failed: ${e.message}")
+                JSONObject().put("error", "Could not list the voices: ${e.message}").toString()
+            }
+        }
+
+        /** Speak one line. Returns null once it is queued, or a message saying why not. */
+        @JvmStatic
+        fun ttsSpeak(context: Context, id: String, text: String, voiceName: String, rate: String, pitch: String): String? {
+            return try {
+                val engine = ttsEngine(context) ?: return "The speech engine is still starting. Try again in a moment."
+                if (voiceName.isNotEmpty()) {
+                    val voice = engine.voices?.firstOrNull { it.name == voiceName }
+                    if (voice != null) engine.voice = voice
+                }
+                engine.setSpeechRate(rate.toFloatOrNull()?.coerceIn(0.25f, 4f) ?: 1f)
+                engine.setPitch(pitch.toFloatOrNull()?.coerceIn(0.25f, 2f) ?: 1f)
+                // QUEUE_FLUSH: a new line replaces anything still playing.
+                val result = engine.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, id)
+                if (result == android.speech.tts.TextToSpeech.SUCCESS) null
+                else "The speech engine refused the line."
+            } catch (e: Exception) {
+                android.util.Log.e("OpenDraft", "[tts] speak failed: ${e.message}")
+                "Could not speak: ${e.message}"
+            }
+        }
+
+        /** Everything that has happened since the last poll, as a JSON array. */
+        @JvmStatic
+        fun ttsPoll(context: Context): String? {
+            val out = JSONArray()
+            while (true) {
+                val ev = ttsEvents.poll() ?: break
+                out.put(ev)
+            }
+            return out.toString()
+        }
+
+        @JvmStatic
+        fun ttsStop(context: Context): String? {
+            return try {
+                synchronized(ttsLock) { tts?.stop() }
+                null
+            } catch (e: Exception) {
+                android.util.Log.e("OpenDraft", "[tts] stop failed: ${e.message}")
+                "Could not stop: ${e.message}"
+            }
+        }
+
         /** Request code for the document picker activity. */
         const val PICK_FILE_REQUEST = 42
 

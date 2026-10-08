@@ -10,6 +10,8 @@ import { api } from '../services/api';
 import { showToast } from './Toast';
 import MiniRichText from './MiniRichText';
 import { RelationshipMap } from './RelationshipMap';
+import VoicePicker from './VoicePicker';
+import { useTableReadStore } from '../stores/tableReadStore';
 
 // Default colors for auto-assignment (VIBGYOR palette)
 const DEFAULT_HIGHLIGHT_COLORS = [
@@ -494,6 +496,28 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
     [characterProfiles],
   );
 
+  // Voices Table Read cast automatically, shown beside "Automatic".
+  const tableReadCasting = useTableReadStore((s) => s.casting);
+
+  /** The Table Read voice for a character (issue #131). */
+  const renderTableReadVoice = (charName: string, prof: CharacterProfile) => (
+    <div className="char-profile-tts-voice">
+      <label className="char-profile-label" htmlFor={`tts-voice-${charName}`}>Table Read Voice</label>
+      <VoicePicker
+        id={`tts-voice-${charName}`}
+        value={prof.voice}
+        onChange={(slot, id) => {
+          const voice = { ...(prof.voice ?? {}) };
+          if (id) voice[slot] = id;
+          else delete voice[slot];
+          upsertCharacterProfile(charName, { voice });
+        }}
+        sample={singleLine(prof.sampleDialogue ? stripHtml(prof.sampleDialogue) : '').slice(0, 160) || `Hello, I'm ${charName.charAt(0) + charName.slice(1).toLowerCase()}.`}
+        automaticVoiceId={tableReadCasting[charName]}
+      />
+    </div>
+  );
+
   /** Calculate profile completeness as percentage + field breakdown */
   const getProfileCompleteness = useCallback((profile: CharacterProfile) => {
     const fields: { label: string; filled: boolean }[] = [
@@ -711,6 +735,8 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
           placeholder="How does this character change through the story..."
           minHeight={isModal ? 80 : 50}
         />
+
+        {renderTableReadVoice(charName, prof)}
 
         {/* Voice Profile (collapsible) */}
         <details className="char-profile-voice-section">
@@ -1214,6 +1240,8 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                         placeholder="How does this character change through the story..."
                         minHeight={50}
                       />
+
+                      {renderTableReadVoice(name, profile)}
 
                       {/* Voice Profile (collapsible) */}
                       <details className="char-profile-voice-section">

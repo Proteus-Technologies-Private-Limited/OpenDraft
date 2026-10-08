@@ -535,6 +535,31 @@ jobs:
               content = content.replace("</application>", extra + "\n    </application>", 1)
               print("Android manifest patched with 3 extra window activities")
 
+          # ── Table Read (issue #131) ──────────────────────────────────────
+          # From Android 11 an app sees only the packages it declares it will
+          # talk to. Without this query no text-to-speech engine is visible,
+          # TextToSpeech never binds, and Table Read finds no voices.
+          tts_query = (
+              '<intent>\n'
+              '            <action android:name="android.intent.action.TTS_SERVICE" />\n'
+              '        </intent>'
+          )
+          if "android.intent.action.TTS_SERVICE" not in content:
+              if "<queries>" in content:
+                  content = content.replace("<queries>", "<queries>\n        " + tts_query, 1)
+              elif "<application" in content:
+                  content = content.replace(
+                      "<application", "<queries>\n        " + tts_query + "\n    </queries>\n\n    <application", 1
+                  )
+              else:
+                  sys.exit(
+                      "::error::No <application> in the generated AndroidManifest.xml — "
+                      "the text-to-speech query cannot be declared, and Table Read "
+                      "would find no voices. The Tauri template has changed shape; "
+                      "update this patch."
+                  )
+              print("Android manifest patched with the TTS_SERVICE query")
+
           with open(manifest_path, "w") as f:
               f.write(content)
 

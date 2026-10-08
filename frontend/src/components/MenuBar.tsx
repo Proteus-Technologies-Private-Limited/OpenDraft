@@ -47,6 +47,9 @@ import { INDUSTRY_STANDARD_ID, ELEMENT_DESCRIPTIONS } from '../stores/formatting
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { selectionStartsNewPage } from '../editor/extensions';
 import { pluginRegistry } from '../plugins/registry';
+import { useTableReadStore } from '../stores/tableReadStore';
+import { isAiProviderConfigured, useVoiceSettingsStore } from '../stores/voiceSettingsStore';
+import { activeEngineKind } from '../services/tts/engines';
 import AuthIndicator from './AuthIndicator';
 import { useNavigate } from 'react-router-dom';
 import { flushPendingSave, setLeaveGuard, leaveEditor as leaveEditorScreen } from '../services/pendingSave';
@@ -162,6 +165,7 @@ import {
   FaAdjust,
   FaToolbox,
   FaUserFriends,
+  FaMicrophoneAlt,
   FaSignInAlt,
   FaProjectDiagram,
   FaFilm,
@@ -272,6 +276,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // Written the way this platform writes it, from whatever the writer set.
   const elementMenuShortcut = useSettingsStore((s) => s.elementMenuShortcut);
   const printViaPdf = useSettingsStore((s) => s.printViaPdf);
+  const tableReadOpen = useTableReadStore((s) => s.open);
   const {
     navigatorOpen,
     toggleNavigator,
@@ -2829,6 +2834,22 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { icon: <FaProjectDiagram />, label: 'Manage Projects…', action: goToProjects, disabled: isCollabGuest },
         { icon: <FaBoxes />, label: 'Asset Manager', action: () => useAssetStore.getState().toggleAssetManager() },
         { separator: true, label: '' },
+        {
+          icon: <FaMicrophoneAlt />,
+          label: tableReadOpen ? '\u2713 Table Read' : 'Table Read',
+          title: 'Hear the script read aloud, with a voice for each character',
+          action: () => {
+            const tr = useTableReadStore.getState();
+            if (tr.open) { tr.setOpen(false); return; }
+            tr.setOpen(true);
+            // A browser asks where the voices come from before the first
+            // read, rather than at the first Play; so does a choice of AI
+            // voices with no provider set up yet.
+            const vs = useVoiceSettingsStore.getState();
+            if (activeEngineKind(vs) === 'ai' && !isAiProviderConfigured(vs)) tr.setNeedsProvider(true);
+          },
+          disabled: !editor,
+        },
         {
           icon: <FaStream />, label: 'Analytics',
           children: [

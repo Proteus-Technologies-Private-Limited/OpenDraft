@@ -41,6 +41,13 @@ export default defineConfig({
     strictPort: true,
   },
 
+  // Workers are ES modules so they can split and lazy-load their imports —
+  // Table Read's Kokoro worker pulls in a large speech library that only the
+  // writers who choose Kokoro should ever download.
+  worker: {
+    format: 'es',
+  },
+
   // Tauri expects a fixed output directory
   build: {
     outDir: 'dist',
