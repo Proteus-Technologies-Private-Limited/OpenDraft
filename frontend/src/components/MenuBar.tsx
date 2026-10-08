@@ -3487,8 +3487,19 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 2.4.0</div>
+              <div className="about-section-title">What's New in 2.5.0</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v2.5.0</div>
+              <ul className="about-list">
+                <li><strong>Table Read</strong> &mdash; <em>Tools &rarr; Table Read</em> reads your script aloud, with a different voice for each character and a narrator for scene headings, action and transitions. A panel under the script shows the line being read with the word being spoken highlighted, and the same word is highlighted in the script, which scrolls to keep up. Pause picks up at the word it stopped on; skip a line or a scene, change the speed, or click any line to read from there.</li>
+                <li><strong>A Voice For Each Character</strong> &mdash; Every character gets a voice of their own automatically, matched to the Gender on their profile or to how the script introduces them. To choose one yourself, pick it under <em>Table Read Voice</em> on the character&rsquo;s profile. The choice is saved with the script.</li>
+                <li><strong>Your Device&rsquo;s Voices, Or AI Voices</strong> &mdash; Use the voices already installed on your device, free and offline, or AI voices: <strong>Kokoro</strong>, free and running on your own device, or Google Gemini, OpenAI, ElevenLabs, Microsoft Azure Speech or your own speech server, with your own API key.</li>
+                <li><strong>Confidentiality</strong> &mdash; Every AI voice except Kokoro sends the text of your script to that company. This may breach your data security or confidentiality obligations, and OpenDraft does not guarantee the confidentiality of anything sent to a third-party provider. Table Read says so wherever one is in use.</li>
+                <li><strong>Projects In A Folder On Disk</strong> &mdash; On the desktop, a project can save its scripts as files in a folder you choose &mdash; an external disk, a RAID, a network drive &mdash; as OpenDraft, Fountain or Final Draft files. <em>File &rarr; Open Folder as Project&hellip;</em> turns an existing folder into a project. A file changed somewhere else is never overwritten: OpenDraft opens the new version, or asks which to keep.</li>
+                <li><strong>Auto-Save, Your Way</strong> &mdash; Separate auto-save switches for library scripts and for files opened from disk, in <em>Tools &rarr; System Settings &rarr; Saving</em>. With auto-save off, leaving a script or closing the window asks first.</li>
+                <li><strong>Back Up Now Asks For A Folder</strong> &mdash; With no backup folder chosen, <em>Back Up Now</em> asks for one right there instead of sending you to Settings.</li>
+                <li><strong>Also Fixed</strong> &mdash; Leaving a script can no longer save an empty page over your saved text. OpenDraft now needs Android 8 or later; on Android 7 it closed as soon as it opened.</li>
+              </ul>
               <div className="about-subsection-title">v2.4.0</div>
               <ul className="about-list">
                 <li><strong>Dark Pages</strong> &mdash; View &rarr; Theme is one menu now: Light, Dark, and Dark Pages. Dark Pages turns the script page itself dark, with light text, for writing at night. Black text that came in from a formatting template, or was pasted from Word or Google Docs, turns light with the page instead of disappearing into it, and a colour you actually chose is left alone. It is a screen setting only &mdash; PDF, print and every export are still black on white. Whichever theme you pick is remembered.</li>

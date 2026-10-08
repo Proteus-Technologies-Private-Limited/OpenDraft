@@ -1,18 +1,13 @@
-REVISIONS THE WAY A PRODUCTION WORKS
-Turn on Revision Mode and every line you change gets a mark in the margin, in the PDF and in print. Choose your own mark, or a different one for each revision, so the Blue and Pink changes can be told apart.
+HEAR YOUR SCRIPT READ ALOUD
+Table Read reads your screenplay out loud, with a different voice for each character and a narrator for the action. Follow along as each word is highlighted on the page, pause, skip scenes, or change the speed.
 
-COLOURED REVISED PAGES
-Print revised pages tinted in their revision's colour, or export just the revised pages to send to cast and crew.
+A VOICE FOR EVERY CHARACTER
+Each character gets their own voice automatically, or pick one yourself on their profile. Your choices are saved with the script.
 
-LOCKED PAGES AND SCENE NUMBERS
-Lock your pages and new text goes onto A pages instead of moving every page after it. With scene numbers locked, a new scene after scene 12 becomes 12A, and a cut scene can stay in the script marked OMITTED.
+FREE VOICES OR AI VOICES
+Use the voices already on your Mac, free and offline, or try AI voices: Kokoro, free and private on your Mac, or Google Gemini, OpenAI, ElevenLabs and Microsoft Azure with your own account. AI voices other than Kokoro send your script's text to that company, so the app reminds you whenever one is in use.
 
-FINAL DRAFT REVISIONS COME WITH YOU
-Revisions now travel both ways with Final Draft, and are marked in Word, Fountain and Fade In files too.
-
-DARK PAGES
-A new theme that turns the page itself dark for writing at night. What you print and export stays black on white.
-
-ALSO FIXED
-Importing an exported project no longer brings every script in twice.
-Treatments always open as treatments.
+ALSO IMPROVED
+You can now choose separately whether scripts and opened files save automatically.
+Back Up Now asks for a backup folder right away if you haven't chosen one.
+Leaving a script can no longer save an empty page over your work.

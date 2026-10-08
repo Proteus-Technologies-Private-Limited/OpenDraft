@@ -14,10 +14,12 @@ A complete list of features in OpenDraft.
 - **Beat Board & Index Cards** -- Visual story planning with drag-and-drop scene organization
 - **Character Profiles** -- Track characters with role types, highlight colors, and rich descriptions
 - **Casting / Reference Images** -- Attach headshots or reference images to characters
+- **Table Read** -- Hear the script read aloud with a voice per character and a live, word-by-word preview; device voices, free on-device Kokoro, or Gemini, OpenAI, ElevenLabs, Azure or your own speech server
 
 ## Project Management
 
 - **Multiple Projects** -- Organize all your screenplays with metadata (genre, logline, synopsis)
+- **Project Folders** -- On the desktop, save a project's scripts as files in any folder (external disk, RAID, network drive), with changes made elsewhere detected
 - **Asset Management** -- Attach reference images, research docs, and notes to projects
 - **Script Notes** -- Inline annotations for review and feedback
 

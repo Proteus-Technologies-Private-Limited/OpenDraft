@@ -118,8 +118,35 @@
     <ol class="steps">
       <li>Click the <strong>+ New Project</strong> button on the Projects screen.</li>
       <li>Enter a project name.</li>
+      <li>On the desktop app, choose where its scripts are saved &mdash; the library or a folder on disk (see <a href="#project-folders">Saving a Project in a Folder</a>).</li>
       <li>Click <strong>Create</strong>.</li>
     </ol>
+
+    <h2 id="project-folders">Saving a Project in a Folder</h2>
+
+    <p>On the desktop app (macOS, Windows and Linux), a project can keep its scripts as ordinary files in a folder you choose &mdash; on an external disk, a RAID or a network drive &mdash; so the newest copy of every script is already where you keep your work, with no extra backup step. OpenDraft&rsquo;s library still holds the working copy, with its versions, notes and assets; every save also writes the file.</p>
+
+    <ul>
+      <li><strong>New Project</strong> asks where to save: <em>The OpenDraft library</em>, or <em>A folder on disk</em>, with the file format to use. A folder project shows a <strong>Folder</strong> badge.</li>
+      <li><strong>File &gt; Open Folder as Project&hellip;</strong> turns a folder you already have into a project. Its scripts are added, and its files are not changed. A folder called <code>scripts</code>, <code>drafts</code> or similar is named after the folder it sits in, so <code>MyFilm/scripts</code> becomes &ldquo;MyFilm&rdquo;.</li>
+      <li>Inside a project, <strong>Storage</strong> moves it to a folder (<em>Save to a Folder&hellip;</em>), <em>Move to Another Folder&hellip;</em>, <em>Show in Folder</em>, <em>Check for New Files</em> added outside OpenDraft, or <em>Save in Library Only&hellip;</em>.</li>
+      <li>Any single script can be saved to a file from its menu: <em>Save to File&hellip;</em>, <em>Show File</em>, <em>Stop Saving to File</em>. <strong>File &gt; Save to File As&hellip;</strong> does the same from the editor.</li>
+    </ul>
+
+    <p>Scripts are saved as OpenDraft (<code>.odraft</code>, which keeps everything), Fountain or Final Draft (<code>.fdx</code>). Renaming a script renames its file. Deleting one asks whether to delete the file too; the answer is no unless you say so.</p>
+
+    <h3 id="changed-outside">When a File Is Changed Outside OpenDraft</h3>
+    <p>OpenDraft notices when a script&rsquo;s file has been changed by another program or another computer, and never writes over it. If you have no unsaved changes, it simply opens the changed version. If you do, it asks:</p>
+    <ul>
+      <li><strong>Use the File&rsquo;s Version</strong> &mdash; opens the file. What OpenDraft had is kept in Version History first.</li>
+      <li><strong>Keep OpenDraft&rsquo;s Version</strong> &mdash; saves your version to the file, and keeps the other one beside it as <em>Name (changed outside OpenDraft &hellip;)</em>.</li>
+    </ul>
+    <p>Opening a script without changing it leaves its file exactly as it was.</p>
+
+    <h3 id="drive-offline">If the Drive Is Not Connected</h3>
+    <p>Your work is still saved to the library. The status bar says the file is not saved yet, and OpenDraft writes it as soon as the folder can be reached again.</p>
+
+    <p>The default folder for new projects, and the file format, are set in <strong>Tools &gt; System Settings &gt; Saving</strong>. Folders are a desktop feature: the iPhone, iPad, Android and browser versions keep projects in the library.</p>
 
     <h2 id="project-properties">Project Properties</h2>
 
@@ -257,7 +284,7 @@
     <div class="callout callout-danger">
       <span class="callout-icon">&#9888;&#65039;</span>
       <div class="callout-content">
-        <p><strong>Warning:</strong> Deleting a project removes all its scripts, assets, and version history. This cannot be undone.</p>
+        <p><strong>Warning:</strong> Deleting a project removes all its scripts, assets, and version history from OpenDraft. This cannot be undone. For a project saved in a folder, the files in the folder are left where they are.</p>
       </div>
     </div>
 

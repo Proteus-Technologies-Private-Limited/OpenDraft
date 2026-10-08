@@ -102,6 +102,9 @@ Check in drafts, compare versions side-by-side, and restore any previous draft i
 **Character Profiles**
 Track characters with descriptions, role types, and color-coded highlighting in your script.
 
+**Table Read**
+Hear the script read aloud with a voice for each character, following along word by word — using your device's own voices, free on-device AI voices, or an AI provider of your choice.
+
 **Import & Export**
 Move freely between Final Draft (.fdx), Fountain, and PDF — never locked into one tool.
 
