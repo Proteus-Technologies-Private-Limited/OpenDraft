@@ -53,7 +53,7 @@ import { demoteDataUrlsToScratch, promoteScratchImages } from '../services/promo
 import { docHasInlineImageBytes, docHasScratchImages } from '../utils/scratchRefs';
 import { setLiveScratchDocSource } from '../services/scratchSweep';
 
-import { useEditorStore, DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES, resolveMoresContds, resolveHeaderFooter, printedPageNumber, type SceneInfo } from '../stores/editorStore';
+import { useEditorStore, DEFAULT_PAGE_LAYOUT, DEFAULT_TAG_CATEGORIES, resolveMoresContds, resolveHeaderFooter, printedPageNumber, savedProfileFields, type SceneInfo } from '../stores/editorStore';
 import type { ElementType, HeaderFooterContent } from '../stores/editorStore';
 import HeaderFooterBand from './HeaderFooterBand';
 import HeaderFooterDialog from './HeaderFooterDialog';
@@ -3317,21 +3317,7 @@ const ScreenplayEditor: React.FC = () => {
             if (profiles.length > 0) {
               for (const prof of profiles as Record<string, unknown>[]) {
                 if (prof.name && typeof prof.name === 'string') {
-                  store.upsertCharacterProfile(prof.name, {
-                    description: (prof.description as string) || '',
-                    color: (prof.color as string) || '',
-                    highlighted: (prof.highlighted as boolean) || false,
-                    gender: (prof.gender as string) || '',
-                    age: (prof.age as string) || '',
-                    role: (prof.role as string) || '',
-                    backstory: (prof.backstory as string) || '',
-                    arc: (prof.arc as string) || '',
-                    speechPattern: (prof.speechPattern as string) || '',
-                    vocabulary: (prof.vocabulary as string) || '',
-                    verbalTics: (prof.verbalTics as string) || '',
-                    sampleDialogue: (prof.sampleDialogue as string) || '',
-                    images: Array.isArray(prof.images) ? (prof.images as string[]) : [],
-                  });
+                  store.upsertCharacterProfile(prof.name, savedProfileFields(prof));
                 }
               }
             }
@@ -3847,21 +3833,7 @@ const ScreenplayEditor: React.FC = () => {
           if (profiles2.length > 0) {
             for (const prof of profiles2 as Record<string, unknown>[]) {
               if (prof.name && typeof prof.name === 'string') {
-                store.upsertCharacterProfile(prof.name, {
-                  description: (prof.description as string) || '',
-                  color: (prof.color as string) || '',
-                  highlighted: (prof.highlighted as boolean) || false,
-                  gender: (prof.gender as string) || '',
-                  age: (prof.age as string) || '',
-                  role: (prof.role as string) || '',
-                  backstory: (prof.backstory as string) || '',
-                  arc: (prof.arc as string) || '',
-                  speechPattern: (prof.speechPattern as string) || '',
-                  vocabulary: (prof.vocabulary as string) || '',
-                  verbalTics: (prof.verbalTics as string) || '',
-                  sampleDialogue: (prof.sampleDialogue as string) || '',
-                  images: Array.isArray(prof.images) ? (prof.images as string[]) : [],
-                });
+                store.upsertCharacterProfile(prof.name, savedProfileFields(prof));
               }
             }
           }

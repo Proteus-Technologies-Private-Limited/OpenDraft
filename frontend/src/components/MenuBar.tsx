@@ -3489,6 +3489,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 2.5.0</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v2.5.1</div>
+              <ul className="about-list">
+                <li><strong>Character Voices Are Kept</strong> &mdash; A voice chosen for a character under <em>Table Read Voice</em> was lost the next time the script was opened, and the following save wrote the profile back without it. The voice now stays with the character on every platform. Voices chosen in 2.5.0 need picking once more.</li>
+              </ul>
               <div className="about-subsection-title">v2.5.0</div>
               <ul className="about-list">
                 <li><strong>Table Read</strong> &mdash; <em>Tools &rarr; Table Read</em> reads your script aloud, with a different voice for each character and a narrator for scene headings, action and transitions. A panel under the script shows the line being read with the word being spoken highlighted, and the same word is highlighted in the script, which scrolls to keep up. Pause picks up at the word it stopped on; skip a line or a scene, change the speed, or click any line to read from there.</li>

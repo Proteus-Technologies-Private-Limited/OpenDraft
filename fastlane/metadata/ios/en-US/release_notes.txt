@@ -1,12 +1,5 @@
-HEAR YOUR SCRIPT READ ALOUD
-Table Read reads your screenplay out loud, with a different voice for each character and a narrator for the action. Follow along as each word is highlighted on the page, pause, skip scenes, or change the speed.
+CHARACTER VOICES ARE KEPT
+The voice you choose for a character in Table Read now stays with them when you close and reopen your script. If you picked voices in the last update, please choose them once more.
 
-A VOICE FOR EVERY CHARACTER
-Each character gets their own voice automatically, or pick one yourself on their profile. Your choices are saved with the script.
-
-FREE VOICES OR AI VOICES
-Use the voices already on your device, free and offline, or try AI voices: Kokoro, free and private on your device, or Google Gemini, OpenAI, ElevenLabs and Microsoft Azure with your own account. AI voices other than Kokoro send your script's text to that company, so the app reminds you whenever one is in use.
-
-ALSO IMPROVED
-You can now choose separately whether scripts and opened files save automatically.
-Leaving a script can no longer save an empty page over your work.
+FROM THE LAST UPDATE: HEAR YOUR SCRIPT READ ALOUD
+Table Read reads your screenplay out loud, with a different voice for each character and a narrator for the action, highlighting each word as it's spoken. Use the free voices on your device, or AI voices: Kokoro, free and private on your device, or Google Gemini, OpenAI, ElevenLabs and Microsoft Azure with your own account. AI voices other than Kokoro send your script's text to that company, and the app reminds you whenever one is in use.

@@ -630,6 +630,43 @@ export interface CharacterVoice {
   ai?: string;
 }
 
+/**
+ * A character profile read back from a saved script, as the fields
+ * upsertCharacterProfile takes.
+ *
+ * Every field is carried, including ones added after a script was written
+ * (the Table Read voice, issue #131). The two loaders in ScreenplayEditor
+ * used to copy the fields one by one, and a field missing from their list was
+ * silently dropped on open — then gone for good at the next save.
+ */
+export function savedProfileFields(prof: Record<string, unknown>): Partial<Omit<CharacterProfile, 'name'>> {
+  const str = (v: unknown) => (typeof v === 'string' ? v : '');
+  const fields: Partial<Omit<CharacterProfile, 'name'>> = {
+    description: str(prof.description),
+    color: str(prof.color),
+    highlighted: prof.highlighted === true,
+    gender: str(prof.gender),
+    age: str(prof.age),
+    role: str(prof.role),
+    backstory: str(prof.backstory),
+    arc: str(prof.arc),
+    speechPattern: str(prof.speechPattern),
+    vocabulary: str(prof.vocabulary),
+    verbalTics: str(prof.verbalTics),
+    sampleDialogue: str(prof.sampleDialogue),
+    images: Array.isArray(prof.images) ? (prof.images as string[]) : [],
+  };
+  const v = prof.voice;
+  if (v && typeof v === 'object') {
+    const voice: CharacterVoice = {};
+    const rec = v as Record<string, unknown>;
+    if (typeof rec.system === 'string' && rec.system) voice.system = rec.system;
+    if (typeof rec.ai === 'string' && rec.ai) voice.ai = rec.ai;
+    if (voice.system || voice.ai) fields.voice = voice;
+  }
+  return fields;
+}
+
 export interface CharacterRelationship {
   id: string;
   characterA: string;
