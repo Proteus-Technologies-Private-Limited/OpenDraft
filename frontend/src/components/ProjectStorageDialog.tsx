@@ -17,6 +17,7 @@ import {
 } from '../utils/linkedFileFormat';
 import { useSettingsStore } from '../stores/settingsStore';
 import { showToast } from './Toast';
+import Select from './Select';
 
 interface Props {
   project: ProjectInfo;
@@ -174,7 +175,7 @@ const ProjectStorageDialog: React.FC<Props> = ({ project, onClose, onProjectChan
 
           <div className="dialog-row">
             <label>Save scripts as:</label>
-            <select
+            <Select
               className="dialog-input"
               value={format}
               disabled={!!busy}
@@ -183,7 +184,7 @@ const ProjectStorageDialog: React.FC<Props> = ({ project, onClose, onProjectChan
               {LINKED_FILE_FORMATS.map((f) => (
                 <option key={f} value={f}>{LINKED_FORMAT_LABELS[f]}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--fd-text-muted)' }}>
             {folder

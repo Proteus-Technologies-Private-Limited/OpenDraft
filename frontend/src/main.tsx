@@ -9,7 +9,7 @@ import { initDemoInfo } from './services/demoInfo';
 import { getOS, isTauri } from './services/platform';
 import { initCustomFonts } from './services/customFonts';
 import { detectDeviceFonts } from './utils/deviceFonts';
-import { applyAppearance, readAppearance } from './utils/appearance';
+import { applyAppearance, applyNativeTheme, readAppearance } from './utils/appearance';
 
 /**
  * Keep the `ios-windowed` class in sync with whether the app is running in an
@@ -76,6 +76,8 @@ function trackIpadWindowMode(): void {
 async function init() {
   // Apply the remembered appearance before first render to avoid a flash.
   applyAppearance(readAppearance());
+  // Not awaited: the native popups only need it by the time one is opened.
+  void applyNativeTheme(readAppearance());
 
   // Platform class for the safe-area rules in screenplay.css.  viewport-fit
   // now lives in the static meta tag in index.html — patching it here ran too

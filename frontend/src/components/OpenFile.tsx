@@ -23,6 +23,7 @@ import { cloudApi } from '../services/cloudApi';
 import { isWeb } from '../services/platform';
 import { useSettingsStore } from '../stores/settingsStore';
 import type { ProjectInfo, ScriptMeta } from '../services/api';
+import Select from './Select';
 
 export type OpenSource = 'local' | 'cloud';
 
@@ -201,7 +202,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose }) => {
                 autoFocus
               />
             </div>
-            <select
+            <Select
               className="open-file-sort"
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
@@ -210,7 +211,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose }) => {
               {Object.entries(SORT_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 

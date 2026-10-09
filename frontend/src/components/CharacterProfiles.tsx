@@ -12,6 +12,7 @@ import MiniRichText from './MiniRichText';
 import { RelationshipMap } from './RelationshipMap';
 import VoicePicker from './VoicePicker';
 import { useTableReadStore } from '../stores/tableReadStore';
+import Select from './Select';
 
 // Default colors for auto-assignment (VIBGYOR palette)
 const DEFAULT_HIGHLIGHT_COLORS = [
@@ -48,16 +49,16 @@ const InlineRelForm: React.FC<{
   return (
     <div className="char-profile-rel-form">
       <div className="char-profile-rel-form-row">
-        <select value={otherChar} onChange={(e) => setOtherChar(e.target.value)}>
+        <Select value={otherChar} onChange={(e) => setOtherChar(e.target.value)}>
           <option value="">Select character...</option>
           {others.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <select value={relType} onChange={(e) => setRelType(e.target.value)}>
+        </Select>
+        <Select value={relType} onChange={(e) => setRelType(e.target.value)}>
           {REL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <select value={dynamic} onChange={(e) => setDynamic(e.target.value)}>
+        </Select>
+        <Select value={dynamic} onChange={(e) => setDynamic(e.target.value)}>
           {REL_DYNAMICS.map((d) => <option key={d} value={d}>{d}</option>)}
-        </select>
+        </Select>
       </div>
       <textarea
         value={desc}
@@ -622,7 +623,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
         <div className="char-profile-meta-row char-profile-meta-row-3">
           <div className="char-profile-meta-field">
             <label className="char-profile-label">Role</label>
-            <select
+            <Select
               className="char-profile-select"
               value={prof.role}
               onChange={(e) => upsertCharacterProfile(charName, { role: e.target.value })}
@@ -630,7 +631,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
               {CHARACTER_ROLES.map((r) => (
                 <option key={r} value={r}>{r || '—'}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="char-profile-meta-field">
             <label className="char-profile-label">Gender</label>
@@ -969,7 +970,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
       {/* Sort bar */}
       <div className="char-profiles-sort">
         <span className="char-sort-label">Sort</span>
-        <select
+        <Select
           className="char-sort-select"
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
@@ -979,7 +980,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
           <option value="scenes">Scenes</option>
           <option value="dialogues">Dialogues</option>
           <option value="appearance">Appearance</option>
-        </select>
+        </Select>
       </div>
 
       {/* Character list */}
@@ -1123,7 +1124,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                         <div className="char-profile-meta-row char-profile-meta-row-3">
                           <div className="char-profile-meta-field">
                             <label className="char-profile-label">Role</label>
-                            <select
+                            <Select
                               className="char-profile-select"
                               value={profile.role}
                               onChange={(e) => upsertCharacterProfile(name, { role: e.target.value })}
@@ -1131,7 +1132,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                               {CHARACTER_ROLES.map((r) => (
                                 <option key={r} value={r}>{r || '—'}</option>
                               ))}
-                            </select>
+                            </Select>
                           </div>
                           <div className="char-profile-meta-field">
                             <label className="char-profile-label">Gender</label>

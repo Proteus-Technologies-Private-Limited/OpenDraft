@@ -39,6 +39,7 @@ import ProjectPropertiesDialog from './ProjectPropertiesDialog';
 import ProjectStorageDialog from './ProjectStorageDialog';
 import { isDesktopTauri } from '../services/platform';
 import { useLinkedFileStore, type LinkedFileState } from '../stores/linkedFileStore';
+import Select from './Select';
 
 /** What can be done with a script's file on disk from its menu (issue #135). */
 type FileAction = 'reveal' | 'link' | 'unlink';
@@ -1238,7 +1239,7 @@ const ProjectView: React.FC = () => {
               >
                 Import
               </button>
-              <select
+              <Select
                 className="sort-select"
                 value={scriptSortKey}
                 onChange={(e) =>
@@ -1252,7 +1253,7 @@ const ProjectView: React.FC = () => {
                 <option value="color">Color</option>
                 <option value="size">Size</option>
                 <option value="pages">Pages</option>
-              </select>
+              </Select>
               <div className="view-toggle-group">
                 <button
                   className={`view-toggle-btn${viewMode === 'list' ? ' active' : ''}`}

@@ -28,6 +28,7 @@ import { useGoBack } from '../hooks/useGoBack';
 import {
   LINKED_FILE_FORMATS, LINKED_FORMAT_LABELS, normalizeLinkedFormat, projectFolderName,
 } from '../utils/linkedFileFormat';
+import Select from './Select';
 
 /** The folder a project is kept in on disk (issue #135), or null. */
 function folderOf(project: ProjectInfo): string | null {
@@ -630,7 +631,7 @@ const ProjectList: React.FC = () => {
           </span>
         </div>
         <div className="project-list-controls">
-          <select
+          <Select
             className="sort-select"
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as SortKey)}
@@ -640,7 +641,7 @@ const ProjectList: React.FC = () => {
             <option value="created">Created</option>
             <option value="updated">Last Modified</option>
             <option value="color">Color</option>
-          </select>
+          </Select>
           {source === 'local' && (
             <button
               className="project-new-btn project-secondary-btn"
@@ -799,7 +800,7 @@ const ProjectList: React.FC = () => {
                 <>
                   <div className="dialog-row" style={{ marginTop: 14 }}>
                     <label>Save in:</label>
-                    <select
+                    <Select
                       className="dialog-input"
                       value={newLocation}
                       onChange={(e) => {
@@ -810,7 +811,7 @@ const ProjectList: React.FC = () => {
                     >
                       <option value="library">The OpenDraft library</option>
                       <option value="folder">A folder on disk</option>
-                    </select>
+                    </Select>
                   </div>
                   {newLocation === 'folder' && (
                     <>
@@ -833,7 +834,7 @@ const ProjectList: React.FC = () => {
                       </div>
                       <div className="dialog-row" style={{ marginTop: 14 }}>
                         <label>Save scripts as:</label>
-                        <select
+                        <Select
                           className="dialog-input"
                           value={newFileFormat}
                           onChange={(e) => setNewFileFormat(e.target.value)}
@@ -841,7 +842,7 @@ const ProjectList: React.FC = () => {
                           {LINKED_FILE_FORMATS.map((f) => (
                             <option key={f} value={f}>{LINKED_FORMAT_LABELS[f]}</option>
                           ))}
-                        </select>
+                        </Select>
                       </div>
                       <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--fd-text-muted)' }}>
                         Each script is saved there as its own file. Screenplay

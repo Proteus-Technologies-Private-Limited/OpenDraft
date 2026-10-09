@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { ProjectInfo, ProjectProperties, SubmissionEntry } from '../services/api';
 import { api } from '../services/api';
 import { showToast } from './Toast';
+import Select from './Select';
 
 const EMPTY_PROPS: ProjectProperties = {
   genre: '', logline: '', synopsis: '', author: '', contact: '',
@@ -74,7 +75,7 @@ const renderField = (
         rows={3}
       />
     ) : f.type === 'select' ? (
-      <select
+      <Select
         className="props-input"
         value={value}
         onChange={(e) => onChange(f.key, e.target.value)}
@@ -82,7 +83,7 @@ const renderField = (
         {f.options!.map((opt) => (
           <option key={opt} value={opt}>{opt || '— Select —'}</option>
         ))}
-      </select>
+      </Select>
     ) : (
       <input
         className="props-input"

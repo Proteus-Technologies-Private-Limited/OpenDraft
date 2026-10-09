@@ -12,6 +12,7 @@ import SaveSettingsSection from './SaveSettingsSection';
 import VoiceProviderSettings from './VoiceProviderSettings';
 import { formatShortcut, isMacPlatform, shortcutFromEvent } from '../utils/shortcuts';
 import { printRoute, isTauri as isTauriApp } from '../services/platform';
+import Select from './Select';
 
 const EXPIRY_OPTIONS = [
   { label: '30 minutes', hours: 0.5 },
@@ -1278,7 +1279,7 @@ const SettingsPage: React.FC = () => {
 
           <div className="settings-row">
             <label>Default Token Expiry</label>
-            <select
+            <Select
               className="dialog-input settings-select"
               value={defaultInviteExpiry}
               onChange={(e) => setDefaultInviteExpiry(Number(e.target.value))}
@@ -1288,7 +1289,7 @@ const SettingsPage: React.FC = () => {
                   {opt.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </section>
       </div>

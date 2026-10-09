@@ -8,6 +8,7 @@
 
 import React, { useState } from 'react';
 import type { TemplateConflicts, DisabledElementConflict, FormattingViolation } from '../utils/templateConflicts';
+import Select from './Select';
 
 interface TemplateConflictDialogProps {
   conflicts: TemplateConflicts;
@@ -80,7 +81,7 @@ const TemplateConflictDialog: React.FC<TemplateConflictDialogProps> = ({
                 </div>
                 <div className="template-conflict-item-action">
                   <label>Replace with:</label>
-                  <select
+                  <Select
                     className="dialog-input template-conflict-select"
                     value={c.replacementType}
                     onChange={(e) => updateReplacement(i, e.target.value)}
@@ -88,7 +89,7 @@ const TemplateConflictDialog: React.FC<TemplateConflictDialogProps> = ({
                     {enabledElements.map((el) => (
                       <option key={el.id} value={el.id}>{el.label}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
             ))}

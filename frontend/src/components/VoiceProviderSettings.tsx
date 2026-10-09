@@ -16,6 +16,7 @@ import { aiEngine, availableEngineKinds, selectedEngineKind } from '../services/
 import { primeAudioPlayback } from '../services/tts/aiEngine';
 import { resetEngine } from '../services/tts/player';
 import { showToast } from './Toast';
+import Select from './Select';
 
 const SAMPLE = 'This is how the script will sound in a table read.';
 
@@ -104,7 +105,7 @@ const VoiceProviderSettings: React.FC<{ autoFocus?: boolean }> = ({ autoFocus })
         <>
           <div className="settings-row">
             <label htmlFor="voice-provider">Provider</label>
-            <select
+            <Select
               id="voice-provider"
               value={s.aiProvider}
               autoFocus={autoFocus}
@@ -112,7 +113,7 @@ const VoiceProviderSettings: React.FC<{ autoFocus?: boolean }> = ({ autoFocus })
             >
               <option value="">Choose a provider…</option>
               {AI_PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
+            </Select>
           </div>
 
           {provider && (
@@ -172,9 +173,9 @@ const VoiceProviderSettings: React.FC<{ autoFocus?: boolean }> = ({ autoFocus })
           {s.aiProvider === 'gemini' && (
             <div className="settings-row">
               <label htmlFor="voice-gemini-model">Model</label>
-              <select id="voice-gemini-model" value={s.geminiModel} onChange={(e) => changed(s.setGeminiModel)(e.target.value)}>
+              <Select id="voice-gemini-model" value={s.geminiModel} onChange={(e) => changed(s.setGeminiModel)(e.target.value)}>
                 {GEMINI_MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
+              </Select>
               <div className="settings-hint">
                 Gemini takes each character&rsquo;s parentheticals and Speech Pattern as directions for how to say their lines.
               </div>
@@ -199,18 +200,18 @@ const VoiceProviderSettings: React.FC<{ autoFocus?: boolean }> = ({ autoFocus })
           {s.aiProvider === 'openai' && (
             <div className="settings-row">
               <label htmlFor="voice-openai-model">Model</label>
-              <select id="voice-openai-model" value={s.openaiModel} onChange={(e) => changed(s.setOpenaiModel)(e.target.value)}>
+              <Select id="voice-openai-model" value={s.openaiModel} onChange={(e) => changed(s.setOpenaiModel)(e.target.value)}>
                 {OPENAI_MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
+              </Select>
             </div>
           )}
 
           {s.aiProvider === 'elevenlabs' && (
             <div className="settings-row">
               <label htmlFor="voice-eleven-model">Model</label>
-              <select id="voice-eleven-model" value={s.elevenlabsModel} onChange={(e) => changed(s.setElevenlabsModel)(e.target.value)}>
+              <Select id="voice-eleven-model" value={s.elevenlabsModel} onChange={(e) => changed(s.setElevenlabsModel)(e.target.value)}>
                 {ELEVENLABS_MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
+              </Select>
             </div>
           )}
 

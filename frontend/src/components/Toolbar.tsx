@@ -45,6 +45,7 @@ import { findFont, loadFontByName } from '../utils/fonts';
 import { isTitlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
 import { isInAvCell, isInAvRow, avCellSideAt } from '../editor/extensions/AvBlock';
 import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
+import Select from './Select';
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -637,7 +638,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         />
       </div>
       <div className="toolbar-group">
-        <select
+        <Select
           className="font-size-selector"
           value={cursorSize ?? ''}
           disabled={locked.fontSize}
@@ -667,7 +668,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
               {s}pt
             </option>
           ))}
-        </select>
+        </Select>
       </div>
     </React.Fragment>
   ), [cursorFont, cursorSize, extraFonts, editor, fontFamily, fontSize, locked]);
@@ -996,7 +997,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
       {/* Element type selector — always visible */}
       <div className="toolbar-group">
-        <select
+        <Select
           className="element-selector"
           value={activeElement}
           onChange={handleElementChange}
@@ -1032,7 +1033,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
               {r.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {/* AV row controls — the only route to a new row without a hardware

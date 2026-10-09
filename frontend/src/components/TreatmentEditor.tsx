@@ -24,6 +24,7 @@ import {
   FaBold, FaItalic, FaUnderline, FaListUl, FaListOl,
   FaQuoteLeft, FaArrowLeft, FaSave,
 } from 'react-icons/fa';
+import Select from './Select';
 
 /**
  * TreatmentEditor — a simplified TipTap editor for prose treatments.
@@ -196,7 +197,7 @@ const TreatmentEditor: React.FC = () => {
       </div>
 
       <div className="treatment-toolbar">
-        <select
+        <Select
           className="treatment-element-select"
           value={
             isActive('heading', { level: 1 }) ? 'h1' :
@@ -222,7 +223,7 @@ const TreatmentEditor: React.FC = () => {
           <option value="h2">Sequence / Beat</option>
           <option value="h3">Sub-heading</option>
           <option value="blockquote">Block Quote</option>
-        </select>
+        </Select>
         <button
           className={`treatment-tool-btn${isActive('bold') ? ' active' : ''}`}
           onClick={() => editor?.chain().focus().toggleBold().run()}

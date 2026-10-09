@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useEditorStore, DEFAULT_PAGE_LAYOUT, resolveHeaderFooter } from '../stores/editorStore';
 import type { PageLayout } from '../stores/editorStore';
+import Select from './Select';
 
 interface PageSetupDialogProps {
   onClose: () => void;
@@ -151,7 +152,7 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
             <div className="page-setup-section-title">Page Size</div>
             <div className="page-setup-row">
               <label>Size</label>
-              <select
+              <Select
                 value={currentSizeLabel}
                 onChange={handlePageSizeChange}
               >
@@ -163,7 +164,7 @@ const PageSetupDialog: React.FC<PageSetupDialogProps> = ({ onClose }) => {
                 {currentSizeLabel === 'Custom' && (
                   <option value="Custom">Custom</option>
                 )}
-              </select>
+              </Select>
             </div>
             <div className="page-setup-row">
               <label>Orientation</label>

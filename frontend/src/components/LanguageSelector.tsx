@@ -1,5 +1,6 @@
 import React from 'react';
 import { Editor } from '@tiptap/react';
+import Select from './Select';
 
 interface LanguageOption {
   code: string | null;
@@ -63,7 +64,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({ editor, activeEleme
   };
 
   return (
-    <select
+    <Select
       className="language-selector"
       value={currentLang || ''}
       onChange={handleChange}
@@ -74,7 +75,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({ editor, activeEleme
           {lang.label}
         </option>
       ))}
-    </select>
+    </Select>
   );
 };
 

@@ -15,6 +15,7 @@ import { primeAudioPlayback } from '../services/tts/aiEngine';
 import { previewVoice } from '../services/tts/player';
 import type { VoiceInfo } from '../services/tts/types';
 import { showToast } from './Toast';
+import Select from './Select';
 
 function languageName(tag: string): string {
   if (!tag) return 'Other';
@@ -99,7 +100,7 @@ const VoicePicker: React.FC<VoicePickerProps> = ({ value, onChange, sample, auto
 
   return (
     <div className={`voice-picker${compact ? ' compact' : ''}`}>
-      <select
+      <Select
         id={id}
         className="voice-picker-select"
         value={chosen ?? ''}
@@ -120,7 +121,7 @@ const VoicePicker: React.FC<VoicePickerProps> = ({ value, onChange, sample, auto
               </optgroup>
             ))
           : voices.map((v) => <option key={v.id} value={v.id}>{voiceLabel(v)}</option>)}
-      </select>
+      </Select>
       <button
         type="button"
         className="voice-picker-preview"

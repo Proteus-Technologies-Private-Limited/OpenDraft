@@ -335,7 +335,7 @@
   line-height: 1.5;
   font-size: 14px;
 }
-.voice-provider-settings select,
+.voice-provider-settings .od-select,
 .voice-provider-settings input[type='text'],
 .voice-provider-settings input[type='url'],
 .voice-provider-settings input[type='password'] {
@@ -350,7 +350,7 @@
   max-width: 420px;
   box-sizing: border-box;
 }
-.voice-provider-settings select:focus,
+.voice-provider-settings .od-select:focus,
 .voice-provider-settings input:focus { border-color: var(--fd-accent); outline: none; }
 .voice-provider-radio {
   display: flex !important;

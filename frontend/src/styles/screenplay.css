@@ -124,6 +124,56 @@
   --fd-dialog-bg: #f5f5f5;
   --fd-input-bg: #ffffff;
 }
+/* ── Pulldowns (issue #138) ──
+   Every pulldown is components/Select.tsx, which draws its own list. A native
+   <select>'s list is drawn by the OS in the OS's light or dark, which no CSS
+   can reach — so under Dark on a Light machine every list opened white. The
+   trigger's own look still comes from each call site's class; these are the
+   defaults for one that sets nothing. */
+.od-select {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 6px;
+  min-width: 0; max-width: 100%;
+  padding: 2px 8px; min-height: 24px;
+  background: var(--fd-input-bg); color: var(--fd-text);
+  border: 1px solid var(--fd-overlay-medium); border-radius: 4px;
+  font-family: inherit; font-size: 12px; line-height: 1.2;
+  text-align: left; white-space: nowrap; cursor: pointer; outline: none;
+}
+.od-select:focus-visible { border-color: var(--fd-accent); }
+.od-select:disabled { opacity: .55; cursor: default; }
+/* All labels share one cell so the trigger is as wide as its longest option. */
+.od-select-sizer { display: inline-grid; min-width: 0; flex: 1 1 auto; overflow: hidden; }
+.od-select-sizer > * { grid-area: 1 / 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.od-select-ghost { visibility: hidden; height: 0; }
+.od-select-caret { flex: none; opacity: .6; font-size: 9px; font-family: sans-serif; }
+
+.od-select-popup {
+  position: fixed; z-index: 2147483000;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 4px 0;
+  background: var(--fd-dropdown-bg); color: var(--fd-text);
+  border: 1px solid var(--fd-overlay-medium); border-radius: 6px;
+  box-shadow: 0 8px 28px var(--fd-shadow);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px; text-align: left;
+}
+.od-select-group {
+  padding: 6px 10px 3px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--fd-text-muted); cursor: default;
+}
+.od-select-option {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 12px 4px 6px; line-height: 1.35; cursor: pointer; white-space: nowrap;
+}
+.od-select-check { flex: none; width: 12px; font-size: 11px; color: var(--fd-accent); text-align: center; }
+.od-select-option-label { overflow: hidden; text-overflow: ellipsis; }
+.od-select-option.is-active { background: var(--fd-accent); color: #fff; }
+.od-select-option.is-active .od-select-check { color: #fff; }
+.od-select-option.is-disabled { color: var(--fd-text-muted); cursor: default; }
+@media (pointer: coarse) {
+  .od-select-option { padding: 10px 14px 10px 8px; font-size: 16px; }
+}
+
 /* Light theme: page keeps white bg, editor area uses a warm gray */
 [data-theme="light"] .editor-main {
   background: #d5d5d5;
@@ -146,7 +196,7 @@
 }
 [data-theme="light"] .dialog-body input,
 [data-theme="light"] .dialog-body textarea,
-[data-theme="light"] .dialog-body select {
+[data-theme="light"] .dialog-body .od-select {
   background: var(--fd-input-bg);
   color: var(--fd-text);
   border-color: var(--fd-border);
@@ -220,7 +270,7 @@
 [data-theme="light"] input[type="text"],
 [data-theme="light"] input[type="number"],
 [data-theme="light"] textarea,
-[data-theme="light"] select {
+[data-theme="light"] .od-select {
   background: var(--fd-input-bg) !important;
   color: var(--fd-text) !important;
   border-color: var(--fd-border) !important;
@@ -228,7 +278,7 @@
 [data-theme="light"] input[type="text"]:focus,
 [data-theme="light"] input[type="number"]:focus,
 [data-theme="light"] textarea:focus,
-[data-theme="light"] select:focus {
+[data-theme="light"] .od-select:focus {
   border-color: var(--fd-accent) !important;
 }
 /* Light theme: buttons */
@@ -1290,7 +1340,7 @@ body {
   margin-bottom: 4px; font-weight: 600;
 }
 .location-db-field input,
-.location-db-field select,
+.location-db-field .od-select,
 .location-db-field textarea {
   width: 100%; padding: 6px 10px;
   background: var(--fd-overlay-subtle); border: 1px solid var(--fd-border);
@@ -1882,12 +1932,6 @@ body {
   outline: none;
   cursor: pointer;
   min-height: 36px;
-  -webkit-appearance: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  padding-right: 24px;
 }
 .scene-filter-select:focus {
   border-color: var(--fd-accent);
@@ -3361,7 +3405,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   min-width: 80px;
   flex-shrink: 0;
 }
-.page-setup-row select,
+.page-setup-row .od-select,
 .page-setup-row input[type="number"] {
   flex: 1;
   height: 28px;
@@ -3373,7 +3417,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   font-size: 12px;
   outline: none;
 }
-.page-setup-row select:focus,
+.page-setup-row .od-select:focus,
 .page-setup-row input[type="number"]:focus {
   border-color: var(--fd-accent);
 }
@@ -3474,7 +3518,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   font-size: 12px;
   color: var(--fd-text);
 }
-.fn-row > select,
+.fn-row > .od-select,
 .fn-row > input[type="number"] {
   flex: 1 1 auto;
   height: 26px;
@@ -6365,7 +6409,7 @@ sup.footnote-marker {
   gap: 4px;
   margin-bottom: 4px;
 }
-.char-profile-rel-form-row select {
+.char-profile-rel-form-row .od-select {
   flex: 1;
   min-width: 0;
   padding: 4px 6px;
@@ -6520,7 +6564,7 @@ sup.footnote-marker {
   color: var(--fd-text-muted);
   margin-bottom: 3px;
 }
-.rel-map-form-row select,
+.rel-map-form-row .od-select,
 .rel-map-form-row textarea,
 .rel-map-form-row input {
   width: 100%;
@@ -10957,7 +11001,7 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 
   /* Inputs: prevent iOS zoom (16px minimum) */
   input[type="text"], input[type="search"], input[type="number"],
-  textarea, select {
+  textarea, .od-select {
     font-size: 16px;
   }
 

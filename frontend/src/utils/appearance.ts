@@ -53,3 +53,26 @@ export function applyAppearance(a: Appearance, root: Pick<Element, 'setAttribute
   root.setAttribute('data-theme', themeOf(a));
   root.setAttribute('data-dark-pages', a === 'dark-pages' ? 'on' : 'off');
 }
+
+/**
+ * Give the desktop window the same light/dark as the page (issue #138).
+ *
+ * A <select>'s popup list is not part of the page: macOS draws it as a native
+ * menu and Windows as a native popup, and both take their colours from the
+ * window's theme, which follows the OS until told otherwise. So with the app
+ * in Dark and the OS in Light every pulldown opened white, whatever the CSS
+ * said. Telling the window the theme fixes those popups and the title bar
+ * with them. Desktop only — a browser tab has no window to set, and the
+ * mobile web views are left as they were. A failure is logged and otherwise
+ * harmless: the page itself has already switched.
+ */
+export async function applyNativeTheme(a: Appearance): Promise<void> {
+  try {
+    const { isDesktopTauri } = await import('../services/platform');
+    if (!isDesktopTauri()) return;
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    await getCurrentWindow().setTheme(themeOf(a));
+  } catch (err) {
+    console.warn('[appearance] could not set the window theme', err);
+  }
+}

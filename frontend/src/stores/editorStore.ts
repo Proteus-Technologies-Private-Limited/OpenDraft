@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { uuid } from '../utils/uuid';
-import { applyAppearance, readAppearance, saveAppearance, themeOf, type Appearance } from '../utils/appearance';
+import { applyAppearance, applyNativeTheme, readAppearance, saveAppearance, themeOf, type Appearance } from '../utils/appearance';
 import { DEFAULT_REVISION_COLOR, DEFAULT_REVISION_SETTINGS, nextRevisionColor, type RevisionSettings } from '../editor/revisionColors';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { findLanguage, urlsFor } from '../editor/languageCatalog';
@@ -1488,6 +1488,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setAppearance: (a) => {
     saveAppearance(a);
     applyAppearance(a);
+    void applyNativeTheme(a);
     set({ appearance: a, theme: themeOf(a) });
   },
   theme: themeOf(readAppearance()),

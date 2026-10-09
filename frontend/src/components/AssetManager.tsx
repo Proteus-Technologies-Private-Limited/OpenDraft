@@ -4,6 +4,7 @@ import type { Asset } from '../stores/assetStore';
 import AssetViewer from './AssetViewer';
 import { api } from '../services/api';
 import { showToast } from './Toast';
+import Select from './Select';
 
 interface AssetManagerProps {
   projectId: string;
@@ -217,7 +218,7 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
           onChange={(e) => setFilterText(e.target.value)}
           className="asset-filter-input"
         />
-        <select
+        <Select
           value={filterTag}
           onChange={(e) => setFilterTag(e.target.value)}
           className="asset-filter-select"
@@ -226,7 +227,7 @@ const AssetManager: React.FC<AssetManagerProps> = ({ projectId, embedded = false
           {allTags.map((tag) => (
             <option key={tag} value={tag}>{tag}</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {/* Asset list */}
