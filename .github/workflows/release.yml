@@ -112,7 +112,7 @@ jobs:
             {"platform":"windows-latest","target":"x86_64-pc-windows-msvc","label":"Windows-x64","key":"windows"},
             {"platform":"macos-15","target":"aarch64-apple-darwin","label":"macOS-arm64","key":"macos"}
           ]'
-          MATRIX=$(echo "$ALL" | jq -c --arg skip " $SKIP " '{include: map(select(($skip | contains(" " + .key + " ")) | not))}')
+          MATRIX=$(echo "$ALL" | jq -c --arg skip " $SKIP " '{include: map(. as $e | select(($skip | contains(" " + $e.key + " ")) | not))}')
           if [ "$(echo "$MATRIX" | jq '.include | length')" = "0" ]; then
             echo "::error::Every desktop platform is skipped — there would be no release to publish"
             exit 1
