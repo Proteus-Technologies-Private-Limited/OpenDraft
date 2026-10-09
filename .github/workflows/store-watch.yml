@@ -74,25 +74,31 @@ jobs:
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           echo "Target: ${TAG#v}"
 
-          # A release can leave platforms out (skip-platforms in its tag), so
-          # each channel is timed against the newest release that actually
-          # shipped its platform — found by that release's own-version file.
+          # A release can leave platforms out (skip-platforms in its annotated
+          # tag — see the plan job in release.yml), so each channel is timed
+          # against the newest release whose tag did not skip its platform.
           # Otherwise a Windows-only release would have the watch waiting on
-          # Apple and Google for a build that was never submitted.
-          declare -A SUFFIX=(
-            [dmg]=_aarch64.dmg [mas]=_aarch64.dmg [ios]=_ios.ipa
-            [play]=_android.apk [apk]=_android.apk
-            [win]=_x64-setup.exe [linux]=_amd64.AppImage
+          # Apple and Google for a build that was never submitted. Read off
+          # the tag rather than the assets because the Mac App Store build is
+          # never attached to the release, and because a skipped platform's
+          # previous files are copied into the release to keep links alive.
+          declare -A PLATFORM=(
+            [dmg]=macos [mas]=mas [ios]=ios [play]=android [apk]=android
+            [win]=windows [linux]=linux
           )
           declare -A FOUND=()
           for T in $(gh release list --repo "$REPO" --exclude-drafts --exclude-pre-releases --limit 15 --json tagName -q '.[].tagName'); do
-            V="${T#v}"
-            ASSETS=$(gh release view "$T" --repo "$REPO" --json assets -q '.assets[].name')
-            for CH in "${!SUFFIX[@]}"; do
+            SKIP=""
+            REF=$(gh api "repos/${REPO}/git/ref/tags/${T}" 2>/dev/null || echo '{}')
+            if [ "$(jq -r '.object.type // empty' <<< "$REF")" = "tag" ]; then
+              SKIP=$(gh api "repos/${REPO}/git/tags/$(jq -r .object.sha <<< "$REF")" --jq .message \
+                | sed -n 's/^skip-platforms:[[:space:]]*//p' | head -1 | tr ',[:upper:]' ' [:lower:]')
+            fi
+            for CH in "${!PLATFORM[@]}"; do
               [ -n "${FOUND[$CH]:-}" ] && continue
-              if grep -qx "OpenDraft_${V}${SUFFIX[$CH]}" <<< "$ASSETS"; then FOUND[$CH]="$V"; fi
+              [[ " $SKIP " == *" ${PLATFORM[$CH]} "* ]] || FOUND[$CH]="${T#v}"
             done
-            [ "${#FOUND[@]}" -eq "${#SUFFIX[@]}" ] && break
+            [ "${#FOUND[@]}" -eq "${#PLATFORM[@]}" ] && break
           done
           PAIRS=""
           for CH in "${!FOUND[@]}"; do PAIRS="${PAIRS:+$PAIRS,}${CH}=${FOUND[$CH]}"; done

@@ -16,12 +16,13 @@ REPO="Proteus-Technologies-Private-Limited/OpenDraft"
 if [ -z "$1" ]; then
   echo "Usage: ./release.sh <version>"
   echo "Example: ./release.sh 0.4.0"
-  echo "         SKIP_PLATFORMS=\"android ios macos\" ./release.sh 0.4.1"
+  echo "         SKIP_PLATFORMS=\"android ios mas\" ./release.sh 0.4.1"
   exit 1
 fi
 
 # ── Platforms to leave out ──────────────────────────────────────────────────
-# SKIP_PLATFORMS="android ios macos" releases the rest only. It travels to CI
+# SKIP_PLATFORMS="android ios mas" releases the rest only. macos is the three
+# dmgs on the GitHub release; mas is the Mac App Store, which has no link here. It travels to CI
 # as a `skip-platforms:` line in the annotated tag (see the plan job in
 # release.yml). A platform left out keeps its download links and update
 # notice on the version it already has; that version's files are copied into
@@ -29,8 +30,8 @@ fi
 SKIP_PLATFORMS=$(echo "${SKIP_PLATFORMS:-}" | tr ',[:upper:]' ' [:lower:]' | xargs)
 for p in $SKIP_PLATFORMS; do
   case "$p" in
-    macos|ios|android|windows|linux) ;;
-    *) echo "Error: unknown platform '$p' in SKIP_PLATFORMS (use macos ios android windows linux)"; exit 1 ;;
+    macos|mas|ios|android|windows|linux) ;;
+    *) echo "Error: unknown platform '$p' in SKIP_PLATFORMS (use macos mas ios android windows linux)"; exit 1 ;;
   esac
 done
 builds() { [[ " $SKIP_PLATFORMS " != *" $1 "* ]]; }
