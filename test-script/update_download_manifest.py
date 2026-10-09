@@ -16,6 +16,11 @@ That is also why this is a script and not another sed in release.sh. A blanket
 new for them.
 
     python3 test-script/update_download_manifest.py 2.0.0
+    python3 test-script/update_download_manifest.py 2.0.0 --only win,linux
+
+`--only` is for a release that leaves platforms out (SKIP_PLATFORMS in
+release.sh): a channel whose platform was not built keeps pointing at the
+version it already has, which is still downloadable.
 """
 
 import json
@@ -47,10 +52,21 @@ def bump_url(url: str, old: str, new: str) -> str:
 
 
 def main(argv):
-    if len(argv) != 2 or not VERSION_RE.match(argv[1]):
-        print(f'Usage: {os.path.basename(argv[0])} <X.Y.Z>', file=sys.stderr)
+    usage = f'Usage: {os.path.basename(argv[0])} <X.Y.Z> [--only dmg,win,linux,apk]'
+    args = argv[1:]
+    only = DOWNLOAD_CHANNELS
+    if len(args) == 3 and args[1] == '--only':
+        only = tuple(c for c in (x.strip() for x in args[2].split(',')) if c)
+        unknown = [c for c in only if c not in DOWNLOAD_CHANNELS]
+        if unknown or not only:
+            print(f'error: --only takes download channels ({", ".join(DOWNLOAD_CHANNELS)}), '
+                  f'got: {args[2]!r}', file=sys.stderr)
+            return 2
+        args = args[:1]
+    if len(args) != 1 or not VERSION_RE.match(args[0]):
+        print(usage, file=sys.stderr)
         return 2
-    new = argv[1]
+    new = args[0]
 
     try:
         with open(MANIFEST, encoding='utf-8') as fh:
@@ -76,6 +92,9 @@ def main(argv):
         return 1
 
     for name in DOWNLOAD_CHANNELS:
+        if name not in only:
+            print(f'  · {name:5} left at {channels[name].get("version")} (not in this release)')
+            continue
         entry = channels[name]
         old = entry.get('version')
         url = entry.get('url')

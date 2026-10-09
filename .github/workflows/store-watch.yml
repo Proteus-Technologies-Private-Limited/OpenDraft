@@ -68,9 +68,36 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG=$(gh release view --repo "${{ github.repository }}" --json tagName -q .tagName)
+          set -euo pipefail
+          REPO="${{ github.repository }}"
+          TAG=$(gh release view --repo "$REPO" --json tagName -q .tagName)
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           echo "Target: ${TAG#v}"
+
+          # A release can leave platforms out (skip-platforms in its tag), so
+          # each channel is timed against the newest release that actually
+          # shipped its platform — found by that release's own-version file.
+          # Otherwise a Windows-only release would have the watch waiting on
+          # Apple and Google for a build that was never submitted.
+          declare -A SUFFIX=(
+            [dmg]=_aarch64.dmg [mas]=_aarch64.dmg [ios]=_ios.ipa
+            [play]=_android.apk [apk]=_android.apk
+            [win]=_x64-setup.exe [linux]=_amd64.AppImage
+          )
+          declare -A FOUND=()
+          for T in $(gh release list --repo "$REPO" --exclude-drafts --exclude-pre-releases --limit 15 --json tagName -q '.[].tagName'); do
+            V="${T#v}"
+            ASSETS=$(gh release view "$T" --repo "$REPO" --json assets -q '.assets[].name')
+            for CH in "${!SUFFIX[@]}"; do
+              [ -n "${FOUND[$CH]:-}" ] && continue
+              if grep -qx "OpenDraft_${V}${SUFFIX[$CH]}" <<< "$ASSETS"; then FOUND[$CH]="$V"; fi
+            done
+            [ "${#FOUND[@]}" -eq "${#SUFFIX[@]}" ] && break
+          done
+          PAIRS=""
+          for CH in "${!FOUND[@]}"; do PAIRS="${PAIRS:+$PAIRS,}${CH}=${FOUND[$CH]}"; done
+          echo "channels=${PAIRS}" >> "$GITHUB_OUTPUT"
+          echo "Per channel: ${PAIRS:-none found — every channel waits for ${TAG#v}}"
 
       # The store versions this workflow published last time. main's store
       # entries are stale by design — they are only moved by hand, and were
@@ -101,6 +128,7 @@ jobs:
           fi
           python3 test-script/refresh_store_manifest.py \
             --target "${{ steps.target.outputs.version }}" \
+            --channel-targets "${{ steps.target.outputs.channels }}" \
             --previous "${{ steps.previous.outputs.path }}" | tee /tmp/out.txt
           grep -E '^(changed|caught-up)=' /tmp/out.txt >> "$GITHUB_OUTPUT"
 

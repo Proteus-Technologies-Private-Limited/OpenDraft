@@ -32,6 +32,7 @@ import {
 } from '../utils/noteNumbering';
 import { parseNoteContent, noteBlockText } from '../utils/noteContent';
 import { useNoteRenderContext } from '../hooks/useFootnotePlan';
+import Select from './Select';
 
 interface FootnoteDialogProps {
   onClose: () => void;
@@ -147,7 +148,7 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
 
             <div className="fn-row">
               <label htmlFor="fn-format">Number format</label>
-              <select
+              <Select
                 id="fn-format"
                 value={fn.numberFormat}
                 onChange={(e) => set('numberFormat', e.target.value as NoteNumberFormat)}
@@ -159,7 +160,7 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
                     {[0, 1, 2].map((k) => formatNoteNumber(fn.startAt + k, f.id)).join(', ')}, …
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className="fn-row">
@@ -197,7 +198,7 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
 
             <div className="fn-row">
               <label htmlFor="fn-numbering">Numbering</label>
-              <select
+              <Select
                 id="fn-numbering"
                 value={fn.numbering}
                 disabled={isEndnote}
@@ -205,7 +206,7 @@ const FootnoteDialog: React.FC<FootnoteDialogProps> = ({ onClose }) => {
               >
                 <option value="continuous">Continuous</option>
                 <option value="restartEachPage">Restart each page</option>
-              </select>
+              </Select>
             </div>
             {isEndnote && (
               <div className="fn-hint">

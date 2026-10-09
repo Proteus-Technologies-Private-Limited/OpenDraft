@@ -23,6 +23,7 @@ import { showToast } from './Toast';
 import { useFootnotePlan } from '../hooks/useFootnotePlan';
 import { resolveFootnotes, type NotePlacement } from '../stores/editorStore';
 import { noteEntryLabel } from '../utils/noteNumbering';
+import Select from './Select';
 
 /** Open a URL in the default browser. Uses Tauri invoke on desktop, window.open on web. */
 const openInBrowser = (url: string) => {
@@ -863,7 +864,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                     ))}
                   </div>
                   <div className="note-item-controls">
-                    <select
+                    <Select
                       className={`note-print-select${marker ? ' active' : ''}`}
                       disabled={!note.content.trim()}
                       value={note.printInScript ? notePlacementOf(note) : ''}
@@ -877,7 +878,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                       <option value="">Do not print</option>
                       <option value="footnote">Page footer</option>
                       <option value="endnote">End note</option>
-                    </select>
+                    </Select>
                     <button
                       className="note-icon-btn"
                       onClick={() => handleNavigateToNote(note.id)}
@@ -993,7 +994,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                         ))}
                       </div>
                       <div className="note-item-controls">
-                        <select
+                        <Select
                           className={`note-print-select${gnMarker ? ' active' : ''}`}
                           disabled={!gn.content.trim()}
                           value={gn.printInScript ? 'endnote' : ''}
@@ -1009,7 +1010,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                         >
                           <option value="">Do not print</option>
                           <option value="endnote">End note</option>
-                        </select>
+                        </Select>
                         <button
                           className="note-icon-btn note-icon-danger"
                           onClick={() => setPendingDeleteGeneralNoteId(gn.id)}

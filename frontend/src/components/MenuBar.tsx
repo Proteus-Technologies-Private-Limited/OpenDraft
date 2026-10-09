@@ -3489,6 +3489,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 2.5.1</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v2.5.2</div>
+              <ul className="about-list">
+                <li><strong>Dark Pulldowns</strong> &mdash; Under the Dark theme, the lists that drop down from the element, font size, sort and other pulldowns opened white when the computer itself was set to Light &mdash; on Windows almost unreadable. OpenDraft now draws every pulldown list itself, so it follows the app&rsquo;s theme, Light or Dark, whatever the system is set to. The desktop window&rsquo;s title bar follows the theme too. To make the script page dark as well, choose <em>View &rarr; Theme &rarr; Dark Pages</em>.</li>
+              </ul>
               <div className="about-subsection-title">v2.5.1</div>
               <ul className="about-list">
                 <li><strong>Character Voices Are Kept</strong> &mdash; A voice chosen for a character under <em>Table Read Voice</em> was lost the next time the script was opened, and the following save wrote the profile back without it. The voice now stays with the character on every platform. Voices chosen in 2.5.0 need picking once more.</li>

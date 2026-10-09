@@ -16,6 +16,7 @@
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useEditorStore, type CharacterProfile, type CharacterRelationship } from '../stores/editorStore';
+import Select from './Select';
 
 /* ════════════════════════════════════════════════════════════════════
    TYPES
@@ -237,30 +238,30 @@ const RelForm: React.FC<RelFormProps> = ({ characterName, allCharacters, selectB
       {selectBoth && (
         <div className="rel-map-form-row">
           <label>Character A</label>
-          <select value={charA} onChange={(e) => { setCharA(e.target.value); setOtherChar(''); }}>
+          <Select value={charA} onChange={(e) => { setCharA(e.target.value); setOtherChar(''); }}>
             <option value="">Select...</option>
             {allCharacters.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+          </Select>
         </div>
       )}
       <div className="rel-map-form-row">
         <label>{selectBoth ? 'Character B' : 'Character'}</label>
-        <select value={otherChar} onChange={(e) => setOtherChar(e.target.value)}>
+        <Select value={otherChar} onChange={(e) => setOtherChar(e.target.value)}>
           <option value="">Select...</option>
           {othersForB.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        </Select>
       </div>
       <div className="rel-map-form-row">
         <label>Type</label>
-        <select value={relType} onChange={(e) => setRelType(e.target.value)}>
+        <Select value={relType} onChange={(e) => setRelType(e.target.value)}>
           {REL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
+        </Select>
       </div>
       <div className="rel-map-form-row">
         <label>Dynamic</label>
-        <select value={dynamic} onChange={(e) => setDynamic(e.target.value)}>
+        <Select value={dynamic} onChange={(e) => setDynamic(e.target.value)}>
           {REL_DYNAMICS.map((d) => <option key={d} value={d}>{d}</option>)}
-        </select>
+        </Select>
       </div>
       <div className="rel-map-form-row">
         <label>Description</label>

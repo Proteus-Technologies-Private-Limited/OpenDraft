@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "core:window:allow-destroy",
+    "core:window:allow-set-theme",
     "core:webview:allow-print",
     "sql:default",
     "sql:allow-load",

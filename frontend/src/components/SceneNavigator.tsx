@@ -10,6 +10,7 @@ import { computeScriptStructure, sceneActLabel, type ScriptStructure, type Struc
 import SynopsisModal from './SynopsisModal';
 import { showToast } from './Toast';
 import { blockContentRange, characterKey, singleLine } from '../utils/nodeText';
+import Select from './Select';
 
 interface SceneNavigatorProps {
   editor: Editor | null;
@@ -812,7 +813,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
           {showFilters && (
             <div className="scene-filters">
               <div className="scene-filter-group">
-                <select
+                <Select
                   className="scene-filter-select"
                   value=""
                   onChange={(e) => {
@@ -825,7 +826,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                   {allCharacters.filter(c => !filterCharacters.includes(c)).map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
-                </select>
+                </Select>
                 {filterCharacters.length > 0 && (
                   <div className="filter-tags">
                     {filterCharacters.map(c => (
@@ -838,20 +839,20 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                 )}
               </div>
               <div className="scene-filter-row">
-                <select className="scene-filter-select" value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)}>
+                <Select className="scene-filter-select" value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)}>
                   <option value="">Location...</option>
                   {allLocations.map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
-                <select className="scene-filter-select" value={filterPrefix} onChange={(e) => setFilterPrefix(e.target.value)}>
+                </Select>
+                <Select className="scene-filter-select" value={filterPrefix} onChange={(e) => setFilterPrefix(e.target.value)}>
                   <option value="">INT/EXT...</option>
                   {allPrefixes.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                </Select>
               </div>
               <div className="scene-filter-row">
-                <select className="scene-filter-select" value={filterTime} onChange={(e) => setFilterTime(e.target.value)}>
+                <Select className="scene-filter-select" value={filterTime} onChange={(e) => setFilterTime(e.target.value)}>
                   <option value="">Time of Day...</option>
                   {allTimes.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                </Select>
                 <div className="scene-filter-colors">
                   {['', '#8b5cf6', '#4f46e5', '#2563eb', '#059669', '#eab308', '#f97316', '#ef4444', '#000000', '#ffffff'].map(c => (
                     <button

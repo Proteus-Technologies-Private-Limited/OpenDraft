@@ -6,6 +6,7 @@ import { api, type LocationEntry } from '../services/api';
 import { showToast } from './Toast';
 import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { blockContentRange, singleLine } from '../utils/nodeText';
+import Select from './Select';
 
 interface Props {
   editor: Editor | null;
@@ -407,11 +408,11 @@ const LocationEditor: React.FC<EditorProps> = ({ draft, setDraft, onSave, onCanc
       </div>
       <div className="location-db-field">
         <label>Type</label>
-        <select value={draft.type || 'interior'} onChange={(e) => set({ type: e.target.value as LocationEntry['type'] })}>
+        <Select value={draft.type || 'interior'} onChange={(e) => set({ type: e.target.value as LocationEntry['type'] })}>
           <option value="interior">Interior</option>
           <option value="exterior">Exterior</option>
           <option value="both">Both</option>
-        </select>
+        </Select>
       </div>
       <div className="location-db-field">
         <label>Address</label>

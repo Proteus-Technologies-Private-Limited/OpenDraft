@@ -19,6 +19,7 @@ import {
   backupsSupported, supportsRevealBackup,
 } from '../services/backupService';
 import { showToast } from './Toast';
+import Select from './Select';
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -243,7 +244,7 @@ const BackupSettingsSection: React.FC = () => {
 
       <div className="settings-row">
         <label>Back up every</label>
-        <select
+        <Select
           className="dialog-input"
           value={backupIntervalMinutes}
           onChange={(e) => setBackupIntervalMinutes(Number(e.target.value))}
@@ -251,7 +252,7 @@ const BackupSettingsSection: React.FC = () => {
           {BACKUP_INTERVAL_OPTIONS.map((m) => (
             <option key={m} value={m}>{m} minutes</option>
           ))}
-        </select>
+        </Select>
         {!desktop && (
           <div className="settings-hint">
             A copy is also written whenever you leave OpenDraft, so work is
@@ -262,7 +263,7 @@ const BackupSettingsSection: React.FC = () => {
 
       <div className="settings-row">
         <label>Keep</label>
-        <select
+        <Select
           className="dialog-input"
           value={backupRetentionCount}
           onChange={(e) => setBackupRetentionCount(Number(e.target.value))}
@@ -270,7 +271,7 @@ const BackupSettingsSection: React.FC = () => {
           {BACKUP_RETENTION_OPTIONS.map((n) => (
             <option key={n} value={n}>{n === 0 ? 'All backups' : `${n} most recent`}</option>
           ))}
-        </select>
+        </Select>
         <div className="settings-hint">
           Applies per script. Backups you make yourself with <strong>Back Up Now</strong> are never deleted automatically.
         </div>

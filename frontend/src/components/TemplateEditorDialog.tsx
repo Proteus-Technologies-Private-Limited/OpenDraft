@@ -16,6 +16,7 @@ import type { FormattingTemplate, FormattingElementRule } from '../stores/format
 import { createDefaultRule, AV_BLOCK_RULE_ID, type AvCellPlacement } from '../stores/formattingTypes';
 import { avPlacementOf } from '../utils/avCellElements';
 import { AV_BASE_CELL_ELEMENT_IDS, AV_SCREENPLAY_CELL_ELEMENT_IDS } from '../editor/extensions/AvBlock';
+import Select from './Select';
 
 /** The four AV paragraph types: always offered in both columns, so the control
  *  shows what they are rather than pretending it is a choice. */
@@ -271,7 +272,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                   </div>
                   <div className="template-editor-field">
                     <label>Font Size</label>
-                    <select
+                    <Select
                       className="dialog-input"
                       value={selectedRule.fontSize ?? ''}
                       onChange={(e) => updateRule(selectedId!, { fontSize: e.target.value ? Number(e.target.value) : null })}
@@ -280,7 +281,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                       {FONT_SIZES.map((s) => (
                         <option key={s} value={s}>{s}pt</option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                 </div>
 
@@ -314,7 +315,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 {/* Text transform */}
                 <div className="template-editor-field">
                   <label>Text Transform</label>
-                  <select
+                  <Select
                     className="dialog-input"
                     value={selectedRule.textTransform}
                     onChange={(e) => updateRule(selectedId!, { textTransform: e.target.value as any })}
@@ -322,7 +323,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     <option value="none">None</option>
                     <option value="uppercase">Uppercase</option>
                     <option value="lowercase">Lowercase</option>
-                  </select>
+                  </Select>
                 </div>
 
                 {/* Alignment */}
@@ -446,7 +447,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 <div className="template-editor-field-row">
                   <div className="template-editor-field">
                     <label>Next on Enter</label>
-                    <select
+                    <Select
                       className="dialog-input"
                       value={selectedRule.nextOnEnter}
                       onChange={(e) => updateRule(selectedId!, { nextOnEnter: e.target.value })}
@@ -454,11 +455,11 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                       {elementOptions.map((opt) => (
                         <option key={opt.id} value={opt.id}>{opt.label}</option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                   <div className="template-editor-field">
                     <label>Next on Tab</label>
-                    <select
+                    <Select
                       className="dialog-input"
                       value={selectedRule.nextOnTab || ''}
                       onChange={(e) => updateRule(selectedId!, { nextOnTab: e.target.value || null })}
@@ -467,7 +468,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                       {elementOptions.map((opt) => (
                         <option key={opt.id} value={opt.id}>{opt.label}</option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                 </div>
 
@@ -478,7 +479,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 {avPlaceable(selectedRule) && (
                   <div className="template-editor-field">
                     <label>In AV columns</label>
-                    <select
+                    <Select
                       className="dialog-input"
                       value={avPlacementOf(selectedRule)}
                       disabled={AV_BASE_IDS.has(selectedRule.id)}
@@ -491,7 +492,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                       <option value="video">Video column</option>
                       <option value="audio">Audio column</option>
                       <option value="both">Both columns</option>
-                    </select>
+                    </Select>
                   </div>
                 )}
 

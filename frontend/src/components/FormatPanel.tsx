@@ -5,6 +5,7 @@ import { findFont, loadFontByName } from '../utils/fonts';
 import { useEditorStore } from '../stores/editorStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
+import Select from './Select';
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 
@@ -300,7 +301,7 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
           {/* Font size */}
           <div className="format-row">
             <label className="format-label">Size</label>
-            <select
+            <Select
               className="format-size-select"
               value={size}
               disabled={locked.fontSize}
@@ -310,7 +311,7 @@ const FormatPanel: React.FC<FormatPanelProps> = ({ editor, onClose }) => {
               {(FONT_SIZES.includes(size) ? FONT_SIZES : [...FONT_SIZES, size].sort((a, b) => a - b)).map((s) => (
                 <option key={s} value={s}>{s}pt</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {/* Style toggles */}

@@ -15,6 +15,7 @@ import {
   LINKED_FILE_FORMATS, LINKED_FORMAT_LABELS, normalizeLinkedFormat,
 } from '../utils/linkedFileFormat';
 import { showToast } from './Toast';
+import Select from './Select';
 
 function formatInterval(seconds: number): string {
   if (seconds < 60) return `${seconds} seconds`;
@@ -144,7 +145,7 @@ const SaveSettingsSection: React.FC = () => {
 
       <div className="settings-row">
         <label>Auto-save every</label>
-        <select
+        <Select
           className="dialog-input"
           value={autoSaveIntervalSeconds}
           disabled={!autoSaveLibrary && !(filesSupported && autoSaveFiles)}
@@ -153,7 +154,7 @@ const SaveSettingsSection: React.FC = () => {
           {intervalOptions.map((sec) => (
             <option key={sec} value={sec}>{formatInterval(sec)}</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {desktop && (
@@ -168,7 +169,7 @@ const SaveSettingsSection: React.FC = () => {
 
           <div className="settings-row">
             <label>New projects are saved in</label>
-            <select
+            <Select
               className="dialog-input"
               value={defaultProjectFolder ? 'folder' : 'library'}
               onChange={async (e) => {
@@ -178,7 +179,7 @@ const SaveSettingsSection: React.FC = () => {
             >
               <option value="library">The OpenDraft library</option>
               <option value="folder">A folder on disk</option>
-            </select>
+            </Select>
             <div className="settings-hint">
               You can still choose for each project when you create it.
             </div>
@@ -214,7 +215,7 @@ const SaveSettingsSection: React.FC = () => {
 
           <div className="settings-row">
             <label>Save scripts in folders as</label>
-            <select
+            <Select
               className="dialog-input"
               value={normalizeLinkedFormat(defaultFileFormat)}
               onChange={(e) => setDefaultFileFormat(e.target.value)}
@@ -222,7 +223,7 @@ const SaveSettingsSection: React.FC = () => {
               {LINKED_FILE_FORMATS.map((f) => (
                 <option key={f} value={f}>{LINKED_FORMAT_LABELS[f]}</option>
               ))}
-            </select>
+            </Select>
             <div className="settings-hint">
               .odraft keeps everything. Final Draft and Fountain files open in
               other apps, but notes, tags and other OpenDraft-only details are

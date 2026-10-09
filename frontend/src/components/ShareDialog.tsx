@@ -4,6 +4,7 @@ import type { CollabSession } from '../services/api';
 import { useSettingsStore } from '../stores/settingsStore';
 import { collabAuthApi, isCollabAuthenticated } from '../services/collabAuth';
 import { showToast } from './Toast';
+import Select from './Select';
 
 interface ShareDialogProps {
   projectId: string;
@@ -243,7 +244,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
 
             <div className="collab-expiry-selector">
               <label className="dialog-label" style={{ fontSize: 14, marginTop: 12 }}>Token Valid For</label>
-              <select
+              <Select
                 className="dialog-input collab-expiry-select"
                 value={expiryHours}
                 onChange={(e) => setExpiryHours(Number(e.target.value))}
@@ -254,7 +255,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
                     {opt.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
 

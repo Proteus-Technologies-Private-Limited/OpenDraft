@@ -15,6 +15,7 @@ import {
 import { DEFAULT_TITLE_PAGE_CREDIT } from '../utils/titlePageBlocks';
 import { buildTitlePageBlocks, deriveFields } from '../utils/titlePageDialogBlocks';
 import { showToast } from './Toast';
+import Select from './Select';
 
 /** Small image thumbnail for the title-page preview/list. Shares the editor
  *  NodeView's resolver, so scratch-backed images work here too. */
@@ -317,13 +318,13 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
             {showField('tpTitle') && (
             <div className="props-field">
               <label className="props-label">Title Size</label>
-              <select
+              <Select
                 className="props-input"
                 value={data.tpTitleFontSize}
                 onChange={(e) => setData((prev) => ({ ...prev, tpTitleFontSize: Number(e.target.value) }))}
               >
                 {TITLE_FONT_SIZES.map((s) => <option key={s} value={s}>{s} pt</option>)}
-              </select>
+              </Select>
             </div>
             )}
             {showField('tpCredit') && (
@@ -441,7 +442,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
             </button>
             <div className="props-field props-field-wide" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <label className="props-label" style={{ marginTop: 0 }}>Place image</label>
-              <select
+              <Select
                 className="props-input"
                 value={imagePosition}
                 onChange={(e) => setImagePosition(e.target.value as 'above' | 'below')}
@@ -450,7 +451,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
               >
                 <option value="above">Top of page (above title)</option>
                 <option value="below">Bottom of page (below all)</option>
-              </select>
+              </Select>
               <button className="tp-sync-btn" onClick={handleAddImage} type="button" style={{ marginTop: 0 }}>
                 Add Image…
               </button>
@@ -473,7 +474,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                   ].map((row, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--fd-border, #ddd)', borderRadius: 4, padding: 4 }}>
                       <div style={{ width: 48, flex: '0 0 auto' }}><TpImageThumb attrs={row.attrs} /></div>
-                      <select
+                      <Select
                         className="props-input"
                         value={row.above ? 'above' : 'below'}
                         onChange={(e) => moveImg(row.above, row.idx, e.target.value as 'above' | 'below')}
@@ -482,8 +483,8 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                       >
                         <option value="above">Top</option>
                         <option value="below">Bottom</option>
-                      </select>
-                      <select
+                      </Select>
+                      <Select
                         className="props-input"
                         value={(row.attrs.align as string) || 'center'}
                         onChange={(e) => alignImg(row.above, row.idx, e.target.value)}
@@ -493,7 +494,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                         <option value="left">Left</option>
                         <option value="center">Center</option>
                         <option value="right">Right</option>
-                      </select>
+                      </Select>
                       <button type="button" className="tp-sync-btn" style={{ marginTop: 0 }} onClick={() => removeImg(row.above, row.idx)}>
                         ✕
                       </button>

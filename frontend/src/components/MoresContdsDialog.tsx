@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useEditorStore, resolveMoresContds, DEFAULT_MORES_CONTDS } from '../stores/editorStore';
+import Select from './Select';
 
 interface Props {
   onClose: () => void;
@@ -82,7 +83,7 @@ const MoresContdsDialog: React.FC<Props> = ({ onClose }) => {
 
           <div className="props-field props-field-wide">
             <label className="props-label">Continued text</label>
-            <select
+            <Select
               className="props-input"
               value={contdCustom ? CUSTOM : contdText}
               onChange={(e) => {
@@ -92,7 +93,7 @@ const MoresContdsDialog: React.FC<Props> = ({ onClose }) => {
             >
               {CONTD_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
               <option value={CUSTOM}>Custom…</option>
-            </select>
+            </Select>
             {contdCustom && (
               <input
                 className="props-input"
@@ -107,7 +108,7 @@ const MoresContdsDialog: React.FC<Props> = ({ onClose }) => {
 
           <div className="props-field props-field-wide">
             <label className="props-label">More text</label>
-            <select
+            <Select
               className="props-input"
               value={moreCustom ? CUSTOM : moreText}
               onChange={(e) => {
@@ -117,7 +118,7 @@ const MoresContdsDialog: React.FC<Props> = ({ onClose }) => {
             >
               {MORE_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
               <option value={CUSTOM}>Custom…</option>
-            </select>
+            </Select>
             {moreCustom && (
               <input
                 className="props-input"
