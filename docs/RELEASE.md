@@ -12,6 +12,27 @@ The `release.sh` script handles the entire process — version bumps, commit, an
 ./release.sh 0.4.0
 ```
 
+### Releasing only some platforms
+
+```bash
+SKIP_PLATFORMS="android ios macos" ./release.sh 2.5.2
+```
+
+Platforms are `macos` (all three dmgs and the Mac App Store), `ios`, `android`,
+`windows` and `linux`; the Docker image always builds. Use it for a fix that
+only matters somewhere, or to keep a build out of Apple and Google review.
+
+- `release.sh` writes `skip-platforms: …` into an **annotated tag**. The `plan`
+  job in `release.yml` reads it and skips those builds and store uploads; a
+  manual re-run of the tag reads the same message (or override it with the
+  `skip_platforms` input — `none` builds everything).
+- A skipped platform's download links in README and the landing page, and its
+  channel in `landing/updates.json`, stay on the version they had. Those files
+  are copied into the new release and **left there**, because the links go
+  through `/releases/latest/download/`.
+- The store watch times each channel against the newest release that shipped
+  that platform, so it does not wait on stores for a build never submitted.
+
 **Before running**, manually update the "What's New" content (step 3 below) since that requires writing the changelog for the new version.
 
 **What the script does:**

@@ -20,6 +20,11 @@ on:
         required: false
         default: true
         type: boolean
+      skip_platforms:
+        description: 'Platforms to leave out, e.g. "android ios macos". Empty uses the tag message; "none" builds everything.'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -35,25 +40,90 @@ env:
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
+  # ── Which platforms this release builds ─────────────────────────────────
+  # Every platform by default. A release can leave some out — a fix that only
+  # matters on Windows, say, without putting a build through Apple and Google
+  # review — by carrying a line in its annotated tag message:
+  #
+  #     skip-platforms: android ios macos
+  #
+  # release.sh writes that line from SKIP_PLATFORMS. It lives in the tag and
+  # not in a file because the tag is what a push hands this workflow, and a
+  # manual re-run of the same tag reads the same message, so the two cannot
+  # disagree. Platforms: macos (the three dmgs and the Mac App Store), ios,
+  # android, windows, linux. The Docker image always builds.
+  plan:
+    runs-on: ubuntu-latest
+    name: Plan platforms
+    outputs:
+      desktop_matrix: ${{ steps.plan.outputs.desktop_matrix }}
+      macos: ${{ steps.plan.outputs.macos }}
+      ios: ${{ steps.plan.outputs.ios }}
+      android: ${{ steps.plan.outputs.android }}
+      windows: ${{ steps.plan.outputs.windows }}
+      linux: ${{ steps.plan.outputs.linux }}
+      stores: ${{ steps.plan.outputs.stores }}
+    steps:
+      - name: Read the platforms to leave out
+        id: plan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SKIP_INPUT: ${{ inputs.skip_platforms }}
+        run: |
+          set -euo pipefail
+          SKIP="${SKIP_INPUT:-}"
+          if [ -z "$SKIP" ]; then
+            # Only an annotated tag has a message; a lightweight one points
+            # straight at a commit and skips nothing.
+            REF=$(gh api "repos/${REPO}/git/ref/tags/${RELEASE_TAG}")
+            if [ "$(echo "$REF" | jq -r .object.type)" = "tag" ]; then
+              MSG=$(gh api "repos/${REPO}/git/tags/$(echo "$REF" | jq -r .object.sha)" --jq .message)
+              SKIP=$(printf '%s\n' "$MSG" | sed -n 's/^skip-platforms:[[:space:]]*//p' | head -1)
+            fi
+          fi
+          SKIP=$(echo "$SKIP" | tr ',[:upper:]' ' [:lower:]' | xargs || true)
+          [ "$SKIP" = "none" ] && SKIP=""
+
+          for p in $SKIP; do
+            case "$p" in
+              macos|ios|android|windows|linux) ;;
+              *) echo "::error::Unknown platform '$p' in skip-platforms (use macos ios android windows linux)"; exit 1 ;;
+            esac
+          done
+
+          echo "Leaving out: ${SKIP:-nothing}"
+          for p in macos ios android windows linux; do
+            if [[ " $SKIP " == *" $p "* ]]; then echo "$p=false"; else echo "$p=true"; fi >> "$GITHUB_OUTPUT"
+          done
+          if [[ " $SKIP " == *" macos "* && " $SKIP " == *" ios "* && " $SKIP " == *" android "* ]]; then
+            echo "stores=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "stores=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          # macOS-arm64 is pinned to macos-15 for the same reason as
+          # build-mac-appstore: codesign/notarize hangs on macos-26 until the
+          # step times out. In v0.20.0 all three notarizing macOS jobs burned
+          # 60 minutes and retried for 60 more, while the macos-15 App Store
+          # job finished in under five. Revisit when that is fixed.
+          ALL='[
+            {"platform":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu","label":"Linux-x64","key":"linux"},
+            {"platform":"windows-latest","target":"x86_64-pc-windows-msvc","label":"Windows-x64","key":"windows"},
+            {"platform":"macos-15","target":"aarch64-apple-darwin","label":"macOS-arm64","key":"macos"}
+          ]'
+          MATRIX=$(echo "$ALL" | jq -c --arg skip " $SKIP " '{include: map(select(($skip | contains(" " + .key + " ")) | not))}')
+          if [ "$(echo "$MATRIX" | jq '.include | length')" = "0" ]; then
+            echo "::error::Every desktop platform is skipped — there would be no release to publish"
+            exit 1
+          fi
+          echo "desktop_matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
   build-desktop:
+    needs: plan
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - platform: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            label: Linux-x64
-          - platform: windows-latest
-            target: x86_64-pc-windows-msvc
-            label: Windows-x64
-          # Pinned to macos-15 for the same reason as build-mac-appstore:
-          # codesign/notarize hangs on macos-26 until the step times out. In
-          # v0.20.0 all three notarizing macOS jobs burned 60 minutes and
-          # retried for 60 more, while the macos-15 App Store job finished in
-          # under five. Revisit when the macos-26 codesign issue is fixed.
-          - platform: macos-15
-            target: aarch64-apple-darwin
-            label: macOS-arm64
+      matrix: ${{ fromJSON(needs.plan.outputs.desktop_matrix) }}
 
     runs-on: ${{ matrix.platform }}
     name: Build (${{ matrix.label }})
@@ -327,6 +397,8 @@ jobs:
           draft: true
 
   build-android:
+    needs: plan
+    if: needs.plan.outputs.android == 'true'
     runs-on: ubuntu-latest
     name: Build (Android)
 
@@ -840,6 +912,8 @@ jobs:
           path: android-artifacts/*.aab
 
   build-intel-mac:
+    needs: plan
+    if: needs.plan.outputs.macos == 'true'
     # Pinned to macos-15 — see build-mac-appstore. codesign/notarize
     # hangs on macos-26 until the step times out.
     runs-on: macos-15
@@ -960,6 +1034,8 @@ jobs:
           draft: true
 
   build-intel-mac-legacy:
+    needs: plan
+    if: needs.plan.outputs.macos == 'true'
     # Pinned to macos-15 — see build-mac-appstore. codesign/notarize
     # hangs on macos-26 until the step times out.
     runs-on: macos-15
@@ -1101,6 +1177,8 @@ jobs:
           draft: true
 
   build-ios:
+    needs: plan
+    if: needs.plan.outputs.ios == 'true'
     runs-on: macos-26
     name: Build (iOS)
 
@@ -1442,6 +1520,8 @@ jobs:
           path: ios-artifacts/*.ipa
 
   build-mac-appstore:
+    needs: plan
+    if: needs.plan.outputs.macos == 'true'
     # Pinned to macos-15 — codesign on macos-26 hangs ~24 min on cert-chain
     # validation (likely OCSP/CRL network calls). The same job ran in 2-4 min
     # on macos-26 in v0.16.0/v0.16.1, then started hanging mid-Apr 2026 after
@@ -1702,21 +1782,28 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ── Submit to App Stores ────────────────────────────────────────────────
-  # Runs only after ALL build jobs succeed. Downloads built artifacts and
+  # Runs only after every build job that ran has succeeded — a platform left
+  # out by the plan is skipped, not failed. Downloads built artifacts and
   # submits them to the iOS App Store, macOS App Store, and Google Play Store.
   submit-stores:
-    needs: [build-desktop, build-android, build-ios, build-mac-appstore, build-intel-mac, build-intel-mac-legacy, build-docker]
+    needs: [plan, build-desktop, build-android, build-ios, build-mac-appstore, build-intel-mac, build-intel-mac-legacy, build-docker]
+    if: >-
+      always() && !cancelled()
+      && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+      && needs.plan.outputs.stores == 'true'
     runs-on: macos-latest
     name: Submit to App Stores
 
     steps:
       - name: Download iOS IPA artifact
+        if: needs.plan.outputs.ios == 'true'
         uses: actions/download-artifact@v5
         with:
           name: ios-ipa
           path: ios-artifacts
 
       - name: Download macOS pkg artifact
+        if: needs.plan.outputs.macos == 'true'
         uses: actions/download-artifact@v5
         continue-on-error: true
         with:
@@ -1724,6 +1811,7 @@ jobs:
           path: macos-artifacts
 
       - name: Download Android AAB artifact
+        if: needs.plan.outputs.android == 'true'
         uses: actions/download-artifact@v5
         with:
           name: android-aab
@@ -1733,7 +1821,7 @@ jobs:
         # A tag push has no inputs and always uploads. Not `inputs.stores != false`:
         # GitHub coerces both sides to numbers, so null equals false and a tag push
         # would skip the stores.
-        if: github.event_name != 'workflow_dispatch' || inputs.stores
+        if: (github.event_name != 'workflow_dispatch' || inputs.stores) && needs.plan.outputs.ios == 'true'
         env:
           APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
           APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
@@ -1774,7 +1862,7 @@ jobs:
 
       - name: Upload macOS pkg to App Store Connect
         # Always run, even if iOS upload above failed — they're independent.
-        if: always() && !cancelled() && (github.event_name != 'workflow_dispatch' || inputs.stores)
+        if: always() && !cancelled() && (github.event_name != 'workflow_dispatch' || inputs.stores) && needs.plan.outputs.macos == 'true'
         continue-on-error: true
         env:
           APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
@@ -1811,7 +1899,7 @@ jobs:
           fi
 
       - name: Upload Android AAB to Google Play (production)
-        if: github.event_name != 'workflow_dispatch' || inputs.stores
+        if: (github.event_name != 'workflow_dispatch' || inputs.stores) && needs.plan.outputs.android == 'true'
         # Don't fail the release if the Play Store credentials are stale or
         # the AAB version was already uploaded — submit-stores must still
         # complete so publish-release can flip the GitHub release out of draft.
@@ -1856,8 +1944,14 @@ jobs:
   # Runs only after ALL build jobs succeed. Verifies assets exist on the
   # draft release, publishes it, then updates download links in README.md
   # and landing/index.html so they always point to verified files.
+  # submit-stores is skipped outright when no store platform was built, so
+  # this waits on the builds directly as well, and runs unless something
+  # actually failed or was cancelled.
   publish-release:
-    needs: [submit-stores]
+    needs: [plan, build-desktop, build-android, build-ios, build-mac-appstore, build-intel-mac, build-intel-mac-legacy, build-docker, submit-stores]
+    if: >-
+      always() && !cancelled()
+      && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     runs-on: ubuntu-latest
     name: Publish Release & Update Links
 
@@ -1879,17 +1973,24 @@ jobs:
           TAG="${{ env.RELEASE_TAG }}"
           REPO="${{ github.repository }}"
 
-          EXPECTED_ASSETS=(
-            "OpenDraft_${VERSION}_aarch64.dmg"
-            "OpenDraft_${VERSION}_x64-setup.exe"
-            "OpenDraft_${VERSION}_x64_en-US.msi"
-            "OpenDraft_${VERSION}_amd64.deb"
-            "OpenDraft_${VERSION}_amd64.AppImage"
-            "OpenDraft_${VERSION}_android.apk"
-            "OpenDraft_${VERSION}_ios.ipa"
-            "OpenDraft_${VERSION}_x64.dmg"
-            "OpenDraft_${VERSION}_x86_64-legacy.dmg"
-          )
+          # Only what the plan built. A platform left out keeps advertising the
+          # previous version's files, which release.sh carries into this release.
+          EXPECTED_ASSETS=()
+          if [ "${{ needs.plan.outputs.macos }}" = "true" ]; then
+            EXPECTED_ASSETS+=("OpenDraft_${VERSION}_aarch64.dmg" "OpenDraft_${VERSION}_x64.dmg" "OpenDraft_${VERSION}_x86_64-legacy.dmg")
+          fi
+          if [ "${{ needs.plan.outputs.windows }}" = "true" ]; then
+            EXPECTED_ASSETS+=("OpenDraft_${VERSION}_x64-setup.exe" "OpenDraft_${VERSION}_x64_en-US.msi")
+          fi
+          if [ "${{ needs.plan.outputs.linux }}" = "true" ]; then
+            EXPECTED_ASSETS+=("OpenDraft_${VERSION}_amd64.deb" "OpenDraft_${VERSION}_amd64.AppImage")
+          fi
+          if [ "${{ needs.plan.outputs.android }}" = "true" ]; then
+            EXPECTED_ASSETS+=("OpenDraft_${VERSION}_android.apk")
+          fi
+          if [ "${{ needs.plan.outputs.ios }}" = "true" ]; then
+            EXPECTED_ASSETS+=("OpenDraft_${VERSION}_ios.ipa")
+          fi
 
           echo "Checking release assets for ${TAG}..."
           ASSETS=$(gh release view "$TAG" --repo "$REPO" --json assets -q '.assets[].name')
@@ -1927,6 +2028,10 @@ jobs:
       # they are actually serving it and then switches itself off. Enabling is
       # separate from dispatching because a disabled workflow ignores every
       # trigger, including this one.
+      # Armed even when no store build shipped: it is also what copies the
+      # download channels onto the manifest branch the app reads, and it
+      # times each channel against the release that last shipped it, so a
+      # store left out of this release does not keep it waiting.
       - name: Start the store watch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

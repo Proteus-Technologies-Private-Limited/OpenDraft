@@ -16,6 +16,26 @@ REPO="Proteus-Technologies-Private-Limited/OpenDraft"
 if [ -z "$1" ]; then
   echo "Usage: ./release.sh <version>"
   echo "Example: ./release.sh 0.4.0"
+  echo "         SKIP_PLATFORMS=\"android ios macos\" ./release.sh 0.4.1"
+  exit 1
+fi
+
+# ── Platforms to leave out ──────────────────────────────────────────────────
+# SKIP_PLATFORMS="android ios macos" releases the rest only. It travels to CI
+# as a `skip-platforms:` line in the annotated tag (see the plan job in
+# release.yml). A platform left out keeps its download links and update
+# notice on the version it already has; that version's files are copied into
+# this release, and left there, so the /releases/latest/ links keep working.
+SKIP_PLATFORMS=$(echo "${SKIP_PLATFORMS:-}" | tr ',[:upper:]' ' [:lower:]' | xargs)
+for p in $SKIP_PLATFORMS; do
+  case "$p" in
+    macos|ios|android|windows|linux) ;;
+    *) echo "Error: unknown platform '$p' in SKIP_PLATFORMS (use macos ios android windows linux)"; exit 1 ;;
+  esac
+done
+builds() { [[ " $SKIP_PLATFORMS " != *" $1 "* ]]; }
+if ! builds windows && ! builds linux && ! builds macos; then
+  echo "Error: SKIP_PLATFORMS leaves no desktop platform to release."
   exit 1
 fi
 
@@ -25,6 +45,7 @@ BRANCH="release/v${NEW_VERSION}"
 
 echo ""
 echo "=== OpenDraft Release ${TAG} ==="
+[ -n "$SKIP_PLATFORMS" ] && echo "    Leaving out: ${SKIP_PLATFORMS}"
 echo ""
 
 # ── Preflight checks ────────────────────────────────────────────────────────
@@ -70,15 +91,21 @@ echo "=== Step 1/4: Updating version numbers ==="
 # had drifted: it was missing x64.dmg and x86_64-legacy.dmg, so every Intel Mac
 # download 404'd for the whole window between publishing v0.26.2 and merging
 # its PR. Reading it off the files that do the advertising cannot drift.
-ADVERTISED=$(grep -ohE "OpenDraft[_-]${OLD_VERSION}[A-Za-z0-9_.-]*" \
+#
+# Any version, not just OLD_VERSION: a platform left out of an earlier release
+# is still advertised at the version it last shipped.
+ADVERTISED=$(grep -ohE "OpenDraft[_-][0-9]+\.[0-9]+\.[0-9]+[_-][A-Za-z0-9_.-]*\.(dmg|exe|msi|deb|rpm|AppImage|apk)" \
   "$PROJECT_ROOT/README.md" "$PROJECT_ROOT/landing/index.html" 2>/dev/null \
   | sort -u || true)
 if [ -z "$ADVERTISED" ]; then
-  echo "Error: no ${OLD_VERSION} download links found in README.md or landing/index.html."
+  echo "Error: no download links found in README.md or landing/index.html."
   echo "       Refusing to release: the backfill in step 3.5 would upload nothing"
   echo "       and every download link would 404 until the PR merged."
   exit 1
 fi
+# Where those files are now: the release /releases/latest/ points at. It holds
+# every advertised file, its own and any carried in from before.
+LATEST_TAG=$(gh release view --repo "$REPO" --json tagName -q .tagName)
 echo "  Download links to keep alive during the release:"
 echo "$ADVERTISED" | sed 's/^/    /'
 
@@ -111,26 +138,35 @@ sed -i '' "s/return '${OLD_VERSION}';/return '${NEW_VERSION}';/g" \
   "$PROJECT_ROOT/frontend/src/services/diagnostics.ts"
 echo "  ✓ frontend/src/services/diagnostics.ts"
 
-# README.md download links
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_aarch64\.dmg/OpenDraft_${NEW_VERSION}_aarch64.dmg/g" "$PROJECT_ROOT/README.md"
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64\.dmg/OpenDraft_${NEW_VERSION}_x64.dmg/g" "$PROJECT_ROOT/README.md"
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64-setup\.exe/OpenDraft_${NEW_VERSION}_x64-setup.exe/g" "$PROJECT_ROOT/README.md"
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64_en-US\.msi/OpenDraft_${NEW_VERSION}_x64_en-US.msi/g" "$PROJECT_ROOT/README.md"
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.deb/OpenDraft_${NEW_VERSION}_amd64.deb/g" "$PROJECT_ROOT/README.md"
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.AppImage/OpenDraft_${NEW_VERSION}_amd64.AppImage/g" "$PROJECT_ROOT/README.md"
-sed -i '' "s/OpenDraft-[0-9]*\.[0-9]*\.[0-9]*-1\.x86_64\.rpm/OpenDraft-${NEW_VERSION}-1.x86_64.rpm/g" "$PROJECT_ROOT/README.md"
-echo "  ✓ README.md (download links)"
+# README.md and landing/index.html download links — only for the platforms
+# this release builds; the rest keep pointing at the files they already have.
+bump_link() {  # <platform> <sed pattern for the old name> <new name>
+  builds "$1" || return 0
+  for f in "$PROJECT_ROOT/README.md" "$PROJECT_ROOT/landing/index.html"; do
+    sed -i '' "s/$2/$3/g" "$f"
+  done
+}
+V='[0-9]*\.[0-9]*\.[0-9]*'
+bump_link macos   "OpenDraft_${V}_aarch64\.dmg"        "OpenDraft_${NEW_VERSION}_aarch64.dmg"
+bump_link macos   "OpenDraft_${V}_x64\.dmg"            "OpenDraft_${NEW_VERSION}_x64.dmg"
+bump_link macos   "OpenDraft_${V}_x86_64-legacy\.dmg"  "OpenDraft_${NEW_VERSION}_x86_64-legacy.dmg"
+bump_link windows "OpenDraft_${V}_x64-setup\.exe"      "OpenDraft_${NEW_VERSION}_x64-setup.exe"
+bump_link windows "OpenDraft_${V}_x64_en-US\.msi"      "OpenDraft_${NEW_VERSION}_x64_en-US.msi"
+bump_link linux   "OpenDraft_${V}_amd64\.deb"          "OpenDraft_${NEW_VERSION}_amd64.deb"
+bump_link linux   "OpenDraft_${V}_amd64\.AppImage"     "OpenDraft_${NEW_VERSION}_amd64.AppImage"
+bump_link linux   "OpenDraft-${V}-1\.x86_64\.rpm"     "OpenDraft-${NEW_VERSION}-1.x86_64.rpm"
+bump_link android "OpenDraft_${V}_android\.apk"        "OpenDraft_${NEW_VERSION}_android.apk"
+echo "  ✓ README.md, landing/index.html (download links)"
 
-# landing/index.html download links
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_aarch64\.dmg/OpenDraft_${NEW_VERSION}_aarch64.dmg/g" "$PROJECT_ROOT/landing/index.html"
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64-setup\.exe/OpenDraft_${NEW_VERSION}_x64-setup.exe/g" "$PROJECT_ROOT/landing/index.html"
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.deb/OpenDraft_${NEW_VERSION}_amd64.deb/g" "$PROJECT_ROOT/landing/index.html"
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64\.dmg/OpenDraft_${NEW_VERSION}_x64.dmg/g" "$PROJECT_ROOT/landing/index.html"
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x86_64-legacy\.dmg/OpenDraft_${NEW_VERSION}_x86_64-legacy.dmg/g" "$PROJECT_ROOT/landing/index.html"
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_x64_en-US\.msi/OpenDraft_${NEW_VERSION}_x64_en-US.msi/g" "$PROJECT_ROOT/landing/index.html"
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_amd64\.AppImage/OpenDraft_${NEW_VERSION}_amd64.AppImage/g" "$PROJECT_ROOT/landing/index.html"
-sed -i '' "s/OpenDraft_[0-9]*\.[0-9]*\.[0-9]*_android\.apk/OpenDraft_${NEW_VERSION}_android.apk/g" "$PROJECT_ROOT/landing/index.html"
-echo "  ✓ landing/index.html (download links)"
+# Advertised files this release does not replace. They are copied into it in
+# step 3.5 like the rest, and are the ones left there after the PR merges.
+STILL_ADVERTISED=$(grep -ohE "OpenDraft[_-][0-9]+\.[0-9]+\.[0-9]+[_-][A-Za-z0-9_.-]*\.(dmg|exe|msi|deb|rpm|AppImage|apk)" \
+  "$PROJECT_ROOT/README.md" "$PROJECT_ROOT/landing/index.html" 2>/dev/null \
+  | grep -v "[_-]${NEW_VERSION}[_-]" | sort -u || true)
+if [ -n "$STILL_ADVERTISED" ]; then
+  echo "  Kept at their current version (platform not in this release):"
+  echo "$STILL_ADVERTISED" | sed 's/^/    /'
+fi
 
 # user-manual - footer version in all HTML files
 # user-manual - footer version in all HTML files. Match only the footer
@@ -152,10 +188,15 @@ echo "  ✓ user-manual/search.js"
 # move once each store reports the build actually live. Deliberately a script
 # rather than a sed: a blanket version substitution would rewrite the play
 # channel too, and send Play users to a listing with nothing new on it.
+MANIFEST_CHANNELS=""
+builds macos   && MANIFEST_CHANNELS="${MANIFEST_CHANNELS:+$MANIFEST_CHANNELS,}dmg"
+builds windows && MANIFEST_CHANNELS="${MANIFEST_CHANNELS:+$MANIFEST_CHANNELS,}win"
+builds linux   && MANIFEST_CHANNELS="${MANIFEST_CHANNELS:+$MANIFEST_CHANNELS,}linux"
+builds android && MANIFEST_CHANNELS="${MANIFEST_CHANNELS:+$MANIFEST_CHANNELS,}apk"
 if [ -x "$PROJECT_ROOT/venv/bin/python" ]; then
-  "$PROJECT_ROOT/venv/bin/python" "$PROJECT_ROOT/test-script/update_download_manifest.py" "${NEW_VERSION}"
+  "$PROJECT_ROOT/venv/bin/python" "$PROJECT_ROOT/test-script/update_download_manifest.py" "${NEW_VERSION}" --only "$MANIFEST_CHANNELS"
 else
-  python3 "$PROJECT_ROOT/test-script/update_download_manifest.py" "${NEW_VERSION}"
+  python3 "$PROJECT_ROOT/test-script/update_download_manifest.py" "${NEW_VERSION}" --only "$MANIFEST_CHANNELS"
 fi
 echo "  ✓ landing/updates.json (download channels)"
 
@@ -189,10 +230,15 @@ git commit -m "Bump version to ${NEW_VERSION}"
 git push origin "$BRANCH"
 echo "  ✓ Branch ${BRANCH} pushed"
 
-# Tag the release branch — this triggers CI
-git tag "$TAG"
+# Tag the release branch — this triggers CI. A release that leaves platforms
+# out says so in an annotated tag, which the plan job in release.yml reads.
+if [ -n "$SKIP_PLATFORMS" ]; then
+  git tag -a "$TAG" -m "Release ${TAG}" -m "skip-platforms: ${SKIP_PLATFORMS}"
+else
+  git tag "$TAG"
+fi
 git push origin "$TAG"
-echo "  ✓ Tag ${TAG} pushed — CI is now building all platforms"
+echo "  ✓ Tag ${TAG} pushed — CI is now building${SKIP_PLATFORMS:+ (leaving out: ${SKIP_PLATFORMS})}"
 echo "  https://github.com/${REPO}/actions"
 echo ""
 
@@ -220,7 +266,6 @@ done
 # Until the PR merges, we need the old binaries available in the new release
 # so that /releases/latest/download/OpenDraft_OLD_... doesn't 404.
 echo "  Uploading old-version binaries for backward-compatible downloads..."
-OLD_TAG="v${OLD_VERSION}"
 TMPDIR=$(mktemp -d)
 
 # Every advertised filename, whatever its shape — the rpm's
@@ -228,8 +273,8 @@ TMPDIR=$(mktemp -d)
 # a list of extensions, and no longer does.
 while IFS= read -r OLD_NAME; do
   [ -z "$OLD_NAME" ] && continue
-  if ! gh release download "$OLD_TAG" --repo "$REPO" -p "$OLD_NAME" -D "$TMPDIR" 2>/dev/null; then
-    echo "    ! ${OLD_NAME} — not on ${OLD_TAG}, cannot backfill"
+  if ! gh release download "$LATEST_TAG" --repo "$REPO" -p "$OLD_NAME" -D "$TMPDIR" 2>/dev/null; then
+    echo "    ! ${OLD_NAME} — not on ${LATEST_TAG}, cannot backfill"
     continue
   fi
   # Errors are no longer swallowed: a silent upload failure here is a download
@@ -309,10 +354,15 @@ while true; do
   sleep 10
 done
 
-# Remove old-version binaries now that links on main point to new version
+# Remove old-version binaries now that links on main point to new version —
+# except those still advertised, for a platform this release left out.
 echo "  Cleaning up old-version binaries from release..."
 while IFS= read -r OLD_NAME; do
   [ -z "$OLD_NAME" ] && continue
+  if grep -qxF "$OLD_NAME" <<< "$STILL_ADVERTISED"; then
+    echo "    · keeping ${OLD_NAME} (still advertised)"
+    continue
+  fi
   gh release delete-asset "$TAG" "$OLD_NAME" --repo "$REPO" -y 2>/dev/null
 done <<< "$ADVERTISED"
 echo "  ✓ Old-version binaries removed"

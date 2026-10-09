@@ -31,6 +31,7 @@ target, which is the signal for the watch workflow to switch itself off.
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -227,10 +228,54 @@ def previous_channels(path):
         return {}
 
 
+STORE_CHANNELS = ('ios', 'mas', 'play')
+DOWNLOAD_CHANNELS = ('dmg', 'win', 'linux', 'apk')
+
+
+def parse_channel_targets(spec):
+    """`ios=2.5.1,win=2.5.2` → {'ios': '2.5.1', 'win': '2.5.2'}.
+
+    A release can leave platforms out (skip-platforms in its tag), so the
+    newest release is not what every channel is waiting for: a channel whose
+    platform was left out is finished at the release that last shipped it.
+    Anything unparseable is an error, not a silent fallback to the newest
+    release — that would leave the watch waiting on a build that never comes.
+    """
+    out = {}
+    for part in filter(None, (p.strip() for p in (spec or '').split(','))):
+        name, sep, version = part.partition('=')
+        name, version = name.strip(), version.strip()
+        if (not sep or name not in STORE_CHANNELS + DOWNLOAD_CHANNELS
+                or not re.fullmatch(r'\d+\.\d+\.\d+', version)):
+            raise ValueError(f'bad channel target {part!r}')
+        out[name] = version
+    return out
+
+
+def readiness(channels, targets):
+    """(stores_ready, downloads_ready) against each channel's own target.
+
+    Store channels are ready at or past their target: a store can be ahead of
+    the manifest's idea of it. Download channels must match exactly, because
+    they come from main and are only right once the release PR has merged.
+    """
+    stores_ready = all(
+        name in channels and version_tuple(channels[name]['version']) >= version_tuple(targets[name])
+        for name in STORE_CHANNELS
+    )
+    downloads_ready = all(
+        name in channels and version_tuple(channels[name]['version']) == version_tuple(targets[name])
+        for name in DOWNLOAD_CHANNELS
+    )
+    return stores_ready, downloads_ready
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--target', help='version the stores are catching up to '
                                      '(default: the dmg channel)')
+    ap.add_argument('--channel-targets', help='per-channel overrides of --target, '
+                                              'e.g. ios=2.5.1,dmg=2.5.1')
     ap.add_argument('--previous', help='the manifest as last published; its '
                                        'store versions are floors')
     args = ap.parse_args()
@@ -240,7 +285,16 @@ def main():
     channels = data['channels']
 
     target = args.target or channels['dmg']['version']
+    try:
+        overrides = parse_channel_targets(args.channel_targets)
+    except ValueError as err:
+        print(f'error: --channel-targets: {err}', file=sys.stderr)
+        return 2
+    targets = {name: overrides.get(name, target) for name in STORE_CHANNELS + DOWNLOAD_CHANNELS}
     print(f'target: {target}')
+    for name, version in overrides.items():
+        if version != target:
+            print(f'  {name:5} waits for {version} (its platform was not in {target})')
 
     ios = apple_live_version('software')
     mac = apple_live_version('mac-software')
@@ -273,14 +327,7 @@ def main():
     # main, and that PR lands after the release is published — so checking the
     # stores alone would let the watch switch off while still advertising the
     # previous version's downloads.
-    stores_ready = all(
-        name in channels and version_tuple(channels[name]['version']) >= version_tuple(target)
-        for name in ('ios', 'mas', 'play')
-    )
-    downloads_ready = all(
-        name in channels and version_tuple(channels[name]['version']) == version_tuple(target)
-        for name in ('dmg', 'win', 'linux', 'apk')
-    )
+    stores_ready, downloads_ready = readiness(channels, targets)
     if not downloads_ready:
         print('  waiting: main still advertises the previous downloads')
     caught_up = stores_ready and downloads_ready
@@ -290,8 +337,8 @@ def main():
             json.dump(data, fh, indent=2, ensure_ascii=False)
             fh.write('\n')
 
-    behind = [n for n in ('ios', 'mas', 'play')
-              if version_tuple(channels[n]['version']) < version_tuple(target)]
+    behind = [n for n in STORE_CHANNELS
+              if version_tuple(channels[n]['version']) < version_tuple(targets[n])]
     if behind:
         print(f'still behind: {", ".join(behind)}')
 

@@ -103,6 +103,31 @@ def test_a_stale_lookup_does_not_move_a_channel_backwards(tmp):
     print("  ok: a lookup answering from cache does not undo a bump")
 
 
+def test_a_skipped_platform_waits_for_its_own_release():
+    # 2.5.2 shipped Windows and Linux only. Mac, iOS and Android are still on
+    # 2.5.1, and the watch must call that finished rather than wait for a
+    # 2.5.2 those stores will never get.
+    targets = {n: "2.5.2" for n in rsm.STORE_CHANNELS + rsm.DOWNLOAD_CHANNELS}
+    targets.update(rsm.parse_channel_targets("ios=2.5.1,mas=2.5.1,play=2.5.1,dmg=2.5.1,apk=2.5.1"))
+    channels = {n: {"version": "2.5.1"} for n in rsm.STORE_CHANNELS + ("dmg", "apk")}
+    channels.update({"win": {"version": "2.5.2"}, "linux": {"version": "2.5.2"}})
+    assert rsm.readiness(channels, targets) == (True, True)
+    channels["win"]["version"] = "2.5.1"  # release PR not merged yet
+    assert rsm.readiness(channels, targets) == (True, False)
+    print("  ok: a channel left out of a release is timed against the release that shipped it")
+
+
+def test_a_bad_channel_target_is_refused():
+    for bad in ("ios", "nope=2.5.1", "ios=", "ios=two"):
+        try:
+            rsm.parse_channel_targets(bad)
+        except ValueError:
+            continue
+        raise AssertionError(f"accepted {bad!r}")
+    assert rsm.parse_channel_targets("") == {}
+    print("  ok: a malformed channel target is an error, not a fallback")
+
+
 if __name__ == "__main__":
     print("Running store manifest tests…")
     _tmp = Path(tempfile.mkdtemp(prefix="opendraft-manifest-"))
@@ -113,6 +138,8 @@ if __name__ == "__main__":
         test_an_unreadable_mac_record_leaves_the_channel_alone(_tmp)
         test_a_failed_lookup_keeps_what_was_published(_tmp)
         test_a_stale_lookup_does_not_move_a_channel_backwards(_tmp)
+        test_a_skipped_platform_waits_for_its_own_release()
+        test_a_bad_channel_target_is_refused()
         print("All tests passed.")
     finally:
         shutil.rmtree(_tmp, ignore_errors=True)
