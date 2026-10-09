@@ -15,10 +15,11 @@ The `release.sh` script handles the entire process — version bumps, commit, an
 ### Releasing only some platforms
 
 ```bash
-SKIP_PLATFORMS="android ios macos" ./release.sh 2.5.2
+SKIP_PLATFORMS="android ios mas" ./release.sh 2.5.2
 ```
 
-Platforms are `macos` (all three dmgs and the Mac App Store), `ios`, `android`,
+Platforms are `macos` (the three dmgs on the GitHub release — Apple Silicon,
+Intel and Intel legacy), `mas` (the Mac App Store), `ios`, `android`,
 `windows` and `linux`; the Docker image always builds. Use it for a fix that
 only matters somewhere, or to keep a build out of Apple and Google review.
 
@@ -30,8 +31,9 @@ only matters somewhere, or to keep a build out of Apple and Google review.
   channel in `landing/updates.json`, stay on the version they had. Those files
   are copied into the new release and **left there**, because the links go
   through `/releases/latest/download/`.
-- The store watch times each channel against the newest release that shipped
-  that platform, so it does not wait on stores for a build never submitted.
+- The store watch times each channel against the newest release whose tag
+  did not skip that platform, so it does not wait on stores for a build never
+  submitted.
 
 **Before running**, manually update the "What's New" content (step 3 below) since that requires writing the changelog for the new version.
 

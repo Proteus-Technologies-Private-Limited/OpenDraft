@@ -21,7 +21,7 @@ on:
         default: true
         type: boolean
       skip_platforms:
-        description: 'Platforms to leave out, e.g. "android ios macos". Empty uses the tag message; "none" builds everything.'
+        description: 'Platforms to leave out, e.g. "android ios mas". Empty uses the tag message; "none" builds everything.'
         required: false
         default: ''
         type: string
@@ -50,14 +50,16 @@ jobs:
   # release.sh writes that line from SKIP_PLATFORMS. It lives in the tag and
   # not in a file because the tag is what a push hands this workflow, and a
   # manual re-run of the same tag reads the same message, so the two cannot
-  # disagree. Platforms: macos (the three dmgs and the Mac App Store), ios,
-  # android, windows, linux. The Docker image always builds.
+  # disagree. Platforms: macos (the three dmgs on the GitHub release), mas
+  # (the Mac App Store), ios, android, windows, linux. The Docker image always
+  # builds.
   plan:
     runs-on: ubuntu-latest
     name: Plan platforms
     outputs:
       desktop_matrix: ${{ steps.plan.outputs.desktop_matrix }}
       macos: ${{ steps.plan.outputs.macos }}
+      mas: ${{ steps.plan.outputs.mas }}
       ios: ${{ steps.plan.outputs.ios }}
       android: ${{ steps.plan.outputs.android }}
       windows: ${{ steps.plan.outputs.windows }}
@@ -87,16 +89,16 @@ jobs:
 
           for p in $SKIP; do
             case "$p" in
-              macos|ios|android|windows|linux) ;;
-              *) echo "::error::Unknown platform '$p' in skip-platforms (use macos ios android windows linux)"; exit 1 ;;
+              macos|mas|ios|android|windows|linux) ;;
+              *) echo "::error::Unknown platform '$p' in skip-platforms (use macos mas ios android windows linux)"; exit 1 ;;
             esac
           done
 
           echo "Leaving out: ${SKIP:-nothing}"
-          for p in macos ios android windows linux; do
+          for p in macos mas ios android windows linux; do
             if [[ " $SKIP " == *" $p "* ]]; then echo "$p=false"; else echo "$p=true"; fi >> "$GITHUB_OUTPUT"
           done
-          if [[ " $SKIP " == *" macos "* && " $SKIP " == *" ios "* && " $SKIP " == *" android "* ]]; then
+          if [[ " $SKIP " == *" mas "* && " $SKIP " == *" ios "* && " $SKIP " == *" android "* ]]; then
             echo "stores=false" >> "$GITHUB_OUTPUT"
           else
             echo "stores=true" >> "$GITHUB_OUTPUT"
@@ -112,7 +114,7 @@ jobs:
             {"platform":"windows-latest","target":"x86_64-pc-windows-msvc","label":"Windows-x64","key":"windows"},
             {"platform":"macos-15","target":"aarch64-apple-darwin","label":"macOS-arm64","key":"macos"}
           ]'
-          MATRIX=$(echo "$ALL" | jq -c --arg skip " $SKIP " '{include: map(select(($skip | contains(" " + .key + " ")) | not))}')
+          MATRIX=$(echo "$ALL" | jq -c --arg skip " $SKIP " '{include: map(. as $e | select(($skip | contains(" " + $e.key + " ")) | not))}')
           if [ "$(echo "$MATRIX" | jq '.include | length')" = "0" ]; then
             echo "::error::Every desktop platform is skipped — there would be no release to publish"
             exit 1
@@ -1521,7 +1523,7 @@ jobs:
 
   build-mac-appstore:
     needs: plan
-    if: needs.plan.outputs.macos == 'true'
+    if: needs.plan.outputs.mas == 'true'
     # Pinned to macos-15 — codesign on macos-26 hangs ~24 min on cert-chain
     # validation (likely OCSP/CRL network calls). The same job ran in 2-4 min
     # on macos-26 in v0.16.0/v0.16.1, then started hanging mid-Apr 2026 after
@@ -1803,7 +1805,7 @@ jobs:
           path: ios-artifacts
 
       - name: Download macOS pkg artifact
-        if: needs.plan.outputs.macos == 'true'
+        if: needs.plan.outputs.mas == 'true'
         uses: actions/download-artifact@v5
         continue-on-error: true
         with:
@@ -1862,7 +1864,7 @@ jobs:
 
       - name: Upload macOS pkg to App Store Connect
         # Always run, even if iOS upload above failed — they're independent.
-        if: always() && !cancelled() && (github.event_name != 'workflow_dispatch' || inputs.stores) && needs.plan.outputs.macos == 'true'
+        if: always() && !cancelled() && (github.event_name != 'workflow_dispatch' || inputs.stores) && needs.plan.outputs.mas == 'true'
         continue-on-error: true
         env:
           APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
