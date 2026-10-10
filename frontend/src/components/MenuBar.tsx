@@ -199,6 +199,8 @@ import {
 } from 'react-icons/fa';
 import { REVISION_COLORS, nextRevisionColor } from '../editor/revisionColors';
 import RevisionSettingsDialog from './RevisionSettingsDialog';
+import ScriptProfileDialog from './ScriptProfileDialog';
+import { DEFAULT_SCRIPT_PROFILE } from '../utils/scriptProfile';
 import { pagesLocked } from '../editor/extensions/LockedPages';
 import { omitSceneTransaction, sceneOmittedAt } from '../editor/omitScene';
 
@@ -1025,6 +1027,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [clearRevisionsOpen, setClearRevisionsOpen] = useState(false);
   const [revisionSettingsOpen, setRevisionSettingsOpen] = useState(false);
+  const scriptProfileOpen = useEditorStore((s) => s.scriptProfileOpen);
+  // Stable, so the dialog measures its runtime previews once per opening.
+  const getEditorDoc = useCallback(() => (editor && !editor.isDestroyed ? editor.getJSON() : null), [editor]);
   const [checkinMessage, setCheckinMessage] = useState('');
   const [checkinSaving, setCheckinSaving] = useState(false);
   const checkinInputRef = useRef<HTMLInputElement>(null);
@@ -1560,6 +1565,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     store.setScenes([]);
     store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
     store.resetRevisionState();
+    // A new screenplay starts at Standard pacing with no genres.
+    store.setScriptProfile(DEFAULT_SCRIPT_PROFILE);
     if (window.location.pathname !== '/') {
       window.history.replaceState(null, '', '/');
     }
@@ -2750,6 +2757,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { icon: <FaImage />, label: 'Insert Image…', action: () => useEditorStore.getState().imageInsertHandler?.() },
         { separator: true, label: '' },
         { icon: <FaFileAlt />, label: 'Title Page…', action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
+        { icon: <FaStream />, label: 'Genre & Pacing…', title: 'Genres for this script, and the pacing the runtime estimate uses', action: () => useEditorStore.getState().setScriptProfileOpen(true) },
         { icon: <FaFileAlt />, label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true) },
         { icon: <FaFileAlt />, label: 'Script Format Preferences…', action: () => setFormatPrefsOpen({ firstRun: false, afterSave: null }) },
       ],
@@ -3489,6 +3497,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 2.5.2</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v2.5.3</div>
+              <ul className="about-list">
+                <li><strong>A Runtime Estimate That Matches The Screen</strong> &mdash; The <em>Est.</em> runtime in the status bar ran well short &mdash; a 110-page feature came out at little over an hour. It counted words at 250 a page, which is a page of prose, not of screenplay, and gave character names, scene headings and every blank line no time at all. It now measures the printed page the way the rule of thumb means it &mdash; one page, about a minute &mdash; counting each element at its own width and the white space around it. Checked against thirteen released films, it lands on their running time without the end credits, give or take the pace each was directed at. Scene timings in the Scene Navigator and the Timing Report follow it.</li>
+                <li><strong>Genre &amp; Pacing</strong> &mdash; <em>Format &rarr; Genre &amp; Pacing&hellip;</em>, or a click on <em>Est.</em>, tells OpenDraft how your film will play. <strong>Brisk</strong> is for fast talk and quick cutting, <strong>Measured</strong> for slow-burn and lingering images, and <strong>Standard</strong> for everything else; each shows the runtime it gives your script before you choose, and timings you set on a scene by hand are kept. Tag the script with as many genres as fit, or type your own. Both are saved with the script and shared with collaborators; genre is for you and does not change the estimate.</li>
+              </ul>
               <div className="about-subsection-title">v2.5.2</div>
               <ul className="about-list">
                 <li><strong>Dark Pulldowns</strong> &mdash; Under the Dark theme, the lists that drop down from the element, font size, sort and other pulldowns opened white when the computer itself was set to Light &mdash; on Windows almost unreadable. OpenDraft now draws every pulldown list itself, so it follows the app&rsquo;s theme, Light or Dark, whatever the system is set to. The desktop window&rsquo;s title bar follows the theme too. To make the script page dark as well, choose <em>View &rarr; Theme &rarr; Dark Pages</em>.</li>
@@ -3923,6 +3936,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
           </div>
         </div>
       </div>
+    )}
+    {scriptProfileOpen && (
+      <ScriptProfileDialog
+        onClose={() => useEditorStore.getState().setScriptProfileOpen(false)}
+        getDoc={getEditorDoc}
+      />
     )}
     {revisionSettingsOpen && (
       <RevisionSettingsDialog onClose={() => setRevisionSettingsOpen(false)} />

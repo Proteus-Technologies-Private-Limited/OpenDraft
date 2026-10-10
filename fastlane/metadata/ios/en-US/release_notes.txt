@@ -1,5 +1,11 @@
-CHARACTER VOICES ARE KEPT
-The voice you choose for a character in Table Read now stays with them when you close and reopen your script. If you picked voices in the last update, please choose them once more.
+KNOW HOW LONG YOUR FILM WILL RUN
+The running time estimate is now far more accurate. It reads your pages the way a production does, about one page to a minute, and lands close to the real running time of released films.
 
-FROM THE LAST UPDATE: HEAR YOUR SCRIPT READ ALOUD
-Table Read reads your screenplay out loud, with a different voice for each character and a narrator for the action, highlighting each word as it's spoken. Use the free voices on your device, or AI voices: Kokoro, free and private on your device, or Google Gemini, OpenAI, ElevenLabs and Microsoft Azure with your own account. AI voices other than Kokoro send your script's text to that company, and the app reminds you whenever one is in use.
+TELL OPENDRAFT HOW YOUR FILM PLAYS
+Choose a pacing for your script: Brisk for fast talk and quick cuts, Measured for slow-burn and lingering moments, or Standard. Each one shows its running time before you pick. Tap the estimate to change it any time.
+
+TAG YOUR SCRIPT'S GENRES
+Pick as many genres as fit, or add your own. They're saved with your script.
+
+ALSO FIXED
+Drop-down lists now match the Dark theme.

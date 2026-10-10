@@ -11,6 +11,7 @@
 import * as Y from 'yjs';
 import { useEditorStore } from '../stores/editorStore';
 import { normalizeRevisionSettings } from '../editor/revisionColors';
+import { normalizeScriptProfile } from '../utils/scriptProfile';
 
 const SYNC_KEYS = [
   'characterProfiles',
@@ -29,6 +30,8 @@ const SYNC_KEYS = [
   'revisionColor',
   'revisionHistory',
   'revisionSettings',
+  // Pacing changes everyone's runtime estimate, so it is shared like the rest.
+  'scriptProfile',
 ] as const;
 
 type SyncKey = (typeof SYNC_KEYS)[number];
@@ -66,6 +69,7 @@ export function startCollabSync(ydoc: Y.Doc, isHost: boolean): void {
       metaMap!.set('revisionColor', JSON.stringify(store.revisionColor));
       metaMap!.set('revisionHistory', JSON.stringify(store.revisionHistory));
       metaMap!.set('revisionSettings', JSON.stringify(store.revisionSettings));
+      metaMap!.set('scriptProfile', JSON.stringify(store.scriptProfile));
     });
   }
 
@@ -128,6 +132,7 @@ function takeSnapshot(): Record<SyncKey, string> {
     revisionColor: JSON.stringify(s.revisionColor),
     revisionHistory: JSON.stringify(s.revisionHistory),
     revisionSettings: JSON.stringify(s.revisionSettings),
+    scriptProfile: JSON.stringify(s.scriptProfile),
   };
 }
 
@@ -202,6 +207,18 @@ function applyYjsToStore() {
         useEditorStore.setState(patch);
       } catch (err) {
         console.warn('[collabSync] could not apply revision state', err);
+      }
+    }
+
+    const sp = metaMap.get('scriptProfile');
+    if (sp) {
+      try {
+        const next = normalizeScriptProfile(sp);
+        if (JSON.stringify(next) !== JSON.stringify(useEditorStore.getState().scriptProfile)) {
+          store.setScriptProfile(next);
+        }
+      } catch (err) {
+        console.warn('[collabSync] could not apply script profile', err);
       }
     }
 

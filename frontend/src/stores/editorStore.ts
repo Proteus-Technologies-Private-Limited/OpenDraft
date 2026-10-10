@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { uuid } from '../utils/uuid';
 import { applyAppearance, applyNativeTheme, readAppearance, saveAppearance, themeOf, type Appearance } from '../utils/appearance';
+import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile, type ScriptProfile } from '../utils/scriptProfile';
 import { DEFAULT_REVISION_COLOR, DEFAULT_REVISION_SETTINGS, nextRevisionColor, type RevisionSettings } from '../editor/revisionColors';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { findLanguage, urlsFor } from '../editor/languageCatalog';
@@ -838,6 +839,15 @@ interface EditorState {
   revisionSettings: RevisionSettings;
   setRevisionSettings: (patch: Partial<RevisionSettings>) => void;
   /**
+   * The writer's pacing and genres — saved with the script (`_scriptProfile`).
+   * Pacing scales the runtime estimate; genres are descriptive only.
+   */
+  scriptProfile: ScriptProfile;
+  setScriptProfile: (profile: Partial<ScriptProfile>) => void;
+  /** Format ▸ Genre & Pacing… */
+  scriptProfileOpen: boolean;
+  setScriptProfileOpen: (open: boolean) => void;
+  /**
    * Printed page labels while pages are locked ("12", "12A", "13-14"), index
    * 0 being the script's first page; null when they are not. Derived from the
    * document by the pagination plugin — see utils/lockedPages.ts.
@@ -1334,6 +1344,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setShowRevisionColors: (on) => set({ showRevisionColors: on }),
   revisionSettings: DEFAULT_REVISION_SETTINGS,
   setRevisionSettings: (patch) => set((st) => ({ revisionSettings: { ...st.revisionSettings, ...patch } })),
+  scriptProfile: DEFAULT_SCRIPT_PROFILE,
+  // Normalized on the way in, so a hand-edited or peer-written value can never
+  // put a pacing this build does not know, or a duplicate genre, in the store.
+  setScriptProfile: (profile) => set((st) => ({
+    scriptProfile: normalizeScriptProfile({ ...st.scriptProfile, ...profile }),
+  })),
+  scriptProfileOpen: false,
+  setScriptProfileOpen: (open) => set({ scriptProfileOpen: open }),
   pageLabels: null,
   setPageLabels: (labels) => set((st) => (
     st.pageLabels === labels || (st.pageLabels && labels && st.pageLabels.join('\u0000') === labels.join('\u0000'))

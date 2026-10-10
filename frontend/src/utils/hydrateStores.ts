@@ -19,6 +19,7 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { hasSaveMetadata } from './saveContent';
 import { resolveSceneHeadingSpaceBefore } from './elementSpacing';
 import { restoreRevisionState } from './revisionState';
+import { normalizeScriptProfile } from './scriptProfile';
 
 /**
  * Some payloads store these as JSON strings rather than arrays/objects,
@@ -73,6 +74,9 @@ export function hydrateEditorStoresFromContent(
   }
   store.setSceneHeadingSpaceBefore(resolveSceneHeadingSpaceBefore(content));
   restoreRevisionState(content);
+  // Always set: a script saved before profiles existed opens as Standard with
+  // no genres, not with whatever the previous script had.
+  store.setScriptProfile(normalizeScriptProfile(c._scriptProfile));
 
   if (typeof c._templateId === 'string' && c._templateId) {
     try {

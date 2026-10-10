@@ -199,26 +199,39 @@
 
     <h2 id="timing">Script Timing</h2>
 
-    <p>OpenDraft estimates how long your screenplay will take to screen, using an intelligent algorithm that weights different element types:</p>
+    <p>OpenDraft estimates how long your screenplay will take to screen using the industry rule of thumb &mdash; <strong>one printed page is about one minute</strong> &mdash; measured on the content of each page rather than a word count:</p>
+
+    <ul>
+      <li>Every element is wrapped at its own column width, the way it prints: dialogue&rsquo;s narrow column takes more lines than the same words as action.</li>
+      <li>The white space counts: the blank lines above scene headings, action and character cues are screen time too.</li>
+      <li>Character cues, scene headings and transitions each take their own line.</li>
+      <li>The title page, Sections and Notes are not on the clock.</li>
+    </ul>
+
+    <p>Lines are converted at your page size (about 54&ndash;58 lines a page) and the formatting template&rsquo;s page time &mdash; 60 seconds for a screenplay, 30 for a multi-camera sitcom. The estimate is of story time: it does not include end credits.</p>
+
+    <h3 id="genre-pacing">Genre &amp; Pacing</h3>
+
+    <p>A page can&rsquo;t show how a film will be directed. Open <strong>Format &rarr; Genre &amp; Pacing&hellip;</strong> (or click <strong>Est.</strong> in the status bar) to tell OpenDraft:</p>
 
     <table>
       <thead>
-        <tr><th>Element Type</th><th>Rate</th><th>Rationale</th></tr>
+        <tr><th>Pacing</th><th>Effect</th><th>For</th></tr>
       </thead>
       <tbody>
-        <tr><td>Dialogue</td><td>50 seconds per page</td><td>People speak quickly on screen</td></tr>
-        <tr><td>Action</td><td>65 seconds per page</td><td>Action sequences take more screen time than reading time</td></tr>
-        <tr><td>Parenthetical</td><td>30 seconds per page</td><td>Brief stage directions</td></tr>
-        <tr><td>Transition</td><td>2 seconds each</td><td>Quick editing transitions</td></tr>
-        <tr><td>General</td><td>60 seconds per page</td><td>Default rate</td></tr>
+        <tr><td>Brisk</td><td>&times;0.85</td><td>Fast-talking, quick cutting, overlapping dialogue</td></tr>
+        <tr><td>Standard</td><td>&times;1</td><td>One page &asymp; one minute &mdash; right for most scripts (the default)</td></tr>
+        <tr><td>Measured</td><td>&times;1.3</td><td>Slow-burn or contemplative &mdash; long silences and lingering images</td></tr>
       </tbody>
     </table>
 
-    <p>This gives a more accurate estimate than the simple &ldquo;one page equals one minute&rdquo; rule.</p>
+    <p>Each option shows the runtime it would give your script. Pacing never changes a scene timing you have set by hand.</p>
+
+    <p>In the same dialog you can tag the script with <strong>genres</strong> &mdash; pick any of the suggestions and add your own. Genres are saved with the script but don&rsquo;t change the runtime: tested against released films, genre on its own said nothing about how long a script plays.</p>
 
     <h3 id="runtime-status-bar">Runtime in the Status Bar</h3>
 
-    <p>The estimated total runtime is always visible in the <strong>status bar</strong> at the bottom of the editor (e.g., &ldquo;Est. 1h 47m&rdquo;). This updates as you write.</p>
+    <p>The estimated total runtime is always visible in the <strong>status bar</strong> at the bottom of the editor (e.g., &ldquo;Est. 1h 47m&rdquo;, or &ldquo;Est. 2h 05m &middot; measured&rdquo; when a pacing other than Standard is set). It updates as you write; click it to change the pacing.</p>
 
     <h3 id="scene-timing">Per-Scene Timing</h3>
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { DEFAULT_SCRIPT_PROFILE } from '../utils/scriptProfile';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaCloud, FaDesktop, FaFolder, FaExclamationTriangle } from 'react-icons/fa';
 import {
@@ -797,6 +798,7 @@ const ProjectView: React.FC = () => {
     edStore.setCharacterProfiles([]);
     edStore.setScenes([]);
     edStore.resetRevisionState();
+    edStore.setScriptProfile(DEFAULT_SCRIPT_PROFILE);
     // Tell MenuBar (which mounts inside ScreenplayEditor on '/') to prompt
     // for a script format. The flag is consumed by MenuBar's mount effect.
     edStore.setPendingFormatPromptInProject(true);

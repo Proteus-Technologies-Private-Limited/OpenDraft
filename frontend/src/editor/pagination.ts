@@ -121,7 +121,7 @@ const FD_INDENTS: Record<string, [number, number]> = {
   castList: [1.50, 7.50],
 };
 
-const CHARS_PER_LINE: Record<string, number> = {};
+export const CHARS_PER_LINE: Record<string, number> = {};
 for (const [type, [l, r]] of Object.entries(FD_INDENTS)) {
   CHARS_PER_LINE[type] = Math.round((r - l) * FD_CPI);
 }

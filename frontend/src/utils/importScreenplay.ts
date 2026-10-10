@@ -13,6 +13,7 @@
  */
 import type { JSONContent } from '@tiptap/react';
 import { parseFountain } from './fountainParser';
+import { DEFAULT_SCRIPT_PROFILE } from './scriptProfile';
 import { parseFDXFull } from './fdxParser';
 import { parseOSF, parseFadeIn, type DocumentFont } from './osfParser';
 import { COURIER_FONTS } from './fonts';
@@ -106,6 +107,8 @@ export function resetStoresForImport(): void {
   store.setCharacterProfiles([]);
   store.setScenes([]);
   store.resetRevisionState();
+  // Genre & pacing belong to the script being replaced, not the import.
+  store.setScriptProfile(DEFAULT_SCRIPT_PROFILE);
 }
 
 /**

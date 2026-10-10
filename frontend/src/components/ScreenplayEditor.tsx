@@ -108,6 +108,7 @@ import { spellChecker, BUILTIN_LANGUAGE } from '../editor/spellchecker';
 import { grammarIgnore } from '../editor/grammar/grammarIgnore';
 import { buildSaveContent as buildSaveContentShared, stripSaveMetadata } from '../utils/saveContent';
 import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
+import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile } from '../utils/scriptProfile';
 import { restoreRevisionState } from '../utils/revisionState';
 import { characterKey } from '../utils/nodeText';
 import { computeContdChanges, type ContdBlock } from '../editor/contdAuto';
@@ -2399,6 +2400,7 @@ const ScreenplayEditor: React.FC = () => {
         store.setCharacterRelationships([]);
         store.setScenes([]);
         store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
+        store.setScriptProfile(DEFAULT_SCRIPT_PROFILE);
         lastSavedJsonRef.current = '';
         // Signing out must not leave a cloud script queued to reopen itself on
         // the next launch, under whoever signs in next.
@@ -2853,6 +2855,7 @@ const ScreenplayEditor: React.FC = () => {
         state.tags === prev.tags &&
         state.beats === prev.beats &&
         state.beatColumns === prev.beatColumns &&
+        state.scriptProfile === prev.scriptProfile &&
         state.spellCheckEnabled === prev.spellCheckEnabled &&
         state.grammarCheckEnabled === prev.grammarCheckEnabled
       ) return;
@@ -3298,6 +3301,8 @@ const ScreenplayEditor: React.FC = () => {
           store.setBeats([]);
           store.setBeatColumns([]);
           store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
+          // Pacing and genres; a script without them opens as Standard.
+          store.setScriptProfile(normalizeScriptProfile((content as Record<string, unknown> | null | undefined)?._scriptProfile));
           const parseAttr = (val: unknown): unknown[] => {
             if (typeof val === 'string') { try { const p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch { return []; } }
             if (Array.isArray(val)) return val;
@@ -3810,6 +3815,7 @@ const ScreenplayEditor: React.FC = () => {
         store.setBeats([]);
         store.setBeatColumns([]);
         store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
+        store.setScriptProfile(normalizeScriptProfile((content as Record<string, unknown> | null | undefined)?._scriptProfile));
         // Default per-doc spell/grammar to off; the block below overrides
         // from the loaded content if the user had enabled them previously.
         store.setSpellCheckEnabled(false);
