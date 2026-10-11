@@ -1,7 +1,7 @@
 /**
  * Settings → Saving.
  *
- * Whether OpenDraft saves on its own, and how often; and, on the desktop,
+ * Whether WriTea Draft saves on its own, and how often; and, on the desktop,
  * where new projects are kept (issue #135). Library scripts and files on disk
  * are switched separately: one is the app's own copy, the other is the
  * writer's file, which an auto-save rewrites in whatever format it is in.
@@ -102,8 +102,8 @@ const SaveSettingsSection: React.FC = () => {
     <section className="settings-section">
       <h2 className="settings-section-title">Saving</h2>
       <p className="settings-section-desc">
-        Choose whether OpenDraft saves your work on its own. With auto-save off,
-        nothing is written until you choose <strong>Save</strong>. OpenDraft asks
+        Choose whether WriTea Draft saves your work on its own. With auto-save off,
+        nothing is written until you choose <strong>Save</strong>. WriTea Draft asks
         before you close a script, open another one or close the window. A
         recovery copy is still kept in case the app quits unexpectedly.
       </p>
@@ -115,7 +115,7 @@ const SaveSettingsSection: React.FC = () => {
             checked={autoSaveLibrary}
             onChange={(e) => setAutoSaveLibrary(e.target.checked)}
           />{' '}
-          Auto-save scripts in my OpenDraft library
+          Auto-save scripts in my WriTea Draft library
         </label>
         {desktop && (
           <div className="settings-hint">
@@ -138,7 +138,7 @@ const SaveSettingsSection: React.FC = () => {
           <div className="settings-hint">
             Each save writes over the original file. A Final Draft or Fountain file can
             only keep what its format supports, so notes and other
-            OpenDraft-only details are not saved into it.
+            WriTeaDraft-only details are not saved into it.
           </div>
         </div>
       )}
@@ -163,7 +163,7 @@ const SaveSettingsSection: React.FC = () => {
           <p className="settings-section-desc">
             A project can be kept in a folder on disk — a RAID, a network drive,
             a folder you already use. Each script is saved there as its own
-            file, so the latest version is always in that folder. OpenDraft
+            file, so the latest version is always in that folder. WriTea Draft
             keeps a working copy too, for versions, notes and images.
           </p>
 
@@ -177,7 +177,7 @@ const SaveSettingsSection: React.FC = () => {
                 else await chooseFolder();
               }}
             >
-              <option value="library">The OpenDraft library</option>
+              <option value="library">The WriTea Draft library</option>
               <option value="folder">A folder on disk</option>
             </Select>
             <div className="settings-hint">
@@ -201,12 +201,12 @@ const SaveSettingsSection: React.FC = () => {
                 </div>
               )}
               {folderStatus === 'unwritable' && (
-                <div className="settings-status settings-status-fail">OpenDraft can&apos;t write here — {folderDetail}</div>
+                <div className="settings-status settings-status-fail">WriTea Draft can&apos;t write here — {folderDetail}</div>
               )}
               {isUnderOneDrive(defaultProjectFolder) && (
                 <div className="settings-hint settings-hint-warning">
                   This folder is inside OneDrive. That works, but if a script is
-                  edited on two computers before OneDrive syncs, OpenDraft will
+                  edited on two computers before OneDrive syncs, WriTea Draft will
                   ask which version to keep.
                 </div>
               )}
@@ -226,8 +226,8 @@ const SaveSettingsSection: React.FC = () => {
             </Select>
             <div className="settings-hint">
               .odraft keeps everything. Final Draft and Fountain files open in
-              other apps, but notes, tags and other OpenDraft-only details are
-              kept only in OpenDraft&apos;s working copy. Treatments are always saved
+              other apps, but notes, tags and other WriTeaDraft-only details are
+              kept only in WriTea Draft&apos;s working copy. Treatments are always saved
               as .odraft.
             </div>
           </div>

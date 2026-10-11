@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    opendraft_lib::run()
+    writeadraft_lib::run()
 }

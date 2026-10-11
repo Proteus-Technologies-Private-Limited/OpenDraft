@@ -1,6 +1,6 @@
 /**
  * QuotaExceededDialog — shown when the backend returns 402 quota_exceeded.
- * The actual upgrade flow (Stripe, tier picker) lives in OpenDraft-Pro. Core
+ * The actual upgrade flow (Stripe, tier picker) lives in WriTeaDraft-Pro. Core
  * only shows the "limit reached" message and a pluggable "Upgrade" action:
  * Pro registers an upgrade handler via the plugin registry, and we invoke
  * it here when present.

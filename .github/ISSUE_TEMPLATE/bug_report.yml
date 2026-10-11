@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug or unexpected behavior in OpenDraft
+description: Report a bug or unexpected behavior in WriTea Draft
 title: "[Bug]: "
 labels: ["bug"]
 body:
@@ -11,7 +11,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: OpenDraft Version
+      label: WriTea Draft Version
       description: Which version are you running? (Check Help > About or the release you downloaded)
       placeholder: "e.g., 0.4.0"
     validations:
@@ -21,7 +21,7 @@ body:
     id: platform
     attributes:
       label: Platform
-      description: How are you running OpenDraft?
+      description: How are you running WriTea Draft?
       options:
         - Desktop — macOS
         - Desktop — Windows

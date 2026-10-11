@@ -89,8 +89,8 @@ function loadConfig(): ServerConfig {
     dbType: (process.env.DB_TYPE === 'postgresql' ? 'postgresql' : 'sqlite') as 'sqlite' | 'postgresql',
     dbHost: process.env.DB_HOST || 'localhost',
     dbPort: parseInt(process.env.DB_PORT || '5432', 10),
-    dbName: process.env.DB_NAME || 'opendraft_collab',
-    dbUser: process.env.DB_USER || 'opendraft',
+    dbName: process.env.DB_NAME || 'writeadraft_collab',
+    dbUser: process.env.DB_USER || 'writeadraft',
     dbPassword: process.env.DB_PASSWORD || '',
 
     // Document eviction (0 = disabled)

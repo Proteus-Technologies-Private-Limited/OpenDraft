@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# OpenDraft — Mac App Store Build Script
+# WriTea Draft — Mac App Store Build Script
 # Builds, signs, and packages the app for App Store submission.
 # ============================================================================
 
@@ -10,12 +10,12 @@ PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 FRONTEND_DIR="$PROJECT_ROOT/frontend"
 TAURI_DIR="$PROJECT_ROOT/src-tauri"
 ENTITLEMENTS_DIR="$TAURI_DIR/entitlements"
-PROVISION_PROFILE="$PROJECT_ROOT/certificates/OpenDraft_macOS_App_Store.provisionprofile"
+PROVISION_PROFILE="$PROJECT_ROOT/certificates/WriTeaDraft_macOS_App_Store.provisionprofile"
 
 APP_SIGN_ID="Apple Distribution: Base Information Management Pvt. Ltd. (335RGMFDB6)"
 INSTALLER_SIGN_ID="3rd Party Mac Developer Installer: Base Information Management Pvt. Ltd. (335RGMFDB6)"
 
-echo "=== OpenDraft App Store Build ==="
+echo "=== WriTea Draft App Store Build ==="
 echo ""
 
 # Step 1: Build frontend
@@ -32,9 +32,9 @@ APPLE_SIGNING_IDENTITY="-" "$FRONTEND_DIR/node_modules/.bin/tauri" build --bundl
 APP_PATH="$TAURI_DIR/target/release/bundle/macos/OpenDraft.app"
 
 # Ensure bundle ID matches App Store registration and provisioning profile
-/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.proteus.opendraft" \
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier net.japanada.writea-draft" \
     "$APP_PATH/Contents/Info.plist"
-echo "  Bundle ID set to com.proteus.opendraft"
+echo "  Bundle ID set to net.japanada.writea-draft"
 
 # Step 3: Sign with App Store identity and entitlements
 echo ""
@@ -45,7 +45,7 @@ echo "  Signing main binary..."
 codesign --force --options runtime \
     --entitlements "$ENTITLEMENTS_DIR/app.entitlements" \
     --sign "$APP_SIGN_ID" \
-    "$APP_PATH/Contents/MacOS/opendraft"
+    "$APP_PATH/Contents/MacOS/writeadraft"
 
 # Sign the entire .app bundle
 echo "  Signing app bundle..."
@@ -76,7 +76,7 @@ codesign --force --deep --options runtime \
 # Step 5: Build .pkg installer
 echo ""
 echo "=== Step 5/5: Building .pkg installer ==="
-PKG_OUTPUT="$PROJECT_ROOT/OpenDraft.pkg"
+PKG_OUTPUT="$PROJECT_ROOT/WriTeaDraft.pkg"
 productbuild --component "$APP_PATH" /Applications \
     --sign "$INSTALLER_SIGN_ID" \
     "$PKG_OUTPUT"
@@ -86,6 +86,6 @@ echo "=== App Store build complete! ==="
 echo "Package: $PKG_OUTPUT"
 echo ""
 echo "Next steps:"
-echo "  1. Upload with: xcrun altool --upload-app --file OpenDraft.pkg --type macos --apple-id kandarp.baghar@proteustech.co --team-id 335RGMFDB6"
+echo "  1. Upload with: xcrun altool --upload-app --file WriTeaDraft.pkg --type macos --apple-id kandarp.baghar@proteustech.co --team-id 335RGMFDB6"
 echo "  2. Or use the Transporter app from the Mac App Store"
 echo "  3. Select the build in App Store Connect and submit for review"

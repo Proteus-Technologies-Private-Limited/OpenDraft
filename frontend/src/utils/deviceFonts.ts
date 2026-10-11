@@ -1,7 +1,7 @@
 /**
  * The fonts already installed on this machine.
  *
- * OpenDraft's registry lists faces it expects an operating system to have —
+ * WriTea Draft's registry lists faces it expects an operating system to have —
  * Calibri and Segoe UI on Windows, Avenir and Optima on macOS — and most of
  * them are missing on the other platforms. Offering them all without saying
  * which are real means a writer picks a font, sees Courier, and has no idea
@@ -149,7 +149,7 @@ function toDeviceEntry(name: string): FontEntry {
   };
 }
 
-const NAMED_KEY = 'opendraft:device-fonts:named';
+const NAMED_KEY = 'writeadraft:device-fonts:named';
 
 /**
  * Fonts the writer named themselves, because nothing could find them.

@@ -105,7 +105,7 @@ void ios_free_string(char* ptr) {
 // Two reasons it cannot go through the text path: decoding an archive as UTF-8
 // destroys it, and plain std::fs::read fails outright on a file the app only
 // holds a security-scoped grant to — which is exactly what the Files app hands
-// over with "Open in OpenDraft". The text reader has had this fallback all
+// over with "Open in WriTea Draft". The text reader has had this fallback all
 // along; its binary counterpart did not, so a .fadein could fail where a
 // .fountain from the same folder succeeded.
 //
@@ -884,7 +884,7 @@ char* ios_folder_probe(const char* bookmark_cstr) {
             } else if (![isDir boolValue]) {
                 probe[@"error"] = @"Not a folder";
             } else {
-                NSURL *test = [folder URLByAppendingPathComponent:@".opendraft-write-test"];
+                NSURL *test = [folder URLByAppendingPathComponent:@".writeadraft-write-test"];
                 NSError *writeError = nil;
                 BOOL ok = [@"ok" writeToURL:test
                                  atomically:YES
@@ -895,7 +895,7 @@ char* ios_folder_probe(const char* bookmark_cstr) {
                     probe[@"writable"] = @YES;
                 } else {
                     probe[@"error"] = writeError.localizedDescription
-                        ?: @"OpenDraft cannot write to this folder";
+                        ?: @"WriTea Draft cannot write to this folder";
                 }
             }
 
@@ -919,7 +919,7 @@ char* ios_folder_probe(const char* bookmark_cstr) {
 //
 // tao forwards those options only for scenes it did not create itself, which
 // excludes the very first one — so with the manifest and nothing else, tapping
-// a screenplay in Files while OpenDraft was closed would launch the app into a
+// a screenplay in Files while WriTea Draft was closed would launch the app into a
 // blank editor.  That is a worse regression than multi-window is a feature, so
 // the launch URL is captured here instead.
 //
@@ -986,7 +986,7 @@ static void od_capture_launch_urls(UISceneConnectionOptions *options) {
             gSceneLaunchFile = [staged copy];
         }
         NSLog(@"[FileHelpers] captured launch file: %@", staged);
-        return;  // one document per launch; OpenDraft opens one at a time
+        return;  // one document per launch; WriTea Draft opens one at a time
     }
 }
 
@@ -1010,7 +1010,7 @@ char* ios_take_launch_file(void) {
 // very first scene's connection there is not one yet. The window it was asking
 // on behalf of then gets attached to the scene that was already connecting, and
 // the scene the system goes on to create arrives with nothing to show — as a
-// second, empty OpenDraft window sitting beside the real one on every launch.
+// second, empty WriTea Draft window sitting beside the real one on every launch.
 //
 // Nothing can un-ask for it, so it is dismissed once it turns up.
 

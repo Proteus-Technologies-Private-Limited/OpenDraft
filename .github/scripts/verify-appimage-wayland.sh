@@ -49,7 +49,7 @@ fi
 
 # A repack that silently produced an empty or truncated filesystem would clear
 # the check above for the wrong reason.
-for REQUIRED in AppRun usr/bin/opendraft usr/lib/libwebkit2gtk-4.1.so.0; do
+for REQUIRED in AppRun usr/bin/writeadraft usr/lib/libwebkit2gtk-4.1.so.0; do
   if ! echo "$LISTING" | grep -q "squashfs-root/$REQUIRED\$"; then
     echo "::error::$REQUIRED is missing from $NAME — the bundle is incomplete."
     FAILED=1

@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
-_tmp = Path(tempfile.mkdtemp(prefix="opendraft-quota-"))
+_tmp = Path(tempfile.mkdtemp(prefix="writeadraft-quota-"))
 _data_dir = _tmp / "backend_data"
 _data_dir.mkdir()
 _collab_dir = _tmp / "collab"
@@ -47,7 +47,7 @@ conn.execute(
 conn.commit()
 conn.close()
 
-os.environ["OPENDRAFT_DATA_DIR"] = str(_data_dir)
+os.environ["WRITEADRAFT_DATA_DIR"] = str(_data_dir)
 os.environ["COLLAB_JWT_SECRET"] = "sekret"
 os.environ["COLLAB_DB_PATH"] = str(_collab_db)
 os.environ["FREE_PLAN_FILE_LIMIT"] = "3"  # smaller for fast test

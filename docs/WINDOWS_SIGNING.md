@@ -1,6 +1,6 @@
 # Windows Code Signing
 
-This guide covers how to set up free Windows EXE/MSI code signing for OpenDraft releases.
+This guide covers how to set up free Windows EXE/MSI code signing for WriTea Draft releases.
 
 ---
 
@@ -32,7 +32,7 @@ The Windows installer automatically handles common issues that previously requir
 
 1. **Windows Defender exclusion** — added to the install directory *before* files are copied, preventing Defender from quarantining sidecar DLLs during installation
 2. **Visual C++ Redistributable** — checked and silently installed if missing (Python 3.12 requires VC++ 2015-2022 runtime)
-3. **Per-machine install** — installs to `C:\Program Files\OpenDraft\` (elevated), which is less likely to be flagged by security software than user-profile directories
+3. **Per-machine install** — installs to `C:\Program Files\WriTeaDraft\` (elevated), which is less likely to be flagged by security software than user-profile directories
 
 These are implemented via NSIS installer hooks (`src-tauri/nsis-hooks.nsh`) and the `perMachine` install mode in `tauri.conf.json`.
 
@@ -84,13 +84,13 @@ Generate a self-signed code signing certificate:
 # Run in PowerShell on Windows
 $cert = New-SelfSignedCertificate `
   -Type CodeSigningCert `
-  -Subject "CN=OpenDraft, O=Proteus Technologies" `
+  -Subject "CN=WriTea Draft, O=Proteus Technologies" `
   -CertStoreLocation Cert:\CurrentUser\My `
   -NotAfter (Get-Date).AddYears(3)
 
 # Export as PFX
 $password = ConvertTo-SecureString -String "your-password-here" -AsPlainText -Force
-Export-PfxCertificate -Cert $cert -FilePath "opendraft-signing.pfx" -Password $password
+Export-PfxCertificate -Cert $cert -FilePath "writeadraft-signing.pfx" -Password $password
 ```
 
 ---
@@ -105,10 +105,10 @@ Base64-encode the PFX file and store it as a secret:
 
 ```bash
 # macOS / Linux
-base64 -i opendraft-signing.pfx | tr -d '\n'
+base64 -i writeadraft-signing.pfx | tr -d '\n'
 
 # Windows PowerShell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("opendraft-signing.pfx"))
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("writeadraft-signing.pfx"))
 ```
 
 Go to **GitHub repo > Settings > Secrets and variables > Actions > New repository secret**:
@@ -128,10 +128,10 @@ After a release with signing configured:
 
 ```powershell
 # Check signature on the installer
-Get-AuthenticodeSignature "OpenDraft_*_x64-setup.exe"
+Get-AuthenticodeSignature "WriTeaDraft_*_x64-setup.exe"
 
 # Or using signtool
-signtool verify /pa "OpenDraft_*_x64-setup.exe"
+signtool verify /pa "WriTeaDraft_*_x64-setup.exe"
 ```
 
 A properly signed binary shows:

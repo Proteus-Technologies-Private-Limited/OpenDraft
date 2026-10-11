@@ -132,7 +132,7 @@ jobs:
             exit 1
           fi
           mkdir -p intel-artifacts
-          cp "$DMG" "intel-artifacts/OpenDraft_${VERSION}_x64.dmg"
+          cp "$DMG" "intel-artifacts/WriTeaDraft_${VERSION}_x64.dmg"
           ls -la intel-artifacts/
 
       - name: Upload Intel DMG to release
@@ -239,7 +239,7 @@ jobs:
             exit 1
           fi
           mkdir -p legacy-artifacts
-          cp "$DMG" "legacy-artifacts/OpenDraft_${VERSION}_x86_64-legacy.dmg"
+          cp "$DMG" "legacy-artifacts/WriTeaDraft_${VERSION}_x86_64-legacy.dmg"
           ls -la legacy-artifacts/
 
       - name: Upload legacy DMG to release

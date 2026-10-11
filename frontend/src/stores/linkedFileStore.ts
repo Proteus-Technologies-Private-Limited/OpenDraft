@@ -16,7 +16,7 @@ export type LinkedFileState =
   /** The file is not where the link says — moved, deleted, or the drive is offline. */
   | 'missing'
   /**
-   * The file was changed by something other than OpenDraft since it was last
+   * The file was changed by something other than WriTea Draft since it was last
    * written, and the library has changes too. Nothing is written until the
    * writer chooses which copy to keep.
    */

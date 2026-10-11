@@ -35,10 +35,10 @@ fi
 if [[ -f "$TARGET" ]]; then
   APPIMAGE="$(cd "$(dirname "$TARGET")" && pwd)/$(basename "$TARGET")"
 else
-  APPIMAGE="$OUT/OpenDraft_${TARGET}_amd64.AppImage"
+  APPIMAGE="$OUT/WriTeaDraft_${TARGET}_amd64.AppImage"
   if [[ ! -f "$APPIMAGE" ]]; then
-    echo "==> downloading OpenDraft_${TARGET}_amd64.AppImage"
-    gh release download "v${TARGET}" -p "OpenDraft_${TARGET}_amd64.AppImage" -D "$OUT"
+    echo "==> downloading WriTeaDraft_${TARGET}_amd64.AppImage"
+    gh release download "v${TARGET}" -p "WriTeaDraft_${TARGET}_amd64.AppImage" -D "$OUT"
   fi
 fi
 echo "==> $(basename "$APPIMAGE")"
@@ -108,7 +108,7 @@ echo "  [A] host libwayland-client  (== the reporter LD_PRELOAD workaround)"
 python3 /tmp/loadegl.py || true
 
 echo
-echo "  [B] AppImage bundled libwayland-client  (== plain ./OpenDraft.AppImage)"
+echo "  [B] AppImage bundled libwayland-client  (== plain ./WriTeaDraft.AppImage)"
 set +e
 LD_PRELOAD=/bundled/libwayland-client.so.0 python3 /tmp/loadegl.py
 RC=$?

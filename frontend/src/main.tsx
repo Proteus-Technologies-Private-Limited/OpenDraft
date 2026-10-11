@@ -156,7 +156,7 @@ async function init() {
   const fatalOverlay = document.getElementById('_fatal');
   if (fatalOverlay) fatalOverlay.remove();
 
-  // Retire the "OpenDraft failed to start" overlay for the rest of the
+  // Retire the "WriTea Draft failed to start" overlay for the rest of the
   // session: from here on a stray error or rejection is a fault inside a
   // running app, and a full-screen overlay with no way out of it would strand
   // the writer in their document (issue #97). See the flag's note in
@@ -176,6 +176,6 @@ init().catch((err) => {
   console.error('Fatal init error:', err);
   const d = document.createElement('div');
   d.style.cssText = 'position:fixed;top:0;right:0;bottom:0;left:0;z-index:99999;background:#1a1a2e;color:#ff6b6b;font:14px/1.6 monospace;padding:40px;white-space:pre-wrap;';
-  d.textContent = 'OpenDraft failed to start:\n\n' + (err?.stack || err?.message || String(err));
+  d.textContent = 'WriTea Draft failed to start:\n\n' + (err?.stack || err?.message || String(err));
   document.body.appendChild(d);
 });

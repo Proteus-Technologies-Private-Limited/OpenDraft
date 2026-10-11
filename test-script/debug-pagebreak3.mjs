@@ -59,7 +59,7 @@ import { chromium } from 'playwright';
 
   // Take screenshot after manual margin injection
   await page.screenshot({
-    path: '/Users/kandarpbaghar/ai-projects/OpenDraft/test-script/output/debug-after-margin.png',
+    path: '/Users/kandarpbaghar/ai-projects/WriTeaDraft/test-script/output/debug-after-margin.png',
     fullPage: true
   });
   console.log('\nScreenshot saved');

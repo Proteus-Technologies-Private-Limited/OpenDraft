@@ -1,5 +1,5 @@
 import React from 'react';
-import logoUrl from '../assets/opendraft-icon.svg';
+import logoUrl from '../assets/writeadraft-icon.svg';
 
 export type WelcomeChoice = 'blank' | 'sample' | 'import';
 
@@ -13,7 +13,7 @@ const WelcomeDialog: React.FC<WelcomeDialogProps> = ({ onChoice }) => {
       <div className="welcome-card" onClick={(e) => e.stopPropagation()}>
         <div className="welcome-hero">
           <img className="welcome-logo" src={logoUrl} alt="" />
-          <h1 className="welcome-title">Open Draft</h1>
+          <h1 className="welcome-title">WriTea Draft</h1>
           <p className="welcome-subtitle">Professional screenwriting, open source.</p>
         </div>
 

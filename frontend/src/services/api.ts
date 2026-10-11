@@ -7,9 +7,9 @@ import { authedFetch } from './authedFetch';
  * react to auth/quota failures from any backend call site without each caller
  * having to handle them.
  *
- *   opendraft:auth-required    — 401 / no token (prompt login)
- *   opendraft:email-unverified — 403 email_not_verified (prompt OTP)
- *   opendraft:quota-exceeded   — 402 with the quota payload in event.detail
+ *   writeadraft:auth-required    — 401 / no token (prompt login)
+ *   writeadraft:email-unverified — 403 email_not_verified (prompt OTP)
+ *   writeadraft:quota-exceeded   — 402 with the quota payload in event.detail
  */
 export type QuotaErrorDetail = {
   error: 'quota_exceeded';
@@ -65,18 +65,18 @@ export async function handleNonOkResponse(res: Response, label: string): Promise
     // authedFetch has already cleared auth if refresh failed; ensure it's
     // cleared for the no-refresh-token path too.
     useSettingsStore.getState().clearCollabAuth();
-    dispatchApiEvent('opendraft:auth-required');
+    dispatchApiEvent('writeadraft:auth-required');
     handled = true;
   } else if (res.status === 403) {
     const detail = (parsedBody as any)?.detail;
     if (detail && typeof detail === 'object' && detail.error === 'email_not_verified') {
-      dispatchApiEvent('opendraft:email-unverified');
+      dispatchApiEvent('writeadraft:email-unverified');
       handled = true;
     }
   } else if (res.status === 402) {
     const detail = (parsedBody as any)?.detail;
     if (detail && typeof detail === 'object' && detail.error === 'quota_exceeded') {
-      dispatchApiEvent('opendraft:quota-exceeded', detail as QuotaErrorDetail);
+      dispatchApiEvent('writeadraft:quota-exceeded', detail as QuotaErrorDetail);
       handled = true;
     }
   }

@@ -224,7 +224,7 @@ jobs:
 
           fastlane deliver \
             --api_key_path /tmp/asc-api-key.json \
-            --app_identifier com.proteus.opendraft \
+            --app_identifier net.japanada.writea-draft \
             --metadata_path fastlane/metadata/ios \
             "${VERSION_ARG[@]}" \
             --skip_binary_upload true \
@@ -263,7 +263,7 @@ jobs:
           if ! fastlane supply \
             --aab "$AAB" \
             --track production \
-            --package_name com.proteus.opendraft \
+            --package_name net.japanada.writea-draft \
             --json_key /tmp/play-service-account.json \
             --skip_upload_metadata \
             --skip_upload_images \

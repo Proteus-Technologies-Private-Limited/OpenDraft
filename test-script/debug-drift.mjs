@@ -81,7 +81,7 @@ import path from 'path';
     await page.evaluate((s) => document.querySelector('.editor-main')?.scrollTo(0, s), scroll);
     await page.waitForTimeout(300);
     await page.screenshot({
-      path: `/Users/kandarpbaghar/ai-projects/OpenDraft/test-script/output/drift-${label}.png`,
+      path: `/Users/kandarpbaghar/ai-projects/WriTeaDraft/test-script/output/drift-${label}.png`,
     });
   }
   console.log('Screenshots saved');

@@ -10,7 +10,7 @@
  * repaginates the script and doing that under the writer's cursor as they click
  * about a dialog is worse than making them commit.
  *
- * Word's "Apply changes to", "Insert" and "Convert" are absent: OpenDraft has
+ * Word's "Apply changes to", "Insert" and "Convert" are absent: WriTea Draft has
  * no sections, notes are created in the Script Notes panel, and Convert is what
  * the Location radio already does.
  */

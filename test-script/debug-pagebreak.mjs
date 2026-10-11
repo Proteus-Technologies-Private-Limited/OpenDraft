@@ -139,7 +139,7 @@ const URL = process.argv[2] || 'http://localhost:8000';
   else errors.forEach(e => console.log('  ERROR:', e));
 
   // 8. Screenshot
-  const ssPath = '/Users/kandarpbaghar/ai-projects/OpenDraft/test-script/output/debug-screenshot.png';
+  const ssPath = '/Users/kandarpbaghar/ai-projects/WriTeaDraft/test-script/output/debug-screenshot.png';
   await page.screenshot({ path: ssPath, fullPage: true });
   console.log(`\nScreenshot saved to: ${ssPath}`);
 

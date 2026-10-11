@@ -228,7 +228,7 @@ titleParagraphs.push(new Paragraph({ children: [new PageBreak()] }));
 const bodyParagraphs = bodyNodes.map((n, i) => buildElementParagraph(n, i === 0));
 
 const document = new Document({
-  creator: 'OpenDraft',
+  creator: 'WriTea Draft',
   title: 'The Cipher',
   styles: {
     default: {

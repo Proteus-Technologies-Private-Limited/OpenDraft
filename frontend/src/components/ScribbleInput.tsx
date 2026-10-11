@@ -52,17 +52,17 @@ import TextareaCaret from './TextareaCaret';
  * two thirds of the iPad is the opposite of what it is for. The preference is
  * remembered because which one a writer wants is a habit, not a per-use choice.
  */
-const KEYBOARD_PREF_KEY = 'opendraft:handwritingKeyboard';
+const KEYBOARD_PREF_KEY = 'writeadraft:handwritingKeyboard';
 /** Where the writer last dragged the panel, and whether they kept the preview. */
-const POSITION_PREF_KEY = 'opendraft:handwritingPos';
-const PREVIEW_PREF_KEY = 'opendraft:handwritingPreview';
+const POSITION_PREF_KEY = 'writeadraft:handwritingPos';
+const PREVIEW_PREF_KEY = 'writeadraft:handwritingPreview';
 /** The size the writer last dragged the panel to. */
-const SIZE_PREF_KEY = 'opendraft:handwritingSize';
+const SIZE_PREF_KEY = 'writeadraft:handwritingSize';
 /** How much of the script shows through the panel, and through the field. */
-const PANEL_ALPHA_KEY = 'opendraft:handwritingPanelAlpha';
-const AREA_ALPHA_KEY = 'opendraft:handwritingAreaAlpha';
+const PANEL_ALPHA_KEY = 'writeadraft:handwritingPanelAlpha';
+const AREA_ALPHA_KEY = 'writeadraft:handwritingAreaAlpha';
 /** What colour the handwriting comes out in. */
-const INK_KEY = 'opendraft:handwritingInk';
+const INK_KEY = 'writeadraft:handwritingInk';
 
 /**
  * Smallest the panel is any use at: narrower and a line of dialogue wraps

@@ -4,7 +4,7 @@
 #
 # Why this exists
 # ---------------
-# OpenDraft pinned tauri to 2.10.3 (commit c1a5dd1) because v0.17.0 cold-started
+# WriTea Draft pinned tauri to 2.10.3 (commit c1a5dd1) because v0.17.0 cold-started
 # and died on Android 15 — a SIGABRT from a panic inside the Rust .so.
 #
 # Root cause: wry 0.55.0 added a JNI call to `WryActivity.getId()` but did not
@@ -28,11 +28,11 @@ cd "$PROJECT_ROOT"
 VERIFY_ONLY=0
 [[ "${1:-}" == "--verify-only" ]] && VERIFY_ONLY=1
 
-APP_ID="com.proteus.opendraft"
+APP_ID="net.japanada.writea-draft"
 GEN="$PROJECT_ROOT/src-tauri/gen/android"
 APK="$GEN/app/build/outputs/apk/universal/release/app-universal-release.apk"
 MAPPING="$GEN/app/build/outputs/mapping/universalRelease/mapping.txt"
-GENERATED_PRO="$GEN/app/src/main/java/com/proteus/opendraft/generated/proguard-wry.pro"
+GENERATED_PRO="$GEN/app/src/main/java/com/proteus/writeadraft/generated/proguard-wry.pro"
 
 red()   { printf '\033[31m%s\033[0m\n' "$*"; }
 green() { printf '\033[32m%s\033[0m\n' "$*"; }
@@ -83,16 +83,16 @@ KEYSTORE="${KEYSTORE_PATH:-$PROJECT_ROOT/test-script/output/smoke-test.keystore}
 mkdir -p "$(dirname "$KEYSTORE")"
 if [[ ! -f "$KEYSTORE" ]]; then
   echo "Generating a throwaway keystore at $KEYSTORE"
-  keytool -genkey -v -keystore "$KEYSTORE" -alias opendraft \
+  keytool -genkey -v -keystore "$KEYSTORE" -alias writeadraft \
     -keyalg RSA -keysize 2048 -validity 10000 \
-    -dname "CN=OpenDraft SmokeTest, O=OpenDraft" \
-    -storepass opendraft -keypass opendraft >/dev/null 2>&1 \
+    -dname "CN=WriTea Draft SmokeTest, O=WriTea Draft" \
+    -storepass writeadraft -keypass writeadraft >/dev/null 2>&1 \
     || die "keytool failed to create the keystore"
 fi
 export KEYSTORE_PATH="$KEYSTORE"
-export KEYSTORE_PASSWORD="${KEYSTORE_PASSWORD:-opendraft}"
-export KEY_ALIAS="${KEY_ALIAS:-opendraft}"
-export KEY_PASSWORD="${KEY_PASSWORD:-opendraft}"
+export KEYSTORE_PASSWORD="${KEYSTORE_PASSWORD:-writeadraft}"
+export KEY_ALIAS="${KEY_ALIAS:-writeadraft}"
+export KEY_PASSWORD="${KEY_PASSWORD:-writeadraft}"
 green "Keystore ready"
 
 # ── 3. Sync tracked Android sources ────────────────────────────────────────
@@ -102,7 +102,7 @@ green "Keystore ready"
 # whatever Kotlin happened to be lying around.
 bold "== Syncing android-src =="
 cp "$PROJECT_ROOT/src-tauri/android-src/MainActivity.kt" \
-   "$GEN/app/src/main/java/com/proteus/opendraft/MainActivity.kt" \
+   "$GEN/app/src/main/java/com/proteus/writeadraft/MainActivity.kt" \
   || die "Could not copy MainActivity.kt"
 [[ -f "$PROJECT_ROOT/src-tauri/android-src/jni-keep-rules.pro" ]] && \
   cp "$PROJECT_ROOT/src-tauri/android-src/jni-keep-rules.pro" "$GEN/app/jni-keep-rules.pro"
@@ -213,7 +213,7 @@ else
   red "FAIL  App is NOT running — it exited during startup."
   echo
   bold "Crash lines from logcat:"
-  grep -iE "SIGABRT|FATAL|libopendraft|panicked|DEBUG   :|NoSuchMethod" "$LOG" | head -40 || true
+  grep -iE "SIGABRT|FATAL|libwriteadraft|panicked|DEBUG   :|NoSuchMethod" "$LOG" | head -40 || true
   echo
   echo "Full log: $LOG"
   echo "Symbolicate a native stack with:"

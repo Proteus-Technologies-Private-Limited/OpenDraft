@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const VIEW_STATE_KEY = 'opendraft:viewState';
+const VIEW_STATE_KEY = 'writeadraft:viewState';
 
 /** Import the store with a fresh module registry, so `_vs` re-reads storage. */
 async function freshStore() {

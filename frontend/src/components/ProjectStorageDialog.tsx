@@ -1,7 +1,7 @@
 /**
  * Project ▸ Storage (desktop, issue #135).
  *
- * Where a local project's scripts are kept: only in the OpenDraft library, or
+ * Where a local project's scripts are kept: only in the WriTea Draft library, or
  * also as files in a folder the writer chooses. From here a library project
  * can be saved to a folder, a folder project can be moved to another folder or
  * taken back into the library, and the format new script files are written in
@@ -95,7 +95,7 @@ const ProjectStorageDialog: React.FC<Props> = ({ project, onClose, onProjectChan
     await lf.detachProjectFolder(project.id);
     setConfirmDetach(false);
     await refreshProject();
-    showToast(`${project.name} is now saved in the OpenDraft library only. Its files are still in the folder.`, 'success');
+    showToast(`${project.name} is now saved in the WriTea Draft library only. Its files are still in the folder.`, 'success');
   });
 
   const rescan = () => run('Checking the folder', async () => {
@@ -135,7 +135,7 @@ const ProjectStorageDialog: React.FC<Props> = ({ project, onClose, onProjectChan
                 <FaFolder style={{ flexShrink: 0, marginTop: 3 }} />
                 <span>
                   Each script is saved as a file in{' '}
-                  <strong style={{ wordBreak: 'break-all' }}>{folder}</strong>. OpenDraft
+                  <strong style={{ wordBreak: 'break-all' }}>{folder}</strong>. WriTea Draft
                   also keeps a working copy for versions, notes and images.
                 </span>
               </p>
@@ -159,7 +159,7 @@ const ProjectStorageDialog: React.FC<Props> = ({ project, onClose, onProjectChan
               <p style={{ margin: '0 0 8px', fontSize: 14, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                 <FaDatabase style={{ flexShrink: 0, marginTop: 3 }} />
                 <span>
-                  This project is saved in the OpenDraft library on this computer.
+                  This project is saved in the WriTea Draft library on this computer.
                   Save it to a folder — a RAID, a network drive, a folder you
                   already use — and each script is kept there as its own file,
                   always up to date.

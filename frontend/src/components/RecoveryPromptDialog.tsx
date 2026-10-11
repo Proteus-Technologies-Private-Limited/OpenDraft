@@ -164,7 +164,7 @@ const RecoveryPromptDialog: React.FC<Props> = ({
         </div>
         <div className="dialog-body">
           <p style={{ margin: '0 0 12px' }}>
-            OpenDraft found unsaved changes to{' '}
+            WriTea Draft found unsaved changes to{' '}
             <strong>{snapshot.title || 'Untitled Screenplay'}</strong> from your
             last session, edited {relativeTime(snapshot.savedAt)}.
           </p>

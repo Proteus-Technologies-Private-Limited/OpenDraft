@@ -4,14 +4,14 @@
  * The request is a window event rather than a prop, because the two places that
  * offer it — the Edit menu and the touch context menu — are neither of them
  * parents of the editor that owns the panel. It follows the pattern
- * `opendraft:auth-required` already set.
+ * `writeadraft:auth-required` already set.
  *
  * Its own module rather than a second export from `ScribbleInput`: a file that
  * exports both a component and a constant loses fast refresh. The placement and
  * paragraph rules live here too, where they can be tested without a document,
  * a Pencil or an iPad.
  */
-export const HANDWRITING_EVENT = 'opendraft:handwriting';
+export const HANDWRITING_EVENT = 'writeadraft:handwriting';
 
 /** Ask the editor to open the handwriting panel at the current selection. */
 export function requestHandwriting(): void {

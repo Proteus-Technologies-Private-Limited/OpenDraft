@@ -132,7 +132,7 @@ export function supportsApplePencil(): boolean {
 }
 
 /**
- * Whether this device can show more than one OpenDraft window (issue #63).
+ * Whether this device can show more than one WriTea Draft window (issue #63).
  *
  * Always true on desktop. On mobile it has to be asked of the platform: iPadOS
  * can tile a second scene but iPhone cannot, and Android needs API 32+. Where

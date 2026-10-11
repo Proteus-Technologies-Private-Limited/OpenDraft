@@ -1,5 +1,5 @@
 /**
- * Warns the user when OpenDraft's app data folder is under OneDrive sync.
+ * Warns the user when WriTea Draft's app data folder is under OneDrive sync.
  *
  * OneDrive grabs SQLite WAL/journal files mid-write, which on Windows
  * causes silent save failures. This dialog runs at startup once we've
@@ -10,7 +10,7 @@
 import React, { useEffect, useState } from 'react';
 import { isDesktopTauri } from '../services/platform';
 
-const DISMISS_KEY = 'opendraft.oneDriveWarning.dismissed';
+const DISMISS_KEY = 'writeadraft.oneDriveWarning.dismissed';
 
 const OneDriveWarningDialog: React.FC = () => {
   const [show, setShow] = useState(false);
@@ -58,7 +58,7 @@ const OneDriveWarningDialog: React.FC = () => {
         <div className="dialog-header">OneDrive interference detected</div>
         <div className="dialog-body">
           <p style={{ margin: '0 0 12px' }}>
-            OpenDraft's data folder is inside a OneDrive-synced location. This
+            WriTea Draft's data folder is inside a OneDrive-synced location. This
             is a known cause of <strong>silent save failures</strong>: OneDrive
             can grab the SQLite write-ahead log file in the middle of a save,
             corrupting the database and losing your latest edits.
@@ -86,10 +86,10 @@ const OneDriveWarningDialog: React.FC = () => {
             <li>Open OneDrive settings → Sync and backup → Manage backup.</li>
             <li>
               Turn off backup for the folder that contains the path above
-              (typically Documents or Desktop), or exclude OpenDraft's app
+              (typically Documents or Desktop), or exclude WriTea Draft's app
               data folder explicitly.
             </li>
-            <li>Restart OpenDraft.</li>
+            <li>Restart WriTea Draft.</li>
           </ol>
         </div>
         <div className="dialog-footer" style={{ display: 'flex', gap: 8 }}>

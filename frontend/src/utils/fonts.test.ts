@@ -109,7 +109,7 @@ describe('fontStack', () => {
     expect(fontStack('Caveat')).toContain('cursive');
   });
 
-  it('treats an unknown family as a screenplay font, as OpenDraft always has', () => {
+  it('treats an unknown family as a screenplay font, as WriTea Draft always has', () => {
     expect(fontStack('Some Unknown Face')).toBe("'Some Unknown Face', 'Courier Prime', 'Courier New', Courier, monospace");
   });
 

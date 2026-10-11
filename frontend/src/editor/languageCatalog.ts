@@ -22,7 +22,7 @@ export interface CatalogLanguage {
      *  upstream LibreOffice / wooorm dictionary is too small or unavailable
      *  (e.g. Odia — LibreOffice ships 1k words; we ship a 320k-word list
      *  derived from the MPL-2.0 Odia Spelling Checker Firefox add-on). */
-    | { kind: 'opendraft-extra'; path: string };
+    | { kind: 'writeadraft-extra'; path: string };
 }
 
 /** Built-in language always available; not downloadable. */
@@ -52,7 +52,7 @@ export const CATALOG: CatalogLanguage[] = [
   // LibreOffice's or_IN ships only ~1k words, so basic Odia gets flagged as
   // misspelled. We use a 320k-word list derived from the Odia Wikipedians'
   // Firefox add-on (MPL-2.0). See dictionaries-extra/or_IN/NOTICE.md.
-  { code: 'or_IN', label: 'Odia (ଓଡ଼ିଆ)', source: { kind: 'opendraft-extra', path: 'or_IN' }, sample: 'ଅ ଆ' },
+  { code: 'or_IN', label: 'Odia (ଓଡ଼ିଆ)', source: { kind: 'writeadraft-extra', path: 'or_IN' }, sample: 'ଅ ଆ' },
   { code: 'as_IN', label: 'Assamese (অসমীয়া)', source: { kind: 'libreoffice', folder: 'as_IN' }, sample: 'অ আ' },
   { code: 'ne_NP', label: 'Nepali (नेपाली)', source: { kind: 'libreoffice', folder: 'ne_NP' }, sample: 'क ख' },
   { code: 'si_LK', label: 'Sinhala (සිංහල)', source: { kind: 'libreoffice', folder: 'si_LK' }, sample: 'අ ආ' },
@@ -85,9 +85,9 @@ export function findLanguage(code: string): CatalogLanguage | undefined {
 }
 
 /** GitHub repo that hosts the `dictionaries-extra/` folder consumed by the
- *  `opendraft-extra` source kind. Pinned to `main` — jsDelivr caches a single
+ *  `writeadraft-extra` source kind. Pinned to `main` — jsDelivr caches a single
  *  ref aggressively, so users won't re-download on every release. */
-const OPENDRAFT_EXTRA_BASE =
+const WRITEADRAFT_EXTRA_BASE =
   'https://cdn.jsdelivr.net/gh/Proteus-Technologies-Private-Limited/OpenDraft@main/dictionaries-extra';
 
 /** Build .aff/.dic download URLs for a catalog entry. */
@@ -98,12 +98,12 @@ export function urlsFor(lang: CatalogLanguage): { aff: string; dic: string } {
       dic: `https://cdn.jsdelivr.net/npm/${lang.source.npm}/index.dic`,
     };
   }
-  if (lang.source.kind === 'opendraft-extra') {
+  if (lang.source.kind === 'writeadraft-extra') {
     const dir = lang.source.path;
     // The on-disk files use the language code as their basename.
     return {
-      aff: `${OPENDRAFT_EXTRA_BASE}/${dir}/${lang.code}.aff`,
-      dic: `${OPENDRAFT_EXTRA_BASE}/${dir}/${lang.code}.dic`,
+      aff: `${WRITEADRAFT_EXTRA_BASE}/${dir}/${lang.code}.aff`,
+      dic: `${WRITEADRAFT_EXTRA_BASE}/${dir}/${lang.code}.dic`,
     };
   }
   const { folder, baseName } = lang.source;

@@ -64,7 +64,7 @@ describe('backward and forward compatibility', () => {
   it('still reads a v1 file', () => {
     const v1 = JSON.stringify({
       odraft_version: 1,
-      format: 'opendraft-script',
+      format: 'writeadraft-script',
       exported_at: '2024-01-01T00:00:00.000Z',
       meta: { title: 'Old', author: 'A', color: '', page_count: 3 },
       content: { type: 'doc', content: [] },
@@ -74,13 +74,13 @@ describe('backward and forward compatibility', () => {
     expect(parsed.meta.title).toBe('Old');
   });
 
-  it('refuses a file from a newer OpenDraft with a clear message', () => {
+  it('refuses a file from a newer WriTea Draft with a clear message', () => {
     const future = JSON.stringify({
       odraft_version: ODRAFT_VERSION + 1,
-      format: 'opendraft-script',
+      format: 'writeadraft-script',
       meta: {}, content: {},
     });
-    expect(() => parseOdraft(future)).toThrow(/newer version of OpenDraft/);
+    expect(() => parseOdraft(future)).toThrow(/newer version of WriTea Draft/);
   });
 
   it('rejects non-JSON and foreign JSON', () => {

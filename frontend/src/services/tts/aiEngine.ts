@@ -4,7 +4,7 @@
  * that speaks OpenAI's `/audio/speech` API (Kokoro-FastAPI, LocalAI …).
  *
  * Requests go straight from the writer's browser or app to the provider with
- * the writer's own key — OpenDraft's servers are never in the path. Kokoro
+ * the writer's own key — WriTea Draft's servers are never in the path. Kokoro
  * sends nothing anywhere: it runs in a worker on this device.
  *
  * Each line is fetched as finished audio. The next line is fetched while the

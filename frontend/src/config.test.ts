@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 /**
- * The Cloud API base must default to the hosted OpenDraft server on packaged
+ * The Cloud API base must default to the hosted WriTea Draft server on packaged
  * apps.
  *
  * Every desktop release used to be built with
@@ -72,7 +72,7 @@ describe('computeApiBase', () => {
   it('lets a saved Settings override win over everything', async () => {
     setTauri(true);
     setEnv('https://scripts.example.com');
-    localStorage.setItem('opendraft:cloudApiUrl', 'https://mine.example.org');
+    localStorage.setItem('writeadraft:cloudApiUrl', 'https://mine.example.org');
     const { getApiBase } = await loadConfig();
     expect(getApiBase()).toBe('https://mine.example.org/api');
   });

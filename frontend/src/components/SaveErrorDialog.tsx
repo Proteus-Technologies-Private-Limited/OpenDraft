@@ -35,7 +35,7 @@ const SaveErrorDialog: React.FC = () => {
         <div className="dialog-header">{heading}</div>
         <div className="dialog-body">
           <p style={{ margin: '0 0 12px' }}>
-            OpenDraft could not save your changes. Your work is still in the
+            WriTea Draft could not save your changes. Your work is still in the
             editor — please copy anything important before closing the app or
             reloading the window.
           </p>

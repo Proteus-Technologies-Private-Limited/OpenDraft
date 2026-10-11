@@ -38,12 +38,12 @@ supported; pick whichever fits your operational model.
 
 | Setting | Value |
 |---------|-------|
-| Project ID | `opendraft-app` |
+| Project ID | `writeadraft-app` |
 | Project Number | `267958344432` |
-| Billing Account | OpenDraft (`011A68-37FD6B-93D32A`) |
+| Billing Account | WriTea Draft (`011A68-37FD6B-93D32A`) |
 | Region | `us-central1` |
-| Service Name | `opendraft-collab` |
-| Image | `us-central1-docker.pkg.dev/opendraft-app/opendraft/opendraft-collab` |
+| Service Name | `writeadraft-collab` |
+| Image | `us-central1-docker.pkg.dev/writeadraft-app/writeadraft/writeadraft-collab` |
 
 ## Cloud Run Configuration
 
@@ -110,25 +110,25 @@ From the `collab-server/` directory:
 ```bash
 # Rebuild and deploy
 gcloud builds submit \
-  --tag us-central1-docker.pkg.dev/opendraft-app/opendraft/opendraft-collab \
-  --project=opendraft-app --quiet
+  --tag us-central1-docker.pkg.dev/writeadraft-app/writeadraft/writeadraft-collab \
+  --project=writeadraft-app --quiet
 
-gcloud run deploy opendraft-collab \
-  --image=us-central1-docker.pkg.dev/opendraft-app/opendraft/opendraft-collab \
-  --region=us-central1 --project=opendraft-app --quiet
+gcloud run deploy writeadraft-collab \
+  --image=us-central1-docker.pkg.dev/writeadraft-app/writeadraft/writeadraft-collab \
+  --region=us-central1 --project=writeadraft-app --quiet
 ```
 
 Or use the script:
 
 ```bash
-./deploy-cloudrun.sh opendraft-app
+./deploy-cloudrun.sh writeadraft-app
 ```
 
 ## Adding Google OAuth
 
 ```bash
-gcloud run services update opendraft-collab \
-  --region=us-central1 --project=opendraft-app \
+gcloud run services update writeadraft-collab \
+  --region=us-central1 --project=writeadraft-app \
   --update-env-vars='GOOGLE_CLIENT_ID=xxx,GOOGLE_CLIENT_SECRET=yyy'
 ```
 
@@ -137,8 +137,8 @@ gcloud run services update opendraft-collab \
 When deploying a web frontend, add its URL to CORS:
 
 ```bash
-gcloud run services update opendraft-collab \
-  --region=us-central1 --project=opendraft-app \
+gcloud run services update writeadraft-collab \
+  --region=us-central1 --project=writeadraft-app \
   --env-vars-file=env.yaml
 ```
 
@@ -149,10 +149,10 @@ gcloud run services update opendraft-collab \
 curl https://opendraft-collab-267958344432.us-central1.run.app/health
 
 # View logs
-gcloud run services logs read opendraft-collab \
-  --region=us-central1 --project=opendraft-app --limit=50
+gcloud run services logs read writeadraft-collab \
+  --region=us-central1 --project=writeadraft-app --limit=50
 
 # View service details
-gcloud run services describe opendraft-collab \
-  --region=us-central1 --project=opendraft-app
+gcloud run services describe writeadraft-collab \
+  --region=us-central1 --project=writeadraft-app
 ```

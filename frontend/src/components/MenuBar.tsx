@@ -73,13 +73,13 @@ import DocumentOpenElsewhereDialog from './DocumentOpenElsewhereDialog';
  *
  * Narrower than the import list on purpose: promising "Save writes back to
  * this file" for a format with no writer would strand the user's edits. Fade
- * In's .fadein is an OSF archive and OpenDraft has no OSF writer, so it stays
+ * In's .fadein is an OSF archive and WriTea Draft has no OSF writer, so it stays
  * an import-only format until one exists.
  */
 /**
  * What Save can write back, and so what may be opened in place.
  *
- * .fadein and .osf joined the list once OpenDraft gained a writer for them
+ * .fadein and .osf joined the list once WriTea Draft gained a writer for them
  * (utils/osfExporter); before that, opening one would have promised a Save it
  * could not honour.
  */
@@ -463,7 +463,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const fileStatus = useLinkedFileStore.getState().byScript[currentScriptId];
       if (fileStatus?.state === 'pending' && fileStatus.error) {
         const name = fileStatus.path.split(/[/\\]/).pop() || fileStatus.path;
-        showToast(`Saved in OpenDraft, but not to ${name}: ${fileStatus.error}. OpenDraft will keep trying.`, 'error');
+        showToast(`Saved in WriTea Draft, but not to ${name}: ${fileStatus.error}. WriTea Draft will keep trying.`, 'error');
       }
       // The user's real copy now holds this text, so there is nothing left to
       // recover. Done here as well as in the snapshot hook because an explicit
@@ -561,7 +561,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         title: 'Save to File',
         defaultPath: lf.joinPath(defaultDir, linkedFileName(s.documentTitle || 'Untitled', preferred)),
         filters: [
-          { name: 'OpenDraft', extensions: ['odraft'] },
+          { name: 'WriTea Draft', extensions: ['odraft'] },
           { name: 'Fountain', extensions: ['fountain'] },
           { name: 'Final Draft', extensions: ['fdx'] },
         ],
@@ -598,7 +598,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           showToast(`Saved to ${name}. From now on, saving this script updates that file too.`, 'success');
         } else {
           const err = useLinkedFileStore.getState().byScript[library.scriptId]?.error;
-          showToast(`Linked to ${name}, but it could not be written yet${err ? `: ${err}` : ''}. OpenDraft will keep trying.`, 'error');
+          showToast(`Linked to ${name}, but it could not be written yet${err ? `: ${err}` : ''}. WriTea Draft will keep trying.`, 'error');
         }
         return;
       }
@@ -1278,8 +1278,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
         const ext = outcome.extension;
         showToast(
           ext
-            ? `OpenDraft cannot edit .${ext} files in place. Use File ▸ Import to bring a copy in.`
-            : 'OpenDraft cannot edit that kind of file. Use File ▸ Import to bring a copy in.',
+            ? `WriTea Draft cannot edit .${ext} files in place. Use File ▸ Import to bring a copy in.`
+            : 'WriTea Draft cannot edit that kind of file. Use File ▸ Import to bring a copy in.',
           'error',
         );
         return;
@@ -1344,7 +1344,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
       for (const w of imported.warnings) console.warn('[Open in place]', w);
 
-      // Every format but OpenDraft's own loses something on the way back out,
+      // Every format but WriTea Draft's own loses something on the way back out,
       // and the writer should hear that when they open the file rather than
       // discover it later in a file that no longer has their notes.
       if (ext === 'odraft') {
@@ -1384,7 +1384,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       setCurrentScriptId(null);
       setScripts([]);
       // Track that this is an imported document so Save As can warn the user
-      // that the save goes to OpenDraft's library, not back to the source file.
+      // that the save goes to WriTea Draft's library, not back to the source file.
       store.setImportedSource({ name, format: imported.formatLabel });
       // Imported files have no library copy — snapshot immediately.
       useBackupStatusStore.getState().noteDocumentOpened();
@@ -1403,7 +1403,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
    * Import an AV spreadsheet as a new AV document.
    *
    * Column mapping is guessed from the header row, because a sheet from another
-   * production will not use OpenDraft's names — see utils/avImport. The guess is
+   * production will not use WriTea Draft's names — see utils/avImport. The guess is
    * reported in a toast so the writer can see what it decided rather than having
    * to compare the result against the source by eye.
    */
@@ -1425,7 +1425,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
       if (isYaml) {
         // AvYamlError carries a message written for the writer — a file from a
-        // newer OpenDraft, or one that is not an AV document — so it is shown
+        // newer WriTea Draft, or one that is not an AV document — so it is shown
         // as-is rather than wrapped in a generic failure.
         const { importAvYaml } = await import('../utils/avYaml');
         const parsed = importAvYaml(result.text ?? '');
@@ -1469,7 +1469,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       setScripts([]);
       store.setImportedSource({
         name: result.name,
-        format: isYaml ? 'OpenDraft AV YAML' : isXlsx ? 'AV Spreadsheet (.xlsx)' : 'AV Spreadsheet (.csv)',
+        format: isYaml ? 'WriTea Draft AV YAML' : isXlsx ? 'AV Spreadsheet (.xlsx)' : 'AV Spreadsheet (.csv)',
       });
       useBackupStatusStore.getState().noteDocumentOpened();
       showToast(summary, 'info');
@@ -2161,7 +2161,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         ...(packed ? { assets: packed.assets, assetsOmitted: packed.truncated } : {}),
       });
     } catch (err) {
-      console.error('OpenDraft export failed:', err);
+      console.error('WriTea Draft export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
   }, [editor, documentTitle, buildSaveContent, currentProject, currentScriptId]);
@@ -2377,13 +2377,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {
           icon: <FaFileImport />, label: 'Import',
           children: [
-            { icon: <FaFileCode />, label: 'Final Draft / Fountain / Fade In / OpenDraft…', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
+            { icon: <FaFileCode />, label: 'Final Draft / Fountain / Fade In / WriTea Draft…', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
             { icon: <FaFileWord />, label: 'Microsoft Word (.docx)…', action: handleImportDocx, disabled: isCollabGuest },
             { separator: true, label: '' },
             { icon: <FaFileExcel />, label: 'AV Document (.yaml / .xlsx / .csv)…', action: () => confirmOrRun(handleImportAvSheet), disabled: isCollabGuest },
           ],
         },
-        // Opens the library — projects and scripts held by OpenDraft, on this
+        // Opens the library — projects and scripts held by WriTea Draft, on this
         // device or in the cloud. Deliberately NOT "Open File…", which would sit
         // directly above "Open from Files…" and claim the very thing that item
         // does. Naming the object rather than the source keeps the common action
@@ -2460,7 +2460,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
               title: 'Only the pages that carry a revision mark',
             },
             { icon: <FaFileWord />, label: 'Microsoft Word (.docx)', action: handleExportDocx },
-            { icon: <FaFile />, label: 'OpenDraft (.odraft)', action: handleExportOdraft, disabled: isCollabGuest },
+            { icon: <FaFile />, label: 'WriTea Draft (.odraft)', action: handleExportOdraft, disabled: isCollabGuest },
             // AV formats are offered only for documents that have an AV body —
             // a spreadsheet of a screenplay would be meaningless.
             ...(hasAv
@@ -2805,7 +2805,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaExpandArrowsAlt />, label: toolbarMode === 'comfortable' ? '\u2713 Comfortable' : 'Comfortable', action: () => setToolbarMode('comfortable') },
             { icon: <FaEyeSlash />, label: toolbarMode === 'hidden' ? '\u2713 Hidden' : 'Hidden', action: () => {
               setToolbarMode('hidden');
-              if (localStorage.getItem('opendraft:hiddenModeIntroShown') !== '1') {
+              if (localStorage.getItem('writeadraft:hiddenModeIntroShown') !== '1') {
                 setShowHiddenModeIntro(true);
               }
             }},
@@ -2959,7 +2959,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     try {
       const outcome = await checkForUpdate(true);
       if (outcome.status === 'up-to-date') {
-        showToast(`OpenDraft ${outcome.version} is the latest version.`, 'success');
+        showToast(`WriTea Draft ${outcome.version} is the latest version.`, 'success');
       } else if (outcome.status === 'unreachable') {
         showToast('Could not check for updates. Check your connection.', 'error');
       }
@@ -2991,7 +2991,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       }]),
       {
         icon: <FaInfoCircle />,
-        label: 'About Open Draft',
+        label: 'About WriTea Draft',
         action: () => setAboutOpen(true),
       },
       {
@@ -3073,14 +3073,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const [hiddenModeDontShow, setHiddenModeDontShow] = useState(true);
 
   // Draggable FAB position — persisted to localStorage
-  const FAB_POS_KEY = 'opendraft:fabPosition';
+  const FAB_POS_KEY = 'writeadraft:fabPosition';
   const FAB_SIZE = 36;
   // How far down the window the iPadOS window control reaches, plus room for
   // the FAB itself — below this the corner is the app's own again.
   const FAB_PILL_BAND_PX = 56;
   const [fabPos, setFabPos] = useState<{ x: number; y: number } | null>(() => {
     try {
-      const s = localStorage.getItem('opendraft:fabPosition');
+      const s = localStorage.getItem('writeadraft:fabPosition');
       if (s) {
         const p = JSON.parse(s);
         return {
@@ -3387,7 +3387,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
               Don't show this again
             </label>
             <button className="dialog-btn dialog-btn-primary" onClick={() => {
-              if (hiddenModeDontShow) localStorage.setItem('opendraft:hiddenModeIntroShown', '1');
+              if (hiddenModeDontShow) localStorage.setItem('writeadraft:hiddenModeIntroShown', '1');
               setShowHiddenModeIntro(false);
             }}>Got it</button>
           </div>
@@ -3488,9 +3488,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {aboutOpen && (
       <div className="dialog-overlay" onClick={() => setAboutOpen(false)}>
         <div className="dialog-box about-dialog" onClick={(e) => e.stopPropagation()}>
-          <div className="dialog-header">About Open Draft</div>
+          <div className="dialog-header">About WriTea Draft</div>
           <div className="dialog-body about-body">
-            <div className="about-title">Open Draft</div>
+            <div className="about-title">WriTea Draft</div>
             <div className="about-version">Version 2.5.3</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
@@ -3500,11 +3500,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-subsection-title">v2.5.3</div>
               <ul className="about-list">
                 <li><strong>A Runtime Estimate That Matches The Screen</strong> &mdash; The <em>Est.</em> runtime in the status bar ran well short &mdash; a 110-page feature came out at little over an hour. It counted words at 250 a page, which is a page of prose, not of screenplay, and gave character names, scene headings and every blank line no time at all. It now measures the printed page the way the rule of thumb means it &mdash; one page, about a minute &mdash; counting each element at its own width and the white space around it. Checked against thirteen released films, it lands on their running time without the end credits, give or take the pace each was directed at. Scene timings in the Scene Navigator and the Timing Report follow it.</li>
-                <li><strong>Genre &amp; Pacing</strong> &mdash; <em>Format &rarr; Genre &amp; Pacing&hellip;</em>, or a click on <em>Est.</em>, tells OpenDraft how your film will play. <strong>Brisk</strong> is for fast talk and quick cutting, <strong>Measured</strong> for slow-burn and lingering images, and <strong>Standard</strong> for everything else; each shows the runtime it gives your script before you choose, and timings you set on a scene by hand are kept. Tag the script with as many genres as fit, or type your own. Both are saved with the script and shared with collaborators; genre is for you and does not change the estimate.</li>
+                <li><strong>Genre &amp; Pacing</strong> &mdash; <em>Format &rarr; Genre &amp; Pacing&hellip;</em>, or a click on <em>Est.</em>, tells WriTea Draft how your film will play. <strong>Brisk</strong> is for fast talk and quick cutting, <strong>Measured</strong> for slow-burn and lingering images, and <strong>Standard</strong> for everything else; each shows the runtime it gives your script before you choose, and timings you set on a scene by hand are kept. Tag the script with as many genres as fit, or type your own. Both are saved with the script and shared with collaborators; genre is for you and does not change the estimate.</li>
               </ul>
               <div className="about-subsection-title">v2.5.2</div>
               <ul className="about-list">
-                <li><strong>Dark Pulldowns</strong> &mdash; Under the Dark theme, the lists that drop down from the element, font size, sort and other pulldowns opened white when the computer itself was set to Light &mdash; on Windows almost unreadable. OpenDraft now draws every pulldown list itself, so it follows the app&rsquo;s theme, Light or Dark, whatever the system is set to. The desktop window&rsquo;s title bar follows the theme too. To make the script page dark as well, choose <em>View &rarr; Theme &rarr; Dark Pages</em>.</li>
+                <li><strong>Dark Pulldowns</strong> &mdash; Under the Dark theme, the lists that drop down from the element, font size, sort and other pulldowns opened white when the computer itself was set to Light &mdash; on Windows almost unreadable. WriTea Draft now draws every pulldown list itself, so it follows the app&rsquo;s theme, Light or Dark, whatever the system is set to. The desktop window&rsquo;s title bar follows the theme too. To make the script page dark as well, choose <em>View &rarr; Theme &rarr; Dark Pages</em>.</li>
               </ul>
               <div className="about-subsection-title">v2.5.1</div>
               <ul className="about-list">
@@ -3515,16 +3515,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 <li><strong>Table Read</strong> &mdash; <em>Tools &rarr; Table Read</em> reads your script aloud, with a different voice for each character and a narrator for scene headings, action and transitions. A panel under the script shows the line being read with the word being spoken highlighted, and the same word is highlighted in the script, which scrolls to keep up. Pause picks up at the word it stopped on; skip a line or a scene, change the speed, or click any line to read from there.</li>
                 <li><strong>A Voice For Each Character</strong> &mdash; Every character gets a voice of their own automatically, matched to the Gender on their profile or to how the script introduces them. To choose one yourself, pick it under <em>Table Read Voice</em> on the character&rsquo;s profile. The choice is saved with the script.</li>
                 <li><strong>Your Device&rsquo;s Voices, Or AI Voices</strong> &mdash; Use the voices already installed on your device, free and offline, or AI voices: <strong>Kokoro</strong>, free and running on your own device, or Google Gemini, OpenAI, ElevenLabs, Microsoft Azure Speech or your own speech server, with your own API key.</li>
-                <li><strong>Confidentiality</strong> &mdash; Every AI voice except Kokoro sends the text of your script to that company. This may breach your data security or confidentiality obligations, and OpenDraft does not guarantee the confidentiality of anything sent to a third-party provider. Table Read says so wherever one is in use.</li>
-                <li><strong>Projects In A Folder On Disk</strong> &mdash; On the desktop, a project can save its scripts as files in a folder you choose &mdash; an external disk, a RAID, a network drive &mdash; as OpenDraft, Fountain or Final Draft files. <em>File &rarr; Open Folder as Project&hellip;</em> turns an existing folder into a project. A file changed somewhere else is never overwritten: OpenDraft opens the new version, or asks which to keep.</li>
+                <li><strong>Confidentiality</strong> &mdash; Every AI voice except Kokoro sends the text of your script to that company. This may breach your data security or confidentiality obligations, and WriTea Draft does not guarantee the confidentiality of anything sent to a third-party provider. Table Read says so wherever one is in use.</li>
+                <li><strong>Projects In A Folder On Disk</strong> &mdash; On the desktop, a project can save its scripts as files in a folder you choose &mdash; an external disk, a RAID, a network drive &mdash; as WriTea Draft, Fountain or Final Draft files. <em>File &rarr; Open Folder as Project&hellip;</em> turns an existing folder into a project. A file changed somewhere else is never overwritten: WriTea Draft opens the new version, or asks which to keep.</li>
                 <li><strong>Auto-Save, Your Way</strong> &mdash; Separate auto-save switches for library scripts and for files opened from disk, in <em>Tools &rarr; System Settings &rarr; Saving</em>. With auto-save off, leaving a script or closing the window asks first.</li>
                 <li><strong>Back Up Now Asks For A Folder</strong> &mdash; With no backup folder chosen, <em>Back Up Now</em> asks for one right there instead of sending you to Settings.</li>
-                <li><strong>Also Fixed</strong> &mdash; Leaving a script can no longer save an empty page over your saved text. OpenDraft now needs Android 8 or later; on Android 7 it closed as soon as it opened.</li>
+                <li><strong>Also Fixed</strong> &mdash; Leaving a script can no longer save an empty page over your saved text. WriTea Draft now needs Android 8 or later; on Android 7 it closed as soon as it opened.</li>
               </ul>
               <div className="about-subsection-title">v2.4.0</div>
               <ul className="about-list">
                 <li><strong>Dark Pages</strong> &mdash; View &rarr; Theme is one menu now: Light, Dark, and Dark Pages. Dark Pages turns the script page itself dark, with light text, for writing at night. Black text that came in from a formatting template, or was pasted from Word or Google Docs, turns light with the page instead of disappearing into it, and a colour you actually chose is left alone. It is a screen setting only &mdash; PDF, print and every export are still black on white. Whichever theme you pick is remembered.</li>
-                <li><strong>Revision Mode Marks What You Change</strong> &mdash; Revision Mode used to put the revision colour in the header and nothing more. Now every line you change while it is on gets an asterisk in the right margin &mdash; text you type or paste, a line you shorten, join, split or turn into another element &mdash; and it prints on the PDF beside each revised line, AV tables included. Tools &rarr; Production has the colour, <em>Next Revision Color</em> to start the next round in the White, Blue, Pink, Yellow&hellip; sequence, <em>Show Revision Colors</em>, and <em>Clear Revision Marks</em>. The marks are saved with the script and shared with collaborators. An older version of OpenDraft still opens a revised script; it just does not show the asterisks.</li>
+                <li><strong>Revision Mode Marks What You Change</strong> &mdash; Revision Mode used to put the revision colour in the header and nothing more. Now every line you change while it is on gets an asterisk in the right margin &mdash; text you type or paste, a line you shorten, join, split or turn into another element &mdash; and it prints on the PDF beside each revised line, AV tables included. Tools &rarr; Production has the colour, <em>Next Revision Color</em> to start the next round in the White, Blue, Pink, Yellow&hellip; sequence, <em>Show Revision Colors</em>, and <em>Clear Revision Marks</em>. The marks are saved with the script and shared with collaborators. An older version of WriTea Draft still opens a revised script; it just does not show the asterisks.</li>
                 <li><strong>Your Own Revision Mark</strong> &mdash; <em>Tools &rarr; Production &rarr; Revision Settings</em> sets the character printed beside a revised line, and can give each revision a mark of its own, so a page carrying Blue and Pink changes shows which is which. A line changed in two rounds shows the later round&rsquo;s mark. The marks are used on screen, in the PDF and in print.</li>
                 <li><strong>Revised Pages On Coloured Paper</strong> &mdash; Revision Settings can tint every revised page in the PDF and in print with its revision&rsquo;s colour, the way revised pages go out on coloured stock. <em>File &rarr; Export &rarr; PDF (Revised Pages Only)</em> writes just the pages that carry a revision &mdash; what goes to cast and crew between full drafts.</li>
                 <li><strong>Locked Pages And A Pages</strong> &mdash; <em>Tools &rarr; Production &rarr; Lock Pages</em> fixes every page where it is. Text added to page 12 then spills onto 12A and 12B instead of pushing every later page along, text added above page 1 goes onto A1, and a page whose text is all cut is folded into the one before it as 12-13. The labels show in the header, the status bar and the page thumbnails, and print on the PDF.</li>
@@ -3535,8 +3535,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
               </ul>
               <div className="about-subsection-title">v2.3.3</div>
               <ul className="about-list">
-                <li><strong>Linux On Older Graphics Cards</strong> &mdash; On some Linux machines the OpenDraft window came up dark and empty, and on an older NVIDIA card using the open-source <em>nouveau</em> driver it could freeze the whole desktop until a restart. The page is drawn by the web engine on the graphics card, and two of the ways it does that are ones those drivers cannot handle. OpenDraft now turns off the faster buffer-sharing path on every Linux machine, and on nouveau it also draws the window without the graphics card &mdash; slower to scroll, but a window you can write in. Setting <code>WEBKIT_DISABLE_DMABUF_RENDERER</code> or <code>WEBKIT_DISABLE_COMPOSITING_MODE</code> yourself still wins, <code>=0</code> included.</li>
-                <li><strong>A Crash On Android From Another App&rsquo;s Link</strong> &mdash; Another app could ask OpenDraft to open something it was not allowed to read &mdash; a contact, say &mdash; and OpenDraft closed instead of saying no. It now turns the request down and keeps running.</li>
+                <li><strong>Linux On Older Graphics Cards</strong> &mdash; On some Linux machines the WriTea Draft window came up dark and empty, and on an older NVIDIA card using the open-source <em>nouveau</em> driver it could freeze the whole desktop until a restart. The page is drawn by the web engine on the graphics card, and two of the ways it does that are ones those drivers cannot handle. WriTea Draft now turns off the faster buffer-sharing path on every Linux machine, and on nouveau it also draws the window without the graphics card &mdash; slower to scroll, but a window you can write in. Setting <code>WEBKIT_DISABLE_DMABUF_RENDERER</code> or <code>WEBKIT_DISABLE_COMPOSITING_MODE</code> yourself still wins, <code>=0</code> included.</li>
+                <li><strong>A Crash On Android From Another App&rsquo;s Link</strong> &mdash; Another app could ask WriTea Draft to open something it was not allowed to read &mdash; a contact, say &mdash; and WriTea Draft closed instead of saying no. It now turns the request down and keeps running.</li>
               </ul>
               <div className="about-subsection-title">v2.3.2</div>
               <ul className="about-list">
@@ -3556,14 +3556,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 <li><strong>A Storyboard Column</strong> &mdash; Each row can hold a frame: a picture of the shot, at 16:9, 4:3, 1:1, 9:16, 2.39:1 or free. Double-click an empty frame to choose an image, or use <em>Format &rarr; AV Script &rarr; Storyboard</em>. Turning the column off hides the frames rather than throwing them away, and the menu tells you how many rows would go quiet before it does it.</li>
                 <li><strong>Columns You Can Size</strong> &mdash; Drag the divider between any two columns to set their widths, and double-click it to put that pair back to where they started. <em>Format &rarr; AV Script &rarr; Columns &rarr; Column Width</em> does the same in steps, which is the route on a touchscreen. The widths travel with the document, and the printed page, the PDF and the spreadsheet all use them.</li>
                 <li><strong>Screenplay Elements Inside The Columns</strong> &mdash; An AV body could hold four paragraph types and no more, so there was no way to write an on-camera interview or a spokesperson &mdash; which is most of what a corporate or documentary script is made of. A cell now takes Action, Shot, Character, Dialogue, Parenthetical and Lyrics as well, and the template decides which column offers which: the AV Script format puts Action and Shot in Video, and Character, Dialogue, Parenthetical and Lyrics in Audio. Your own templates set it per element, in the template editor.</li>
-                <li><strong>AV Scripts In And Out As Spreadsheets</strong> &mdash; <em>File &rarr; Export</em> writes an AV script as .xlsx or .csv for a shot-list tool, as plain text, or as OpenDraft AV YAML &mdash; a readable file that keeps the paragraph styles, cue timings and column widths a spreadsheet flattens. <em>File &rarr; Import</em> reads .xlsx and .csv back and works out what each column is, so a sheet from another production still lands in the right places: <em>Visual</em>, <em>Picture</em> and <em>Vision</em> are video, <em>Sound</em>, <em>Narration</em> and <em>VO</em> are audio, <em>Length</em> and <em>Run Time</em> are durations. PDF and Word get a real table, with the header repeated on every page and no row ever split across a page break.</li>
+                <li><strong>AV Scripts In And Out As Spreadsheets</strong> &mdash; <em>File &rarr; Export</em> writes an AV script as .xlsx or .csv for a shot-list tool, as plain text, or as WriTea Draft AV YAML &mdash; a readable file that keeps the paragraph styles, cue timings and column widths a spreadsheet flattens. <em>File &rarr; Import</em> reads .xlsx and .csv back and works out what each column is, so a sheet from another production still lands in the right places: <em>Visual</em>, <em>Picture</em> and <em>Vision</em> are video, <em>Sound</em>, <em>Narration</em> and <em>VO</em> are audio, <em>Length</em> and <em>Run Time</em> are durations. PDF and Word get a real table, with the header repeated on every page and no row ever split across a page break.</li>
                 <li><strong>AV Controls A Finger Can Reach</strong> &mdash; Adding a row meant Tab or Cmd-Enter, and a phone or tablet keyboard has neither &mdash; so on touch the format could be filled in but not extended: one row, and no way to a second. Every AV control now has a route that is not a keystroke. There is <em>+ Row</em> and a delete button in the toolbar while the cursor is in a cell, the same three on the long-press menu, and rows, columns and storyboard sit together under one <em>Format &rarr; AV Script</em> menu instead of three.</li>
                 <li><strong>A Way Out Of An AV Table</strong> &mdash; On a phone there was no way to write anything that was not inside the table. The AV Script format opened as the table and nothing else, every route out was a key the on-screen keyboard has not got, and tapping the empty page below the table did nothing at all. An AV script now opens with a line beneath the table, and <em>Format &rarr; AV Script &rarr; Line After Table</em> &mdash; or <em>Line Before Table</em> &mdash; puts the cursor on an ordinary line outside it whenever you need one, adding it if it is not already there. With a keyboard, Down and Up do it too.</li>
                 <li><strong>Pictures On Android</strong> &mdash; Choosing an image for a storyboard frame opened the picker, took the photo you chose, and then quietly did nothing &mdash; the frame stayed empty with nothing to say why. Pictures could not be shown on Android at all, either, so an image inserted anywhere in a script was blank space. Both are fixed.</li>
                 <li><strong>A Picture Put In An AV Row</strong> &mdash; Inserting, pasting or dropping an image while the cursor was in a cell split the table in two: an empty row appeared belonging to a second table with its own column widths, and the picture was nowhere to be seen. An image in an AV row is that row&rsquo;s storyboard frame now, in the row you put it in, with the storyboard column turned on to show it.</li>
                 <li><strong>The PDF Turns Its Pages Where The Editor Does</strong> &mdash; A 33-page script came out as 35, and from the first page that disagreed onwards nothing was on the page you had put it on &mdash; which in a screenplay is a change to the script. It was not one fault but several, each worth a line or two, in the places where the PDF measured a line differently from the screen: where a long line wraps, what a blank line is worth, where a page may be broken. They measure the same now.</li>
                 <li><strong>Signing In On A Fresh Desktop Install</strong> &mdash; Every desktop build shipped pointing at an address on your own machine with nothing behind it &mdash; left over from a version that ran a small server alongside the app. Signing in failed straight out of the box with <em>error sending request for url</em>, and Settings offered that address as the default.</li>
-                <li><strong>A Second Browser Tab Stopped Overwriting The First</strong> &mdash; In a browser every tab shared one slot for unsaved-work recovery, so opening OpenDraft in a second tab destroyed the protection the first one was holding &mdash; within ten seconds, and without a word. Each tab keeps its own now. The recovery prompt has also stopped offering you a document that is open and being edited in another tab, which it used to describe as unsaved work from a previous session while you were looking at it.</li>
+                <li><strong>A Second Browser Tab Stopped Overwriting The First</strong> &mdash; In a browser every tab shared one slot for unsaved-work recovery, so opening WriTea Draft in a second tab destroyed the protection the first one was holding &mdash; within ten seconds, and without a word. Each tab keeps its own now. The recovery prompt has also stopped offering you a document that is open and being edited in another tab, which it used to describe as unsaved work from a previous session while you were looking at it.</li>
                 <li><strong>Downloading An Asset With An Awkward Name</strong> &mdash; Any file whose name was not plain ASCII failed to download with a server error. It took no exotic name to hit: every screenshot taken on a Mac carries an unusual kind of space before the AM or PM.</li>
               </ul>
               <div className="about-subsection-title">v2.2.0</div>
@@ -3599,7 +3599,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
               </ul>
               <div className="about-subsection-title">v0.26.3</div>
               <ul className="about-list">
-                <li><strong>Paste Works Again On Android</strong> — <em>Edit &rarr; Paste</em> and <em>Paste as Fountain</em> failed on Android with &ldquo;Could not read the clipboard&rdquo;, even though the text was still there and pressing and holding in the script could still paste it. Android does not let a web page read the clipboard at all, so OpenDraft now asks Android itself. Bold, italic and colour come across with the text, the way they do when you press and hold.</li>
+                <li><strong>Paste Works Again On Android</strong> — <em>Edit &rarr; Paste</em> and <em>Paste as Fountain</em> failed on Android with &ldquo;Could not read the clipboard&rdquo;, even though the text was still there and pressing and holding in the script could still paste it. Android does not let a web page read the clipboard at all, so WriTea Draft now asks Android itself. Bold, italic and colour come across with the text, the way they do when you press and hold.</li>
               </ul>
               <div className="about-subsection-title">v0.26.2</div>
               <ul className="about-list">
@@ -3629,7 +3629,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 <li><strong>Deleting A Note Takes Its Highlight</strong> — A note's colour could outlive the note, leaving a stubborn yellow on a passage nothing was attached to any more. It was a second highlight, harvested from the note's own span whenever the document's HTML was parsed again — a copy and paste inside the editor was enough. New pastes no longer make one, and any left in a script are cleared when it opens.</li>
                 <li><strong>General Notes Stay With Their Script</strong> — Starting a new script, opening another, importing a file or leaving a project each left the previous script's general notes in place, so they turned up under the next one. They belong to the file and now go with it.</li>
                 <li><strong>Android: The Panel Header Is Reachable</strong> — The Notes, Characters and Tags panels slide over the whole screen, and their headers sat underneath the status bar, which put the close button out of reach.</li>
-                <li><strong>The Manual Is In The App</strong> — Help → User Manual… opens the whole manual inside OpenDraft, contents down the side and links between pages working the way they do on the web. It is not bundled with the app: download it once, about 8&nbsp;MB of pages and screenshots, and it stays on the device and works with no connection after that. Update fetches a newer copy when the manual changes; Remove takes the space back.</li>
+                <li><strong>The Manual Is In The App</strong> — Help → User Manual… opens the whole manual inside WriTea Draft, contents down the side and links between pages working the way they do on the web. It is not bundled with the app: download it once, about 8&nbsp;MB of pages and screenshots, and it stays on the device and works with no connection after that. Update fetches a newer copy when the manual changes; Remove takes the space back.</li>
                 <li><strong>Search What You Have Downloaded</strong> — Type in the reader and it searches every page, matching titles first and showing a line of context under each result. It runs against the local copy, so it works on a plane.</li>
                 <li><strong>A Mark That Survives Being Small</strong> — The old icon was a detailed illustration: a pen, a flock of birds, film strips, a painterly background and two lines of type. Below about 128 pixels none of it survived, so the app was hard to pick out on a home screen or in a browser tab. It is now one shape — a nib whose body opens into three feather planes — that still reads at 32 pixels and in a single colour.</li>
                 <li><strong>Help Is A Menu</strong> — It sits after Tools, where the three dots used to be at the far right of the bar, and holds the manual, About and Diagnostics. Keyboard Shortcuts has gone from it: dropping six shortcuts into a toast was never much use, and the manual has a page listing all of them.</li>
@@ -3639,9 +3639,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-subsection-title">v0.25.0</div>
               <ul className="about-list">
                 <li><strong>A Font Library Worth The Name</strong> — Around 185 fonts, grouped by what they are: screenplay, typewriter, serif, sans-serif, monospace, display faces for title pages, handwriting, and the Noto families covering most writing systems. The picker searches, and every name is drawn in its own face so you can see what you are choosing. Courier Prime 12pt is still what a new script is.</li>
-                <li><strong>Install Your Own Fonts</strong> — Format → Fonts… takes TrueType and OpenType files. The family name is read out of the font itself, so weights group together rather than arriving as separate families. Because OpenDraft holds the file, a font you install is embedded in exported PDFs — a title page in your own typeface comes out looking like the one on screen.</li>
+                <li><strong>Install Your Own Fonts</strong> — Format → Fonts… takes TrueType and OpenType files. The family name is read out of the font itself, so weights group together rather than arriving as separate families. Because WriTea Draft holds the file, a font you install is embedded in exported PDFs — a title page in your own typeface comes out looking like the one on screen.</li>
                 <li><strong>The Fonts Already On Your Device</strong> — Faces from your operating system are checked before they are offered: one this platform hasn't got is greyed out and marked <em>not installed</em>, instead of silently rendering as Courier. On iPad and Android, where no app can list installed fonts, you can add one by name.</li>
-                <li><strong>A Font Choice Travels With The Script</strong> — Open a script on a machine without the font and OpenDraft substitutes the closest match of the same kind — a typewriter face for a typewriter face, a serif for a serif — rather than dropping everything to Courier. The original name is kept, so the font returns the moment you open it somewhere it exists.</li>
+                <li><strong>A Font Choice Travels With The Script</strong> — Open a script on a machine without the font and WriTea Draft substitutes the closest match of the same kind — a typewriter face for a typewriter face, a serif for a serif — rather than dropping everything to Courier. The original name is kept, so the font returns the moment you open it somewhere it exists.</li>
                 <li><strong>The Title Page Is Part Of The Template</strong> — Title, Credit &amp; Author, Draft &amp; Date, Contact, Copyright and Notes are formatting elements like any other, so you can set the title in a display face at 24pt and leave the contact block in Courier. Anything you change by hand outranks the template and stays put.</li>
                 <li><strong>Comfortable On A Tablet</strong> — Touch devices start in the comfortable toolbar, and the menus, font list and dialogs have finger-sized targets rather than mouse-sized ones. The font picker no longer closed itself the instant the on-screen keyboard appeared, which on iPad made tapping it look like it did nothing at all.</li>
                 <li><strong>Cut, Copy And Paste From The Menus</strong> — All three ran on the DOM selection, and tapping a menu item takes focus out of the editor — which on iOS collapses the selection with it, so Cut and Copy silently did nothing and Paste had never worked from a menu at all.</li>
@@ -3665,12 +3665,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-subsection-title">v0.24.0</div>
               <ul className="about-list">
                 <li><strong>Fountain Files Survive Being Saved</strong> — A screenplay opened from a <code>.fountain</code> file could come back with <code>**</code> around its scene headings, and the action beneath them turned into dialogue. Emphasis, scene numbers and headings that don't start with INT./EXT. are now written the way the Fountain specification asks, so a script reopens as the script you saved. Asterisks and underscores you typed yourself stay literal instead of turning into italics.</li>
-                <li><strong>Two Blank Lines Before Scene Headings</strong> — The industry standard, and Final Draft's default. OpenDraft already wrote two into every Final Draft and Fade In export while showing one on screen, so exported scripts came out longer than the app said. Scripts written under the old spacing open unchanged and ask once whether to adopt it.</li>
+                <li><strong>Two Blank Lines Before Scene Headings</strong> — The industry standard, and Final Draft's default. WriTea Draft already wrote two into every Final Draft and Fade In export while showing one on screen, so exported scripts came out longer than the app said. Scripts written under the old spacing open unchanged and ask once whether to adopt it.</li>
                 <li><strong>Space Before Is A Real Setting</strong> — Format → Formatting Template sets the blank lines before any element, counted in lines. It now reaches page breaks, PDF and Word as well as the screen — before, changing it moved the gap on screen only, and the page count stayed where it was.</li>
                 <li><strong>General Keeps Your Indentation</strong> — Text you deliberately indent in a General element stays indented, in the editor, in PDF and through Fountain and Word round-trips. Pressing Enter on an indented line adds a line instead of asking you to pick an element type and quietly changing it.</li>
                 <li><strong>Clearer Element And Menu Names</strong> — <em>General</em> is now <em>General (Unformatted text)</em>, and the element pickers explain what the less obvious elements are for. The File menu now says <em>Script</em> rather than <em>Screenplay</em>, because five of the six formats you can choose are not screenplays: <em>New Script</em>, <em>Open Script…</em>, <em>Close Script</em>. And Save names where it is going — a script you opened from a file says <em>Save to File</em>, so it is clear ⌘S overwrites that file rather than filing a copy.</li>
                 <li><strong>The Title Page Stays A Title Page</strong> — Exported scripts could open with the title, credit, draft and copyright piled at the top of page 1 and the first scene heading directly underneath. A single blank line above the title was enough to cause it, and a fully filled title page quietly lost its draft, contact and copyright off the bottom of the page. A title page with no title at all was dropped from PDF and Word entirely. All of it is fixed, the title page no longer takes a page number of its own, and an imported <code>.fdx</code>, <code>.fountain</code>, <code>.fadein</code> or Word title page now arrives laid out properly instead of as a single near-blank page.</li>
-                <li><strong>Recovering Unsaved Work On iPad</strong> — Losing power or force-quitting could still lose the last few lines: the recovery copy was only written every ten seconds, and a sudden stop inside that window wrote nothing at all. It is now written a moment after you stop typing. Work that never touches the script itself counts too — beats, notes, tags, character profiles and page setup were not being protected at all. And after a crash OpenDraft reopens the script you had open, instead of starting on a blank page that made it look as though everything was gone.</li>
+                <li><strong>Recovering Unsaved Work On iPad</strong> — Losing power or force-quitting could still lose the last few lines: the recovery copy was only written every ten seconds, and a sudden stop inside that window wrote nothing at all. It is now written a moment after you stop typing. Work that never touches the script itself counts too — beats, notes, tags, character profiles and page setup were not being protected at all. And after a crash WriTea Draft reopens the script you had open, instead of starting on a blank page that made it look as though everything was gone.</li>
               </ul>
 
               <div className="about-subsection-title">v0.23.2</div>
@@ -3681,13 +3681,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
               <div className="about-subsection-title">v0.23.1</div>
               <ul className="about-list">
-                <li><strong>Taking A Photo No Longer Closes The App</strong> — On iPhone and iPad, choosing <em>Take Photo</em> when adding an image to a script, title page, character profile or beat board shut OpenDraft down on the spot. It now asks for the camera and returns your photo.</li>
-                <li><strong>Fade In Files Open From Files Again</strong> — <code>.fadein</code> and <code>.osf</code> files offer <em>Open in OpenDraft</em> on iPhone and iPad, as they were always meant to. App Store builds had been shipping without the declarations that make the two formats visible to the Files app.</li>
+                <li><strong>Taking A Photo No Longer Closes The App</strong> — On iPhone and iPad, choosing <em>Take Photo</em> when adding an image to a script, title page, character profile or beat board shut WriTea Draft down on the spot. It now asks for the camera and returns your photo.</li>
+                <li><strong>Fade In Files Open From Files Again</strong> — <code>.fadein</code> and <code>.osf</code> files offer <em>Open in WriTea Draft</em> on iPhone and iPad, as they were always meant to. App Store builds had been shipping without the declarations that make the two formats visible to the Files app.</li>
               </ul>
 
               <div className="about-subsection-title">v0.23.0</div>
               <ul className="about-list">
-                <li><strong>Automatic Backups On iPad, iPhone And Android</strong> — Timed backups are no longer desktop-only. Choose a folder in Files, iCloud Drive, Google Drive or Dropbox and OpenDraft writes the same timestamped copies it writes on the desktop — same filenames, same per-project folders, so a backup made on your Mac restores on your iPad. On phones and tablets a copy is also written whenever you leave the app, before the system can suspend it.</li>
+                <li><strong>Automatic Backups On iPad, iPhone And Android</strong> — Timed backups are no longer desktop-only. Choose a folder in Files, iCloud Drive, Google Drive or Dropbox and WriTea Draft writes the same timestamped copies it writes on the desktop — same filenames, same per-project folders, so a backup made on your Mac restores on your iPad. On phones and tablets a copy is also written whenever you leave the app, before the system can suspend it.</li>
                 <li><strong>More Than One Window</strong> — File → New Window opens a second window on iPad, on Android 12L and later, and on the desktop, so you can write in one script while reading another. Opening a screenplay that is already open in another window offers to switch to it rather than open a second copy that would save over the first.</li>
                 <li><strong>Open And Save Files Where They Live</strong> — File → Open File from Disk (Open from Files on mobile) edits a <code>.fdx</code>, <code>.fountain</code>, <code>.fadein</code>, <code>.osf</code>, <code>.odraft</code> or <code>.txt</code> in place: Save writes back to the original file, wherever it lives, instead of filing a copy in the library. Opening a foreign format explains what saving back to it can and cannot carry.</li>
                 <li><strong>Export To Fade In</strong> — File → Export → Fade In (.fadein) writes a real Fade In file: elements, bold/italic/underline/strikethrough, colour and highlighting, fonts, forced page breaks, scene numbers, synopses, dual dialogue and the title page all make the trip.</li>
@@ -3715,7 +3715,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
               <div className="about-subsection-title">v0.20.0</div>
               <ul className="about-list">
-                <li><strong>Automatic Backups</strong> — Choose a folder and OpenDraft saves timestamped copies of your script there while you write. Each project gets its own folder and the first copy is written the moment you turn backups on. Back up on demand with File → Backups → Back Up Now, and bring any snapshot back with Recover Backup. Backups include your notes, tags, beats, characters and images, and live outside the app's database — so they survive even if something happens to it. (Desktop only.)</li>
+                <li><strong>Automatic Backups</strong> — Choose a folder and WriTea Draft saves timestamped copies of your script there while you write. Each project gets its own folder and the first copy is written the moment you turn backups on. Back up on demand with File → Backups → Back Up Now, and bring any snapshot back with Recover Backup. Backups include your notes, tags, beats, characters and images, and live outside the app's database — so they survive even if something happens to it. (Desktop only.)</li>
                 <li><strong>Hard Line Breaks</strong> — Shift+Enter starts a new line inside a screenplay element without creating a new element. Breaks are preserved in PDF, Word, Final Draft and Fountain exports, and counted correctly when paginating.</li>
                 <li><strong>More Reliable Saving</strong> — Manual saves no longer drop per-script spelling and grammar settings, and exported <code>.odraft</code> files now carry all of a script's notes, tags, beats and character profiles.</li>
                 <li><strong>Your Script Survives a Trip to Settings</strong> — Opening Settings (or the project list) and coming back no longer leaves the editor blank. Whatever you had open returns exactly as you left it, including unsaved edits and files opened straight from disk.</li>
@@ -3770,7 +3770,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-subsection-title">v0.17.2</div>
               <ul className="about-list">
                 <li><strong>Save Reliability on Windows</strong> — Switched the local SQLite database to WAL journal mode and added a post-write byte-count verification step. Fixes silent save failures on large files (issue #39). Any remaining write corruption now produces a visible error instead of failing silently.</li>
-                <li><strong>OneDrive Detection</strong> — Warns you at startup if OpenDraft's data folder is inside a OneDrive-synced location (a known cause of silent SQLite corruption on Windows) and shows how to fix it.</li>
+                <li><strong>OneDrive Detection</strong> — Warns you at startup if WriTea Draft's data folder is inside a OneDrive-synced location (a known cause of silent SQLite corruption on Windows) and shows how to fix it.</li>
                 <li><strong>Diagnostics Dialog</strong> — New <em>Help → Diagnostics</em> with a Copy Report button. Captures storage backend, DB path, OS, and last storage error so it can be pasted into bug reports.</li>
               </ul>
 
@@ -3796,7 +3796,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 <li><strong>Character Relationships</strong> — Inline relationship editor, relationship map tab, and profile-completeness indicator on the Characters panel.</li>
                 <li><strong>Cloud Projects &amp; Per-User Files</strong> — Configurable cloud server URL, per-user file isolation, free 5-file quota, Local/Cloud project tabs, and mobile-friendly tap targets.</li>
                 <li><strong>Save As Replaces Save to Cloud</strong> — Shift+Cmd+S now offers an explicit Local/Cloud destination tab.</li>
-                <li><strong>Self-Hosted Docker Image</strong> — Single <code>ghcr.io/&hellip;/opendraft-combined</code> image bundling backend + collab server for one-image deployment targets.</li>
+                <li><strong>Self-Hosted Docker Image</strong> — Single <code>ghcr.io/&hellip;/writeadraft-combined</code> image bundling backend + collab server for one-image deployment targets.</li>
               </ul>
               </div>
             </div>
@@ -3899,7 +3899,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                     data folder appears to be inside a OneDrive-synced
                     location. OneDrive can corrupt SQLite WAL files mid-write,
                     causing silent save failures. To fix this, exclude
-                    OpenDraft's data folder from OneDrive backup, or move your
+                    WriTea Draft's data folder from OneDrive backup, or move your
                     Windows AppData folder out of OneDrive sync.
                   </div>
                 )}
@@ -4031,8 +4031,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
               That file is in another application&apos;s format, and it can only hold
               what that format defines. Saving to it rewrites the file from
-              OpenDraft&apos;s copy of the screenplay, so layout details it does not
-              describe may come back slightly differently — and anything OpenDraft
+              WriTea Draft&apos;s copy of the screenplay, so layout details it does not
+              describe may come back slightly differently — and anything WriTea Draft
               keeps alongside the script has nowhere to go:
             </p>
             <ul style={{ margin: '0 0 8px 18px', fontSize: 13, color: 'var(--fd-text)' }}>
@@ -4042,7 +4042,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             </ul>
             <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-muted, #888)' }}>
               To keep all of it, use <strong>Save As</strong> to store the screenplay in
-              OpenDraft&apos;s own library instead. The original file stays where it is,
+              WriTea Draft&apos;s own library instead. The original file stays where it is,
               untouched.
             </p>
           </div>
@@ -4101,7 +4101,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <div className="dialog-header">Import from Word — Best-Effort Formatting</div>
           <div className="dialog-body">
             <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
-              OpenDraft will detect screenplay element types (scene heading, action,
+              WriTea Draft will detect screenplay element types (scene heading, action,
               character, dialogue, parenthetical, transition, etc.) from the
               Word document&apos;s formatting.
             </p>

@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Format Compatibility - OpenDraft User Manual</title>
+  <title>Format Compatibility - WriTea Draft User Manual</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="../images/OpenDraft.png">
+  <link rel="icon" href="../images/WriTeaDraft.png">
 </head>
 <body>
 
 <header class="header">
   <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
   <a href="index.html" class="header-logo">
-    <img src="../images/OpenDraft.png" alt="OpenDraft">
-    <span>OpenDraft Manual</span>
+    <img src="../images/WriTeaDraft.png" alt="WriTea Draft">
+    <span>WriTea Draft Manual</span>
   </a>
   <div class="header-search">
     <span class="search-icon">&#128269;</span>
@@ -98,7 +98,7 @@
     <p class="page-subtitle">Exactly what happens to each screenplay element when you export, and what comes back if you import the file again.</p>
 
     <p>
-      OpenDraft has more element types than some screenplay formats do. Where a format has no
+      WriTea Draft has more element types than some screenplay formats do. Where a format has no
       equivalent for an element, the export has to choose the closest thing it does have &mdash;
       so a script can come back from a round trip with some elements changed. This page says
       precisely which, so nothing about a conversion is a surprise.
@@ -108,7 +108,7 @@
       <span class="callout-icon">&#8505;&#65039;</span>
       <div class="callout-content">
         <p>
-          <strong>Keeping everything:</strong> OpenDraft&rsquo;s own <code>.odraft</code> format is
+          <strong>Keeping everything:</strong> WriTea Draft&rsquo;s own <code>.odraft</code> format is
           the only lossless one &mdash; it carries every element, plus notes, tags, beats, character
           profiles and revision history. When you work in another application&rsquo;s format, use
           <strong>File &gt; Save to Library As</strong> to keep an <code>.odraft</code> copy alongside it.
@@ -119,7 +119,7 @@
     <h2 id="element-mapping">Element Mapping</h2>
 
     <p>
-      What each OpenDraft element becomes in an exported file. <strong>Fountain (back)</strong> is the
+      What each WriTea Draft element becomes in an exported file. <strong>Fountain (back)</strong> is the
       element you get if you import that Fountain file again &mdash; the column where the losses show up.
     </p>
 
@@ -139,7 +139,7 @@
     <table>
       <thead>
         <tr>
-          <th>OpenDraft element</th>
+          <th>WriTea Draft element</th>
           <th>Final Draft (.fdx)</th>
           <th>Fade In / OSF</th>
           <th>Word (.docx)</th>
@@ -165,7 +165,7 @@
         <tr><td>Note (not printed)</td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td><code>[[ &hellip; ]]</code></td><td>Note</td></tr>
         <tr><td>Scene synopsis</td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td><code>= &hellip;</code></td><td>Scene synopsis</td></tr>
         <tr><td>Dual dialogue</td><td>DualDialogue</td><td class="lossy">two speeches, one after the other</td><td class="lossy">flattened</td><td><code>^</code> on the second cue</td><td>Dual dialogue</td></tr>
-        <tr><td>AV script rows</td><td>General pairs, re-read by OpenDraft</td><td class="lossy">flattened</td><td class="lossy">flattened</td><td class="lossy">rows in order, labelled with notes</td><td class="lossy"><strong>Action</strong></td></tr>
+        <tr><td>AV script rows</td><td>General pairs, re-read by WriTea Draft</td><td class="lossy">flattened</td><td class="lossy">flattened</td><td class="lossy">rows in order, labelled with notes</td><td class="lossy"><strong>Action</strong></td></tr>
         <tr><td>Images</td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td>embedded</td><td class="lossy"><strong>not exported</strong> (Fountain is plain text)</td><td class="lossy">&mdash;</td></tr>
         <tr><td>Custom elements<br><span class="muted">(declared by a template)</span></td><td class="lossy">converted to the built-in element it is based on</td><td class="lossy">converted</td><td class="lossy">converted</td><td class="lossy">converted</td><td class="lossy"><strong>the base element</strong></td></tr>
       </tbody>
@@ -208,13 +208,13 @@
     <p>
       Fountain has no standard key for a WGA registration, but a Fountain title page is an open list of
       <code>key: value</code> pairs and a reader that does not recognise one ignores it &mdash; so
-      OpenDraft writes it and reads it back, and no other application is harmed by it.
+      WriTea Draft writes it and reads it back, and no other application is harmed by it.
     </p>
 
     <h2 id="fountain-general">Why General comes back as Action</h2>
 
     <p>
-      Fountain has no General element, and no syntax that could carry one. OpenDraft writes General
+      Fountain has no General element, and no syntax that could carry one. WriTea Draft writes General
       as <strong>forced Action</strong> (Fountain&rsquo;s <code>!</code> prefix), because Action is the
       one element whose leading spaces and tabs the Fountain spec says to keep &mdash; so an indented
       General block keeps its shape. But a reader has no way to tell that Action apart from any other,
@@ -227,7 +227,7 @@
 
     <p>
       The same is true of <strong>Shot</strong>, <strong>New Act</strong>, <strong>End of Act</strong>,
-      <strong>Show/Episode</strong> and <strong>Cast List</strong>. OpenDraft could invent a private
+      <strong>Show/Episode</strong> and <strong>Cast List</strong>. WriTea Draft could invent a private
       extension to preserve them, but that would produce files other Fountain applications read wrongly,
       which is the opposite of what the format is for. <strong>Don&rsquo;t rely on Fountain to preserve
       these five elements when moving a script between applications</strong> &mdash; use
@@ -248,7 +248,7 @@
 
     <h2 id="beyond-elements">What Else Does Not Travel</h2>
 
-    <p>These belong to OpenDraft rather than to any screenplay element, so only <code>.odraft</code> carries them:</p>
+    <p>These belong to WriTea Draft rather than to any screenplay element, so only <code>.odraft</code> carries them:</p>
 
     <ul>
       <li><strong>Script notes, tags and entities, beats, and character profiles</strong> &mdash; no
@@ -257,7 +257,7 @@
         but not tags. A note you have set to <em>print</em> is different &mdash; it is content rather
         than an annotation, and it travels: see
         <a href="script-notes.html#footnote-formats">What Each Format Supports</a>.</li>
-      <li><strong>Version history</strong> &mdash; kept in your OpenDraft library, not in an exported
+      <li><strong>Version history</strong> &mdash; kept in your WriTea Draft library, not in an exported
         file. <strong>Revision marks</strong> travel to PDF (beside every revised line), to
         <code>.fdx</code> and back, to Word and Fade In (beside each revised paragraph) and to
         Fountain (as a note on each revised element); see
@@ -265,7 +265,7 @@
     </ul>
 
     <p>
-      OpenDraft tells you this before you start: opening another application&rsquo;s format shows what
+      WriTea Draft tells you this before you start: opening another application&rsquo;s format shows what
       saving back to it can and cannot carry.
     </p>
 
@@ -297,7 +297,7 @@
 
   </div>
   <footer class="footer">
-    OpenDraft User Manual &middot; v2.5.3 &middot; Made by Proteus Technologies
+    WriTea Draft User Manual &middot; v2.5.3 &middot; Made by Proteus Technologies
   </footer>
 </main>
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================================
-# OpenDraft Setup Script
-# Sets up and launches OpenDraft in your browser.
+# WriTea Draft Setup Script
+# Sets up and launches WriTea Draft in your browser.
 # Usage: ./setup.sh
 # ============================================================================
 
@@ -20,7 +20,7 @@ print_banner() {
     echo ""
     echo -e "${BLUE}${BOLD}"
     echo "  ╔═══════════════════════════════════════╗"
-    echo "  ║         OpenDraft Setup                ║"
+    echo "  ║         WriTea Draft Setup                ║"
     echo "  ║   Professional Screenwriting App       ║"
     echo "  ╚═══════════════════════════════════════╝"
     echo -e "${NC}"
@@ -164,7 +164,7 @@ open_browser() {
 start_server() {
     echo ""
     echo -e "${GREEN}${BOLD}════════════════════════════════════════════${NC}"
-    echo -e "${GREEN}${BOLD}  OpenDraft is ready!${NC}"
+    echo -e "${GREEN}${BOLD}  WriTea Draft is ready!${NC}"
     echo -e "${GREEN}${BOLD}════════════════════════════════════════════${NC}"
     echo ""
     echo -e "  Open your browser to: ${BOLD}http://localhost:8008${NC}"

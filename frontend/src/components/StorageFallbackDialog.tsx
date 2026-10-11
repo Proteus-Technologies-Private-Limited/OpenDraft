@@ -18,8 +18,8 @@ const StorageFallbackDialog: React.FC = () => {
     ? 'Switched to file-based storage'
     : 'Local database unavailable';
   const explanation = isFile
-    ? 'OpenDraft could not open its local database, so your projects are now being saved as individual files in your app data folder. You can keep working — saving and loading still work normally, but version history is disabled until the database is reachable again.'
-    : 'OpenDraft could not open its local database and the file-based fallback also failed. Your changes will be saved in the browser only and may be lost if storage is cleared.';
+    ? 'WriTea Draft could not open its local database, so your projects are now being saved as individual files in your app data folder. You can keep working — saving and loading still work normally, but version history is disabled until the database is reachable again.'
+    : 'WriTea Draft could not open its local database and the file-based fallback also failed. Your changes will be saved in the browser only and may be lost if storage is cleared.';
 
   return (
     <div className="dialog-overlay" onClick={acknowledge}>

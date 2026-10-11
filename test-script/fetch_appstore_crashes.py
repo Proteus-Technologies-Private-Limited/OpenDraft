@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pull crash diagnostics for OpenDraft from App Store Connect.
+"""Pull crash diagnostics for WriTea Draft from App Store Connect.
 
 App Store crash reports reach the API as "diagnostic signatures": Apple groups
 the individual reports it receives into signatures (one per distinct crash
@@ -13,7 +13,7 @@ Environment:
                     Users and Access > Integrations > App Store Connect API
     ASC_KEY_ID      (default 2XRNF3F3RQ) Key ID of the .p8
     ASC_KEY_PATH    (default ~/.private_keys/AuthKey_<KEY_ID>.p8)
-    ASC_BUNDLE_ID   (default com.proteus.opendraft)
+    ASC_BUNDLE_ID   (default net.japanada.writea-draft)
     ASC_BUILD_LIMIT (default 5) how many recent builds to inspect
 
 Writes raw JSON logs to test-script/output/crashes/ and prints a summary.
@@ -99,7 +99,7 @@ def main() -> int:
 
     key_id = os.environ.get("ASC_KEY_ID", "2XRNF3F3RQ")
     key_path = Path(os.environ.get("ASC_KEY_PATH", Path.home() / ".private_keys" / f"AuthKey_{key_id}.p8"))
-    bundle_id = os.environ.get("ASC_BUNDLE_ID", "com.proteus.opendraft")
+    bundle_id = os.environ.get("ASC_BUNDLE_ID", "net.japanada.writea-draft")
     build_limit = int(os.environ.get("ASC_BUILD_LIMIT", "5"))
 
     api = ASC(make_token(issuer_id, key_id, key_path))

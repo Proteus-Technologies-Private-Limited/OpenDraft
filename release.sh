@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# ── OpenDraft Release Script ─────────────────────────────────────────────────
+# ── WriTea Draft Release Script ─────────────────────────────────────────────────
 # Release process (no downtime for download links):
 #   1. Creates release branch with version bump (code + download links)
 #   2. Tags the branch and pushes tag → triggers CI builds
@@ -45,7 +45,7 @@ TAG="v${NEW_VERSION}"
 BRANCH="release/v${NEW_VERSION}"
 
 echo ""
-echo "=== OpenDraft Release ${TAG} ==="
+echo "=== WriTea Draft Release ${TAG} ==="
 [ -n "$SKIP_PLATFORMS" ] && echo "    Leaving out: ${SKIP_PLATFORMS}"
 echo ""
 
@@ -95,7 +95,7 @@ echo "=== Step 1/4: Updating version numbers ==="
 #
 # Any version, not just OLD_VERSION: a platform left out of an earlier release
 # is still advertised at the version it last shipped.
-ADVERTISED=$(grep -ohE "OpenDraft[_-][0-9]+\.[0-9]+\.[0-9]+[_-][A-Za-z0-9_.-]*\.(dmg|exe|msi|deb|rpm|AppImage|apk)" \
+ADVERTISED=$(grep -ohE "WriTea Draft[_-][0-9]+\.[0-9]+\.[0-9]+[_-][A-Za-z0-9_.-]*\.(dmg|exe|msi|deb|rpm|AppImage|apk)" \
   "$PROJECT_ROOT/README.md" "$PROJECT_ROOT/landing/index.html" 2>/dev/null \
   | sort -u || true)
 if [ -z "$ADVERTISED" ]; then
@@ -148,20 +148,20 @@ bump_link() {  # <platform> <sed pattern for the old name> <new name>
   done
 }
 V='[0-9]*\.[0-9]*\.[0-9]*'
-bump_link macos   "OpenDraft_${V}_aarch64\.dmg"        "OpenDraft_${NEW_VERSION}_aarch64.dmg"
-bump_link macos   "OpenDraft_${V}_x64\.dmg"            "OpenDraft_${NEW_VERSION}_x64.dmg"
-bump_link macos   "OpenDraft_${V}_x86_64-legacy\.dmg"  "OpenDraft_${NEW_VERSION}_x86_64-legacy.dmg"
-bump_link windows "OpenDraft_${V}_x64-setup\.exe"      "OpenDraft_${NEW_VERSION}_x64-setup.exe"
-bump_link windows "OpenDraft_${V}_x64_en-US\.msi"      "OpenDraft_${NEW_VERSION}_x64_en-US.msi"
-bump_link linux   "OpenDraft_${V}_amd64\.deb"          "OpenDraft_${NEW_VERSION}_amd64.deb"
-bump_link linux   "OpenDraft_${V}_amd64\.AppImage"     "OpenDraft_${NEW_VERSION}_amd64.AppImage"
-bump_link linux   "OpenDraft-${V}-1\.x86_64\.rpm"     "OpenDraft-${NEW_VERSION}-1.x86_64.rpm"
-bump_link android "OpenDraft_${V}_android\.apk"        "OpenDraft_${NEW_VERSION}_android.apk"
+bump_link macos   "WriTeaDraft_${V}_aarch64\.dmg"        "WriTeaDraft_${NEW_VERSION}_aarch64.dmg"
+bump_link macos   "WriTeaDraft_${V}_x64\.dmg"            "WriTeaDraft_${NEW_VERSION}_x64.dmg"
+bump_link macos   "WriTeaDraft_${V}_x86_64-legacy\.dmg"  "WriTeaDraft_${NEW_VERSION}_x86_64-legacy.dmg"
+bump_link windows "WriTeaDraft_${V}_x64-setup\.exe"      "WriTeaDraft_${NEW_VERSION}_x64-setup.exe"
+bump_link windows "WriTeaDraft_${V}_x64_en-US\.msi"      "WriTeaDraft_${NEW_VERSION}_x64_en-US.msi"
+bump_link linux   "WriTeaDraft_${V}_amd64\.deb"          "WriTeaDraft_${NEW_VERSION}_amd64.deb"
+bump_link linux   "WriTeaDraft_${V}_amd64\.AppImage"     "WriTeaDraft_${NEW_VERSION}_amd64.AppImage"
+bump_link linux   "WriTeaDraft-${V}-1\.x86_64\.rpm"     "WriTeaDraft-${NEW_VERSION}-1.x86_64.rpm"
+bump_link android "WriTeaDraft_${V}_android\.apk"        "WriTeaDraft_${NEW_VERSION}_android.apk"
 echo "  ✓ README.md, landing/index.html (download links)"
 
 # Advertised files this release does not replace. They are copied into it in
 # step 3.5 like the rest, and are the ones left there after the PR merges.
-STILL_ADVERTISED=$(grep -ohE "OpenDraft[_-][0-9]+\.[0-9]+\.[0-9]+[_-][A-Za-z0-9_.-]*\.(dmg|exe|msi|deb|rpm|AppImage|apk)" \
+STILL_ADVERTISED=$(grep -ohE "WriTea Draft[_-][0-9]+\.[0-9]+\.[0-9]+[_-][A-Za-z0-9_.-]*\.(dmg|exe|msi|deb|rpm|AppImage|apk)" \
   "$PROJECT_ROOT/README.md" "$PROJECT_ROOT/landing/index.html" 2>/dev/null \
   | grep -v "[_-]${NEW_VERSION}[_-]" | sort -u || true)
 if [ -n "$STILL_ADVERTISED" ]; then
@@ -212,13 +212,13 @@ else
   echo "  ! venv missing — user-manual/manifest.json NOT regenerated"
 fi
 
-# Update Cargo.lock — bump ONLY the opendraft package version. Do NOT run
+# Update Cargo.lock — bump ONLY the writeadraft package version. Do NOT run
 # `cargo generate-lockfile`/`cargo update`: that re-resolves every dependency to
 # the latest version and pulls in incompatible Tauri releases (wry/tauri-runtime)
 # that break the build. The pinned dependency versions must stay as-is.
 echo ""
-echo "  Updating Cargo.lock (opendraft version only)..."
-perl -0pi -e "s/(name = \"opendraft\"\nversion = \")${OLD_VERSION}(\")/\${1}${NEW_VERSION}\${2}/" \
+echo "  Updating Cargo.lock (writeadraft version only)..."
+perl -0pi -e "s/(name = \"writeadraft\"\nversion = \")${OLD_VERSION}(\")/\${1}${NEW_VERSION}\${2}/" \
   "$PROJECT_ROOT/src-tauri/Cargo.lock"
 echo "  ✓ src-tauri/Cargo.lock"
 
@@ -265,12 +265,12 @@ done
 # ── Step 3.5: Upload old-version binaries for backward compatibility ───────
 # Download links on main still reference the OLD version filenames.
 # Until the PR merges, we need the old binaries available in the new release
-# so that /releases/latest/download/OpenDraft_OLD_... doesn't 404.
+# so that /releases/latest/download/WriTeaDraft_OLD_... doesn't 404.
 echo "  Uploading old-version binaries for backward-compatible downloads..."
 TMPDIR=$(mktemp -d)
 
 # Every advertised filename, whatever its shape — the rpm's
-# OpenDraft-VERSION-1.x86_64.rpm needed a special case when this was built from
+# WriTeaDraft-VERSION-1.x86_64.rpm needed a special case when this was built from
 # a list of extensions, and no longer does.
 while IFS= read -r OLD_NAME; do
   [ -z "$OLD_NAME" ] && continue

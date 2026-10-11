@@ -221,7 +221,7 @@ const TableReadPanel: React.FC<{ editor: Editor }> = ({ editor }) => {
       {remoteProvider && (
         <div className="table-read-notice table-read-notice-warn" role="note">
           AI voices send your script&rsquo;s text to {remoteProvider}. This may breach your data security
-          or confidentiality obligations; OpenDraft does not guarantee confidentiality.
+          or confidentiality obligations; WriTea Draft does not guarantee confidentiality.
         </div>
       )}
       {engineKind === 'ai' && voiceSettings.aiProvider === 'kokoro' && kokoro.fraction === null && kokoro.busy > 0 && status === 'playing' && !word && (

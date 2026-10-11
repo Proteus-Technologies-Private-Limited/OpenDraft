@@ -5,8 +5,8 @@
 
 set -e
 
-INPUT="images/OpenDraft-intro.mp4"
-OUTPUT="images/opendraft-demo.gif"
+INPUT="images/WriTeaDraft-intro.mp4"
+OUTPUT="images/writeadraft-demo.gif"
 
 if [ ! -f "$INPUT" ]; then
   echo "Error: $INPUT not found. Run from project root."

@@ -45,7 +45,7 @@ async function parseError(res: Response, fallbackLabel: string): Promise<Error> 
 async function backendAuthRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const base = getApiBase();
   if (!base) {
-    throw new Error('OpenDraft Cloud is not configured for this app. Open Settings → System Settings to set the OpenDraft server URL.');
+    throw new Error('WriTea Draft Cloud is not configured for this app. Open Settings → System Settings to set the WriTea Draft server URL.');
   }
   const url = `${base}/auth${path}`;
   let res: Response;
@@ -62,7 +62,7 @@ async function backendAuthRequest<T>(path: string, options?: RequestInit): Promi
       },
     });
   } catch (err) {
-    throw wrapNetworkError(err, 'the OpenDraft backend');
+    throw wrapNetworkError(err, 'the WriTea Draft backend');
   }
   if (!res.ok) throw await parseError(res, 'Auth');
   return res.json();
@@ -71,7 +71,7 @@ async function backendAuthRequest<T>(path: string, options?: RequestInit): Promi
 async function backendAuthRequestRaw(path: string, options?: RequestInit): Promise<Response> {
   const base = getApiBase();
   if (!base) {
-    throw new Error('OpenDraft Cloud is not configured for this app. Open Settings → System Settings to set the OpenDraft server URL.');
+    throw new Error('WriTea Draft Cloud is not configured for this app. Open Settings → System Settings to set the WriTea Draft server URL.');
   }
   const url = `${base}/auth${path}`;
   try {
@@ -84,7 +84,7 @@ async function backendAuthRequestRaw(path: string, options?: RequestInit): Promi
       },
     });
   } catch (err) {
-    throw wrapNetworkError(err, 'the OpenDraft backend');
+    throw wrapNetworkError(err, 'the WriTea Draft backend');
   }
 }
 
@@ -92,7 +92,7 @@ async function backendAuthRequestRaw(path: string, options?: RequestInit): Promi
 async function backendAuthedRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const base = getApiBase();
   if (!base) {
-    throw new Error('OpenDraft Cloud is not configured for this app. Open Settings → System Settings to set the OpenDraft server URL.');
+    throw new Error('WriTea Draft Cloud is not configured for this app. Open Settings → System Settings to set the WriTea Draft server URL.');
   }
   const url = `${base}/auth${path}`;
   let res: Response;
@@ -106,7 +106,7 @@ async function backendAuthedRequest<T>(path: string, options?: RequestInit): Pro
       },
     });
   } catch (err) {
-    throw wrapNetworkError(err, 'the OpenDraft backend');
+    throw wrapNetworkError(err, 'the WriTea Draft backend');
   }
   if (!res.ok) throw await parseError(res, 'Auth');
   return res.json();

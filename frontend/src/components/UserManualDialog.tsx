@@ -29,9 +29,9 @@ interface UserManualDialogProps {
 }
 
 /** Remembers the full-screen toggle between openings. */
-const MANUAL_FULLSCREEN_KEY = 'opendraft:manualFullScreen';
+const MANUAL_FULLSCREEN_KEY = 'writeadraft:manualFullScreen';
 /** Remembers whether the contents list is showing. */
-const MANUAL_SIDEBAR_KEY = 'opendraft:manualSidebar';
+const MANUAL_SIDEBAR_KEY = 'writeadraft:manualSidebar';
 /** Below this the contents list stacks above the page rather than beside it —
  *  matches the `max-width: 700px` block in screenplay.css. */
 const NARROW_PX = 700;
@@ -410,7 +410,7 @@ const UserManualDialog: React.FC<UserManualDialogProps> = ({ onClose }) => {
             <FaBook className="manual-empty-icon" />
             <h3>The manual is not on this device yet</h3>
             <p>
-              OpenDraft does not ship the manual inside the app. Download it once — about
+              WriTea Draft does not ship the manual inside the app. Download it once — about
               8&nbsp;MB of pages and screenshots — and it stays available with no connection.
             </p>
             {busy && progress && (

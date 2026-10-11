@@ -89,7 +89,7 @@ async function readNativeHtml(): Promise<string | null> {
 export function pasteFailureMessage(): string {
   return getOS() === 'ios'
     ? 'Could not read the clipboard. iOS asks permission for every paste — tap “Paste” when it appears, or press and hold in the script and use Paste there.'
-    : 'Could not read the clipboard. Allow clipboard access for OpenDraft and try again.';
+    : 'Could not read the clipboard. Allow clipboard access for WriTea Draft and try again.';
 }
 
 /**

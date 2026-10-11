@@ -36,7 +36,7 @@ export type LinkedFileFormat = 'odraft' | 'fountain' | 'fdx' | 'osf';
 const LINKABLE = new Set<string>(['odraft', 'fountain', 'fdx', 'osf']);
 
 export const LINKED_FORMAT_LABELS: Record<LinkedFileFormat, string> = {
-  odraft: 'OpenDraft (.odraft) — keeps everything',
+  odraft: 'WriTea Draft (.odraft) — keeps everything',
   fountain: 'Fountain (.fountain)',
   fdx: 'Final Draft (.fdx)',
   osf: 'Open Screenplay Format (.osf)',
@@ -175,7 +175,7 @@ export function serializeContentForFormat(
         content,
       );
     default:
-      throw new Error(`OpenDraft cannot write .${format} files.`);
+      throw new Error(`WriTea Draft cannot write .${format} files.`);
   }
 }
 

@@ -26,7 +26,7 @@ function describeStyle(font: CustomFont): string {
 /**
  * Where a writer adds their own fonts, and sees what this machine already has.
  *
- * The list here is only the fonts installed *into OpenDraft* — the ones whose
+ * The list here is only the fonts installed *into WriTea Draft* — the ones whose
  * files we hold, and can therefore embed in an exported PDF. Faces belonging to
  * the operating system are counted, not listed: there can be hundreds, and they
  * are already in the picker.
@@ -209,7 +209,7 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
         <div className="tp-editor-body" style={{ display: 'block', padding: 20 }}>
 
           <p className="fonts-dialog-intro">
-            OpenDraft comes with a full library of screenplay, serif, sans-serif, monospaced and
+            WriTea Draft comes with a full library of screenplay, serif, sans-serif, monospaced and
             display fonts. Add your own TrueType (<code>.ttf</code>) or OpenType (<code>.otf</code>)
             files here to use them anywhere in a script, and in exported PDFs.
           </p>
@@ -297,7 +297,7 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
           {!canQueryLocalFonts() && (
             <div className="fonts-named-row">
               <p className="fonts-dialog-empty">
-                This platform will not list its fonts, so OpenDraft looks for the ones it knows
+                This platform will not list its fonts, so WriTea Draft looks for the ones it knows
                 about. If you have another font installed — through a font app or a profile —
                 type its name and it will be added if this device can render it.
               </p>
@@ -321,7 +321,7 @@ const FontsDialog: React.FC<Props> = ({ onClose }) => {
           <p className="fonts-dialog-note">
             A script records the name of the font it was written in, so it keeps that choice
             when you open it on another device. Where the font isn&apos;t installed there,
-            OpenDraft substitutes the closest match of the same kind — a typewriter face for a
+            WriTea Draft substitutes the closest match of the same kind — a typewriter face for a
             typewriter face, a serif for a serif — and the original name is restored as soon as
             the script is opened somewhere the font exists.
           </p>

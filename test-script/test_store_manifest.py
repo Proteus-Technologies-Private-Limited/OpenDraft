@@ -130,7 +130,7 @@ def test_a_bad_channel_target_is_refused():
 
 if __name__ == "__main__":
     print("Running store manifest tests…")
-    _tmp = Path(tempfile.mkdtemp(prefix="opendraft-manifest-"))
+    _tmp = Path(tempfile.mkdtemp(prefix="writeadraft-manifest-"))
     try:
         test_picks_the_record_for_the_platform_asked_about()
         test_the_other_platforms_record_is_not_an_answer()

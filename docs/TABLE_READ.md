@@ -48,7 +48,7 @@ one-at-a-time engine (Kokoro) is never queued behind the prefetch.
 party. `ConfidentialityWarning` (VoiceProviderSettings.tsx) is shown in the
 setup dialog and Settings, and the panel shows a warning strip while a remote
 provider is active. Wording: may breach data security or confidentiality
-obligations; OpenDraft does not guarantee confidentiality.
+obligations; WriTea Draft does not guarantee confidentiality.
 
 **Background tabs.** Chrome will not load a new source into an `<audio>`
 element in a hidden tab, so a read carried on in the background used to stop
@@ -81,8 +81,8 @@ never starts into a visible error instead of a silent hang.
   because a system voice is whatever the reading machine has installed (falls back
   to automatic when missing) while an AI voice (`<provider>:<id>`) travels intact.
 - Provider, keys, models, narrator voice and read options are per device, in
-  localStorage `opendraft:tableRead` (`voiceSettingsStore.ts`). API keys go only to
-  the provider, straight from the browser — never through OpenDraft's servers.
+  localStorage `writeadraft:tableRead` (`voiceSettingsStore.ts`). API keys go only to
+  the provider, straight from the browser — never through WriTea Draft's servers.
 
 ## Testing
 

@@ -277,9 +277,9 @@ jobs:
         with:
           tauriScript: npx --prefix frontend tauri
           tagName: ${{ env.RELEASE_TAG }}
-          releaseName: 'OpenDraft ${{ env.RELEASE_TAG }}'
+          releaseName: 'WriTea Draft ${{ env.RELEASE_TAG }}'
           releaseBody: |
-            ## OpenDraft ${{ env.RELEASE_TAG }}
+            ## WriTea Draft ${{ env.RELEASE_TAG }}
 
             A free, open-source screenwriting application. Professional screenplay editing with real-time collaboration — no subscription required.
 
@@ -287,23 +287,23 @@ jobs:
 
             | Platform | File |
             |----------|------|
-            | **macOS** (Apple Silicon) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_aarch64.dmg` |
-            | **Windows** (64-bit) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_x64-setup.exe` or `.msi` |
-            | **Linux** (Debian/Ubuntu) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_amd64.deb` |
-            | **Linux** (AppImage) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_amd64.AppImage` |
-            | **Android** (APK) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_android.apk` |
-            | **iOS** (IPA) | `OpenDraft_${{ steps.get_version.outputs.VERSION }}_ios.ipa` |
+            | **macOS** (Apple Silicon) | `WriTeaDraft_${{ steps.get_version.outputs.VERSION }}_aarch64.dmg` |
+            | **Windows** (64-bit) | `WriTeaDraft_${{ steps.get_version.outputs.VERSION }}_x64-setup.exe` or `.msi` |
+            | **Linux** (Debian/Ubuntu) | `WriTeaDraft_${{ steps.get_version.outputs.VERSION }}_amd64.deb` |
+            | **Linux** (AppImage) | `WriTeaDraft_${{ steps.get_version.outputs.VERSION }}_amd64.AppImage` |
+            | **Android** (APK) | `WriTeaDraft_${{ steps.get_version.outputs.VERSION }}_android.apk` |
+            | **iOS** (IPA) | `WriTeaDraft_${{ steps.get_version.outputs.VERSION }}_ios.ipa` |
 
             ### Installation
 
-            **macOS:** Open the `.dmg`, drag OpenDraft to Applications, double-click to launch.
+            **macOS:** Open the `.dmg`, drag WriTea Draft to Applications, double-click to launch.
 
             > First launch: Right-click the app, select Open, click Open in the dialog. You only need to do this once.
 
             **Windows:** Run the `.msi` or `.exe` installer, follow the prompts.
-            **Linux:** Install the `.deb` with `sudo dpkg -i OpenDraft_*.deb` or run the `.AppImage` directly.
+            **Linux:** Install the `.deb` with `sudo dpkg -i WriTeaDraft_*.deb` or run the `.AppImage` directly.
             **Android:** Download the `.apk` file on your device, enable "Install from unknown sources" if prompted, and install.
-            **iOS:** Available on the App Store (search "OpenDraft"), or sideload the `.ipa` via Finder/iTunes.
+            **iOS:** Available on the App Store (search "WriTea Draft"), or sideload the `.ipa` via Finder/iTunes.
 
             > The desktop app is fully standalone — no Python, Node.js, or internet connection required after installation.
 
@@ -313,7 +313,7 @@ jobs:
 
             ```
             git clone https://github.com/Proteus-Technologies-Private-Limited/OpenDraft.git
-            cd OpenDraft
+            cd WriTea Draft
             ./setup.sh
             ```
 
@@ -331,7 +331,7 @@ jobs:
         with:
           tauriScript: npx --prefix frontend tauri
           tagName: ${{ env.RELEASE_TAG }}
-          releaseName: 'OpenDraft ${{ env.RELEASE_TAG }}'
+          releaseName: 'WriTea Draft ${{ env.RELEASE_TAG }}'
           releaseBody: ''
           releaseDraft: true
           prerelease: false
@@ -387,7 +387,7 @@ jobs:
             exit 1
           fi
           mkdir -p mac-artifacts
-          cp "$DMG" "mac-artifacts/OpenDraft_${VERSION}_aarch64.dmg"
+          cp "$DMG" "mac-artifacts/WriTeaDraft_${VERSION}_aarch64.dmg"
           ls -la mac-artifacts/
 
       - name: Upload macOS DMG to release
@@ -481,13 +481,13 @@ jobs:
       - name: Copy custom Android sources
         run: |
           # Replace the generated MainActivity with our custom one (adds onNewIntent + onActivityResult)
-          MAIN_ACT="src-tauri/gen/android/app/src/main/java/com/proteus/opendraft/MainActivity.kt"
+          MAIN_ACT="src-tauri/gen/android/app/src/main/java/com/proteus/writeadraft/MainActivity.kt"
           cp src-tauri/android-src/MainActivity.kt "$MAIN_ACT"
           echo "Custom MainActivity.kt copied"
 
           # Extra activities, one per additional window (issue #63). Started by
           # name from Rust, so they must also be declared in the manifest below.
-          JAVA_DIR="src-tauri/gen/android/app/src/main/java/com/proteus/opendraft"
+          JAVA_DIR="src-tauri/gen/android/app/src/main/java/com/proteus/writeadraft"
           cp src-tauri/android-src/WindowActivities.kt "$JAVA_DIR/WindowActivities.kt"
           echo "WindowActivities.kt copied"
 
@@ -673,10 +673,10 @@ jobs:
             echo "No release keystore — generating temporary keystore for signing"
             keytool -genkey -v \
               -keystore $RUNNER_TEMP/release.keystore \
-              -alias opendraft \
+              -alias writeadraft \
               -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=OpenDraft, O=OpenDraft" \
-              -storepass opendraft -keypass opendraft
+              -dname "CN=WriTea Draft, O=WriTea Draft" \
+              -storepass writeadraft -keypass writeadraft
           fi
           echo "KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> $GITHUB_ENV
 
@@ -687,9 +687,9 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           # Use secrets if available, otherwise use temp keystore defaults
-          KS_PASSWORD="${ANDROID_KEYSTORE_PASSWORD:-opendraft}"
-          KS_ALIAS="${ANDROID_KEY_ALIAS:-opendraft}"
-          KS_KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-opendraft}"
+          KS_PASSWORD="${ANDROID_KEYSTORE_PASSWORD:-writeadraft}"
+          KS_ALIAS="${ANDROID_KEY_ALIAS:-writeadraft}"
+          KS_KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-writeadraft}"
 
           echo "KEYSTORE_PASSWORD=$KS_PASSWORD" >> $GITHUB_ENV
           echo "KEY_ALIAS=$KS_ALIAS" >> $GITHUB_ENV
@@ -755,7 +755,7 @@ jobs:
 
           MANIFEST=$("$AAPT2" dump xmltree --file AndroidManifest.xml "$APK")
           for n in 1 2 3; do
-            if ! echo "$MANIFEST" | grep -q "com.proteus.opendraft.WindowActivity$n"; then
+            if ! echo "$MANIFEST" | grep -q "net.japanada.writea-draft.WindowActivity$n"; then
               echo "::error::WindowActivity$n is not in the built APK — File > New Window would fail for users. See the manifest patch step."
               exit 1
             fi
@@ -884,8 +884,8 @@ jobs:
             APK=$(find src-tauri/gen/android -name "*.apk" -path "*/release/*" | head -1)
           fi
           if [ -n "$APK" ]; then
-            cp "$APK" "android-artifacts/OpenDraft_${VERSION}_android.apk"
-            echo "APK: $APK -> OpenDraft_${VERSION}_android.apk"
+            cp "$APK" "android-artifacts/WriTeaDraft_${VERSION}_android.apk"
+            echo "APK: $APK -> WriTeaDraft_${VERSION}_android.apk"
           fi
 
           # Find and rename AAB (must be from outputs/bundle, not intermediates)
@@ -894,8 +894,8 @@ jobs:
             AAB=$(find src-tauri/gen/android -name "*.aab" -path "*Release*" ! -path "*/intermediates/*" | head -1)
           fi
           if [ -n "$AAB" ]; then
-            cp "$AAB" "android-artifacts/OpenDraft_${VERSION}_android.aab"
-            echo "AAB: $AAB -> OpenDraft_${VERSION}_android.aab"
+            cp "$AAB" "android-artifacts/WriTeaDraft_${VERSION}_android.aab"
+            echo "AAB: $AAB -> WriTeaDraft_${VERSION}_android.aab"
           fi
 
           ls -la android-artifacts/
@@ -1025,7 +1025,7 @@ jobs:
             exit 1
           fi
           mkdir -p intel-artifacts
-          cp "$DMG" "intel-artifacts/OpenDraft_${VERSION}_x64.dmg"
+          cp "$DMG" "intel-artifacts/WriTeaDraft_${VERSION}_x64.dmg"
           ls -la intel-artifacts/
 
       - name: Upload Intel DMG to release
@@ -1168,7 +1168,7 @@ jobs:
             exit 1
           fi
           mkdir -p legacy-artifacts
-          cp "$DMG" "legacy-artifacts/OpenDraft_${VERSION}_x86_64-legacy.dmg"
+          cp "$DMG" "legacy-artifacts/WriTeaDraft_${VERSION}_x86_64-legacy.dmg"
           ls -la legacy-artifacts/
 
       - name: Upload legacy DMG to release
@@ -1254,7 +1254,7 @@ jobs:
             exit 1
           fi
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$IOS_PROVISION_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/opendraft.mobileprovision
+          echo "$IOS_PROVISION_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/writeadraft.mobileprovision
           echo "Provisioning profile installed"
 
       - name: Patch tauri.conf.json for iOS CI
@@ -1276,7 +1276,7 @@ jobs:
           cfg['app']['windows'] = [{
               'label': 'main',
               'url': 'index.html',
-              'title': 'OpenDraft',
+              'title': 'WriTea Draft',
               'width': 1280,
               'height': 800,
               'resizable': True,
@@ -1297,13 +1297,13 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           # Extract provisioning profile UUID
-          PROFILE_PATH=~/Library/MobileDevice/Provisioning\ Profiles/opendraft.mobileprovision
+          PROFILE_PATH=~/Library/MobileDevice/Provisioning\ Profiles/writeadraft.mobileprovision
           export PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
           export PROFILE_NAME=$(security cms -D -i "$PROFILE_PATH" | plutil -extract Name raw -)
           echo "Profile UUID: $PROFILE_UUID"
           echo "Profile Name: $PROFILE_NAME"
 
-          export PBXPROJ="src-tauri/gen/apple/opendraft.xcodeproj/project.pbxproj"
+          export PBXPROJ="src-tauri/gen/apple/writeadraft.xcodeproj/project.pbxproj"
 
           # Patch pbxproj with Python for reliable multiline edits
           python3 - "$PBXPROJ" << 'PYEOF'
@@ -1355,7 +1355,7 @@ jobs:
               <string>manual</string>
               <key>provisioningProfiles</key>
               <dict>
-                  <key>com.proteus.opendraft</key>
+                  <key>net.japanada.writea-draft</key>
                   <string>{name}</string>
               </dict>
           </dict>
@@ -1387,7 +1387,7 @@ jobs:
             echo "::error::No .xcarchive found"
             exit 1
           fi
-          APP_PATH="$ARCHIVE/Products/Applications/OpenDraft.app"
+          APP_PATH="$ARCHIVE/Products/Applications/WriTea Draft.app"
           if [ ! -d "$APP_PATH" ]; then
             echo "::error::No .app found in xcarchive"
             exit 1
@@ -1401,7 +1401,7 @@ jobs:
           import plistlib, glob, os
 
           archive = glob.glob("src-tauri/gen/apple/build/*.xcarchive")[0]
-          plist_path = os.path.join(archive, "Products/Applications/OpenDraft.app/Info.plist")
+          plist_path = os.path.join(archive, "Products/Applications/WriTea Draft.app/Info.plist")
 
           with open(plist_path, "rb") as f:
               plist = plistlib.load(f)
@@ -1413,11 +1413,11 @@ jobs:
           # accept="image/*", so WKWebView offers "Take Photo" — and iOS kills
           # the app outright the moment the camera is touched without this key.
           plist["NSCameraUsageDescription"] = (
-              "OpenDraft uses the camera when you choose Take Photo to add an image to "
+              "WriTea Draft uses the camera when you choose Take Photo to add an image to "
               "a script, title page, character profile or beat board."
           )
           plist["NSPhotoLibraryUsageDescription"] = (
-              "OpenDraft needs access to your photos so you can add an image to a "
+              "WriTea Draft needs access to your photos so you can add an image to a "
               "script, title page, character profile or beat board."
           )
 
@@ -1425,17 +1425,17 @@ jobs:
               {"CFBundleTypeName": "Final Draft Screenplay", "CFBundleTypeRole": "Editor",
                "LSHandlerRank": "Default", "LSItemContentTypes": ["com.finaldraft.fdx"]},
               {"CFBundleTypeName": "Fountain Screenplay", "CFBundleTypeRole": "Editor",
-               "LSHandlerRank": "Default", "LSItemContentTypes": ["com.proteus.opendraft.fountain"]},
-              {"CFBundleTypeName": "OpenDraft Screenplay", "CFBundleTypeRole": "Editor",
-               "LSHandlerRank": "Owner", "LSItemContentTypes": ["com.proteus.opendraft.document"]},
+               "LSHandlerRank": "Default", "LSItemContentTypes": ["net.japanada.writea-draft.fountain"]},
+              {"CFBundleTypeName": "WriTea Draft Screenplay", "CFBundleTypeRole": "Editor",
+               "LSHandlerRank": "Owner", "LSItemContentTypes": ["net.japanada.writea-draft.document"]},
               # Fade In and OSF. iOS matches document types by UTI alone — a
               # CFBundleTypeExtensions entry with no LSItemContentTypes, which is all
               # Tauri generates for these two, does nothing here. Without them "Open in
-              # OpenDraft" never appears for a .fadein in Files (issue #64).
+              # WriTea Draft" never appears for a .fadein in Files (issue #64).
               {"CFBundleTypeName": "Fade In Screenplay", "CFBundleTypeRole": "Editor",
                "LSHandlerRank": "Alternate", "LSItemContentTypes": ["com.kentt.fadein"]},
               {"CFBundleTypeName": "Open Screenplay Format", "CFBundleTypeRole": "Editor",
-               "LSHandlerRank": "Alternate", "LSItemContentTypes": ["com.proteus.opendraft.osf"]},
+               "LSHandlerRank": "Alternate", "LSItemContentTypes": ["net.japanada.writea-draft.osf"]},
               {"CFBundleTypeName": "Text File", "CFBundleTypeRole": "Editor",
                "LSHandlerRank": "Alternate", "LSItemContentTypes": ["public.plain-text"]},
           ]
@@ -1444,10 +1444,10 @@ jobs:
               {"UTTypeIdentifier": "com.finaldraft.fdx", "UTTypeDescription": "Final Draft Screenplay",
                "UTTypeConformsTo": ["public.xml"],
                "UTTypeTagSpecification": {"public.filename-extension": ["fdx"], "public.mime-type": "application/xml"}},
-              {"UTTypeIdentifier": "com.proteus.opendraft.fountain", "UTTypeDescription": "Fountain Screenplay",
+              {"UTTypeIdentifier": "net.japanada.writea-draft.fountain", "UTTypeDescription": "Fountain Screenplay",
                "UTTypeConformsTo": ["public.plain-text"],
                "UTTypeTagSpecification": {"public.filename-extension": ["fountain"], "public.mime-type": "text/plain"}},
-              {"UTTypeIdentifier": "com.proteus.opendraft.document", "UTTypeDescription": "OpenDraft Screenplay",
+              {"UTTypeIdentifier": "net.japanada.writea-draft.document", "UTTypeDescription": "WriTea Draft Screenplay",
                "UTTypeConformsTo": ["public.json"],
                "UTTypeTagSpecification": {"public.filename-extension": ["odraft"], "public.mime-type": "application/json"}},
               # Imported, not exported: the format belongs to Fade In. It is a zip
@@ -1456,7 +1456,7 @@ jobs:
               {"UTTypeIdentifier": "com.kentt.fadein", "UTTypeDescription": "Fade In Screenplay",
                "UTTypeConformsTo": ["public.zip-archive"],
                "UTTypeTagSpecification": {"public.filename-extension": ["fadein"], "public.mime-type": "application/zip"}},
-              {"UTTypeIdentifier": "com.proteus.opendraft.osf", "UTTypeDescription": "Open Screenplay Format",
+              {"UTTypeIdentifier": "net.japanada.writea-draft.osf", "UTTypeDescription": "Open Screenplay Format",
                "UTTypeConformsTo": ["public.xml"],
                "UTTypeTagSpecification": {"public.filename-extension": ["osf"], "public.mime-type": "application/xml"}},
           ]
@@ -1503,8 +1503,8 @@ jobs:
           mkdir -p ios-artifacts
           IPA=$(find src-tauri/gen/apple/build -name "*.ipa" ! -path "*/patched-export/*" | head -1)
           if [ -n "$IPA" ]; then
-            cp "$IPA" "ios-artifacts/OpenDraft_${VERSION}_ios.ipa"
-            echo "IPA: $IPA -> OpenDraft_${VERSION}_ios.ipa"
+            cp "$IPA" "ios-artifacts/WriTeaDraft_${VERSION}_ios.ipa"
+            echo "IPA: $IPA -> WriTeaDraft_${VERSION}_ios.ipa"
           fi
           ls -la ios-artifacts/
 
@@ -1574,7 +1574,7 @@ jobs:
         # fallback would offer an App Store copy a .dmg download — wrong, and
         # something Apple objects to. This is the one job that has to say.
         env:
-          VITE_OPENDRAFT_CHANNEL: mas
+          VITE_WRITEADRAFT_CHANNEL: mas
         run: cd frontend && npm run build
 
       - name: Import Apple Distribution certificate
@@ -1629,7 +1629,7 @@ jobs:
             exit 1
           fi
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$MAC_APPSTORE_PROVISION_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/opendraft-macos.provisionprofile
+          echo "$MAC_APPSTORE_PROVISION_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/writeadraft-macos.provisionprofile
           echo "macOS provisioning profile installed"
 
       - name: Patch tauri.conf.json for Mac App Store CI
@@ -1665,14 +1665,14 @@ jobs:
 
       - name: Inject export compliance into built app
         run: |
-          APP_PLIST="src-tauri/target/release/bundle/macos/OpenDraft.app/Contents/Info.plist"
+          APP_PLIST="src-tauri/target/release/bundle/macos/WriTea Draft.app/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$APP_PLIST" 2>/dev/null || \
           /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$APP_PLIST"
           echo "Export compliance flag set in built app"
 
       - name: Sign and package for App Store
         run: |
-          APP_PATH="src-tauri/target/release/bundle/macos/OpenDraft.app"
+          APP_PATH="src-tauri/target/release/bundle/macos/WriTea Draft.app"
           ENTITLEMENTS="src-tauri/entitlements/app.entitlements"
 
           # Find signing identities from keychain
@@ -1699,7 +1699,7 @@ jobs:
           codesign --force --options runtime --timestamp=none \
             --entitlements "$ENTITLEMENTS" \
             --sign "$APP_SIGN_ID" \
-            "$APP_PATH/Contents/MacOS/opendraft"
+            "$APP_PATH/Contents/MacOS/writeadraft"
 
           # Sign the entire .app bundle
           codesign --force --deep --options runtime --timestamp=none \
@@ -1711,7 +1711,7 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
           # Embed provisioning profile
-          cp ~/Library/MobileDevice/Provisioning\ Profiles/opendraft-macos.provisionprofile \
+          cp ~/Library/MobileDevice/Provisioning\ Profiles/writeadraft-macos.provisionprofile \
             "$APP_PATH/Contents/embedded.provisionprofile"
 
           # Re-sign after embedding profile
@@ -1723,19 +1723,19 @@ jobs:
           # Build .pkg installer
           productbuild --component "$APP_PATH" /Applications \
             --sign "$INSTALLER_SIGN_ID" \
-            "OpenDraft.pkg"
+            "WriTeaDraft.pkg"
 
-          echo "App Store package built: OpenDraft.pkg"
+          echo "App Store package built: WriTeaDraft.pkg"
 
       - name: Upload pkg artifact for store submission
         uses: actions/upload-artifact@v5
         with:
           name: macos-pkg
-          path: OpenDraft.pkg
+          path: WriTeaDraft.pkg
 
   # ── Combined backend+collab Docker image ───────────────────────────────
   # Builds Dockerfile.combined for linux/amd64 + linux/arm64 and pushes to
-  # ghcr.io/<owner>/opendraft-combined with tags X.Y.Z, X.Y, latest, sha-<short>.
+  # ghcr.io/<owner>/writeadraft-combined with tags X.Y.Z, X.Y, latest, sha-<short>.
   build-docker:
     runs-on: ubuntu-latest
     name: Build & Push Combined Docker Image
@@ -1764,7 +1764,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/opendraft-combined
+          images: ghcr.io/${{ github.repository_owner }}/writeadraft-combined
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -1929,7 +1929,7 @@ jobs:
           if ! fastlane supply \
             --aab "$AAB" \
             --track production \
-            --package_name com.proteus.opendraft \
+            --package_name net.japanada.writea-draft \
             --json_key /tmp/play-service-account.json \
             --skip_upload_metadata \
             --skip_upload_images \
@@ -1979,19 +1979,19 @@ jobs:
           # previous version's files, which release.sh carries into this release.
           EXPECTED_ASSETS=()
           if [ "${{ needs.plan.outputs.macos }}" = "true" ]; then
-            EXPECTED_ASSETS+=("OpenDraft_${VERSION}_aarch64.dmg" "OpenDraft_${VERSION}_x64.dmg" "OpenDraft_${VERSION}_x86_64-legacy.dmg")
+            EXPECTED_ASSETS+=("WriTeaDraft_${VERSION}_aarch64.dmg" "WriTeaDraft_${VERSION}_x64.dmg" "WriTeaDraft_${VERSION}_x86_64-legacy.dmg")
           fi
           if [ "${{ needs.plan.outputs.windows }}" = "true" ]; then
-            EXPECTED_ASSETS+=("OpenDraft_${VERSION}_x64-setup.exe" "OpenDraft_${VERSION}_x64_en-US.msi")
+            EXPECTED_ASSETS+=("WriTeaDraft_${VERSION}_x64-setup.exe" "WriTeaDraft_${VERSION}_x64_en-US.msi")
           fi
           if [ "${{ needs.plan.outputs.linux }}" = "true" ]; then
-            EXPECTED_ASSETS+=("OpenDraft_${VERSION}_amd64.deb" "OpenDraft_${VERSION}_amd64.AppImage")
+            EXPECTED_ASSETS+=("WriTeaDraft_${VERSION}_amd64.deb" "WriTeaDraft_${VERSION}_amd64.AppImage")
           fi
           if [ "${{ needs.plan.outputs.android }}" = "true" ]; then
-            EXPECTED_ASSETS+=("OpenDraft_${VERSION}_android.apk")
+            EXPECTED_ASSETS+=("WriTeaDraft_${VERSION}_android.apk")
           fi
           if [ "${{ needs.plan.outputs.ios }}" = "true" ]; then
-            EXPECTED_ASSETS+=("OpenDraft_${VERSION}_ios.ipa")
+            EXPECTED_ASSETS+=("WriTeaDraft_${VERSION}_ios.ipa")
           fi
 
           echo "Checking release assets for ${TAG}..."

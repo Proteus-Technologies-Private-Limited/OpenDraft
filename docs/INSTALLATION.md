@@ -1,64 +1,64 @@
 # Installation Guide
 
-This guide covers all the ways to install and run OpenDraft.
+This guide covers all the ways to install and run WriTea Draft.
 
 ---
 
 ## Option 1: Desktop App (Recommended for most users)
 
-The easiest way to use OpenDraft. Download, install, and start writing.
+The easiest way to use WriTea Draft. Download, install, and start writing.
 
 ### macOS
 
 1. Go to the [Releases](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest) page
-2. Download **OpenDraft.dmg**
+2. Download **WriTeaDraft.dmg**
 3. Open the `.dmg` file
-4. Drag **OpenDraft** into your **Applications** folder
-5. Double-click OpenDraft to launch
+4. Drag **WriTea Draft** into your **Applications** folder
+5. Double-click WriTea Draft to launch
 
-> **First launch on macOS:** You may see "OpenDraft can't be opened because it is from an unidentified developer." Right-click the app, select **Open**, then click **Open** in the dialog. You only need to do this once.
+> **First launch on macOS:** You may see "WriTea Draft can't be opened because it is from an unidentified developer." Right-click the app, select **Open**, then click **Open** in the dialog. You only need to do this once.
 
 ### Windows
 
 1. Go to the [Releases](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases/latest) page
-2. Download **OpenDraft.msi**
+2. Download **WriTeaDraft.msi**
 3. Double-click the installer and follow the prompts
-4. Launch OpenDraft from the Start Menu or Desktop shortcut
+4. Launch WriTea Draft from the Start Menu or Desktop shortcut
 
 ### Linux
 
 **Debian/Ubuntu (.deb):**
 ```bash
 # Download from the Releases page, then:
-sudo dpkg -i OpenDraft.deb
+sudo dpkg -i WriTeaDraft.deb
 ```
 
 **AppImage (any Linux distro):**
 ```bash
 # Download from the Releases page, then:
-chmod +x OpenDraft.AppImage
-./OpenDraft.AppImage
+chmod +x WriTeaDraft.AppImage
+./WriTeaDraft.AppImage
 ```
 
 ### What's included in the desktop app?
 
 The desktop app is fully self-contained. It bundles:
-- The OpenDraft editor (web frontend)
+- The WriTea Draft editor (web frontend)
 - The backend API server (runs automatically in the background)
 - All required libraries and dependencies
 
 No Python, Node.js, or internet connection required after installation.
 
 Your screenplays are stored locally:
-- **macOS:** `~/Library/Application Support/com.opendraft.desktop/`
-- **Windows:** `%APPDATA%/com.opendraft.desktop/`
-- **Linux:** `~/.local/share/com.opendraft.desktop/`
+- **macOS:** `~/Library/Application Support/com.writeadraft.desktop/`
+- **Windows:** `%APPDATA%/com.writeadraft.desktop/`
+- **Linux:** `~/.local/share/com.writeadraft.desktop/`
 
 ---
 
 ## Option 2: Browser (Self-Hosted)
 
-Run OpenDraft in your web browser. Good for teams who want to host a shared instance, or if you prefer a browser-based workflow.
+Run WriTea Draft in your web browser. Good for teams who want to host a shared instance, or if you prefer a browser-based workflow.
 
 ### Prerequisites
 
@@ -82,7 +82,7 @@ git --version       # Any version is fine
 
 ```bash
 git clone https://github.com/Proteus-Technologies-Private-Limited/OpenDraft.git
-cd OpenDraft
+cd WriTea Draft
 ./setup.sh
 ```
 
@@ -93,7 +93,7 @@ The script will:
 4. Build the frontend
 5. Start the server and open your browser
 
-OpenDraft will be available at **http://localhost:8000**.
+WriTea Draft will be available at **http://localhost:8000**.
 
 Press **Ctrl+C** to stop the server.
 
@@ -105,7 +105,7 @@ If you prefer to set things up manually or the automatic script doesn't work:
 
 ```bash
 git clone https://github.com/Proteus-Technologies-Private-Limited/OpenDraft.git
-cd OpenDraft
+cd WriTea Draft
 ```
 
 #### 2. Set up Python environment
@@ -153,7 +153,7 @@ Open **http://localhost:8000** in your browser.
 After the initial setup, you only need:
 
 ```bash
-cd OpenDraft
+cd WriTea Draft
 source venv/bin/activate
 cd backend
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
@@ -165,11 +165,11 @@ Or simply run `./setup.sh` again — it skips steps that are already done and st
 
 ## Option 3: Development Mode
 
-For developers who want to contribute or modify OpenDraft. This gives you hot-reloading on both frontend and backend.
+For developers who want to contribute or modify WriTea Draft. This gives you hot-reloading on both frontend and backend.
 
 ```bash
 git clone https://github.com/Proteus-Technologies-Private-Limited/OpenDraft.git
-cd OpenDraft
+cd WriTea Draft
 
 # Backend setup
 python3.12 -m venv venv
@@ -223,7 +223,7 @@ cd backend
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
 ```
 
-### macOS: "OpenDraft can't be opened"
+### macOS: "WriTea Draft can't be opened"
 
 Right-click the app icon, select **Open**, and click **Open** in the dialog. This is a macOS Gatekeeper check for apps not from the App Store.
 

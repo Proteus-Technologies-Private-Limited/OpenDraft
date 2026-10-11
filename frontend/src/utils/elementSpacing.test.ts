@@ -78,7 +78,7 @@ describe('per-document override', () => {
 
 describe('predatesStandardSceneSpacing', () => {
   it('is false for a bare document with no app metadata', () => {
-    // An FDX or Fountain import has no OpenDraft spacing history.
+    // An FDX or Fountain import has no WriTea Draft spacing history.
     expect(predatesStandardSceneSpacing({ type: 'doc', content: [] })).toBe(false);
   });
 

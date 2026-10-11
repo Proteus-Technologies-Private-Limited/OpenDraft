@@ -164,7 +164,7 @@ describe('parseFountain — boneyard', () => {
 describe('parseFountain — dialogue continuation', () => {
   it('keeps a block alive across the two-space intentional blank line', () => {
     // This is exactly what exportFountain writes for a paragraph break inside
-    // dialogue, so without it a `.fountain` saved by OpenDraft and reopened lost
+    // dialogue, so without it a `.fountain` saved by WriTea Draft and reopened lost
     // every line of a speech after its first break.
     const nodes = parse('SAM\nOne.\n  \nTwo.\n');
     expect(types(nodes)).toEqual(['character', 'dialogue', 'dialogue', 'dialogue']);

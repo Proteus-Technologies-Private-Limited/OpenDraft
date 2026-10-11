@@ -7,7 +7,7 @@
  * character profile, so they travel with the script.
  *
  * API keys never leave the browser except in requests to the provider the
- * writer configured — OpenDraft's own servers never see them.
+ * writer configured — WriTea Draft's own servers never see them.
  */
 import { create } from 'zustand';
 import type { CharacterVoice } from './editorStore';
@@ -113,7 +113,7 @@ export interface VoiceSettingsState {
   setOptions: (patch: Partial<TableReadOptions>) => void;
 }
 
-const STORAGE_KEY = 'opendraft:tableRead';
+const STORAGE_KEY = 'writeadraft:tableRead';
 
 export const DEFAULT_TABLE_READ_OPTIONS: TableReadOptions = {
   readSceneHeadings: true,

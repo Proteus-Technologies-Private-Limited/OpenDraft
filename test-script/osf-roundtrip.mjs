@@ -91,7 +91,7 @@ for (const file of files) {
       ? await parseFadeIn(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
       : parseOSF(bytes.toString('utf8'));
 
-    // Written back out the way OpenDraft would save this file...
+    // Written back out the way WriTea Draft would save this file...
     const rewritten = isArchive
       ? await exportFadeIn(first.doc)
       : exportOSF(first.doc);

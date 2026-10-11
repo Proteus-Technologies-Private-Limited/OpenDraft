@@ -1,6 +1,6 @@
-# Contributing to OpenDraft
+# Contributing to WriTea Draft
 
-Thank you for your interest in contributing to OpenDraft! This document explains how to get started.
+Thank you for your interest in contributing to WriTea Draft! This document explains how to get started.
 
 ---
 
@@ -10,7 +10,7 @@ Thank you for your interest in contributing to OpenDraft! This document explains
 2. **Clone** your fork:
    ```bash
    git clone https://github.com/YOUR_USERNAME/OpenDraft.git
-   cd OpenDraft
+   cd WriTea Draft
    ```
 3. **Set up** the development environment:
    ```bash

@@ -6,7 +6,7 @@ import { titleNodeOf } from '../test/titlePage';
 import type { JSONContent } from '@tiptap/react';
 
 /**
- * The exporter's job is to be read back correctly — by OpenDraft first of all,
+ * The exporter's job is to be read back correctly — by WriTea Draft first of all,
  * since a .fadein opened in place is saved through this writer. So the tests
  * are round-trips: write it, parse it, and check the script survived.
  */

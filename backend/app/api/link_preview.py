@@ -18,7 +18,7 @@ router = APIRouter()
 
 _TIMEOUT = 5  # seconds
 _MAX_BYTES = 256_000  # only read first ~256 KB of the page
-_UA = "Mozilla/5.0 (compatible; OpenDraft/1.0; +https://opendraft.dev)"
+_UA = "Mozilla/5.0 (compatible; WriTeaDraft/1.0)"
 
 
 def _validate_url(url: str) -> tuple[str, str]:

@@ -9,7 +9,7 @@ type DictChangeListener = () => void;
 export const PROJECT_DICT_TARGET = '__project__';
 
 /** Storage key for downloaded dictionary blobs (IndexedDB object store). */
-const DICT_DB_NAME = 'opendraft-dictionaries';
+const DICT_DB_NAME = 'writeadraft-dictionaries';
 const DICT_STORE = 'languages';
 const DICT_DB_VERSION = 1;
 

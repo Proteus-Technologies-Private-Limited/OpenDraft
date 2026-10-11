@@ -25,7 +25,7 @@ import path from 'path';
     }, scrollPos);
     await page.waitForTimeout(400);
     await page.screenshot({
-      path: `/Users/kandarpbaghar/ai-projects/OpenDraft/test-script/output/fdx-deep-${scrollPos}.png`,
+      path: `/Users/kandarpbaghar/ai-projects/WriTeaDraft/test-script/output/fdx-deep-${scrollPos}.png`,
     });
     console.log(`Screenshot at scroll=${scrollPos}`);
   }

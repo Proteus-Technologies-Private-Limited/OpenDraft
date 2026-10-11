@@ -42,7 +42,7 @@ const DocumentOpenElsewhereDialog: React.FC<Props> = ({
       <div className="dialog-body">
         <p style={{ margin: '0 0 12px' }}>
           <strong>{documentTitle || other.title || 'This screenplay'}</strong> is
-          open in another OpenDraft window.
+          open in another WriTea Draft window.
         </p>
         <p style={{ margin: 0, fontSize: 13, color: 'var(--fd-text-muted)' }}>
           Editing it in both places means the two windows save over each other,

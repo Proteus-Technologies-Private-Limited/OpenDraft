@@ -1,14 +1,14 @@
 /**
  * Reopening the script the writer had open — issue #68, re-opened.
  *
- * After a crash OpenDraft launched into a blank Untitled Screenplay, so a
+ * After a crash WriTea Draft launched into a blank Untitled Screenplay, so a
  * writer who lost a few unsaved lines was shown an empty page and had no way to
  * tell that the rest of their script was safe in the library.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { rememberLastSession, readLastSession, clearLastSession } from './lastSession';
 
-const KEY = 'opendraft:last-session';
+const KEY = 'writeadraft:last-session';
 
 describe('lastSession', () => {
   beforeEach(() => {

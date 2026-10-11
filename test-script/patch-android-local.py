@@ -30,7 +30,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 GEN = ROOT / "src-tauri/gen/android"
 SRC = ROOT / "src-tauri/android-src"
-JAVA = GEN / "app/src/main/java/com/proteus/opendraft"
+JAVA = GEN / "app/src/main/java/com/proteus/writeadraft"
 MANIFEST = GEN / "app/src/main/AndroidManifest.xml"
 
 # One <activity> per class in WindowActivities.kt; keep in step with

@@ -2,7 +2,7 @@
 """
 Rebuild a screenplay's elements from a typeset PDF, for the runtime check.
 
-OpenDraft cannot import PDF, but the scripts with known on-screen runtimes —
+WriTea Draft cannot import PDF, but the scripts with known on-screen runtimes —
 the studio "For Your Consideration" releases — only come as PDF. A screenplay
 PDF is laid out on a fixed grid, so each line's element can be recovered from
 where it starts on the page:

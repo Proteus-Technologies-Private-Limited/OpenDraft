@@ -1,4 +1,4 @@
-# OpenDraft Desktop Build Guide
+# WriTea Draft Desktop Build Guide
 
 ## Architecture
 
@@ -14,9 +14,9 @@ Tauri Native Window
 ```
 
 User data is stored in the platform-specific app data directory:
-- macOS: `~/Library/Application Support/com.opendraft.app/`
-- Windows: `%APPDATA%/com.opendraft.app/`
-- Linux: `~/.local/share/com.opendraft.app/`
+- macOS: `~/Library/Application Support/net.japanada.writea-draft/`
+- Windows: `%APPDATA%/net.japanada.writea-draft/`
+- Linux: `~/.local/share/net.japanada.writea-draft/`
 
 ## Prerequisites
 
@@ -71,15 +71,15 @@ cp -r frontend/dist backend/static
 ```bash
 cd backend
 ../venv/bin/pip install pyinstaller
-../venv/bin/pyinstaller --noconfirm --clean opendraft-api.spec
+../venv/bin/pyinstaller --noconfirm --clean writeadraft-api.spec
 ```
 
 ### 4. Copy sidecar binary
 
 ```bash
 TARGET_TRIPLE=$(rustc -vV | grep '^host:' | awk '{print $2}')
-cp backend/dist/opendraft-api src-tauri/binaries/opendraft-api-$TARGET_TRIPLE
-chmod +x src-tauri/binaries/opendraft-api-$TARGET_TRIPLE
+cp backend/dist/writeadraft-api src-tauri/binaries/writeadraft-api-$TARGET_TRIPLE
+chmod +x src-tauri/binaries/writeadraft-api-$TARGET_TRIPLE
 ```
 
 ### 5. Build Tauri app

@@ -1,4 +1,4 @@
-# OpenDraft Mobile Build Guide
+# WriTea Draft Mobile Build Guide
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@
 
 ```bash
 # From the project root
-cd /path/to/OpenDraft
+cd /path/to/WriTeaDraft
 
 # Initialize iOS target (already done)
 ./frontend/node_modules/.bin/tauri ios init
@@ -42,7 +42,7 @@ xcrun simctl boot "iPhone 16 Pro"
 
 On mobile, the Python backend sidecar is not available. Instead:
 
-- **Storage**: Local SQLite database (`opendraft.db`) in the app's data directory
+- **Storage**: Local SQLite database (`writeadraft.db`) in the app's data directory
 - **Assets**: Stored as files in the app's data directory under `assets/{projectId}/`
 - **Versioning**: SQLite-based snapshots (replaces Git-based versioning on desktop)
 

@@ -50,9 +50,9 @@ function fileNameOf(path: string): string {
 }
 
 const FILE_PROBLEMS: Partial<Record<LinkedFileState, string>> = {
-  pending: 'Not saved to the file yet — OpenDraft will keep trying',
+  pending: 'Not saved to the file yet — WriTea Draft will keep trying',
   missing: 'The file is not where it was',
-  conflict: 'The file was changed outside OpenDraft',
+  conflict: 'The file was changed outside WriTea Draft',
 };
 
 /** The file a script is saved to, shown beside its other details. */
@@ -289,7 +289,7 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
           <span className="project-card-dot">&middot;</span>
           <span
             className={`source-badge source-badge--${source}`}
-            title={source === 'cloud' ? 'Stored on OpenDraft Cloud' : 'Stored on this device'}
+            title={source === 'cloud' ? 'Stored on WriTea Draft Cloud' : 'Stored on this device'}
           >
             {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
             {source === 'cloud' ? 'Cloud' : 'Local'}
@@ -524,7 +524,7 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
         ) : (
           <span
             className={`source-badge source-badge--${source}`}
-            title={source === 'cloud' ? 'Stored on OpenDraft Cloud' : 'Stored on this device'}
+            title={source === 'cloud' ? 'Stored on WriTea Draft Cloud' : 'Stored on this device'}
           >
             {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
             {source === 'cloud' ? 'Cloud' : 'Local'}
@@ -591,10 +591,10 @@ const ProjectView: React.FC = () => {
   const [editingProjectName, setEditingProjectName] = useState(false);
   const [editProjectName, setEditProjectName] = useState('');
   const [scriptSortKey, setScriptSortKey] = useState<ScriptSortKey>(() => {
-    return (localStorage.getItem('opendraft:scriptSort') as ScriptSortKey) || 'custom';
+    return (localStorage.getItem('writeadraft:scriptSort') as ScriptSortKey) || 'custom';
   });
   const [viewMode, setViewMode] = useState<'list' | 'card'>(() => {
-    return (localStorage.getItem('opendraft:scriptViewMode') as 'list' | 'card') || 'list';
+    return (localStorage.getItem('writeadraft:scriptViewMode') as 'list' | 'card') || 'list';
   });
 
   const sensors = useSensors(
@@ -706,7 +706,7 @@ const ProjectView: React.FC = () => {
         title: 'Save to File',
         defaultPath: lf.joinPath(dir, linkedFileName(script?.title || 'Untitled', format)),
         filters: [
-          { name: 'OpenDraft', extensions: ['odraft'] },
+          { name: 'WriTea Draft', extensions: ['odraft'] },
           { name: 'Fountain', extensions: ['fountain'] },
           { name: 'Final Draft', extensions: ['fdx'] },
         ],
@@ -722,7 +722,7 @@ const ProjectView: React.FC = () => {
       showToast(
         outcome === 'written'
           ? `Saved to ${lf.basenameOf(picked)}. Every save of this script now updates that file too.`
-          : `Linked to ${lf.basenameOf(picked)}, but it could not be written yet. OpenDraft will keep trying.`,
+          : `Linked to ${lf.basenameOf(picked)}, but it could not be written yet. WriTea Draft will keep trying.`,
         outcome === 'written' ? 'success' : 'error',
       );
     } catch (err) {
@@ -732,11 +732,11 @@ const ProjectView: React.FC = () => {
   }, [projectId, project, projectFolder, scripts, fileLinks, fetchFileLinks]);
 
   useEffect(() => {
-    localStorage.setItem('opendraft:scriptSort', scriptSortKey);
+    localStorage.setItem('writeadraft:scriptSort', scriptSortKey);
   }, [scriptSortKey]);
 
   useEffect(() => {
-    localStorage.setItem('opendraft:scriptViewMode', viewMode);
+    localStorage.setItem('writeadraft:scriptViewMode', viewMode);
     // Re-fetch with previews when switching to card view
     if (viewMode === 'card' && projectId) {
       projectApi.listScripts(projectId, true).then(setScripts).catch(() => {});

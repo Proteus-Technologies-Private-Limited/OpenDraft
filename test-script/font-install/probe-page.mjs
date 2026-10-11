@@ -1,5 +1,5 @@
 /**
- * Builds a page that runs OpenDraft's own device-font detection and shows what
+ * Builds a page that runs WriTea Draft's own device-font detection and shows what
  * it found, so the answer can be read off a device that cannot be driven.
  *
  * The simulator has no input API, so a page that reports its result by drawing
@@ -36,7 +36,7 @@ writeFileSync(out, `<!doctype html>
   ul { columns: 3; font-size: 13px; padding-left: 18px; }
   .k { color: #888; }
 </style>
-<h1>OpenDraft device-font probe — ${process.env.PROBE_LABEL || 'current'}</h1>
+<h1>WriTea Draft device-font probe — ${process.env.PROBE_LABEL || 'current'}</h1>
 <div id="out">running…</div>
 <script>${bundled.outputFiles[0].text}</script>
 <script>

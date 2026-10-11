@@ -40,7 +40,7 @@ set -uo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-APP_ID="com.proteus.opendraft"
+APP_ID="net.japanada.writea-draft"
 ADB="${ADB:-$HOME/Library/Android/sdk/platform-tools/adb}"
 SERIAL="${1:-}"
 OUT_DIR="$PROJECT_ROOT/test-script/output/jni-pending-exception"

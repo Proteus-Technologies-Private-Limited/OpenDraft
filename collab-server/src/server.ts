@@ -105,7 +105,7 @@ function startDocumentEviction(): void {
 // ── Hocuspocus WebSocket server ──
 
 const hocuspocus = new Hocuspocus({
-  name: 'OpenDraft Collaboration Server',
+  name: 'WriTea Draft Collaboration Server',
 
   async onAuthenticate(data: onAuthenticatePayload) {
     const rawToken = data.token;
@@ -319,7 +319,7 @@ app.get('/health', (_req, res) => {
 
   res.json({
     status: 'ok',
-    service: 'opendraft-collab',
+    service: 'writeadraft-collab',
     uptime: Math.round(process.uptime()),
     database: config.dbType,
     memory: {
@@ -455,7 +455,7 @@ async function main(): Promise<void> {
 
   httpServer.listen(PORT, HOST, () => {
     const protocol = config.tlsCert ? 'wss' : 'ws';
-    console.log(`OpenDraft Collaboration Server running on ${HOST}:${PORT}`);
+    console.log(`WriTea Draft Collaboration Server running on ${HOST}:${PORT}`);
     console.log(`  WebSocket: ${protocol}://${HOST}:${PORT}`);
     console.log(`  REST API:  ${config.tlsCert ? 'https' : 'http'}://${HOST}:${PORT}`);
     console.log(`  Backend:   ${config.backendUrl}`);

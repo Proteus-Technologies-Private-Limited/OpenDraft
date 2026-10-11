@@ -345,7 +345,7 @@ describe('a project kept in a folder', () => {
   });
 });
 
-describe('a file changed outside OpenDraft', () => {
+describe('a file changed outside WriTea Draft', () => {
   it('is loaded when the library has nothing the file lacks — keeping the notes .fountain cannot hold', async () => {
     const pid = await folderProject('fountain');
     const id = await newScript(pid, 'Pilot', doc('original', { _notes: [{ id: 'n1', text: 'keep me' }] }));
@@ -368,7 +368,7 @@ describe('a file changed outside OpenDraft', () => {
     expect(useLinkedFileStore.getState().byScript[id]?.state).toBe('conflict');
   });
 
-  it("keeps the file's version as a copy when the writer keeps OpenDraft's", async () => {
+  it("keeps the file's version as a copy when the writer keeps WriTea Draft's", async () => {
     const pid = await folderProject();
     const id = await newScript(pid, 'Pilot', doc('mine'));
     touch(`${FOLDER}/Pilot.odraft`, fs.files.get(`${FOLDER}/Pilot.odraft`)!.text.replace('mine', 'theirs'));
@@ -379,11 +379,11 @@ describe('a file changed outside OpenDraft', () => {
     expect(result.kind).toBe('kept-library');
     expect(fs.files.get(`${FOLDER}/Pilot.odraft`)?.text).toContain('mine, edited');
     const preserved = result.kind === 'kept-library' ? result.preservedAs : null;
-    expect(preserved).toMatch(/Pilot \(changed outside OpenDraft .*\)\.odraft$/);
+    expect(preserved).toMatch(/Pilot \(changed outside WriTea Draft .*\)\.odraft$/);
     expect(fs.files.get(preserved!)?.text).toContain('theirs');
   });
 
-  it("writes what is on screen, not just the last save, when the writer keeps OpenDraft's", async () => {
+  it("writes what is on screen, not just the last save, when the writer keeps WriTea Draft's", async () => {
     const pid = await folderProject();
     const id = await newScript(pid, 'Pilot', doc('saved draft'));
     touch(`${FOLDER}/Pilot.odraft`, fs.files.get(`${FOLDER}/Pilot.odraft`)!.text.replace('saved draft', 'theirs'));
@@ -399,7 +399,7 @@ describe('a file changed outside OpenDraft', () => {
     expect(fs.files.get(`${FOLDER}/Pilot.odraft`)?.text).toContain('typed but not saved');
   });
 
-  it("records OpenDraft's version in Version History when the writer takes the file's", async () => {
+  it("records WriTea Draft's version in Version History when the writer takes the file's", async () => {
     const pid = await folderProject();
     const id = await newScript(pid, 'Pilot', doc('mine'));
     touch(`${FOLDER}/Pilot.odraft`, fs.files.get(`${FOLDER}/Pilot.odraft`)!.text.replace('mine', 'theirs'));

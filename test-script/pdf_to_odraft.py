@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Convert a text-based screenplay PDF into OpenDraft's native `.odraft` format.
+Convert a text-based screenplay PDF into WriTea Draft's native `.odraft` format.
 
 A screenplay PDF carries its element types in its geometry, not in its text:
 Courier is monospaced and every element sits at a fixed left margin, so the
@@ -381,7 +381,7 @@ def parse_title_page(lines: list[Line]) -> tuple[dict[str, str], int]:
 def build_title_page_blocks(fields: dict[str, str], lines_per_page: int = 54) -> list[dict]:
     """The laid-out run of `titlePage` nodes.
 
-    Mirrors `frontend/src/utils/titlePageBlocks.ts` — a title page in OpenDraft
+    Mirrors `frontend/src/utils/titlePageBlocks.ts` — a title page in WriTea Draft
     is not one node but a run of them, with blank spacers doing the positioning.
     A single attrs-only node imports as a nearly blank sheet.
     """
@@ -483,7 +483,7 @@ def build_odraft(doc, elements, title_blocks, fields, action_x, page_count) -> d
     content["_sceneNumbersLocked"] = numbered
     return {
         "odraft_version": ODRAFT_VERSION,
-        "format": "opendraft-script",
+        "format": "writeadraft-script",
         "exported_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "meta": {
             "title": title,

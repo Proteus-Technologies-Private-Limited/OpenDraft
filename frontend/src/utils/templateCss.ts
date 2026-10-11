@@ -11,7 +11,7 @@ import type { PageLayout } from '../stores/editorStore';
 import { fontStack } from './fonts';
 import { pageInk, pagePaper } from './inkColor';
 
-const STYLE_ELEMENT_ID = 'opendraft-template-css';
+const STYLE_ELEMENT_ID = 'writeadraft-template-css';
 
 /**
  * Generate a complete CSS string from a template and page layout.

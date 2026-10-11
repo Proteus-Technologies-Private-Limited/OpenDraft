@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for the OpenDraft API sidecar binary."""
+"""PyInstaller spec for the WriTea Draft API sidecar binary."""
 
 import os
 import sys
@@ -103,7 +103,7 @@ if IS_WINDOWS:
         a.scripts,
         [],
         exclude_binaries=True,
-        name='opendraft-api',
+        name='writeadraft-api',
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
@@ -120,7 +120,7 @@ if IS_WINDOWS:
         a.datas,
         strip=False,
         upx=False,
-        name='opendraft-api',
+        name='writeadraft-api',
     )
 else:
     # ── macOS / Linux: onefile mode ───────────────────────────────────────
@@ -132,7 +132,7 @@ else:
         a.zipfiles,
         a.datas,
         [],
-        name='opendraft-api',
+        name='writeadraft-api',
         debug=False,
         bootloader_ignore_signals=False,
         strip=True,

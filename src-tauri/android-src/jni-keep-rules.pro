@@ -9,10 +9,10 @@
 # Extra window activities — started by name from Rust (issue #63), so nothing
 # in the Kotlin sources references them and R8 would be free to rename them.
 # The manifest entries keep them too; this states the JNI dependency outright.
--keep class com.proteus.opendraft.WindowActivity* { *; }
+-keep class net.japanada.writea-draft.WindowActivity* { *; }
 
 # MainActivity companion object — used for file picker, export, and new-intent communication
--keep class com.proteus.opendraft.MainActivity {
+-keep class net.japanada.writea-draft.MainActivity {
     public static *** getPickedFileUri();
     public static *** setPickedFileUri(java.lang.String);
     public static *** getNewIntentUri();

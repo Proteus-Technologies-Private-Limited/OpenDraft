@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "8162A6755DDAFD3AF86ABE1D"
-               BuildableName = "OpenDraft.app"
-               BlueprintName = "opendraft_iOS"
-               ReferencedContainer = "container:opendraft.xcodeproj">
+               BuildableName = "WriTeaDraft.app"
+               BlueprintName = "writeadraft_iOS"
+               ReferencedContainer = "container:writeadraft.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -31,9 +31,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8162A6755DDAFD3AF86ABE1D"
-            BuildableName = "OpenDraft.app"
-            BlueprintName = "opendraft_iOS"
-            ReferencedContainer = "container:opendraft.xcodeproj">
+            BuildableName = "WriTeaDraft.app"
+            BlueprintName = "writeadraft_iOS"
+            ReferencedContainer = "container:writeadraft.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <EnvironmentVariables>
@@ -66,9 +66,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8162A6755DDAFD3AF86ABE1D"
-            BuildableName = "OpenDraft.app"
-            BlueprintName = "opendraft_iOS"
-            ReferencedContainer = "container:opendraft.xcodeproj">
+            BuildableName = "WriTeaDraft.app"
+            BlueprintName = "writeadraft_iOS"
+            ReferencedContainer = "container:writeadraft.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <EnvironmentVariables>
@@ -95,9 +95,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8162A6755DDAFD3AF86ABE1D"
-            BuildableName = "OpenDraft.app"
-            BlueprintName = "opendraft_iOS"
-            ReferencedContainer = "container:opendraft.xcodeproj">
+            BuildableName = "WriTeaDraft.app"
+            BlueprintName = "writeadraft_iOS"
+            ReferencedContainer = "container:writeadraft.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <EnvironmentVariables>

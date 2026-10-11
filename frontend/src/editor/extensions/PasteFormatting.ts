@@ -20,7 +20,7 @@
  * Emphasis was never in question: bold, italic, underline, colour and highlight
  * are the writer's meaning and always survive.
  *
- * Text copied inside OpenDraft is exempt from all of it. ProseMirror stamps its
+ * Text copied inside WriTea Draft is exempt from all of it. ProseMirror stamps its
  * own clipboard HTML with `data-pm-slice`, and a font set deliberately with the
  * toolbar has to survive a copy and paste.
  */
@@ -129,7 +129,7 @@ export function stripPastedFonts(slice: Slice): Slice {
  * that is not a text block — an image, a dual-dialogue column — keeps the shape
  * it needs to stay valid.
  *
- * Internal pastes never reach this: a scene copied inside OpenDraft carries
+ * Internal pastes never reach this: a scene copied inside WriTea Draft carries
  * headings, cues and dialogue, and flattening those into one element would
  * destroy the structure the writer copied.
  */

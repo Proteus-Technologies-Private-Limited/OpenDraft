@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── OpenDraft VPS Deploy ──
+# ── WriTea Draft VPS Deploy ──
 #
 # One-shot deploy for demo + collab on a single Ubuntu 22.04 VPS
 # (Hostinger KVM 1, Contabo, or any Docker-capable host).
@@ -12,7 +12,7 @@ set -euo pipefail
 #
 # DNS (free, no domain purchase):
 #   1. Sign up at https://www.duckdns.org (GitHub/Google login).
-#   2. Create two subdomains, e.g. opendraft + opendraft-collab.
+#   2. Create two subdomains, e.g. writeadraft + writeadraft-collab.
 #   3. Point both to this VPS's public IPv4 address.
 #
 # First run:
@@ -28,9 +28,9 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 # ── Mode selection ──
-# --combined (or env OPENDRAFT_USE_COMBINED=1) uses the prebuilt single-image
+# --combined (or env WRITEADRAFT_USE_COMBINED=1) uses the prebuilt single-image
 # stack from GHCR; default is the per-service build-from-source stack.
-USE_COMBINED="${OPENDRAFT_USE_COMBINED:-0}"
+USE_COMBINED="${WRITEADRAFT_USE_COMBINED:-0}"
 for arg in "$@"; do
   case "$arg" in
     --combined) USE_COMBINED=1 ;;
@@ -69,7 +69,7 @@ echo "Compose file: $COMPOSE_FILE"
 echo
 
 if [ "$USE_COMBINED" = "1" ]; then
-  echo "Pulling image (tag: ${OPENDRAFT_VERSION:-latest})..."
+  echo "Pulling image (tag: ${WRITEADRAFT_VERSION:-latest})..."
   docker compose -f "$COMPOSE_FILE" pull
 else
   echo "Building images..."

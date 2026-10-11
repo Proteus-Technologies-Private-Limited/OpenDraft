@@ -25,7 +25,7 @@ import type {
 } from './api';
 import { normalizeFormat } from '../utils/scriptFormat';
 
-const STORAGE_KEY = 'opendraft:fallback';
+const STORAGE_KEY = 'writeadraft:fallback';
 
 interface FallbackData {
   projects: Record<string, ProjectInfo>;
@@ -85,7 +85,7 @@ const EMPTY_PROPS: ProjectProperties = {
 
 export function createFallbackStorage() {
   console.warn(
-    '%c[OpenDraft] Using localStorage fallback — Tauri storage unavailable',
+    '%c[WriTea Draft] Using localStorage fallback — Tauri storage unavailable',
     'color: #ff9f43; font-weight: bold'
   );
 

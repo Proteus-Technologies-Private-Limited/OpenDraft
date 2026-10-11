@@ -29,7 +29,7 @@
 import { uuid } from '../utils/uuid';
 import { collectScratchIds } from '../utils/scratchRefs';
 
-const STORAGE_KEY_BASE = 'opendraft:recovery';
+const STORAGE_KEY_BASE = 'writeadraft:recovery';
 
 /**
  * Identifies this run of the app.
@@ -50,7 +50,7 @@ const SESSION_ID = uuid();
 let cachedStorageKey: string | null = null;
 
 /** Where this tab remembers which slot is its own, across reloads. */
-const TAB_SLOT_KEY = 'opendraft:recoveryTab';
+const TAB_SLOT_KEY = 'writeadraft:recoveryTab';
 
 /**
  * Where this window or tab keeps its snapshot.
@@ -175,7 +175,7 @@ const RUN_STARTED_AT = Date.now();
  * very much alive. So the tabs are asked instead. Every run answers a ping
  * with the slot it is using, and a run that has ended answers nothing.
  */
-const PRESENCE_CHANNEL = 'opendraft:recovery-presence';
+const PRESENCE_CHANNEL = 'writeadraft:recovery-presence';
 
 const liveSlots = new Set<string>();
 let presenceChannel: BroadcastChannel | null = null;

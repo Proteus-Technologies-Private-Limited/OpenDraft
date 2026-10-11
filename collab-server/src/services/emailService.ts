@@ -70,11 +70,11 @@ export async function sendVerificationEmail(email: string, code: string): Promis
   await transport.sendMail({
     from: config.smtpFrom,
     to: email,
-    subject: 'OpenDraft - Verify your email',
+    subject: 'WriTea Draft - Verify your email',
     text: `Your verification code is: ${code}\n\nOr click this link to activate your account:\n${magicLink}\n\nBoth expire in 15 minutes.`,
     html: `
       <div style="font-family: sans-serif; max-width: 440px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #333;">OpenDraft Email Verification</h2>
+        <h2 style="color: #333;">WriTea Draft Email Verification</h2>
         <p>Activate your account by clicking the link below:</p>
         <p style="text-align: center; margin: 20px 0;">
           <a href="${magicLink}" style="display: inline-block; background: #4a6fa5; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600;">Activate account</a>
@@ -105,18 +105,18 @@ export async function sendNewDeviceCode(
   await transport.sendMail({
     from: config.smtpFrom,
     to: email,
-    subject: 'OpenDraft - New sign-in attempt',
+    subject: 'WriTea Draft - New sign-in attempt',
     text:
-      `We noticed a sign-in attempt to your OpenDraft account from a new device:\n\n` +
+      `We noticed a sign-in attempt to your WriTea Draft account from a new device:\n\n` +
       `Device: ${deviceName}${ipLine}\n\n` +
       `Enter this 6-digit verification code to confirm it was you:\n\n${code}\n\n` +
       `This code expires in 15 minutes.\n\n` +
       `If you did not try to sign in, please change your password immediately and ` +
-      `review the active devices in OpenDraft Settings.`,
+      `review the active devices in WriTea Draft Settings.`,
     html: `
       <div style="font-family: sans-serif; max-width: 440px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #333;">New sign-in attempt</h2>
-        <p>We noticed a sign-in attempt to your OpenDraft account from a new device:</p>
+        <p>We noticed a sign-in attempt to your WriTea Draft account from a new device:</p>
         <div style="background: #f5f5f5; border-radius: 6px; padding: 12px 16px; margin: 12px 0;">
           <div><strong>Device:</strong> ${deviceName}</div>
           ${ipAddress ? `<div><strong>IP:</strong> ${ipAddress}</div>` : ''}
@@ -128,7 +128,7 @@ export async function sendNewDeviceCode(
         <p style="color: #666; font-size: 13px;">The code expires in 15 minutes.</p>
         <p style="color: #b00; font-size: 13px;">
           If this wasn't you, change your password immediately and review your devices
-          in OpenDraft → Settings → Account.
+          in WriTea Draft → Settings → Account.
         </p>
       </div>
     `,
@@ -150,18 +150,18 @@ export async function sendNewDeviceNotice(
   await transport.sendMail({
     from: config.smtpFrom,
     to: email,
-    subject: 'OpenDraft - A new device just signed in',
+    subject: 'WriTea Draft - A new device just signed in',
     text:
-      `A new device just signed in to your OpenDraft account:\n\n` +
+      `A new device just signed in to your WriTea Draft account:\n\n` +
       `Device: ${deviceName}${ipLine}\n\n` +
       `If this was you, you can ignore this email.\n\n` +
       `If it wasn't, change your password immediately and revoke the device from ` +
-      `OpenDraft Settings → Account → Devices. You can also enable two-factor ` +
+      `WriTea Draft Settings → Account → Devices. You can also enable two-factor ` +
       `verification there to require an emailed code on every new device.`,
     html: `
       <div style="font-family: sans-serif; max-width: 440px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #333;">A new device just signed in</h2>
-        <p>A new device just signed in to your OpenDraft account:</p>
+        <p>A new device just signed in to your WriTea Draft account:</p>
         <div style="background: #f5f5f5; border-radius: 6px; padding: 12px 16px; margin: 12px 0;">
           <div><strong>Device:</strong> ${deviceName}</div>
           ${ipAddress ? `<div><strong>IP:</strong> ${ipAddress}</div>` : ''}
@@ -169,7 +169,7 @@ export async function sendNewDeviceNotice(
         <p>If this was you, you can ignore this email.</p>
         <p style="color: #b00;">
           If it wasn't, change your password immediately and revoke the device
-          from OpenDraft → Settings → Account → Devices. You can also enable
+          from WriTea Draft → Settings → Account → Devices. You can also enable
           two-factor verification there.
         </p>
       </div>
@@ -196,15 +196,15 @@ export async function sendPasswordResetEmail(
   await transport.sendMail({
     from: config.smtpFrom,
     to: email,
-    subject: 'OpenDraft - Reset your password',
+    subject: 'WriTea Draft - Reset your password',
     text:
-      `Someone requested a password reset for your OpenDraft account.${ipLine}\n\n` +
+      `Someone requested a password reset for your WriTea Draft account.${ipLine}\n\n` +
       `If this was you, click the link below to choose a new password. The link expires in 30 minutes:\n\n${resetLink}\n\n` +
       `If you did not request this, you can safely ignore this email — your password will not change.`,
     html: `
       <div style="font-family: sans-serif; max-width: 440px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #333;">Reset your OpenDraft password</h2>
-        <p>Someone requested a password reset for your OpenDraft account.</p>
+        <h2 style="color: #333;">Reset your WriTea Draft password</h2>
+        <p>Someone requested a password reset for your WriTea Draft account.</p>
         ${ipAddress ? `<p style="color: #666; font-size: 13px;">Requested from IP: ${ipAddress}</p>` : ''}
         <p>If this was you, click the button below to choose a new password:</p>
         <p style="text-align: center; margin: 20px 0;">
@@ -230,13 +230,13 @@ export async function sendPasswordChangedNotice(email: string, deviceName: strin
   await transport.sendMail({
     from: config.smtpFrom,
     to: email,
-    subject: 'OpenDraft - Your password was changed',
+    subject: 'WriTea Draft - Your password was changed',
     text:
-      `Your OpenDraft password was just changed from "${deviceName}".\n\n` +
+      `Your WriTea Draft password was just changed from "${deviceName}".\n\n` +
       `If this wasn't you, please reset your password immediately and contact support.`,
     html: `
       <div style="font-family: sans-serif; max-width: 440px; margin: 0 auto; padding: 20px;">
-        <h2>Your OpenDraft password was changed</h2>
+        <h2>Your WriTea Draft password was changed</h2>
         <p>Your password was just changed from <strong>${deviceName}</strong>.</p>
         <p style="color: #b00;">If this wasn't you, reset your password immediately and contact support.</p>
       </div>
@@ -253,13 +253,13 @@ export async function sendAccountDeletedNotice(email: string): Promise<void> {
   await transport.sendMail({
     from: config.smtpFrom,
     to: email,
-    subject: 'OpenDraft - Your account was deleted',
+    subject: 'WriTea Draft - Your account was deleted',
     text:
-      `Your OpenDraft account (${email}) and all associated data were just deleted at your request.\n\n` +
+      `Your WriTea Draft account (${email}) and all associated data were just deleted at your request.\n\n` +
       `If you did not request this, please contact support immediately — accounts cannot be recovered after deletion.`,
     html: `
       <div style="font-family: sans-serif; max-width: 440px; margin: 0 auto; padding: 20px;">
-        <h2>Your OpenDraft account was deleted</h2>
+        <h2>Your WriTea Draft account was deleted</h2>
         <p>Your account <strong>${email}</strong> and all associated data have been permanently deleted.</p>
         <p style="color: #b00;">
           If you did not request this, contact support immediately —

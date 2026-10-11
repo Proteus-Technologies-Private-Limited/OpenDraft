@@ -49,7 +49,7 @@ jobs:
           set -euo pipefail
           mkdir -p build-appimage
           gh release download "v${{ inputs.version }}" \
-            -p "OpenDraft_${{ inputs.version }}_amd64.AppImage" -D build-appimage
+            -p "WriTeaDraft_${{ inputs.version }}_amd64.AppImage" -D build-appimage
           echo "APPIMAGE=$(find build-appimage -name '*.AppImage' | head -1)" >> "$GITHUB_ENV"
 
       # Everything below the download is the release job's Linux recipe, kept
@@ -137,6 +137,6 @@ jobs:
         if: always() && inputs.version == ''
         uses: actions/upload-artifact@v4
         with:
-          name: OpenDraft-appimage-${{ github.sha }}
+          name: WriTeaDraft-appimage-${{ github.sha }}
           path: src-tauri/target/release/bundle/appimage/*.AppImage
           if-no-files-found: warn

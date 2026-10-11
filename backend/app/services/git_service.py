@@ -1,4 +1,4 @@
-"""Git-based version control service for OpenDraft projects.
+"""Git-based version control service for WriTea Draft projects.
 
 Uses dulwich (pure Python) instead of GitPython to avoid requiring the
 system `git` binary — critical for macOS App Sandbox compliance.
@@ -15,7 +15,7 @@ from dulwich.patch import write_tree_diff
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_AUTHOR = b"OpenDraft <opendraft@local>"
+DEFAULT_AUTHOR = b"WriTea Draft <writeadraft@local>"
 
 
 def init_repo(project_path: Path) -> None:

@@ -1,4 +1,4 @@
-package com.proteus.opendraft
+package net.japanada.writea-draft
 
 import android.graphics.Color
 import android.os.Bundle
@@ -6,11 +6,11 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 
 /**
- * The extra windows OpenDraft can put on screen (issue #63).
+ * The extra windows WriTea Draft can put on screen (issue #63).
  *
  * On iPadOS a second window is a second UIScene the system hands the app; on
  * Android it is a second Activity, and tao starts it by name — it looks the
- * class up with `Class.forName("com.proteus.opendraft.WindowActivityN")` and
+ * class up with `Class.forName("net.japanada.writea-draft.WindowActivityN")` and
  * calls `startActivity`. So the ceiling on windows is however many classes
  * exist here and are declared in AndroidManifest.xml; `open_new_window` in
  * lib.rs keeps its own count in step (ANDROID_EXTRA_WINDOWS).

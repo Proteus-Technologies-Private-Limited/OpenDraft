@@ -10,7 +10,7 @@ import {
 import { getAppVersion } from '../services/diagnostics';
 
 /**
- * A newer OpenDraft is out (issue #106).
+ * A newer WriTea Draft is out (issue #106).
  *
  * A strip along the bottom rather than a dialog: a writer who opened the app
  * to write should not have to clear a modal first, and nothing here is urgent.
@@ -93,7 +93,7 @@ const UpdateBanner: React.FC = () => {
       }}
     >
       <div style={{ flex: 1, color: '#fff', fontSize: 13, lineHeight: 1.5 }}>
-        <strong style={{ fontWeight: 600 }}>OpenDraft {update.version} is available.</strong>
+        <strong style={{ fontWeight: 600 }}>WriTea Draft {update.version} is available.</strong>
         {` You are on ${getAppVersion()}.`}
       </div>
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>

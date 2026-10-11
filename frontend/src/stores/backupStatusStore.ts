@@ -86,7 +86,7 @@ export function describeBackupError(raw: string): string {
     s.includes('os error 13') || s.includes('os error 5') ||
     s.includes('permission denied') || s.includes('access is denied')
   ) {
-    return "OpenDraft doesn't have permission to write to the backup folder.";
+    return "WriTea Draft doesn't have permission to write to the backup folder.";
   }
   if (s.includes('enospc') || s.includes('os error 28') || s.includes('no space')) {
     return 'The disk is full.';

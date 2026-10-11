@@ -31,7 +31,7 @@ sys.path.insert(0, str(ROOT / "backend"))
 # The API is behind the same bearer auth the running server uses, so the test
 # stands up a one-user collab DB and signs its own token — same shape as
 # test_quota.py, which is the existing pattern for this.
-_tmp = Path(tempfile.mkdtemp(prefix="opendraft-assets-"))
+_tmp = Path(tempfile.mkdtemp(prefix="writeadraft-assets-"))
 _data_dir = _tmp / "backend_data"
 _data_dir.mkdir()
 _collab_db = _tmp / "collab.sqlite3"
@@ -59,7 +59,7 @@ _conn.execute(
 _conn.commit()
 _conn.close()
 
-os.environ["OPENDRAFT_DATA_DIR"] = str(_data_dir)
+os.environ["WRITEADRAFT_DATA_DIR"] = str(_data_dir)
 os.environ["COLLAB_JWT_SECRET"] = "sekret"
 os.environ["COLLAB_DB_PATH"] = str(_collab_db)
 

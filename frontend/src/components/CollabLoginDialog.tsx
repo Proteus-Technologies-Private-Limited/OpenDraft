@@ -14,7 +14,7 @@ interface CollabLoginDialogProps {
 // Optional: remember the email only (never the password). Refreshes across
 // sign-in sessions as a convenience; the refresh token handles "stay signed
 // in" so there's no reason to keep the password on the device.
-const REMEMBERED_EMAIL_KEY = 'opendraft:rememberedEmail';
+const REMEMBERED_EMAIL_KEY = 'writeadraft:rememberedEmail';
 
 function loadRememberedEmail(): string {
   try { return localStorage.getItem(REMEMBERED_EMAIL_KEY) || ''; } catch { return ''; }
@@ -69,8 +69,8 @@ const CollabLoginDialog: React.FC<CollabLoginDialogProps> = ({ onClose, onSucces
 
   useEffect(() => {
     // One-time migration: purge the legacy key that stored email+password in
-    // plaintext. The email-only replacement is under opendraft:rememberedEmail.
-    try { localStorage.removeItem('opendraft:collabSavedCreds'); } catch { /* ignore */ }
+    // plaintext. The email-only replacement is under writeadraft:rememberedEmail.
+    try { localStorage.removeItem('writeadraft:collabSavedCreds'); } catch { /* ignore */ }
     collabAuthApi.getServerConfig().then(setServerConfig).catch(() => {});
     initDemoInfo().then((info) => setIsDemoServer(Boolean(info.demo))).catch(() => {});
   }, []);

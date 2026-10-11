@@ -6,8 +6,8 @@
  * whether the writer pinned it. The scheme is
  *
  *     <Backup folder>/<Project>/<Title>_<YYYY-MM-DD>_<HHMMSS>_<sid8>[.manual].odraft
- *     OpenDraft Backups/Silent Sonata/The Long Goodbye_2026-07-27_143205_a1b2c3d4.odraft
- *     OpenDraft Backups/Silent Sonata/The Long Goodbye_2026-07-27_150000_a1b2c3d4.manual.odraft
+ *     WriTea Draft Backups/Silent Sonata/The Long Goodbye_2026-07-27_143205_a1b2c3d4.odraft
+ *     WriTea Draft Backups/Silent Sonata/The Long Goodbye_2026-07-27_150000_a1b2c3d4.manual.odraft
  *
  * Filenames stay self-describing even so — a snapshot dragged out of its folder
  * is still identifiable, and backups written by older builds sit flat in the

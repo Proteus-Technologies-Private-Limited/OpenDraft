@@ -2,7 +2,7 @@
  * Offers to bring an older script up to the standard two blank lines before a
  * scene heading (issue #76).
  *
- * OpenDraft used to render and paginate one blank line while its own FDX and
+ * WriTea Draft used to render and paginate one blank line while its own FDX and
  * OSF exporters wrote two — so a script sent to Final Draft came back longer
  * than the app had shown. Fixing that changes where pages break, which is not
  * something to do to a draft behind the writer's back: a script mid-submission

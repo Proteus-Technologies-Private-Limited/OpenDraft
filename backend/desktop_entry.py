@@ -11,7 +11,7 @@ import uvicorn
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="OpenDraft API server")
+    parser = argparse.ArgumentParser(description="WriTea Draft API server")
     parser.add_argument("--port", type=int, default=18321, help="Port to listen on")
     parser.add_argument("--data-dir", type=str, default=None, help="Data directory")
     args = parser.parse_args()
@@ -19,7 +19,7 @@ def main() -> None:
     # If --data-dir is provided, set the env var before importing anything
     # that reads it at module scope.
     if args.data_dir:
-        os.environ["OPENDRAFT_DATA_DIR"] = args.data_dir
+        os.environ["WRITEADRAFT_DATA_DIR"] = args.data_dir
 
     from app.main import app  # noqa: F811
 

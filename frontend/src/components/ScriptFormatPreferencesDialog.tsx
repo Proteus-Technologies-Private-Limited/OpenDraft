@@ -145,7 +145,7 @@ const ScriptFormatPreferencesDialog: React.FC<Props> = ({ firstRun = false, onCo
         <div className="fmt-dialog-body">
           <p className="fmt-dialog-hint">
             {firstRun
-              ? 'Pick the formats you commonly write in. When you create a new script, OpenDraft will offer just these options. You can change this later from the Format menu.'
+              ? 'Pick the formats you commonly write in. When you create a new script, WriTea Draft will offer just these options. You can change this later from the Format menu.'
               : 'Choose which formats appear in the New Screenplay picker. Make one the default and the picker opens on it, ready to accept — the others are still one click away. Select just one format and new scripts use it without prompting at all.'}
           </p>
           <div className="fmt-card-list">

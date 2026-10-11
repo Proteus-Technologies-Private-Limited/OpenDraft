@@ -16,7 +16,7 @@ instead, after checking what comparable tools actually do:
 | **StudioBinder** | script and shot list are separate linked objects | per-shot | generated from the shot list | n/a |
 
 Celtx — the leader in this exact niche — converged on **fixed, typed columns**
-rather than arbitrary ones. That is what OpenDraft does: Cue/Timing · Video ·
+rather than arbitrary ones. That is what WriTea Draft does: Cue/Timing · Video ·
 Audio · Storyboard, with adjustable widths (the WriterDuet idea).
 
 For interchange there is **no structured AV/shot-list standard**. FDX, Fountain
@@ -25,11 +25,11 @@ row-and-column AV data. What production tooling exchanges is **spreadsheets** �
 Movie Magic Scheduling and StudioBinder both import CSV, shot-list tools export
 xlsx — so XLSX and CSV carry the AV document to other tools.
 
-The `opendraft-av` YAML format from #119 is also implemented, for the job a
+The `writeadraft-av` YAML format from #119 is also implemented, for the job a
 spreadsheet cannot do: a readable, diffable, version-controllable text file that
 still preserves paragraph styles, cue metadata and layout. It is a format only
-OpenDraft reads, so it complements the spreadsheet rather than replacing it —
-see [OpenDraft AV YAML](#opendraft-av-yaml) below.
+WriTea Draft reads, so it complements the spreadsheet rather than replacing it —
+see [WriTea Draft AV YAML](#writeadraft-av-yaml) below.
 
 ## Data model
 
@@ -204,7 +204,7 @@ rather than looping forever.
 Excel itself writes) and CSV, then guesses what each column is.
 
 The mapping is **fuzzy on purpose**: a sheet from another production will not
-use OpenDraft's header names. `Visual`, `Picture`, `Vision` → video; `Sound`,
+use WriTea Draft's header names. `Visual`, `Picture`, `Vision` → video; `Sound`,
 `Narration`, `VO` → audio; `Length`, `Run Time`, `Secs` → duration. A column
 matching nothing is dropped rather than guessed at. A two-column sheet with
 unrecognisable headers falls back to video/audio, which is the classic AV shape.
@@ -453,7 +453,7 @@ round-trips. Generated files were additionally opened with third-party readers:
 - **DOCX** — `python-docx` confirms `w:tblHeader` and `w:cantSplit` are present
 - **PDF** — `pypdf` confirms the header repeats on every page and rows do not split
 
-## OpenDraft AV YAML
+## WriTea Draft AV YAML
 
 Each of the other formats gives something up. A spreadsheet flattens cells to
 plain strings, losing paragraph styles and the document's settings. `.odraft`
@@ -461,7 +461,7 @@ keeps everything but is opaque. YAML sits between them: plain text you can read,
 diff and hand-edit, that still preserves structure.
 
 ```yaml
-format: opendraft-av
+format: writeadraft-av
 schemaVersion: 1
 document:
   title: Summer Campaign
@@ -516,7 +516,7 @@ Design decisions worth knowing:
   which is right for a hand-written file. `customElement` has no style name: its
   identity is an attribute, and it writes and reads as `body`.
 - **Every file identifies itself and carries a schema version.** A file from a
-  newer OpenDraft is refused by name (`version 99 … reads up to 1`) rather than
+  newer WriTea Draft is refused by name (`version 99 … reads up to 1`) rather than
   read as a structure we do not understand.
 - **Unquoted colons are recovered.** YAML reads `- NARRATOR: Hello` as the map
   `{NARRATOR: "Hello"}`, and nearly every AV audio line has a colon in it. The

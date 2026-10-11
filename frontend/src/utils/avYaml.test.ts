@@ -1,5 +1,5 @@
 /**
- * OpenDraft AV YAML — round trip, self-identification and versioning.
+ * WriTea Draft AV YAML — round trip, self-identification and versioning.
  *
  * The point of this format over the spreadsheet is that it keeps structure the
  * spreadsheet flattens: per-paragraph styles, blank cells, cue metadata and the
@@ -64,7 +64,7 @@ describe('writing', () => {
 
   it('is human-readable plain text, not a blob', () => {
     const text = avDocumentToYaml(SAMPLE)!;
-    expect(text).toContain('format: opendraft-av');
+    expect(text).toContain('format: writeadraft-av');
     expect(text).toContain('WIDE ON STREET');
     // No base64 image payloads — that is the whole reason images stay out.
     expect(text).not.toMatch(/base64|data:image/);
@@ -188,8 +188,8 @@ describe('refusing bad input rather than guessing', () => {
     expect(() => importAvYaml('{{ not: [valid')).toThrow(/not valid YAML/);
   });
 
-  it('rejects YAML that is not an OpenDraft AV document', () => {
-    expect(() => importAvYaml('name: something else\nvalue: 3')).toThrow(/not an OpenDraft AV document/);
+  it('rejects YAML that is not an WriTea Draft AV document', () => {
+    expect(() => importAvYaml('name: something else\nvalue: 3')).toThrow(/not an WriTea Draft AV document/);
   });
 
   it('rejects a file with no schema version', () => {

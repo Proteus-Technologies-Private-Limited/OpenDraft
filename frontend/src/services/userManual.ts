@@ -35,7 +35,7 @@ export const MANUAL_WEB_URL =
  */
 export const MANUAL_IMG_ATTR = 'data-manual-img';
 
-const DB_NAME = 'opendraft-user-manual';
+const DB_NAME = 'writeadraft-user-manual';
 const DB_VERSION = 1;
 const PAGE_STORE = 'pages';
 const IMAGE_STORE = 'images';
@@ -297,7 +297,7 @@ function extractPage(rawHtml: string, images: Set<string>): { html: string; text
  */
 function adaptStylesheet(css: string): string {
   return css.replace(/:root\b/g, ':host') + `
-/* Applied by OpenDraft: the shadow tree has no <body> to carry these. */
+/* Applied by WriTea Draft: the shadow tree has no <body> to carry these. */
 :host {
   display: block;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;

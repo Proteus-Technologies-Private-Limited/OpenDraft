@@ -79,7 +79,7 @@ const FD_INDENTS: Record<string, [number, number]> = {
  * Word paragraph-style names for each element type.
  *
  * Without these every paragraph exported as unnamed body text, so re-importing
- * a `.docx` OpenDraft wrote had nothing to classify by except indentation and
+ * a `.docx` WriTea Draft wrote had nothing to classify by except indentation and
  * text shape — and General, whose 1.5" indent is shared with Action, Scene
  * Heading and the act markers, always fell through to the `action` fallback.
  * The names deliberately match `STYLE_NAME_MAP` in docxImporter, which is also
@@ -510,7 +510,7 @@ export interface DocxExportOptions {
   revisionColor?: string;
   /** The document's typeface; defaults to the screenplay Courier. */
   documentFont?: string;
-  /** Script pages as OpenDraft paginated them, excluding the title page. Lets
+  /** Script pages as WriTea Draft paginated them, excluding the title page. Lets
    *  `{pages}` be written as a literal instead of Word's NUMPAGES, which counts
    *  the title page and so is always one too high for a script that has one. */
   scriptPageCount?: number;
@@ -907,7 +907,7 @@ export async function exportDocx(
   }
 
   const document = new Document({
-    creator: 'OpenDraft',
+    creator: 'WriTea Draft',
     title: docTitle,
     ...(Object.keys(footnotesMap).length > 0 ? { footnotes: footnotesMap } : {}),
     ...(Object.keys(endnotesMap).length > 0 ? { endnotes: endnotesMap } : {}),

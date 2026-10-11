@@ -5,7 +5,7 @@ PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 FRONTEND_DIR="$PROJECT_ROOT/frontend"
 BACKEND_STATIC="$PROJECT_ROOT/backend/static"
 
-echo "=== Building OpenDraft Frontend ==="
+echo "=== Building WriTea Draft Frontend ==="
 cd "$FRONTEND_DIR"
 npm run build
 

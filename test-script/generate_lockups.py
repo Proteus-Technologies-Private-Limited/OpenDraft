@@ -1,5 +1,5 @@
 """
-Regenerate the OpenDraft wordmark lockups (mark + "OpenDraft" side by side and
+Regenerate the WriTea Draft wordmark lockups (mark + "WriTea Draft" side by side and
 stacked) as self-contained SVGs.
 
 The wordmark is set in Figtree SemiBold and converted to outline paths, so the
@@ -41,7 +41,7 @@ CACHE = os.path.join(ROOT, "test-script", "output", "fonts")
 FONT_URL = "https://github.com/google/fonts/raw/main/ofl/figtree/Figtree%5Bwght%5D.ttf"
 LICENSE_URL = "https://github.com/google/fonts/raw/main/ofl/figtree/OFL.txt"
 WEIGHT = 600
-TEXT = "OpenDraft"
+TEXT = "WriTea Draft"
 INDIGO = "#2B2A86"
 
 # Ratios measured off the brand sheet, all relative to the mark's height.
@@ -111,12 +111,12 @@ def outline_wordmark(font_path):
 
 def mark_pieces():
     """Lift the gradients and the drawn mark straight out of the master SVG."""
-    src = open(os.path.join(BRAND, "opendraft-mark.svg")).read()
+    src = open(os.path.join(BRAND, "writeadraft-mark.svg")).read()
     vb = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', src)
     grads = re.search(r"<defs>(.*?)</defs>", src, re.S)
     group = re.search(r'(<g transform="matrix.*?</g>)', src, re.S)
     if not (vb and grads and group):
-        raise RuntimeError("could not parse images/brand/opendraft-mark.svg")
+        raise RuntimeError("could not parse images/brand/writeadraft-mark.svg")
     return float(vb.group(1)), float(vb.group(2)), grads.group(1).strip(), group.group(1)
 
 
@@ -128,8 +128,8 @@ def write(path, w, h, defs, mark, word, mono):
     with open(path, "w") as fh:
         fh.write(
             f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w:g} {h:g}"'
-            f'{root_fill} role="img" aria-label="OpenDraft">\n'
-            f"  <title>OpenDraft</title>\n{defs_block}{mark}\n{word.format(fill=fill)}\n</svg>\n"
+            f'{root_fill} role="img" aria-label="WriTea Draft">\n'
+            f"  <title>WriTea Draft</title>\n{defs_block}{mark}\n{word.format(fill=fill)}\n</svg>\n"
             .replace(mark, body_mark)
         )
 
@@ -146,9 +146,9 @@ def build():
                 f'{wx:.2f} {baseline:.2f}) scale({s:.6f})" d="{d}"/>')
         for mono in (False, True):
             suffix = "-mono" if mono else ""
-            write(os.path.join(BRAND, f"opendraft-lockup-{name}{suffix}.svg"),
+            write(os.path.join(BRAND, f"writeadraft-lockup-{name}{suffix}.svg"),
                   round(total_w, 2), round(total_h, 2), defs, mark, word, mono)
-        print(f"  opendraft-lockup-{name}.svg  {total_w:.0f} x {total_h:.0f}")
+        print(f"  writeadraft-lockup-{name}.svg  {total_w:.0f} x {total_h:.0f}")
 
     # Horizontal: wordmark to the right, cap-height box centred on the mark.
     s = (H_CAP * mh) / cap
@@ -171,7 +171,7 @@ def write_license():
     out = os.path.join(BRAND, "FONT-LICENSE.txt")
     with open(out, "w") as fh:
         fh.write(
-            "The 'OpenDraft' wordmark in opendraft-lockup-*.svg is set in Figtree\n"
+            "The 'WriTea Draft' wordmark in writeadraft-lockup-*.svg is set in Figtree\n"
             "SemiBold and converted to outline paths. Figtree carries no Reserved\n"
             "Font Name. Its licence follows and covers those outlines.\n\n"
             "Source: https://github.com/erikdkennedy/figtree\n"

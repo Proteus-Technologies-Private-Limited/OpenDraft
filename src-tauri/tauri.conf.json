@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
-  "productName": "OpenDraft",
+  "productName": "WriTea Draft",
   "version": "2.5.3",
-  "identifier": "com.proteus.opendraft",
+  "identifier": "net.japanada.writea-draft",
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://127.0.0.1:5173",
@@ -14,7 +14,7 @@
       {
         "label": "splashscreen",
         "url": "splash.html",
-        "title": "OpenDraft",
+        "title": "WriTea Draft",
         "width": 480,
         "height": 420,
         "resizable": false,
@@ -25,7 +25,7 @@
       {
         "label": "main",
         "url": "index.html",
-        "title": "OpenDraft",
+        "title": "WriTea Draft",
         "width": 1280,
         "height": 800,
         "minWidth": 800,
@@ -89,7 +89,7 @@
       {
         "ext": ["odraft"],
         "mimeType": "application/json",
-        "description": "OpenDraft Screenplay"
+        "description": "WriTea Draft Screenplay"
       },
       {
         "ext": ["txt"],

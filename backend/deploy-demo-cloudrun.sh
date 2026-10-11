@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── OpenDraft Demo Server — Deploy to Google Cloud Run ──
+# ── WriTea Draft Demo Server — Deploy to Google Cloud Run ──
 #
 # Deploys the demo server (backend + compiled frontend) to Cloud Run.
 # Uses the same GCP project as the collab server.
@@ -21,7 +21,7 @@ set -euo pipefail
 
 echo ""
 echo "╔══════════════════════════════════════════════════╗"
-echo "║  OpenDraft Demo Server — Cloud Run Deployment    ║"
+echo "║  WriTea Draft Demo Server — Cloud Run Deployment    ║"
 echo "╚══════════════════════════════════════════════════╝"
 echo ""
 
@@ -57,9 +57,9 @@ gcloud config set project "$PROJECT_ID"
 
 # ── Configuration ──
 
-SERVICE_NAME="opendraft-demo"
+SERVICE_NAME="writeadraft-demo"
 REGION="us-central1"       # Free tier eligible region (same as collab server)
-REPO_NAME="opendraft"      # Artifact Registry repository (shared with collab server)
+REPO_NAME="writeadraft"      # Artifact Registry repository (shared with collab server)
 IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$SERVICE_NAME"
 
 # Navigate to project root (Dockerfile context needs both frontend/ and backend/)
@@ -96,7 +96,7 @@ if ! gcloud artifacts repositories describe "$REPO_NAME" \
     --repository-format=docker \
     --location="$REGION" \
     --project="$PROJECT_ID" \
-    --description="OpenDraft container images" \
+    --description="WriTea Draft container images" \
     --quiet
   echo "  Repository '$REPO_NAME' created."
 else
@@ -140,7 +140,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --max-instances=1 \
   --timeout=3600 \
   --set-env-vars="DEMO_MODE=true" \
-  --set-env-vars="OPENDRAFT_DATA_DIR=/app/data" \
+  --set-env-vars="WRITEADRAFT_DATA_DIR=/app/data" \
   --quiet
 
 # ── Get service URL ──

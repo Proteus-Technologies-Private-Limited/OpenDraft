@@ -26,7 +26,7 @@ services:
     expose:
       - "8080"
     environment:
-      OPENDRAFT_DATA_DIR: /app/data
+      WRITEADRAFT_DATA_DIR: /app/data
       PORT: "8080"
     volumes:
       - demo_data:/app/data

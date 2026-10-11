@@ -1,4 +1,4 @@
-# OpenDraft Branding
+# WriTea Draft Branding
 
 The logo is a fountain pen nib whose body opens into three feather planes — a pen
 that takes flight. It replaced an earlier full-colour illustration that carried a
@@ -12,20 +12,20 @@ logo files; every PNG, ICO and ICNS in the repo is generated from them.
 
 | File | What it is |
 |------|------------|
-| `opendraft-mark.svg` | Full-colour mark, transparent, tight bounding box |
-| `opendraft-mark-mono.svg` | Single colour via `currentColor` — for monochrome, engraving, stamps |
-| `opendraft-mark-white.svg` | Flat white, for dark surfaces |
-| `opendraft-icon.svg` | 1024 square plate: brand gradient + white mark. The app icon everywhere except macOS |
-| `opendraft-icon-macos.svg` | 1024 canvas with an inset squircle plate, as macOS expects |
-| `opendraft-icon-plate.svg` | The gradient plate alone, no mark — the Android adaptive background layer |
-| `opendraft-icon-android-foreground.svg` | 432 canvas, white mark inside the 66% adaptive safe zone |
-| `opendraft-lockup-horizontal.svg` | Mark and wordmark side by side |
-| `opendraft-lockup-stacked.svg` | Mark above the wordmark |
-| `opendraft-lockup-*-mono.svg` | Both lockups in a single `currentColor` |
+| `writeadraft-mark.svg` | Full-colour mark, transparent, tight bounding box |
+| `writeadraft-mark-mono.svg` | Single colour via `currentColor` — for monochrome, engraving, stamps |
+| `writeadraft-mark-white.svg` | Flat white, for dark surfaces |
+| `writeadraft-icon.svg` | 1024 square plate: brand gradient + white mark. The app icon everywhere except macOS |
+| `writeadraft-icon-macos.svg` | 1024 canvas with an inset squircle plate, as macOS expects |
+| `writeadraft-icon-plate.svg` | The gradient plate alone, no mark — the Android adaptive background layer |
+| `writeadraft-icon-android-foreground.svg` | 432 canvas, white mark inside the 66% adaptive safe zone |
+| `writeadraft-lockup-horizontal.svg` | Mark and wordmark side by side |
+| `writeadraft-lockup-stacked.svg` | Mark above the wordmark |
+| `writeadraft-lockup-*-mono.svg` | Both lockups in a single `currentColor` |
 
 ## Wordmark
 
-"OpenDraft" is set in **Figtree SemiBold** and converted to outline paths, so the
+"WriTea Draft" is set in **Figtree SemiBold** and converted to outline paths, so the
 lockup SVGs carry no font dependency and render identically everywhere. Figtree
 is SIL Open Font Licensed with **no Reserved Font Name**, which is what makes
 shipping its outlines from an MIT repo clean; the licence travels with them in

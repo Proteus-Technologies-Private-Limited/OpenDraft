@@ -200,7 +200,7 @@ function collectStyles(root: Element): Map<string, StyleDef> {
  * The document's own typeface: whatever Normal Text (built-in index 0) is set
  * in, since every other style inherits from it.
  *
- * Warns when the styles disagree, because OpenDraft carries one font for the
+ * Warns when the styles disagree, because WriTea Draft carries one font for the
  * page and per-element typefaces would be silently levelled otherwise.
  */
 function documentFontOf(styles: Map<string, StyleDef>, warnings: string[]): DocumentFont {
@@ -225,7 +225,7 @@ function documentFontOf(styles: Map<string, StyleDef>, warnings: string[]): Docu
 }
 
 /**
- * Resolve a style name to an OpenDraft element type.
+ * Resolve a style name to an WriTea Draft element type.
  *
  * Tries, in order: the built-in index recorded in <styles>, the style name
  * itself, then the name of the style it is based on (walking up the chain).
@@ -404,7 +404,7 @@ function parseTextRun(
 
 /**
  * OSF stores a parenthetical bare — `<text>excited</text>`, not "(excited)" —
- * and leaves the brackets to whoever renders it.  OpenDraft keeps them in the
+ * and leaves the brackets to whoever renders it.  WriTea Draft keeps them in the
  * text, as Fountain and Final Draft do, so they have to be put back or every
  * parenthetical imports unbracketed.
  *
@@ -460,7 +460,7 @@ function parseParagraph(
   if (sceneNumber) attrs.sceneNumber = sceneNumber;
 
   // Both note and synopsis land on the scene heading's synopsis field — the
-  // only per-element prose slot OpenDraft has.  Losing them outright would be
+  // only per-element prose slot WriTea Draft has.  Losing them outright would be
   // worse than merging them.
   const synopsisParts = [
     attr(para, 'synopsis'),

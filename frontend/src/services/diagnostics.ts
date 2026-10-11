@@ -65,7 +65,7 @@ export async function collectDiagnostics(): Promise<DiagnosticsReport> {
     try {
       const path = await import('@tauri-apps/api/path');
       appDataDir = await path.appDataDir();
-      sqliteDbPath = appDataDir ? `${appDataDir.replace(/[\\/]+$/, '')}/opendraft.db` : null;
+      sqliteDbPath = appDataDir ? `${appDataDir.replace(/[\\/]+$/, '')}/writeadraft.db` : null;
     } catch (err) {
       appDataDir = `(unavailable: ${(err as Error).message || err})`;
     }
@@ -95,8 +95,8 @@ export async function collectDiagnostics(): Promise<DiagnosticsReport> {
 export function getAppVersion(): string {
   // Version is hard-coded in MenuBar/About; pull from a global if exposed,
   // otherwise rely on what the Tauri build embeds.
-  if (typeof window !== 'undefined' && (window as any).__OPENDRAFT_VERSION__) {
-    return (window as any).__OPENDRAFT_VERSION__;
+  if (typeof window !== 'undefined' && (window as any).__WRITEADRAFT_VERSION__) {
+    return (window as any).__WRITEADRAFT_VERSION__;
   }
   return '2.5.3';
 }
@@ -104,7 +104,7 @@ export function getAppVersion(): string {
 /** Format a report as plain text suitable for pasting into a GitHub issue. */
 export function formatReport(r: DiagnosticsReport): string {
   const lines: string[] = [];
-  lines.push(`OpenDraft Diagnostics — ${r.collectedAt}`);
+  lines.push(`WriTea Draft Diagnostics — ${r.collectedAt}`);
   lines.push(`Version: ${r.appVersion}`);
   lines.push(`OS: ${r.os}`);
   lines.push(`Storage backend: ${r.storageMode}`);
@@ -117,7 +117,7 @@ export function formatReport(r: DiagnosticsReport): string {
     lines.push('  be under a OneDrive-synced folder. OneDrive can corrupt SQLite WAL');
     lines.push('  files mid-write, causing silent save failures. Consider moving');
     lines.push('  C:\\Users\\<you>\\AppData out of OneDrive sync, or excluding the');
-    lines.push('  OpenDraft data folder from OneDrive.');
+    lines.push('  WriTea Draft data folder from OneDrive.');
   }
   lines.push('');
   lines.push('Compatibility:');

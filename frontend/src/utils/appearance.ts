@@ -15,7 +15,7 @@
 
 export type Appearance = 'light' | 'dark' | 'dark-pages';
 
-export const APPEARANCE_STORAGE_KEY = 'opendraft:theme';
+export const APPEARANCE_STORAGE_KEY = 'writeadraft:theme';
 
 const VALID: readonly Appearance[] = ['light', 'dark', 'dark-pages'];
 

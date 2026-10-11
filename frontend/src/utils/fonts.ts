@@ -1,7 +1,7 @@
 /**
  * The interchangeable Couriers.
  *
- * A script written in any of these is already what OpenDraft renders — Courier
+ * A script written in any of these is already what WriTea Draft renders — Courier
  * Prime, which is metric-compatible with them — so importers leave the page
  * font alone for these, and exporters keep to the Final Draft Courier path.
  */
@@ -34,7 +34,7 @@ export function isDocumentSize(size: string | null | undefined, documentSize: st
  * The shape a face belongs to — what a reader on another machine should get
  * when the font itself isn't there.
  *
- * This is the whole of OpenDraft's cross-platform story for fonts: a document
+ * This is the whole of WriTea Draft's cross-platform story for fonts: a document
  * records the family it was written in, and every renderer here turns that name
  * into a stack ending in the right generic. A script set in Bebas Neue opened
  * offline is still a display-weight title page, not Courier.
@@ -453,7 +453,7 @@ const GENERIC_FALLBACKS: Record<FontGeneric, string[]> = {
  * In or Word naming a face from someone else's machine.
  *
  * A screenplay is monospace unless it says otherwise, so that is the default:
- * an unrecognised name falls back to Courier, which is how OpenDraft has always
+ * an unrecognised name falls back to Courier, which is how WriTea Draft has always
  * rendered it.
  */
 function guessGeneric(family: string): FontGeneric {

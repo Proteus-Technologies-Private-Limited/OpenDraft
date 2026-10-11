@@ -15,7 +15,7 @@ import { handleNonOkResponse } from './api';
 import type { ProjectInfo, ProjectProperties, ScriptMeta, ScriptResponse } from './api';
 
 const NOT_CONFIGURED =
-  'OpenDraft Cloud is not configured for this app. Open Settings → System Settings to set the OpenDraft server URL.';
+  'WriTea Draft Cloud is not configured for this app. Open Settings → System Settings to set the WriTea Draft server URL.';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const base = getApiBase();
@@ -33,13 +33,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     // up malformed (e.g. opaque-origin Tauri schemes). Surface a single clean
     // message so the user sees something actionable instead of either raw text.
     const detail = err instanceof Error ? err.message : String(err);
-    throw new Error(`Cannot reach OpenDraft Cloud (${detail}).`);
+    throw new Error(`Cannot reach WriTea Draft Cloud (${detail}).`);
   }
   if (!res.ok) await handleNonOkResponse(res, 'Cloud API');
   try {
     return await res.json();
   } catch {
-    throw new Error('OpenDraft Cloud returned an invalid response. The server may be misconfigured.');
+    throw new Error('WriTea Draft Cloud returned an invalid response. The server may be misconfigured.');
   }
 }
 

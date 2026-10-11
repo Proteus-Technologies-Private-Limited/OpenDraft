@@ -8,9 +8,9 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const KEY_LIBRARY = 'opendraft:autoSaveLibrary';
-const KEY_FILES = 'opendraft:autoSaveFiles';
-const KEY_INTERVAL = 'opendraft:autoSaveIntervalSeconds';
+const KEY_LIBRARY = 'writeadraft:autoSaveLibrary';
+const KEY_FILES = 'writeadraft:autoSaveFiles';
+const KEY_INTERVAL = 'writeadraft:autoSaveIntervalSeconds';
 
 async function freshStore() {
   vi.resetModules();

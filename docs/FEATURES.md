@@ -1,6 +1,6 @@
-# OpenDraft Features
+# WriTea Draft Features
 
-A complete list of features in OpenDraft.
+A complete list of features in WriTea Draft.
 
 ## Screenplay Editor
 
@@ -36,7 +36,7 @@ A complete list of features in OpenDraft.
 - **Recover Backup** -- Browse every snapshot, preview it, and restore it as a new script or over the current one
 - **Complete snapshots** -- Backups carry notes, tags, beats, character profiles and images, so a restore brings the script back whole
 
-**Version History vs Backups:** Version History stores checkpoints *inside* OpenDraft's database and covers a whole project. Backups are ordinary files *outside* the app, one per script -- so they survive even if the database is lost. Use both.
+**Version History vs Backups:** Version History stores checkpoints *inside* WriTea Draft's database and covers a whole project. Backups are ordinary files *outside* the app, one per script -- so they survive even if the database is lost. Use both.
 
 ## Collaboration
 
@@ -50,7 +50,7 @@ A complete list of features in OpenDraft.
 - **Fountain (.fountain)** -- Import and export
 - **Fade In (.fadein) / Open Screenplay Format (.osf)** -- Import and export, carrying elements, emphasis, colour, fonts, page breaks, scene numbers, synopses, dual dialogue and the title page
 - **Microsoft Word (.docx)** -- Import and export
-- **OpenDraft (.odraft)** -- Lossless export: the script plus its notes, tags, beats, character profiles and images
+- **WriTea Draft (.odraft)** -- Lossless export: the script plus its notes, tags, beats, character profiles and images
 - **Paste as Fountain** -- Paste Fountain markup straight into the script as real elements
 - **PDF** -- Export with proper screenplay formatting
 - **Open in place** -- Edit a `.fdx`, `.fountain`, `.fadein`, `.osf`, `.odraft` or `.txt` where it lives and save straight back to it, on desktop and mobile
@@ -83,5 +83,5 @@ A complete list of features in OpenDraft.
 
 ## Extensibility
 
-- **Plugin Architecture** -- Extend OpenDraft with custom plugins
+- **Plugin Architecture** -- Extend WriTea Draft with custom plugins
 - **Open API** -- FastAPI backend with documented endpoints

@@ -1,12 +1,12 @@
-# Feature Gap Analysis: OpenDraft vs Fade In Professional
+# Feature Gap Analysis: WriTea Draft vs Fade In Professional
 
 ## Summary
 
-This document identifies features present in **Fade In Professional Screenwriting Software** that are missing or incomplete in **OpenDraft** (v0.12.0). Features are categorized by priority based on how critical they are for professional screenwriting workflows.
+This document identifies features present in **Fade In Professional Screenwriting Software** that are missing or incomplete in **WriTea Draft** (v0.12.0). Features are categorized by priority based on how critical they are for professional screenwriting workflows.
 
 ---
 
-## What OpenDraft Already Has (Parity with Fade In)
+## What WriTea Draft Already Has (Parity with Fade In)
 
 These features are already implemented and roughly at parity:
 
@@ -45,7 +45,7 @@ These features are already implemented and roughly at parity:
 
 ### Priority 1 — Critical for Professional Use
 
-| # | Feature | Fade In | OpenDraft Status |
+| # | Feature | Fade In | WriTea Draft Status |
 |---|---------|---------|-----------------|
 | 1 | **Scene Numbering** | Automatic scene numbers with lock/unlock. Inserted scenes get letter suffixes (5A, 5B). | Menu item exists but is **disabled** (`disabled: true`). Scene numbers are tracked internally but not rendered in the editor or PDF. |
 | 2 | **Page Locking** | Lock page numbers so added/removed content doesn't shift page numbers during production. | Menu item exists but is **disabled** (`disabled: true`). Not implemented. |
@@ -58,7 +58,7 @@ These features are already implemented and roughly at parity:
 
 ### Priority 2 — Important for Workflow
 
-| # | Feature | Fade In | OpenDraft Status |
+| # | Feature | Fade In | WriTea Draft Status |
 |---|---------|---------|-----------------|
 | 9 | **Full-Screen / Distraction-Free Mode** | Page-only full-screen editing. System UI hidden. Mouse reveals controls at screen edges. | **Missing.** CSS references to fullscreen exist only in panel expand buttons (notes, characters, index cards), not a dedicated writing mode. |
 | 10 | **Dialogue Tuner** | View and edit all of a single character's dialogue in one place for voice consistency. | **Missing entirely.** Character profiles exist but no dialogue extraction/editing view. |
@@ -72,7 +72,7 @@ These features are already implemented and roughly at parity:
 
 ### Priority 3 — Nice to Have
 
-| # | Feature | Fade In | OpenDraft Status |
+| # | Feature | Fade In | WriTea Draft Status |
 |---|---------|---------|-----------------|
 | 17 | **Text-to-Speech / Table Read** | Virtual table read using system TTS voices to hear the script read aloud. | **Missing entirely.** |
 | 18 | **Script Format Validation** | Check script for formatting errors and inconsistencies. | **Missing.** No validation or error-checking tool. |
@@ -87,9 +87,9 @@ These features are already implemented and roughly at parity:
 
 ---
 
-## Features Where OpenDraft Exceeds Fade In
+## Features Where WriTea Draft Exceeds Fade In
 
-OpenDraft has several features that Fade In lacks:
+WriTea Draft has several features that Fade In lacks:
 
 | Feature | Description |
 |---------|-------------|

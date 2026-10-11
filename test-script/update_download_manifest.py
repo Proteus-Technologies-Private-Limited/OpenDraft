@@ -42,7 +42,7 @@ def bump_url(url: str, old: str, new: str) -> str:
 
     Anchored to the separators around it so a version that happens to appear
     elsewhere in the URL is left alone — the filenames are of the shape
-    OpenDraft_0.26.3_aarch64.dmg, so the number always sits between _ or -.
+    WriTeaDraft_0.26.3_aarch64.dmg, so the number always sits between _ or -.
     """
     return re.sub(
         r'(?<=[_-])' + re.escape(old) + r'(?=[_-])',

@@ -42,7 +42,7 @@ describe('naming a font the platform will not enumerate', () => {
     setDynamicFonts('device', []);
     expect(addNamedFont('Avenir Next Condensed')).toBe(true);
     expect(getAllFonts().some((f) => f.name === 'Avenir Next Condensed' && f.source === 'device')).toBe(true);
-    expect(JSON.parse(localStorage.getItem('opendraft:device-fonts:named') || '[]'))
+    expect(JSON.parse(localStorage.getItem('writeadraft:device-fonts:named') || '[]'))
       .toContain('Avenir Next Condensed');
   });
 

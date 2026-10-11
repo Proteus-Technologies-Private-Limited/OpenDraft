@@ -1,5 +1,5 @@
 /**
- * Validate a converted .odraft file against OpenDraft's own parser and schema.
+ * Validate a converted .odraft file against WriTea Draft's own parser and schema.
  *
  * Writing valid-looking JSON is not the same as writing a file the app can
  * open: `parseOdraft` rejects a bad envelope, and ProseMirror rejects a node

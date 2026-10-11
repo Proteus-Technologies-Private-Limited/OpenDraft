@@ -8,7 +8,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
  * as Action the brackets came through as literal characters and the writer's
  * aside was printed in the middle of a scene.
  *
- * This is deliberately *not* the same thing as OpenDraft's script notes, which
+ * This is deliberately *not* the same thing as WriTea Draft's script notes, which
  * are anchored to a run of text and live in the notes panel. A Fountain note
  * has no anchor — it is a standalone paragraph the writer parked between two
  * elements — so it is represented as one.

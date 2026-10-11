@@ -52,7 +52,7 @@ const BackupFolderPrompt: React.FC<Props> = ({ then, onClose, onFolderChosen }) 
     setBusy(true);
     try {
       const { documentDir, join } = await import('@tauri-apps/api/path');
-      const dir = await join(await documentDir(), 'OpenDraft Backups');
+      const dir = await join(await documentDir(), 'WriTea Draft Backups');
       apply(dir, dir);
     } catch (err) {
       console.error('[backup] could not resolve the Documents folder:', err);
@@ -69,12 +69,12 @@ const BackupFolderPrompt: React.FC<Props> = ({ then, onClose, onFolderChosen }) 
         <div className="dialog-body">
           <p style={{ margin: '0 0 10px', fontSize: 14 }}>
             Backups are dated copies of your script, kept in a folder outside
-            OpenDraft — so they survive whatever happens to the app. Choose where
+            WriTea Draft — so they survive whatever happens to the app. Choose where
             they go{then === 'backup' ? ' and this script is backed up straight away' : ''}.
             You can change the folder later in Settings ▸ Backups.
           </p>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--fd-text-muted)' }}>
-            To have OpenDraft also back up on its own while you write, turn on
+            To have WriTea Draft also back up on its own while you write, turn on
             automatic backups in Settings ▸ Backups.
           </p>
           {busy && <p style={{ margin: '10px 0 0', fontSize: 13 }}>Waiting for a folder…</p>}
@@ -82,7 +82,7 @@ const BackupFolderPrompt: React.FC<Props> = ({ then, onClose, onFolderChosen }) 
         <div className="dialog-actions">
           <button disabled={busy} onClick={onClose}>Cancel</button>
           {desktop && (
-            <button disabled={busy} onClick={() => void chooseDocumentsFolder()} title="Documents/OpenDraft Backups">
+            <button disabled={busy} onClick={() => void chooseDocumentsFolder()} title="Documents/WriTeaDraft Backups">
               Use Documents Folder
             </button>
           )}

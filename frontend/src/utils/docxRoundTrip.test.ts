@@ -5,7 +5,7 @@
  * exporter's constants by hand, so it cannot catch a change in the exporter
  * itself. This drives the real modules.
  *
- * The specific regression it pins: OpenDraft used to export every paragraph as
+ * The specific regression it pins: WriTea Draft used to export every paragraph as
  * unnamed body text, leaving the importer nothing to classify by except indent
  * and text shape. General shares its 1.5" indent with Action, Scene Heading and
  * the act markers, so a General block always came back as `action` (#74).

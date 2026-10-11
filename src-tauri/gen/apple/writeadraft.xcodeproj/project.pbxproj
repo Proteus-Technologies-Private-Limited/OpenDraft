@@ -34,10 +34,10 @@
 		3E00B9A1B643D5F946FC393B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		46A8E1F9048F6FB56AFE4862 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		716C069012B8F1B2970B30ED /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
-		99C9A8353124C89440993839 /* opendraft_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = opendraft_iOS.entitlements; sourceTree = "<group>"; };
+		99C9A8353124C89440993839 /* writeadraft_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = writeadraft_iOS.entitlements; sourceTree = "<group>"; };
 		9F12C46C2A49D29336D952CE /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		F3B4C5D6E7F80912A3B4C5D6 /* FileHelpers.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FileHelpers.m; sourceTree = "<group>"; };
-		A8A9CEA433DA04771C0991D2 /* opendraft_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = opendraft_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A8A9CEA433DA04771C0991D2 /* writeadraft_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = writeadraft_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B0F2E787EEF0370AFCDBBA57 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		B45581133489B87393B52C32 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
 		EFF9E32714B0BEEB54BFB31D /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
@@ -67,7 +67,7 @@
 		238B4649DF0B6CFC85BF0FA1 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
-				92C29B37FBB913EFC0F30D4B /* opendraft */,
+				92C29B37FBB913EFC0F30D4B /* writeadraft */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -89,7 +89,7 @@
 				3E00B9A1B643D5F946FC393B /* Assets.xcassets */,
 				FC8D9AD0011D77CD0AA37DC5 /* LaunchScreen.storyboard */,
 				5E5E84A94C6E48D8190132B9 /* Externals */,
-				EC8F3494F70FFA83EC3684B8 /* opendraft_iOS */,
+				EC8F3494F70FFA83EC3684B8 /* writeadraft_iOS */,
 				238B4649DF0B6CFC85BF0FA1 /* Sources */,
 				4FE23857C22363A6B5317F00 /* src */,
 				882663A25C185A53F89FEA10 /* Frameworks */,
@@ -128,14 +128,14 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		92C29B37FBB913EFC0F30D4B /* opendraft */ = {
+		92C29B37FBB913EFC0F30D4B /* writeadraft */ = {
 			isa = PBXGroup;
 			children = (
 				9F12C46C2A49D29336D952CE /* main.mm */,
 				F3B4C5D6E7F80912A3B4C5D6 /* FileHelpers.m */,
 				59F885513ACD5EF54F9F4253 /* bindings */,
 			);
-			path = opendraft;
+			path = writeadraft;
 			sourceTree = "<group>";
 		};
 		B98B1AF99FABB9859C2F4394 /* arm64 */ = {
@@ -157,18 +157,18 @@
 		DEEA793E63E72ADC01BE70C8 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A8A9CEA433DA04771C0991D2 /* opendraft_iOS.app */,
+				A8A9CEA433DA04771C0991D2 /* writeadraft_iOS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		EC8F3494F70FFA83EC3684B8 /* opendraft_iOS */ = {
+		EC8F3494F70FFA83EC3684B8 /* writeadraft_iOS */ = {
 			isa = PBXGroup;
 			children = (
 				249E7D38FB8568CA1E5B12AE /* Info.plist */,
-				99C9A8353124C89440993839 /* opendraft_iOS.entitlements */,
+				99C9A8353124C89440993839 /* writeadraft_iOS.entitlements */,
 			);
-			path = opendraft_iOS;
+			path = writeadraft_iOS;
 			sourceTree = "<group>";
 		};
 		"TEMP_2DDE4C43-D030-4200-ABF9-62CEECC1C2C4" /* x86_64 */ = {
@@ -181,9 +181,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		8162A6755DDAFD3AF86ABE1D /* opendraft_iOS */ = {
+		8162A6755DDAFD3AF86ABE1D /* writeadraft_iOS */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = ADC78AE699D4C216D6C1A0A5 /* Build configuration list for PBXNativeTarget "opendraft_iOS" */;
+			buildConfigurationList = ADC78AE699D4C216D6C1A0A5 /* Build configuration list for PBXNativeTarget "writeadraft_iOS" */;
 			buildPhases = (
 				597A1D9B302A4795F9722B91 /* Build Rust Code */,
 				D4DEB5AB5CD286DC289DB4FE /* Sources */,
@@ -194,11 +194,11 @@
 			);
 			dependencies = (
 			);
-			name = opendraft_iOS;
+			name = writeadraft_iOS;
 			packageProductDependencies = (
 			);
-			productName = opendraft_iOS;
-			productReference = A8A9CEA433DA04771C0991D2 /* opendraft_iOS.app */;
+			productName = writeadraft_iOS;
+			productReference = A8A9CEA433DA04771C0991D2 /* writeadraft_iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -212,7 +212,7 @@
 				TargetAttributes = {
 				};
 			};
-			buildConfigurationList = 410BF51EF372224B2CEB3884 /* Build configuration list for PBXProject "opendraft" */;
+			buildConfigurationList = 410BF51EF372224B2CEB3884 /* Build configuration list for PBXProject "writeadraft" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -226,7 +226,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				8162A6755DDAFD3AF86ABE1D /* opendraft_iOS */,
+				8162A6755DDAFD3AF86ABE1D /* writeadraft_iOS */,
 			);
 		};
 /* End PBXProject section */
@@ -408,14 +408,14 @@
 					arm64,
 				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = opendraft_iOS/opendraft_iOS.entitlements;
+				CODE_SIGN_ENTITLEMENTS = writeadraft_iOS/writeadraft_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\".\"",
 				);
-				INFOPLIST_FILE = opendraft_iOS/Info.plist;
+				INFOPLIST_FILE = writeadraft_iOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -423,8 +423,8 @@
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				OTHER_LDFLAGS = "$(inherited) -Wl,-U,__swift_FORCE_LOAD_$$_swiftCompatibility56 -Wl,-U,__swift_FORCE_LOAD_$$_swiftCompatibilityPacks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.proteus.opendraft;
-				PRODUCT_NAME = "OpenDraft";
+				PRODUCT_BUNDLE_IDENTIFIER = net.japanada.writea-draft;
+				PRODUCT_NAME = "WriTea Draft";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				DEVELOPMENT_TEAM = "335RGMFDB6";
@@ -439,14 +439,14 @@
 					arm64,
 				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = opendraft_iOS/opendraft_iOS.entitlements;
+				CODE_SIGN_ENTITLEMENTS = writeadraft_iOS/writeadraft_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\".\"",
 				);
-				INFOPLIST_FILE = opendraft_iOS/Info.plist;
+				INFOPLIST_FILE = writeadraft_iOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -454,8 +454,8 @@
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				OTHER_LDFLAGS = "$(inherited) -Wl,-U,__swift_FORCE_LOAD_$$_swiftCompatibility56 -Wl,-U,__swift_FORCE_LOAD_$$_swiftCompatibilityPacks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.proteus.opendraft;
-				PRODUCT_NAME = "OpenDraft";
+				PRODUCT_BUNDLE_IDENTIFIER = net.japanada.writea-draft;
+				PRODUCT_NAME = "WriTea Draft";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				DEVELOPMENT_TEAM = "335RGMFDB6";
@@ -465,7 +465,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		410BF51EF372224B2CEB3884 /* Build configuration list for PBXProject "opendraft" */ = {
+		410BF51EF372224B2CEB3884 /* Build configuration list for PBXProject "writeadraft" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				9554B4DC3DE0AE4A5EE46D7E /* debug */,
@@ -474,7 +474,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = debug;
 		};
-		ADC78AE699D4C216D6C1A0A5 /* Build configuration list for PBXNativeTarget "opendraft_iOS" */ = {
+		ADC78AE699D4C216D6C1A0A5 /* Build configuration list for PBXNativeTarget "writeadraft_iOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				CA441E0CC7298812A38812B1 /* debug */,

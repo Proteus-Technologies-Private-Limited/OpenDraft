@@ -1,4 +1,4 @@
-The 'OpenDraft' wordmark in opendraft-lockup-*.svg is set in Figtree
+The 'WriTea Draft' wordmark in writeadraft-lockup-*.svg is set in Figtree
 SemiBold and converted to outline paths. Figtree carries no Reserved
 Font Name. Its licence follows and covers those outlines.
 

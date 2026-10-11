@@ -3,7 +3,7 @@
  *
  * The counterpart to osfParser, and deliberately its mirror image: everything
  * written here is something the parser reads back, because the first user of
- * this exporter is OpenDraft itself saving a Fade In file it opened.
+ * this exporter is WriTea Draft itself saving a Fade In file it opened.
  *
  * OSF revision 3.0 is the target. Its `basestylename` spelling is what the
  * parser prefers and what Fade In 3.x and 4.x both accept — 4.0's shortened
@@ -13,7 +13,7 @@
  * What round-trips: element types, inline bold/italic/underline/strikethrough,
  * colour and highlight, per-run font and size, hard line breaks, alignment,
  * forced page breaks, scene numbers, synopses, dual dialogue, and the title
- * page. What does not: OpenDraft's own additions — notes, tags, beats,
+ * page. What does not: WriTea Draft's own additions — notes, tags, beats,
  * character profiles — which the format has nowhere to put. They stay in the
  * .odraft copy, and the exporter does not pretend otherwise.
  */
@@ -318,7 +318,7 @@ export function exportOSF(doc: JSONContent, options: OSFExportOptions = {}): str
       ` label="${style.name}"${base}${fontAttrs}${style.extra ?? ''}/>`
     );
   });
-  // Not a built-in, but OpenDraft has the element and the parser reads the
+  // Not a built-in, but WriTea Draft has the element and the parser reads the
   // name back, so writing it keeps lyrics from arriving as action.
   styles.push(
     `    <style name="Lyrics" label="Lyrics" basestylename="Normal Text"${fontAttrs} italic="1"/>`,

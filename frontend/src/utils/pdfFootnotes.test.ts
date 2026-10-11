@@ -1,7 +1,7 @@
 /**
  * The PDF and the editor must agree about footnotes.
  *
- * Everything in OpenDraft's pagination exists to keep the page count on screen
+ * Everything in WriTea Draft's pagination exists to keep the page count on screen
  * equal to the page count in the file the writer sends out — the doc comment in
  * `wrapText.ts` says so explicitly. Footnotes introduce a second thing that has
  * to agree: the room held back at the foot of a page. These drive a real export

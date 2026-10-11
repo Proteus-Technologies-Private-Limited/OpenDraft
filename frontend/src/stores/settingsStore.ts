@@ -156,27 +156,27 @@ interface SettingsState {
   setPrintViaPdf: (v: boolean) => void;
 }
 
-const STORAGE_KEY_URL = 'opendraft:collabServerUrl';
-const STORAGE_KEY_AUTH = 'opendraft:collabAuth';
-const STORAGE_KEY_EXPIRY = 'opendraft:defaultInviteExpiry';
-const STORAGE_KEY_FORMATS = 'opendraft:enabledScriptFormats';
-const STORAGE_KEY_DEFAULT_FORMAT = 'opendraft:defaultScriptFormat';
-const STORAGE_KEY_FORMATS_INIT = 'opendraft:formatPreferencesInitialized';
-const STORAGE_KEY_BACKUP_ENABLED = 'opendraft:backupEnabled';
-const STORAGE_KEY_BACKUP_FOLDER = 'opendraft:backupFolder';
-const STORAGE_KEY_BACKUP_FOLDER_LABEL = 'opendraft:backupFolderLabel';
-const STORAGE_KEY_BACKUP_INTERVAL = 'opendraft:backupIntervalMinutes';
-const STORAGE_KEY_BACKUP_RETENTION = 'opendraft:backupRetentionCount';
-const STORAGE_KEY_BACKUP_IMAGES = 'opendraft:backupIncludeImages';
-const STORAGE_KEY_BACKUP_UNSAVED = 'opendraft:backupUnsavedDocs';
-const STORAGE_KEY_AUTO_SAVE_LIBRARY = 'opendraft:autoSaveLibrary';
-const STORAGE_KEY_AUTO_SAVE_FILES = 'opendraft:autoSaveFiles';
-const STORAGE_KEY_AUTO_SAVE_INTERVAL = 'opendraft:autoSaveIntervalSeconds';
-const STORAGE_KEY_DEFAULT_PROJECT_FOLDER = 'opendraft:defaultProjectFolder';
-const STORAGE_KEY_DEFAULT_FILE_FORMAT = 'opendraft:defaultFileFormat';
-const STORAGE_KEY_ELEMENT_MENU_ON_ENTER = 'opendraft:elementMenuOnEnter';
-const STORAGE_KEY_PRINT_VIA_PDF = 'opendraft:printViaPdf';
-const STORAGE_KEY_ELEMENT_MENU_SHORTCUT = 'opendraft:elementMenuShortcut';
+const STORAGE_KEY_URL = 'writeadraft:collabServerUrl';
+const STORAGE_KEY_AUTH = 'writeadraft:collabAuth';
+const STORAGE_KEY_EXPIRY = 'writeadraft:defaultInviteExpiry';
+const STORAGE_KEY_FORMATS = 'writeadraft:enabledScriptFormats';
+const STORAGE_KEY_DEFAULT_FORMAT = 'writeadraft:defaultScriptFormat';
+const STORAGE_KEY_FORMATS_INIT = 'writeadraft:formatPreferencesInitialized';
+const STORAGE_KEY_BACKUP_ENABLED = 'writeadraft:backupEnabled';
+const STORAGE_KEY_BACKUP_FOLDER = 'writeadraft:backupFolder';
+const STORAGE_KEY_BACKUP_FOLDER_LABEL = 'writeadraft:backupFolderLabel';
+const STORAGE_KEY_BACKUP_INTERVAL = 'writeadraft:backupIntervalMinutes';
+const STORAGE_KEY_BACKUP_RETENTION = 'writeadraft:backupRetentionCount';
+const STORAGE_KEY_BACKUP_IMAGES = 'writeadraft:backupIncludeImages';
+const STORAGE_KEY_BACKUP_UNSAVED = 'writeadraft:backupUnsavedDocs';
+const STORAGE_KEY_AUTO_SAVE_LIBRARY = 'writeadraft:autoSaveLibrary';
+const STORAGE_KEY_AUTO_SAVE_FILES = 'writeadraft:autoSaveFiles';
+const STORAGE_KEY_AUTO_SAVE_INTERVAL = 'writeadraft:autoSaveIntervalSeconds';
+const STORAGE_KEY_DEFAULT_PROJECT_FOLDER = 'writeadraft:defaultProjectFolder';
+const STORAGE_KEY_DEFAULT_FILE_FORMAT = 'writeadraft:defaultFileFormat';
+const STORAGE_KEY_ELEMENT_MENU_ON_ENTER = 'writeadraft:elementMenuOnEnter';
+const STORAGE_KEY_PRINT_VIA_PDF = 'writeadraft:printViaPdf';
+const STORAGE_KEY_ELEMENT_MENU_SHORTCUT = 'writeadraft:elementMenuShortcut';
 
 export const BACKUP_INTERVAL_OPTIONS = [5, 10, 15, 30, 60] as const;
 /** 0 means "keep every snapshot". */

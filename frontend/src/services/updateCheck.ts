@@ -1,7 +1,7 @@
 /**
  * In-app update notice (issue #106).
  *
- * Tells a writer once that a newer OpenDraft exists, and then leaves them
+ * Tells a writer once that a newer WriTea Draft exists, and then leaves them
  * alone. The whole point of the feature is restraint, so the rules are:
  *
  *   Update        — opens the right store or download page for this build.
@@ -56,10 +56,10 @@ import { getAppVersion } from './diagnostics';
 const MANIFEST_URL =
   'https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/manifest/landing/updates.json';
 
-const KEY_LAST_CHECK = 'opendraft:updateLastCheck';
-const KEY_LATEST = 'opendraft:updateLatestSeen';
-const KEY_DISMISSED = 'opendraft:updateDismissedVersion';
-const KEY_SNOOZED = 'opendraft:updateSnoozedUntil';
+const KEY_LAST_CHECK = 'writeadraft:updateLastCheck';
+const KEY_LATEST = 'writeadraft:updateLatestSeen';
+const KEY_DISMISSED = 'writeadraft:updateDismissedVersion';
+const KEY_SNOOZED = 'writeadraft:updateSnoozedUntil';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Longest a stored "latest version" is trusted before asking again. */
@@ -187,7 +187,7 @@ function readNumber(key: string): number | null {
 // ── Channel and manifest ─────────────────────────────────────────────────────
 
 export function resolveChannel(): UpdateChannel {
-  const declared = String(import.meta.env.VITE_OPENDRAFT_CHANNEL || '').trim();
+  const declared = String(import.meta.env.VITE_WRITEADRAFT_CHANNEL || '').trim();
   if (declared) return declared as UpdateChannel;
 
   if (isWeb()) return 'web';

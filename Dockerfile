@@ -27,7 +27,7 @@ COPY --from=frontend-builder /frontend/dist ./static
 # Create data directory for projects
 RUN mkdir -p /app/data/projects
 
-ENV OPENDRAFT_DATA_DIR=/app/data
+ENV WRITEADRAFT_DATA_DIR=/app/data
 ENV PORT=8080
 
 EXPOSE 8080

@@ -46,7 +46,7 @@ export interface BackupEntry {
   title: string;
   scriptKey: string;
   date: Date;
-  /** 'external' = an .odraft file in the folder that OpenDraft did not write. */
+  /** 'external' = an .odraft file in the folder that WriTea Draft did not write. */
   kind: 'auto' | 'manual' | 'external';
   sizeBytes: number;
   /**
@@ -252,7 +252,7 @@ export interface WriteSnapshotResult {
  */
 export async function writeSnapshot(opts: WriteSnapshotOptions): Promise<WriteSnapshotResult> {
   const { backupFolder, backupIncludeImages, backupRetentionCount } = useSettingsStore.getState();
-  if (!backupsSupported()) throw new Error('Backups are only available in the OpenDraft app.');
+  if (!backupsSupported()) throw new Error('Backups are only available in the WriTea Draft app.');
   if (!backupFolder) throw new Error('No backup folder is configured.');
 
   // One folder per project inside the chosen folder, so a writer with a dozen

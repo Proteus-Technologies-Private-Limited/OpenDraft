@@ -3,14 +3,14 @@
 A stand-in OpenAI-compatible speech server for testing Table Read's AI voice
 path (issue #131) without an API key or a bill.
 
-Implements the two endpoints OpenDraft's "OpenAI-compatible server" provider
+Implements the two endpoints WriTea Draft's "OpenAI-compatible server" provider
 calls — GET /v1/audio/voices and POST /v1/audio/speech — and synthesises the
 audio with macOS's `say`, so it runs on a Mac only. Every request is logged.
 
     python3 test-script/mock_tts_server.py            # http://127.0.0.1:8880/v1
     python3 test-script/mock_tts_server.py --port 9000
 
-Then in OpenDraft: Settings → Table Read Voices → Use an AI voice provider →
+Then in WriTea Draft: Settings → Table Read Voices → Use an AI voice provider →
 OpenAI-compatible server, address http://127.0.0.1:8880/v1.
 """
 

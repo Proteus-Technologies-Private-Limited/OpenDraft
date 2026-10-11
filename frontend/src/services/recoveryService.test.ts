@@ -9,7 +9,7 @@ import {
   type RecoverySnapshot,
 } from './recoveryService';
 
-const STORAGE_KEY = 'opendraft:recovery';
+const STORAGE_KEY = 'writeadraft:recovery';
 
 const CONTENT = {
   type: 'doc',
@@ -438,7 +438,7 @@ describe('recoveryService', () => {
     it('gives a tab a slot of its own rather than the shared one', async () => {
       const tab = await newTab();
       expect(write(tab, 'First tab')).toBe(true);
-      expect(tab.recoverySlotKey()).toMatch(/^opendraft:recovery:tab-/);
+      expect(tab.recoverySlotKey()).toMatch(/^writeadraft:recovery:tab-/);
       expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     });
 

@@ -40,7 +40,7 @@ const URL = process.argv[2] || 'http://localhost:8000';
   console.log(JSON.stringify(result, null, 2));
 
   await page.screenshot({
-    path: '/Users/kandarpbaghar/ai-projects/OpenDraft/test-script/output/debug-final.png',
+    path: '/Users/kandarpbaghar/ai-projects/WriTeaDraft/test-script/output/debug-final.png',
     fullPage: true
   });
   console.log('Screenshot saved');

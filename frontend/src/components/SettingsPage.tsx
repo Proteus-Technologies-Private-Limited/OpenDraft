@@ -99,10 +99,10 @@ const SettingsPage: React.FC = () => {
   const [urlInput, setUrlInput] = useState(collabServerUrl);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
 
-  // OpenDraft Cloud (HTTP backend) URL — distinct from the collab WebSocket
+  // WriTea Draft Cloud (HTTP backend) URL — distinct from the collab WebSocket
   // server. On Tauri custom schemes the same-origin default doesn't work, so
   // the user must point at a real backend (e.g. https://opendraft.duckdns.org/api).
-  const CLOUD_API_KEY = 'opendraft:cloudApiUrl';
+  const CLOUD_API_KEY = 'writeadraft:cloudApiUrl';
   const [cloudApiInput, setCloudApiInput] = useState<string>(() => {
     try {
       const stored = localStorage.getItem(CLOUD_API_KEY);
@@ -120,10 +120,10 @@ const SettingsPage: React.FC = () => {
   // Auth forms — remember email only; never store password.
   // Migrate away from the legacy password-storing key on first render.
   useEffect(() => {
-    try { localStorage.removeItem('opendraft:collabSavedCreds'); } catch { /* ignore */ }
+    try { localStorage.removeItem('writeadraft:collabSavedCreds'); } catch { /* ignore */ }
   }, []);
   const savedEmail = (() => {
-    try { return localStorage.getItem('opendraft:rememberedEmail') || ''; } catch { return ''; }
+    try { return localStorage.getItem('writeadraft:rememberedEmail') || ''; } catch { return ''; }
   })();
   const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
   const [loginEmail, setLoginEmail] = useState(savedEmail);
@@ -206,7 +206,7 @@ const SettingsPage: React.FC = () => {
     try {
       if (trimmed) localStorage.setItem(CLOUD_API_KEY, trimmed);
       else localStorage.removeItem(CLOUD_API_KEY);
-      showToast('OpenDraft Cloud URL saved', 'success');
+      showToast('WriTea Draft Cloud URL saved', 'success');
     } catch {
       showToast('Could not save URL', 'error');
     }
@@ -269,8 +269,8 @@ const SettingsPage: React.FC = () => {
       }
       handleAuthResponse(response);
       try {
-        if (rememberEmail) localStorage.setItem('opendraft:rememberedEmail', loginEmail);
-        else localStorage.removeItem('opendraft:rememberedEmail');
+        if (rememberEmail) localStorage.setItem('writeadraft:rememberedEmail', loginEmail);
+        else localStorage.removeItem('writeadraft:rememberedEmail');
       } catch { /* ignore quota/private-mode errors */ }
       showToast('Logged in successfully', 'success');
       setLoginEmail('');
@@ -295,7 +295,7 @@ const SettingsPage: React.FC = () => {
       const response = await collabAuthApi.verifyDevice(pendingChallenge.challengeId, deviceCode);
       handleAuthResponse(response);
       try {
-        if (rememberEmail) localStorage.setItem('opendraft:rememberedEmail', pendingChallenge.email);
+        if (rememberEmail) localStorage.setItem('writeadraft:rememberedEmail', pendingChallenge.email);
       } catch { /* ignore */ }
       showToast('Device verified — you are signed in.', 'success');
       setPendingChallenge(null);
@@ -344,8 +344,8 @@ const SettingsPage: React.FC = () => {
       const response = await collabAuthApi.register(regEmail, regPassword, regName);
       handleAuthResponse(response);
       try {
-        if (rememberEmail) localStorage.setItem('opendraft:rememberedEmail', regEmail);
-        else localStorage.removeItem('opendraft:rememberedEmail');
+        if (rememberEmail) localStorage.setItem('writeadraft:rememberedEmail', regEmail);
+        else localStorage.removeItem('writeadraft:rememberedEmail');
       } catch { /* ignore */ }
       showToast(
         response.user.emailVerified
@@ -633,9 +633,9 @@ const SettingsPage: React.FC = () => {
           </div>
         </section>
 
-        {/* ── OpenDraft Cloud API URL ── */}
+        {/* ── WriTea Draft Cloud API URL ── */}
         <section className="settings-section">
-          <h2 className="settings-section-title">OpenDraft Cloud Server</h2>
+          <h2 className="settings-section-title">WriTea Draft Cloud Server</h2>
           <p className="settings-section-desc">
             HTTP backend used for sign-in, projects, and cloud saves. Leave blank
             in the browser to use this site's <code>/api</code>. Required on the
@@ -898,7 +898,7 @@ const SettingsPage: React.FC = () => {
                     onChange={(e) => {
                       setRememberEmail(e.target.checked);
                       try {
-                        if (!e.target.checked) localStorage.removeItem('opendraft:rememberedEmail');
+                        if (!e.target.checked) localStorage.removeItem('writeadraft:rememberedEmail');
                       } catch { /* ignore */ }
                     }}
                   />
@@ -1102,7 +1102,7 @@ const SettingsPage: React.FC = () => {
                       <div className="settings-delete-warning">
                         <strong>Before you continue:</strong>{' '}
                         {inventoryLoading ? (
-                          <>checking your OpenDraft Cloud account for screenplays…</>
+                          <>checking your WriTea Draft Cloud account for screenplays…</>
                         ) : cloudInventory && (cloudInventory.projects > 0 || cloudInventory.scripts > 0) ? (
                           <>
                             you have <strong>{cloudInventory.projects}</strong>{' '}
@@ -1113,14 +1113,14 @@ const SettingsPage: React.FC = () => {
                                 screenplay{cloudInventory.scripts === 1 ? '' : 's'}
                               </>
                             )}{' '}
-                            stored in OpenDraft Cloud. They will be permanently deleted along
+                            stored in WriTea Draft Cloud. They will be permanently deleted along
                             with this account and cannot be recovered. Please open each one in
-                            OpenDraft and use <em>File → Save As / Export</em> to download a
+                            WriTea Draft and use <em>File → Save As / Export</em> to download a
                             local copy before continuing.
                           </>
                         ) : (
                           <>
-                            any screenplays stored in OpenDraft Cloud under this account will be
+                            any screenplays stored in WriTea Draft Cloud under this account will be
                             deleted along with the account and cannot be recovered. Please make
                             sure you have downloaded them first.
                           </>

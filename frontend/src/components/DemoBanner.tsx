@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { isTauri } from '../services/platform';
 
-const DISMISSED_KEY = 'opendraft:demo-banner-dismissed';
+const DISMISSED_KEY = 'writeadraft:demo-banner-dismissed';
 
 const DemoBanner: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);

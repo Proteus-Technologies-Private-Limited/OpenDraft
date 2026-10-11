@@ -24,10 +24,10 @@ export const LINE_HEIGHT_PT = 12;
  * 12pt lines.
  *
  * Final Draft's Screenplay template ships with Space Before = 2 for Scene
- * Heading and its knowledge base calls that standard format. OpenDraft's own
+ * Heading and its knowledge base calls that standard format. WriTea Draft's own
  * FDX and OSF exporters have always *written* two lines (`SpaceBefore="24"`,
  * `spacebefore="2.0"`) while the editor rendered and paginated one, so a script
- * exported to Final Draft came out longer than OpenDraft showed.
+ * exported to Final Draft came out longer than WriTea Draft showed.
  */
 export const STANDARD_SCENE_HEADING_SPACE_PT = 24;
 
@@ -110,7 +110,7 @@ export function getSpaceBefore(): Record<string, number> {
  * Does this saved payload predate the two-line scene-heading default?
  *
  * Only a payload that carries app metadata can be judged: a bare document, or
- * one imported from FDX or Fountain, has no OpenDraft spacing history and is
+ * one imported from FDX or Fountain, has no WriTea Draft spacing history and is
  * simply given the current standard. For everything else the *absence* of
  * `_sceneHeadingSpaceBefore` dates the file, because every save since the change
  * writes the key even when it is null.

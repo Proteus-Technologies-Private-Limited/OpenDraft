@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Import &amp; Export - OpenDraft User Manual</title>
+  <title>Import &amp; Export - WriTea Draft User Manual</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="../images/OpenDraft.png">
+  <link rel="icon" href="../images/WriTeaDraft.png">
 </head>
 <body>
 
 <header class="header">
   <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
   <a href="index.html" class="header-logo">
-    <img src="../images/OpenDraft.png" alt="OpenDraft">
-    <span>OpenDraft Manual</span>
+    <img src="../images/WriTeaDraft.png" alt="WriTea Draft">
+    <span>WriTea Draft Manual</span>
   </a>
   <div class="header-search">
     <span class="search-icon">&#128269;</span>
@@ -99,10 +99,10 @@
 
     <h2 id="import">Importing Scripts</h2>
 
-    <p>OpenDraft can import screenplays from other software. Go to <strong>File &gt; Import</strong> and select a file.</p>
+    <p>WriTea Draft can import screenplays from other software. Go to <strong>File &gt; Import</strong> and select a file.</p>
 
     <h3 id="import-fdx">Final Draft (.fdx)</h3>
-    <p>Import scripts from Final Draft, the industry-standard screenwriting software. OpenDraft preserves:</p>
+    <p>Import scripts from Final Draft, the industry-standard screenwriting software. WriTea Draft preserves:</p>
     <ul>
       <li>All screenplay elements and formatting</li>
       <li>Character profiles</li>
@@ -122,7 +122,7 @@
     </ul>
 
     <h3 id="import-fadein">Fade In (.fadein) and Open Screenplay Format (.osf)</h3>
-    <p>Open scripts saved by <a href="https://www.fadeinpro.com/" target="_blank" rel="noopener">Fade In</a> directly &mdash; there is no need to export to another format first. A <code>.fadein</code> file is a compressed Open Screenplay Format document, and OpenDraft reads both it and plain <code>.osf</code> files. Imported:</p>
+    <p>Open scripts saved by <a href="https://www.fadeinpro.com/" target="_blank" rel="noopener">Fade In</a> directly &mdash; there is no need to export to another format first. A <code>.fadein</code> file is a compressed Open Screenplay Format document, and WriTea Draft reads both it and plain <code>.osf</code> files. Imported:</p>
     <ul>
       <li>All screenplay elements &mdash; scene headings, action, character, parenthetical, dialogue, transition and shot</li>
       <li>Custom element styles, mapped to whichever built-in element they are based on</li>
@@ -132,7 +132,7 @@
     </ul>
 
     <h3 id="import-txt">Plain Text (.txt)</h3>
-    <p>Import plain text files. OpenDraft will attempt to detect screenplay element types based on formatting conventions (indentation, capitalization, etc.).</p>
+    <p>Import plain text files. WriTea Draft will attempt to detect screenplay element types based on formatting conventions (indentation, capitalization, etc.).</p>
 
     <div class="callout callout-info">
       <span class="callout-icon">&#8505;&#65039;</span>
@@ -168,7 +168,7 @@
     <div class="callout callout-info">
       <span class="callout-icon">&#8505;&#65039;</span>
       <div class="callout-content">
-        <p><strong>Opening another application&rsquo;s format?</strong> OpenDraft says what saving back to it can and cannot carry before you start. Notes, tags, beats and character profiles have nowhere to live in a <code>.fdx</code> or <code>.fountain</code> file, so use <strong>File &gt; Save to Library As</strong> to keep a lossless <code>.odraft</code> copy alongside it.</p>
+        <p><strong>Opening another application&rsquo;s format?</strong> WriTea Draft says what saving back to it can and cannot carry before you start. Notes, tags, beats and character profiles have nowhere to live in a <code>.fdx</code> or <code>.fountain</code> file, so use <strong>File &gt; Save to Library As</strong> to keep a lossless <code>.odraft</code> copy alongside it.</p>
       </div>
     </div>
 
@@ -188,7 +188,7 @@
     <div class="callout callout-info">
       <span class="callout-icon">&#8505;&#65039;</span>
       <div class="callout-content">
-        <p><strong>Note on character profiles:</strong> OpenDraft's extended character fields &mdash; Role, Backstory, and character images &mdash; are preserved in OpenDraft's native save format but are not included in FDX exports. The FDX format (used by Final Draft) only supports character name, plain text description, and highlight color.</p>
+        <p><strong>Note on character profiles:</strong> WriTea Draft's extended character fields &mdash; Role, Backstory, and character images &mdash; are preserved in WriTea Draft's native save format but are not included in FDX exports. The FDX format (used by Final Draft) only supports character name, plain text description, and highlight color.</p>
       </div>
     </div>
 
@@ -199,7 +199,7 @@
       <span class="callout-icon">&#9888;&#65039;</span>
       <div class="callout-content">
         <p>
-          <strong>Fountain cannot carry every element.</strong> It has no General element, so OpenDraft
+          <strong>Fountain cannot carry every element.</strong> It has no General element, so WriTea Draft
           writes General as forced Action (<code>!</code>). Import that file again and the text comes
           back as <strong>Action, not General</strong>. The same applies to Shot, New Act, End of Act,
           Show/Episode and Cast List. Use <code>.fdx</code>, <code>.docx</code> or <code>.odraft</code>
@@ -225,8 +225,8 @@
 
     <p>The title page is included unless you have turned it off in <strong>Format &gt; Title Page</strong> &mdash; see <a href="title-page.html#include-in-output">Leaving the Title Page Out</a>.</p>
 
-    <h3 id="export-odraft">OpenDraft (.odraft)</h3>
-    <p>Go to <strong>File &gt; Export &gt; OpenDraft (.odraft)</strong>. This is the lossless one: the script plus its notes, tags, beats, character profiles and images, in a single file. Use it to move a screenplay between machines, or to keep a complete copy of your own. It is the same format <a href="backups.html">backups</a> are written in.</p>
+    <h3 id="export-odraft">WriTea Draft (.odraft)</h3>
+    <p>Go to <strong>File &gt; Export &gt; WriTea Draft (.odraft)</strong>. This is the lossless one: the script plus its notes, tags, beats, character profiles and images, in a single file. Use it to move a screenplay between machines, or to keep a complete copy of your own. It is the same format <a href="backups.html">backups</a> are written in.</p>
 
     <h3 id="export-pdf">PDF</h3>
     <p>Go to <strong>File &gt; Export &gt; PDF</strong>. The PDF is formatted to industry-standard screenplay specifications.</p>
@@ -298,7 +298,7 @@
         <tr><td>Character profiles (name, description)</td><td>Yes</td><td>Yes (plain text)</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
         <tr><td>Extended profiles (role, backstory, images)</td><td>Yes</td><td>No</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
         <tr><td>Notes, tags and beats</td><td>Yes</td><td>Tags only</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
-        <tr><td>Editable in other software</td><td>OpenDraft</td><td>Final Draft</td><td>Fade In</td><td>Many editors</td><td>No</td><td>Any editor</td></tr>
+        <tr><td>Editable in other software</td><td>WriTea Draft</td><td>Final Draft</td><td>Fade In</td><td>Many editors</td><td>No</td><td>Any editor</td></tr>
         <tr><td>Best for</td><td>Complete copies, backups, moving between machines</td><td>Collaboration with FD users</td><td>Collaboration with Fade In users</td><td>Open format, version control</td><td>Reading, printing, submission</td><td>Simple import</td></tr>
       </tbody>
     </table>
@@ -316,7 +316,7 @@
 
   </div>
   <footer class="footer">
-    OpenDraft User Manual &middot; v2.5.3 &middot; Made by Proteus Technologies
+    WriTea Draft User Manual &middot; v2.5.3 &middot; Made by Proteus Technologies
   </footer>
 </main>
 

@@ -118,9 +118,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>OpenDraft uses the camera when you choose Take Photo to add an image to a script, title page, character profile or beat board.</string>
+	<string>WriTea Draft uses the camera when you choose Take Photo to add an image to a script, title page, character profile or beat board.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>OpenDraft needs access to your photos so you can add an image to a script, title page, character profile or beat board.</string>
+	<string>WriTea Draft needs access to your photos so you can add an image to a script, title page, character profile or beat board.</string>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<false/>
 	<key>UILaunchStoryboardName</key>
@@ -174,7 +174,7 @@
 			<key>UTTypeDescription</key>
 			<string>Fountain Screenplay</string>
 			<key>UTTypeIdentifier</key>
-			<string>com.proteus.opendraft.fountain</string>
+			<string>net.japanada.writea-draft.fountain</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -191,9 +191,9 @@
 				<string>public.json</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>OpenDraft Screenplay</string>
+			<string>WriTea Draft Screenplay</string>
 			<key>UTTypeIdentifier</key>
-			<string>com.proteus.opendraft.document</string>
+			<string>net.japanada.writea-draft.document</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

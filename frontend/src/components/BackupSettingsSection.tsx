@@ -101,7 +101,7 @@ const BackupSettingsSection: React.FC = () => {
   const handleUseDefault = useCallback(async () => {
     try {
       const { documentDir, join } = await import('@tauri-apps/api/path');
-      const dir = await join(await documentDir(), 'OpenDraft Backups');
+      const dir = await join(await documentDir(), 'WriTea Draft Backups');
       // Not created here — it appears when the first snapshot is written, so
       // enabling and then changing your mind leaves nothing behind.
       await applyFolder(dir, dir);
@@ -128,7 +128,7 @@ const BackupSettingsSection: React.FC = () => {
       if (!useSettingsStore.getState().backupFolder) return;
     }
     if (next && folderStatus === 'unwritable') {
-      showToast('Choose a folder OpenDraft can write to first', 'error');
+      showToast('Choose a folder WriTea Draft can write to first', 'error');
       return;
     }
     setBackupEnabled(next);
@@ -141,8 +141,8 @@ const BackupSettingsSection: React.FC = () => {
         <h2 className="settings-section-title">Automatic Backups</h2>
         <p className="settings-section-desc">
           Timed backups write files to a folder you choose, which needs the
-          OpenDraft app — a browser tab cannot hold on to a folder. In the
-          browser, use <strong>File → Export → OpenDraft (.odraft)</strong> to
+          WriTea Draft app — a browser tab cannot hold on to a folder. In the
+          browser, use <strong>File → Export → WriTea Draft (.odraft)</strong> to
           save a copy wherever you like.
         </p>
       </section>
@@ -153,7 +153,7 @@ const BackupSettingsSection: React.FC = () => {
     <section className="settings-section">
       <h2 className="settings-section-title">Automatic Backups</h2>
       <p className="settings-section-desc">
-        OpenDraft can save timestamped copies of your script to a folder you
+        WriTea Draft can save timestamped copies of your script to a folder you
         choose while you write. Each project gets its own folder inside it, and
         the first copy is written as soon as you turn this on. Backups live
         outside the app's database, so they survive even if something happens to
@@ -203,7 +203,7 @@ const BackupSettingsSection: React.FC = () => {
         {!desktop && (
           <div className="settings-hint">
             Pick somewhere outside the app — a folder in Files, iCloud Drive,
-            Google Drive or Dropbox — so your backups survive if OpenDraft is
+            Google Drive or Dropbox — so your backups survive if WriTea Draft is
             ever removed or reinstalled.
           </div>
         )}
@@ -223,7 +223,7 @@ const BackupSettingsSection: React.FC = () => {
         )}
         {folderStatus === 'unwritable' && (
           <div className="settings-status settings-status-fail">
-            OpenDraft can't write here — {folderDetail}
+            WriTea Draft can't write here — {folderDetail}
           </div>
         )}
         {isUnderOneDrive(backupFolder) && (
@@ -255,7 +255,7 @@ const BackupSettingsSection: React.FC = () => {
         </Select>
         {!desktop && (
           <div className="settings-hint">
-            A copy is also written whenever you leave OpenDraft, so work is
+            A copy is also written whenever you leave WriTea Draft, so work is
             saved before the system suspends the app.
           </div>
         )}

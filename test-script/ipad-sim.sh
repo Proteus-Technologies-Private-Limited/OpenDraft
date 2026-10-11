@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Drive the OpenDraft iPad simulator: tap in *points*, capture to test-script/output/.
+# Drive the WriTea Draft iPad simulator: tap in *points*, capture to test-script/output/.
 #
 # idb reports this device as 834x1210 points / 1668x2420 pixels, so a coordinate
 # read off a screenshot is half the pixel value. `shot` prints both the file and
@@ -11,8 +11,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UDID="${OPENDRAFT_SIM_UDID:-A07CFEF6-A4C6-408F-A648-5C5115F525A8}"
-BUNDLE=com.proteus.opendraft
+UDID="${WRITEADRAFT_SIM_UDID:-A07CFEF6-A4C6-408F-A648-5C5115F525A8}"
+BUNDLE=net.japanada.writea-draft
 IDB="$ROOT/venv/bin/idb"
 export PATH=/opt/homebrew/bin:$PATH
 

@@ -44,9 +44,9 @@ import {
 
 export type { ScratchAssetMeta } from './scratchAssetIndex';
 
-const INDEX_KEY = 'opendraft:scratch-assets:index';
+const INDEX_KEY = 'writeadraft:scratch-assets:index';
 const ROOT_DIR = 'scratch-assets';
-const IDB_NAME = 'opendraft-scratch';
+const IDB_NAME = 'writeadraft-scratch';
 const IDB_STORE = 'blobs';
 const IDB_VERSION = 1;
 

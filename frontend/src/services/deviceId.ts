@@ -11,8 +11,8 @@
  * a cleared client looks new to the server and the user gets notified.
  */
 
-const STORAGE_KEY = 'opendraft:deviceId';
-const NAME_KEY = 'opendraft:deviceName';
+const STORAGE_KEY = 'writeadraft:deviceId';
+const NAME_KEY = 'writeadraft:deviceName';
 
 function randomId(): string {
   // crypto.randomUUID is available everywhere we ship (modern browsers,
@@ -32,12 +32,12 @@ function detectPlatform(): string {
     const ua = navigator.userAgent || '';
     const isTauri = typeof (window as any).__TAURI__ !== 'undefined' || typeof (window as any).__TAURI_INTERNALS__ !== 'undefined';
     if (isTauri) {
-      if (/Android/i.test(ua)) return 'Android (OpenDraft)';
-      if (/iPhone|iPad|iPod/i.test(ua)) return 'iOS (OpenDraft)';
-      if (/Macintosh|Mac OS X/i.test(ua)) return 'macOS (OpenDraft)';
-      if (/Windows/i.test(ua)) return 'Windows (OpenDraft)';
-      if (/Linux/i.test(ua)) return 'Linux (OpenDraft)';
-      return 'Desktop (OpenDraft)';
+      if (/Android/i.test(ua)) return 'Android (WriTea Draft)';
+      if (/iPhone|iPad|iPod/i.test(ua)) return 'iOS (WriTea Draft)';
+      if (/Macintosh|Mac OS X/i.test(ua)) return 'macOS (WriTea Draft)';
+      if (/Windows/i.test(ua)) return 'Windows (WriTea Draft)';
+      if (/Linux/i.test(ua)) return 'Linux (WriTea Draft)';
+      return 'Desktop (WriTea Draft)';
     }
     if (/Android/i.test(ua)) return 'Android browser';
     if (/iPhone|iPad|iPod/i.test(ua)) return 'iOS browser';
@@ -71,10 +71,10 @@ export function getDeviceId(): string {
     return fresh;
   } catch {
     // Private mode / disabled storage — fall back to an in-memory id.
-    if (!(globalThis as any).__opendraftDeviceIdMemo) {
-      (globalThis as any).__opendraftDeviceIdMemo = randomId();
+    if (!(globalThis as any).__writeadraftDeviceIdMemo) {
+      (globalThis as any).__writeadraftDeviceIdMemo = randomId();
     }
-    return (globalThis as any).__opendraftDeviceIdMemo;
+    return (globalThis as any).__writeadraftDeviceIdMemo;
   }
 }
 

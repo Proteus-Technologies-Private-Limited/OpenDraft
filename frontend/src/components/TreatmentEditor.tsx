@@ -84,7 +84,7 @@ const TreatmentEditor: React.FC = () => {
           if (lf.linkingSupported()) {
             const sync = await lf.syncScriptWithFile(projectId, scriptId);
             if (sync.kind === 'loaded-from-file' && !cancelled) {
-              showToast(`${lf.basenameOf(sync.path)} was changed outside OpenDraft — opened that version.`, 'info');
+              showToast(`${lf.basenameOf(sync.path)} was changed outside WriTea Draft — opened that version.`, 'info');
             }
           }
         } catch (err) {

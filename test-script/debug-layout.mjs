@@ -61,7 +61,7 @@ import path from 'path';
   });
   await page.waitForTimeout(300);
   await page.screenshot({
-    path: '/Users/kandarpbaghar/ai-projects/OpenDraft/test-script/output/layout-break1.png',
+    path: '/Users/kandarpbaghar/ai-projects/WriTeaDraft/test-script/output/layout-break1.png',
   });
   console.log('\nScreenshot saved');
 

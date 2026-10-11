@@ -4,7 +4,7 @@
  * An .fdx lists its revisions once, in a `<Revisions>` block, and each
  * revised `<Text>` run points into that list with `RevisionID`. Final Draft
  * names a revision whatever the writer called it ("Blue Rev.", "Second Pink",
- * "Revision 3"), so each one is matched to OpenDraft's colour sequence by its
+ * "Revision 3"), so each one is matched to WriTea Draft's colour sequence by its
  * name first, then by its page colour, and failing both by its place in the
  * list — the order a production issues them in.
  */
@@ -14,7 +14,7 @@ import {
 } from '../editor/revisionColors';
 
 export interface FDXRevisionImport {
-  /** RevisionID → OpenDraft colour name. */
+  /** RevisionID → WriTea Draft colour name. */
   colorById: Map<string, string>;
   /** Revision Mode was on when the file was saved. */
   mode: boolean;

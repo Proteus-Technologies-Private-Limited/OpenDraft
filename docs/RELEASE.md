@@ -1,6 +1,6 @@
 # Release Checklist
 
-Step-by-step guide for publishing a new OpenDraft release.
+Step-by-step guide for publishing a new WriTea Draft release.
 
 ---
 
@@ -68,7 +68,7 @@ Nothing about this file is maintained by hand, and it is split in two because
 the two halves become true at different times.
 
 **Where the app reads it from.** Not Pages, but
-`raw.githubusercontent.com/.../OpenDraft/manifest/landing/updates.json` — the
+`raw.githubusercontent.com/.../WriTeaDraft/manifest/landing/updates.json` — the
 `manifest` branch, which only the Store Watch workflow writes. `main` requires a
 pull request, and GitHub will not accept the Actions app as a bypass actor on a
 repository ruleset (`422: Actor GitHub Actions integration must be part of the
@@ -204,7 +204,7 @@ Write the feature list / changelog for this version in:
 All HTML pages in `user-manual/` have a footer with the version:
 
 ```html
-OpenDraft User Manual · vX.Y.Z · Made by Proteus Technologies
+WriTea Draft User Manual · vX.Y.Z · Made by Proteus Technologies
 ```
 
 Update the version in the footer of every `.html` file in `user-manual/`.

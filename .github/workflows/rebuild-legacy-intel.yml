@@ -119,7 +119,7 @@ jobs:
             echo "::error::No DMG found for legacy Intel build"
             exit 1
           fi
-          DEST="OpenDraft_${VERSION}_x86_64-legacy.dmg"
+          DEST="WriTeaDraft_${VERSION}_x86_64-legacy.dmg"
           cp "$DMG" "$DEST"
           gh release upload "$TAG" "$DEST" --clobber
           echo "Uploaded $DEST to release $TAG (overwriting existing)"

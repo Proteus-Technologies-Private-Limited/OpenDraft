@@ -98,7 +98,7 @@ export interface FDXPageLayout {
   startingPageNumber?: number;
 }
 
-/** Final Draft's dynamic header fields, mapped back to OpenDraft's tokens. */
+/** Final Draft's dynamic header fields, mapped back to WriTea Draft's tokens. */
 const FDX_LABEL_TO_TOKEN: Record<string, string> = {
   'page #': '{page}',
   'last page #': '{pages}',
@@ -157,7 +157,7 @@ export function parseHeaderAndFooter(xmlDoc: Document): Partial<FDXPageLayout> {
     return v.toLowerCase() === 'yes';
   };
   const startingPageNumber = Math.max(1, parseInt(el.getAttribute('StartingPage') || '1', 10) || 1);
-  // "…FirstPage=No" means skip the opening page, which in OpenDraft's model is
+  // "…FirstPage=No" means skip the opening page, which in WriTea Draft's model is
   // a start page one past the number that page carries.
   const startFrom = (visibleOnFirst: boolean) =>
     visibleOnFirst ? startingPageNumber : startingPageNumber + 1;
@@ -234,7 +234,7 @@ export interface FDXParseResult {
   tagItems: FDXTagItem[];
   beats: FDXBeat[];
   beatColumns: FDXBeatColumn[];
-  /** The file's revisions, mapped to OpenDraft's colours; null when it has none. */
+  /** The file's revisions, mapped to WriTea Draft's colours; null when it has none. */
   revisions: FDXRevisionImport | null;
 }
 

@@ -317,7 +317,7 @@ export function exportFountain(doc: JSONContent, options: FountainExportOptions 
       // title page's notes survived an import and were dropped by the next save.
       // The registration has no standard key, but a Fountain title page is open
       // key/value and a reader that does not know this one ignores it — which
-      // costs nothing and lets OpenDraft read its own file back whole.
+      // costs nothing and lets WriTea Draft read its own file back whole.
       if (node.attrs.tpNotes) titlePageMeta['Notes'] = node.attrs.tpNotes;
       if (node.attrs.tpWgaRegistration) {
         titlePageMeta['WGA registration'] = node.attrs.tpWgaRegistration;

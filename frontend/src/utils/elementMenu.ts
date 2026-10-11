@@ -7,7 +7,7 @@
  * configurable shortcut all reach the same menu without any of them needing a
  * handle on the editor (issue #100).
  */
-export const ELEMENT_MENU_EVENT = 'opendraft:element-menu';
+export const ELEMENT_MENU_EVENT = 'writeadraft:element-menu';
 
 export function requestElementMenu(): void {
   window.dispatchEvent(new CustomEvent(ELEMENT_MENU_EVENT));

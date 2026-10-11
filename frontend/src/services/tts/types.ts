@@ -1,7 +1,7 @@
 /**
  * Shared shapes for Table Read (issue #131).
  *
- * Every way OpenDraft can speak — the web view's own speech synthesis, the
+ * Every way WriTea Draft can speak — the web view's own speech synthesis, the
  * platform's text-to-speech reached through Tauri, or an AI voice provider —
  * sits behind {@link TtsEngine}, so the player that walks the script never
  * needs to know which one it is talking to.

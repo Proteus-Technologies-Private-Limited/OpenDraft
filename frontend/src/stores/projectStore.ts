@@ -6,7 +6,7 @@ import { useSettingsStore } from './settingsStore';
  * Origin of the currently-open script:
  *   'local' — stored on this device (SQLite on desktop/mobile, or the Python
  *             backend when running as a plain web app without sign-in).
- *   'cloud' — stored on the OpenDraft server for the signed-in user. All
+ *   'cloud' — stored on the WriTea Draft server for the signed-in user. All
  *             reads/writes for this script go over HTTP, even on desktop.
  * The editor routes save/load through scriptApi.ts which picks the right
  * implementation based on this value.
@@ -14,14 +14,14 @@ import { useSettingsStore } from './settingsStore';
 export type ScriptSource = 'local' | 'cloud';
 
 /**
- * Cloud-script markers are scoped per user: `opendraft:cloudScripts:<userId>`.
+ * Cloud-script markers are scoped per user: `writeadraft:cloudScripts:<userId>`.
  * When a different user signs in on the same device they must not see the
  * previous user's cloud files flagged in the UI — cloud storage is per-account.
  * Anonymous browsing uses the reserved "anonymous" bucket (never populated
  * since cloud operations require sign-in, but kept to avoid a null key).
  */
-const CLOUD_SCRIPTS_PREFIX = 'opendraft:cloudScripts:';
-const CLOUD_PROJECTS_PREFIX = 'opendraft:cloudProjects:';
+const CLOUD_SCRIPTS_PREFIX = 'writeadraft:cloudScripts:';
+const CLOUD_PROJECTS_PREFIX = 'writeadraft:cloudProjects:';
 
 function userBucket(): string {
   const uid = useSettingsStore.getState().collabAuth.user?.id;

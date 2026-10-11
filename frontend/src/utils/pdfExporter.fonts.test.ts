@@ -3,7 +3,7 @@
  *
  * The point of these tests is the promise made when fonts were made
  * exportable: a script in Courier must come out of the exporter exactly as it
- * always did.  Every indent, centring and page break in OpenDraft is built on
+ * always did.  Every indent, centring and page break in WriTea Draft is built on
  * Final Draft's 10.33-characters-per-inch cell, and that arithmetic must not
  * move because the code now knows about other typefaces.
  *

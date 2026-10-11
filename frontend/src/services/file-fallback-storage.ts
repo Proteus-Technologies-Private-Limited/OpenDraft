@@ -2,7 +2,7 @@
  * File-backed fallback storage for Tauri when the SQLite plugin is unavailable.
  *
  * Layout:
- *   localStorage  → opendraft:file-fallback:index
+ *   localStorage  → writeadraft:file-fallback:index
  *                   { projects, scripts (metadata only), assets (metadata only),
  *                     templates }
  *   $APPDATA/file-fallback/
@@ -42,8 +42,8 @@ import type {
 } from './api';
 import { normalizeFormat } from '../utils/scriptFormat';
 
-const INDEX_KEY = 'opendraft:file-fallback:index';
-const LEGACY_FALLBACK_KEY = 'opendraft:fallback';
+const INDEX_KEY = 'writeadraft:file-fallback:index';
+const LEGACY_FALLBACK_KEY = 'writeadraft:fallback';
 const ROOT_DIR = 'file-fallback';
 const SCRIPTS_DIR = `${ROOT_DIR}/scripts`;
 const ASSETS_DIR = `${ROOT_DIR}/assets`;
@@ -195,7 +195,7 @@ async function deleteScriptFile(scriptId: string): Promise<void> {
 
 /**
  * If a previous version stored everything (including content) in
- * `opendraft:fallback`, copy projects/scripts/templates over to the new
+ * `writeadraft:fallback`, copy projects/scripts/templates over to the new
  * file-backed layout and remove the legacy entry.  Idempotent.
  */
 async function migrateFromLegacyLocalStorage(): Promise<void> {
@@ -268,7 +268,7 @@ async function migrateFromLegacyLocalStorage(): Promise<void> {
 
 export async function createFileFallbackStorage() {
   console.warn(
-    '%c[OpenDraft] Using file-based fallback storage — Tauri SQLite unavailable',
+    '%c[WriTea Draft] Using file-based fallback storage — Tauri SQLite unavailable',
     'color: #ff9f43; font-weight: bold',
   );
 

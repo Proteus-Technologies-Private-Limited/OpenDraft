@@ -3,11 +3,11 @@
  *
  * The counterpart to `avSpreadsheet.ts`. Since the industry exchanges AV and
  * shot-list data as CSV and xlsx rather than through any structured standard,
- * those are what can usefully be read back in — from OpenDraft's own export, or
+ * those are what can usefully be read back in — from WriTea Draft's own export, or
  * from a sheet someone else built.
  *
  * Which is why the column mapping is fuzzy. A sheet from another production
- * will not have OpenDraft's header names: its video column may be called
+ * will not have WriTea Draft's header names: its video column may be called
  * "Visual", "Picture" or "VIDEO / ACTION", and its audio one "Sound", "VO" or
  * "Narration". Requiring an exact match would reject nearly every real file, so
  * headers are matched on normalised keywords and the caller can override the
@@ -192,7 +192,7 @@ const ROLE_KEYWORDS: Array<{ role: AvColumnRole; words: string[] }> = [
   { role: 'audio', words: ['audio', 'sound', 'narration', 'voice', 'vo', 'dialogue', 'dialog', 'script', 'copy'] },
   // Shot before start: our own "Shot / Time" header contains "time", and a
   // generic time keyword checked first would claim it as a start timestamp,
-  // so OpenDraft's own export would not round-trip its cue column. The shot
+  // so WriTea Draft's own export would not round-trip its cue column. The shot
   // keywords are the more specific ones, so they get first refusal; a header
   // like "Start Time" matches none of them and still lands on `start`.
   { role: 'shot', words: ['shot', 'cue', 'scene', 'number', 'no.', '#', 'slate'] },
@@ -278,7 +278,7 @@ export function looksLikeHeader(row: readonly string[]): boolean {
 /**
  * Split a cue cell that holds a shot number and a start time together.
  *
- * OpenDraft's own CSV/XLSX writes the two as one cell — "1. 0:00" — because
+ * WriTea Draft's own CSV/XLSX writes the two as one cell — "1. 0:00" — because
  * that is how the on-screen gutter reads. Taken back in whole, that string
  * became a manual shot override: renumbering stopped dead, and the gutter drew
  * "1. 0:00" beside a second, freshly derived timestamp.
@@ -294,7 +294,7 @@ export function splitCueCell(raw: string): { shot: string; start: string } {
 }
 
 /** True when an imported shot label says no more than the sequential number
- *  OpenDraft would derive anyway. "1" and "1." both match a derived "1.". */
+ *  WriTea Draft would derive anyway. "1" and "1." both match a derived "1.". */
 function isDerivedShot(label: string, derived: string): boolean {
   const strip = (v: string) => v.trim().replace(/\.$/, '');
   return strip(label) === strip(derived);

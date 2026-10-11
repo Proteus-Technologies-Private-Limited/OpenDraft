@@ -1,7 +1,7 @@
 """Quota enforcement — default free-plan file limit.
 
 This module registers a default gate hook that blocks file creation past
-FREE_PLAN_FILE_LIMIT (5 by default). Commercial plugins (OpenDraft-Pro)
+FREE_PLAN_FILE_LIMIT (5 by default). Commercial plugins (WriTeaDraft-Pro)
 replace/extend this behavior to enforce paid-tier limits by registering
 their own gate hook.
 

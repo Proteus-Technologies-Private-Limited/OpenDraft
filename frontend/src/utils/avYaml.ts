@@ -1,5 +1,5 @@
 /**
- * OpenDraft AV YAML — a structured, human-readable interchange format.
+ * WriTea Draft AV YAML — a structured, human-readable interchange format.
  *
  * The other formats each give up something. A spreadsheet flattens cells to
  * plain strings and loses the paragraph structure and the document's layout
@@ -16,7 +16,7 @@
  * have to be re-attached.
  *
  * Every file identifies itself and carries a schema version. Reading a file
- * from a newer OpenDraft, or a YAML file that is not an AV document at all,
+ * from a newer WriTea Draft, or a YAML file that is not an AV document at all,
  * reports that plainly rather than guessing and silently producing a damaged
  * document.
  */
@@ -28,7 +28,7 @@ import { readColumnConfig, clampColumnWidth } from '../editor/extensions/AvBlock
 import { parseTimecode, formatTimecode } from '../editor/avTiming';
 
 /** Identifies a file as ours. */
-export const AV_YAML_FORMAT = 'opendraft-av';
+export const AV_YAML_FORMAT = 'writeadraft-av';
 
 /**
  * The schema version this build writes and the highest it can read.
@@ -63,7 +63,7 @@ interface YamlPara { style: string; text: string }
  * allows it. Without them a round-trip through YAML flattened an interview to
  * narration — `yamlToCell` falls back to `body` for a style it does not know,
  * which is right for a hand-written file and wrong as a way to lose an
- * element OpenDraft wrote itself.
+ * element WriTea Draft wrote itself.
  *
  * `customElement` has no entry: its identity is an attribute, not a type, and
  * there is nothing here to carry a `customTypeId`. It writes as `body`, which
@@ -145,7 +145,7 @@ function prune<T extends Record<string, unknown>>(obj: T): Partial<T> {
 }
 
 /**
- * Serialise a document's AV bodies as OpenDraft AV YAML.
+ * Serialise a document's AV bodies as WriTea Draft AV YAML.
  *
  * Returns null when the document holds no AV content, so a caller can decline
  * to offer the format rather than writing a file with nothing in it.
@@ -295,7 +295,7 @@ function yamlToCell(side: 'video' | 'audio', paras: unknown): JSONContent {
 }
 
 /**
- * Parse OpenDraft AV YAML.
+ * Parse WriTea Draft AV YAML.
  *
  * Throws `AvYamlError` with a message meant to be shown to the user: a file
  * that is not ours, a schema version we cannot read, or structurally invalid
@@ -312,13 +312,13 @@ export function importAvYaml(text: string): AvYamlImportResult {
   }
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new AvYamlError('That file is not an OpenDraft AV document.');
+    throw new AvYamlError('That file is not an WriTea Draft AV document.');
   }
   const file = parsed as Record<string, unknown>;
 
   if (file.format !== AV_YAML_FORMAT) {
     throw new AvYamlError(
-      `That file is not an OpenDraft AV document (expected format: ${AV_YAML_FORMAT}).`,
+      `That file is not an WriTea Draft AV document (expected format: ${AV_YAML_FORMAT}).`,
     );
   }
 
@@ -328,7 +328,7 @@ export function importAvYaml(text: string): AvYamlImportResult {
   }
   if (version > AV_YAML_SCHEMA_VERSION) {
     throw new AvYamlError(
-      `That file uses AV schema version ${version}, but this version of OpenDraft reads up to ${AV_YAML_SCHEMA_VERSION}. Update OpenDraft to open it.`,
+      `That file uses AV schema version ${version}, but this version of WriTea Draft reads up to ${AV_YAML_SCHEMA_VERSION}. Update WriTea Draft to open it.`,
     );
   }
 
@@ -440,7 +440,7 @@ export function importAvYaml(text: string): AvYamlImportResult {
 
 // ── Save helper ────────────────────────────────────────────────────────────
 
-/** Save the document's AV bodies as OpenDraft AV YAML. */
+/** Save the document's AV bodies as WriTea Draft AV YAML. */
 export async function downloadAvYaml(
   doc: JSONContent | null | undefined,
   title = 'Untitled',
@@ -451,6 +451,6 @@ export async function downloadAvYaml(
   const { sanitizeExportFilename } = await import('./exportFilename');
   const { saveFile } = await import('./fileOps');
   await saveFile(text, `${sanitizeExportFilename(title)}.yaml`, [
-    { name: 'OpenDraft AV YAML', extensions: ['yaml', 'yml'] },
+    { name: 'WriTea Draft AV YAML', extensions: ['yaml', 'yml'] },
   ]);
 }

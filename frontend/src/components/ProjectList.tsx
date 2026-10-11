@@ -185,7 +185,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
           ) : (
             <span
               className={`source-badge source-badge--${source}`}
-              title={source === 'cloud' ? 'Stored on OpenDraft Cloud' : 'Stored on this device'}
+              title={source === 'cloud' ? 'Stored on WriTea Draft Cloud' : 'Stored on this device'}
             >
               {source === 'cloud' ? <FaCloud /> : <FaDesktop />}
               {source === 'cloud' ? 'Cloud' : 'Local'}
@@ -293,10 +293,10 @@ const ProjectList: React.FC = () => {
   const [newFileFormat, setNewFileFormat] = useState<string>('odraft');
   const [source, setSource] = useState<ProjectSource>(() => {
     if (WEB_ONLY_CLOUD) return 'cloud';
-    return ((localStorage.getItem('opendraft:projectSource') as ProjectSource) || 'local');
+    return ((localStorage.getItem('writeadraft:projectSource') as ProjectSource) || 'local');
   });
   const [sortKey, setSortKey] = useState<SortKey>(() => {
-    return (localStorage.getItem('opendraft:projectSort') as SortKey) || 'custom';
+    return (localStorage.getItem('writeadraft:projectSort') as SortKey) || 'custom';
   });
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -316,7 +316,7 @@ const ProjectList: React.FC = () => {
   // browsing last. Web stays locked to 'cloud' so we don't clobber that.
   useEffect(() => {
     if (!WEB_ONLY_CLOUD) {
-      try { localStorage.setItem('opendraft:projectSource', source); } catch { /* ignore */ }
+      try { localStorage.setItem('writeadraft:projectSource', source); } catch { /* ignore */ }
     }
   }, [source]);
 
@@ -363,7 +363,7 @@ const ProjectList: React.FC = () => {
   }, [fetchProjects]);
 
   useEffect(() => {
-    localStorage.setItem('opendraft:projectSort', sortKey);
+    localStorage.setItem('writeadraft:projectSort', sortKey);
   }, [sortKey]);
 
   // ── Sorting ──
@@ -427,7 +427,7 @@ const ProjectList: React.FC = () => {
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
     if (source === 'cloud' && !signedIn) {
-      window.dispatchEvent(new CustomEvent('opendraft:auth-required'));
+      window.dispatchEvent(new CustomEvent('writeadraft:auth-required'));
       return;
     }
     setCreating(true);
@@ -597,7 +597,7 @@ const ProjectList: React.FC = () => {
             className={`project-source-tab ${source === 'cloud' ? 'active' : ''}`}
             onClick={() => setSource('cloud')}
           >
-            <FaCloud /> OpenDraft Cloud
+            <FaCloud /> WriTea Draft Cloud
           </button>
         </div>
       )}
@@ -621,7 +621,7 @@ const ProjectList: React.FC = () => {
         <div className="project-list-title-area">
           <h1 className="project-list-title">Projects</h1>
           <span className="project-list-subtitle">
-            {source === 'cloud' ? 'OpenDraft Cloud' : 'On this device'}
+            {source === 'cloud' ? 'WriTea Draft Cloud' : 'On this device'}
             {source === 'cloud' && getApiBase() && (
               <>
                 {' · '}
@@ -697,7 +697,7 @@ const ProjectList: React.FC = () => {
       ) : source === 'cloud' && !signedIn ? (
         <div className="project-list-empty">
           <div className="project-list-empty-icon">&#9729;</div>
-          <div>Sign in to access OpenDraft Cloud projects. Click the "Local only" indicator at the top to sign in.</div>
+          <div>Sign in to access WriTea Draft Cloud projects. Click the "Local only" indicator at the top to sign in.</div>
         </div>
       ) : errorMsg ? (
         <div className="project-list-empty">
@@ -711,7 +711,7 @@ const ProjectList: React.FC = () => {
             {source === 'cloud'
               ? (WEB_ONLY_CLOUD
                   ? 'No projects yet. Create your first project to get started.'
-                  : 'No cloud projects yet. Create one or upload via File › Save As… and pick OpenDraft Cloud.')
+                  : 'No cloud projects yet. Create one or upload via File › Save As… and pick WriTea Draft Cloud.')
               : 'No projects yet. Create your first project to get started.'}
           </div>
         </div>
@@ -809,7 +809,7 @@ const ProjectList: React.FC = () => {
                         if (next === 'folder' && !defaultProjectFolder && !newFolderPicked) void chooseNewProjectFolder();
                       }}
                     >
-                      <option value="library">The OpenDraft library</option>
+                      <option value="library">The WriTea Draft library</option>
                       <option value="folder">A folder on disk</option>
                     </Select>
                   </div>

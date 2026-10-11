@@ -1,7 +1,7 @@
 KNOW HOW LONG YOUR FILM WILL RUN
 The running time estimate is now far more accurate. It reads your pages the way a production does, about one page to a minute, and lands close to the real running time of released films.
 
-TELL OPENDRAFT HOW YOUR FILM PLAYS
+TELL WRITEADRAFT HOW YOUR FILM PLAYS
 Choose a pacing for your script: Brisk for fast talk and quick cuts, Measured for slow-burn and lingering moments, or Standard. Each one shows its running time before you pick. Tap the estimate to change it any time.
 
 TAG YOUR SCRIPT'S GENRES

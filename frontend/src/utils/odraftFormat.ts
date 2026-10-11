@@ -1,5 +1,5 @@
 /**
- * OpenDraft native format (.odraft) — import/export utilities.
+ * WriTea Draft native format (.odraft) — import/export utilities.
  *
  * An .odraft file is a JSON document containing the script metadata and
  * TipTap content, designed for lossless round-tripping. It is also the format
@@ -49,7 +49,7 @@ export interface OdraftMeta {
 
 interface OdraftFile {
   odraft_version: number;
-  format: 'opendraft-script';
+  format: 'writeadraft-script';
   exported_at: string;
   meta: OdraftMeta;
   content: Record<string, unknown>;
@@ -96,7 +96,7 @@ export function serializeOdraft(
 ): string {
   const data: OdraftFile = {
     odraft_version: ODRAFT_VERSION,
-    format: 'opendraft-script',
+    format: 'writeadraft-script',
     exported_at: options.exportedAt || new Date().toISOString(),
     meta: {
       title: meta.title,
@@ -125,7 +125,7 @@ export async function downloadOdraft(
   const text = serializeOdraft(meta, content, options);
   const filename = `${meta.title || 'Untitled'}.odraft`;
   const { saveFile } = await import('./fileOps');
-  await saveFile(text, filename, [{ name: 'OpenDraft', extensions: ['odraft'] }]);
+  await saveFile(text, filename, [{ name: 'WriTea Draft', extensions: ['odraft'] }]);
 }
 
 /** Parse an .odraft JSON string back into meta + content. */
@@ -137,7 +137,7 @@ export function parseOdraft(jsonText: string): ParsedOdraft {
     throw new Error('Invalid .odraft file: not valid JSON');
   }
 
-  if (data.format !== 'opendraft-script') {
+  if (data.format !== 'writeadraft-script') {
     throw new Error('Invalid .odraft file: unrecognized format');
   }
   if (typeof data.odraft_version !== 'number') {
@@ -145,7 +145,7 @@ export function parseOdraft(jsonText: string): ParsedOdraft {
   }
   if (data.odraft_version > ODRAFT_VERSION) {
     throw new Error(
-      `This .odraft file was created by a newer version of OpenDraft (format v${data.odraft_version}). Update OpenDraft to open it.`,
+      `This .odraft file was created by a newer version of WriTea Draft (format v${data.odraft_version}). Update WriTea Draft to open it.`,
     );
   }
 
@@ -172,7 +172,7 @@ export function parseOdraft(jsonText: string): ParsedOdraft {
  * Parse an .odraft file, falling back to accepting a bare payload.
  *
  * Older builds wrote crash backups as the raw `buildSaveContent()` object with
- * no envelope, which `parseOdraft` rejects — meaning OpenDraft could not open
+ * no envelope, which `parseOdraft` rejects — meaning WriTea Draft could not open
  * its own emergency backup. Any such file already on a user's disk is
  * recoverable here: if the JSON has no envelope but looks like a ProseMirror
  * document, treat the whole object as the content.
@@ -185,7 +185,7 @@ export function parseOdraftLoose(jsonText: string): ParsedOdraft {
     throw new Error('Invalid .odraft file: not valid JSON');
   }
 
-  if (data?.format === 'opendraft-script') return parseOdraft(jsonText);
+  if (data?.format === 'writeadraft-script') return parseOdraft(jsonText);
 
   if (data?.type === 'doc') {
     return {

@@ -309,7 +309,7 @@ export type WriteOutcome = 'written' | 'pending' | 'conflict';
  *
  * Never throws: the library save that triggered this already succeeded, and a
  * file that could not be written is recorded as pending and retried. Refuses
- * to overwrite a file that was changed by something else since OpenDraft last
+ * to overwrite a file that was changed by something else since WriTea Draft last
  * wrote or read it unless `force` is set — that is the writer's work too, and
  * only they can say which copy wins.
  */
@@ -326,7 +326,7 @@ async function writeLinkedFile(
         const onDisk = await readText(link.path);
         if (await hashText(onDisk) !== link.syncedHash) {
           link.pending = true;
-          link.lastError = 'The file was changed outside OpenDraft';
+          link.lastError = 'The file was changed outside WriTea Draft';
           await saveLink(link);
           publish(link, 'conflict');
           return 'conflict';
@@ -365,12 +365,12 @@ async function writeLinkedFile(
 
 /**
  * Whether the file, as it is, already holds `text` — word for word, or once it
- * is read back and written out the way OpenDraft writes it.
+ * is read back and written out the way WriTea Draft writes it.
  *
  * Opening a script stores the editor's normalised copy of it, and the first
  * save after that differs from what the import stored without the writer
  * having changed a thing. Rewriting the file then would reformat it in
- * OpenDraft's own style — a Fountain file gains a credit line and blank lines —
+ * WriTea Draft's own style — a Fountain file gains a credit line and blank lines —
  * so merely opening a script would modify a file other apps, other machines
  * and version control are watching. Only a file still in step with the last
  * sync is compared; any failure here just lets the write go ahead.
@@ -621,7 +621,7 @@ async function inspectFile(link: ScriptFileLink): Promise<FileCheck> {
 }
 
 /**
- * The file's content, with every piece of OpenDraft state it does not carry
+ * The file's content, with every piece of WriTea Draft state it does not carry
  * taken from the library's copy instead.
  */
 export function mergeKeptMetadata(
@@ -643,7 +643,7 @@ function stamp(): string {
 }
 
 /**
- * Save the file's version next to it before OpenDraft's replaces it. In a
+ * Save the file's version next to it before WriTea Draft's replaces it. In a
  * folder project the copy is picked up as a script of its own on the next
  * scan, which is where the writer will look for it. Null when it could not
  * be written — the caller still proceeds, as the writer chose.
@@ -656,7 +656,7 @@ async function preserveFileVersion(link: ScriptFileLink, text: string): Promise<
     const stem = dot > 0 ? base.slice(0, dot) : base;
     const ext = dot > 0 ? base.slice(dot) : '';
     const names = new Set((await listDir(dir)).map((e) => e.name.toLowerCase()));
-    const name = uniqueFileName(`${stem} (changed outside OpenDraft ${stamp()})${ext}`, (c) => names.has(c.toLowerCase()));
+    const name = uniqueFileName(`${stem} (changed outside WriTea Draft ${stamp()})${ext}`, (c) => names.has(c.toLowerCase()));
     const path = joinPath(dir, name);
     await writeTextAtomic(path, text);
     return path;
@@ -669,7 +669,7 @@ async function preserveFileVersion(link: ScriptFileLink, text: string): Promise<
 /** Check the project in, so the library's version stays in Version History. */
 async function preserveLibraryVersion(link: ScriptFileLink): Promise<void> {
   try {
-    await api.checkin(link.projectId, `Before loading ${basenameOf(link.path)}, changed outside OpenDraft`);
+    await api.checkin(link.projectId, `Before loading ${basenameOf(link.path)}, changed outside WriTea Draft`);
   } catch (err) {
     console.error('[linked-files] could not record a version before loading the file', err);
   }
@@ -715,7 +715,7 @@ export async function syncScriptWithFile(
     hasUnsavedEdits?: boolean;
     /**
      * Puts edits that are only on screen into the library, once the writer
-     * has answered a conflict. Keeping OpenDraft's version then writes them
+     * has answered a conflict. Keeping WriTea Draft's version then writes them
      * to the file, not just the last saved copy; taking the file's version
      * records them in Version History before the file's replaces them.
      */
@@ -750,7 +750,7 @@ export async function syncScriptWithFile(
               options.scriptTitle || basenameOf(link.path), link.path,
             );
             // Whichever version wins, what is on screen is part of
-            // OpenDraft's: into the library with it first.
+            // WriTea Draft's: into the library with it first.
             let unsavedStored = true;
             try {
               await options.saveUnsavedEdits?.();
@@ -790,7 +790,7 @@ export async function syncScriptWithFile(
 export async function linkScriptToFile(projectId: string, scriptId: string, path: string): Promise<WriteOutcome> {
   const ext = extensionOfPath(path);
   if (!isLinkableExtension(ext)) {
-    throw new Error(`OpenDraft can keep scripts in .odraft, .fountain, .fdx or .osf files, not .${ext || '(none)'}.`);
+    throw new Error(`WriTea Draft can keep scripts in .odraft, .fountain, .fdx or .osf files, not .${ext || '(none)'}.`);
   }
   return withScriptLock(scriptId, async () => {
     const link: ScriptFileLink = {
@@ -884,7 +884,7 @@ export async function attachProjectFolder(
     'Checking the folder',
   );
   if (!probe.exists || !probe.writable) {
-    throw new Error(`OpenDraft can't write to ${folder}${probe.error ? ` — ${probe.error}` : ''}`);
+    throw new Error(`WriTea Draft can't write to ${folder}${probe.error ? ` — ${probe.error}` : ''}`);
   }
 
   const project = await api.getProject(projectId);

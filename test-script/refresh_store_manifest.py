@@ -42,9 +42,9 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST = os.path.join(REPO_ROOT, 'landing', 'updates.json')
 
 APPLE_APP_ID = '6761807809'
-PLAY_PACKAGE = 'com.proteus.opendraft'
+PLAY_PACKAGE = 'net.japanada.writea-draft'
 TIMEOUT = 30
-USER_AGENT = 'OpenDraft store watch (+https://github.com/Proteus-Technologies-Private-Limited/OpenDraft)'
+USER_AGENT = 'WriTea Draft store watch (+https://github.com/Proteus-Technologies-Private-Limited/OpenDraft)'
 
 
 def version_tuple(v):

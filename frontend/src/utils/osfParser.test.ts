@@ -251,7 +251,7 @@ describe('parseOSF — document font', () => {
 });
 
 describe('parseOSF — parentheticals', () => {
-  // OSF stores the text bare and draws the brackets itself; OpenDraft keeps
+  // OSF stores the text bare and draws the brackets itself; WriTea Draft keeps
   // them in the text, as Fountain and Final Draft do.
   it('brackets a parenthetical stored without them', () => {
     const nodes = parseOSF(osfDocument(para('Parenthetical', 'excited'))).doc.content as Node[];

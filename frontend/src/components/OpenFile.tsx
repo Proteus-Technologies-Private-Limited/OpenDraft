@@ -3,9 +3,9 @@
  * Open-from-Cloud dialogs.
  *
  * On the desktop / mobile app:
- *   - Source toggle at the top (This device / OpenDraft Cloud).
+ *   - Source toggle at the top (This device / WriTea Draft Cloud).
  *   - "This device" reads via `api` which is swapped to local SQLite.
- *   - "OpenDraft Cloud" reads via `cloudApi` (HTTP + auth).
+ *   - "WriTea Draft Cloud" reads via `cloudApi` (HTTP + auth).
  * In the browser:
  *   - No toggle — everything on the web is cloud-backed. We always go through
  *     `cloudApi` since that's the only real source.
@@ -106,7 +106,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose }) => {
       // switch to the "This device" tab.
       if (WEB_ONLY_CLOUD) {
         try {
-          window.dispatchEvent(new CustomEvent('opendraft:auth-required'));
+          window.dispatchEvent(new CustomEvent('writeadraft:auth-required'));
         } catch { /* no-op */ }
       }
       return () => { cancelled = true; };
@@ -186,7 +186,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose }) => {
                 className={`open-file-source-tab ${source === 'cloud' ? 'active' : ''}`}
                 onClick={() => setSource('cloud')}
               >
-                <FaCloud /> OpenDraft Cloud
+                <FaCloud /> WriTea Draft Cloud
               </button>
             </div>
           )}
@@ -221,7 +221,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose }) => {
         >
           {source === 'cloud' && !signedIn ? (
             <div className="open-file-empty">
-              Sign in to access your OpenDraft Cloud files. Click the indicator in the
+              Sign in to access your WriTea Draft Cloud files. Click the indicator in the
               menu bar to sign in.
             </div>
           ) : loading ? (
@@ -233,7 +233,7 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose }) => {
               {query
                 ? `No files match “${query}”.`
                 : source === 'cloud'
-                  ? 'No cloud files yet. Use File › Save As… and pick OpenDraft Cloud to upload.'
+                  ? 'No cloud files yet. Use File › Save As… and pick WriTea Draft Cloud to upload.'
                   : 'No files yet. Use File › Import to create a project.'}
             </div>
           ) : (

@@ -218,7 +218,7 @@ const RecoverBackupDialog: React.FC<Props> = ({ open, onClose, onBeforeReplace }
   /** Recover a snapshot the user moved somewhere else. */
   const handleImportFile = useCallback(async () => {
     try {
-      const file = await openTextFile([{ name: 'OpenDraft', extensions: ['odraft'] }]);
+      const file = await openTextFile([{ name: 'WriTea Draft', extensions: ['odraft'] }]);
       if (!file) return;
       const parsed = parseOdraftLoose(file.content);
       setSelected({

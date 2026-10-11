@@ -16,7 +16,7 @@ let _db: Database | null = null;
 /** Open (or create) the local SQLite database and run migrations. */
 export async function getDb(): Promise<Database> {
   if (_db) return _db;
-  _db = await Database.load('sqlite:opendraft.db');
+  _db = await Database.load('sqlite:writeadraft.db');
   await applyPragmas(_db);
   await migrate(_db);
   return _db;

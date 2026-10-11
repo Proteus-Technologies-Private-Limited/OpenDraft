@@ -1,7 +1,7 @@
 /**
  * The script the writer had open when the app last ran.
  *
- * OpenDraft has always launched into a blank "Untitled Screenplay". With the
+ * WriTea Draft has always launched into a blank "Untitled Screenplay". With the
  * editor as the app's front door that reads, after a crash, as "everything is
  * gone" — and the writer has no way to tell whether it is. Reproducing issue
  * #68 on iPad showed both halves of that: a line typed and lost, *and* the
@@ -23,7 +23,7 @@
  * *it* had open rather than its sibling's script.
  */
 
-const STORAGE_KEY_BASE = 'opendraft:last-session';
+const STORAGE_KEY_BASE = 'writeadraft:last-session';
 
 /** Stale entries are ignored rather than reopened weeks later. */
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days

@@ -44,8 +44,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="OpenDraft API",
-    description="Backend API for OpenDraft screenwriting application",
+    title="WriTea Draft API",
+    description="Backend API for WriTea Draft screenwriting application",
     version="2.5.3",
     lifespan=lifespan,
 )
@@ -110,12 +110,12 @@ async def demo_info():
     return {
         "demo": DEMO_MODE,
         "message": (
-            "This is a shared demo instance of OpenDraft. "
+            "This is a shared demo instance of WriTea Draft. "
             "All files are public — other users trying the demo can see and edit them. "
             "Do not store any confidential information. "
             "The demo server resets every hour — all data will be lost. "
             "For production use, download the app for your platform and use it on your own machine securely. "
-            "For team use, try the Cloud edition of OpenDraft."
+            "For team use, try the Cloud edition of WriTea Draft."
         ) if DEMO_MODE else None,
     }
 
@@ -143,8 +143,8 @@ if STATIC_DIR.is_dir():
         index = STATIC_DIR / "index.html"
         if index.exists():
             return FileResponse(index)
-        return {"app": "OpenDraft", "version": "0.5.0"}
+        return {"app": "WriTea Draft", "version": "0.5.0"}
 else:
     @app.get("/")
     async def root():
-        return {"app": "OpenDraft", "version": "0.5.0", "note": "Run build.sh to deploy frontend"}
+        return {"app": "WriTea Draft", "version": "0.5.0", "note": "Run build.sh to deploy frontend"}

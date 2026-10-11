@@ -20,7 +20,7 @@ import {
 } from '@tauri-apps/plugin-fs';
 import type { ProjectInfo, ScriptMeta, ScriptResponse } from './api';
 
-const INDEX_KEY = 'opendraft:file-fallback:index';
+const INDEX_KEY = 'writeadraft:file-fallback:index';
 const ROOT_DIR = 'file-fallback';
 const SCRIPTS_DIR = `${ROOT_DIR}/scripts`;
 const ASSETS_DIR = `${ROOT_DIR}/assets`;

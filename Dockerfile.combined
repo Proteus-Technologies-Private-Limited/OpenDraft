@@ -8,7 +8,7 @@
 # Both are EXPOSEd so the caller can map them or front them with their own proxy.
 #
 # Persistent data lives at /app/data and is split per service:
-#   - /app/data/backend  (OPENDRAFT_DATA_DIR)
+#   - /app/data/backend  (WRITEADRAFT_DATA_DIR)
 #   - /app/data/collab   (DATA_DIR)
 
 # ── Stage 1: build the frontend (served by the backend) ──
@@ -65,9 +65,9 @@ RUN apt-get purge -y --auto-remove make g++ curl gnupg && rm -rf /var/lib/apt/li
 RUN mkdir -p /app/data/backend/projects /app/data/collab
 
 # ── supervisord ──
-COPY deploy/supervisord.conf /etc/supervisor/conf.d/opendraft.conf
+COPY deploy/supervisord.conf /etc/supervisor/conf.d/writeadraft.conf
 
-ENV OPENDRAFT_DATA_DIR=/app/data/backend \
+ENV WRITEADRAFT_DATA_DIR=/app/data/backend \
     BACKEND_PORT=8080 \
     DATA_DIR=/app/data/collab \
     COLLAB_PORT=8081 \
@@ -90,4 +90,4 @@ ENV OPENDRAFT_DATA_DIR=/app/data/backend \
 
 EXPOSE 8080 8081
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/opendraft.conf", "-n"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/writeadraft.conf", "-n"]

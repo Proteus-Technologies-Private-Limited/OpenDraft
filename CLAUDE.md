@@ -1,8 +1,8 @@
-# OpenDraft — Claude Instructions
+# WriTea Draft — Claude Instructions
 
 ## Open-Core Architecture
 
-OpenDraft is the **open-source core** (MIT license). A separate **OpenDraft-Pro** repo (private, at `../OpenDraft-Pro/`) extends it with commercial plugins.
+WriTea Draft is the **open-source core** (MIT license). A separate **WriTeaDraft-Pro** repo (private, at `../WriTeaDraft-Pro/`) extends it with commercial plugins.
 
 ### Plugin System
 
@@ -14,7 +14,7 @@ The core exposes a plugin architecture so Pro features can be added without modi
 
 ### Key Rules
 
-- **Never add commercial/Pro features to this repo** — they go in OpenDraft-Pro
+- **Never add commercial/Pro features to this repo** — they go in WriTeaDraft-Pro
 - Plugin architecture changes (registry, hooks, extension points) belong HERE
 - Bug fixes to existing features go HERE — they automatically flow to Pro via git submodule
 - The `pluginRegistry` import in MenuBar, App.tsx, and ScreenplayEditor is how Pro injects features at runtime
@@ -22,9 +22,9 @@ The core exposes a plugin architecture so Pro features can be added without modi
 ### Repo Relationship
 
 ```
-OpenDraft (this repo, public, MIT)     ← upstream
+WriTea Draft (this repo, public, MIT)     ← upstream
     ↑
-OpenDraft-Pro (private, proprietary)   ← imports this as git submodule at core/
+WriTeaDraft-Pro (private, proprietary)   ← imports this as git submodule at core/
 ```
 
 ---
@@ -113,7 +113,7 @@ The Android `.apk` and `.aab` are built via **GitHub Actions** (in `.github/work
 2. Patches `tauri.conf.json` to remove `externalBin` (no Python sidecar on Android — the app uses local SQLite)
 3. If signing secrets are configured, patches `build.gradle.kts` with release signing config
 4. Builds both `.apk` (sideloadable) and `.aab` (Play Store)
-5. Uploads renamed artifacts (`OpenDraft_X.Y.Z_android.apk/aab`) to the GitHub Release
+5. Uploads renamed artifacts (`WriTeaDraft_X.Y.Z_android.apk/aab`) to the GitHub Release
 
 ### 16 KB memory page support (required by Google Play)
 
@@ -131,7 +131,7 @@ The `Verify native libraries are 16 KB page aligned` CI step reads the alignment
 back off the built APK and fails the release if it regresses. To check by hand:
 
 ```bash
-$NDK_HOME/toolchains/llvm/prebuilt/*/bin/llvm-readelf -l libopendraft_lib.so | grep LOAD
+$NDK_HOME/toolchains/llvm/prebuilt/*/bin/llvm-readelf -l libwriteadraft_lib.so | grep LOAD
 # the last column must be 0x4000, not 0x1000
 ```
 
@@ -150,7 +150,7 @@ would otherwise set:
 
 - `CC_aarch64_linux_android` and friends pointing into the NDK. cc-rs looks for
   `aarch64-linux-android-clang`, which no NDK ships, so C build scripts (ring's
-  among them) fail before any OpenDraft code is reached.
+  among them) fail before any WriTea Draft code is reached.
 - A real `frontend/dist`, because `tauri::generate_context!()` embeds it at
   compile time.
 
@@ -164,16 +164,16 @@ For unsigned builds (testing), no secrets are needed. For signed/production buil
 |--------|-------------|
 | `ANDROID_KEYSTORE_BASE64` | Base64-encoded release keystore (`base64 -i release.keystore`) |
 | `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
-| `ANDROID_KEY_ALIAS` | Key alias (e.g., `opendraft`) |
+| `ANDROID_KEY_ALIAS` | Key alias (e.g., `writeadraft`) |
 | `ANDROID_KEY_PASSWORD` | Key password |
 
 ### Generate a keystore (one-time)
 
 ```bash
-keytool -genkey -v -keystore opendraft-release.keystore \
-  -alias opendraft -keyalg RSA -keysize 2048 -validity 10000 \
-  -dname "CN=OpenDraft, O=Proteus Technologies"
-base64 -i opendraft-release.keystore | pbcopy  # copy to clipboard for GitHub secret
+keytool -genkey -v -keystore writeadraft-release.keystore \
+  -alias writeadraft -keyalg RSA -keysize 2048 -validity 10000 \
+  -dname "CN=WriTea Draft, O=Proteus Technologies"
+base64 -i writeadraft-release.keystore | pbcopy  # copy to clipboard for GitHub secret
 ```
 
 ### Local Android development (optional)
@@ -274,7 +274,7 @@ The iOS `.ipa` is built via **GitHub Actions** (in `.github/workflows/release.ym
 3. Patches `tauri.conf.json` to remove `externalBin` (no Python sidecar on iOS — the app uses local SQLite)
 4. Builds with `tauri ios build --export-method app-store-connect`
 5. If App Store Connect API key is configured, uploads the IPA directly to App Store Connect
-6. Uploads renamed artifact (`OpenDraft_X.Y.Z_ios.ipa`) to the GitHub Release
+6. Uploads renamed artifact (`WriTeaDraft_X.Y.Z_ios.ipa`) to the GitHub Release
 
 ### GitHub Secrets for iOS
 
@@ -304,8 +304,8 @@ For automatic App Store Connect upload (optional):
 ### How to get the provisioning profile
 
 1. Go to developer.apple.com → Certificates, Identifiers & Profiles → Profiles
-2. Create or download an App Store provisioning profile for `com.proteus.opendraft`
-3. Base64-encode: `base64 -i OpenDraft_AppStore.mobileprovision | pbcopy`
+2. Create or download an App Store provisioning profile for `net.japanada.writea-draft`
+3. Base64-encode: `base64 -i WriTeaDraft_AppStore.mobileprovision | pbcopy`
 4. Paste into the `IOS_PROVISION_PROFILE` GitHub secret
 
 ### How to create an App Store Connect API key
@@ -350,7 +350,7 @@ xcrun simctl boot "iPad Air 11-inch (M3)"
 
 # 4. Install and launch
 xcrun simctl install "iPad Air 11-inch (M3)" src-tauri/gen/apple/build/arm64-sim/OpenDraft.app
-xcrun simctl launch "iPad Air 11-inch (M3)" com.proteus.opendraft
+xcrun simctl launch "iPad Air 11-inch (M3)" net.japanada.writea-draft
 
 # 5. Bring Simulator app to front
 open -a Simulator
@@ -359,7 +359,7 @@ open -a Simulator
 ### Common issues
 
 - **"Port 5173 is already in use"** — The user's dev server is running. Never use `tauri ios dev`; always use `tauri ios build` + `simctl install`.
-- **"Couldn't recognize the current folder as a Tauri project"** — Run from the project root (`/Users/kandarpbaghar/ai-projects/OpenDraft/`), not from `src-tauri/` or `frontend/`.
+- **"Couldn't recognize the current folder as a Tauri project"** — Run from the project root (`/Users/kandarpbaghar/ai-projects/WriTeaDraft/`), not from `src-tauri/` or `frontend/`.
 - **PhaseScriptExecution failed** — Same root cause as above. Use the CLI build, not Xcode's Run button directly.
 - **If `src-tauri/gen/apple` doesn't exist** — Run `frontend/node_modules/.bin/tauri ios init` first.
 

@@ -1,13 +1,13 @@
 # Uncomment the next line to define a global platform for your project
 
-target 'opendraft_iOS' do
+target 'writeadraft_iOS' do
 platform :ios, '15.0'
-  # Pods for opendraft_iOS
+  # Pods for writeadraft_iOS
 end
 
-target 'opendraft_macOS' do
+target 'writeadraft_macOS' do
 platform :osx, '11.0'
-  # Pods for opendraft_macOS
+  # Pods for writeadraft_macOS
 end
 
 # Delete the deployment target for iOS and macOS, causing it to be inherited from the Podfile

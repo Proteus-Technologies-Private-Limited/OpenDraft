@@ -62,7 +62,7 @@ const FDX_PATH = path.resolve('test-doc.fdx');
     }, scrollPos);
     await page.waitForTimeout(300);
     await page.screenshot({
-      path: `/Users/kandarpbaghar/ai-projects/OpenDraft/test-script/output/fdx-scroll-${scrollPos}.png`,
+      path: `/Users/kandarpbaghar/ai-projects/WriTeaDraft/test-script/output/fdx-scroll-${scrollPos}.png`,
     });
   }
   console.log('Screenshots saved for scroll positions 0-4800');

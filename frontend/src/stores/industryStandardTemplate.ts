@@ -54,7 +54,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       bold: true,
       textTransform: 'uppercase',
       // Two blank lines, matching Final Draft's Screenplay template default
-      // (Space Before = 2) and what OpenDraft's own FDX and OSF exporters have
+      // (Space Before = 2) and what WriTea Draft's own FDX and OSF exporters have
       // always written. Documents saved under the previous one-line default are
       // pinned to it on load and offered the change — see
       // `sceneHeadingSpaceBefore` in editorStore.

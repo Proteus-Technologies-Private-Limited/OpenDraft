@@ -81,7 +81,7 @@ import path from 'path';
     await page.evaluate((s) => document.querySelector('.editor-main')?.scrollTo(0, s), scrollTarget);
     await page.waitForTimeout(400);
     await page.screenshot({
-      path: `/Users/kandarpbaghar/ai-projects/OpenDraft/test-script/output/compare-break${i+1}.png`,
+      path: `/Users/kandarpbaghar/ai-projects/WriTeaDraft/test-script/output/compare-break${i+1}.png`,
     });
   }
   console.log('Screenshots saved');

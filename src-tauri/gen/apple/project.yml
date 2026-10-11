@@ -1,6 +1,6 @@
-name: opendraft
+name: writeadraft
 options:
-  bundleIdPrefix: com.proteus.opendraft
+  bundleIdPrefix: net.japanada.writea-draft
   deploymentTarget:
     iOS: 15.0
 fileGroups: [../../src]
@@ -10,8 +10,8 @@ configs:
 settingGroups:
   app:
     base:
-      PRODUCT_NAME: OpenDraft
-      PRODUCT_BUNDLE_IDENTIFIER: com.proteus.opendraft
+      PRODUCT_NAME: WriTea Draft
+      PRODUCT_BUNDLE_IDENTIFIER: net.japanada.writea-draft
 targetTemplates:
   app:
     type: application
@@ -24,7 +24,7 @@ targetTemplates:
     settings:
       groups: [app]
 targets:
-  opendraft_iOS:
+  writeadraft_iOS:
     type: application
     platform: iOS
     sources:
@@ -34,13 +34,13 @@ targets:
         buildPhase: none
         excludes:
           - "*/debug/*"
-      - path: opendraft_iOS
+      - path: writeadraft_iOS
       - path: assets
         buildPhase: resources
         type: folder
       - path: LaunchScreen.storyboard
     info:
-      path: opendraft_iOS/Info.plist
+      path: writeadraft_iOS/Info.plist
       properties:
         LSRequiresIPhoneOS: true
         UILaunchStoryboardName: LaunchScreen
@@ -67,12 +67,12 @@ targets:
             CFBundleTypeRole: Editor
             LSHandlerRank: Default
             LSItemContentTypes:
-              - com.proteus.opendraft.fountain
-          - CFBundleTypeName: OpenDraft Screenplay
+              - net.japanada.writea-draft.fountain
+          - CFBundleTypeName: WriTea Draft Screenplay
             CFBundleTypeRole: Editor
             LSHandlerRank: Owner
             LSItemContentTypes:
-              - com.proteus.opendraft.document
+              - net.japanada.writea-draft.document
           - CFBundleTypeName: Text File
             CFBundleTypeRole: Editor
             LSHandlerRank: Alternate
@@ -87,7 +87,7 @@ targets:
               public.filename-extension:
                 - fdx
               public.mime-type: application/xml
-          - UTTypeIdentifier: com.proteus.opendraft.fountain
+          - UTTypeIdentifier: net.japanada.writea-draft.fountain
             UTTypeDescription: Fountain Screenplay
             UTTypeConformsTo:
               - public.plain-text
@@ -95,8 +95,8 @@ targets:
               public.filename-extension:
                 - fountain
               public.mime-type: text/plain
-          - UTTypeIdentifier: com.proteus.opendraft.document
-            UTTypeDescription: OpenDraft Screenplay
+          - UTTypeIdentifier: net.japanada.writea-draft.document
+            UTTypeDescription: WriTea Draft Screenplay
             UTTypeConformsTo:
               - public.json
             UTTypeTagSpecification:
@@ -104,7 +104,7 @@ targets:
                 - odraft
               public.mime-type: application/json
     entitlements:
-      path: opendraft_iOS/opendraft_iOS.entitlements
+      path: writeadraft_iOS/writeadraft_iOS.entitlements
     scheme:
       environmentVariables:
         RUST_BACKTRACE: full

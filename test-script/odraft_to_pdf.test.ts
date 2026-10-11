@@ -1,5 +1,5 @@
 /**
- * Render a converted .odraft back to PDF with OpenDraft's own exporter.
+ * Render a converted .odraft back to PDF with WriTea Draft's own exporter.
  *
  * The schema check in validate_odraft.test.ts proves the file *loads*. This
  * proves it *reads* — it lays the document out through the same code path the

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Restore the blanked `12_Years_a_Slave` script from a pre-corruption Time
-Machine snapshot back into the live OpenDraft SQLite DB.
+Machine snapshot back into the live WriTea Draft SQLite DB.
 
 Faithfully copies the snapshot row's content/size/updated_at. Makes a fresh
 timestamped backup of the live DB before writing. Read the snapshot read-only.
@@ -11,8 +11,8 @@ import sqlite3, shutil, sys, os, json, time
 
 SCRIPT_ID = "9e17a3d5-5409-40b1-8ed1-666ca56a2828"
 LIVE = os.path.expanduser(
-    "~/Library/Application Support/com.proteus.opendraft/opendraft.db")
-SNAP = "/tmp/odsnap/Users/kandarpbaghar/Library/Application Support/com.proteus.opendraft/opendraft.db"
+    "~/Library/Application Support/net.japanada.writea-draft/writeadraft.db")
+SNAP = "/tmp/odsnap/Users/kandarpbaghar/Library/Application Support/net.japanada.writea-draft/writeadraft.db"
 
 def main():
     # 1. Read the good row from the snapshot (read-only / immutable).

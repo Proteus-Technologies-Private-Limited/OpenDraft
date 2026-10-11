@@ -15,11 +15,11 @@ def _get_base_dir() -> Path:
 def _get_data_dir() -> Path:
     """Return the user data directory for project storage.
 
-    In desktop mode the OPENDRAFT_DATA_DIR env var is set by the Tauri shell
+    In desktop mode the WRITEADRAFT_DATA_DIR env var is set by the Tauri shell
     to a platform-appropriate location.  Otherwise fall back to the local
     ``data/projects`` directory used during development.
     """
-    env_dir = os.environ.get("OPENDRAFT_DATA_DIR")
+    env_dir = os.environ.get("WRITEADRAFT_DATA_DIR")
     if env_dir:
         p = Path(env_dir) / "projects"
         p.mkdir(parents=True, exist_ok=True)

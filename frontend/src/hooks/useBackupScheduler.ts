@@ -150,7 +150,7 @@ export function useBackupScheduler(opts: BackupSchedulerOptions): void {
 
     // On phones and tablets the interval is not the whole story: the system
     // suspends a backgrounded app and can terminate it later without ever
-    // running another timer, so leaving OpenDraft is the last moment a snapshot
+    // running another timer, so leaving WriTea Draft is the last moment a snapshot
     // can be taken. Desktop windows are left alone — being minimised is not
     // remotely the same risk, and a snapshot per window switch would be noise.
     const backupOnLeave = () => {

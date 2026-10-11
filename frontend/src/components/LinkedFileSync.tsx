@@ -5,7 +5,7 @@
  *   minute and whenever the window comes back into focus, so a writer whose
  *   RAID comes back online does not have to do anything.
  * - Asks the one question the sync cannot answer for itself: a linked file was
- *   changed elsewhere while OpenDraft had changes of its own. Neither copy is
+ *   changed elsewhere while WriTea Draft had changes of its own. Neither copy is
  *   thrown away — the one not kept is preserved (services/linkedFiles) — but
  *   only the writer can say which one is the script from now on.
  */
@@ -55,24 +55,24 @@ const LinkedFileSync: React.FC = () => {
     // open with nobody to answer it.
     <div className="dialog-overlay">
       <div className="dialog-box" role="alertdialog" aria-modal="true" aria-labelledby="linked-conflict-title">
-        <div className="dialog-header" id="linked-conflict-title">File Changed Outside OpenDraft</div>
+        <div className="dialog-header" id="linked-conflict-title">File Changed Outside WriTea Draft</div>
         <div className="dialog-body">
           <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
             <strong>{name}</strong> was changed by another app or computer since
-            OpenDraft last saved it, and <strong>{conflict.scriptTitle}</strong> has
+            WriTea Draft last saved it, and <strong>{conflict.scriptTitle}</strong> has
             changes here that the file does not have.
           </p>
           <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
-            Which version should OpenDraft keep? Neither is lost: if you keep the
-            file&apos;s version, OpenDraft&apos;s is saved in Version History; if you
-            keep OpenDraft&apos;s, the file&apos;s is saved as a copy next to it.
+            Which version should WriTea Draft keep? Neither is lost: if you keep the
+            file&apos;s version, WriTea Draft&apos;s is saved in Version History; if you
+            keep WriTea Draft&apos;s, the file&apos;s is saved as a copy next to it.
           </p>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--fd-text-muted, var(--fd-text))', wordBreak: 'break-all' }}>
             {conflict.path}
           </p>
         </div>
         <div className="dialog-actions">
-          <button onClick={() => answerConflict('library')}>Keep OpenDraft&apos;s Version</button>
+          <button onClick={() => answerConflict('library')}>Keep WriTea Draft&apos;s Version</button>
           <button className="dialog-primary" onClick={() => answerConflict('file')}>
             Use the File&apos;s Version
           </button>

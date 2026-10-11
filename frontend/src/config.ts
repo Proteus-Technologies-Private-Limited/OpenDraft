@@ -18,7 +18,7 @@
 // "null/api", which fetch() rejects with WebKit's cryptic "The string did not
 // match the expected pattern". Detect that and bail to an empty sentinel so
 // cloudApi can surface a clean "cloud not configured" message instead.
-const STORAGE_KEY_CLOUD_API = 'opendraft:cloudApiUrl';
+const STORAGE_KEY_CLOUD_API = 'writeadraft:cloudApiUrl';
 
 function loadStoredCloudApi(): string {
   try {
@@ -105,7 +105,7 @@ export const SERVER_BASE: string = API_BASE.replace(/\/api$/, '');
  */
 const DEFAULT_COLLAB_WS = 'wss://collab.open-draft.com';
 export function getCollabWsUrl(): string {
-  const stored = localStorage.getItem('opendraft:collabServerUrl');
+  const stored = localStorage.getItem('writeadraft:collabServerUrl');
   if (stored) return stored;
   return import.meta.env.VITE_COLLAB_WS_URL || DEFAULT_COLLAB_WS;
 }

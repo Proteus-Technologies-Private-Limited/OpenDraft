@@ -37,7 +37,7 @@ export function blockRevision(node: JSONContent): string | null {
 // sitting last on its heading from being recognised. A note is the spec's way
 // to put something on a line without it being read as script, so the mark goes
 // in one: `CUT TO: [[* Blue]]`. Apps that show notes in the margin show the
-// mark there; OpenDraft reads it back as the revision it was.
+// mark there; WriTea Draft reads it back as the revision it was.
 
 /** The note that marks a revised Fountain line, e.g. `[[* Blue revision]]`. */
 export function fountainRevisionNote(color: string, settings?: RevisionSettings | null): string {
@@ -50,7 +50,7 @@ export function fountainRevisionNote(color: string, settings?: RevisionSettings 
 /**
  * The revision a Fountain note records, or null when it is an ordinary note.
  *
- * Only the exact form OpenDraft writes counts — one mark, a colour named as
+ * Only the exact form WriTea Draft writes counts — one mark, a colour named as
  * the sequence names it, and the word "revision" — so a writer's own note
  * such as `[[+ Blue]]` or `[[* check this]]` stays a note.
  */
@@ -66,7 +66,7 @@ export function parseFountainRevisionNote(note: string): string | null {
 // Fade In keeps a revision table in `<lists><revision_colors>` — an index, a
 // name and the mark — and marks a revised paragraph with
 // `<marks><mark at="…" revision="N"/></marks>`, where N is a row of that table
-// and `at` a character offset in the paragraph. OpenDraft knows which
+// and `at` a character offset in the paragraph. WriTea Draft knows which
 // paragraphs are revised, not which characters, so it marks each from its
 // first character: Fade In's mark then sits on the paragraph's first line.
 
@@ -95,7 +95,7 @@ function xmlAttr(v: string): string {
   return v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** Read a Fade In revision table: index → OpenDraft colour, and the marks. */
+/** Read a Fade In revision table: index → WriTea Draft colour, and the marks. */
 export function parseOsfRevisionColors(rows: Element[]): { byIndex: Map<string, string>; marks: Record<string, string> } {
   const byIndex = new Map<string, string>();
   const marks: Record<string, string> = {};

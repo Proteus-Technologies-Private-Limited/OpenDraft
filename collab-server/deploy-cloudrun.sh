@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── OpenDraft Collab Server — Deploy to Google Cloud Run ──
+# ── WriTea Draft Collab Server — Deploy to Google Cloud Run ──
 #
 # Deploys the collaboration server to Cloud Run (free tier).
 # Cloud Run provides HTTPS + WSS automatically (TLS terminated at load balancer).
@@ -17,7 +17,7 @@ set -euo pipefail
 
 echo ""
 echo "╔══════════════════════════════════════════════════╗"
-echo "║  OpenDraft Collab Server — Cloud Run Deployment  ║"
+echo "║  WriTea Draft Collab Server — Cloud Run Deployment  ║"
 echo "╚══════════════════════════════════════════════════╝"
 echo ""
 
@@ -53,9 +53,9 @@ gcloud config set project "$PROJECT_ID"
 
 # ── Configuration ──
 
-SERVICE_NAME="opendraft-collab"
+SERVICE_NAME="writeadraft-collab"
 REGION="us-central1"       # Free tier eligible region
-REPO_NAME="opendraft"      # Artifact Registry repository
+REPO_NAME="writeadraft"      # Artifact Registry repository
 IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$SERVICE_NAME"
 
 echo ""
@@ -87,7 +87,7 @@ if ! gcloud artifacts repositories describe "$REPO_NAME" \
     --repository-format=docker \
     --location="$REGION" \
     --project="$PROJECT_ID" \
-    --description="OpenDraft container images" \
+    --description="WriTea Draft container images" \
     --quiet
   echo "  Repository '$REPO_NAME' created."
 else
@@ -169,7 +169,7 @@ echo ""
 echo "Updating CORS to include Cloud Run URL..."
 
 # Include the demo frontend origin so browsers on the demo site can reach this collab server
-DEMO_URL=$(gcloud run services describe opendraft-demo \
+DEMO_URL=$(gcloud run services describe writeadraft-demo \
   --region="$REGION" --project="$PROJECT_ID" \
   --format="value(status.url)" 2>/dev/null || true)
 

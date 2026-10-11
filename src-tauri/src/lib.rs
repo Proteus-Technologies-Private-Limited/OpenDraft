@@ -194,7 +194,7 @@ fn android_read_clipboard_html() -> Result<Option<String>, String> {
     // getSystemService cast, the null primaryClip and the empty-item case are
     // three guards that read as one line there and a dozen calls here.
     let html_obj = env.call_static_method(
-        "com/proteus/opendraft/MainActivity", "readClipboardHtml",
+        "com/proteus/writeadraft/MainActivity", "readClipboardHtml",
         "(Landroid/content/Context;)Ljava/lang/String;",
         &[JValue::Object(&activity)],
     ).map_err(|e| format!("readClipboardHtml: {}", e))?
@@ -257,7 +257,7 @@ fn android_read_content_uri_bytes(uri_str: &str) -> Result<ContentUriBytes, Stri
     // InputStream.readAllBytes() is unavailable and a JNI read loop would be
     // far more code than a Kotlin one-liner.
     let bytes_obj = env.call_static_method(
-        "com/proteus/opendraft/MainActivity", "readUriBytes",
+        "com/proteus/writeadraft/MainActivity", "readUriBytes",
         "(Landroid/content/Context;Ljava/lang/String;)[B",
         &[JValue::Object(&activity), JValue::Object(&uri_jobj)],
     ).map_err(|e| format!("readUriBytes: {}", e))?
@@ -687,7 +687,7 @@ fn android_share_file(file_path: &str, mime_type: &str) -> Result<(), String> {
     let path_jstr = env.new_string(file_path)
         .map_err(|e| format!("JNI new_string: {}", e))?;
     env.call_static_method(
-        "com/proteus/opendraft/MainActivity",
+        "com/proteus/writeadraft/MainActivity",
         "setExportSourcePath",
         "(Ljava/lang/String;)V",
         &[JValue::Object(&JObject::from(path_jstr))],
@@ -804,7 +804,7 @@ fn android_print_pdf(filename: String, contents: Vec<u8>) -> Result<(), String> 
         // What the writer sees named in the Android print queue.
         let job_name = filename.rsplit('/').next().unwrap_or(&filename);
         let job_name = job_name.strip_suffix(".pdf").unwrap_or(job_name);
-        let job_name = if job_name.is_empty() { "OpenDraft" } else { job_name };
+        let job_name = if job_name.is_empty() { "WriTea Draft" } else { job_name };
 
         match android_static_call("startPrintJob", &[&path.to_string_lossy(), job_name])? {
             // startPrintJob reports trouble by returning a message; null is the
@@ -838,7 +838,7 @@ fn android_pick_file() -> Result<(), String> {
         // Clear any previous picked file URI
         let null_obj = JObject::null();
         let _ = env.call_static_method(
-            "com/proteus/opendraft/MainActivity",
+            "com/proteus/writeadraft/MainActivity",
             "setPickedFileUri",
             "(Ljava/lang/String;)V",
             &[JValue::Object(&null_obj)],
@@ -950,7 +950,7 @@ fn android_read_and_clear_companion_field(getter: &str, setter: &str) -> Option<
     let _exc = ExceptionGuard::new(&env);
 
     let result = env.call_static_method(
-        "com/proteus/opendraft/MainActivity",
+        "com/proteus/writeadraft/MainActivity",
         getter,
         "()Ljava/lang/String;",
         &[],
@@ -966,7 +966,7 @@ fn android_read_and_clear_companion_field(getter: &str, setter: &str) -> Option<
     // Clear the field
     let null_obj = JObject::null();
     let _ = env.call_static_method(
-        "com/proteus/opendraft/MainActivity",
+        "com/proteus/writeadraft/MainActivity",
         setter,
         "(Ljava/lang/String;)V",
         &[JValue::Object(&null_obj)],
@@ -1481,7 +1481,7 @@ fn android_static_call(method: &str, args: &[&str]) -> Result<Option<String>, St
         "Ljava/lang/String;".repeat(args.len())
     );
     let call = env.call_static_method(
-        "com/proteus/opendraft/MainActivity",
+        "com/proteus/writeadraft/MainActivity",
         method,
         &signature,
         &values,
@@ -1535,7 +1535,7 @@ fn android_pick_backup_folder() -> Result<(), String> {
         // pick's outcome.
         let null_obj = JObject::null();
         let _ = env.call_static_method(
-            "com/proteus/opendraft/MainActivity",
+            "com/proteus/writeadraft/MainActivity",
             "setPickedBackupFolderUri",
             "(Ljava/lang/String;)V",
             &[JValue::Object(&null_obj)],
@@ -1616,7 +1616,7 @@ fn android_backup_write(
             &[&tree_uri, &folder, &filename, &contents],
         )?
         .ok_or_else(|| {
-            "Could not write to the backup folder. OpenDraft may have lost permission to it — \
+            "Could not write to the backup folder. WriTea Draft may have lost permission to it — \
              choose the folder again in Settings."
                 .to_string()
         })
@@ -1633,7 +1633,7 @@ fn android_backup_list(tree_uri: String) -> Result<Vec<MobileBackupEntry>, Strin
     #[cfg(target_os = "android")]
     {
         let json = android_static_call("backupList", &[&tree_uri])?.ok_or_else(|| {
-            "Could not read the backup folder. OpenDraft may have lost permission to it — \
+            "Could not read the backup folder. WriTea Draft may have lost permission to it — \
              choose the folder again in Settings."
                 .to_string()
         })?;
@@ -1677,11 +1677,11 @@ fn android_backup_probe(tree_uri: String) -> Result<FolderProbe, String> {
 }
 
 // ── Pending file state ────────────────────────────────────────────────────
-// Stores the file path when the OS opens a screenplay file with OpenDraft.
+// Stores the file path when the OS opens a screenplay file with WriTea Draft.
 // The frontend retrieves it on startup via the get_opened_file command.
 struct PendingFile(Mutex<Option<String>>);
 
-/// Extensions that OpenDraft can open via file association.
+/// Extensions that WriTea Draft can open via file association.
 const OPENABLE_EXTENSIONS: &[&str] = &["fdx", "fountain", "fadein", "osf", "odraft", "txt"];
 
 fn is_openable_file(path: &str) -> bool {
@@ -1739,7 +1739,7 @@ fn resolve_ios_pending_file(state: &tauri::State<PendingFile>) {
     }
 }
 
-/// The file the OS asked OpenDraft to open, if one is waiting.
+/// The file the OS asked WriTea Draft to open, if one is waiting.
 ///
 /// Taken rather than copied. Every window polls this as it mounts, so leaving
 /// the path in place would make a second window open a duplicate of whatever
@@ -1814,7 +1814,7 @@ fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
         // Same fallback read_text_file has always had, and for the same reason:
         // a document handed over by the Files app is only readable while its
         // security scope is held, which std::fs knows nothing about. Without
-        // this a .fadein opened with "Open in OpenDraft" failed where a
+        // this a .fadein opened with "Open in WriTea Draft" failed where a
         // .fountain from the same folder succeeded (issue #64).
         eprintln!(
             "[read_binary_file] std::fs failed, trying iOS security-scoped read: {}",
@@ -1973,7 +1973,7 @@ struct PathStat {
 }
 
 /// Size and modification time of one path, for noticing that a file linked to
-/// a script was changed by something other than OpenDraft (issue #135).
+/// a script was changed by something other than WriTea Draft (issue #135).
 ///
 /// A path that does not exist is data, not an error: a project folder on a
 /// network drive that is offline right now is an everyday state the caller has
@@ -2061,7 +2061,7 @@ fn probe_directory(path: String) -> Result<PathProbe, String> {
         });
     }
 
-    let probe = p.join(format!(".opendraft-write-test-{}", std::process::id()));
+    let probe = p.join(format!(".writeadraft-write-test-{}", std::process::id()));
     match std::fs::write(&probe, b"ok") {
         Ok(_) => {
             let _ = std::fs::remove_file(&probe);
@@ -2255,7 +2255,7 @@ async fn fetch_link_preview(url: String) -> Result<LinkPreview, String> {
 async fn fetch_url_body(url: &str) -> Result<String, Box<dyn std::error::Error>> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
-        .user_agent("Mozilla/5.0 (compatible; OpenDraft/1.0)")
+        .user_agent("Mozilla/5.0 (compatible; WriTeaDraft/1.0)")
         .build()?;
 
     let resp = client.get(url).send().await?;
@@ -2412,7 +2412,7 @@ fn startup_scene_artifact() -> bool {
 async fn set_window_title(window: tauri::WebviewWindow, title: String) -> Result<(), String> {
     #[cfg(desktop)]
     {
-        let display_title = if title.is_empty() { "OpenDraft".to_string() } else { format!("{} — OpenDraft", title) };
+        let display_title = if title.is_empty() { "WriTea Draft".to_string() } else { format!("{} — WriTea Draft", title) };
         window.set_title(&display_title).map_err(|e| format!("{}", e))?;
         // Rebuild the Window menu to reflect current window titles
         let app = window.app_handle();
@@ -2713,7 +2713,7 @@ async fn focus_window(app: tauri::AppHandle, label: String) -> Result<(), String
 #[tauri::command]
 async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
     if !app.supports_multiple_windows() {
-        return Err("This device can only show one OpenDraft window at a time.".to_string());
+        return Err("This device can only show one WriTea Draft window at a time.".to_string());
     }
 
     // Android identifies a window by its Activity class, so the label is tied to
@@ -2727,7 +2727,7 @@ async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
             .find(|n| !open.contains_key(&format!("main-{}", n)))
             .ok_or_else(|| {
                 format!(
-                    "OpenDraft can have {} windows open at once on Android.",
+                    "WriTea Draft can have {} windows open at once on Android.",
                     ANDROID_EXTRA_WINDOWS + 1
                 )
             })?;
@@ -2746,7 +2746,7 @@ async fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
     #[cfg(desktop)]
     {
         builder = builder
-            .title("OpenDraft")
+            .title("WriTea Draft")
             .inner_size(1280.0, 800.0)
             .min_inner_size(800.0, 600.0)
             .resizable(true);
@@ -2946,10 +2946,10 @@ pub fn run() {
             {
                 let app_submenu = Submenu::with_items(
                     app_handle,
-                    "OpenDraft",
+                    "WriTea Draft",
                     true,
                     &[
-                        &PredefinedMenuItem::about(app_handle, Some("About OpenDraft"), None)?,
+                        &PredefinedMenuItem::about(app_handle, Some("About WriTea Draft"), None)?,
                         &PredefinedMenuItem::separator(app_handle)?,
                         &PredefinedMenuItem::services(app_handle, None)?,
                         &PredefinedMenuItem::separator(app_handle)?,
@@ -3001,7 +3001,7 @@ pub fn run() {
                 .expect("failed to resolve app data directory");
             std::fs::create_dir_all(&app_data_dir).ok();
 
-            eprintln!("OpenDraft starting — local SQLite storage");
+            eprintln!("WriTea Draft starting — local SQLite storage");
             eprintln!("Data dir: {}", app_data_dir.display());
 
             // ── Check for file association launch ──────────────────────────
@@ -3116,14 +3116,14 @@ pub fn run() {
         .unwrap_or_else(|e| {
             let msg = format!("FATAL: Failed to build Tauri app: {}", e);
             eprintln!("{}", msg);
-            let _ = std::fs::write("/tmp/opendraft_crash.log", &msg);
+            let _ = std::fs::write("/tmp/writeadraft_crash.log", &msg);
             panic!("{}", msg);
         });
 
     app.run(|_app_handle, _event| {
         // ── A window for a scene the system asked for (iPad, issue #63) ──
         //
-        // Fires when iPadOS creates a scene OpenDraft did not ask for itself:
+        // Fires when iPadOS creates a scene WriTea Draft did not ask for itself:
         // dragging the app icon into Split View, "Open in New Window" from the
         // app switcher, or a second document opened from Files. The scene
         // arrives empty and stays blank unless a window is built for it — tao
@@ -3213,7 +3213,7 @@ pub fn run() {
                         let label = format!("main-{}", count);
                         let url = tauri::WebviewUrl::App("/".into());
                         match tauri::WebviewWindowBuilder::new(_app_handle, &label, url)
-                            .title("OpenDraft")
+                            .title("WriTea Draft")
                             .inner_size(1280.0, 800.0)
                             .min_inner_size(800.0, 600.0)
                             .resizable(true)

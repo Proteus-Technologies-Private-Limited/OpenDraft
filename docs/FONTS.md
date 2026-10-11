@@ -1,6 +1,6 @@
 # Fonts
 
-OpenDraft ships a large font library, works with the fonts already on your
+WriTea Draft ships a large font library, works with the fonts already on your
 machine, and lets you install your own TrueType and OpenType files. Courier
 12 pt remains the default for screenplay text — everything here is about what
 you can reach for when you want something else.
@@ -43,16 +43,16 @@ Where a font comes from is recorded in `frontend/src/utils/fonts.ts`:
 
 **Format → Fonts…** has a button for this.
 
-- On Chromium-based browsers (and the Windows/Linux desktop builds) OpenDraft
+- On Chromium-based browsers (and the Windows/Linux desktop builds) WriTea Draft
   can ask the browser for the machine's whole font book, with your permission.
   Every family it reports becomes selectable.
 - Everywhere else — Safari, and the WebKit views the macOS and iOS builds use —
-  there is no such API, so OpenDraft measures a list of common Word, Final Draft
+  there is no such API, so WriTea Draft measures a list of common Word, Final Draft
   and OS faces (including the ones iPadOS ships) to see which are really
   installed. This runs automatically at startup.
 - A font that list doesn't know about — one installed on iPadOS through a font
   app or a configuration profile — can be added by name in the same dialog.
-  OpenDraft checks the device can actually render it before adding it, and
+  WriTea Draft checks the device can actually render it before adding it, and
   remembers the name, so it only has to be typed once. This is the only way to
   reach such a font: no web API can enumerate them.
 
@@ -85,7 +85,7 @@ shown.
   browser's synthesised ones.
 - Fonts are stored in the browser's IndexedDB, per device. They survive
   restarts; they do not sync between devices.
-- Because OpenDraft holds the actual bytes, an installed font is **embedded in
+- Because WriTea Draft holds the actual bytes, an installed font is **embedded in
   exported PDFs** — a title page set in your own font comes out of the PDF
   looking like the one on screen. Google-hosted and system fonts cannot be
   embedded and are approximated by the closest PDF Standard 14 face.
@@ -97,7 +97,7 @@ That is what makes a script portable: open it on a machine where the font
 exists and it renders in that font; open it anywhere else and the name is still
 there, so it comes back the moment you return to a machine that has it.
 
-In between, OpenDraft substitutes by kind rather than dropping everything to
+In between, WriTea Draft substitutes by kind rather than dropping everything to
 Courier. Each family in the registry is classified `monospace`, `serif`,
 `sans-serif`, `cursive` or `fantasy`, and `fontStack()` in
 `frontend/src/utils/fonts.ts` turns a family name into a CSS stack ending in
@@ -109,9 +109,9 @@ Bebas Neue        →  'Bebas Neue', Arial, Helvetica, sans-serif
 Courier Prime     →  'Courier Prime', 'Courier New', Courier, monospace
 ```
 
-A family OpenDraft has never heard of — imported from Final Draft, Fade In or
+A family WriTea Draft has never heard of — imported from Final Draft, Fade In or
 Word — is classified from its name, and falls back to Courier when that gives no
-answer, which is how OpenDraft has always rendered unknown fonts.
+answer, which is how WriTea Draft has always rendered unknown fonts.
 
 The same stacks are used for the page font, for formatting-template rules, and
 for individual runs, so all three behave the same way.
@@ -120,7 +120,7 @@ for individual runs, so all three behave the same way.
 
 The screen has every font the machine has; a PDF has only what is embedded in
 it. jsPDF's built-in faces are the PDF Standard 14, which are WinAnsi-encoded
-and cannot write a single character outside Latin-1, so OpenDraft carries faces
+and cannot write a single character outside Latin-1, so WriTea Draft carries faces
 of its own and draws that text in whichever one covers it:
 
 | Script | Face | On the page |
@@ -169,7 +169,7 @@ which reads correctly and is not how a typesetter would set it.
 **Kinsoku shori.** A CJK line breaks at the margin wherever it falls, with no
 rule against starting one with a closing bracket or a full stop.
 
-Anything OpenDraft cannot draw is named at the end of the export rather than
+Anything WriTea Draft cannot draw is named at the end of the export rather than
 left to be discovered in the file.
 `frontend/public/fonts/README.md` has the detail on all three.
 

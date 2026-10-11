@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="images/OpenDraft-1024x1024.png" alt="OpenDraft Logo" width="120">
+  <img src="images/WriTeaDraft-1024x1024.png" alt="WriTea Draft Logo" width="120">
 </p>
 
-<h1 align="center">OpenDraft</h1>
+<h1 align="center">WriTea Draft</h1>
 
 <p align="center">
   <strong>Write professional screenplays for free</strong><br>
@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://open-draft.com">
-    <img src="https://img.shields.io/badge/%E2%96%B6_Try_OpenDraft_Now-c455ce?style=for-the-badge&labelColor=4a154b" alt="Try OpenDraft Now">
+    <img src="https://img.shields.io/badge/%E2%96%B6_Try_OpenDraft_Now-c455ce?style=for-the-badge&labelColor=4a154b" alt="Try WriTea Draft Now">
   </a>
 </p>
 <p align="center"><em>No account needed. Opens in your browser in seconds.</em></p>
@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <img src="images/opendraft-demo.gif" alt="OpenDraft in action — writing a screenplay" width="80%"><br>
+  <img src="images/writeadraft-demo.gif" alt="WriTea Draft in action — writing a screenplay" width="80%"><br>
   <em>Professional screenplay formatting, planning, collaboration, and version history — all in one app.</em>
 </p>
 
@@ -50,9 +50,9 @@
 
 ---
 
-## Why OpenDraft?
+## Why WriTea Draft?
 
-Your script is your intellectual property. Cloud-based screenwriting tools store your work on corporate servers — where it can be mined, leaked, or used to train AI. OpenDraft keeps every word on your machine.
+Your script is your intellectual property. Cloud-based screenwriting tools store your work on corporate servers — where it can be mined, leaked, or used to train AI. WriTea Draft keeps every word on your machine.
 
 - **Never pay for your own words** — Free forever under the MIT license. No trial, no subscription, no feature gating.
 - **Switch without starting over** — Import from Final Draft (.fdx), Fountain, or PDF. Export anytime. Your scripts are never locked in.
@@ -117,9 +117,9 @@ Full-featured mobile apps with 100% of the desktop functionality — write, edit
 
 ## Comparison
 
-How does OpenDraft stack up against commercial screenwriting software?
+How does WriTea Draft stack up against commercial screenwriting software?
 
-| Feature | OpenDraft | Final Draft | WriterDuet | Fade In |
+| Feature | WriTea Draft | Final Draft | WriterDuet | Fade In |
 |---------|:---------:|:-----------:|:----------:|:-------:|
 | **Price** | Free | $250 | Free / $12/mo | $80 |
 | **Open Source** | Yes (MIT) | No | No | No |
@@ -180,12 +180,12 @@ For all versions and platforms, visit the [Releases](https://github.com/Proteus-
 
 ## Getting Started
 
-New to OpenDraft? Here's everything you need:
+New to WriTea Draft? Here's everything you need:
 
 - **Just want to try it?** [Open the demo](https://open-draft.com) — no account, no install, opens in seconds.
 - **Ready to install?** Grab the [latest download](#download) for your platform.
 - **Need a walkthrough?** Read the [User Manual](https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/).
-- **Want to learn more?** Visit the [OpenDraft website](https://proteus-technologies-private-limited.github.io/OpenDraft/).
+- **Want to learn more?** Visit the [WriTea Draft website](https://proteus-technologies-private-limited.github.io/OpenDraft/).
 - **Have a question?** Start a [Discussion](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions) — the community is happy to help.
 
 ---
@@ -220,7 +220,7 @@ We welcome contributions from everyone! Whether you're fixing a typo, reporting 
 ### Project Structure
 
 ```
-OpenDraft/
+WriTea Draft/
 ├── frontend/          # React + TypeScript web UI
 ├── backend/           # FastAPI Python API server
 ├── collab-server/     # Real-time collaboration server (Node.js)
@@ -237,7 +237,7 @@ OpenDraft/
 ```bash
 # Clone and install
 git clone https://github.com/Proteus-Technologies-Private-Limited/OpenDraft.git
-cd OpenDraft
+cd WriTea Draft
 
 # Backend
 python3.12 -m venv venv
@@ -263,11 +263,11 @@ See [docs/desktop-build.md](docs/desktop-build.md) for detailed desktop build in
 
 ### Run in Browser (Self-Hosted) — For Developers / Advanced Users
 
-To run your own instance of OpenDraft in a browser:
+To run your own instance of WriTea Draft in a browser:
 
 ```bash
 git clone https://github.com/Proteus-Technologies-Private-Limited/OpenDraft.git
-cd OpenDraft
+cd WriTea Draft
 ./setup.sh
 ```
 
@@ -275,7 +275,7 @@ Installs dependencies, builds the app, and opens it at **http://localhost:8000**
 
 Requires Python 3.12+, Node.js 18+, and Git. See [docs/INSTALLATION.md](docs/INSTALLATION.md) for details.
 
-> **Note:** This is for developers who want to self-host or contribute. If you just want to use OpenDraft, [download the desktop app](#download) or [try the demo](https://open-draft.com).
+> **Note:** This is for developers who want to self-host or contribute. If you just want to use WriTea Draft, [download the desktop app](#download) or [try the demo](https://open-draft.com).
 
 </details>
 
@@ -283,7 +283,7 @@ Requires Python 3.12+, Node.js 18+, and Git. See [docs/INSTALLATION.md](docs/INS
 
 ## License
 
-OpenDraft is open-source software licensed under the [MIT License](LICENSE). Free to use, modify, and distribute.
+WriTea Draft is open-source software licensed under the [MIT License](LICENSE). Free to use, modify, and distribute.
 
 ---
 
@@ -293,5 +293,5 @@ OpenDraft is open-source software licensed under the [MIT License](LICENSE). Fre
 
 <p align="center">
   <em>Write screenplays, not subscriptions.</em><br>
-  If OpenDraft helps your writing, a <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft">star on GitHub</a> helps others discover it.
+  If WriTea Draft helps your writing, a <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft">star on GitHub</a> helps others discover it.
 </p>

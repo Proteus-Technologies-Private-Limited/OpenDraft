@@ -1,4 +1,4 @@
-"""Version control API endpoints for OpenDraft projects."""
+"""Version control API endpoints for WriTea Draft projects."""
 
 from fastapi import APIRouter, HTTPException, Query
 

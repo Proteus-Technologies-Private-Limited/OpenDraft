@@ -1,16 +1,16 @@
 """
-Regenerate every OpenDraft icon and logo raster from the master SVGs.
+Regenerate every WriTea Draft icon and logo raster from the master SVGs.
 
 Source of truth: images/brand/*.svg
-    opendraft-mark.svg                    full-colour mark, transparent, tight bbox
-    opendraft-mark-mono.svg               single colour (currentColor)
-    opendraft-mark-white.svg              flat white, for dark surfaces
-    opendraft-icon.svg                    1024 square plate, gradient + white mark
-    opendraft-icon-macos.svg              1024 canvas, inset squircle plate
-    opendraft-icon-plate.svg              1024 gradient plate on its own, no mark
-    opendraft-icon-android-foreground.svg 432 canvas, white mark in the 66% safe zone
-    opendraft-lockup-horizontal.svg       mark + "OpenDraft" side by side
-    opendraft-lockup-stacked.svg          mark above "OpenDraft"
+    writeadraft-mark.svg                    full-colour mark, transparent, tight bbox
+    writeadraft-mark-mono.svg               single colour (currentColor)
+    writeadraft-mark-white.svg              flat white, for dark surfaces
+    writeadraft-icon.svg                    1024 square plate, gradient + white mark
+    writeadraft-icon-macos.svg              1024 canvas, inset squircle plate
+    writeadraft-icon-plate.svg              1024 gradient plate on its own, no mark
+    writeadraft-icon-android-foreground.svg 432 canvas, white mark in the 66% safe zone
+    writeadraft-lockup-horizontal.svg       mark + "WriTea Draft" side by side
+    writeadraft-lockup-stacked.svg          mark above "WriTea Draft"
     (each lockup also has a -mono variant; regenerate with generate_lockups.py)
 
 Run from anywhere:  ./venv/bin/python test-script/generate_brand_assets.py
@@ -34,13 +34,13 @@ except ImportError as exc:  # pragma: no cover - environment problem, not logic
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BRAND = os.path.join(ROOT, "images", "brand")
 
-SQUARE = os.path.join(BRAND, "opendraft-icon.svg")
-MACOS = os.path.join(BRAND, "opendraft-icon-macos.svg")
-ANDROID_FG = os.path.join(BRAND, "opendraft-icon-android-foreground.svg")
-PLATE = os.path.join(BRAND, "opendraft-icon-plate.svg")
-MARK = os.path.join(BRAND, "opendraft-mark.svg")
-LOCKUP_H = os.path.join(BRAND, "opendraft-lockup-horizontal.svg")
-LOCKUP_S = os.path.join(BRAND, "opendraft-lockup-stacked.svg")
+SQUARE = os.path.join(BRAND, "writeadraft-icon.svg")
+MACOS = os.path.join(BRAND, "writeadraft-icon-macos.svg")
+ANDROID_FG = os.path.join(BRAND, "writeadraft-icon-android-foreground.svg")
+PLATE = os.path.join(BRAND, "writeadraft-icon-plate.svg")
+MARK = os.path.join(BRAND, "writeadraft-mark.svg")
+LOCKUP_H = os.path.join(BRAND, "writeadraft-lockup-horizontal.svg")
+LOCKUP_S = os.path.join(BRAND, "writeadraft-lockup-stacked.svg")
 
 # Brand palette, kept in one place so callers can reference it.
 INDIGO = "#2B2A86"
@@ -268,8 +268,8 @@ def web_assets():
 def lockups():
     """PNG exports of the wordmark lockups, for press kits and social."""
     print("Lockups")
-    for svg, name, width in ((LOCKUP_H, "opendraft-lockup-horizontal.png", 2400),
-                             (LOCKUP_S, "opendraft-lockup-stacked.png", 1200)):
+    for svg, name, width in ((LOCKUP_H, "writeadraft-lockup-horizontal.png", 2400),
+                             (LOCKUP_S, "writeadraft-lockup-stacked.png", 1200)):
         if not os.path.exists(svg):
             print(f"  ! {os.path.basename(svg)} missing - run generate_lockups.py")
             continue
@@ -282,9 +282,9 @@ def lockups():
 def marketing_assets():
     """Files referenced by the README, landing pages and user manual."""
     print("Marketing / docs")
-    render(SQUARE, _p("images", "OpenDraft-1024x1024.png"), 1024)
-    render(SQUARE, _p("images", "OpenDraft.png"), 512)
-    render_mark(_p("images", "OpenDraft_icon.png"), 1024)
+    render(SQUARE, _p("images", "WriTeaDraft-1024x1024.png"), 1024)
+    render(SQUARE, _p("images", "WriTeaDraft.png"), 512)
+    render_mark(_p("images", "WriTeaDraft_icon.png"), 1024)
     render(SQUARE, _p("images", "android-icons", "ic_launcher-playstore.png"), 512, opaque=True)
     render(SQUARE, _p("fastlane", "metadata", "android", "en-US", "images", "icon.png"), 512, opaque=True)
 

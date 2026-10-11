@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# OpenDraft — iOS Build Script
+# WriTea Draft — iOS Build Script
 # Builds the iOS app, patches Info.plist with file associations,
 # re-signs, re-exports the IPA, and installs on a connected device or simulator.
 #
@@ -48,7 +48,7 @@ cfg['bundle'].pop('externalBin', None)
 cfg['app']['windows'] = [{
     'label': 'main',
     'url': 'index.html',
-    'title': 'OpenDraft',
+    'title': 'WriTea Draft',
     'width': 1280,
     'height': 800,
     'resizable': True,
@@ -109,11 +109,11 @@ plist["LSSupportsOpeningDocumentsInPlace"] = True
 # WKWebView offers "Take Photo" — and iOS kills the app outright the moment the
 # camera is touched without this key.
 plist["NSCameraUsageDescription"] = (
-    "OpenDraft uses the camera when you choose Take Photo to add an image to "
+    "WriTea Draft uses the camera when you choose Take Photo to add an image to "
     "a script, title page, character profile or beat board."
 )
 plist["NSPhotoLibraryUsageDescription"] = (
-    "OpenDraft needs access to your photos so you can add an image to a "
+    "WriTea Draft needs access to your photos so you can add an image to a "
     "script, title page, character profile or beat board."
 )
 
@@ -121,17 +121,17 @@ plist["CFBundleDocumentTypes"] = [
     {"CFBundleTypeName": "Final Draft Screenplay", "CFBundleTypeRole": "Editor",
      "LSHandlerRank": "Default", "LSItemContentTypes": ["com.finaldraft.fdx"]},
     {"CFBundleTypeName": "Fountain Screenplay", "CFBundleTypeRole": "Editor",
-     "LSHandlerRank": "Default", "LSItemContentTypes": ["com.proteus.opendraft.fountain"]},
-    {"CFBundleTypeName": "OpenDraft Screenplay", "CFBundleTypeRole": "Editor",
-     "LSHandlerRank": "Owner", "LSItemContentTypes": ["com.proteus.opendraft.document"]},
+     "LSHandlerRank": "Default", "LSItemContentTypes": ["net.japanada.writea-draft.fountain"]},
+    {"CFBundleTypeName": "WriTea Draft Screenplay", "CFBundleTypeRole": "Editor",
+     "LSHandlerRank": "Owner", "LSItemContentTypes": ["net.japanada.writea-draft.document"]},
     # Fade In and OSF. iOS matches document types by UTI alone — a
     # CFBundleTypeExtensions entry with no LSItemContentTypes, which is all
     # Tauri generates for these two, does nothing here. Without them "Open in
-    # OpenDraft" never appears for a .fadein in Files (issue #64).
+    # WriTea Draft" never appears for a .fadein in Files (issue #64).
     {"CFBundleTypeName": "Fade In Screenplay", "CFBundleTypeRole": "Editor",
      "LSHandlerRank": "Alternate", "LSItemContentTypes": ["com.kentt.fadein"]},
     {"CFBundleTypeName": "Open Screenplay Format", "CFBundleTypeRole": "Editor",
-     "LSHandlerRank": "Alternate", "LSItemContentTypes": ["com.proteus.opendraft.osf"]},
+     "LSHandlerRank": "Alternate", "LSItemContentTypes": ["net.japanada.writea-draft.osf"]},
     {"CFBundleTypeName": "Text File", "CFBundleTypeRole": "Editor",
      "LSHandlerRank": "Alternate", "LSItemContentTypes": ["public.plain-text"]},
 ]
@@ -140,10 +140,10 @@ plist["UTImportedTypeDeclarations"] = [
     {"UTTypeIdentifier": "com.finaldraft.fdx", "UTTypeDescription": "Final Draft Screenplay",
      "UTTypeConformsTo": ["public.xml"],
      "UTTypeTagSpecification": {"public.filename-extension": ["fdx"], "public.mime-type": "application/xml"}},
-    {"UTTypeIdentifier": "com.proteus.opendraft.fountain", "UTTypeDescription": "Fountain Screenplay",
+    {"UTTypeIdentifier": "net.japanada.writea-draft.fountain", "UTTypeDescription": "Fountain Screenplay",
      "UTTypeConformsTo": ["public.plain-text"],
      "UTTypeTagSpecification": {"public.filename-extension": ["fountain"], "public.mime-type": "text/plain"}},
-    {"UTTypeIdentifier": "com.proteus.opendraft.document", "UTTypeDescription": "OpenDraft Screenplay",
+    {"UTTypeIdentifier": "net.japanada.writea-draft.document", "UTTypeDescription": "WriTea Draft Screenplay",
      "UTTypeConformsTo": ["public.json"],
      "UTTypeTagSpecification": {"public.filename-extension": ["odraft"], "public.mime-type": "application/json"}},
     # Imported, not exported: the format belongs to Fade In. It is a zip
@@ -152,7 +152,7 @@ plist["UTImportedTypeDeclarations"] = [
     {"UTTypeIdentifier": "com.kentt.fadein", "UTTypeDescription": "Fade In Screenplay",
      "UTTypeConformsTo": ["public.zip-archive"],
      "UTTypeTagSpecification": {"public.filename-extension": ["fadein"], "public.mime-type": "application/zip"}},
-    {"UTTypeIdentifier": "com.proteus.opendraft.osf", "UTTypeDescription": "Open Screenplay Format",
+    {"UTTypeIdentifier": "net.japanada.writea-draft.osf", "UTTypeDescription": "Open Screenplay Format",
      "UTTypeConformsTo": ["public.xml"],
      "UTTypeTagSpecification": {"public.filename-extension": ["osf"], "public.mime-type": "application/xml"}},
 ]
@@ -189,16 +189,16 @@ if [ "$SIM_MODE" = true ]; then
 
   echo "==> Installing on simulator: $SIM_DEVICE"
   xcrun simctl install "$SIM_DEVICE" "$APP_PATH"
-  xcrun simctl launch "$SIM_DEVICE" com.proteus.opendraft
+  xcrun simctl launch "$SIM_DEVICE" net.japanada.writea-draft
   open -a Simulator
 
   echo ""
-  echo "==> Done! OpenDraft launched on $SIM_DEVICE"
+  echo "==> Done! WriTea Draft launched on $SIM_DEVICE"
 else
   # Device: re-sign, re-export IPA, install
   echo "==> Re-signing .app..."
-  codesign -d --entitlements :- "$APP_PATH" > /tmp/opendraft_ent.plist 2>/dev/null
-  codesign --force --sign "$SIGN_IDENTITY" --entitlements /tmp/opendraft_ent.plist "$APP_PATH"
+  codesign -d --entitlements :- "$APP_PATH" > /tmp/writeadraft_ent.plist 2>/dev/null
+  codesign --force --sign "$SIGN_IDENTITY" --entitlements /tmp/writeadraft_ent.plist "$APP_PATH"
   echo "  Signed with: $SIGN_IDENTITY"
 
   echo "==> Re-exporting IPA..."
@@ -264,5 +264,5 @@ else
   xcrun devicectl device install app --device "$DEVICE_ID" "$PATCHED_IPA"
 
   echo ""
-  echo "==> Done! Unlock your device and launch OpenDraft."
+  echo "==> Done! Unlock your device and launch WriTea Draft."
 fi

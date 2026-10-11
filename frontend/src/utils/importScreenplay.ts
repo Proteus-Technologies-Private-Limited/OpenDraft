@@ -61,7 +61,7 @@ const FORMAT_LABELS: Record<string, string> = {
   fountain: 'Fountain (.fountain)',
   fadein: 'Fade In (.fadein)',
   osf: 'Open Screenplay Format (.osf)',
-  odraft: 'OpenDraft (.odraft)',
+  odraft: 'WriTea Draft (.odraft)',
 };
 
 /** Human-readable name for the format an extension denotes. */
@@ -151,7 +151,7 @@ export function fdxMetadata(parsed: ReturnType<typeof parseFDXFull>): Record<str
     meta._sceneNumbersVisible = numbering.visible;
     meta._sceneNumbersLocked = numbering.locked;
   }
-  // Any app setting in a saved payload marks it as written by OpenDraft, and
+  // Any app setting in a saved payload marks it as written by WriTea Draft, and
   // one with no spacing key is then taken for a script from before the
   // two-line scene-heading standard (utils/elementSpacing). An import is new,
   // so it says so: null follows the template, exactly as a bare import did.
@@ -206,7 +206,7 @@ function applyFdxSideEffects(parsed: ReturnType<typeof parseFDXFull>): void {
  * in whatever the editor already had — Courier Prime — and the format the
  * writer chose is lost.
  *
- * Courier variants are left alone deliberately: Courier Prime is OpenDraft's
+ * Courier variants are left alone deliberately: Courier Prime is WriTea Draft's
  * own screenplay face and is metric-compatible with the Couriers files name,
  * so switching to a worse one would be a downgrade, not fidelity.
  */

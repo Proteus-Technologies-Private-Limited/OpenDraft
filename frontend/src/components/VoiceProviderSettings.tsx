@@ -22,14 +22,14 @@ const SAMPLE = 'This is how the script will sound in a table read.';
 
 /**
  * Shown wherever a provider that sends the script off the device is chosen
- * (issue #131). The writer owns the decision; OpenDraft makes no promise
+ * (issue #131). The writer owns the decision; WriTea Draft makes no promise
  * about what a third party does with the text.
  */
 export const ConfidentialityWarning: React.FC<{ provider: string; gemini?: boolean }> = ({ provider, gemini }) => (
   <div className="voice-provider-warning" role="alert">
     <strong>Confidentiality warning.</strong> AI voices send the text of your script to {provider}{' '}
     to be spoken. This may breach your data security or confidentiality obligations — an NDA, a
-    studio&rsquo;s policy, or your own rules for unreleased work. OpenDraft does not guarantee the
+    studio&rsquo;s policy, or your own rules for unreleased work. WriTea Draft does not guarantee the
     confidentiality of anything sent to a third-party provider.
     {gemini && ' On Gemini’s free tier, Google may use what you send to improve its products, and human reviewers may read it.'}
   </div>

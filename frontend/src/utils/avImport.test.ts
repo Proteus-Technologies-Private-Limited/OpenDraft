@@ -2,7 +2,7 @@
  * AV import — CSV, xlsx and the fuzzy column mapping.
  *
  * The mapping is the part that earns its keep. A sheet from another production
- * will not use OpenDraft's header names, so requiring an exact match would
+ * will not use WriTea Draft's header names, so requiring an exact match would
  * reject nearly every real file; these pin that the common synonyms land in the
  * right columns and that an unrecognisable one is dropped rather than guessed.
  */
@@ -62,7 +62,7 @@ describe('columnIndex', () => {
 });
 
 describe('guessColumnRoles', () => {
-  it('maps OpenDraft’s own headers', () => {
+  it('maps WriTea Draft’s own headers', () => {
     expect(guessColumnRoles(['Shot / Time', 'Duration', 'Video', 'Audio', 'Storyboard']))
       .toEqual(['shot', 'duration', 'video', 'audio', 'image']);
   });

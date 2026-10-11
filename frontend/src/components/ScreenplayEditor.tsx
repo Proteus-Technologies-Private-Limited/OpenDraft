@@ -204,13 +204,13 @@ async function syncLinkedFileBeforeOpen(
       case 'none':
         return null;
       case 'loaded-from-file':
-        showToast(`${name} was changed outside OpenDraft — opened that version.`, 'info');
+        showToast(`${name} was changed outside WriTea Draft — opened that version.`, 'info');
         break;
       case 'kept-library':
         showToast(
           result.preservedAs
-            ? `Kept OpenDraft's version and saved it to ${name}. The other version was kept as ${lf.basenameOf(result.preservedAs)}.`
-            : `Kept OpenDraft's version and saved it to ${name}.`,
+            ? `Kept WriTea Draft's version and saved it to ${name}. The other version was kept as ${lf.basenameOf(result.preservedAs)}.`
+            : `Kept WriTea Draft's version and saved it to ${name}.`,
           'success',
         );
         break;
@@ -219,7 +219,7 @@ async function syncLinkedFileBeforeOpen(
         break;
       case 'unreachable':
         showToast(
-          `Could not reach ${name || 'the linked file'}: ${result.error}. Showing OpenDraft's copy — it will be saved to the file when the drive is back.`,
+          `Could not reach ${name || 'the linked file'}: ${result.error}. Showing WriTea Draft's copy — it will be saved to the file when the drive is back.`,
           'error',
         );
         break;
@@ -1138,7 +1138,7 @@ const ScreenplayEditor: React.FC = () => {
 
   // Welcome dialog — show on first visit
   const [showWelcome, setShowWelcome] = useState(() => {
-    return !localStorage.getItem('opendraft:welcomed') && !urlScriptId && !urlCollabToken;
+    return !localStorage.getItem('writeadraft:welcomed') && !urlScriptId && !urlCollabToken;
   });
 
   // ── Drag-and-drop file import state ──
@@ -2274,7 +2274,7 @@ const ScreenplayEditor: React.FC = () => {
   // retext: style/wordiness checks (passive voice, weak intensifiers, etc.)
   // harper: actual grammar (subject-verb agreement, tense, articles, ...)
   useEffect(() => {
-    pluginRegistry.registerGrammarProvider('opendraft-retext', async (text, baseOffset, signal) => {
+    pluginRegistry.registerGrammarProvider('writeadraft-retext', async (text, baseOffset, signal) => {
       const enabledSet = new Set<RetextCategory>();
       const rulesEnabled = useEditorStore.getState().grammarRulesEnabled || {};
       for (const cat of RETEXT_CATEGORIES) {
@@ -2282,12 +2282,12 @@ const ScreenplayEditor: React.FC = () => {
       }
       return runRetext(text, baseOffset, enabledSet, signal);
     });
-    pluginRegistry.registerGrammarProvider('opendraft-harper', (text, baseOffset, signal) => {
+    pluginRegistry.registerGrammarProvider('writeadraft-harper', (text, baseOffset, signal) => {
       return runHarper(text, baseOffset, signal);
     });
     return () => {
-      pluginRegistry.unregisterGrammarProvider('opendraft-retext');
-      pluginRegistry.unregisterGrammarProvider('opendraft-harper');
+      pluginRegistry.unregisterGrammarProvider('writeadraft-retext');
+      pluginRegistry.unregisterGrammarProvider('writeadraft-harper');
     };
   }, []);
 
@@ -2784,7 +2784,7 @@ const ScreenplayEditor: React.FC = () => {
         const current = buildSaveContent();
         if (current) lastSavedJsonRef.current = JSON.stringify(current);
         useEditorStore.getState().setSaveStatus('idle');
-        showToast(`${lf.basenameOf(result.path)} was changed outside OpenDraft — loaded that version.`, 'info');
+        showToast(`${lf.basenameOf(result.path)} was changed outside WriTea Draft — loaded that version.`, 'info');
         reload = true;
       } else if (result.kind === 'kept-library') {
         // What was on screen is now in the library and the file. Edits typed
@@ -2796,8 +2796,8 @@ const ScreenplayEditor: React.FC = () => {
         }
         showToast(
           result.preservedAs
-            ? `Kept OpenDraft's version in ${lf.basenameOf(result.path)}. The other version was kept as ${lf.basenameOf(result.preservedAs)}.`
-            : `Kept OpenDraft's version and saved it to ${lf.basenameOf(result.path)}.`,
+            ? `Kept WriTea Draft's version in ${lf.basenameOf(result.path)}. The other version was kept as ${lf.basenameOf(result.preservedAs)}.`
+            : `Kept WriTea Draft's version and saved it to ${lf.basenameOf(result.path)}.`,
           'success',
         );
       }
@@ -3953,7 +3953,7 @@ const ScreenplayEditor: React.FC = () => {
 
   const handleWelcomeChoice = useCallback(async (choice: WelcomeChoice) => {
     setShowWelcome(false);
-    localStorage.setItem('opendraft:welcomed', 'true');
+    localStorage.setItem('writeadraft:welcomed', 'true');
 
     if (choice === 'sample') {
       editor?.commands.setContent(SAMPLE_CONTENT, true);
@@ -4050,7 +4050,7 @@ const ScreenplayEditor: React.FC = () => {
       // system hands over a copy in the sandbox (the original is reachable
       // only through a security-scoped bookmark taken at the picker), and on
       // Android a VIEW intent's content URI carries a grant that dies with the
-      // task. Claiming an origin OpenDraft cannot write back to would fail at
+      // task. Claiming an origin WriTea Draft cannot write back to would fail at
       // Save, which is later and worse than importing a copy.
       const inPlace =
         isDesktopTauri() &&
@@ -4074,7 +4074,7 @@ const ScreenplayEditor: React.FC = () => {
           useEditorStore.getState().setForeignFormatNotice({ name: filename, extension: format });
         }
       } else {
-        // Mark as imported so Save As shows the "saved to OpenDraft library" notice.
+        // Mark as imported so Save As shows the "saved to WriTea Draft library" notice.
         useEditorStore.getState().setImportedSource({ name: filename, format: imported.formatLabel });
       }
       for (const w of imported.warnings) console.warn('[Import]', w);
@@ -4886,7 +4886,7 @@ const ScreenplayEditor: React.FC = () => {
           </button>
           <button className="save-failure-btn" onClick={() => {
             // Goes through downloadOdraft so the file gets the .odraft envelope
-            // and OpenDraft can actually reopen it. The previous version wrote a
+            // and WriTea Draft can actually reopen it. The previous version wrote a
             // bare payload via a raw anchor, which parseOdraft rejected — the
             // emergency backup could not be imported — and which on desktop
             // dropped silently into Downloads with no dialog.

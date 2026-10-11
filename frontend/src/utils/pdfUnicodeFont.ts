@@ -501,7 +501,7 @@ const fontCache = new Map<string, string>();
  * A cache that cannot be opened is not an error — it just means the fetch is
  * the only copy.
  */
-const CACHE_NAME = 'opendraft-export-fonts-v1';
+const CACHE_NAME = 'writeadraft-export-fonts-v1';
 
 async function openCache(): Promise<Cache | null> {
   try {

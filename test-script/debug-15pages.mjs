@@ -52,7 +52,7 @@ import path from 'path';
     return breaks.slice(0, 15);
   });
 
-  console.log('\n=== OpenDraft Page Starts ===');
+  console.log('\n=== WriTea Draft Page Starts ===');
   appBreaks.forEach(b => console.log(`  Page ${b.pageNum}: "${b.firstText}"${b.marginTop ? ` (margin: ${b.marginTop}px)` : ''}`));
 
   // 4. Compare

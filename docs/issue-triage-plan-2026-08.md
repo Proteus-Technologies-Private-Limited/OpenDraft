@@ -139,7 +139,7 @@ saved file, exactly as the issue asks:
    `hidden` and `pagehide`. iOS gives no reliable termination callback; those two
    events are the last guaranteed hook before suspension.
 3. On startup, if a recovery snapshot is newer than the last explicit save,
-   offer *"OpenDraft recovered unsaved changes from your last session"* — restore
+   offer *"WriTea Draft recovered unsaved changes from your last session"* — restore
    or discard. Never overwrite the saved file implicitly.
 4. Clear the slot on a successful explicit save.
 
@@ -195,7 +195,7 @@ described.
 2. Ask for a sample `.fadein` with the content replaced by dummy text (as was
    done successfully on #61).
 3. Reproduce on the iPad simulator via both entry points (File ▸ Import, and
-   "Open in OpenDraft" from Files) — they take different code paths.
+   "Open in WriTea Draft" from Files) — they take different code paths.
 4. Add a `read_binary_file` security-scoped fallback mirroring `read_text_file`.
 5. Add a `.fadein` fixture to `osfParser.test.ts` for whatever the failure turns
    out to be.
@@ -205,7 +205,7 @@ described.
 ## Group C — Feature requests (scope, then schedule)
 
 ### #62 — Open/save `.fadein`/FDX/Fountain in place from Files & Dropbox
-The most valuable of the three, and the one that makes OpenDraft a real iPad
+The most valuable of the three, and the one that makes WriTea Draft a real iPad
 companion to Fade In. It is genuine iOS document-based-app work: today import
 copies into the sandbox (`lib.rs:1462-1490`) and export goes out through the
 share sheet (`fileOps.ts:89-103`) — there is no concept of an origin file to
@@ -217,7 +217,7 @@ save back to.
   across launches, and a "document has an origin file" model in the editor so
   ⌘S writes back instead of exporting. This delivers the reporter's stated
   "still very useful" outcome.
-- **Phase 2 (separate issue):** `.fadein` round-trip. OpenDraft has **no
+- **Phase 2 (separate issue):** `.fadein` round-trip. WriTea Draft has **no
   `.fadein`/OSF writer** — `utils/` has fdx, fountain, docx and pdf exporters
   only. Writing one means round-tripping an undocumented format faithfully
   enough not to corrupt a writer's script; do not bundle it into Phase 1.
@@ -366,7 +366,7 @@ take the existing snapshot down with it. Covered by
 - `StatusBar` — shows the file Save will overwrite.
 
 **Deliberately excluded at the time:** `.fadein`. It is an OSF archive and
-OpenDraft had no OSF writer, so `IN_PLACE_EDITABLE_EXTENSIONS` was
+WriTea Draft had no OSF writer, so `IN_PLACE_EDITABLE_EXTENSIONS` was
 `fdx`/`fountain`/`txt` and picking a `.fadein` explained why rather than
 promising a Save it could not honour.
 
@@ -382,7 +382,7 @@ original file. Pinned by `stores/documentOrigin.test.ts`.
 
 **Follow-up:** `project.yml` still sets `LSSupportsOpeningDocumentsInPlace:
 false`. That key governs the *Files-app tap* hand-off, not the in-app picker,
-so Phase 1 works without it — but flipping it would let "Open in OpenDraft"
+so Phase 1 works without it — but flipping it would let "Open in WriTea Draft"
 from Files edit in place too. Left alone because it changes the existing,
 working file-association path and could not be tested here.
 
@@ -403,7 +403,7 @@ What it needs (per the Tauri docs):
 - `src-tauri/Info.ios.plist` declaring `UIApplicationSceneManifest` with
   `UIApplicationSupportsMultipleScenes = true`.
 - A `RunEvent::SceneRequested` handler that builds a new `WebviewWindow` —
-  OpenDraft already has almost this exact code in `open_new_window` and the
+  WriTea Draft already has almost this exact code in `open_new_window` and the
   desktop warm-start branch of `RunEvent::Opened`.
 - `core:webview:allow-create-webview-window` in the capability file, with
   `"windows": ["main", "main-*"]` to cover the dynamic labels.
@@ -417,7 +417,7 @@ current UI rather than tiling.
 **Correction.** An earlier revision of this document blamed the Android
 cold-start crash on wry 0.55.0's missing ProGuard keep rule for
 `WryActivity.getId()`. That upstream bug is real and wry 0.55.1 does fix it —
-but it was **not** what crashed OpenDraft. Verified on an Infinix X6851B
+but it was **not** what crashed WriTea Draft. Verified on an Infinix X6851B
 (Android 15): with wry 0.55.1 and `getId` confirmed retained by R8, the app
 still died instantly. The device log named the real cause in one line.
 
@@ -525,7 +525,7 @@ never iOS-specific. Audit of how each fix reaches Android:
 registers its `OnBackPressedCallback` and the system Back button fell through to
 the default Activity handler — **which closes the app**. From Settings, the Beat
 Board, or any secondary screen, the platform's primary back gesture quit
-OpenDraft and discarded unsaved work.
+WriTea Draft and discarded unsaved work.
 
 That is the same trap #65 describes on iPad, reached by a different route, and
 arguably worse: on iPad the user had to choose to force-quit, whereas on Android
@@ -533,7 +533,7 @@ the ordinary Back gesture did it.
 
 Fixed in `src-tauri/android-src/MainActivity.kt` by overriding
 `handleBackNavigation = true`. WryActivity then calls `goBack()` while the
-WebView has history — OpenDraft is a single-page app, so router navigations are
+WebView has history — WriTea Draft is a single-page app, so router navigations are
 history entries — and only exits at the first screen.
 
 Note this pairs with #68: Back at the root still exits, but the recovery
@@ -621,7 +621,7 @@ Fountain and Word.
 **#76 — Spacing.** Confirmed, and the app already disagreed with itself:
 `fdxExporter` wrote `SpaceBefore="24"` and `osfExporter` `spacebefore="2.0"`
 while the editor, pagination, PDF and DOCX all used one line. A script exported
-to Final Draft repaginated longer than OpenDraft had shown. Separately, the
+to Final Draft repaginated longer than WriTea Draft had shown. Separately, the
 per-element `marginTop` the Template Editor exposes reached **CSS only** — a
 control that silently did nothing outside the editor.
 
@@ -655,9 +655,9 @@ same shape existed in `AvKeymap`'s empty-cell branch.
 | Enter on an empty element opening a menu is a legitimate pattern | Movie Magic Screenwriter ([manual](http://support.screenplay.com/filestore/mmsw6/docs/mmsw6_usermanual.pdf) §1.8.4 QuickType), WriterDuet ("Show line type select on enter"), Arc Studio ("hit `Return` on any empty element … opens the element mode shortcut list"), Final Draft Writer ("going to a new line with Enter, then pressing Enter again to bring up the elements menu") | Confirmed — keep the picker |
 | …but every one of them ships a way out | Movie Magic: *"type 'v' for Nevermind to Cancel, or press ESC"*; Fade In: ESC dismisses, ESC again re-displays; Final Draft SmartType: keep typing and it goes away | Confirmed — this is the gap |
 | …and most ship an off switch | Final Draft "Show SmartType Window"; Movie Magic "Enable Quick Entry"; WriterDuet "Show line type select on enter" | Confirmed — added as a preference |
-| Blocking consecutive empty paragraphs is not done anywhere | Final Draft's Return table maps **Action → Action**; Movie Magic allows them and cleans them at SmartCheck time; Fountain treats a blank line as load-bearing syntax | Confirmed — OpenDraft was stricter than the whole category |
+| Blocking consecutive empty paragraphs is not done anywhere | Final Draft's Return table maps **Action → Action**; Movie Magic allows them and cleans them at SmartCheck time; Fountain treats a blank line as load-bearing syntax | Confirmed — WriTea Draft was stricter than the whole category |
 | A key-triggered popup must never make a literal newline unreachable | [W3C ARIA combobox pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) — "Escape: dismisses the popup"; VS Code ships `editor.acceptSuggestionOnEnter: "off"` so Enter is always a newline | Confirmed |
-| Blank lines are *not* how a pro adds vertical space | [Final Draft KB](https://kb.finaldraft.com/hc/en-us/articles/15575372032020) — *"Hitting Return or Enter places blank paragraphs in your script that can affect pagination later… Don't do it."* Use Space Before | Confirmed — but advice, not a lock. OpenDraft's per-element spacing (from #76) is the right tool; the editor still must not refuse the keystroke |
+| Blank lines are *not* how a pro adds vertical space | [Final Draft KB](https://kb.finaldraft.com/hc/en-us/articles/15575372032020) — *"Hitting Return or Enter places blank paragraphs in your script that can affect pagination later… Don't do it."* Use Space Before | Confirmed — but advice, not a lock. WriTea Draft's per-element spacing (from #76) is the right tool; the editor still must not refuse the keystroke |
 
 ## The fix
 
@@ -797,7 +797,7 @@ never writes `(MORE)` or `CHARACTER (CONT'D)`.
 
 The only way to write them correctly is to run the same break computation the
 editor uses and emit explicit page breaks, which is what Final Draft's Word
-export does. **Rejected:** that would force OpenDraft's line model onto every
+export does. **Rejected:** that would force WriTea Draft's line model onto every
 exported document, not only ones with split dialogue, and Word's own metrics on
 the reader's machine need not agree with ours. Keeping Word's pagination is
 worth more than the labels.

@@ -15,7 +15,7 @@ const URL = process.argv[2] || 'http://localhost:8000';
   });
   await page.waitForTimeout(500);
   await page.screenshot({
-    path: '/Users/kandarpbaghar/ai-projects/OpenDraft/test-script/output/pagebreak1.png',
+    path: '/Users/kandarpbaghar/ai-projects/WriTeaDraft/test-script/output/pagebreak1.png',
   });
   console.log('Page break 1 screenshot saved');
 
@@ -26,7 +26,7 @@ const URL = process.argv[2] || 'http://localhost:8000';
   });
   await page.waitForTimeout(500);
   await page.screenshot({
-    path: '/Users/kandarpbaghar/ai-projects/OpenDraft/test-script/output/pagebreak2.png',
+    path: '/Users/kandarpbaghar/ai-projects/WriTeaDraft/test-script/output/pagebreak2.png',
   });
   console.log('Page break 2 screenshot saved');
 
@@ -37,7 +37,7 @@ const URL = process.argv[2] || 'http://localhost:8000';
   });
   await page.waitForTimeout(200);
   await page.screenshot({
-    path: '/Users/kandarpbaghar/ai-projects/OpenDraft/test-script/output/fullpage.png',
+    path: '/Users/kandarpbaghar/ai-projects/WriTeaDraft/test-script/output/fullpage.png',
     fullPage: true
   });
   console.log('Full page screenshot saved');

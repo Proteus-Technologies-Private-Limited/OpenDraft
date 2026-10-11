@@ -365,7 +365,7 @@ function plainParagraph(text, opts = {}) {
 async function buildIndentFixture() {
   // FD-style indents: every element at its canonical indent. No style names.
   const doc = new Document({
-    creator: 'OpenDraft test',
+    creator: 'WriTea Draft test',
     sections: [{
       properties: {
         page: { size: { width: 12240, height: 15840 }, margin: { top: 1440, bottom: 1440, left: 0, right: 0 } },
@@ -398,7 +398,7 @@ async function buildStyleFixture() {
     ],
   };
   const doc = new Document({
-    creator: 'OpenDraft test',
+    creator: 'WriTea Draft test',
     styles,
     sections: [{
       children: [
@@ -417,7 +417,7 @@ async function buildStyleFixture() {
 async function buildPlainFixture() {
   // No styles, no indents — text patterns only.
   const doc = new Document({
-    creator: 'OpenDraft test',
+    creator: 'WriTea Draft test',
     sections: [{
       children: [
         plainParagraph('INT. PARK - DAY'),
@@ -435,7 +435,7 @@ async function buildPlainFixture() {
 
 async function buildTitlePageFixture() {
   const doc = new Document({
-    creator: 'OpenDraft test',
+    creator: 'WriTea Draft test',
     sections: [
       {
         properties: { titlePage: true },

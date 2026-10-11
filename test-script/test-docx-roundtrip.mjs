@@ -128,7 +128,7 @@ const sectionPageProps = {
 };
 const bodyParagraphs = original.content.map((n, i) => buildElementParagraph(n, i === 0));
 const doc = new Document({
-  creator: 'OpenDraft test',
+  creator: 'WriTea Draft test',
   styles: {
     default: { document: { run: { font: FONT_FAMILY, size: FONT_SIZE_HALFPT } } },
   },

@@ -59,7 +59,7 @@ function esc(str: string): string {
  * Build the `<HeaderAndFooter>` block from the document's own settings.
  *
  * Final Draft carries the dynamic fields as `<DynamicLabel>` elements rather
- * than literal text, so a template is split on the tokens OpenDraft shares with
+ * than literal text, so a template is split on the tokens WriTea Draft shares with
  * it; `{revision}` has no FDX equivalent and goes out as the resolved text.
  */
 const FDX_DYNAMIC_LABEL: Record<string, string> = {
@@ -109,7 +109,7 @@ function buildHeaderAndFooter(
   const headerVisible = hasContent(hf.headerContent);
   const footerVisible = hasContent(hf.footerContent);
   // Final Draft's first-page flags are relative to the printed number the
-  // script's opening page carries, the same comparison every OpenDraft
+  // script's opening page carries, the same comparison every WriTea Draft
   // consumer makes.
   const first = hf.startingPageNumber;
   const yn = (b: boolean) => (b ? 'Yes' : 'No');
@@ -254,7 +254,7 @@ interface MarkInfo { type: string; attrs?: Record<string, unknown>; }
 
 /**
  * Final Draft numbers revisions; a run's RevisionID points into the file's
- * `<Revisions>` list. OpenDraft numbers them by the colour's place in the
+ * `<Revisions>` list. WriTea Draft numbers them by the colour's place in the
  * production sequence, so the same colour is the same ID in every file.
  */
 function fdxRevisionId(color: string): number {
@@ -384,7 +384,7 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
   // Header and footer — the document's own settings, not a fixed page number.
   // Final Draft models each band as aligned paragraphs plus attributes for
   // first-page visibility and the starting number, which is close enough to
-  // OpenDraft's model to carry across without loss.
+  // WriTea Draft's model to carry across without loss.
   lines.push(...buildHeaderAndFooter(pageLayout, docFont, docFontSize));
   lines.push('');
 
@@ -642,7 +642,7 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
         lines.push('    </DualDialogue>');
       } else if (node.type === 'avBlock') {
         // AV block: emit each row as a pair of General paragraphs with custom attrs.
-        // FDX-aware OpenDraft instances re-import this back into avBlock; Final Draft
+        // FDX-aware WriTea Draft instances re-import this back into avBlock; Final Draft
         // sees a flat sequence of General paragraphs (acceptable degradation).
         if (node.content) {
           let rowIdx = 0;

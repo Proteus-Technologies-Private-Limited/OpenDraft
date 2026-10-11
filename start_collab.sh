@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start the OpenDraft Collaboration Server
+# Start the WriTea Draft Collaboration Server
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
@@ -17,5 +17,5 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-echo "Starting OpenDraft Collaboration Server..."
+echo "Starting WriTea Draft Collaboration Server..."
 npm run dev

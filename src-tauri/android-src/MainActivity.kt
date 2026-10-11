@@ -1,4 +1,4 @@
-package com.proteus.opendraft
+package net.japanada.writea-draft
 
 import android.content.Context
 import android.content.Intent
@@ -31,7 +31,7 @@ class MainActivity : TauriActivity() {
      * quit and discarded unsaved work. This is the Android form of issue #65.
      *
      * With it on, WryActivity registers a callback that calls goBack() while
-     * the WebView has history (OpenDraft is a single-page app, so router
+     * the WebView has history (WriTea Draft is a single-page app, so router
      * navigations are history entries) and only exits at the first screen,
      * which is what Android users expect.
      */
@@ -118,7 +118,7 @@ class MainActivity : TauriActivity() {
                 val uri = android.net.Uri.parse(uriString)
                 context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
             } catch (e: Exception) {
-                android.util.Log.e("OpenDraft", "[content-uri] readUriBytes failed: ${e.message}")
+                android.util.Log.e("WriTea Draft", "[content-uri] readUriBytes failed: ${e.message}")
                 null
             }
         }
@@ -147,7 +147,7 @@ class MainActivity : TauriActivity() {
                 if (clip.itemCount == 0) return null
                 clip.getItemAt(0).htmlText
             } catch (e: Exception) {
-                android.util.Log.e("OpenDraft", "[clipboard] readClipboardHtml failed: ${e.message}")
+                android.util.Log.e("WriTea Draft", "[clipboard] readClipboardHtml failed: ${e.message}")
                 null
             }
         }
@@ -176,13 +176,13 @@ class MainActivity : TauriActivity() {
             return try {
                 val dir = File(context.cacheDir, "exports")
                 if (!dir.isDirectory && !dir.mkdirs()) {
-                    android.util.Log.e("OpenDraft", "[export] could not create ${dir.path}")
+                    android.util.Log.e("WriTea Draft", "[export] could not create ${dir.path}")
                     null
                 } else {
                     dir.absolutePath
                 }
             } catch (e: Exception) {
-                android.util.Log.e("OpenDraft", "[export] exportStagingDir failed: ${e.message}")
+                android.util.Log.e("WriTea Draft", "[export] exportStagingDir failed: ${e.message}")
                 null
             }
         }
@@ -223,7 +223,7 @@ class MainActivity : TauriActivity() {
                     tts = android.speech.tts.TextToSpeech(context.applicationContext) { status ->
                         ttsStatus = status
                         if (status != android.speech.tts.TextToSpeech.SUCCESS) {
-                            android.util.Log.e("OpenDraft", "[tts] engine failed to start: $status")
+                            android.util.Log.e("WriTea Draft", "[tts] engine failed to start: $status")
                         }
                     }.also { engine ->
                         engine.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
@@ -280,7 +280,7 @@ class MainActivity : TauriActivity() {
                 }
                 out.toString()
             } catch (e: Exception) {
-                android.util.Log.e("OpenDraft", "[tts] listing voices failed: ${e.message}")
+                android.util.Log.e("WriTea Draft", "[tts] listing voices failed: ${e.message}")
                 JSONObject().put("error", "Could not list the voices: ${e.message}").toString()
             }
         }
@@ -301,7 +301,7 @@ class MainActivity : TauriActivity() {
                 if (result == android.speech.tts.TextToSpeech.SUCCESS) null
                 else "The speech engine refused the line."
             } catch (e: Exception) {
-                android.util.Log.e("OpenDraft", "[tts] speak failed: ${e.message}")
+                android.util.Log.e("WriTea Draft", "[tts] speak failed: ${e.message}")
                 "Could not speak: ${e.message}"
             }
         }
@@ -323,7 +323,7 @@ class MainActivity : TauriActivity() {
                 synchronized(ttsLock) { tts?.stop() }
                 null
             } catch (e: Exception) {
-                android.util.Log.e("OpenDraft", "[tts] stop failed: ${e.message}")
+                android.util.Log.e("WriTea Draft", "[tts] stop failed: ${e.message}")
                 "Could not stop: ${e.message}"
             }
         }
@@ -338,7 +338,7 @@ class MainActivity : TauriActivity() {
         const val PICK_BACKUP_FOLDER_REQUEST = 44
 
         // ── Automatic backups ────────────────────────────────────────────
-        // The backup folder is a SAF tree the writer picks once and OpenDraft
+        // The backup folder is a SAF tree the writer picks once and WriTea Draft
         // keeps writing snapshots into — Android's counterpart to the iOS
         // security-scoped folder bookmark. A persisted tree grant is the only
         // handle that survives a relaunch, which is what makes "turn backups
@@ -399,7 +399,7 @@ class MainActivity : TauriActivity() {
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.w("OpenDraft", "[backup] could not list $parentId: ${e.message}")
+                android.util.Log.w("WriTea Draft", "[backup] could not list $parentId: ${e.message}")
             }
             return out
         }
@@ -470,7 +470,7 @@ class MainActivity : TauriActivity() {
 
                 docUri.toString()
             } catch (e: Exception) {
-                android.util.Log.e("OpenDraft", "[backup] write failed: ${e.message}")
+                android.util.Log.e("WriTea Draft", "[backup] write failed: ${e.message}")
                 null
             }
         }
@@ -512,7 +512,7 @@ class MainActivity : TauriActivity() {
                 }
                 out.toString()
             } catch (e: Exception) {
-                android.util.Log.e("OpenDraft", "[backup] list failed: ${e.message}")
+                android.util.Log.e("WriTea Draft", "[backup] list failed: ${e.message}")
                 null
             }
         }
@@ -526,7 +526,7 @@ class MainActivity : TauriActivity() {
                 )
                 if (ok) "1" else null
             } catch (e: Exception) {
-                android.util.Log.e("OpenDraft", "[backup] delete failed: ${e.message}")
+                android.util.Log.e("WriTea Draft", "[backup] delete failed: ${e.message}")
                 null
             }
         }
@@ -589,13 +589,13 @@ class MainActivity : TauriActivity() {
                 } else if (!granted) {
                     probe.put(
                         "error",
-                        "OpenDraft no longer has permission to this folder — choose it again."
+                        "WriTea Draft no longer has permission to this folder — choose it again."
                     )
                 } else if (!canCreate) {
                     probe.put("error", "This folder does not allow new files")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("OpenDraft", "[backup] probe failed: ${e.message}")
+                android.util.Log.e("WriTea Draft", "[backup] probe failed: ${e.message}")
                 return try {
                     JSONObject()
                         .put("exists", false)
@@ -614,7 +614,7 @@ class MainActivity : TauriActivity() {
         // Android's WebView, unlike Chrome for Android, does not implement
         // window.print(), so File → Print did nothing at all until this.
         // PrintManager is the platform's answer, and it takes a document
-        // rather than a page — which suits OpenDraft, whose printable form is
+        // rather than a page — which suits WriTea Draft, whose printable form is
         // the PDF the exporter already produces. Printing the WebView instead
         // would have meant printing the app rather than the script.
 
@@ -644,7 +644,7 @@ class MainActivity : TauriActivity() {
                     // writer picks.
                     printManager.print(jobName, PdfPrintAdapter(file, jobName), null)
                 } catch (e: Exception) {
-                    android.util.Log.e("OpenDraft", "[print] could not start job: ${e.message}")
+                    android.util.Log.e("WriTea Draft", "[print] could not start job: ${e.message}")
                 }
             }
             return null
@@ -657,7 +657,7 @@ class MainActivity : TauriActivity() {
         setIntent(intent)
         intent.data?.let { uri ->
             newIntentUri = uri.toString()
-            android.util.Log.i("OpenDraft", "[file-assoc] onNewIntent URI: $newIntentUri")
+            android.util.Log.i("WriTea Draft", "[file-assoc] onNewIntent URI: $newIntentUri")
         }
     }
 
@@ -685,16 +685,16 @@ class MainActivity : TauriActivity() {
                             )
                         } catch (e: Exception) {
                             android.util.Log.i(
-                                "OpenDraft",
+                                "WriTea Draft",
                                 "[file-picker] no persistable write access: ${e.message}"
                             )
                         }
                         pickedFileUri = uri.toString()
-                        android.util.Log.i("OpenDraft", "[file-picker] picked URI: $pickedFileUri")
+                        android.util.Log.i("WriTea Draft", "[file-picker] picked URI: $pickedFileUri")
                     }
                 } else {
                     pickedFileUri = ""
-                    android.util.Log.i("OpenDraft", "[file-picker] user cancelled")
+                    android.util.Log.i("WriTea Draft", "[file-picker] user cancelled")
                 }
             }
             PICK_BACKUP_FOLDER_REQUEST -> {
@@ -705,10 +705,10 @@ class MainActivity : TauriActivity() {
                         // frontend stops polling instead of waiting out its
                         // timeout on a picker that has already closed.
                         pickedBackupFolderUri = ""
-                        android.util.Log.w("OpenDraft", "[backup] folder pick returned no URI")
+                        android.util.Log.w("WriTea Draft", "[backup] folder pick returned no URI")
                     } else {
                         // Read and write together for a tree: unlike a single
-                        // document, a folder OpenDraft cannot write to is of no
+                        // document, a folder WriTea Draft cannot write to is of no
                         // use as a backup destination, so a partial grant is a
                         // failure worth reporting rather than working around.
                         try {
@@ -719,19 +719,19 @@ class MainActivity : TauriActivity() {
                             )
                             pickedBackupFolderUri = treeUri.toString()
                             android.util.Log.i(
-                                "OpenDraft", "[backup] folder picked: $pickedBackupFolderUri"
+                                "WriTea Draft", "[backup] folder picked: $pickedBackupFolderUri"
                             )
                         } catch (e: Exception) {
                             pickedBackupFolderUri = ""
                             android.util.Log.e(
-                                "OpenDraft",
+                                "WriTea Draft",
                                 "[backup] could not persist folder permission: ${e.message}"
                             )
                         }
                     }
                 } else {
                     pickedBackupFolderUri = ""
-                    android.util.Log.i("OpenDraft", "[backup] folder pick cancelled")
+                    android.util.Log.i("WriTea Draft", "[backup] folder pick cancelled")
                 }
             }
             EXPORT_FILE_REQUEST -> {
@@ -746,9 +746,9 @@ class MainActivity : TauriActivity() {
                                         input.copyTo(out)
                                     }
                                 }
-                                android.util.Log.i("OpenDraft", "[export] Saved to: $destUri")
+                                android.util.Log.i("WriTea Draft", "[export] Saved to: $destUri")
                             } catch (e: Exception) {
-                                android.util.Log.e("OpenDraft", "[export] Failed to save: ${e.message}")
+                                android.util.Log.e("WriTea Draft", "[export] Failed to save: ${e.message}")
                             } finally {
                                 exportSourcePath = null
                             }
@@ -756,7 +756,7 @@ class MainActivity : TauriActivity() {
                     }
                 } else {
                     exportSourcePath = null
-                    android.util.Log.i("OpenDraft", "[export] user cancelled save-as")
+                    android.util.Log.i("WriTea Draft", "[export] user cancelled save-as")
                 }
             }
         }
@@ -822,7 +822,7 @@ private class PdfPrintAdapter(
                 }
                 null
             } catch (e: Exception) {
-                android.util.Log.e("OpenDraft", "[print] could not write document: ${e.message}")
+                android.util.Log.e("WriTea Draft", "[print] could not write document: ${e.message}")
                 e.message ?: "The document could not be written."
             }
 

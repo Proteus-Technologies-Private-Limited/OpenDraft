@@ -16,7 +16,7 @@
  */
 import { isTauri } from './platform';
 
-const STORAGE_KEY = 'opendraft:open-documents';
+const STORAGE_KEY = 'writeadraft:open-documents';
 
 interface Entry {
   /** Tauri window label, the identity the backend also knows. */

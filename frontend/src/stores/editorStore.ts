@@ -12,7 +12,7 @@ import {
 } from '../utils/noteNumbering';
 
 // ── View-state persistence helpers ──
-const VIEW_STATE_KEY = 'opendraft:viewState';
+const VIEW_STATE_KEY = 'writeadraft:viewState';
 interface ViewState {
   navigatorOpen?: boolean;
   indexCardsOpen?: boolean;
@@ -89,8 +89,8 @@ function defaultToolbarMode(): 'compact' | 'comfortable' | 'hidden' {
 }
 
 // ── Custom dictionary library (named global word lists) ──
-const DICTS_KEY = 'opendraft:dictionaries';
-const LEGACY_DICT_KEY = 'opendraft:customDictionary';
+const DICTS_KEY = 'writeadraft:dictionaries';
+const LEGACY_DICT_KEY = 'writeadraft:customDictionary';
 
 function loadCustomDictionaries(): Record<string, string[]> {
   try {
@@ -135,7 +135,7 @@ spellChecker.setGlobalDictionaries(_initialDicts);
 // ── Add-to-Dictionary targets (global setting) ──
 // Tracks which dictionaries the "Add to Dictionary" action writes to. Members
 // are either PROJECT_DICT_TARGET or a global-dictionary name.
-const ADD_TARGETS_KEY = 'opendraft:addTargets';
+const ADD_TARGETS_KEY = 'writeadraft:addTargets';
 function loadAddTargets(): string[] {
   try {
     const raw = localStorage.getItem(ADD_TARGETS_KEY);
@@ -156,7 +156,7 @@ spellChecker.setAddTargets(_initialAddTargets);
 
 // ── Installed-language tracking (persisted set of language codes the user
 //    has downloaded; the actual .aff/.dic blobs live in IndexedDB). ──
-const INSTALLED_LANGS_KEY = 'opendraft:installedLanguages';
+const INSTALLED_LANGS_KEY = 'writeadraft:installedLanguages';
 function loadInstalledLanguages(): string[] {
   try {
     const raw = localStorage.getItem(INSTALLED_LANGS_KEY);
@@ -598,11 +598,11 @@ export interface CharacterProfile {
   age: string;
   /** Role in the story: Lead, Supporting, Featured, Background, Day Player */
   role: string;
-  /** Rich text backstory / character history (HTML string; OpenDraft-only, not in FDX) */
+  /** Rich text backstory / character history (HTML string; WriTeaDraft-only, not in FDX) */
   backstory: string;
-  /** Character arc — how the character changes through the story (HTML string; OpenDraft-only) */
+  /** Character arc — how the character changes through the story (HTML string; WriTeaDraft-only) */
   arc: string;
-  /** Dialogue voice profile (OpenDraft-only) */
+  /** Dialogue voice profile (WriTeaDraft-only) */
   speechPattern: string;
   vocabulary: string;
   verbalTics: string;
@@ -610,7 +610,7 @@ export interface CharacterProfile {
   /** Asset IDs of images associated with this character */
   images: string[];
   /**
-   * The voice Table Read gives this character (OpenDraft-only). Optional, and
+   * The voice Table Read gives this character (WriTeaDraft-only). Optional, and
    * absent on every profile written before Table Read existed.
    */
   voice?: CharacterVoice;
@@ -1037,7 +1037,7 @@ interface EditorState {
   setPostSaveAction: (action: (() => void) | null) => void;
   /** If the current unsaved document was imported from an external file
    *  (.fdx, .fountain, .docx, etc.), tracks the source filename. Used by
-   *  SaveAsDialog to clarify that saves go to OpenDraft's library rather than
+   *  SaveAsDialog to clarify that saves go to WriTea Draft's library rather than
    *  writing back to the source file. Cleared on successful save. */
   importedSource: { name: string; format: string } | null;
   setImportedSource: (src: { name: string; format: string } | null) => void;

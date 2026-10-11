@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# OpenDraft — Desktop Build Script (.dmg distribution)
+# WriTea Draft — Desktop Build Script (.dmg distribution)
 # Builds, signs, and notarizes the app for direct download distribution.
 #
 # Tauri handles signing and notarization automatically when the correct
@@ -32,7 +32,7 @@ export APPLE_SIGNING_IDENTITY="Developer ID Application: Base Information Manage
 
 # Detect the Rust target triple
 TARGET_TRIPLE=$(rustc -vV | grep '^host:' | awk '{print $2}')
-echo "=== OpenDraft Desktop Build ==="
+echo "=== WriTea Draft Desktop Build ==="
 echo "Target: $TARGET_TRIPLE"
 echo "Signing: $APPLE_SIGNING_IDENTITY"
 echo ""

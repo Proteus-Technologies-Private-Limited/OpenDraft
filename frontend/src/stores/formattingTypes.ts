@@ -249,7 +249,7 @@ export function createDefaultRule(
  * `Source:`, `Draft date:`, `Contact:`, `Copyright:`, `Notes:` — but only as
  * document metadata, with no formatting attached.
  *
- * OpenDraft already stores the semantic name on the node (`titlePage` with a
+ * WriTea Draft already stores the semantic name on the node (`titlePage` with a
  * `field` attribute), so it has what Fountain has; what it lacked was any way
  * to say how each one should look. These ids give every field a template rule
  * of its own, so a writer can set the title in a display face at 24pt and leave

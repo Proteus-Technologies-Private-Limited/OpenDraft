@@ -18,7 +18,7 @@ fn main() {
     // Play refuses updates whose native libraries are not laid out for it. The
     // NDK's linker still defaults to 4 KB segment alignment (r28 is the first
     // release that flips the default), so ask for 16 KB explicitly — otherwise
-    // libopendraft_lib.so loads on no 16 KB device and the Play Console rejects
+    // libwriteadraft_lib.so loads on no 16 KB device and the Play Console rejects
     // the bundle.
     //
     // This belongs here rather than in .cargo/config.toml: the Tauri CLI sets

@@ -1,5 +1,5 @@
 """
-Generate Google Play Store feature graphic (1024x500) for OpenDraft.
+Generate Google Play Store feature graphic (1024x500) for WriTea Draft.
 Uses the app logo + editor screenshot with brand gradient background.
 """
 
@@ -121,7 +121,7 @@ img = Image.alpha_composite(img, glow_layer)
 img.paste(editor_rotated, (editor_x, editor_y), editor_rotated)
 
 # --- Place app logo on LEFT ---
-logo_path = os.path.join(PROJECT_ROOT, "images", "OpenDraft-1024x1024.png")
+logo_path = os.path.join(PROJECT_ROOT, "images", "WriTeaDraft-1024x1024.png")
 logo = Image.open(logo_path).convert("RGBA")
 
 logo_size = 180
@@ -186,7 +186,7 @@ badge_font = find_font(regular_candidates, 13)
 text_left = 260
 center_y = 145
 
-# "OpenDraft" title
+# "WriTea Draft" title
 open_bbox = draw.textbbox((0, 0), "Open", font=title_font)
 open_w = open_bbox[2] - open_bbox[0]
 draft_bbox = draw.textbbox((0, 0), "Draft", font=title_font)

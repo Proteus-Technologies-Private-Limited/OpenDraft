@@ -20,7 +20,7 @@ interface TipTapNode {
 }
 
 /**
- * Fountain title-page keys, mapped to the attributes of OpenDraft's titlePage
+ * Fountain title-page keys, mapped to the attributes of WriTea Draft's titlePage
  * node. These mirror what {@link exportFountain} writes.
  *
  * Without this the exporter's own output could not be read back: `Title:` and
@@ -48,7 +48,7 @@ const TITLE_PAGE_KEYS: Record<string, string> = {
   copyright: 'tpCopyright',
   notes: 'tpNotes',
   // Not a key in the spec's list, but the format is open key/value and this is
-  // what `exportFountain` writes, so OpenDraft can read its own file back.
+  // what `exportFountain` writes, so WriTea Draft can read its own file back.
   'wga registration': 'tpWgaRegistration',
 };
 
@@ -248,7 +248,7 @@ function prepareLines(text: string): PreparedLines {
  * The nearest scene heading or section already parsed, or null.
  *
  * The spec puts synopses "anywhere within the screenplay", so one does not have
- * to sit directly under the heading it describes. OpenDraft stores a synopsis
+ * to sit directly under the heading it describes. WriTea Draft stores a synopsis
  * on the element it belongs to, which makes the nearest heading or section
  * above it the right home.
  */
@@ -328,7 +328,7 @@ export function parseFountain(text: string): TipTapNode {
     while (flushedThrough < limit) {
       flushedThrough++;
       for (const note of noteLines.get(flushedThrough) ?? []) {
-        // `[[* Blue]]` is a revision mark OpenDraft wrote, not a note: it goes
+        // `[[* Blue]]` is a revision mark WriTea Draft wrote, not a note: it goes
         // back onto the element it marked (see utils/revisionExport).
         const revision = parseFountainRevisionNote(note);
         if (revision) {
@@ -826,7 +826,7 @@ function collectDialogueBlock(
       // Two or more spaces on an otherwise blank line is the spec's way of
       // saying the blank line is deliberate and the block carries on. It is
       // also exactly what this app's own exporter writes for a paragraph break
-      // inside dialogue — so without this, a `.fountain` saved by OpenDraft and
+      // inside dialogue — so without this, a `.fountain` saved by WriTea Draft and
       // reopened lost every line of a speech after its first break, as Action.
       if (/^[ \t]{2,}$/.test(line)) {
         push(makeNode('dialogue', ''));

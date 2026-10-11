@@ -1,5 +1,5 @@
 """
-OpenDraft Plugin System
+WriTea Draft Plugin System
 
 Provides registration points for backend plugins to add API routers
 and lifecycle hooks. Plugins register themselves before the app starts.

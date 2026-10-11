@@ -1,12 +1,12 @@
 [package]
-name = "opendraft"
+name = "writeadraft"
 version = "2.5.3"
-description = "OpenDraft - Professional Screenwriting Application"
-authors = ["OpenDraft"]
+description = "WriTea Draft - Professional Screenwriting Application"
+authors = ["WriTea Media"]
 edition = "2021"
 
 [lib]
-name = "opendraft_lib"
+name = "writeadraft_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
@@ -34,7 +34,7 @@ tauri-build = { version = "=2.6.3", features = [] }
 # object is deallocated before UIKit retains it: SIGSEGV in
 # -[UIApplication _connectUISceneFromFBSScene:] on every launch of a device
 # build with a scene manifest. It does not reproduce in the simulator.
-# OpenDraft works around it by swizzling that delegate method and returning a
+# WriTea Draft works around it by swizzling that delegate method and returning a
 # live configuration. If a later tao fixes this, the workaround can go — but
 # until then it is load-bearing: without it, iOS multi-window cannot launch.
 #

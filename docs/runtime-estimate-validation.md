@@ -52,7 +52,7 @@ script contains the credit roll. Credits lengths are from RunPee where found
 | The Zone of Interest* | 100 | 74 | −43% | −26% | −26% |
 
 \* credits length estimated. Page counts for *12 Years a Slave* and *Big Fish*
-come from OpenDraft's own pagination.
+come from WriTea Draft's own pagination.
 
 | Method | Bias | Mean abs. error |
 |---|---|---|
@@ -105,7 +105,7 @@ to +23%, so genre carries no runtime signal.
 ## Reproducing
 
 ```bash
-# 1. Rebuild element JSON from screenplay PDFs (OpenDraft has no PDF import)
+# 1. Rebuild element JSON from screenplay PDFs (WriTea Draft has no PDF import)
 python3 test-script/pdf_screenplay_to_json.py test-script/output/runtime-check path/to/*.pdf
 
 # 2. Score old / new / paced / page count against test-script/runtime-truth.csv

@@ -52,7 +52,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
   const linkedProblem =
     linkedStatus?.state === 'pending' && linkedStatus.error ? 'not saved to file'
     : linkedStatus?.state === 'missing' ? 'file not found'
-    : linkedStatus?.state === 'conflict' ? 'changed outside OpenDraft'
+    : linkedStatus?.state === 'conflict' ? 'changed outside WriTea Draft'
     : '';
   const retryLinkedFile = () => {
     void import('../services/linkedFiles')

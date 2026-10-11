@@ -32,7 +32,7 @@ try {
   const onnx = env.backends.onnx as { wasm?: { wasmPaths?: unknown; numThreads?: number } };
   if (onnx.wasm) {
     onnx.wasm.wasmPaths = { wasm: new URL(ortWasmUrl, self.location.href).href };
-    // Threads need a cross-origin-isolated page, which OpenDraft is not.
+    // Threads need a cross-origin-isolated page, which WriTea Draft is not.
     onnx.wasm.numThreads = 1;
   }
 } catch (err) {

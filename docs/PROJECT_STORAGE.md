@@ -6,7 +6,7 @@ the browser (see *Manual test run* below).
 
 ## The request
 
-A writer keeps all their work on a RAID / network drive and wants OpenDraft to
+A writer keeps all their work on a RAID / network drive and wants WriTea Draft to
 save there directly:
 
 - a default folder for new projects, and
@@ -36,10 +36,10 @@ the file.
 | Formats | `.odraft` (keeps everything), `.fountain`, `.fdx`; `.osf` files found in a folder too. Treatments and AV scripts are always `.odraft`. `.fadein` is not linkable (binary, non-atomic write). Serialising lives in `utils/linkedFileFormat.ts`, which Save on a file opened from disk now uses as well. |
 | Atomic writes | `save_text_atomic` (temp file + rename), with a 10 s timeout. |
 | Drive offline | The library save succeeds; the link is marked pending and retried every minute and on window focus (`LinkedFileSync`). The status bar says "not saved to file". |
-| Changed elsewhere | Before writing, the file's mtime/hash is compared with what OpenDraft last wrote. A changed file is never overwritten: the link goes to `conflict`. On open and on window focus the file is re-checked — loaded if the library has nothing new, otherwise the writer is asked. |
-| Conflict | "Use the file's version" → the library's version (with unsaved edits) is checked into Version History first. "Keep OpenDraft's version" → the file's version is saved beside it as `Name (changed outside OpenDraft <date>).ext`. |
+| Changed elsewhere | Before writing, the file's mtime/hash is compared with what WriTea Draft last wrote. A changed file is never overwritten: the link goes to `conflict`. On open and on window focus the file is re-checked — loaded if the library has nothing new, otherwise the writer is asked. |
+| Conflict | "Use the file's version" → the library's version (with unsaved edits) is checked into Version History first. "Keep WriTea Draft's version" → the file's version is saved beside it as `Name (changed outside WriTea Draft <date>).ext`. |
 | Lossy formats | Reloading a `.fountain`/`.fdx` keeps the library's notes, beats, profiles etc. that the format cannot carry (`mergeKeptMetadata`). |
-| Unchanged saves | A save that does not change what the file says is not written: the file is read back and re-serialised, and if that matches, it is left alone. Without this, merely opening a script rewrote its file in OpenDraft's own style (the first save after opening stores the editor's normalised copy). |
+| Unchanged saves | A save that does not change what the file says is not written: the file is read back and re-serialised, and if that matches, it is left alone. Without this, merely opening a script rewrote its file in WriTea Draft's own style (the first save after opening stores the editor's normalised copy). |
 | Rename | In a folder project the file follows the title (`rename_path`, never overwrites). |
 | Delete | Asks "Also delete the file?" (default no). A kept file is remembered in `project_folder_ignores` so the next scan does not re-add it. |
 | Folder scan | On opening a folder project, new files in the folder become scripts. |
@@ -58,7 +58,7 @@ the file.
 ### Auto-save
 
 - **Library scripts** — including linked ones — follow "Auto-save scripts in my
-  OpenDraft library" (default on).
+  WriTea Draft library" (default on).
 - **Files opened from disk** follow "Auto-save files opened with Open File from
   Disk" (default off).
 - With auto-save off nothing is written unasked: no timed or metadata saves,
@@ -103,8 +103,8 @@ paths). The auto-save settings apply everywhere.
 **macOS (release build):** projects folder in Settings; New Project into a
 folder (Fountain); Save As into it wrote the file; auto-save rewrote it; an
 outside edit was loaded on window focus; outside edit + unsaved edits raised
-the conflict dialog, and *Keep OpenDraft's Version* kept the other copy as
-`… (changed outside OpenDraft …).fountain`; Open Folder as Project on an
+the conflict dialog, and *Keep WriTea Draft's Version* kept the other copy as
+`… (changed outside WriTea Draft …).fountain`; Open Folder as Project on an
 existing folder (files untouched); opening a script left its file untouched;
 a read-only folder (stand-in for an offline drive) marked the file pending
 with the status bar showing it, and it was written on refocus once writable;
@@ -133,14 +133,14 @@ Bugs found and fixed in this run:
 - Opening a script rewrote its file (see *Unchanged saves*).
 - File names and folder paths were shown upper-cased; the Storage dialog's
   buttons were unstyled; a long folder path in New Project hid its end.
-- *Keep OpenDraft's Version* wrote only the last saved copy; edits still on
+- *Keep WriTea Draft's Version* wrote only the last saved copy; edits still on
   screen now go into the library and the file with it, and the status shows
   Saved.
 - *Save to File As* on an untitled draft left it called "Untitled
   Screenplay"; it now takes the file's name (a title the writer set is kept).
 
 Retested after those fixes (8 Oct 2026): New Document, the empty-page guard
-and Discard on Android and iPad; Keep OpenDraft's Version and Save to File As
+and Discard on Android and iPad; Keep WriTea Draft's Version and Save to File As
 on macOS.
 
 ## Tests

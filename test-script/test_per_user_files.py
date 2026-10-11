@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
 # Build a throwaway data dir + collab DB before importing app modules.
-_tmp = Path(tempfile.mkdtemp(prefix="opendraft-test-"))
+_tmp = Path(tempfile.mkdtemp(prefix="writeadraft-test-"))
 _data_dir = _tmp / "backend_data"
 _data_dir.mkdir(parents=True)
 _collab_dir = _tmp / "collab"
@@ -63,7 +63,7 @@ conn.execute(
 conn.commit()
 conn.close()
 
-os.environ["OPENDRAFT_DATA_DIR"] = str(_data_dir)
+os.environ["WRITEADRAFT_DATA_DIR"] = str(_data_dir)
 os.environ["COLLAB_JWT_SECRET"] = "test-secret-xyz"
 os.environ["COLLAB_DB_PATH"] = str(_collab_db)
 

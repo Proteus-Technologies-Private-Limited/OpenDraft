@@ -36,9 +36,9 @@ fi
 if [[ -f "$TARGET" ]]; then
   APPIMAGE="$(cd "$(dirname "$TARGET")" && pwd)/$(basename "$TARGET")"
 else
-  APPIMAGE="$OUT/OpenDraft_${TARGET}_amd64.AppImage"
+  APPIMAGE="$OUT/WriTeaDraft_${TARGET}_amd64.AppImage"
   [[ -f "$APPIMAGE" ]] || gh release download "v${TARGET}" \
-    -p "OpenDraft_${TARGET}_amd64.AppImage" -D "$OUT"
+    -p "WriTeaDraft_${TARGET}_amd64.AppImage" -D "$OUT"
 fi
 
 STEM=$(basename "$APPIMAGE" .AppImage)

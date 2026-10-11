@@ -18,7 +18,7 @@ import { uuid } from '../utils/uuid';
 import { readFontFileInfo, FontFileError } from '../utils/fontFile';
 import { setDynamicFonts, genericFor, type FontEntry, type FontGeneric } from '../utils/fonts';
 
-const IDB_NAME = 'opendraft-fonts';
+const IDB_NAME = 'writeadraft-fonts';
 const IDB_STORE = 'fonts';
 const IDB_VERSION = 1;
 
