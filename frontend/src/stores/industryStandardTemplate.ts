@@ -51,6 +51,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
   updatedAt: '',
   rules: {
     sceneHeading: rule('sceneHeading', 'Scene Heading', {
+      textColor: '#FF2600',
       bold: true,
       textTransform: 'uppercase',
       // Two blank lines, matching Final Draft's Screenplay template default
@@ -64,12 +65,14 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       placeholder: 'INT./EXT. LOCATION - TIME',
     }),
     action: rule('action', 'Action', {
+      textColor: '#AB7942',
       marginTop: 12,
       nextOnEnter: 'action',
       nextOnTab: 'character',
       placeholder: 'Describe the action...',
     }),
     character: rule('character', 'Character', {
+      textColor: '#0096FF',
       textTransform: 'uppercase',
       marginTop: 12,
       leftIndent: 3.50,
@@ -78,6 +81,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       placeholder: 'CHARACTER NAME',
     }),
     dialogue: rule('dialogue', 'Dialogue', {
+      textColor: '#009400',
       leftIndent: 2.50,
       rightIndent: 6.00,
       nextOnEnter: 'dialogue',
@@ -85,6 +89,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       placeholder: 'Dialogue...',
     }),
     parenthetical: rule('parenthetical', 'Parenthetical', {
+      textColor: '#00DA00',
       leftIndent: 3.00,
       rightIndent: 5.50,
       nextOnEnter: 'dialogue',
@@ -92,6 +97,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       placeholder: '(direction)',
     }),
     transition: rule('transition', 'Transition', {
+      textColor: '#FF9300',
       textTransform: 'uppercase',
       textAlign: 'right',
       marginTop: 12,
@@ -104,6 +110,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       placeholder: 'Text...',
     }),
     shot: rule('shot', 'Shot', {
+      textColor: '#9437FF',
       textTransform: 'uppercase',
       marginTop: 12,
       nextOnEnter: 'action',
@@ -127,6 +134,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       placeholder: 'END OF ACT',
     }),
     lyrics: rule('lyrics', 'Lyrics', {
+      enabled: false,
       italic: true,
       leftIndent: 2.50,
       rightIndent: 6.00,
@@ -134,6 +142,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       placeholder: 'Lyrics...',
     }),
     showEpisode: rule('showEpisode', 'Show/Episode', {
+      enabled: false,
       bold: true,
       textTransform: 'uppercase',
       textAlign: 'center',
@@ -146,6 +155,18 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       leftIndent: 1.75,
       nextOnEnter: 'castList',
       placeholder: 'Cast...',
+    }),
+    // Alt: a custom element carried over from the writer's Final Draft template.
+    // Dialogue indents, pink text, Enter returns to Action. Shortcut: Ctrl+; (see
+    // elementShortcuts in ScreenplayEditor).
+    alt: rule('alt', 'Alt', {
+      isBuiltIn: false,
+      textColor: '#FF8AD8',
+      leftIndent: 2.50,
+      rightIndent: 6.00,
+      nextOnEnter: 'action',
+      nextOnTab: 'action',
+      placeholder: 'Alt...',
     }),
     ...outlineRules(),
     // A two-column AV body. On in a screenplay because a screenplay genuinely

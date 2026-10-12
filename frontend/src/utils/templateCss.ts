@@ -256,3 +256,31 @@ export function injectTemplateCss(css: string | null): void {
 
   el.textContent = css;
 }
+
+/**
+ * Colour-only rules for a template.
+ *
+ * The default Film Screenplay template is drawn by the static stylesheet, so
+ * generateTemplateCss is skipped for its body elements. Its element colours
+ * still have to reach the page, and this emits just those.
+ */
+export function generateTemplateColorCss(
+  template: FormattingTemplate,
+  pageLayout: PageLayout,
+): string {
+  const lines: string[] = [];
+  for (const [elementId, rule] of Object.entries(template.rules)) {
+    if (!rule.enabled) continue;
+    if (isTitlePageRuleId(elementId) || elementId === AV_BLOCK_RULE_ID) continue;
+    const selector = getSelector(elementId, rule);
+    if (!rule.isBuiltIn) {
+      // A custom element has no rule in the static stylesheet, so it needs its
+      // full typography here, not just its colour.
+      const props = generateRuleProperties(rule, pageLayout, false);
+      if (props.length > 0) lines.push(`${selector} { ${props.join(' ')} }`);
+    } else if (rule.textColor) {
+      lines.push(`${selector} { color: ${rule.textColor}; }`);
+    }
+  }
+  return lines.join('\n');
+}

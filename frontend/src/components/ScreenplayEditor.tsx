@@ -40,7 +40,7 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { PastedHighlight } from '../editor/extensions/PastedHighlight';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
-import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
+import { generateTemplateCss, generateTemplateColorCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { createPaginationPlugin, getPageMetrics, activeTemplateHints } from '../editor/pagination';
@@ -1572,8 +1572,21 @@ const ScreenplayEditor: React.FC = () => {
       name: 'elementShortcuts',
       priority: 999,
       addKeyboardShortcuts() {
-        const types = ['sceneHeading', 'action', 'character', 'dialogue', 'parenthetical', 'transition', 'general', 'shot'];
+        // Final Draft numbering: 1 Scene Heading, 2 Action, 3 Character, 4 Parenthetical,
+        // 5 Dialogue, 6 Transition, 7 Shot, 8 Cast List, 9 New Act.
+        const types = ['sceneHeading', 'action', 'character', 'parenthetical', 'dialogue', 'transition', 'shot', 'castList', 'newAct'];
         const shortcuts: Record<string, any> = {};
+        shortcuts['Mod-0'] = ({ editor }: { editor: any }) => {
+          if (!editor.schema.nodes.general) return false;
+          editor.chain().focus().setNode('general').run();
+          return true;
+        };
+        // Ctrl+; applies the template's custom Alt element.
+        shortcuts['Mod-;'] = ({ editor }: { editor: any }) => {
+          if (!editor.schema.nodes.customElement) return false;
+          editor.chain().focus().setNode('customElement', { customTypeId: 'alt', customLabel: 'Alt' }).run();
+          return true;
+        };
         types.forEach((type, i) => {
           shortcuts[`Mod-${i + 1}`] = ({ editor }: { editor: any }) => {
             if (!editor.schema.nodes[type]) return false;
@@ -1816,7 +1829,8 @@ const ScreenplayEditor: React.FC = () => {
     // most writers are using.
     if (template.id === '__industry_standard__') {
       const titlePageCss = generateTemplateCss(template, pageLayout, { titlePageOnly: true });
-      const combined = [titlePageCss, overrideCss].filter(Boolean).join('\n');
+      const colorCss = generateTemplateColorCss(template, pageLayout);
+      const combined = [titlePageCss, colorCss, overrideCss].filter(Boolean).join('\n');
       injectTemplateCss(combined || null);
       return () => { injectTemplateCss(null); };
     }
