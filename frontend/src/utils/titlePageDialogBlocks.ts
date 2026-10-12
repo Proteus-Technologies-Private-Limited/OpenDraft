@@ -131,3 +131,19 @@ export function buildTitlePageBlocks(
   }
   return blocks;
 }
+
+/**
+ * Whether the title page came from a Final Draft file as free-form paragraphs.
+ *
+ * Such a page is edited directly on the page, the way Final Draft does it. The
+ * dialog's fields cannot describe it, and rebuilding it from them would throw
+ * away its lines, their formatting and the file's own XML.
+ */
+export function isFreeFormTitlePage(editor: TitlePageBuildSource): boolean {
+  let free = false;
+  editor.state.doc.forEach((node) => {
+    if (node.type.name !== 'titlePage') return;
+    if (node.attrs?.field === 'free' || node.attrs?.fdxXml) free = true;
+  });
+  return free;
+}

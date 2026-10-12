@@ -13,7 +13,7 @@ import {
   type TitleNodeInfo,
 } from '../utils/titlePageRegion';
 import { DEFAULT_TITLE_PAGE_CREDIT } from '../utils/titlePageBlocks';
-import { buildTitlePageBlocks, deriveFields } from '../utils/titlePageDialogBlocks';
+import { buildTitlePageBlocks, deriveFields, isFreeFormTitlePage } from '../utils/titlePageDialogBlocks';
 import { showToast } from './Toast';
 import Select from './Select';
 
@@ -163,7 +163,11 @@ function titlePageRegionEnd(editor: Editor): number {
  * accept, so a blank body line takes its place. This mirrors what deleting the
  * title page outright does.
  */
-function replaceTitleRegion(editor: Editor, built: PMNode[]): void {
+function replaceTitleRegion(editor: Editor, built: PMNode[], deliberate = false): void {
+  // A free-form title page from a Final Draft file cannot be rebuilt from the
+  // dialog's fields without losing its lines. Only deleting it outright, which
+  // the writer confirms, may replace it.
+  if (!deliberate && isFreeFormTitlePage(editor)) return;
   const tr = editor.state.tr;
   const end = titlePageRegionEnd(editor);
   if (end > 0) tr.delete(0, end);
@@ -177,6 +181,7 @@ function replaceTitleRegion(editor: Editor, built: PMNode[]): void {
 
 const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
   const [data, setData] = useState<Omit<TitlePageAttrs, 'field'>>({ ...EMPTY_ATTRS });
+  const freeForm = isFreeFormTitlePage(editor);
 
   // Whether the title page goes out with print, PDF and Word. Unlike every
   // other control here it takes effect the moment it is ticked, and Cancel does
@@ -293,7 +298,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
 
   const handleDeleteTitlePage = useCallback(() => {
     if (!window.confirm('Delete the entire title page (title, credits, and images)?')) return;
-    if (titlePageRegionEnd(editor) > 0) replaceTitleRegion(editor, []);
+    if (titlePageRegionEnd(editor) > 0) replaceTitleRegion(editor, [], true);
     onClose();
   }, [editor, onClose]);
 
@@ -301,8 +306,16 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
     <div className="dialog-overlay" onClick={onClose}>
       <div className="tp-editor-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">Title Page</div>
+        {freeForm && (
+          <p className="tp-output-help" style={{ margin: '8px 16px' }}>
+            This title page came from a Final Draft file and is edited directly on the
+            page, the way Final Draft does it. The form below cannot change it, so Apply
+            is switched off. Delete Title Page still clears it, and the print option
+            below still works.
+          </p>
+        )}
         <div className="tp-editor-body">
-          <div className="tp-editor-form">
+          <div className="tp-editor-form" style={freeForm ? { opacity: 0.45, pointerEvents: 'none' } : undefined}>
             {showField('tpTitle') && (
             <div className="props-field props-field-wide">
               <label className="props-label">Title</label>
@@ -507,7 +520,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
 
           {/* Live preview — the classic layout from the live fields + images,
               exactly as Apply / the PDF & DOCX exports produce it. */}
-          <div className="tp-editor-preview">
+          <div className="tp-editor-preview" style={freeForm ? { opacity: 0.45 } : undefined}>
             <div className="tp-preview-page" style={{ display: 'flex', flexDirection: 'column', padding: '7% 9%' }}>
               {imagesAbove.map((a, i) => <TpImageThumb key={`a${i}`} attrs={a} align />)}
               <div style={{ marginTop: '20%', textAlign: 'center' }}>
@@ -541,7 +554,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
             Delete Title Page
           </button>
           <button onClick={onClose}>Cancel</button>
-          <button className="dialog-primary" onClick={handleApply}>
+          <button className="dialog-primary" onClick={handleApply} disabled={freeForm}>
             Apply
           </button>
         </div>
