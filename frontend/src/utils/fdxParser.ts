@@ -669,8 +669,14 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
       if (name) {
         characterHighlighting.push({
           name: name.trim(),
-          color: normalizeColor(ch.getAttribute('Color') || ''),
-          highlighted: ch.getAttribute('Highlighted') === 'Yes',
+          // Final Draft writes the literal "#RRRRGGGGBBBB" when no colour is set;
+          // that is not a colour, so it reads as none.
+          color: /^#([0-9a-f]{6}|[0-9a-f]{12})$/i.test(ch.getAttribute('Color') || '')
+            ? normalizeColor(ch.getAttribute('Color') || '')
+            : '',
+          // `Visible` is Final Draft's name for it; `Highlighted` is what
+          // earlier versions of this app wrote.
+          highlighted: (ch.getAttribute('Visible') ?? ch.getAttribute('Highlighted')) === 'Yes',
         });
       }
     });

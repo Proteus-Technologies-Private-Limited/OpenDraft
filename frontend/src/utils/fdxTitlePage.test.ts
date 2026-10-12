@@ -104,3 +104,18 @@ describe('text run attributes, on export', () => {
     expect(out).toContain('<Text AdornmentStyle="-1">Tagged</Text>');
   });
 });
+
+describe('character highlighting, on export', () => {
+  const profile = (name: string, color: string, highlighted: boolean) =>
+    ({ name, description: '', color, highlighted }) as never;
+
+  it('writes Final Draft\'s placeholder colour and Visible when no colour is set', () => {
+    const out = exportFDX(docOf(scene), 'T', [profile('ANSA', '', false)]);
+    expect(out).toContain('<Character Color="#RRRRGGGGBBBB" Name="ANSA" Visible="No"/>');
+  });
+
+  it('writes a real colour in the 48-bit form, and Visible="Yes" when highlighted', () => {
+    const out = exportFDX(docOf(scene), 'T', [profile('MAX', '#FF0000', true)]);
+    expect(out).toContain('<Character Color="#FFFF00000000" Name="MAX" Visible="Yes"/>');
+  });
+});

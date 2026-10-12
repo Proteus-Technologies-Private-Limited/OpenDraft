@@ -769,9 +769,10 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
     lines.push('');
     lines.push('  <CharacterHighlighting>');
     for (const p of characterProfiles) {
-      if (p.color) {
-        lines.push(`    <Character Name="${esc(p.name)}" Color="${esc(p.color)}" Highlighted="${p.highlighted ? 'Yes' : 'No'}"/>`);
-      }
+      // Final Draft lists every character, writing a placeholder where no
+      // colour is set, and calls the on/off switch `Visible`.
+      const colour = /^#[0-9a-f]{6}$/i.test(p.color) ? fdx48(p.color) : '#RRRRGGGGBBBB';
+      lines.push(`    <Character Color="${esc(colour)}" Name="${esc(p.name)}" Visible="${p.highlighted ? 'Yes' : 'No'}"/>`);
     }
     lines.push('  </CharacterHighlighting>');
   }
