@@ -5,7 +5,6 @@ import App from './App.tsx';
 import { initStorage } from './services/api';
 import { initScratchAssets } from './services/scratchAssets';
 import { scheduleScratchSweep } from './services/scratchSweep';
-import { initDemoInfo } from './services/demoInfo';
 import { getOS, isTauri } from './services/platform';
 import { initCustomFonts } from './services/customFonts';
 import { detectDeviceFonts } from './utils/deviceFonts';
@@ -138,10 +137,6 @@ async function init() {
   };
   if (typeof requestIdleCallback === 'function') requestIdleCallback(findDeviceFonts, { timeout: 4000 });
   else setTimeout(findDeviceFonts, 1200);
-
-  // Fetch the backend's demo-mode flag once so CollabLoginDialog/SettingsPage
-  // can decide whether to show demo warnings. Non-blocking best-effort.
-  initDemoInfo().catch(() => {});
 
   // Set initial native window title on desktop (for macOS Window menu)
   import('./services/platform').then(({ isDesktopTauri }) => {

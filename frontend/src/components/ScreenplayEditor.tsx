@@ -1757,8 +1757,8 @@ const ScreenplayEditor: React.FC = () => {
     // In collab mode, pass fetched content so TipTap seeds the Yjs doc on first connect.
     // For normal editing from URL, content is loaded later via useEffect.
     content: collabMode
-      ? (collabInitialContent.current || { type: 'doc', content: [{ type: 'action', content: [] }] })
-      : (urlScriptId || urlCommitHash) ? undefined : { type: 'doc', content: [{ type: 'action', content: [] }] },
+      ? (collabInitialContent.current || { type: 'doc', content: [{ type: 'sceneHeading', content: [] }] })
+      : (urlScriptId || urlCommitHash) ? undefined : { type: 'doc', content: [{ type: 'sceneHeading', content: [] }] },
     editable: !isHistoryMode && !(collabMode && collabRole === 'viewer'),
     editorProps: {
       attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: 'false' },
@@ -2176,11 +2176,14 @@ const ScreenplayEditor: React.FC = () => {
     };
   }, [editor, characterContd, contdText]);
 
-  // --- Character autocomplete: show/update on each editor update while in character block ---
+  // --- Autocomplete: show/update on each editor update while in a character block
+  //     (known names) or a scene heading (scene intros such as INT. / EXT.) ---
   useEffect(() => {
     if (!editor) return;
+    const SCENE_INTROS = ['INT.', 'EXT.', 'INT./EXT.', 'EXT./INT.', 'I/E.'];
     const onUpdate = () => {
-      if (!editor.isActive('character')) {
+      const inScene = editor.isActive('sceneHeading');
+      if (!editor.isActive('character') && !inScene) {
         setCharAutoState(s => s.visible ? { ...s, visible: false } : s);
         charAutoDismissedRef.current = false;
         return;
@@ -2188,6 +2191,26 @@ const ScreenplayEditor: React.FC = () => {
       if (charAutoDismissedRef.current) return;
 
       const { $from } = editor.state.selection;
+
+      // Scene heading: offer the scene intros while the heading is still just
+      // the first few letters of one. Picking one writes it plus a space.
+      if (inScene) {
+        const typed = $from.parent.textContent.toUpperCase();
+        const atEnd = $from.parentOffset === $from.parent.content.size;
+        const intros = SCENE_INTROS.filter(n => n.startsWith(typed));
+        if (!typed || !atEnd || SCENE_INTROS.includes(typed) || intros.length === 0) {
+          setCharAutoState(s => s.visible ? { ...s, visible: false } : s);
+          return;
+        }
+        const coords = editor.view.coordsAtPos(editor.state.selection.from);
+        setCharAutoState({
+          visible: true,
+          position: { top: coords.bottom + 4, left: coords.left },
+          suggestions: intros.map(n => `${n} `),
+        });
+        return;
+      }
+
       const text = characterKey($from.parent.textContent);
       if (!text) {
         setCharAutoState(s => s.visible ? { ...s, visible: false } : s);
@@ -2571,7 +2594,7 @@ const ScreenplayEditor: React.FC = () => {
     setDocumentTitle('Untitled Screenplay');
     if (editor) {
       // See File ▸ Close: an emptied document has no block to type into.
-      editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] }, true);
+      editor.commands.setContent({ type: 'doc', content: [{ type: 'sceneHeading', content: [] }] }, true);
       clearEditorHistory(editor);
     }
     // Nothing here is worth auto-saving or snapshotting now.
@@ -3289,12 +3312,12 @@ const ScreenplayEditor: React.FC = () => {
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             editor.commands.setContent(content);
           } else {
-            editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
+            editor.commands.setContent({ type: 'doc', content: [{ type: 'sceneHeading', content: [] }] });
           }
         } catch (setErr) {
           console.error('setContent failed:', setErr);
           showToast(`Failed to render content: ${setErr instanceof Error ? setErr.message : String(setErr)}`, 'error');
-          editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
+          editor.commands.setContent({ type: 'doc', content: [{ type: 'sceneHeading', content: [] }] });
         }
         clearEditorHistory(editor);
 
@@ -3808,12 +3831,12 @@ const ScreenplayEditor: React.FC = () => {
           } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
             editor.commands.setContent(content);
           } else {
-            editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
+            editor.commands.setContent({ type: 'doc', content: [{ type: 'sceneHeading', content: [] }] });
           }
         } catch (setErr) {
           console.error('setContent failed, using blank doc:', setErr);
           showToast(`Failed to render content: ${setErr instanceof Error ? setErr.message : String(setErr)}`, 'error');
-          editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] });
+          editor.commands.setContent({ type: 'doc', content: [{ type: 'sceneHeading', content: [] }] });
         }
         clearEditorHistory(editor);
 

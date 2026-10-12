@@ -25,8 +25,6 @@ import { exportPDF, renderPDF, type PDFExportOptions } from '../utils/pdfExporte
 import { buildExportFootnotePlan } from '../utils/exportFootnotes';
 import { downloadDocx } from '../utils/docxExporter';
 import { parseDocx } from '../utils/docxImporter';
-import { downloadOdraft } from '../utils/odraftFormat';
-import { packScratchAssets } from '../services/snapshotAssets';
 import { pasteAsFountain } from '../utils/pasteFountain';
 import { copySelection, cutSelection, pasteIntoEditor } from '../utils/clipboardCommands';
 import {
@@ -47,9 +45,6 @@ import { INDUSTRY_STANDARD_ID, ELEMENT_DESCRIPTIONS } from '../stores/formatting
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
 import { selectionStartsNewPage } from '../editor/extensions';
 import { pluginRegistry } from '../plugins/registry';
-import { useTableReadStore } from '../stores/tableReadStore';
-import { isAiProviderConfigured, useVoiceSettingsStore } from '../stores/voiceSettingsStore';
-import { activeEngineKind } from '../services/tts/engines';
 import AuthIndicator from './AuthIndicator';
 import { useNavigate } from 'react-router-dom';
 import { flushPendingSave, setLeaveGuard, leaveEditor as leaveEditorScreen } from '../services/pendingSave';
@@ -102,8 +97,7 @@ import {
   supportsOpenInPlace,
   type InPlaceDocument,
 } from '../utils/fileOps';
-import { isDesktopTauri, isWeb, printRoute, supportsApplePencil, supportsMultipleWindows } from '../services/platform';
-import { checkForUpdate } from '../services/updateCheck';
+import { isDesktopTauri, printRoute, supportsApplePencil, supportsMultipleWindows } from '../services/platform';
 import { getCompatEntries } from '../services/compat';
 import { reportSaveError } from '../stores/saveErrorStore';
 import type { MenuSection as PluginMenuSection } from '../plugins/registry';
@@ -164,8 +158,6 @@ import {
   FaHighlighter,
   FaAdjust,
   FaToolbox,
-  FaUserFriends,
-  FaMicrophoneAlt,
   FaSignInAlt,
   FaProjectDiagram,
   FaFilm,
@@ -174,7 +166,6 @@ import {
   FaInfoCircle,
   FaBook,
   FaStethoscope,
-  FaCloudDownloadAlt,
   FaSearchPlus,
   FaSearchMinus,
   FaUpload,
@@ -263,9 +254,6 @@ const DiagRow: React.FC<{ label: string; value: string; mono?: boolean }> = ({ l
 
 const MenuBar: React.FC<MenuBarProps> = ({
   editor,
-  onCollaborate,
-  onJoinCollab,
-  isCollabActive,
   isCollabGuest,
   onDocumentSaved,
 }) => {
@@ -278,7 +266,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // Written the way this platform writes it, from whatever the writer set.
   const elementMenuShortcut = useSettingsStore((s) => s.elementMenuShortcut);
   const printViaPdf = useSettingsStore((s) => s.printViaPdf);
-  const tableReadOpen = useTableReadStore((s) => s.open);
   const {
     navigatorOpen,
     toggleNavigator,
@@ -316,7 +303,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
     toggleGrammarCheck,
     setGrammarModalOpen,
     setGrammarRulesPanelOpen,
-    setOpenFileOpen,
     setPostSaveAction,
     setSaveAsOpen,
     appearance,
@@ -1587,7 +1573,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // A single empty element, not clearContent(): an empty document has no
       // block to put a cursor in, so the editor came back blank *and*
       // untypeable — no placeholder, no caret, nothing to click into.
-      editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] }, true);
+      editor.commands.setContent({ type: 'doc', content: [{ type: 'sceneHeading', content: [] }] }, true);
       clearEditorHistory(editor);
       clearRecoverySnapshot();
       releaseOpenDocument();
@@ -2134,38 +2120,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
     void openBackupFolder();
   }, [openBackupFolder]);
 
-  const handleExportOdraft = useCallback(async () => {
-    if (!editor) return;
-    try {
-      const store = useEditorStore.getState();
-      const meta = {
-        id: '', title: documentTitle, author: '', format: 'json',
-        created_at: '', updated_at: '', page_count: store.pageCount,
-        size_bytes: 0, color: '', pinned: false, sort_order: 0, preview: '',
-      };
-      // Must be the full save payload, not the bare editor JSON: the latter
-      // drops notes, tags, beats, character profiles and every other
-      // `_`-prefixed store key, so the exported file could never restore the
-      // script it came from.
-      const content = buildSaveContent();
-      if (!content) return;
-      // A document with no project keeps its images in the scratch store, so
-      // they have to be packed into the file explicitly. They used to travel
-      // (as base64) simply by being inside the document; without this they
-      // would silently vanish from the export.
-      const packed = currentProject ? null : await packScratchAssets(content);
-      await downloadOdraft(meta, content, {
-        projectId: currentProject?.id ?? null,
-        scriptId: currentScriptId ?? null,
-        projectTitle: currentProject?.name,
-        ...(packed ? { assets: packed.assets, assetsOmitted: packed.truncated } : {}),
-      });
-    } catch (err) {
-      console.error('WriTea Draft export failed:', err);
-      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
-    }
-  }, [editor, documentTitle, buildSaveContent, currentProject, currentScriptId]);
-
   const handleMenuClick = (label: string) => {
     setActiveMenu((prev) => (prev === label ? null : label));
     setOpenSubmenu(null);
@@ -2383,12 +2337,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaFileExcel />, label: 'AV Document (.yaml / .xlsx / .csv)…', action: () => confirmOrRun(handleImportAvSheet), disabled: isCollabGuest },
           ],
         },
-        // Opens the library — projects and scripts held by WriTea Draft, on this
-        // device or in the cloud. Deliberately NOT "Open File…", which would sit
-        // directly above "Open from Files…" and claim the very thing that item
-        // does. Naming the object rather than the source keeps the common action
-        // short and lets the qualified one below carry the explanation.
-        { icon: <FaFolderOpen />, label: 'Open Script…', action: () => confirmOrRun(() => setOpenFileOpen(true)), disabled: isCollabGuest },
         // Mobile only: edit a screenplay where it lives — Files/iCloud/Dropbox
         // on iOS, the Storage Access Framework on Android — instead of
         // importing a copy and exporting it back afterwards.
@@ -2460,7 +2408,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
               title: 'Only the pages that carry a revision mark',
             },
             { icon: <FaFileWord />, label: 'Microsoft Word (.docx)', action: handleExportDocx },
-            { icon: <FaFile />, label: 'WriTea Draft (.odraft)', action: handleExportOdraft, disabled: isCollabGuest },
             // AV formats are offered only for documents that have an AV body —
             // a spreadsheet of a screenplay would be meaningless.
             ...(hasAv
@@ -2831,33 +2778,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {
       label: 'Tools',
       items: [
-        {
-          icon: <FaUserFriends />, label: 'Collaboration',
-          children: [
-            { icon: <FaUserFriends />, label: isCollabActive ? '\u2713 Collaborate...' : 'Collaborate...', action: onCollaborate, disabled: isCollabGuest },
-            { icon: <FaSignInAlt />, label: 'Join Collaboration…', action: onJoinCollab, disabled: isCollabGuest },
-          ],
-        },
-        { separator: true, label: '' },
         { icon: <FaProjectDiagram />, label: 'Manage Projects…', action: goToProjects, disabled: isCollabGuest },
         { icon: <FaBoxes />, label: 'Asset Manager', action: () => useAssetStore.getState().toggleAssetManager() },
         { separator: true, label: '' },
-        {
-          icon: <FaMicrophoneAlt />,
-          label: tableReadOpen ? '\u2713 Table Read' : 'Table Read',
-          title: 'Hear the script read aloud, with a voice for each character',
-          action: () => {
-            const tr = useTableReadStore.getState();
-            if (tr.open) { tr.setOpen(false); return; }
-            tr.setOpen(true);
-            // A browser asks where the voices come from before the first
-            // read, rather than at the first Play; so does a choice of AI
-            // voices with no provider set up yet.
-            const vs = useVoiceSettingsStore.getState();
-            if (activeEngineKind(vs) === 'ai' && !isAiProviderConfigured(vs)) tr.setNeedsProvider(true);
-          },
-          disabled: !editor,
-        },
         {
           icon: <FaStream />, label: 'Analytics',
           children: [
@@ -2944,34 +2867,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
   ];
 
   // Help sits at the right-hand end of the bar, after the spacer.
-  /**
-   * Help → Check for Updates (issue #106).
-   *
-   * Unlike the silent check on launch this one always answers: it ignores the
-   * throttle, the snooze and any earlier Dismiss, and says so when it cannot
-   * reach the manifest rather than looking like it did nothing. When there is
-   * an update the banner shows it, so there is one place the buttons live.
-   */
-  const [checkingUpdate, setCheckingUpdate] = useState(false);
-  const handleCheckForUpdates = async () => {
-    if (checkingUpdate) return;
-    setCheckingUpdate(true);
-    try {
-      const outcome = await checkForUpdate(true);
-      if (outcome.status === 'up-to-date') {
-        showToast(`WriTea Draft ${outcome.version} is the latest version.`, 'success');
-      } else if (outcome.status === 'unreachable') {
-        showToast('Could not check for updates. Check your connection.', 'error');
-      }
-      // 'available' needs no toast — the banner is already on screen.
-    } catch (err) {
-      console.error('[MenuBar] update check failed:', err);
-      showToast('Could not check for updates.', 'error');
-    } finally {
-      setCheckingUpdate(false);
-    }
-  };
-
   const helpMenu: MenuSection = {
     label: 'Help',
     items: [
@@ -2981,14 +2876,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
         action: () => setManualOpen(true),
       },
       { separator: true, label: '' },
-      // Meaningless in a browser, where a reload already serves the newest
-      // build, so it is not offered there.
-      ...(isWeb() ? [] : [{
-        icon: <FaCloudDownloadAlt />,
-        label: checkingUpdate ? 'Checking\u2026' : 'Check for Updates\u2026',
-        disabled: checkingUpdate,
-        action: () => { void handleCheckForUpdates(); },
-      }]),
       {
         icon: <FaInfoCircle />,
         label: 'About WriTea Draft',

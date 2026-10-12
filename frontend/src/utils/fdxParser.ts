@@ -352,7 +352,7 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
   // Use 'FinalDraft > Content' to skip the TitlePage > Content element
   const contentEl = xmlDoc.querySelector('FinalDraft > Content');
   if (!contentEl) {
-    return { doc: { type: 'doc', content: [{ type: 'action', content: [] }] }, pageLayout, documentFont, castList: [], characterHighlighting: [], tagCategories: [], tagItems: [], beats: [], beatColumns: [], revisions };
+    return { doc: { type: 'doc', content: [{ type: 'sceneHeading', content: [] }] }, pageLayout, documentFont, castList: [], characterHighlighting: [], tagCategories: [], tagItems: [], beats: [], beatColumns: [], revisions };
   }
 
   // Iterate direct children (Paragraph and DualDialogue elements)
