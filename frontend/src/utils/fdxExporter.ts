@@ -308,6 +308,12 @@ function buildRevisions(doc: JSONContent, state?: FDXRevisionState): string[] {
   return out;
 }
 
+/** #RRGGBB as Final Draft writes it: 16 bits a channel, each byte doubled. */
+function fdx48(color: string): string {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color);
+  return m ? `#${m[1]}${m[1]}${m[2]}${m[2]}${m[3]}${m[3]}`.toUpperCase() : color;
+}
+
 function getTextAttributes(marks?: MarkInfo[], blockRevision?: string): string {
   const parts: string[] = [];
   let revision = blockRevision;
@@ -315,14 +321,20 @@ function getTextAttributes(marks?: MarkInfo[], blockRevision?: string): string {
     if (mark.type === 'textStyle' && mark.attrs?.revision) revision = String(mark.attrs.revision);
   }
   if (revision) parts.push(`RevisionID="${fdxRevisionId(revision)}"`);
-  if (!marks || marks.length === 0) return parts.length > 0 ? ' ' + parts.join(' ') : '';
+  if (!marks || marks.length === 0) {
+    return parts.length > 0 ? ' ' + parts.join(' ') : '';
+  }
   const styles: string[] = [];
-  let fontName = '', fontSize = '', fontColor = '';
+  let fontName = '', fontSize = '', fontColor = '', adornment = '', explicitBlack = false;
 
   for (const mark of marks) {
     if (mark.type === 'bold') styles.push('Bold');
     if (mark.type === 'italic') styles.push('Italic');
     if (mark.type === 'underline') styles.push('Underline');
+    if (mark.type === 'fdxAdornment') {
+      if (mark.attrs?.style) adornment = String(mark.attrs.style);
+      if (mark.attrs?.black) explicitBlack = true;
+    }
     if (mark.type === 'textStyle' && mark.attrs) {
       if (mark.attrs.fontFamily) fontName = String(mark.attrs.fontFamily);
       if (mark.attrs.fontSize) fontSize = String(mark.attrs.fontSize).replace('pt', '');
@@ -333,10 +345,13 @@ function getTextAttributes(marks?: MarkInfo[], blockRevision?: string): string {
   if (styles.length > 0) parts.push(`Style="${styles.join('+')}"`);
   if (fontName) parts.push(`Font="${esc(fontName)}"`);
   if (fontSize) parts.push(`Size="${esc(fontSize)}"`);
-  if (fontColor) parts.push(`Color="${esc(fontColor)}"`);
+  if (adornment) parts.push(`AdornmentStyle="${esc(adornment)}"`);
+  if (fontColor || explicitBlack) parts.push(`Color="${esc(fdx48(fontColor || '#000000'))}"`);
 
   return parts.length > 0 ? ' ' + parts.join(' ') : '';
 }
+
+import { autoContdMarker, stripAutoContd, sceneProperties } from './fdxPreserve';
 
 /** The typeface a script is written in, for the element settings. */
 export interface FDXDocumentFont {
@@ -514,9 +529,14 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
   }
 
   // Helper: emit a single Paragraph element
+  const contdMarker = autoContdMarker(pageLayout);
   const emitParagraph = (node: JSONContent, indent: string, noteTexts: readonly string[] = []) => {
     const fdxType = resolveFdxExportType(node);
     const paraAttrs: string[] = [`Type="${fdxType}"`];
+    // The paragraph's identity from the opened file, written back as it was
+    // (Final Draft itself writes some ids twice, so repeats are kept).
+    const fdxId = typeof node.attrs?.fdxId === 'string' ? node.attrs.fdxId : '';
+    if (fdxId) paraAttrs.push(`id="${esc(fdxId)}"`);
 
     // Hidden numbers are not printed numbers. Locked ones are kept on the
     // scenes while hidden, so they are left out here rather than by clearing.
@@ -543,14 +563,9 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
         lines.push(`${indent}  </ScriptNote>`);
       }
       // Scene heading synopsis → SceneProperties/Summary (Final Draft format)
-      if (node.type === 'sceneHeading' && node.attrs?.synopsis) {
-        lines.push(`${indent}  <SceneProperties>`);
-        lines.push(`${indent}    <Summary>`);
-        lines.push(`${indent}      <Paragraph>`);
-        lines.push(`${indent}        <Text>${esc(String(node.attrs.synopsis))}</Text>`);
-        lines.push(`${indent}      </Paragraph>`);
-        lines.push(`${indent}    </Summary>`);
-        lines.push(`${indent}  </SceneProperties>`);
+      if (node.type === 'sceneHeading') {
+        const sp = sceneProperties(node.attrs?.fdxSceneProps, node.attrs?.synopsis, `${indent}  `);
+        if (sp) lines.push(sp);
       }
       // A Character paragraph must stay on one line — a break there would
       // read as a second, phantom speaker. Collapse rather than encode.
@@ -558,7 +573,20 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
       // A block flagged for an edit with no text of its own (a deletion, an
       // element change) puts its revision on its first run.
       let blockRevision = typeof node.attrs?.revised === 'string' && node.attrs.revised ? node.attrs.revised : undefined;
-      for (const child of node.content) {
+      // A character cue goes out as it was typed, without the automatic
+      // continued marker: Final Draft adds that itself when it prints.
+      let children: JSONContent[] = node.content;
+      if (fdxType === 'Character') {
+        const firstText = node.content.find((c) => c.type === 'text');
+        const full = node.content.map((c) => (c.type === 'text' ? (c.text ?? '') : ' ')).join('');
+        const stripped = stripAutoContd(full, contdMarker);
+        const typed = typeof node.attrs?.fdxText === 'string' ? node.attrs.fdxText : null;
+        const out = typed !== null && typed.trim().toUpperCase() === stripped.trim().toUpperCase()
+          ? typed
+          : (stripped !== full ? stripped : null);
+        if (out !== null) children = [{ type: 'text', text: out, marks: firstText?.marks }];
+      }
+      for (const child of children) {
         if (child.type === 'hardBreak') {
           if (!collapseBreaks) {
             // A standalone Text run holding just the break, so the encoding

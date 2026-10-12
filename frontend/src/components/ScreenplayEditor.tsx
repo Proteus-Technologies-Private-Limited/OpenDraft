@@ -108,6 +108,8 @@ import { spellChecker, BUILTIN_LANGUAGE } from '../editor/spellchecker';
 import { grammarIgnore } from '../editor/grammar/grammarIgnore';
 import { buildSaveContent as buildSaveContentShared, stripSaveMetadata } from '../utils/saveContent';
 import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
+import { FdxFidelity } from '../editor/extensions/FdxFidelity';
+import { FdxAdornment } from '../editor/extensions/FdxAdornment';
 import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile } from '../utils/scriptProfile';
 import { restoreRevisionState } from '../utils/revisionState';
 import { characterKey } from '../utils/nodeText';
@@ -1751,6 +1753,8 @@ const ScreenplayEditor: React.FC = () => {
         getSettings: () => useEditorStore.getState().revisionSettings,
       }),
       StartsNewPage,
+      FdxFidelity,
+      FdxAdornment,
       LockedPages,
       FootnoteMarkerExtension,
       PaginationExtension,

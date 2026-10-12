@@ -1,3 +1,6 @@
+import { resolveMoresContds } from '../stores/editorStore';
+import type { PageLayout } from '../stores/editorStore';
+
 /**
  * Carrying an opened .fdx's unmodelled sections through a save.
  *
@@ -60,4 +63,69 @@ export function mergeFdxRaw(xml: string, raw: FdxRaw | null | undefined): string
     console.warn('[fdx] could not add the original sections back', err);
     return xml;
   }
+}
+
+/** The automatic character-continued marker in force, or '' when that setting is off. */
+export function autoContdMarker(layout: PageLayout | undefined): string {
+  const mc = resolveMoresContds(layout);
+  return mc.characterContd ? (mc.contdText.trim() || "(CONT'D)") : '';
+}
+
+/** A character cue without the trailing automatic continued marker. */
+export function stripAutoContd(text: string, marker: string): string {
+  if (!marker) return text;
+  const re = new RegExp('\\s*' + marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'i');
+  return text.replace(re, '');
+}
+
+const xmlEsc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/**
+ * The `<SceneProperties>` block for a scene heading. The original block (arc
+ * beats, page, length) is written back as it was; only the synopsis, which the
+ * app lets the writer edit, is patched in. Without an original it is just the
+ * synopsis, or nothing when there is none.
+ */
+export function sceneProperties(raw: unknown, synopsis: unknown, indent: string): string {
+  const syn = typeof synopsis === 'string' ? synopsis.trim() : '';
+  if (typeof raw === 'string' && raw) {
+    try {
+      const doc = new DOMParser().parseFromString(raw, 'text/xml');
+      const sp = doc.documentElement;
+      if (!doc.querySelector('parsererror') && sp.tagName === 'SceneProperties') {
+        const summary = Array.from(sp.children).find((c) => c.tagName === 'Summary');
+        const current = (summary?.textContent ?? '').trim();
+        if (current !== syn) {
+          if (!syn) {
+            summary?.remove();
+          } else {
+            let target = summary;
+            if (!target) {
+              target = doc.createElement('Summary');
+              sp.insertBefore(target, sp.firstChild);
+            }
+            target.textContent = '';
+            const p = doc.createElement('Paragraph');
+            const t = doc.createElement('Text');
+            t.textContent = syn;
+            p.appendChild(t);
+            target.appendChild(p);
+          }
+        }
+        return indent + new XMLSerializer().serializeToString(sp);
+      }
+    } catch (err) {
+      console.warn('[fdx] could not reuse the original scene properties', err);
+    }
+  }
+  if (!syn) return '';
+  return [
+    indent + '<SceneProperties>',
+    indent + '  <Summary>',
+    indent + '    <Paragraph>',
+    indent + '      <Text>' + xmlEsc(syn) + '</Text>',
+    indent + '    </Paragraph>',
+    indent + '  </Summary>',
+    indent + '</SceneProperties>',
+  ].join('\n');
 }

@@ -449,6 +449,14 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     const sceneNumber = para.getAttribute('Number');
     if (sceneNumber) attrs.sceneNumber = sceneNumber;
 
+    // Kept as the file had them, written back on save.
+    const fdxId = para.getAttribute('id');
+    if (fdxId) attrs.fdxId = fdxId;
+    if (nodeType === 'sceneHeading') {
+      const sceneProps = para.querySelector(':scope > SceneProperties');
+      if (sceneProps) attrs.fdxSceneProps = new XMLSerializer().serializeToString(sceneProps);
+    }
+
     // Scene heading synopsis from SceneProperties/Summary
     if (nodeType === 'sceneHeading') {
       const summaryEl = para.querySelector(':scope > SceneProperties > Summary');
@@ -493,6 +501,16 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
         }
       }
 
+      // A tag Final Draft puts on particular words; carried so it can be written back.
+      // Also carries "this run spelled out black", since Final Draft does not
+      // write a Color on every run and the file should come back the same.
+      const adornment = textEl.getAttribute('AdornmentStyle');
+      const rawColor = textEl.getAttribute('Color');
+      const explicitBlack = !!rawColor && normalizeColor(rawColor) === '#000000';
+      if (adornment || explicitBlack) {
+        marks.push({ type: 'fdxAdornment', attrs: { style: adornment || '', black: explicitBlack } });
+      }
+
       const fontName = textEl.getAttribute('Font');
       const fontSizeVal = textEl.getAttribute('Size');
       const fontColor = textEl.getAttribute('Color');
@@ -529,6 +547,11 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
         textNodes.push(textNode);
       });
     });
+
+    // A character cue as typed (AnSA), since the editor shows and stores it in capitals.
+    if (nodeType === 'character' && hasContent) {
+      attrs.fdxText = Array.from(textElements).map((t) => t.textContent || '').join('');
+    }
 
     const node: TipTapNode = { type: nodeType };
     if (Object.keys(attrs).length > 0) node.attrs = attrs;
