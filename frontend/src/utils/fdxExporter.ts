@@ -350,7 +350,7 @@ function getTextAttributes(marks?: MarkInfo[], blockRevision?: string): string {
   return parts.length > 0 ? ' ' + parts.join(' ') : '';
 }
 
-import { autoContdMarker, stripAutoContd, sceneProperties, titleLineSignature } from './fdxPreserve';
+import { autoContdMarker, stripAutoContd, sceneProperties, titleLineSignature, mergeFdxRaw, settingsSignature, type FdxRaw } from './fdxPreserve';
 
 /**
  * A title page opened from a Final Draft file, written back line for line.
@@ -812,8 +812,13 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
   return lines.join('\n');
 }
 
-export async function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont, footnotes?: FootnotePlan | null, revisions?: FDXRevisionState, options: FDXExportOptions = {}) {
-  const xml = exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns, pageLayout, documentFont, footnotes, revisions, options);
+export async function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont, footnotes?: FootnotePlan | null, revisions?: FDXRevisionState, options: FDXExportOptions = {}, fdxRaw?: FdxRaw | null) {
+  // The sections the file arrived with go back as they were, the same as a normal save.
+  const xml = mergeFdxRaw(
+    exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns, pageLayout, documentFont, footnotes, revisions, options),
+    fdxRaw ?? undefined,
+    settingsSignature(pageLayout, documentFont, characterProfiles),
+  );
   const filename = `${sanitizeExportFilename(title)}.fdx`;
   const { saveFile } = await import('./fileOps');
   await saveFile(xml, filename, [{ name: 'Final Draft', extensions: ['fdx'] }]);

@@ -1668,7 +1668,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { family: s.fontFamily, size: s.fontSize },
         buildExportFootnotePlan(editor.getJSON(), s.pageLayout, s.notes, s.generalNotes),
         { mode: s.revisionMode, color: s.revisionColor, settings: s.revisionSettings },
-          { sceneNumbersVisible: s.sceneNumbersVisible });
+          { sceneNumbersVisible: s.sceneNumbersVisible }, s.fdxRaw);
     } catch (err) {
       console.error('FDX export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
