@@ -87,11 +87,6 @@
         "description": "Open Screenplay Format"
       },
       {
-        "ext": ["odraft"],
-        "mimeType": "application/json",
-        "description": "WriTea Draft Screenplay"
-      },
-      {
         "ext": ["txt"],
         "mimeType": "text/plain",
         "description": "Text File"

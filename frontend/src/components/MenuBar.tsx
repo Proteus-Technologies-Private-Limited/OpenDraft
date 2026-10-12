@@ -78,7 +78,7 @@ import DocumentOpenElsewhereDialog from './DocumentOpenElsewhereDialog';
  * (utils/osfExporter); before that, opening one would have promised a Save it
  * could not honour.
  */
-const IN_PLACE_EDITABLE_EXTENSIONS = ['odraft', 'fdx', 'fountain', 'fadein', 'osf', 'txt'];
+const IN_PLACE_EDITABLE_EXTENSIONS = ['fdx', 'fountain', 'fadein', 'osf', 'txt'];
 
 /** Of those, the ones that are containers rather than text. */
 const IN_PLACE_BINARY_EXTENSIONS = ['fadein'];
@@ -1331,7 +1331,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // Every format but WriTea Draft's own loses something on the way back out,
       // and the writer should hear that when they open the file rather than
       // discover it later in a file that no longer has their notes.
-      if (ext === 'odraft') {
+      if (ext === 'fdx') {
         showToast(`Editing ${opened.name} — Save writes back to this file.`, 'success');
       } else {
         setForeignFormatNotice({ name: opened.name, extension: ext });

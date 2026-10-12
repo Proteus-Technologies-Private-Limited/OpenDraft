@@ -28,7 +28,7 @@ import type {
 } from '../stores/editorStore';
 
 /** Formats a project folder can be set to write new scripts in. */
-export const LINKED_FILE_FORMATS = ['odraft', 'fountain', 'fdx'] as const;
+export const LINKED_FILE_FORMATS = ['fdx'] as const;
 
 /** Every format a linked file can be in: the above, plus .osf found in a folder. */
 export type LinkedFileFormat = 'odraft' | 'fountain' | 'fdx' | 'osf';
@@ -42,7 +42,7 @@ export const LINKED_FORMAT_LABELS: Record<LinkedFileFormat, string> = {
   osf: 'Open Screenplay Format (.osf)',
 };
 
-export const DEFAULT_LINKED_FORMAT: LinkedFileFormat = 'odraft';
+export const DEFAULT_LINKED_FORMAT: LinkedFileFormat = 'fdx';
 
 /** Lower-case extension of a file name or path, without the dot; '' if none. */
 export function extensionOfPath(path: string): string {

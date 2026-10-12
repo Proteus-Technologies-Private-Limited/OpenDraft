@@ -561,7 +561,7 @@ export type OpenInPlaceOutcome =
  * refused after the fact.
  */
 const SCREENPLAY_IN_PLACE_FILTERS: FileFilter[] = [
-  { name: 'Screenplay', extensions: ['odraft', 'fdx', 'fountain', 'fadein', 'osf', 'txt'] },
+  { name: 'Screenplay', extensions: ['fdx', 'fountain', 'fadein', 'osf', 'txt'] },
 ];
 
 /** True where {@link openDocumentInPlace} can be used — everywhere but the web. */

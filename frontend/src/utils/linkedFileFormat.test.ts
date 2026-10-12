@@ -41,10 +41,10 @@ describe('formats', () => {
     expect(isLinkableExtension('docx')).toBe(false);
   });
 
-  it('falls back to .odraft for anything it cannot write', () => {
+  it('falls back to .fdx for anything it cannot write', () => {
     expect(normalizeLinkedFormat('.Fountain')).toBe('fountain');
-    expect(normalizeLinkedFormat('pdf')).toBe('odraft');
-    expect(normalizeLinkedFormat(undefined)).toBe('odraft');
+    expect(normalizeLinkedFormat('pdf')).toBe('fdx');
+    expect(normalizeLinkedFormat(undefined)).toBe('fdx');
   });
 
   it('reads the extension off Windows and POSIX paths', () => {

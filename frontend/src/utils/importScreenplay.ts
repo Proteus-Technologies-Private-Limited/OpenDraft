@@ -28,7 +28,6 @@ export const SCREENPLAY_IMPORT_EXTENSIONS = [
   'fdx',
   'fadein',
   'osf',
-  'odraft',
   'txt',
 ] as const;
 
@@ -61,7 +60,6 @@ const FORMAT_LABELS: Record<string, string> = {
   fountain: 'Fountain (.fountain)',
   fadein: 'Fade In (.fadein)',
   osf: 'Open Screenplay Format (.osf)',
-  odraft: 'WriTea Draft (.odraft)',
 };
 
 /** Human-readable name for the format an extension denotes. */

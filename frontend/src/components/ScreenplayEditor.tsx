@@ -116,7 +116,7 @@ import { useBackupScheduler } from '../hooks/useBackupScheduler';
 import { useRecoverySnapshot } from '../hooks/useRecoverySnapshot';
 import { useOpenDocumentGuard } from '../hooks/useOpenDocumentGuard';
 /** Formats Save can write back, so a file opened from the OS can stay attached. */
-const IN_PLACE_ORIGIN_EXTENSIONS = ['odraft', 'fdx', 'fountain', 'fadein', 'osf', 'txt'];
+const IN_PLACE_ORIGIN_EXTENSIONS = ['fdx', 'fountain', 'fadein', 'osf', 'txt'];
 import { documentKey } from '../services/openDocuments';
 import RecoveryPromptDialog from './RecoveryPromptDialog';
 import SceneSpacingPromptDialog from './SceneSpacingPromptDialog';
@@ -4137,7 +4137,7 @@ const ScreenplayEditor: React.FC = () => {
           name: filename,
           format,
         });
-        if (format === 'odraft') {
+        if (format === 'fdx') {
           showToast(`Editing ${filename} — Save writes back to this file.`, 'success');
         } else {
           // Same explanation the menu's own open gives: this file is in another

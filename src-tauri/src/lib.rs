@@ -567,7 +567,6 @@ fn android_query_mime_extension(
     // Map common MIME types to file extensions
     match mime.as_str() {
         "application/xml" | "text/xml" => Some("fdx".to_string()),
-        "application/json" => Some("odraft".to_string()),
         "text/plain" => Some("txt".to_string()),
         "text/fountain" => Some("fountain".to_string()),
         "application/pdf" => Some("pdf".to_string()),
@@ -1682,7 +1681,7 @@ fn android_backup_probe(tree_uri: String) -> Result<FolderProbe, String> {
 struct PendingFile(Mutex<Option<String>>);
 
 /// Extensions that WriTea Draft can open via file association.
-const OPENABLE_EXTENSIONS: &[&str] = &["fdx", "fountain", "fadein", "osf", "odraft", "txt"];
+const OPENABLE_EXTENSIONS: &[&str] = &["fdx", "fountain", "fadein", "osf", "txt"];
 
 fn is_openable_file(path: &str) -> bool {
     let ext = path.rsplit('.').next().unwrap_or("");

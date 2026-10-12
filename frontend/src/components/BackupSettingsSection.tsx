@@ -142,7 +142,7 @@ const BackupSettingsSection: React.FC = () => {
         <p className="settings-section-desc">
           Timed backups write files to a folder you choose, which needs the
           WriTea Draft app — a browser tab cannot hold on to a folder. In the
-          browser, use <strong>File → Export → WriTea Draft (.odraft)</strong> to
+          browser, use <strong>File → Export → Final Draft (.fdx)</strong> to
           save a copy wherever you like.
         </p>
       </section>

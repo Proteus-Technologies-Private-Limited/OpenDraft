@@ -225,10 +225,8 @@ const SaveSettingsSection: React.FC = () => {
               ))}
             </Select>
             <div className="settings-hint">
-              .odraft keeps everything. Final Draft and Fountain files open in
-              other apps, but notes, tags and other WriTeaDraft-only details are
-              kept only in WriTea Draft&apos;s working copy. Treatments are always saved
-              as .odraft.
+              Scripts are saved as Final Draft (.fdx) files. Treatments cannot be
+              written as screenplays, so they are kept in WriTea Draft&apos;s own format.
             </div>
           </div>
         </>

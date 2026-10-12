@@ -290,7 +290,7 @@ const ProjectList: React.FC = () => {
   const canUseFolders = isDesktopTauri();
   const [newLocation, setNewLocation] = useState<'library' | 'folder'>('library');
   const [newFolderPicked, setNewFolderPicked] = useState<string | null>(null);
-  const [newFileFormat, setNewFileFormat] = useState<string>('odraft');
+  const [newFileFormat, setNewFileFormat] = useState<string>('fdx');
   const [source, setSource] = useState<ProjectSource>(() => {
     if (WEB_ONLY_CLOUD) return 'cloud';
     return ((localStorage.getItem('writeadraft:projectSource') as ProjectSource) || 'local');

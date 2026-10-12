@@ -340,7 +340,6 @@ const SortableScriptRow: React.FC<SortableScriptRowProps> = ({
           <div className="dropdown-item" onClick={() => { onExport(script.id, 'fdx'); setShowActions(false); }}>Export as FDX</div>
           <div className="dropdown-item" onClick={() => { onExport(script.id, 'fountain'); setShowActions(false); }}>Export as Fountain</div>
           <div className="dropdown-item" onClick={() => { onExport(script.id, 'pdf'); setShowActions(false); }}>Export as PDF</div>
-          <div className="dropdown-item" onClick={() => { onExport(script.id, 'odraft'); setShowActions(false); }}>Export as .odraft</div>
           {onFileAction && (
             <FileMenuItems scriptId={script.id} filePath={filePath} onFileAction={onFileAction} close={() => setShowActions(false)} />
           )}
@@ -541,7 +540,6 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
           <div className="dropdown-item" onClick={() => { onExport(script.id, 'fdx'); setShowActions(false); }}>Export as FDX</div>
           <div className="dropdown-item" onClick={() => { onExport(script.id, 'fountain'); setShowActions(false); }}>Export as Fountain</div>
           <div className="dropdown-item" onClick={() => { onExport(script.id, 'pdf'); setShowActions(false); }}>Export as PDF</div>
-          <div className="dropdown-item" onClick={() => { onExport(script.id, 'odraft'); setShowActions(false); }}>Export as .odraft</div>
           {onFileAction && (
             <FileMenuItems scriptId={script.id} filePath={filePath} onFileAction={onFileAction} close={() => setShowActions(false)} />
           )}
@@ -706,8 +704,6 @@ const ProjectView: React.FC = () => {
         title: 'Save to File',
         defaultPath: lf.joinPath(dir, linkedFileName(script?.title || 'Untitled', format)),
         filters: [
-          { name: 'WriTea Draft', extensions: ['odraft'] },
-          { name: 'Fountain', extensions: ['fountain'] },
           { name: 'Final Draft', extensions: ['fdx'] },
         ],
       });
