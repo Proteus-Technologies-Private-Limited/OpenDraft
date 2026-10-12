@@ -1191,6 +1191,8 @@ const ScreenplayEditor: React.FC = () => {
     visible: boolean;
     position: { top: number; left: number };
     suggestions: string[];
+    /** Offset within the block where a pick starts replacing (0 = whole block). */
+    replaceFrom?: number;
   }>({ visible: false, position: { top: 0, left: 0 }, suggestions: [] });
   const charAutoDismissedRef = useRef(false);
 
@@ -1647,13 +1649,19 @@ const ScreenplayEditor: React.FC = () => {
             // Check if next type is a built-in or custom element
             const isBuiltIn = ALL_ELEMENT_TYPES.includes(nextId as ElementType);
 
+            // On an empty line Tab turns that line into the next element, as in
+            // Final Draft. Splitting first left a blank line of the old type
+            // behind, which threw off the spacing between characters.
+            const onEmptyLine = currentNode.content.size === 0;
+            const startNext = () => (onEmptyLine ? editor.chain() : editor.chain().splitBlock());
+
             if (isBuiltIn) {
-              return editor.chain().splitBlock().setNode(nextId).run();
+              return startNext().setNode(nextId).run();
             } else {
               // Custom element
               const nextRule = activeTemplate.rules[nextId];
               if (nextRule) {
-                return editor.chain().splitBlock().setNode('customElement', {
+                return startNext().setNode('customElement', {
                   customTypeId: nextId,
                   customLabel: nextRule.label,
                 }).run();
@@ -2181,6 +2189,11 @@ const ScreenplayEditor: React.FC = () => {
   useEffect(() => {
     if (!editor) return;
     const SCENE_INTROS = ['INT.', 'EXT.', 'INT./EXT.', 'EXT./INT.', 'I/E.'];
+    const SCENE_TIMES = [
+      'DAY', 'NIGHT', 'DAWN', 'DUSK', 'MORNING', 'AFTERNOON', 'EVENING',
+      'CONTINUOUS', 'LATER', 'LATER THAT DAY', 'MOMENTS LATER', 'SOON',
+      'SHORTLY', 'SHORTLY AFTER', 'SAME', 'SAME TIME',
+    ];
     const onUpdate = () => {
       const inScene = editor.isActive('sceneHeading');
       if (!editor.isActive('character') && !inScene) {
@@ -2195,8 +2208,29 @@ const ScreenplayEditor: React.FC = () => {
       // Scene heading: offer the scene intros while the heading is still just
       // the first few letters of one. Picking one writes it plus a space.
       if (inScene) {
-        const typed = $from.parent.textContent.toUpperCase();
+        const headingText = $from.parent.textContent;
         const atEnd = $from.parentOffset === $from.parent.content.size;
+
+        // After " - " offer the times of day, replacing only what follows it.
+        const dash = headingText.lastIndexOf(' - ');
+        if (dash >= 0) {
+          const fragment = headingText.slice(dash + 3).toUpperCase();
+          const times = SCENE_TIMES.filter(n => n.startsWith(fragment));
+          if (!atEnd || SCENE_TIMES.includes(fragment) || times.length === 0) {
+            setCharAutoState(s => s.visible ? { ...s, visible: false } : s);
+            return;
+          }
+          const timeCoords = editor.view.coordsAtPos(editor.state.selection.from);
+          setCharAutoState({
+            visible: true,
+            position: { top: timeCoords.bottom + 4, left: timeCoords.left },
+            suggestions: times,
+            replaceFrom: dash + 3,
+          });
+          return;
+        }
+
+        const typed = headingText.toUpperCase();
         const intros = SCENE_INTROS.filter(n => n.startsWith(typed));
         if (!typed || !atEnd || SCENE_INTROS.includes(typed) || intros.length === 0) {
           setCharAutoState(s => s.visible ? { ...s, visible: false } : s);
@@ -4570,9 +4604,10 @@ const ScreenplayEditor: React.FC = () => {
 
   const handleCharAutoSelect = useCallback((name: string) => {
     if (!editor) return;
-    // Replace the current character block text with the selected name
+    // Replace the block text (or, for a time of day, just the part after the
+    // dash) with the pick
     const { $from } = editor.state.selection;
-    const start = $from.start();
+    const start = $from.start() + (charAutoState.replaceFrom ?? 0);
     const end = $from.end();
     editor.chain().focus()
       .command(({ tr }) => {
@@ -4581,7 +4616,7 @@ const ScreenplayEditor: React.FC = () => {
       })
       .run();
     setCharAutoState(s => ({ ...s, visible: false }));
-  }, [editor]);
+  }, [editor, charAutoState.replaceFrom]);
 
   const handleCharAutoDismiss = useCallback(() => {
     setCharAutoState(s => ({ ...s, visible: false }));

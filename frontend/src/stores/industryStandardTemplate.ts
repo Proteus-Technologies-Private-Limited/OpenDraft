@@ -84,7 +84,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       textColor: '#009400',
       leftIndent: 2.50,
       rightIndent: 6.00,
-      nextOnEnter: 'dialogue',
+      nextOnEnter: 'action',
       nextOnTab: 'parenthetical',
       placeholder: 'Dialogue...',
     }),
@@ -103,6 +103,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       marginTop: 12,
       leftIndent: 5.50,
       nextOnEnter: 'sceneHeading',
+      nextOnTab: 'sceneHeading',
       placeholder: 'TRANSITION:',
     }),
     general: rule('general', 'General (Unformatted text)', {
