@@ -182,6 +182,20 @@ function replaceTitleRegion(editor: Editor, built: PMNode[], deliberate = false)
 const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
   const [data, setData] = useState<Omit<TitlePageAttrs, 'field'>>({ ...EMPTY_ATTRS });
   const freeForm = isFreeFormTitlePage(editor);
+  const formRef = useRef<HTMLDivElement>(null);
+  // A free-form page is edited on the page, so the form is switched off for
+  // good: not clickable, not reachable with Tab, and not holding the focus.
+  useEffect(() => {
+    const el = formRef.current;
+    if (!el) return;
+    if (freeForm) {
+      el.setAttribute('inert', '');
+      const active = document.activeElement as HTMLElement | null;
+      if (active && el.contains(active)) active.blur();
+    } else {
+      el.removeAttribute('inert');
+    }
+  }, [freeForm]);
 
   // Whether the title page goes out with print, PDF and Word. Unlike every
   // other control here it takes effect the moment it is ticked, and Cancel does
@@ -315,7 +329,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
           </p>
         )}
         <div className="tp-editor-body">
-          <div className="tp-editor-form" style={freeForm ? { opacity: 0.45, pointerEvents: 'none' } : undefined}>
+          <div className="tp-editor-form" ref={formRef} style={freeForm ? { opacity: 0.45, pointerEvents: 'none' } : undefined}>
             {showField('tpTitle') && (
             <div className="props-field props-field-wide">
               <label className="props-label">Title</label>
@@ -324,7 +338,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
                 value={data.tpTitle}
                 onChange={(e) => setField('tpTitle', e.target.value)}
                 placeholder="SCREENPLAY TITLE"
-                autoFocus
+                autoFocus={!freeForm}
               />
             </div>
             )}
@@ -554,7 +568,7 @@ const TitlePageEditor: React.FC<Props> = ({ editor, onClose }) => {
             Delete Title Page
           </button>
           <button onClick={onClose}>Cancel</button>
-          <button className="dialog-primary" onClick={handleApply} disabled={freeForm}>
+          <button className="dialog-primary" onClick={handleApply} disabled={freeForm} style={freeForm ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}>
             Apply
           </button>
         </div>
