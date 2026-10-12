@@ -359,6 +359,27 @@ import { autoContdMarker, stripAutoContd, sceneProperties, titleLineSignature, m
  * line left as it was opened goes back as the file had it, byte for byte; a
  * line that was edited is written from what is on screen, so no edit is lost.
  */
+/**
+ * The opening tag for an edited title-page paragraph: the file's own paragraph
+ * settings (indents, leading, spacing, outline level) are kept, and only the
+ * alignment follows what is on the page now.
+ */
+function freeParagraphOpen(raw: string, align: string): string {
+  const attrs: string[] = [];
+  let hasAlign = false;
+  const m = /^<Paragraph\b([^>]*?)\/?>/.exec(raw);
+  if (m) {
+    const re = /([A-Za-z_:][\w:.-]*)="([^"]*)"/g;
+    let x: RegExpExecArray | null;
+    while ((x = re.exec(m[1])) !== null) {
+      if (x[1] === 'Alignment') { attrs.push(`Alignment="${align}"`); hasAlign = true; }
+      else attrs.push(`${x[1]}="${x[2]}"`);
+    }
+  }
+  if (!hasAlign) attrs.unshift(`Alignment="${align}"`);
+  return `<Paragraph ${attrs.join(' ')}>`;
+}
+
 function buildFreeTitlePage(nodes: JSONContent[]): string[] {
   const first = nodes[0]?.attrs ?? {};
   const out: string[] = ['  <TitlePage>'];
@@ -372,7 +393,7 @@ function buildFreeTitlePage(nodes: JSONContent[]): string[] {
       continue;
     }
     const align = a.align === 'center' ? 'Center' : a.align === 'right' ? 'Right' : a.align === 'justify' ? 'Full' : 'Left';
-    out.push(`      <Paragraph Alignment="${align}">`);
+    out.push(`      ${freeParagraphOpen(raw, align)}`);
     let wrote = false;
     for (const child of node.content ?? []) {
       if (child.type === 'hardBreak') {
