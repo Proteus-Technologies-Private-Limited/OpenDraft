@@ -18,7 +18,7 @@ import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
 import { exportFadeIn } from '../utils/osfExporter';
 import {
-  serializeContentForFormat, extensionOfPath, normalizeLinkedFormat, linkedFileName,
+  serializeContentForFormat, extensionOfPath, linkedFileName,
 } from '../utils/linkedFileFormat';
 import { useLinkedFileStore, autoSaveAppliesToOpenDocument } from '../stores/linkedFileStore';
 import { exportPDF, renderPDF, type PDFExportOptions } from '../utils/pdfExporter';
@@ -159,7 +159,6 @@ import {
   FaAdjust,
   FaToolbox,
   FaSignInAlt,
-  FaProjectDiagram,
   FaFilm,
   FaBoxes,
   FaBars,
@@ -491,10 +490,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
     await leaveEditorScreen(go);
   }, []);
 
-  const goToProjects = useCallback(
-    () => { void leaveEditor(() => navigate('/projects')); },
-    [leaveEditor, navigate],
-  );
   const goToSettings = useCallback(
     () => { void leaveEditor(() => navigate('/settings')); },
     [leaveEditor, navigate],
@@ -610,44 +605,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
   }, [editor, currentProject, currentScriptId, buildSaveContent, serializeForOrigin, onDocumentSaved]);
   saveToFileAsRef.current = handleSaveToFileAs;
 
-  /**
-   * Open Folder as Project… (desktop, issue #135): the folder becomes a
-   * project, its screenplay files become its scripts, and the project keeps
-   * saving to them.
-   */
-  const handleOpenFolderAsProject = useCallback(async () => {
-    try {
-      const lf = await import('../services/linkedFiles');
-      const folder = await lf.pickFolder('Open Folder as Project');
-      if (!folder) return;
-
-      const existing = (await api.listProjects()).find((p) => {
-        const f = lf.projectFolder(p);
-        return f !== null && lf.samePath(f, folder);
-      });
-      if (existing) {
-        showToast(`That folder is already the project "${existing.name}".`, 'info');
-        void leaveEditor(() => navigate(`/project/${existing.id}`, { state: { from: '/projects' } }));
-        return;
-      }
-
-      const { project, scan } = await lf.createProjectInFolder(
-        lf.projectNameForFolder(folder),
-        folder,
-        normalizeLinkedFormat(useSettingsStore.getState().defaultFileFormat),
-      );
-      const found = `${scan.added} script${scan.added === 1 ? '' : 's'} found`;
-      if (scan.failed.length > 0) {
-        showToast(`Opened ${project.name}: ${found}; could not read ${scan.failed.join(', ')}.`, 'info');
-      } else {
-        showToast(`Opened ${project.name}: ${found}.`, 'success');
-      }
-      void leaveEditor(() => navigate(`/project/${project.id}`, { state: { from: '/projects' } }));
-    } catch (err) {
-      console.error('Open folder as project failed:', err);
-      showToast(`Could not open the folder: ${err instanceof Error ? err.message : String(err)}`, 'error');
-    }
-  }, [leaveEditor, navigate]);
 
   // ── Unsaved-changes confirmation before New / Import ──
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
@@ -2349,14 +2306,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
           action: () => confirmOrRun(handleOpenInPlace),
           disabled: isCollabGuest,
         }] : []),
-        // Desktop: a folder of screenplay files becomes a project that keeps
-        // saving to them (issue #135).
-        ...(isDesktopTauri() ? [{
-          icon: <FaFolderOpen />,
-          label: 'Open Folder as Project…',
-          action: () => { void handleOpenFolderAsProject(); },
-          disabled: isCollabGuest,
-        }] : []),
         {
           // "Close Script", not "Close": the menu bar lives inside the window on
           // touch platforms, with no window chrome around it to make plain
@@ -2771,7 +2720,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {
       label: 'Tools',
       items: [
-        { icon: <FaProjectDiagram />, label: 'Manage Projects…', action: goToProjects, disabled: isCollabGuest },
         { icon: <FaBoxes />, label: 'Asset Manager', action: () => useAssetStore.getState().toggleAssetManager() },
         { separator: true, label: '' },
         {

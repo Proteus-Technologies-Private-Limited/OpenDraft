@@ -1,8 +1,6 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import ScreenplayEditor from './components/ScreenplayEditor';
 import TreatmentEditor from './components/TreatmentEditor';
-import ProjectList from './components/ProjectList';
-import ProjectView from './components/ProjectView';
 import SettingsPage from './components/SettingsPage';
 import Toast from './components/Toast';
 import StorageFallbackDialog from './components/StorageFallbackDialog';
@@ -20,10 +18,6 @@ function App() {
   // Plugins (e.g. Pro) can swap built-in route components without
   // forking this file. Each lookup returns the registered override or
   // falls back to the core component.
-  const ProjectViewC =
-    pluginRegistry.getRouteOverride('/project/:projectId') ?? ProjectView;
-  const ProjectListC =
-    pluginRegistry.getRouteOverride('/projects') ?? ProjectList;
   const SettingsPageC =
     pluginRegistry.getRouteOverride('/settings') ?? SettingsPage;
 
@@ -31,8 +25,9 @@ function App() {
     <>
       <Routes>
         <Route path="/" element={<ScreenplayEditor />} />
-        <Route path="/projects" element={<ProjectListC />} />
-        <Route path="/project/:projectId" element={<ProjectViewC />} />
+        {/* The project screens are gone; old links land in the editor. */}
+        <Route path="/projects" element={<Navigate to="/" replace />} />
+        <Route path="/project/:projectId" element={<Navigate to="/" replace />} />
         <Route path="/project/:projectId/edit/:scriptId" element={<ScreenplayEditor />} />
         <Route path="/project/:projectId/treatment/:scriptId" element={<TreatmentEditor />} />
         <Route path="/project/:projectId/history/:scriptId/:commitHash" element={<ScreenplayEditor />} />
