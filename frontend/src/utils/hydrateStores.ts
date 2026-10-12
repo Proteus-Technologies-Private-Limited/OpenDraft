@@ -72,6 +72,8 @@ export function hydrateEditorStoresFromContent(
   if (c._pageLayout !== undefined) {
     store.setPageLayout(parseAttr(c._pageLayout, DEFAULT_PAGE_LAYOUT));
   }
+  store.setFdxRaw(c._fdxRaw && typeof c._fdxRaw === 'object' && (c._fdxRaw as { sections?: unknown }).sections
+    ? (c._fdxRaw as import('./fdxPreserve').FdxRaw) : null);
   store.setSceneHeadingSpaceBefore(resolveSceneHeadingSpaceBefore(content));
   restoreRevisionState(content);
   // Always set: a script saved before profiles existed opens as Standard with

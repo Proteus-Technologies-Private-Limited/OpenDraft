@@ -55,6 +55,7 @@ export const SAVE_METADATA_KEYS = [
   '_revisionHistory',
   '_revisionSettings',
   '_scriptProfile',
+  '_fdxRaw',
 ] as const;
 
 export type SaveMetadataKey = (typeof SAVE_METADATA_KEYS)[number];
@@ -109,6 +110,8 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
     _revisionSettings: store.revisionSettings,
     // Pacing (which scales the runtime estimate) and genres.
     _scriptProfile: store.scriptProfile,
+    // The parts of an opened .fdx this app does not model, written back on save.
+    _fdxRaw: store.fdxRaw,
   };
 }
 

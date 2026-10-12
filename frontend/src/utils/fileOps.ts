@@ -730,6 +730,26 @@ function pollForPick(
   });
 }
 
+/** Paths whose original contents were already kept during this session. */
+const originalKept = new Set<string>();
+
+/**
+ * Keep a copy of the file as it is now before the first overwrite. If the copy
+ * cannot be made the save is refused: the original may be the only one.
+ */
+async function keepOriginalOnce(path: string): Promise<void> {
+  if (originalKept.has(path)) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  try {
+    await invoke('keep_original_copy', { path });
+  } catch (err) {
+    throw new Error(
+      `Could not keep a safety copy of the original file, so it was left unchanged (${err instanceof Error ? err.message : String(err)}).`,
+    );
+  }
+  originalKept.add(path);
+}
+
 /**
  * Write text back over the document the user opened.
  *
@@ -765,6 +785,8 @@ export async function saveDocumentInPlace(
   if (!isTauri()) {
     throw new Error('Saving a file in place is not available in the browser.');
   }
+
+  await keepOriginalOnce(bookmark);
 
   // Desktop: the bookmark is the path. save_text_atomic writes through a
   // temporary file, which is what keeps a half-written screenplay from

@@ -19,6 +19,7 @@ import { exportFDX } from './fdxExporter';
 import { exportFountain } from './fountainExporter';
 import { exportOSF } from './osfExporter';
 import { serializeOdraft } from './odraftFormat';
+import { mergeFdxRaw, isFdxRaw } from './fdxPreserve';
 import { stripSaveMetadata } from './saveContent';
 import { readRevisionState } from './revisionState';
 import { sanitizeForFilename } from './backupNaming';
@@ -140,7 +141,7 @@ export function serializeContentForFormat(
 
   switch (format) {
     case 'fdx':
-      return exportFDX(
+      return mergeFdxRaw(exportFDX(
         doc, title,
         asArray<CharacterProfile>(m._characterProfiles),
         asArray<TagCategory>(m._tagCategories),
@@ -152,7 +153,7 @@ export function serializeContentForFormat(
         undefined,
         { mode: revision.revisionMode, color: revision.revisionColor, settings: revision.revisionSettings },
         { sceneNumbersVisible },
-      );
+      ), isFdxRaw(m._fdxRaw) ? m._fdxRaw : undefined);
     case 'fountain':
     case 'txt':
       return exportFountain(doc, { revisionSettings: revision.revisionSettings, sceneNumbersVisible });

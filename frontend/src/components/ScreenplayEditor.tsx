@@ -3416,6 +3416,8 @@ const ScreenplayEditor: React.FC = () => {
             if (typeof c._sceneNumbersLocked === 'boolean') {
               store.setSceneNumbersLocked(c._sceneNumbersLocked);
             }
+            store.setFdxRaw(c._fdxRaw && typeof c._fdxRaw === 'object' && (c._fdxRaw as { sections?: unknown }).sections
+              ? (c._fdxRaw as import('../utils/fdxPreserve').FdxRaw) : null);
             // Restore per-document formatting template
             if (c._templateId && typeof c._templateId === 'string') {
               useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);

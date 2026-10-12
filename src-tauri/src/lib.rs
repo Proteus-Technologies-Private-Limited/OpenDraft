@@ -1681,6 +1681,34 @@ fn android_backup_probe(tree_uri: String) -> Result<FolderProbe, String> {
 struct PendingFile(Mutex<Option<String>>);
 
 /// Extensions that WriTea Draft can open via file association.
+/// Before the app first overwrites an existing document, keep a copy of what
+/// is there now in the app's own data folder. The copy's name carries a
+/// fingerprint of its contents, so an unchanged file is never copied twice.
+/// Returns the path of the copy, or None when there was nothing to keep.
+#[tauri::command]
+fn keep_original_copy(app: tauri::AppHandle, path: String) -> Result<Option<String>, String> {
+    use std::hash::{Hash, Hasher};
+    let src = std::path::Path::new(&path);
+    if !src.is_file() {
+        return Ok(None);
+    }
+    let bytes = std::fs::read(src).map_err(|e| format!("could not read {}: {}", path, e))?;
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    bytes.hash(&mut hasher);
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("originals");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let name = src.file_name().and_then(|n| n.to_str()).unwrap_or("document");
+    let dest = dir.join(format!("{:016x}-{}", hasher.finish(), name));
+    if !dest.exists() {
+        std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
+    }
+    Ok(Some(dest.to_string_lossy().into_owned()))
+}
+
 const OPENABLE_EXTENSIONS: &[&str] = &["fdx", "fountain", "fadein", "osf", "txt"];
 
 fn is_openable_file(path: &str) -> bool {
@@ -2874,6 +2902,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            keep_original_copy,
             save_text_to_path,
             save_binary_to_path,
             read_text_file,

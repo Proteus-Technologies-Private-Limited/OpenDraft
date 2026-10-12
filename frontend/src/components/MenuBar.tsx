@@ -1492,6 +1492,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     // screenplay while a file was open in place left Save still aimed at that
     // file — so the next ⌘S wrote a blank document over the writer's script.
     store.setImportedSource(null);
+    store.setFdxRaw(null);
     store.setDocumentTitle('Untitled Screenplay');
     store.setBeats([]);
     store.setBeatColumns([]);

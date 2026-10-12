@@ -808,6 +808,9 @@ interface EditorState {
   setSceneNumbersVisible: (v: boolean) => void;
   sceneNumbersLocked: boolean;
   setSceneNumbersLocked: (v: boolean) => void;
+  /** Sections of an opened .fdx that WriTea Draft does not model, kept so a save can write them back. */
+  fdxRaw: import('../utils/fdxPreserve').FdxRaw | null;
+  setFdxRaw: (v: import('../utils/fdxPreserve').FdxRaw | null) => void;
 
   /**
    * Per-document override for the space before a scene heading, in points.
@@ -1320,6 +1323,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSceneNumbersVisible: (v) => set({ sceneNumbersVisible: v }),
   sceneNumbersLocked: false,
   setSceneNumbersLocked: (v) => set({ sceneNumbersLocked: v }),
+  fdxRaw: null,
+  setFdxRaw: (v) => set({ fdxRaw: v }),
 
   sceneHeadingSpaceBefore: null,
   setSceneHeadingSpaceBefore: (v) => set({ sceneHeadingSpaceBefore: v }),

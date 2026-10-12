@@ -19,6 +19,7 @@ import { parseOSF, parseFadeIn, type DocumentFont } from './osfParser';
 import { COURIER_FONTS } from './fonts';
 import { parseOdraft } from './odraftFormat';
 import { hydrateEditorStoresFromContent } from './hydrateStores';
+import { captureFdxRaw } from './fdxPreserve';
 import { restoreRevisionState } from './revisionState';
 import { useEditorStore, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
 
@@ -252,7 +253,10 @@ export async function parseScreenplayImport(
     throw new Error(`Expected text content for a ${formatLabel} file.`);
   }
 
-  if (hydrateStores) resetStoresForImport();
+  if (hydrateStores) {
+    resetStoresForImport();
+    useEditorStore.getState().setFdxRaw(null);
+  }
 
   if (ext === 'fadein') {
     const parsed = await parseFadeIn(data as ArrayBuffer);
@@ -270,11 +274,13 @@ export async function parseScreenplayImport(
 
   if (ext === 'fdx') {
     const parsed = parseFDXFull(text);
+    const fdxRaw = captureFdxRaw(text);
     if (hydrateStores) {
       applyFdxSideEffects(parsed);
       applyDocumentFont(parsed.documentFont);
+      useEditorStore.getState().setFdxRaw(fdxRaw);
     }
-    return { doc: parsed.doc, title: '', formatLabel, warnings: [], metadata: fdxMetadata(parsed) };
+    return { doc: parsed.doc, title: '', formatLabel, warnings: [], metadata: { ...fdxMetadata(parsed), _fdxRaw: fdxRaw } };
   }
 
   if (ext === 'odraft') {
