@@ -1573,8 +1573,8 @@ const ScreenplayEditor: React.FC = () => {
       priority: 999,
       addKeyboardShortcuts() {
         // Final Draft numbering: 1 Scene Heading, 2 Action, 3 Character, 4 Parenthetical,
-        // 5 Dialogue, 6 Transition, 7 Shot, 8 Cast List, 9 New Act.
-        const types = ['sceneHeading', 'action', 'character', 'parenthetical', 'dialogue', 'transition', 'shot', 'castList', 'newAct'];
+        // 5 Dialogue, 6 Transition, 7 Shot. (Cast List and New Act are hidden here.)
+        const types = ['sceneHeading', 'action', 'character', 'parenthetical', 'dialogue', 'transition', 'shot'];
         const shortcuts: Record<string, any> = {};
         shortcuts['Mod-0'] = ({ editor }: { editor: any }) => {
           if (!editor.schema.nodes.general) return false;

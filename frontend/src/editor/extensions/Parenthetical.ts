@@ -1,4 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
+
+const parentheticalAutoParens = new PluginKey('parentheticalAutoParens');
 
 export const Parenthetical = Node.create({
   name: 'parenthetical',
@@ -43,5 +46,30 @@ export const Parenthetical = Node.create({
           .run();
       },
     };
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: parentheticalAutoParens,
+        // Like Final Draft, a new parenthetical opens as "()" with the cursor
+        // between the brackets. It only fires when a line BECOMES an empty
+        // parenthetical: backspacing one empty must not bring the brackets back,
+        // and neither may undo or a collaborator's edit.
+        appendTransaction(transactions, oldState, newState) {
+          if (!transactions.some((tr) => tr.docChanged)) return null;
+          if (transactions.some((tr) => tr.getMeta('history$') || tr.getMeta('y-sync$'))) return null;
+          const { $from, empty } = newState.selection;
+          if (!empty) return null;
+          const parent = $from.parent;
+          if (parent.type.name !== 'parenthetical' || parent.content.size !== 0) return null;
+          if (oldState.selection.$from.parent.type.name === 'parenthetical') return null;
+          const start = $from.start();
+          const tr = newState.tr.insertText('()', start);
+          tr.setSelection(TextSelection.create(tr.doc, start + 1));
+          return tr;
+        },
+      }),
+    ];
   },
 });

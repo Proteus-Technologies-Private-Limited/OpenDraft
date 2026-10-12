@@ -94,7 +94,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       rightIndent: 5.50,
       nextOnEnter: 'dialogue',
       nextOnTab: 'dialogue',
-      placeholder: '(direction)',
+      placeholder: 'Parenthetical',
     }),
     transition: rule('transition', 'Transition', {
       textColor: '#FF9300',
@@ -117,6 +117,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       placeholder: 'SHOT DESCRIPTION',
     }),
     newAct: rule('newAct', 'New Act', {
+      enabled: false,
       bold: true,
       underline: true,
       textTransform: 'uppercase',
@@ -126,6 +127,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       placeholder: 'ACT ONE',
     }),
     endOfAct: rule('endOfAct', 'End of Act', {
+      enabled: false,
       bold: true,
       textTransform: 'uppercase',
       textAlign: 'center',
@@ -151,6 +153,7 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       placeholder: 'SHOW TITLE',
     }),
     castList: rule('castList', 'Cast List', {
+      enabled: false,
       textTransform: 'uppercase',
       leftIndent: 1.75,
       nextOnEnter: 'castList',
@@ -168,13 +171,16 @@ export const INDUSTRY_STANDARD_TEMPLATE: FormattingTemplate = {
       nextOnTab: 'action',
       placeholder: 'Alt...',
     }),
-    ...outlineRules(),
+    // Section and Note are Fountain outline elements that Final Draft does not have.
+    ...Object.fromEntries(
+      Object.entries(outlineRules()).map(([id, r]) => [id, { ...r, enabled: false }]),
+    ),
     // A two-column AV body. On in a screenplay because a screenplay genuinely
     // has them — a commercial inside a feature, a documentary insert, a music
     // video sequence — and because `Insert AV Columns` has always worked here;
     // this is what puts it in the element menu beside every other element,
     // rather than only in the Format menu.
-    ...avBlockRule(true),
+    ...avBlockRule(false),
     // The title page's own elements, so its typography is part of the template
     // rather than fixed in the stylesheet.
     ...titlePageRules(),
