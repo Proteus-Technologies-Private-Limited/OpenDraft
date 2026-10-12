@@ -1973,6 +1973,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
           e.preventDefault();
           if (!isCollabGuest) handleCloseDocument();
           break;
+        case 'o':
+          e.preventDefault();
+          if (!isCollabGuest && supportsOpenInPlace()) confirmOrRun(handleOpenInPlace);
+          break;
         case 'p':
           e.preventDefault();
           void handlePrint();
@@ -1998,7 +2002,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleSave, handleSaveAs, handleNewScreenplay, handleCloseDocument, handlePrint, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel, setSpellModalOpen, setGrammarModalOpen]);
+  }, [handleSave, handleSaveAs, handleNewScreenplay, handleCloseDocument, handlePrint, confirmOrRun, handleOpenInPlace, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel, setSpellModalOpen, setGrammarModalOpen]);
 
   const handleExportDocx = useCallback(async () => {
     if (!editor) return;
