@@ -211,7 +211,11 @@ function applyFdxSideEffects(parsed: ReturnType<typeof parseFDXFull>): void {
  */
 function applyDocumentFont(font: DocumentFont): void {
   const store = useEditorStore.getState();
-  if (font.family && !COURIER_FONTS.includes(font.family)) store.setFontFamily(font.family);
+  // Courier Final Draft is the one Courier worth keeping when a file names it:
+  // Final Draft's own face. A file saved from here goes back out claiming it,
+  // so it looks the same when it is reopened in Final Draft.
+  const keepsFace = font.family === 'Courier Final Draft' || !COURIER_FONTS.includes(font.family);
+  if (font.family && keepsFace) store.setFontFamily(font.family);
 
   const size = parseInt(font.size, 10);
   if (Number.isFinite(size) && size > 0 && size !== store.fontSize) store.setFontSize(size);
