@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { FaCloud, FaDesktop, FaPlus } from 'react-icons/fa';
+import { FaPlus } from 'react-icons/fa';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
-import { isWeb } from '../services/platform';
 import type { ProjectInfo } from '../services/api';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useEditorStore } from '../stores/editorStore';
@@ -45,9 +44,6 @@ interface SaveAsDialogProps {
   onProjectReady?: (projectId: string, destination: SaveDestination) => Promise<void>;
 }
 
-/** Web is always cloud-backed; the device/cloud toggle would be misleading. */
-const WEB_ONLY_CLOUD = isWeb();
-
 /** Banner shown when the user is saving a document that came from an external
  *  file (FDX, Fountain, DOCX, etc.). Clarifies that the save goes into
  *  WriTea Draft's library — it does *not* write back to the source file. */
@@ -78,7 +74,6 @@ const ImportedSourceNotice: React.FC = () => {
 const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
   defaultProjectName,
   defaultFileName,
-  defaultDestination,
   onSaved,
   onProjectReady,
   onClose,
@@ -91,9 +86,8 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
   const [error, setError] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isTyping, setIsTyping] = useState(false);  // true when user is actively typing to filter
-  const [destination, setDestination] = useState<SaveDestination>(
-    WEB_ONLY_CLOUD ? 'cloud' : (defaultDestination ?? 'local'),
-  );
+  // Cloud saving is removed: every save goes to this device.
+  const [destination] = useState<SaveDestination>('local');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const comboRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -359,36 +353,6 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
         <div className="dialog-body">
           <ImportedSourceNotice />
 
-          {!WEB_ONLY_CLOUD && (
-            <div className="dialog-row" style={{ marginBottom: 12 }}>
-              <label>Save to</label>
-              <div className="open-file-source-tabs" role="tablist">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={destination === 'local'}
-                  className={`open-file-source-tab ${destination === 'local' ? 'active' : ''}`}
-                  onClick={() => setDestination('local')}
-                >
-                  <FaDesktop /> This device
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={destination === 'cloud'}
-                  className={`open-file-source-tab ${destination === 'cloud' ? 'active' : ''}`}
-                  onClick={() => setDestination('cloud')}
-                >
-                  <FaCloud /> WriTea Draft Cloud
-                </button>
-              </div>
-              {destination === 'cloud' && !signedIn && (
-                <div style={{ fontSize: 12, color: '#ff9966', marginTop: 6 }}>
-                  Sign in to save to WriTea Draft Cloud — pressing Save will open the login dialog.
-                </div>
-              )}
-            </div>
-          )}
           <div className="dialog-row">
             <label>Project</label>
             <div ref={comboRef} style={{ position: 'relative' }}>
@@ -530,7 +494,7 @@ const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
           >
             {saving
               ? 'Saving...'
-              : destination === 'cloud' ? 'Save to Cloud' : 'Save'}
+              : 'Save'}
           </button>
         </div>
       </div>

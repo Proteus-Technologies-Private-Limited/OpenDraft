@@ -1767,6 +1767,7 @@ const ScreenplayEditor: React.FC = () => {
     content: collabMode
       ? (collabInitialContent.current || { type: 'doc', content: [{ type: 'sceneHeading', content: [] }] })
       : (urlScriptId || urlCommitHash) ? undefined : { type: 'doc', content: [{ type: 'sceneHeading', content: [] }] },
+    autofocus: 'start',
     editable: !isHistoryMode && !(collabMode && collabRole === 'viewer'),
     editorProps: {
       attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: 'false' },

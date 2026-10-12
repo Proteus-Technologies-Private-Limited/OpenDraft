@@ -18,7 +18,7 @@ import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
 import { exportFadeIn } from '../utils/osfExporter';
 import {
-  serializeContentForFormat, extensionOfPath, isLinkableExtension, normalizeLinkedFormat, linkedFileName,
+  serializeContentForFormat, extensionOfPath, normalizeLinkedFormat, linkedFileName,
 } from '../utils/linkedFileFormat';
 import { useLinkedFileStore, autoSaveAppliesToOpenDocument } from '../stores/linkedFileStore';
 import { exportPDF, renderPDF, type PDFExportOptions } from '../utils/pdfExporter';
@@ -420,6 +420,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
   }, [editor, serializeForOrigin, buildSaveContent, onDocumentSaved]);
 
   // ── Save current editor content to backend ──
+  const saveToFileAsRef = useRef<() => Promise<boolean>>(async () => false);
+
   const handleSave = useCallback(async () => {
     if (!editor) return;
 
@@ -435,7 +437,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
     if (!currentProject || !currentScriptId) {
       // No project yet — prompt user for project & file name
-      setSaveAsOpen(true);
+      await saveToFileAsRef.current();
       return;
     }
     const { setSaveStatus } = useEditorStore.getState();
@@ -503,7 +505,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
    *  to cloud (or vice versa) or to write a copy under a different name. */
   const handleSaveAs = useCallback(() => {
     if (!editor) return;
-    setSaveAsOpen(true);
+    void saveToFileAsRef.current();
   }, [editor, setSaveAsOpen]);
 
   /**
@@ -514,8 +516,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
    * disk or a document not in the library: write it there and carry on
    * editing that file, as Open File from Disk would.
    */
-  const handleSaveToFileAs = useCallback(async () => {
-    if (!editor) return;
+  const handleSaveToFileAs = useCallback(async (): Promise<boolean> => {
+    if (!editor) return false;
     const s = useEditorStore.getState();
     try {
       const lf = await import('../services/linkedFiles');
@@ -524,7 +526,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const ps = useProjectStore.getState();
       if (!origin && currentProject && currentScriptId && ps.isCloudScript(currentProject.id, currentScriptId)) {
         showToast('A cloud script cannot be linked to a file on this computer. Use File ▸ Export to save a copy.', 'error');
-        return;
+        return false;
       }
       const library = !origin && currentProject && currentScriptId
         ? { projectId: currentProject.id, scriptId: currentScriptId }
@@ -539,26 +541,19 @@ const MenuBar: React.FC<MenuBarProps> = ({
         const { documentDir } = await import('@tauri-apps/api/path');
         defaultDir = await documentDir();
       }
-      const preferred = origin && isLinkableExtension(origin.format)
-        ? origin.format
-        : normalizeLinkedFormat(useSettingsStore.getState().defaultFileFormat);
+      const preferred = 'fdx';
 
       const picked = await save({
         title: 'Save to File',
         defaultPath: lf.joinPath(defaultDir, linkedFileName(s.documentTitle || 'Untitled', preferred)),
         filters: [
-          { name: 'WriTea Draft', extensions: ['odraft'] },
-          { name: 'Fountain', extensions: ['fountain'] },
           { name: 'Final Draft', extensions: ['fdx'] },
         ],
       });
-      if (!picked) return;
+      if (!picked) return false;
       let path = picked;
-      let ext = extensionOfPath(path);
-      if (!isLinkableExtension(ext)) {
-        path = `${path}.${preferred}`;
-        ext = preferred;
-      }
+      const ext = 'fdx' as const;
+      if (extensionOfPath(path).toLowerCase() !== 'fdx') path = `${path}.fdx`;
       const name = lf.basenameOf(path);
 
       // One file, one script: two scripts saving to one file would overwrite
@@ -566,7 +561,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       const taken = await lf.findLinkByPath(path);
       if (taken && taken.scriptId !== library?.scriptId) {
         showToast(`${name} is already where another script is saved. Choose a different name.`, 'error');
-        return;
+        return false;
       }
 
       if (library) {
@@ -586,7 +581,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           const err = useLinkedFileStore.getState().byScript[library.scriptId]?.error;
           showToast(`Linked to ${name}, but it could not be written yet${err ? `: ${err}` : ''}. WriTea Draft will keep trying.`, 'error');
         }
-        return;
+        return true;
       }
 
       s.setSaveStatus('saving');
@@ -604,13 +599,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
       if (saved) onDocumentSaved?.(JSON.stringify(saved));
       clearRecoverySnapshot();
       showToast(`Saved to ${name}. Save now writes to this file.`, 'success');
+      return true;
     } catch (err) {
       console.error('Save to File As failed:', err);
       const msg = err instanceof Error ? err.message : String(err);
       s.setSaveStatus('error', msg);
       showToast(`Could not save to the file: ${msg}`, 'error');
+      return false;
     }
   }, [editor, currentProject, currentScriptId, buildSaveContent, serializeForOrigin, onDocumentSaved]);
+  saveToFileAsRef.current = handleSaveToFileAs;
 
   /**
    * Open Folder as Project… (desktop, issue #135): the folder becomes a
@@ -744,9 +742,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (!currentProject || !currentScriptId) {
       // No project yet — open save-as dialog; the pending action will run
       // after save-as completes (via postSaveAction in the store).
-      if (pendingAction) setPostSaveAction(pendingAction);
+      const next = pendingAction;
       setPendingAction(null);
-      setSaveAsOpen(true);
+      if (await saveToFileAsRef.current()) next?.();
       return;
     }
     // Existing project — save inline, then run pending action
@@ -1578,6 +1576,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       clearRecoverySnapshot();
       releaseOpenDocument();
       showToast('Document closed', 'success');
+      window.setTimeout(() => { if (!editor.isDestroyed) editor.commands.focus('start'); }, 0);
     });
   }, [confirmOrRun, editor, resetForNewScreenplay]);
 
@@ -1590,6 +1589,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const finishNewScreenplayWithFormat = useCallback((templateId: string, mode: 'reset' | 'apply-only' = 'reset') => {
     if (mode === 'reset') resetForNewScreenplay();
     applyScriptFormat(editor, templateId);
+    // Start with the cursor in the first line, ready to type.
+    window.setTimeout(() => { if (editor && !editor.isDestroyed) editor.commands.focus('start'); }, 0);
   }, [editor, resetForNewScreenplay]);
 
   /** Run the format-selection flow. Mode 'reset' is the global New Screenplay
@@ -2375,26 +2376,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // origin both go to the library, so the qualifier would be noise.
         {
           icon: <FaSave />,
-          label: hasFileOrigin ? 'Save to File' : 'Save Script',
+          label: 'Save',
           shortcut: `${mod}S`,
           action: handleSave,
           disabled: isCollabGuest,
         },
         {
           icon: <FaSave />,
-          label: hasFileOrigin ? 'Save to Library As…' : 'Save Script As…',
+          label: 'Save As…',
           shortcut: `⇧${mod}S`,
           action: handleSaveAs,
           disabled: isCollabGuest,
         },
-        // Desktop: keep the script in a file of the writer's choosing — on a
-        // RAID, a network share, a project's own folder (issue #135).
-        ...(isDesktopTauri() ? [{
-          icon: <FaSave />,
-          label: 'Save to File As…',
-          action: () => { void handleSaveToFileAs(); },
-          disabled: isCollabGuest,
-        }] : []),
         { separator: true, label: '' },
         {
           icon: <FaFileExport />, label: 'Export',

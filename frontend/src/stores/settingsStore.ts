@@ -403,7 +403,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ defaultProjectFolder: path });
   },
 
-  defaultFileFormat: loadString(STORAGE_KEY_DEFAULT_FILE_FORMAT, 'odraft'),
+  defaultFileFormat: loadString(STORAGE_KEY_DEFAULT_FILE_FORMAT, 'fdx'),
   setDefaultFileFormat: (format) => {
     try { localStorage.setItem(STORAGE_KEY_DEFAULT_FILE_FORMAT, format); } catch { /* ignore */ }
     set({ defaultFileFormat: format });

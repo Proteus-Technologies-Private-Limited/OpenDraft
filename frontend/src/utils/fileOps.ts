@@ -62,6 +62,29 @@ export async function saveFile(
   return saveFileBrowser(data, defaultFilename);
 }
 
+/**
+ * Where the save dialog should open: beside the file being edited, or in
+ * Documents when the document has no file. A bare filename leaves the dialog
+ * to open wherever it last was, which is the home folder.
+ */
+async function saveDialogPath(filename: string): Promise<string> {
+  try {
+    const { isDesktopTauri } = await import('../services/platform');
+    if (!isDesktopTauri()) return filename;
+    const { useEditorStore } = await import('../stores/editorStore');
+    const lf = await import('../services/linkedFiles');
+    const origin = useEditorStore.getState().documentOrigin;
+    let dir: string | null = origin ? lf.dirnameOf(origin.bookmark) : null;
+    if (!dir) {
+      const { documentDir } = await import('@tauri-apps/api/path');
+      dir = await documentDir();
+    }
+    return dir ? lf.joinPath(dir, filename) : filename;
+  } catch {
+    return filename;
+  }
+}
+
 async function saveFileTauri(
   data: Uint8Array | string,
   defaultFilename: string,
@@ -70,7 +93,7 @@ async function saveFileTauri(
   const { save } = await import('@tauri-apps/plugin-dialog');
   const { invoke } = await import('@tauri-apps/api/core');
 
-  const path = await save({ defaultPath: defaultFilename, filters });
+  const path = await save({ defaultPath: await saveDialogPath(defaultFilename), filters });
   if (!path) return false;
 
   if (typeof data === 'string') {
