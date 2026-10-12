@@ -105,6 +105,7 @@ const FDX_LABEL_TO_TOKEN: Record<string, string> = {
   'last page #': '{pages}',
   title: '{title}',
   date: '{date}',
+  'collated revisions': '{revision}',
 };
 
 /** One header/footer paragraph as a template string, fields and all. */

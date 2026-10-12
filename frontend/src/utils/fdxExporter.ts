@@ -60,13 +60,14 @@ function esc(str: string): string {
  *
  * Final Draft carries the dynamic fields as `<DynamicLabel>` elements rather
  * than literal text, so a template is split on the tokens WriTea Draft shares with
- * it; `{revision}` has no FDX equivalent and goes out as the resolved text.
+ * it; `{revision}` is Final Draft's "Collated Revisions" label.
  */
 const FDX_DYNAMIC_LABEL: Record<string, string> = {
   '{page}': 'Page #',
   '{pages}': 'Last Page #',
   '{title}': 'Title',
   '{date}': 'Date',
+  '{revision}': 'Collated Revisions',
 };
 
 function buildHFParagraph(
@@ -88,8 +89,6 @@ function buildHFParagraph(
   while ((m = tokenRe.exec(template)) !== null) {
     textRun(template.slice(last, m.index));
     const label = FDX_DYNAMIC_LABEL[m[0].toLowerCase()];
-    // {revision} has no Final Draft counterpart; drop the token rather than
-    // writing a label Final Draft would reject.
     if (label) out.push(`        <DynamicLabel Type="${label}"/>`);
     last = tokenRe.lastIndex;
   }
