@@ -113,6 +113,16 @@ function metadataUnchanged(a: StoreState, b: StoreState): boolean {
   );
 }
 
+/**
+ * Whether a payload carries any beats, notes, tags or profiles. A launch resets
+ * all of these to fresh empty lists, which the change watcher sees as edits; on
+ * a blank body that is not work worth a recovery copy.
+ */
+function hasMetadataWork(content: Record<string, unknown>): boolean {
+  return ['_notes', '_generalNotes', '_tags', '_characterProfiles', '_characterRelationships', '_beats']
+    .some((k) => Array.isArray(content[k]) && (content[k] as unknown[]).length > 0);
+}
+
 export function useRecoverySnapshot(opts: RecoverySnapshotOptions): void {
   // Latest values, so the interval doesn't need re-creating on every keystroke.
   const optsRef = useRef(opts);
@@ -169,7 +179,7 @@ export function useRecoverySnapshot(opts: RecoverySnapshotOptions): void {
       // Board before writing a word is exactly the session this is here to
       // protect. A mounting editor has no metadata edits, so the guard still
       // does its job.
-      if (!docHasAnyText(content) && !metadataDirtyRef.current) return;
+      if (!docHasAnyText(content) && !(metadataDirtyRef.current && hasMetadataWork(content))) return;
 
       let json: string;
       try {
