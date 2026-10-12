@@ -15,10 +15,26 @@ export interface FdxRaw {
   version: string;
   /** Top-level section tag -> its XML, exactly as the file had it. */
   sections: Record<string, string>;
+  /**
+   * The original XML of the sections WriTea Draft writes from its own settings
+   * (page layout, header and footer, element settings, cast list), and the
+   * fingerprint of the settings they were read into. While the settings still
+   * match it, the file's own sections go back as they were.
+   */
+  settings?: Record<string, string>;
+  sig?: SettingsSignature;
+}
+
+export interface SettingsSignature {
+  layout: string;
+  cast: string;
 }
 
 /** Sections exportFDX always writes itself, so the original is never needed. */
 const WRITTEN_BY_EXPORTER = new Set(['Content', 'PageLayout', 'ElementSettings', 'HeaderAndFooter', 'TitlePage']);
+
+/** The sections written from the app's settings, whose originals are kept beside them. */
+const SETTINGS_SECTIONS = new Set(['PageLayout', 'HeaderAndFooter', 'ElementSettings', 'CastList']);
 
 export function isFdxRaw(v: unknown): v is FdxRaw {
   if (!v || typeof v !== 'object') return false;
@@ -37,7 +53,13 @@ export function captureFdxRaw(xml: string): FdxRaw | null {
       if (WRITTEN_BY_EXPORTER.has(child.tagName) || child.tagName in sections) continue;
       sections[child.tagName] = ser.serializeToString(child);
     }
-    return { version: root.getAttribute('Version') ?? '', sections };
+    const settings: Record<string, string> = {};
+    for (const child of Array.from(root.children)) {
+      if (!SETTINGS_SECTIONS.has(child.tagName)) continue;
+      const s = ser.serializeToString(child);
+      settings[child.tagName] = child.tagName in settings ? `${settings[child.tagName]}\n  ${s}` : s;
+    }
+    return { version: root.getAttribute('Version') ?? '', sections, settings };
   } catch (err) {
     console.warn('[fdx] could not keep the original sections', err);
     return null;
@@ -45,8 +67,9 @@ export function captureFdxRaw(xml: string): FdxRaw | null {
 }
 
 /** Add every remembered section the freshly exported XML does not already have. */
-export function mergeFdxRaw(xml: string, raw: FdxRaw | null | undefined): string {
+export function mergeFdxRaw(xml: string, raw: FdxRaw | null | undefined, current?: SettingsSignature): string {
   if (!raw || !raw.sections) return xml;
+  xml = keepOriginalSettings(xml, raw, current);
   try {
     const doc = new DOMParser().parseFromString(xml, 'text/xml');
     if (doc.querySelector('parsererror')) return xml;
@@ -146,4 +169,36 @@ export function titleLineSignature(
       : [c.text ?? '', ...(c.marks ?? []).map((m) => m.type).sort()]
   ));
   return JSON.stringify([typeof align === 'string' ? align : '', runs]);
+}
+
+/** What the settings sections are written from: page layout and font, and the cast descriptions. */
+export function settingsSignature(
+  pageLayout: unknown,
+  font: { family?: string; size?: unknown } | undefined,
+  profiles: ReadonlyArray<{ name?: string; description?: string }> | undefined,
+): SettingsSignature {
+  return {
+    layout: JSON.stringify([pageLayout ?? null, font?.family ?? '', Number(font?.size) || 0]),
+    cast: JSON.stringify((profiles ?? []).map((p) => [p.name ?? '', p.description ?? ''])),
+  };
+}
+
+/**
+ * Put the file's own settings sections in place of the generated ones, for
+ * every group of settings that has not changed since the file was opened.
+ */
+function keepOriginalSettings(xml: string, raw: FdxRaw, current?: SettingsSignature): string {
+  if (!raw.settings || !raw.sig || !current) return xml;
+  const swap = (out: string, re: RegExp, tag: string): string => {
+    const original = raw.settings?.[tag];
+    return original && re.test(out) ? out.replace(re, () => '\n  ' + original) : out;
+  };
+  let out = xml;
+  if (raw.sig.layout === current.layout) {
+    out = swap(out, /\n  <PageLayout[\s\S]*?<\/PageLayout>/, 'PageLayout');
+    out = swap(out, /\n+  <ElementSettings[\s\S]*<\/ElementSettings>/, 'ElementSettings');
+    out = swap(out, /\n  <HeaderAndFooter[\s\S]*?<\/HeaderAndFooter>/, 'HeaderAndFooter');
+  }
+  if (raw.sig.cast === current.cast) out = swap(out, /\n  <CastList>[\s\S]*?<\/CastList>/, 'CastList');
+  return out;
 }

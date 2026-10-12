@@ -19,7 +19,7 @@ import { parseOSF, parseFadeIn, type DocumentFont } from './osfParser';
 import { COURIER_FONTS } from './fonts';
 import { parseOdraft } from './odraftFormat';
 import { hydrateEditorStoresFromContent } from './hydrateStores';
-import { captureFdxRaw } from './fdxPreserve';
+import { captureFdxRaw, settingsSignature } from './fdxPreserve';
 import { restoreRevisionState } from './revisionState';
 import { useEditorStore, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
 
@@ -282,7 +282,11 @@ export async function parseScreenplayImport(
     if (hydrateStores) {
       applyFdxSideEffects(parsed);
       applyDocumentFont(parsed.documentFont);
-      useEditorStore.getState().setFdxRaw(fdxRaw);
+      const st = useEditorStore.getState();
+      // What the file's own settings sections were read into: they go back as
+      // the file had them until one of these is changed.
+      if (fdxRaw) fdxRaw.sig = settingsSignature(st.pageLayout, { family: st.fontFamily, size: st.fontSize }, st.characterProfiles);
+      st.setFdxRaw(fdxRaw);
     }
     return { doc: parsed.doc, title: '', formatLabel, warnings: [], metadata: { ...fdxMetadata(parsed), _fdxRaw: fdxRaw } };
   }
