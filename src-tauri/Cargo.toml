@@ -11,7 +11,7 @@ crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
 # See the note on `tauri` below for the history behind these versions.
-tauri-build = { version = "=2.6.3", features = [] }
+tauri-build = { version = "=2.7.2", features = [] }
 
 [dependencies]
 # Was pinned to 2.10.3 (commit c1a5dd1) because v0.17.0 cold-started and died on
@@ -41,7 +41,7 @@ tauri-build = { version = "=2.6.3", features = [] }
 # Still exact-pinned so a transitive bump cannot silently reintroduce this on
 # users' phones. Before shipping: cold-start a MINIFIED RELEASE Android APK on a
 # physical Android 15 device. A debug build will not reproduce a ProGuard bug.
-tauri = { version = "=2.11.5", features = [] }
+tauri = { version = "=2.12.3", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-sql = { version = "=2.4.0", features = ["sqlite"] }
