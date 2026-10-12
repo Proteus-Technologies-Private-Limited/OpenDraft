@@ -343,9 +343,12 @@ function buildTitlePageFlow(
     // the title — which is bold, uppercased and possibly 72pt.
     const field = node.type === 'titlePage' ? ((node.attrs?.field as string) || 'title') : 'blank';
     const isTitle = field === 'title';
-    const align = field === 'draft' ? AlignmentType.LEFT
-      : (field === 'contact' || field === 'copyright') ? AlignmentType.RIGHT
-        : AlignmentType.CENTER;
+    const freeAlign = String(node.attrs?.align || '');
+    const align = field === 'free'
+      ? (freeAlign === 'center' ? AlignmentType.CENTER : freeAlign === 'right' ? AlignmentType.RIGHT : freeAlign === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT)
+      : field === 'draft' ? AlignmentType.LEFT
+        : (field === 'contact' || field === 'copyright') ? AlignmentType.RIGHT
+          : AlignmentType.CENTER;
     const size = isTitle ? (Number(node.attrs?.tpTitleFontSize) || 12) * 2 : FONT_SIZE_HALFPT;
     const lines = nodeText(node).split('\n');
     const children = lines.map((line, idx) => {

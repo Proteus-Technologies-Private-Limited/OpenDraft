@@ -2,6 +2,7 @@
 import { uuid } from './uuid';
 import { isDocumentFont, isDocumentSize } from './fonts';
 import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
+import { titleLineSignature } from './fdxPreserve';
 import { DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { parseFDXRevisions, type FDXRevisionImport } from './fdxRevisions';
 
@@ -308,6 +309,8 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
 
   // --- Parse Title Page ---
   const titlePageNodes: TipTapNode[] = [];
+  let titlePageFieldAttrs: Record<string, string> = {};
+  let titlePageFallback: TipTapNode[] = [];
   const titlePageEl = xmlDoc.querySelector('FinalDraft > TitlePage > Content');
   if (titlePageEl) {
     const tpParagraphs = titlePageEl.querySelectorAll('Paragraph');
@@ -340,12 +343,11 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     // rather than the single attrs-only node this used to push (issue #52).
     // The file's own page height decides the spacer counts, so a Letter-sized
     // .fdx does not import with an A4 title page.
-    titlePageNodes.push(
-      ...(buildTitlePageBlocks(
-        tpAttrs as TitlePageFields,
-        pageLayout ? { ...DEFAULT_PAGE_LAYOUT, ...pageLayout } : DEFAULT_PAGE_LAYOUT,
-      ) as TipTapNode[]),
-    );
+    titlePageFieldAttrs = tpAttrs;
+    titlePageFallback = buildTitlePageBlocks(
+      tpAttrs as TitlePageFields,
+      pageLayout ? { ...DEFAULT_PAGE_LAYOUT, ...pageLayout } : DEFAULT_PAGE_LAYOUT,
+    ) as TipTapNode[];
   }
 
   // --- Parse Content ---
@@ -558,6 +560,44 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     node.content = hasContent ? textNodes : [];
     return node;
   };
+
+  // The title page as the file lays it out: one node per paragraph, in order,
+  // with its alignment and its original XML. Final Draft's title page is free
+  // text, so squeezing it into the form fields lost every line the form has no
+  // field for. The first line of text carries the best-guess fields, so the
+  // Title Page dialog and the exporters that read them still find a title.
+  const freeTitleNodes: TipTapNode[] = [];
+  if (titlePageEl && (titlePageEl.textContent || '').trim() !== '') {
+    const serializer = new XMLSerializer();
+    let carried = false;
+    for (const p of Array.from(titlePageEl.querySelectorAll(':scope > Paragraph'))) {
+      const parsed = parseParagraph(p);
+      if (!parsed) continue;
+      const hasText = (p.textContent || '').trim() !== '';
+      const attrs: Record<string, unknown> = {
+        field: hasText ? 'free' : 'blank',
+        fdxXml: serializer.serializeToString(p),
+      };
+      const align = parsed.attrs?.textAlign;
+      if (typeof align === 'string') attrs.align = align;
+      if (hasText && !carried) {
+        Object.assign(attrs, titlePageFieldAttrs);
+        carried = true;
+      }
+      const lineContent = hasText ? parsed.content : [];
+      attrs.fdxSig = titleLineSignature(attrs.align, lineContent);
+      freeTitleNodes.push({ type: 'titlePage', attrs, content: lineContent });
+    }
+  }
+  if (freeTitleNodes.length > 0 && titlePageEl?.parentElement) {
+    const serializer = new XMLSerializer();
+    const before = titlePageEl.parentElement.querySelector(':scope > HeaderAndFooter');
+    const after = titlePageEl.parentElement.querySelector(':scope > TextState');
+    const first = freeTitleNodes[0].attrs as Record<string, unknown>;
+    if (before) first.fdxTitleBefore = serializer.serializeToString(before);
+    if (after) first.fdxTitleAfter = serializer.serializeToString(after);
+  }
+  titlePageNodes.push(...(freeTitleNodes.length > 0 ? freeTitleNodes : titlePageFallback));
 
   // Iterate direct children of Content (handles both Paragraph and DualDialogue)
   for (let ci = 0; ci < contentChildren.length; ci++) {

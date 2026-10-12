@@ -129,3 +129,21 @@ export function sceneProperties(raw: unknown, synopsis: unknown, indent: string)
     indent + '</SceneProperties>',
   ].join('\n');
 }
+
+/**
+ * What a free-form title page line says and how it is set: its alignment, its
+ * text and which marks each run carries. Taken when a file is opened and again
+ * at save, so a line left alone can be written back as the file had it and a
+ * line that was edited is written from what is on screen.
+ */
+export function titleLineSignature(
+  align: unknown,
+  content: ReadonlyArray<{ type?: string; text?: string; marks?: ReadonlyArray<{ type: string }> }> | undefined,
+): string {
+  const runs = (content ?? []).map((c) => (
+    c.type === 'hardBreak'
+      ? ['\n']
+      : [c.text ?? '', ...(c.marks ?? []).map((m) => m.type).sort()]
+  ));
+  return JSON.stringify([typeof align === 'string' ? align : '', runs]);
+}

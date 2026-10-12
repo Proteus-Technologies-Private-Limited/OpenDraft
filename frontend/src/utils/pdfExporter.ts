@@ -610,7 +610,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   // of titlePage + image nodes. The title page renders its nodes in DOCUMENT
   // ORDER (free-flow / WYSIWYG), matching the editor and DOCX.
   const nodes: NodeInfo[] = [];
-  interface TitleItem { kind: 'text' | 'image'; field?: string; text?: string; titleSize?: number; font?: string; attrs?: Record<string, unknown>; }
+  interface TitleItem { kind: 'text' | 'image'; field?: string; text?: string; titleSize?: number; font?: string; align?: string; attrs?: Record<string, unknown>; }
   const titleItems: TitleItem[] = [];
 
   // Where the title page ends. Shared with the paginator, the DOCX exporter and
@@ -655,6 +655,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
           field: typeName === 'titlePage' ? ((node.attrs?.field as string) || 'title') : 'blank',
           text: getPlainText(titleRuns),
           titleSize: Number(node.attrs?.tpTitleFontSize) || 12,
+          align: typeName === 'titlePage' ? (node.attrs?.align as string | undefined) : undefined,
           // The title page is where a display face earns its keep, so the line
           // is drawn in the font its text carries rather than the document's.
           // One font per line: the page is flattened to plain text here, as it
@@ -808,8 +809,9 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
         y += im.hPt + 6;
       } else {
         const isTitle = it.field === 'title';
-        const align: 'left' | 'center' | 'right' =
-          it.field === 'draft' ? 'left' : (it.field === 'contact' || it.field === 'copyright') ? 'right' : 'center';
+        const align: 'left' | 'center' | 'right' = it.field === 'free'
+          ? (it.align === 'center' ? 'center' : it.align === 'right' ? 'right' : 'left')
+          : it.field === 'draft' ? 'left' : (it.field === 'contact' || it.field === 'copyright') ? 'right' : 'center';
         const lineH = isTitle ? (it.titleSize || 12) : LINE_HEIGHT_PT;
         pdf.setFontSize(isTitle ? (it.titleSize || 12) : 12);
         const x = align === 'left' ? leftX : align === 'right' ? rightX : centerX;

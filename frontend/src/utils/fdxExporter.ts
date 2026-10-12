@@ -351,7 +351,47 @@ function getTextAttributes(marks?: MarkInfo[], blockRevision?: string): string {
   return parts.length > 0 ? ' ' + parts.join(' ') : '';
 }
 
-import { autoContdMarker, stripAutoContd, sceneProperties } from './fdxPreserve';
+import { autoContdMarker, stripAutoContd, sceneProperties, titleLineSignature } from './fdxPreserve';
+
+/**
+ * A title page opened from a Final Draft file, written back line for line.
+ *
+ * Final Draft's title page is free text, so each line is its own paragraph. A
+ * line left as it was opened goes back as the file had it, byte for byte; a
+ * line that was edited is written from what is on screen, so no edit is lost.
+ */
+function buildFreeTitlePage(nodes: JSONContent[]): string[] {
+  const first = nodes[0]?.attrs ?? {};
+  const out: string[] = ['  <TitlePage>'];
+  if (typeof first.fdxTitleBefore === 'string' && first.fdxTitleBefore) out.push(`    ${first.fdxTitleBefore}`);
+  out.push('    <Content>');
+  for (const node of nodes) {
+    const a = node.attrs ?? {};
+    const raw = typeof a.fdxXml === 'string' ? a.fdxXml : '';
+    if (raw && a.fdxSig === titleLineSignature(a.align, node.content)) {
+      out.push(`      ${raw}`);
+      continue;
+    }
+    const align = a.align === 'center' ? 'Center' : a.align === 'right' ? 'Right' : a.align === 'justify' ? 'Full' : 'Left';
+    out.push(`      <Paragraph Alignment="${align}">`);
+    let wrote = false;
+    for (const child of node.content ?? []) {
+      if (child.type === 'hardBreak') {
+        out.push('        <Text>&#10;</Text>');
+        wrote = true;
+      } else if (child.type === 'text' && child.text) {
+        out.push(`        <Text${getTextAttributes(child.marks as MarkInfo[] | undefined)}>${esc(child.text)}</Text>`);
+        wrote = true;
+      }
+    }
+    if (!wrote) out.push('        <Text></Text>');
+    out.push('      </Paragraph>');
+  }
+  out.push('    </Content>');
+  if (typeof first.fdxTitleAfter === 'string' && first.fdxTitleAfter) out.push(`    ${first.fdxTitleAfter}`);
+  out.push('  </TitlePage>');
+  return out;
+}
 
 /** The typeface a script is written in, for the element settings. */
 export interface FDXDocumentFont {
@@ -418,6 +458,7 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
   // title page now ships empty, which is what "preserve it as-is" means for a
   // blank one. `title` stays in the signature: `downloadFDX` still names the
   // file after it, and the argument is positional.
+  const titleStart = lines.length;
   lines.push('  <TitlePage>');
   lines.push('    <Content>');
   let tpTitle = '';
@@ -482,6 +523,11 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
   lines.push('    </Content>');
   lines.push('  </TitlePage>');
   lines.push('');
+  // A title page opened from a Final Draft file goes back as its own lines.
+  const freeTitleLines = (doc.content ?? []).filter((n) => n.type === 'titlePage');
+  if (freeTitleLines.some((n) => typeof n.attrs?.fdxXml === 'string' && n.attrs.fdxXml)) {
+    lines.splice(titleStart, lines.length - titleStart, ...buildFreeTitlePage(freeTitleLines), '');
+  }
 
   // Script content — write all beats as Outline paragraphs before the script body
   lines.push('  <Content>');

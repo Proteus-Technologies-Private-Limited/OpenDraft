@@ -2485,6 +2485,7 @@ body {
 .title-page-contact,
 .title-page-copyright { text-align: right; }
 .title-page-date { text-align: center; }
+.title-page-free { text-align: left; }
 
 /* Inserted images (body + title page) */
 .sp-image { display: block; margin: 6pt 0; }

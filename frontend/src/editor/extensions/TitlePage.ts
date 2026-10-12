@@ -39,6 +39,14 @@ export const TitlePage = Node.create({
       tpWgaRegistration: { default: '' },
       tpNotes: { default: '' },
       tpTitleFontSize: { default: 12 },
+      // A free-form line from an opened Final Draft file: its alignment, and the
+      // paragraph exactly as the file had it, so it can be written back as it was.
+      align: { default: '', rendered: false },
+      fdxXml: { default: '', rendered: false, keepOnSplit: false },
+      fdxSig: { default: '', rendered: false, keepOnSplit: false },
+      // The title page's own header/footer and text state, carried on its first line.
+      fdxTitleBefore: { default: '', rendered: false, keepOnSplit: false },
+      fdxTitleAfter: { default: '', rendered: false, keepOnSplit: false },
     };
   },
 
@@ -55,7 +63,11 @@ export const TitlePage = Node.create({
       'data-field': field,
     };
     // Apply a custom title font size (default 12pt is left to CSS).
-    if (field === 'title' && size !== 12) attrs.style = `font-size: ${size}pt`;
+    const styles: string[] = [];
+    if (field === 'title' && size !== 12) styles.push(`font-size: ${size}pt`);
+    const align = String(node.attrs.align || '');
+    if (field === 'free' && ['left', 'center', 'right', 'justify'].includes(align)) styles.push(`text-align: ${align}`);
+    if (styles.length > 0) attrs.style = styles.join('; ');
     return ['div', mergeAttributes(HTMLAttributes, attrs), 0];
   },
 });
