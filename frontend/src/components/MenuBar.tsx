@@ -3336,7 +3336,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-changelog">
               <div className="about-subsection-title">v1.0.0</div>
               <ul className="about-list">
+                <li><strong>Lossless Final Draft Files.</strong> Open a Final Draft (.fdx) file, edit it, save it, and everything you did not change is written back as it was: paragraph ids, scene properties, colours, adornments, settings, the free-form title page, character highlighting and revision labels. Anything WriTea Draft does not model is carried through untouched, and a safety copy of the original is kept before the first overwrite.</li>
                 <li><strong>Hello, WriTea Draft.</strong> This is the first release under the new name. WriTea Draft is built on OpenDraft by Proteus Technologies, and brings its full set of screenwriting tools along.</li>
+                <li><strong>Final Draft Habits.</strong> Final Draft (.fdx) is the format your scripts are saved in, with the native Save and Save As dialog. Enter and Tab move between elements the way Final Draft does, scene headings autocomplete (time of day included), new scripts start in Courier Final Draft, and Ctrl+O and Ctrl+W open and close scripts.</li>
+                <li><strong>Simpler By Design.</strong> The online features, the Projects screens and the .odraft format are gone. Scripts are files on your disk, opened and saved like any other document.</li>
                 <li><strong>A New Look.</strong> A new logo (a teacup and a quill on a cornflower tile), with a matching app icon on every platform and a new startup screen.</li>
               </ul>
               </div>
