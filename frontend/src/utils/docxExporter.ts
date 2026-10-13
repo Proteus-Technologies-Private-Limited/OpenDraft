@@ -27,8 +27,10 @@ import {
   EndnoteReferenceRun,
   Table,
   Tab,
+  ShadingType,
 } from 'docx';
 import type { ISectionOptions } from 'docx';
+import { getElementColors, type ElementColors } from './elementColors';
 import { noteBlockText, type NoteBlock as NoteBlockLike } from './noteContent';
 import type { FootnotePlan, FootnoteRef } from './footnotes';
 import { resolveImageUrl, loadImageBytes } from './imageAsset';
@@ -39,7 +41,7 @@ import { revisionMarkXPt } from './revisionPdf';
 import { DEFAULT_REVISION_SETTINGS, revisionMarkFor, type RevisionSettings } from '../editor/revisionColors';
 import { resolveHeaderFooter, printedPageNumber } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
-import { getForceBreakIds, jsonStartsOwnPage } from './pageBreaks';
+import { getForceBreakIds, jsonStartsOwnPage, elementIdOf } from './pageBreaks';
 import { getSpaceBefore, DEFAULT_SPACE_BEFORE } from './elementSpacing';
 import { sanitizeExportFilename } from './exportFilename';
 import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
@@ -147,9 +149,11 @@ export function buildTextRuns(
    */
   refs: readonly FootnoteRef[] = [],
   isEndnote: (noteId: string) => boolean = () => false,
+  /** The element's text colour as six hex digits (no hash); null leaves Word's default. */
+  textColor: string | null = null,
 ): (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] {
   if (refs.length > 0) {
-    return buildRunsWithReferences(runs, docFont, refs, isEndnote);
+    return buildRunsWithReferences(runs, docFont, refs, isEndnote, textColor);
   }
   if (runs.length === 0 || (runs.length === 1 && runs[0].text === '' && !runs[0].isBreak)) {
     return [new TextRun({ text: '', font: docFont, size: FONT_SIZE_HALFPT })];
@@ -171,6 +175,7 @@ export function buildTextRuns(
             italics: r.italic || undefined,
             underline: r.underline ? {} : undefined,
             strike: r.strike || undefined,
+            ...(textColor ? { color: textColor } : {}),
           }),
     );
 }
@@ -384,13 +389,15 @@ function buildElementParagraph(
   isEndnote: (noteId: string) => boolean = () => false,
   /** How revised paragraphs are marked; null writes no marks. */
   revisionMarks: RevisionSettings | null = null,
+  /** The element's template colours; null writes none. */
+  colors: ElementColors | null = null,
 ): Paragraph {
   const typeName = node.type || 'general';
   const indent = indentForType(typeName, layout);
   let alignment = alignmentForType(typeName);
   const sb = isFirst ? 0 : (spaceBeforeLines[typeName] ?? 0) * LINE_HEIGHT_PT;
   const styledRuns = applyTypeStyles(extractRuns(node), typeName);
-  let children: (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] = buildTextRuns(styledRuns, docFont, refs, isEndnote);
+  let children: (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] = buildTextRuns(styledRuns, docFont, refs, isEndnote, colors?.text ? colors.text.slice(1).toUpperCase() : null);
 
   // A revised paragraph's mark, in the right margin where the PDF prints it.
   // Word wraps the text itself, so it is one mark on the paragraph's last
@@ -431,6 +438,9 @@ function buildElementParagraph(
       left: indent.left,
       right: indent.right,
     },
+    ...(colors?.background
+      ? { shading: { type: ShadingType.CLEAR, fill: colors.background.slice(1).toUpperCase(), color: 'auto' } }
+      : {}),
     pageBreakBefore: pageBreakBefore || undefined,
     spacing: {
       before: sb * TWIPS_PER_POINT,
@@ -454,6 +464,7 @@ function buildRunsWithReferences(
   docFont: string,
   refs: readonly FootnoteRef[],
   isEndnote: (noteId: string) => boolean,
+  textColor: string | null = null,
 ): (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] {
   const sorted = [...refs].sort((a, b) => a.charOffset - b.charOffset);
   const out: (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] = [];
@@ -470,6 +481,7 @@ function buildRunsWithReferences(
     italics: r.italic || undefined,
     underline: r.underline ? {} : undefined,
     strike: r.strike || undefined,
+    ...(textColor ? { color: textColor } : {}),
   });
 
   let pos = 0;
@@ -524,6 +536,9 @@ export interface DocxExportOptions {
    *  Absent: an asterisk. `showRevisionMarks: false` writes none. */
   revisionSettings?: RevisionSettings | null;
   showRevisionMarks?: boolean;
+  /** Write the formatting template's element colours (text and background).
+   *  Absent or false writes plain black on white. */
+  elementColors?: boolean;
 }
 
 export async function exportDocx(
@@ -557,6 +572,7 @@ export async function exportDocx(
   // through to the body, which is the path for a region that was never a title
   // page and so keeps whatever carries text.
   const excludeTitlePage = options?.includeTitlePage === false;
+  const bodyColors: Record<string, ElementColors> = options?.elementColors ? getElementColors() : {};
   const hasTitlePage = region.isReal && !excludeTitlePage;
   const dropTitleRegion = region.isReal && excludeTitlePage;
   docNodes.forEach((node, index) => {
@@ -775,6 +791,7 @@ export async function exportDocx(
         plan?.refsByNode.get(bodySrcIndex[i]) ?? [],
         (noteId) => !!plan && !plan.footnoteIds.has(noteId),
         revisionMarks,
+        bodyColors[elementIdOf({ type: bodyNodes[i].type || 'general', attrs: bodyNodes[i].attrs })] ?? null,
       ),
     );
   }

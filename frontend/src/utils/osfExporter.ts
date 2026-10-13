@@ -24,6 +24,8 @@ import { titlePageAttrsCarryData } from './titlePageRegion';
 import { isNonPrintingType } from './nonPrinting';
 import { blockRevision, osfRevisionColors, osfRevisionIndex } from './revisionExport';
 import { latestRevision, type RevisionSettings } from '../editor/revisionColors';
+import { getElementColors, type ElementColors } from './elementColors';
+import { elementIdOf } from './pageBreaks';
 
 /** Element type → the OSF style a paragraph is based on. */
 const NODE_TO_OSF_STYLE: Record<string, string> = {
@@ -84,6 +86,11 @@ export interface OSFExportOptions {
   revisions?: { color: string; settings?: RevisionSettings | null } | null;
   /** Scene numbering, for Fade In's own scene_numbering / scenes_locked. */
   sceneNumbers?: { visible: boolean; locked: boolean } | null;
+  /** Write the formatting template's element colours on each run. */
+  elementColors?: boolean;
+  /** Plain black on white: no template colours, and any colour or highlight
+   *  the writer applied by hand is left out too. */
+  blackAndWhite?: boolean;
 }
 
 function esc(value: string): string {
@@ -122,7 +129,7 @@ function osfColor(value: unknown): string | null {
 }
 
 /** Attributes for one run of text, from its Tiptap marks. */
-function runAttributes(marks: JSONContent['marks']): string {
+function runAttributes(marks: JSONContent['marks'], blackAndWhite = false): string {
   if (!marks || marks.length === 0) return '';
 
   let out = '';
@@ -142,7 +149,7 @@ function runAttributes(marks: JSONContent['marks']): string {
         break;
       case 'highlight': {
         const color = osfColor((mark.attrs as { color?: unknown } | undefined)?.color);
-        if (color) out += ` bgcolor="${color}"`;
+        if (color && !blackAndWhite) out += ` bgcolor="${color}"`;
         break;
       }
       case 'textStyle': {
@@ -152,7 +159,7 @@ function runAttributes(marks: JSONContent['marks']): string {
           fontSize?: unknown;
         };
         const color = osfColor(attrs.color);
-        if (color) out += ` color="${color}"`;
+        if (color && !blackAndWhite) out += ` color="${color}"`;
         if (typeof attrs.fontFamily === 'string' && attrs.fontFamily.trim() !== '') {
           out += ` font="${esc(attrs.fontFamily.trim())}"`;
         }
@@ -178,7 +185,12 @@ function runAttributes(marks: JSONContent['marks']): string {
  * newline inside <text> back into a hardBreak node, and a run of its own keeps
  * the break from picking up the formatting of the text on either side.
  */
-function textRuns(node: JSONContent, stripBrackets: boolean): string {
+function textRuns(
+  node: JSONContent,
+  stripBrackets: boolean,
+  base: ElementColors | null = null,
+  blackAndWhite = false,
+): string {
   const children = node.content ?? [];
   const runs: string[] = [];
 
@@ -191,7 +203,7 @@ function textRuns(node: JSONContent, stripBrackets: boolean): string {
       continue;
     }
     if (child.type !== 'text' || typeof child.text !== 'string') continue;
-    parts.push({ text: child.text, attrs: runAttributes(child.marks) });
+    parts.push({ text: child.text, attrs: withElementColors(runAttributes(child.marks, blackAndWhite), base) });
   }
 
   if (stripBrackets) {
@@ -231,7 +243,13 @@ function styleElement(node: JSONContent, styleName: string, dual: boolean): stri
   return `${out}/>`;
 }
 
-function paragraph(node: JSONContent, dual = false, sceneNumbers = true): string {
+function paragraph(
+  node: JSONContent,
+  dual = false,
+  sceneNumbers = true,
+  elementColors: Record<string, ElementColors> = {},
+  blackAndWhite = false,
+): string {
   const type = node.type ?? 'action';
   const styleName = NODE_TO_OSF_STYLE[type] ?? 'Normal Text';
 
@@ -248,7 +266,7 @@ function paragraph(node: JSONContent, dual = false, sceneNumbers = true): string
   return [
     `      <para${paraAttrs}>`,
     styleElement(node, styleName, dual),
-    textRuns(node, type === 'parenthetical'),
+    textRuns(node, type === 'parenthetical', elementColors[elementIdOf({ type, attrs })] ?? null, blackAndWhite),
     ...(revision !== null
       ? [`        <marks><mark at="0" revision="${osfRevisionIndex(revision)}"/></marks>`]
       : []),
@@ -256,12 +274,27 @@ function paragraph(node: JSONContent, dual = false, sceneNumbers = true): string
   ].join('\n');
 }
 
+/** Add the element's template colours to a run, unless a mark already set them. */
+function withElementColors(attrs: string, colors: ElementColors | null): string {
+  if (!colors) return attrs;
+  let out = attrs;
+  const text = colors.text ? osfColor(colors.text) : null;
+  const bg = colors.background ? osfColor(colors.background) : null;
+  if (text && !/ color="/.test(out)) out += ` color="${text}"`;
+  if (bg && !/ bgcolor="/.test(out)) out += ` bgcolor="${bg}"`;
+  return out;
+}
+
 /** Both halves of a dual-dialogue block, flattened back into a run of paragraphs. */
-function dualDialogue(node: JSONContent): string[] {
+function dualDialogue(
+  node: JSONContent,
+  elementColors: Record<string, ElementColors> = {},
+  blackAndWhite = false,
+): string[] {
   const out: string[] = [];
   for (const column of node.content ?? []) {
     for (const child of column.content ?? []) {
-      out.push(paragraph(child, true));
+      out.push(paragraph(child, true, true, elementColors, blackAndWhite));
     }
   }
   return out;
@@ -309,6 +342,9 @@ function titlePageBlock(node: JSONContent | null): string {
 export function exportOSF(doc: JSONContent, options: OSFExportOptions = {}): string {
   const family = options.font?.family?.trim() || 'Courier';
   const size = options.font?.size?.trim() || '12';
+  const blackAndWhite = options.blackAndWhite === true;
+  const elementColors: Record<string, ElementColors> =
+    options.elementColors && !blackAndWhite ? getElementColors() : {};
   const fontAttrs = ` font="${esc(family)}" size="${esc(size)}"`;
 
   const styles = BUILTIN_STYLES.map((style) => {
@@ -342,11 +378,11 @@ export function exportOSF(doc: JSONContent, options: OSFExportOptions = {}): str
       continue;
     }
     if (node.type === 'dualDialogue') {
-      body.push(...dualDialogue(node));
+      body.push(...dualDialogue(node, elementColors, blackAndWhite));
       continue;
     }
     // Hidden numbers stay off the page; locked ones are only hidden, not gone.
-    body.push(paragraph(node, false, options.sceneNumbers?.visible !== false));
+    body.push(paragraph(node, false, options.sceneNumbers?.visible !== false, elementColors, blackAndWhite));
   }
 
   // Fade In ends every document with an empty Normal Text paragraph; the

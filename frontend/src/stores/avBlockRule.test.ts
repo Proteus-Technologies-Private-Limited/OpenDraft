@@ -31,8 +31,11 @@ describe('the avBlock rule', () => {
   });
 
   it('is on where a two-column body is expected', () => {
-    expect(INDUSTRY_STANDARD_TEMPLATE.rules[AV_BLOCK_RULE_ID].enabled).toBe(true);
     expect(AV_SCRIPT_TEMPLATE.rules[AV_BLOCK_RULE_ID].enabled).toBe(true);
+  });
+
+  it('is off in the default format, because Final Draft has no AV columns', () => {
+    expect(INDUSTRY_STANDARD_TEMPLATE.rules[AV_BLOCK_RULE_ID].enabled).toBe(false);
   });
 
   it('is off in the formats that have no use for one', () => {

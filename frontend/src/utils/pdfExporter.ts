@@ -6,6 +6,7 @@ import { resolveMoresContds, resolveHeaderFooter, printedPageNumber, resolveHFFi
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
 import { getForceBreakIds, startsOwnPage, elementIdOf, laysItselfOut } from './pageBreaks';
 import { getSpaceBefore } from './elementSpacing';
+import { getElementColors, type ElementColors } from './elementColors';
 import { resolveImageUrl, loadImageData } from './imageAsset';
 import { jsonBlockRuns } from './nodeText';
 import { lineRevision, revisionMarkXPt } from './revisionPdf';
@@ -457,6 +458,9 @@ export interface PDFExportOptions {
    * on the page). Absent or false: every page is white.
    */
   colorRevisedPages?: boolean;
+  /** Plain black on white: leaves out the template's element colours and the
+   *  coloured revision-page tint. */
+  blackAndWhite?: boolean;
   /**
    * Only the pages that carry a revision — what goes out to cast and crew
    * between full drafts. Throws when the script has none.
@@ -986,6 +990,9 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   // Blank lines before each element, from the same template the editor
   // paginates with — resolved once so the whole document uses one answer.
   const spaceBeforeLines = getSpaceBefore();
+  // Each element's text and background colours, from the same template. Left
+  // empty for a black and white export, so every line draws as plain ink.
+  const elementColors: Record<string, ElementColors> = options?.blackAndWhite ? {} : getElementColors();
 
   /**
    * Blank lines above an element, in points.
@@ -1073,7 +1080,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
           );
           renderElement(
             pdf, wrapped, leftIn * PTS_PER_INCH, rightIn * PTS_PER_INCH, y, child.type, fonts,
-            revisionMarkX,
+            revisionMarkX, elementColors[child.type] ?? null,
           );
           y += wrapped.length * LINE_HEIGHT_PT;
         }
@@ -1227,6 +1234,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       renderElement(
         pdf, part.wrapped, dIndents[0] * PTS_PER_INCH, dIndents[1] * PTS_PER_INCH,
         currentY, dNode.typeName, fonts, revisionMarkX,
+        elementColors[elementIdOf({ type: dNode.typeName, attrs: dNode.attrs })] ?? null,
       );
       currentY += part.lines * LINE_HEIGHT_PT;
     };
@@ -1340,7 +1348,10 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     }
 
     // Render the element
-    renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, fonts, revisionMarkX);
+    renderElement(
+      pdf, wrappedLines, leftPt, rightPt, currentY, typeName, fonts, revisionMarkX,
+      elementColors[elementIdOf({ type: node.typeName, attrs: node.attrs })] ?? null,
+    );
 
     // Render scene numbers on both sides if enabled
     if (typeName === 'sceneHeading' && options?.sceneNumbersVisible && node.attrs?.sceneNumber) {
@@ -1442,7 +1453,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     }
   }
 
-  if (options?.colorRevisedPages) {
+  if (options?.colorRevisedPages && !options?.blackAndWhite) {
     for (const [sheet, color] of sheetRevisions) {
       if (sheet <= titleSheets) continue;
       const paper = revisionPaper(color);
@@ -1535,6 +1546,8 @@ function renderElement(
   fonts: FontContext,
   /** Where to draw a revised line's margin mark; null draws none. */
   revisionMarkX: RevisionMarker | null = null,
+  /** The template's colours for this element; null draws plain black ink. */
+  colors: ElementColors | null = null,
 ): void {
   const isCentered = CENTERED_TYPES.has(typeName);
   const isRightAligned = RIGHT_ALIGNED_TYPES.has(typeName);
@@ -1543,6 +1556,17 @@ function renderElement(
   for (let lineIdx = 0; lineIdx < wrappedLines.length; lineIdx++) {
     const lineRuns = wrappedLines[lineIdx];
     const y = startY + (lineIdx + 1) * LINE_HEIGHT_PT; // +1 because jsPDF text baseline
+    if (colors?.background) {
+      // The strip runs the full width of the element's box, as the editor's block
+      // does, and sits 3pt low so it wraps the whole of the letters, descenders included.
+      pdf.setFillColor(colors.background);
+      pdf.rect(leftPt, startY + lineIdx * LINE_HEIGHT_PT + 3, maxWidthPt, LINE_HEIGHT_PT, 'F');
+      pdf.setFillColor(0, 0, 0);
+    }
+    if (colors?.text) {
+      pdf.setTextColor(colors.text);
+      pdf.setDrawColor(colors.text);
+    }
 
     if (isCentered) {
       const totalWidth = measureLine(pdf, lineRuns, fonts);
@@ -1554,6 +1578,11 @@ function renderElement(
       renderLine(pdf, lineRuns, rightX, y, fonts);
     } else {
       renderLine(pdf, lineRuns, leftPt, y, fonts);
+    }
+    if (colors?.text) {
+      // The margin mark and the next line start from plain black again.
+      pdf.setTextColor(0, 0, 0);
+      pdf.setDrawColor(0, 0, 0);
     }
     drawRevisionMark(pdf, lineRuns, y, fonts, revisionMarkX);
   }

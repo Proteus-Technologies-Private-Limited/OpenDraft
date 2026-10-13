@@ -13,6 +13,7 @@ import { titlePageAttrsCarryData } from './titlePageRegion';
 import {
   REVISION_COLORS, findRevisionColor, revisionMarkFor, type RevisionSettings,
 } from '../editor/revisionColors';
+import { toBlackAndWhiteFdx } from './fdxBlackAndWhite';
 
 const NODE_TO_FDX: Record<string, string> = {
   sceneHeading: 'Scene Heading',
@@ -276,6 +277,8 @@ export interface FDXExportOptions {
   /** False leaves scene numbers out, as hiding them did before they could be
    *  locked. Absent writes whatever numbers the scenes carry. */
   sceneNumbersVisible?: boolean;
+  /** Every font colour black and every background white, for a plain copy. */
+  blackAndWhite?: boolean;
 }
 
 export interface FDXRevisionState {
@@ -835,11 +838,13 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
 
 export async function downloadFDX(doc: JSONContent, title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont, footnotes?: FootnotePlan | null, revisions?: FDXRevisionState, options: FDXExportOptions = {}, fdxRaw?: FdxRaw | null) {
   // The sections the file arrived with go back as they were, the same as a normal save.
-  const xml = mergeFdxRaw(
+  const merged = mergeFdxRaw(
     exportFDX(doc, title, characterProfiles, tagCategories, tags, beats, beatColumns, pageLayout, documentFont, footnotes, revisions, options),
     fdxRaw ?? undefined,
     settingsSignature(pageLayout, documentFont, characterProfiles),
   );
+  // Black and white runs last, so the settings kept from the original file are covered too.
+  const xml = options.blackAndWhite ? toBlackAndWhiteFdx(merged) : merged;
   const filename = `${sanitizeExportFilename(title)}.fdx`;
   const { saveFile } = await import('./fileOps');
   await saveFile(xml, filename, [{ name: 'Final Draft', extensions: ['fdx'] }]);

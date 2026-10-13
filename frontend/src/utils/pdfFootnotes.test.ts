@@ -27,6 +27,10 @@ vi.mock('jspdf', () => {
     addFont() {}
     setFontSize() {}
     setLineWidth() {}
+    setTextColor() {}
+    setFillColor() {}
+    setDrawColor() {}
+    rect() {}
     line() {}
     addPage() { pages++; currentPage = pages; }
     setPage(n: number) { currentPage = n; }

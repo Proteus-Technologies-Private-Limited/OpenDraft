@@ -1675,7 +1675,24 @@ const MenuBar: React.FC<MenuBarProps> = ({
     }
   }, [editor, documentTitle]);
 
-  const handleExportFadeIn = useCallback(async () => {
+  /** File → Export → Export to Black and White FDX: the same file with every
+   *  font colour black and every background white. */
+  const handleExportBlackAndWhiteFDX = useCallback(async () => {
+    if (!editor) return;
+    try {
+      const s = useEditorStore.getState();
+      await downloadFDX(editor.getJSON(), `${documentTitle} (black and white)`, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns, s.pageLayout,
+        { family: s.fontFamily, size: s.fontSize },
+        buildExportFootnotePlan(editor.getJSON(), s.pageLayout, s.notes, s.generalNotes),
+        { mode: s.revisionMode, color: s.revisionColor, settings: s.revisionSettings },
+          { sceneNumbersVisible: s.sceneNumbersVisible, blackAndWhite: true }, s.fdxRaw);
+    } catch (err) {
+      console.error('Black and white FDX export failed:', err);
+      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, documentTitle]);
+
+  const exportFadeInWith = useCallback(async (colours: boolean) => {
     if (!editor) return;
     try {
       const s = useEditorStore.getState();
@@ -1683,12 +1700,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
       await downloadFadeIn(editor.getJSON(), documentTitle, {
         font: { family: s.fontFamily, size: String(s.fontSize) },
         ...osfExtras(s),
+        ...(colours ? { elementColors: true } : { blackAndWhite: true }),
       });
     } catch (err) {
       console.error('Fade In export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
   }, [editor, documentTitle]);
+
+  const handleExportFadeIn = useCallback(() => exportFadeInWith(true), [exportFadeInWith]);
+  const handleExportBlackAndWhiteFadeIn = useCallback(() => exportFadeInWith(false), [exportFadeInWith]);
 
   const handleExportFountain = useCallback(async () => {
     if (!editor) return;
@@ -1856,6 +1877,24 @@ const MenuBar: React.FC<MenuBarProps> = ({
     }
   }, [editor, documentTitle, pageLayout, pdfOptions]);
 
+  /** File → Export → Export to Black and White PDF: plain ink on white, with
+   *  no element colours and no coloured revision pages. */
+  const handleExportBlackAndWhitePDF = useCallback(async () => {
+    if (!editor) return;
+    try {
+      const json = editor.getJSON();
+      const base = pdfOptions(json);
+      const warning = await exportPDF(
+        json, `${documentTitle} (black and white)`, pageLayout,
+        { ...base, blackAndWhite: true, documentTitle: base.documentTitle || documentTitle },
+      );
+      if (warning) showToast(warning, 'error');
+    } catch (err) {
+      console.error('Black and white PDF export failed:', err);
+      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, documentTitle, pageLayout, pdfOptions]);
+
   /**
    * File → Print (and ⌘P).
    *
@@ -2004,7 +2043,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     return () => window.removeEventListener('keydown', handler);
   }, [handleSave, handleSaveAs, handleNewScreenplay, handleCloseDocument, handlePrint, confirmOrRun, handleOpenInPlace, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel, setSpellModalOpen, setGrammarModalOpen]);
 
-  const handleExportDocx = useCallback(async () => {
+  const exportDocxWith = useCallback(async (colours: boolean) => {
     if (!editor) return;
     try {
       const store = useEditorStore.getState();
@@ -2018,12 +2057,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // Word's NUMPAGES, which counts the title page.
         scriptPageCount: store.pageCount,
         includeTitlePage: store.includeTitlePageInOutput,
+        elementColors: colours,
       });
     } catch (err) {
       console.error('Word export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
   }, [editor, documentTitle, pageLayout]);
+
+  const handleExportDocx = useCallback(() => exportDocxWith(true), [exportDocxWith]);
+  const handleExportBlackAndWhiteDocx = useCallback(() => exportDocxWith(false), [exportDocxWith]);
 
   // ── Backups ────────────────────────────────────────────────────────────
   // "Back Up Now" writes a snapshot into the configured folder immediately,
@@ -2350,15 +2393,19 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {
           icon: <FaFileExport />, label: 'Export',
           children: [
-            { icon: <FaFileCode />, label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
+            { icon: <FaFileCode />, label: 'Final Draft (.fdx) - Colours', action: handleExportFDX, disabled: isCollabGuest },
+            { icon: <FaFileCode />, label: 'Final Draft (.fdx) - Black and White', action: handleExportBlackAndWhiteFDX, disabled: isCollabGuest },
             { icon: <FaFileAlt />, label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
-            { icon: <FaFileCode />, label: 'Fade In (.fadein)', action: handleExportFadeIn, disabled: isCollabGuest },
-            { icon: <FaFilePdf />, label: 'PDF', action: handleExportPDF },
+            { icon: <FaFileCode />, label: 'Fade In (.fadein) - Colours', action: handleExportFadeIn, disabled: isCollabGuest },
+            { icon: <FaFileCode />, label: 'Fade In (.fadein) - Black and White', action: handleExportBlackAndWhiteFadeIn, disabled: isCollabGuest },
+            { icon: <FaFilePdf />, label: 'PDF - Colours', action: handleExportPDF },
+            { icon: <FaFilePdf />, label: 'PDF - Black and White', action: handleExportBlackAndWhitePDF },
             {
               icon: <FaFilePdf />, label: 'PDF (Revised Pages Only)', action: handleExportRevisedPDF,
               title: 'Only the pages that carry a revision mark',
             },
-            { icon: <FaFileWord />, label: 'Microsoft Word (.docx)', action: handleExportDocx },
+            { icon: <FaFileWord />, label: 'Microsoft Word (.docx) - Colours', action: handleExportDocx },
+            { icon: <FaFileWord />, label: 'Microsoft Word (.docx) - Black and White', action: handleExportBlackAndWhiteDocx },
             // AV formats are offered only for documents that have an AV body —
             // a spreadsheet of a screenplay would be meaningless.
             ...(hasAv
@@ -3339,6 +3386,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 <li><strong>Lossless Final Draft Files.</strong> Open a Final Draft (.fdx) file, edit it, save it, and everything you did not change is written back as it was: paragraph ids, scene properties, colours, adornments, settings, the free-form title page, character highlighting and revision labels. Anything WriTea Draft does not model is carried through untouched, and a safety copy of the original is kept before the first overwrite.</li>
                 <li><strong>Hello, WriTea Draft.</strong> This is the first release under the new name. WriTea Draft is built on OpenDraft by Proteus Technologies, and brings its full set of screenwriting tools along.</li>
                 <li><strong>Final Draft Habits.</strong> Final Draft (.fdx) is the format your scripts are saved in, with the native Save and Save As dialog. Enter and Tab move between elements the way Final Draft does, scene headings autocomplete (time of day included), new scripts start in Courier Final Draft, and Ctrl+O and Ctrl+W open and close scripts.</li>
+                <li><strong>Colour Your Elements.</strong> Each element has its own text colour in the formatting template (scene headings, action, characters and dialogue, each in a specific colour) so a script is easier to read and follow. The colours show in the editor and in PDF, Word and Fade In exports. The colours can be changed by you.</li>
+                <li><strong>Black And White Exports.</strong> The Black and White options for Final Draft (.fdx), PDF, Word and Fade In in the Export menu make a plain copy with every font colour black and every background white, for printing or sharing.</li>
                 <li><strong>Simpler By Design.</strong> The online features, the Projects screens and the .odraft format are gone. Scripts are files on your disk, opened and saved like any other document.</li>
                 <li><strong>A New Look.</strong> A new logo (a teacup and a quill on a cornflower tile), with a matching app icon on every platform and a new startup screen.</li>
               </ul>
