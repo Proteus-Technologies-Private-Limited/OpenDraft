@@ -3101,7 +3101,7 @@ pub fn run() {
 
                 std::thread::spawn(move || {
                     // Splash display: long enough for its fade-ins to finish
-                    std::thread::sleep(std::time::Duration::from_millis(1500));
+                    std::thread::sleep(std::time::Duration::from_millis(2500));
 
                     if let Some(main) = main_window {
                         let _ = main.show();

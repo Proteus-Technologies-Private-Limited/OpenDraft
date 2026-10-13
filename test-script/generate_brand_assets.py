@@ -256,7 +256,7 @@ def web_assets():
         shutil.copyfile(SQUARE, os.path.join(target, "favicon.svg"))
         written.append(os.path.join(target, "favicon.svg"))
         make_ico(SQUARE, os.path.join(target, "favicon.ico"), sizes=(16, 32, 48))
-        render(MACOS, os.path.join(target, "splash-logo.png"), 256)
+        render(MACOS, os.path.join(target, "splash-logo.png"), 512)
         # iOS "Add to Home Screen" ignores SVG and needs an opaque PNG.
         render(SQUARE, os.path.join(target, "apple-touch-icon.png"), 180, opaque=True)
 
