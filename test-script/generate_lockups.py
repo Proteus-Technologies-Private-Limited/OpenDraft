@@ -123,7 +123,7 @@ def mark_pieces():
 def write(path, w, h, defs, mark, word, mono):
     fill = "currentColor" if mono else INDIGO
     root_fill = ' fill="currentColor"' if mono else ""
-    body_mark = re.sub(r'fill="url\(#od[A-Za-z]+\)"', 'fill="currentColor"', mark) if mono else mark
+    body_mark = re.sub(r'(fill|stroke)="url\(#od[A-Za-z]+\)"', r'\1="currentColor"', mark) if mono else mark
     defs_block = "" if mono else f"  <defs>\n{defs}\n  </defs>\n"
     with open(path, "w") as fh:
         fh.write(

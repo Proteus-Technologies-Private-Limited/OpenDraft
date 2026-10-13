@@ -1,22 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="WriTea Draft">
   <title>WriTea Draft</title>
   <defs>
-    <linearGradient id="odBg" x1="0" y1="0" x2=".22" y2="1">
-      <stop offset="0" stop-color="#161B70"/><stop offset=".42" stop-color="#46247F"/>
-      <stop offset=".76" stop-color="#A6338B"/><stop offset="1" stop-color="#D4388C"/>
-    </linearGradient>
-    <radialGradient id="odWarm" cx=".44" cy="1.04" r=".62">
-      <stop offset="0" stop-color="#FF8A1F" stop-opacity=".95"/>
-      <stop offset=".55" stop-color="#F05C33" stop-opacity=".45"/>
-      <stop offset="1" stop-color="#F05C33" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="odCool" cx="1.02" cy=".84" r=".6">
-      <stop offset="0" stop-color="#0DB3C0" stop-opacity=".95"/>
-      <stop offset=".55" stop-color="#1B79B4" stop-opacity=".4"/>
-      <stop offset="1" stop-color="#1B79B4" stop-opacity="0"/>
-    </radialGradient>
+    <linearGradient id="bg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3D5BD9"/><stop offset="0.55" stop-color="#6E93EE"/><stop offset="1" stop-color="#A8C4F8"/></linearGradient>
+    <radialGradient id="glow" cx="0.3" cy="0.2" r="0.7"><stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
   </defs>
-  <rect width="1024" height="1024" fill="url(#odBg)"/>
-  <rect width="1024" height="1024" fill="url(#odWarm)"/>
-  <rect width="1024" height="1024" fill="url(#odCool)"/>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
 </svg>
