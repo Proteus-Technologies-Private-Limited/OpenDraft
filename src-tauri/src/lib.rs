@@ -3100,8 +3100,8 @@ pub fn run() {
                 let main_window = app.get_webview_window("main");
 
                 std::thread::spawn(move || {
-                    // Brief splash display — no backend to wait for
-                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    // Splash display: long enough for its fade-ins to finish
+                    std::thread::sleep(std::time::Duration::from_millis(1500));
 
                     if let Some(main) = main_window {
                         let _ = main.show();
