@@ -431,7 +431,7 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
   const plan = footnotes && footnotes.settings.includeInExports ? footnotes : null;
   // Final Draft keeps the typeface on each element's FontSpec; the screenplay
   // Courier is the default a file gets when the writer has not changed it.
-  const docFont = documentFont?.family || 'Courier Prime';
+  const docFont = documentFont?.family || 'Courier Final Draft';
   const docFontSize = String(documentFont?.size ?? 12);
   const lines: string[] = [];
   lines.push('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>');

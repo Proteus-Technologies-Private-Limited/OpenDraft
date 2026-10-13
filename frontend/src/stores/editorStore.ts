@@ -1499,7 +1499,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   zoomPanelOpen: false,
   setZoomPanelOpen: (open) => set({ zoomPanelOpen: open }),
 
-  fontFamily: 'Courier Prime',
+  fontFamily: 'Courier Final Draft',
   setFontFamily: (font) => set({ fontFamily: font }),
   fontSize: 12,
   setFontSize: (size) => set({ fontSize: Math.min(24, Math.max(8, size)) }),

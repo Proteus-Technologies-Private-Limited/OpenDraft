@@ -137,7 +137,7 @@ export function serializeContentForFormat(
   const doc = pmDoc as JSONContent;
   const revision = readRevisionState(content);
   const sceneNumbersVisible = m._sceneNumbersVisible !== false;
-  const font = options.font ?? { family: 'Courier Prime', size: 12 };
+  const font = options.font ?? { family: 'Courier Final Draft', size: 12 };
 
   switch (format) {
     case 'fdx':

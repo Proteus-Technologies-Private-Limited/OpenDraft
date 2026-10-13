@@ -36,8 +36,8 @@ const styled = (font: string) => ({
 });
 
 describe('export', () => {
-  it('writes the screenplay Courier when the document font is unset', () => {
-    expect(fontSpecFonts(exportFDX(script))).toEqual(['Courier Prime']);
+  it('writes Final Draft\'s Courier when the document font is unset', () => {
+    expect(fontSpecFonts(exportFDX(script))).toEqual(['Courier Final Draft']);
   });
 
   it('writes the document font onto every element', () => {
