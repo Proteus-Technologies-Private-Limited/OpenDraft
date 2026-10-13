@@ -110,7 +110,11 @@ def make_ico(svg_path, out_path, sizes=(16, 24, 32, 48, 64, 128, 256)):
 def make_icns(svg_path, out_path):
     """Build a macOS .icns via iconutil (macOS only; skipped elsewhere)."""
     if not shutil.which("iconutil"):
-        print("  ! iconutil not found - skipping icon.icns")
+        # No iconutil off macOS: Pillow can write a complete .icns from one 1024px render.
+        import io
+        png = cairosvg.svg2png(url=svg_path, output_width=1024, output_height=1024)
+        Image.open(io.BytesIO(png)).convert("RGBA").save(out_path, format="ICNS")
+        written.append(out_path)
         return
     pairs = [
         ("icon_16x16.png", 16), ("icon_16x16@2x.png", 32),
