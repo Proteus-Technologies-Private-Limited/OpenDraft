@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=WriTea Draft
+Comment=WriTea Draft - Professional Screenwriting Application
+Exec=writeadraft
+Icon=writeadraft
+Terminal=false
+Categories=Office;
+StartupWMClass=writeadraft
+MimeType=application/xml;text/plain;application/zip;

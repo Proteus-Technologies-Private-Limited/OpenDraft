@@ -64,6 +64,22 @@
         "installerHooks": "nsis-hooks.nsh"
       }
     },
+    "linux": {
+      "deb": {
+        "desktopTemplate": "linux/hidden-launcher.desktop",
+        "files": {
+          "/usr/share/applications/writeadraft.desktop": "linux/writeadraft.desktop"
+        }
+      }
+    },
+    "linux": {
+      "deb": {
+        "desktopTemplate": "linux/hidden-launcher.desktop",
+        "files": {
+          "/usr/share/applications/writeadraft.desktop": "linux/writeadraft.desktop"
+        }
+      }
+    },
     "category": "public.app-category.productivity",
     "fileAssociations": [
       {
