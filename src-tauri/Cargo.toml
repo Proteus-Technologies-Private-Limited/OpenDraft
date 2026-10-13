@@ -1,6 +1,6 @@
 [package]
 name = "writeadraft"
-version = "2.5.3"
+version = "1.0.0"
 description = "WriTea Draft - Professional Screenwriting Application"
 authors = ["WriTea Media"]
 edition = "2021"

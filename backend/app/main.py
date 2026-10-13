@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="WriTea Draft API",
     description="Backend API for WriTea Draft screenwriting application",
-    version="2.5.3",
+    version="1.0.0",
     lifespan=lifespan,
 )
 

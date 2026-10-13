@@ -18,7 +18,7 @@
 
 import DOMPurify from 'dompurify';
 
-const REPO = 'Proteus-Technologies-Private-Limited/OpenDraft';
+const REPO = 'drrules/WriTea-Draft';
 const BRANCH = 'main';
 /** raw.githubusercontent serves the manual source with permissive CORS. */
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/`;
@@ -26,7 +26,7 @@ const MANUAL_BASE = `${RAW_BASE}user-manual/`;
 
 /** The published manual, for the "open in browser" escape hatch. */
 export const MANUAL_WEB_URL =
-  'https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/';
+  'https://drrules.github.io/WriTea-Draft/user-manual/';
 
 /**
  * Attribute holding the repo-relative path of an image that lives in the local
