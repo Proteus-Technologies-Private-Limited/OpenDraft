@@ -75,5 +75,12 @@
   <div class="spinner-container"><div class="spinner"></div></div>
   <div class="status">Starting up...</div>
   </div>
+  <script>
+    // macOS only gives a window a see-through background when the app opts in to
+    // its private API, so on a Mac the splash fills the whole square instead.
+    if (/Mac/i.test(navigator.userAgent)) {
+      document.querySelector('.shell').style.borderRadius = '0';
+    }
+  </script>
 </body>
 </html>
