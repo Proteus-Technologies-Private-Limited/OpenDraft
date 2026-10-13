@@ -1,0 +1,62 @@
+name: Build macOS (unsigned)
+
+# Builds WriTea Draft for macOS without code signing and attaches each .dmg to
+# the run as a downloadable artifact. Run it by hand from the Actions tab.
+# Unsigned means the first launch is right-click, then Open.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-mac:
+    name: macOS ${{ matrix.label }}
+    runs-on: macos-15
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Apple Silicon
+            target: aarch64-apple-darwin
+          - label: Intel
+            target: x86_64-apple-darwin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Build app
+        run: >
+          npx --prefix frontend tauri build
+          --bundles dmg
+          --target ${{ matrix.target }}
+          --config '{"build":{"beforeBuildCommand":"","beforeDevCommand":""}}'
+
+      - name: Upload the .dmg
+        uses: actions/upload-artifact@v4
+        with:
+          name: WriTeaDraft-macOS-${{ matrix.target }}
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          if-no-files-found: error
