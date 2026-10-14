@@ -12,7 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
 import {
-  computeSceneTiming, DEFAULT_TIMING_OPTIONS, formatRuntime, type TimingOptions,
+  computeSceneTiming, DEFAULT_TIMING_OPTIONS, formatRuntime, formatSceneDuration, type TimingOptions,
 } from './scriptTiming';
 import { computeBreaks, getPageMetrics } from '../editor/pagination';
 import { DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
@@ -175,11 +175,19 @@ describe('lines, not words', () => {
     expect(computeSceneTiming(withBlanks, opts).totalSeconds).toBe(computeSceneTiming(plain, opts).totalSeconds);
   });
 
-  it('a few lines read as under a minute, not as "0m"', () => {
-    expect(formatRuntime(12)).toBe('<1m');
-    expect(formatRuntime(0)).toBe('0m');
-    expect(formatRuntime(45)).toBe('1m');
-    expect(formatRuntime(6420)).toBe('1h 47m');
+  it('runtime is shown to the second', () => {
+    expect(formatRuntime(0)).toBe('0s');
+    expect(formatRuntime(12)).toBe('12s');
+    expect(formatRuntime(45.4)).toBe('45s');
+    expect(formatRuntime(185)).toBe('3m 5s');
+    expect(formatRuntime(3600)).toBe('1h 0m 0s');
+    expect(formatRuntime(6432)).toBe('1h 47m 12s');
+    expect(formatRuntime(59.6)).toBe('1m 0s');
+  });
+
+  it('scene durations carry rounded seconds into the minute', () => {
+    expect(formatSceneDuration(119.6)).toBe('2:00');
+    expect(formatSceneDuration(65)).toBe('1:05');
   });
 
   it('a cold open before the first heading counts toward the total', () => {

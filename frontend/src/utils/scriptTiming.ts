@@ -245,20 +245,23 @@ function pushScene(scenes: SceneTiming[], current: SceneAccumulator, secondsPerL
 
 /** Format seconds as "1h 47m" or "2:15" (mm:ss for short durations) */
 export function formatRuntime(seconds: number): string {
-  // Some content but under half a minute would round to "0m", which reads as
-  // "nothing here" on a page that plainly has something on it.
-  if (seconds > 0 && seconds < 30) return '<1m';
-  const totalMinutes = Math.round(seconds / 60);
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  if (h === 0) return `${m}m`;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  // To the second: whole minutes hide most of what an edit changes, and a
+  // short script would otherwise read as "0m" with something on the page.
+  const total = Math.max(0, Math.round(seconds));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
 }
 
 /** Format seconds as "M:SS" for per-scene display */
 export function formatSceneDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
+  // Round once, up front, so 119.6s reads "2:00" and never "1:60".
+  const total = Math.max(0, Math.round(seconds));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
