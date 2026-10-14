@@ -17,7 +17,7 @@ import { useEditorStore } from '../stores/editorStore';
 import {
   GENRE_PRESETS, MAX_GENRES, PACING_OPTIONS, cleanGenre, normalizeGenres, type Pacing,
 } from '../utils/scriptProfile';
-import { activeTimingOptions, computeSceneTiming, formatRuntime, formatSceneDuration } from '../utils/scriptTiming';
+import { activeTimingOptions, computeSceneTiming, formatRuntime } from '../utils/scriptTiming';
 
 interface Props {
   onClose: () => void;
@@ -41,9 +41,7 @@ const ScriptProfileDialog: React.FC<Props> = ({ onClose, getDoc }) => {
       const base = activeTimingOptions();
       for (const o of PACING_OPTIONS) {
         const secs = computeSceneTiming(doc, { ...base, pacingMultiplier: o.multiplier }).totalSeconds;
-        // Whole minutes hide the difference on a short script ("3m" either
-        // way), so anything under ten minutes is shown to the second.
-        if (secs > 0) out[o.id] = secs < 600 ? formatSceneDuration(secs) : formatRuntime(secs);
+        if (secs > 0) out[o.id] = formatRuntime(secs);
       }
     } catch (err) {
       console.warn('[scriptProfile] runtime preview failed', err);

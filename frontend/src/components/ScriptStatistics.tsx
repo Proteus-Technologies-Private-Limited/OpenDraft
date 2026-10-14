@@ -23,13 +23,6 @@ interface Props {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16'];
 
-function formatTime(minutes: number): string {
-  const h = Math.floor(minutes);
-  const m = Math.round((minutes - h) * 60);
-  if (h === 0) return `${m}m`;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-}
-
 const ScriptStatistics: React.FC<Props> = ({ editor }) => {
   const { characterProfiles, pageCount, setStatisticsOpen, statisticsScrollTo, setStatisticsScrollTo } = useEditorStore();
 
@@ -69,7 +62,7 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
           <div className="stats-card">
             <div className="stats-card-value">{overview.totalPages}</div>
             <div className="stats-card-label">Pages</div>
-            <div className="stats-card-sub">Est. {timingResult.totalSeconds > 0 ? formatRuntime(timingResult.totalSeconds) : formatTime(overview.estimatedRuntime)}</div>
+            <div className="stats-card-sub">Est. {timingResult.totalSeconds > 0 ? formatRuntime(timingResult.totalSeconds) : formatRuntime(overview.estimatedRuntime * 60)}</div>
           </div>
           <div className="stats-card">
             <div className="stats-card-value">{overview.totalScenes}</div>
