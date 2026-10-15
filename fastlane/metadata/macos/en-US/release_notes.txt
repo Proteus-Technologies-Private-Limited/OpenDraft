@@ -1,3 +1,6 @@
+RUNNING TIME TO THE SECOND
+The running time estimate now shows minutes and seconds, so even a short film or a single scene gets an exact figure.
+
 KNOW HOW LONG YOUR FILM WILL RUN
 The running time estimate is now far more accurate. It reads your pages the way a production does, about one page to a minute, and lands close to the real running time of released films.
 
@@ -7,5 +10,5 @@ Choose a pacing for your script: Brisk for fast talk and quick cuts, Measured fo
 TAG YOUR SCRIPT'S GENRES
 Pick as many genres as fit, or add your own. They're saved with your script.
 
-ALSO FIXED
-Drop-down lists now match the Dark theme.
+ALSO IMPROVED
+Drop-down lists now match the Dark theme. OpenDraft no longer checks in with our server every time it opens. It only does so when you sign in or open Settings.
