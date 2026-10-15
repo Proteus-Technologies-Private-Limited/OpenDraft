@@ -141,7 +141,10 @@ async function init() {
 
   // Fetch the backend's demo-mode flag once so CollabLoginDialog/SettingsPage
   // can decide whether to show demo warnings. Non-blocking best-effort.
-  initDemoInfo().catch(() => {});
+  // Browser only: the apps keep scripts in local SQLite and need no server at
+  // launch, so this would be a request to open-draft.com on every start (and a
+  // 10 s timeout offline). Both dialogs fetch the flag themselves when opened.
+  if (!isTauri()) initDemoInfo().catch(() => {});
 
   // Set initial native window title on desktop (for macOS Window menu)
   import('./services/platform').then(({ isDesktopTauri }) => {
