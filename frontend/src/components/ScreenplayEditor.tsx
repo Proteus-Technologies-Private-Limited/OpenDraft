@@ -176,7 +176,7 @@ import { useIsTouchDevice, useSwipeEdge, usePinchZoom } from '../hooks/useTouch'
 import { useSettingsStore } from '../stores/settingsStore';
 import { useLinkedFileStore, autoSaveAppliesToOpenDocument } from '../stores/linkedFileStore';
 import { startCollabSync, stopCollabSync } from '../services/collabSync';
-import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, isCollabAuthenticated } from '../services/collabAuth';
+import { collabAuthApi, setLogoutCollabTeardown, setLogoutEditorReset, ensureCollabAuthenticated, COLLAB_AUTH_UNAVAILABLE_MESSAGE } from '../services/collabAuth';
 import { platformFetch, isTauri, isDesktopTauri, needsSelectionHandles } from '../services/platform';
 import { reportSaveError } from '../stores/saveErrorStore';
 import { pluginRegistry } from '../plugins/registry';
@@ -546,21 +546,20 @@ const ScreenplayEditor: React.FC = () => {
     const ydoc = new Y.Doc();
 
     // Build compound token: "jwt:<access>|invite:<invite>" when auth is available and valid
-    const { collabAuth, clearCollabAuth } = useSettingsStore.getState();
+    const { collabAuth } = useSettingsStore.getState();
     let token = inviteToken;
     if (collabAuth.accessToken) {
-      // Check JWT expiry client-side to avoid sending expired tokens
+      // Check JWT expiry client-side to avoid sending expired tokens. An
+      // expired or unreadable one just means using the invite token alone —
+      // never sign out over it: the refresh token is what keeps the session,
+      // and the next authed request renews the access token from it.
       try {
         const payload = JSON.parse(atob(collabAuth.accessToken.split('.')[1]));
         if (payload.exp && payload.exp * 1000 > Date.now()) {
           token = `jwt:${collabAuth.accessToken}|invite:${inviteToken}`;
-        } else {
-          // JWT expired — clear it so we don't keep sending it
-          clearCollabAuth();
         }
-      } catch {
-        // Malformed JWT — just use invite token
-        clearCollabAuth();
+      } catch (err) {
+        console.warn('[Collab] could not read the access token, joining with the invite only:', err);
       }
     }
 
@@ -4837,10 +4836,15 @@ const ScreenplayEditor: React.FC = () => {
             ))}
           </div>
           {isCollabHost && (
-            <button className="collab-banner-btn" onClick={() => {
+            <button className="collab-banner-btn" onClick={async () => {
               // Close any stale login dialog before reopening share dialog
               setCollabLoginOpen(false);
-              if (!isCollabAuthenticated()) {
+              const authStatus = await ensureCollabAuthenticated();
+              if (authStatus === 'unavailable') {
+                showToast(COLLAB_AUTH_UNAVAILABLE_MESSAGE, 'error');
+                return;
+              }
+              if (authStatus === 'signed-out') {
                 setCollabLoginOpen(true);
                 return;
               }
@@ -4938,14 +4942,21 @@ const ScreenplayEditor: React.FC = () => {
           </button>
         </div>
       )}
-      {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={(json) => { lastSavedJsonRef.current = json; }} onCollaborate={() => {
+      {!isHistoryMode && <MenuBar editor={editor} onDocumentSaved={(json) => { lastSavedJsonRef.current = json; }} onCollaborate={async () => {
         if (!currentProject || !currentScriptId) {
           showToast('Save your screenplay to a project first — opening Save As...', 'info');
           useEditorStore.getState().setSaveAsOpen(true);
           return;
         }
-        // Check if user is authenticated to the collab server (also clears expired tokens)
-        if (!isCollabAuthenticated()) {
+        // Check the user is signed in, renewing an expired access token first.
+        // A session that just could not be renewed right now is still a
+        // session — say so instead of showing the sign-in form.
+        const authStatus = await ensureCollabAuthenticated();
+        if (authStatus === 'unavailable') {
+          showToast(COLLAB_AUTH_UNAVAILABLE_MESSAGE, 'error');
+          return;
+        }
+        if (authStatus === 'signed-out') {
           setCollabLoginOpen(true);
           return;
         }

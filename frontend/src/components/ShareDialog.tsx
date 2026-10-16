@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import type { CollabSession } from '../services/api';
 import { useSettingsStore } from '../stores/settingsStore';
-import { collabAuthApi, isCollabAuthenticated } from '../services/collabAuth';
+import { collabAuthApi, ensureCollabAuthenticated, COLLAB_AUTH_UNAVAILABLE_MESSAGE } from '../services/collabAuth';
 import { showToast } from './Toast';
 import Select from './Select';
 
@@ -76,8 +76,14 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
     const trimmed = name.trim();
     if (!trimmed) return;
 
-    // Verify user is still authenticated (also clears expired tokens)
-    if (!isCollabAuthenticated()) {
+    // Verify the user is still signed in, renewing an expired access token
+    const authStatus = await ensureCollabAuthenticated();
+    if (authStatus === 'unavailable') {
+      // Still signed in — keep the dialog open so they can simply retry.
+      showToast(COLLAB_AUTH_UNAVAILABLE_MESSAGE, 'error');
+      return;
+    }
+    if (authStatus === 'signed-out') {
       showToast('Session expired — please log in again (Settings → Collaboration)', 'error');
       onClose();
       return;

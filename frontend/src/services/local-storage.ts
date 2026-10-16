@@ -114,28 +114,25 @@ function getCollabApiBase(): string {
  * Uses platformFetch to bypass WebView mixed-content restrictions on Tauri.
  */
 async function collabRequest<T>(path: string, options?: RequestInit): Promise<T> {
-  const { platformFetch } = await import('./platform');
+  // authedFetch attaches the access token (the collab server requires it for
+  // write operations) and renews it on 401 — access tokens last minutes, so
+  // an expired one is routine and must not sign the user out.
+  const { authedFetch, sessionSurvivesUnauthorized } = await import('./authedFetch');
   const { useSettingsStore } = await import('../stores/settingsStore');
   const base = getCollabApiBase();
   const url = `${base}${path}`;
 
-  // Include auth token if available (collab server requires it for write operations)
-  const { collabAuth } = useSettingsStore.getState();
-  const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (collabAuth.accessToken) {
-    authHeaders['Authorization'] = `Bearer ${collabAuth.accessToken}`;
-  }
-
   console.log(`[collabRequest] ${options?.method || 'GET'} ${url}`);
-  const res = await platformFetch(url, {
+  const res = await authedFetch(url, {
     ...options,
-    headers: { ...authHeaders, ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     console.error(`[collabRequest] ${url} → ${res.status}: ${detail}`);
-    // Clear stale auth on 401 so the UI prompts for re-login
-    if (res.status === 401) {
+    // Clear stale auth on 401 so the UI prompts for re-login — unless the
+    // refresh failed for a transient reason and the session is still good.
+    if (res.status === 401 && !sessionSurvivesUnauthorized()) {
       useSettingsStore.getState().clearCollabAuth();
     }
     throw new Error(`Collab API error ${res.status}: ${detail}`);

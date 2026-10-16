@@ -1,6 +1,6 @@
 import { getApiBase, getCollabWsUrl } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
-import { authedFetch } from './authedFetch';
+import { authedFetch, sessionSurvivesUnauthorized } from './authedFetch';
 
 /**
  * Custom events dispatched by the API client so UI components (AuthGate) can
@@ -62,8 +62,20 @@ export async function handleNonOkResponse(res: Response, label: string): Promise
   let handled = false;
 
   if (res.status === 401) {
-    // authedFetch has already cleared auth if refresh failed; ensure it's
-    // cleared for the no-refresh-token path too.
+    if (sessionSurvivesUnauthorized()) {
+      // The refresh failed for a transient reason (rate limit, server down)
+      // and authedFetch kept the session. Signing out here would throw away
+      // a refresh token that still works; let the caller report the error.
+      console.warn(`[${label}] 401 after a failed session refresh; keeping the session`);
+      throw new ApiError(
+        res.status,
+        parsedBody,
+        'Could not renew your sign-in just now. Please try again in a moment.',
+        false,
+      );
+    }
+    // authedFetch has already cleared auth if refresh was refused; ensure
+    // it's cleared for the no-refresh-token path too.
     useSettingsStore.getState().clearCollabAuth();
     dispatchApiEvent('opendraft:auth-required');
     handled = true;

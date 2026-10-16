@@ -10,7 +10,7 @@ import * as deviceService from '../services/deviceService';
 import * as passwordResetService from '../services/passwordResetService';
 import type { DeviceInfo } from '../services/deviceService';
 import { requireAuth } from '../middleware/auth';
-import { strictLimiter, veryStrictLimiter } from '../middleware/rateLimit';
+import { refreshLimiter, strictLimiter, veryStrictLimiter } from '../middleware/rateLimit';
 import { config } from '../config';
 
 const router = Router();
@@ -425,7 +425,7 @@ router.post('/resend-device-challenge', strictLimiter, async (req, res) => {
   }
 });
 
-router.post('/refresh', strictLimiter, async (req, res) => {
+router.post('/refresh', refreshLimiter, async (req, res) => {
   try {
     const parsed = refreshSchema.safeParse(req.body);
     if (!parsed.success) {
