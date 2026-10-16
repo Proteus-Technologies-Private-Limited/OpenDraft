@@ -88,6 +88,14 @@ ENV OPENDRAFT_DATA_DIR=/app/data/backend \
     #   -e SEED_DEMO_USER_PASSWORD=<your-choice>
     # The seeder is idempotent: it skips if a user with that email exists.
 
+# uvicorn sits behind a proxy (Caddy in compose, Google's front end on Cloud
+# Run) and by default trusts X-Forwarded-For only from 127.0.0.1, so every
+# visitor showed up as the proxy's address — sharing one sign-in rate limit,
+# which signed people out once enough of them had renewed their tokens. Trust
+# private-network hops only: the client's own address is the first untrusted
+# one from the right, so a forged X-Forwarded-For cannot pick a new identity.
+ENV FORWARDED_ALLOW_IPS="127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16,fc00::/7"
+
 EXPOSE 8080 8081
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/opendraft.conf", "-n"]

@@ -430,3 +430,27 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ elementMenuShortcut: clean });
   },
 }));
+
+/**
+ * Keep every tab and window on the same session. Each one reads the auth
+ * pair from localStorage once, at load; refresh tokens are single-use, so a
+ * tab still holding the pair another tab has since rotated would be refused
+ * on its next refresh and sign the user out everywhere. The `storage` event
+ * fires in every *other* same-origin document when one of them writes the
+ * key, so a refresh, sign-in or sign-out in one tab reaches all of them.
+ * (A null key means localStorage was cleared outright.)
+ */
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== null && e.key !== STORAGE_KEY_AUTH) return;
+    try {
+      const auth = loadAuth();
+      useSettingsStore.setState({
+        collabAuth: auth,
+        authVerified: Boolean(auth.accessToken && auth.user),
+      });
+    } catch (err) {
+      console.error('[settings] could not sync the session from another tab:', err);
+    }
+  });
+}

@@ -2,7 +2,7 @@ import { getApiBase } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
 import type { CollabAuth, CollabUser } from '../stores/settingsStore';
 import { platformFetch } from './platform';
-import { authedFetch } from './authedFetch';
+import { authedFetch, accessTokenExpired, refreshAccessToken } from './authedFetch';
 import { getDeviceInfo, getDeviceId } from './deviceId';
 
 // ── URL helpers ──
@@ -24,15 +24,25 @@ function wrapNetworkError(err: unknown, where: string): Error {
   return err instanceof Error ? err : new Error(String(err));
 }
 
-async function parseError(res: Response, fallbackLabel: string): Promise<Error> {
+/** An error the server answered with — `status` tells a refused refresh
+ *  token (401) apart from a busy or broken server (429, 5xx). */
+export class AuthHttpError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function parseError(res: Response, fallbackLabel: string): Promise<AuthHttpError> {
   try {
     const body = await res.json();
     const msg = body?.error || body?.detail?.error || body?.detail?.message
       || body?.detail || body?.message;
-    if (typeof msg === 'string') return new Error(msg);
-    return new Error(`${fallbackLabel} error ${res.status}`);
+    if (typeof msg === 'string') return new AuthHttpError(msg, res.status);
+    return new AuthHttpError(`${fallbackLabel} error ${res.status}`, res.status);
   } catch {
-    return new Error(`${fallbackLabel} error ${res.status}`);
+    return new AuthHttpError(`${fallbackLabel} error ${res.status}`, res.status);
   }
 }
 
@@ -351,25 +361,46 @@ export const collabAuthApi = {
     collabAuthedRequest<{ message: string }>('/api/collab/my-sessions', { method: 'DELETE' }),
 };
 
-// ── Helper: check if current auth is valid (token present and not expired) ──
+// ── Helper: make sure we hold a usable access token ──
 
-export function isCollabAuthenticated(): boolean {
-  const { collabAuth } = useSettingsStore.getState();
-  if (!collabAuth.accessToken) return false;
+/**
+ * `ok`          — signed in with an access token that is good to use.
+ * `signed-out`  — no session; ask the user to sign in.
+ * `unavailable` — still signed in, but the token could not be renewed just
+ *                 now (rate limit, server down, offline). Asking for a
+ *                 password here would look like being signed out; say
+ *                 "try again" instead.
+ */
+export type CollabAuthStatus = 'ok' | 'signed-out' | 'unavailable';
+
+/** Shown when the session is fine but could not be renewed right now. */
+export const COLLAB_AUTH_UNAVAILABLE_MESSAGE =
+  'Could not reach the OpenDraft server to renew your sign-in. Please try again in a moment.';
+
+/**
+ * Check the user is signed in, renewing an expired access token first.
+ * Access tokens last minutes; the refresh token lasts days — an expired
+ * access token is routine, not a reason to sign out. Only a refresh token
+ * the server refuses ends the session. Never throws.
+ */
+export async function ensureCollabAuthenticated(): Promise<CollabAuthStatus> {
   try {
-    const payload = JSON.parse(atob(collabAuth.accessToken.split('.')[1]));
-    if (payload.exp && payload.exp * 1000 < Date.now()) {
-      // Token expired — clear it
-      console.log('[collabAuth] Access token expired, clearing auth');
+    const { collabAuth } = useSettingsStore.getState();
+    if (!collabAuth.accessToken && !collabAuth.refreshToken) return 'signed-out';
+    if (collabAuth.accessToken && !accessTokenExpired(collabAuth.accessToken)) return 'ok';
+    if (!collabAuth.refreshToken) {
+      console.log('[collabAuth] Access token expired and no refresh token, clearing auth');
       useSettingsStore.getState().clearCollabAuth();
-      return false;
+      return 'signed-out';
     }
-  } catch {
-    // Malformed token
-    useSettingsStore.getState().clearCollabAuth();
-    return false;
+    if (await refreshAccessToken()) return 'ok';
+    // A refused refresh token is cleared; one that survived just could not
+    // be renewed right now.
+    return useSettingsStore.getState().collabAuth.refreshToken ? 'unavailable' : 'signed-out';
+  } catch (err) {
+    console.error('[collabAuth] could not check the session:', err);
+    return useSettingsStore.getState().collabAuth.refreshToken ? 'unavailable' : 'signed-out';
   }
-  return true;
 }
 
 // ── Helper: handle auth response and store tokens ──
