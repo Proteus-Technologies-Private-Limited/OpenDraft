@@ -266,6 +266,53 @@ const ALL_ELEMENT_TYPES: ElementType[] = [
 ];
 
 /**
+ * Load a shared script's project and saved content for a collaboration guest.
+ *
+ * Best-effort: the backend serves a project only to its owner, so a guest
+ * signed in as somebody else — or not at all — gets nulls back. That is fine:
+ * the guest edits the host's live Yjs document, and the saved copy only lets
+ * the editor show text before the first sync. Plain fetches on purpose, so a
+ * refusal cannot raise the sign-in prompt.
+ */
+async function fetchSharedScript(projectId: string, scriptId: string): Promise<{ project: any; scriptResp: any }> {
+  // Try multiple backends (local + alternatives) for cross-backend joins.
+  // Derive host from the collab server URL setting so cross-machine access works.
+  const collabHttpUrl = getCollabWsUrl().replace(/^ws/, 'http');
+  const collabHost = (() => { try { return new URL(collabHttpUrl).hostname; } catch { return 'localhost'; } })();
+  const backends = [
+    getApiBase(),
+    `http://${collabHost}:8000/api`,
+    `http://${collabHost}:18321/api`,
+  ].filter((v, i, a) => a.indexOf(v) === i);
+
+  let project: any = null;
+  let scriptResp: any = null;
+  for (const base of backends) {
+    try {
+      const pRes = await platformFetch(`${base}/projects/${projectId}`);
+      if (!pRes.ok) continue;
+      project = await pRes.json();
+      const sRes = await platformFetch(`${base}/projects/${projectId}/scripts/${scriptId}`);
+      if (!sRes.ok) continue;
+      scriptResp = await sRes.json();
+      break;
+    } catch { /* try next */ }
+  }
+  return { project, scriptResp };
+}
+
+/** The ProseMirror document to seed a collab room with, or null if there is none. */
+function collabSeedFrom(content: unknown): Record<string, unknown> | null {
+  if (!content || typeof content !== 'object') return null;
+  const doc = content as Record<string, unknown>;
+  if (doc.type === 'doc') {
+    const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _characterRelationships, _templateId, _pageLayout, ...pmDoc } = doc;
+    return pmDoc;
+  }
+  return Object.keys(doc).length > 0 ? doc : null;
+}
+
+/**
  * Which element the caret is standing on, or null when nothing answers.
  *
  * Shared by `onSelectionUpdate` and every path that replaces the document
@@ -486,6 +533,10 @@ const ScreenplayEditor: React.FC = () => {
   const collabEditorRef = useRef<ReturnType<typeof useEditor>>(null);
   // Track current collab document name to prevent duplicate setup (React StrictMode)
   const collabDocNameRef = useRef<string | null>(null);
+  // Every room the host has had open this session. A guest who did not follow
+  // a document switch is still in an earlier one, so ending the session has
+  // to close all of them, not only the current one.
+  const collabSessionDocsRef = useRef<{ projectId: string; scriptId: string; docName: string }[]>([]);
 
   // Cleanup collab provider
   const destroyCollab = useCallback(() => {
@@ -525,11 +576,13 @@ const ScreenplayEditor: React.FC = () => {
     navigate('/', { replace: true });
   }, [destroyCollab, navigate, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
+  // Shared invite of the last host document switch this guest followed.
+  const followedSwitchTokenRef = useRef('');
   const handleSessionEndedRef = useRef(handleSessionEnded);
   handleSessionEndedRef.current = handleSessionEnded;
 
   // Ref for document-switch handler (defined after setupCollab to avoid circular dependency)
-  const handleDocumentSwitchRef = useRef<(projectId: string, scriptId: string, token: string) => void>(() => {});
+  const handleDocumentSwitchRef = useRef<(projectId: string, scriptId: string, token: string, title?: string) => void>(() => {});
 
   const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string, isHost = false, overrideWsUrl?: string) => {
     // Skip if already setting up the same document (prevents React StrictMode
@@ -582,6 +635,40 @@ const ScreenplayEditor: React.FC = () => {
         console.log(`[Collab] Connection closed for "${docName}": code=${event.code}`);
         setCollabConnectionState('disconnected');
         addCollabActivity(`Connection lost (code ${event.code})`);
+
+        // The server closed this document but left the socket open — what
+        // Hocuspocus does when the host ends the session (close-document) or
+        // an idle room is evicted. The provider only reconnects when the
+        // socket itself drops, so without this a guest sat on "Reconnecting…"
+        // until the socket timed out, a minute or more. Reconnect now: an
+        // invite the host revoked is refused at once (onAuthenticationFailed
+        // takes the guest out), and a valid one simply resyncs.
+        const socket = (event as { target?: unknown }).target;
+        const socketStillOpen = typeof WebSocket !== 'undefined'
+          && socket instanceof WebSocket && socket.readyState === WebSocket.OPEN;
+        if (socketStillOpen && !collabExitingRef.current) {
+          setTimeout(() => {
+            if (providerRef.current !== provider || collabExitingRef.current) return;
+            console.log(`[Collab] Server closed "${docName}" — reconnecting to re-check access`);
+            const socketProvider = provider.configuration.websocketProvider;
+            // connect() is a no-op until the old socket has finished closing,
+            // so reconnect from its disconnect event rather than straight away.
+            const reconnect = () => {
+              socketProvider.off('disconnect', reconnect);
+              if (providerRef.current !== provider || collabExitingRef.current) return;
+              provider.connect().catch((err: unknown) => {
+                console.error(`[Collab] Could not reconnect to "${docName}":`, err);
+              });
+            };
+            try {
+              socketProvider.on('disconnect', reconnect);
+              provider.disconnect();
+            } catch (err) {
+              socketProvider.off('disconnect', reconnect);
+              console.error(`[Collab] Could not reconnect to "${docName}":`, err);
+            }
+          }, 0);
+        }
       },
       onSynced: ({ state }) => {
         console.log(`[Collab] Synced for "${docName}": state=${state}, isHost=${isHost}`);
@@ -614,7 +701,12 @@ const ScreenplayEditor: React.FC = () => {
         collabExitingRef.current = true;
 
         console.error(`[Collab] Auth FAILED for "${docName}": ${reason}`);
-        const isSessionEnded = reason?.includes('expired') || reason?.includes('Invalid');
+        // Hocuspocus reports a refused invite as "permission-denied" — what a
+        // guest gets back once the host has ended the session and revoked it.
+        // A link that was bad from the start never gets this far: joining
+        // validates it first.
+        const isSessionEnded = reason?.includes('expired') || reason?.includes('Invalid')
+          || reason === 'permission-denied';
         showToast(
           isSessionEnded
             ? 'The collaboration session has ended'
@@ -647,13 +739,15 @@ const ScreenplayEditor: React.FC = () => {
         let switchProjectId = '';
         let switchScriptId = '';
         let switchToken = '';
+        let switchTitle: string | undefined;
         states.forEach((state: Record<string, unknown>) => {
-          const user = state.user as { name: string; color: string; sessionEnded?: boolean; documentSwitch?: { projectId: string; scriptId: string; token: string } } | undefined;
+          const user = state.user as { name: string; color: string; sessionEnded?: boolean; documentSwitch?: { projectId: string; scriptId: string; token: string; title?: string } } | undefined;
           if (user?.sessionEnded) sessionEnded = true;
           if (user?.documentSwitch) {
             switchProjectId = user.documentSwitch.projectId;
             switchScriptId = user.documentSwitch.scriptId;
             switchToken = user.documentSwitch.token;
+            switchTitle = user.documentSwitch.title;
           }
           if (user?.name) users.push(user);
         });
@@ -678,7 +772,7 @@ const ScreenplayEditor: React.FC = () => {
           handleSessionEndedRef.current();
         }
         if (switchProjectId && switchScriptId && switchToken) {
-          handleDocumentSwitchRef.current(switchProjectId, switchScriptId, switchToken);
+          handleDocumentSwitchRef.current(switchProjectId, switchScriptId, switchToken, switchTitle);
         }
       },
     });
@@ -690,22 +784,24 @@ const ScreenplayEditor: React.FC = () => {
   }, [destroyCollab]);
 
   // Called when host broadcasts document-switch — guest auto-follows
-  const handleDocumentSwitch = useCallback(async (projectId: string, scriptId: string, sharedToken: string) => {
+  const handleDocumentSwitch = useCallback(async (projectId: string, scriptId: string, sharedToken: string, title?: string) => {
+    // The host's awareness keeps carrying the switch, so every awareness
+    // update repeats it. Follow each switch once.
+    if (followedSwitchTokenRef.current === sharedToken) return;
+    followedSwitchTokenRef.current = sharedToken;
     try {
       // Validate the shared token to get the session_nonce for the room name
       const session = await api.validateCollabSession(sharedToken);
       const nonce = session.session_nonce || '';
 
-      const project = await projectApi.getProject(projectId);
-      const scriptResp = await scriptApi.getScript(projectId, scriptId);
+      // Optional, as when joining: a guest is rarely allowed to read the
+      // host's project, and following must not depend on it.
+      const { project, scriptResp } = await fetchSharedScript(projectId, scriptId);
 
-      const content = scriptResp.content as Record<string, unknown> | null;
-      if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _characterRelationships, _templateId, _pageLayout: _plCollab, ...pmDoc } = content as Record<string, unknown>;
-        collabInitialContent.current = pmDoc;
-      } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
-        collabInitialContent.current = content;
-      }
+      // Reset even when nothing loaded, so the previous document's text is
+      // never carried into the new room.
+      const content = scriptResp?.content as Record<string, unknown> | null | undefined;
+      collabInitialContent.current = collabSeedFrom(content);
 
       // Restore per-document template
       const tplId = (content as any)?._templateId;
@@ -714,12 +810,14 @@ const ScreenplayEditor: React.FC = () => {
       const docName = `${projectId}/${scriptId}${nonce ? `/${nonce}` : ''}`;
       setupCollab(docName, sharedToken, collabUserName);
 
-      setCurrentProject(project);
+      const docTitle = scriptResp?.meta?.title || title || 'Untitled';
+      setCurrentProject(project || { id: projectId, name: 'Collaboration' });
       setCurrentScriptId(scriptId);
-      setDocumentTitle(scriptResp.meta.title);
+      setDocumentTitle(docTitle);
       setEditorKey((k) => k + 1);
-      showToast(`Host switched to: ${scriptResp.meta.title}`, 'info');
-    } catch {
+      showToast(`Host switched to: ${docTitle}`, 'info');
+    } catch (err) {
+      console.error('[Collab] Could not follow the host to the new document:', err);
       showToast('Failed to follow host to new document', 'error');
     }
   }, [setupCollab, collabUserName, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
@@ -860,38 +958,12 @@ const ScreenplayEditor: React.FC = () => {
         }
 
         // Load script content FIRST so the editor can seed the Yjs doc.
-        // Try multiple backends (local + alternatives) for cross-backend joins.
-        // Derive host from the collab server URL setting so cross-machine access works.
-        const collabHost = (() => { try { return new URL(collabHttpUrl).hostname; } catch { return 'localhost'; } })();
-        const backends = [
-          getApiBase(),
-          `http://${collabHost}:8000/api`,
-          `http://${collabHost}:18321/api`,
-        ].filter((v, i, a) => a.indexOf(v) === i);
-
-        let project: any = null;
-        let scriptResp: any = null;
-        for (const base of backends) {
-          try {
-            const pRes = await platformFetch(`${base}/projects/${session.project_id}`);
-            if (!pRes.ok) continue;
-            project = await pRes.json();
-            const sRes = await platformFetch(`${base}/projects/${session.project_id}/scripts/${session.script_id}`);
-            if (!sRes.ok) continue;
-            scriptResp = await sRes.json();
-            break;
-          } catch { /* try next */ }
-        }
+        const { project, scriptResp } = await fetchSharedScript(session.project_id, session.script_id);
 
         // Seed the Yjs doc if content was loaded; otherwise Yjs will sync from host
         if (scriptResp) {
-          const content = scriptResp.content as Record<string, unknown> | null;
-          if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-            const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _characterRelationships, _templateId, _pageLayout: _plGuest, ...pmDoc } = content as Record<string, unknown>;
-            collabInitialContent.current = pmDoc;
-          } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
-            collabInitialContent.current = content;
-          }
+          const seed = collabSeedFrom(scriptResp.content);
+          if (seed) collabInitialContent.current = seed;
         }
 
         // Setup provider synchronously before triggering editor rebuild
@@ -958,17 +1030,33 @@ const ScreenplayEditor: React.FC = () => {
         // Brief delay to allow awareness to propagate before destroying
         await new Promise((r) => setTimeout(r, 300));
       }
+      // Every document this session visited, the current one included.
+      const docs = [...collabSessionDocsRef.current];
+      const currentDocName = collabDocNameRef.current || `${currentProject.id}/${currentScriptId}`;
+      if (!docs.some((d) => d.docName === currentDocName)) {
+        docs.push({ projectId: currentProject.id, scriptId: currentScriptId, docName: currentDocName });
+      }
+      collabSessionDocsRef.current = [];
+
       // Host: revoke all invitation links
-      try {
-        await api.revokeAllCollabSessions(currentProject.id, currentScriptId);
-      } catch { /* ignore — cleanup is best-effort */ }
+      const scripts = new Map(docs.map((d) => [`${d.projectId}/${d.scriptId}`, d]));
+      for (const d of scripts.values()) {
+        try {
+          await api.revokeAllCollabSessions(d.projectId, d.scriptId);
+        } catch (err) {
+          console.warn(`[Collab] Could not revoke invites for ${d.projectId}/${d.scriptId}:`, err);
+        }
+      }
 
       // Host: kick all remaining connections on the collab server.
       // Use the actual room name (includes nonce) so closeConnections matches.
-      const docName = collabDocNameRef.current || `${currentProject.id}/${currentScriptId}`;
-      try {
-        await collabAuthApi.closeDocument(docName);
-      } catch { /* best-effort */ }
+      for (const d of docs) {
+        try {
+          await collabAuthApi.closeDocument(d.docName);
+        } catch (err) {
+          console.warn(`[Collab] Could not close ${d.docName}:`, err);
+        }
+      }
     }
 
     destroyCollab();
@@ -998,7 +1086,21 @@ const ScreenplayEditor: React.FC = () => {
   const switchCollabDocument = useCallback(async (newProjectId: string, newScriptId: string) => {
     if (!providerRef.current) return;
 
-    // 1. Create a shared invite token for the new document so guests can follow
+    // 1. Load the new script before telling anyone: its title travels with
+    //    the switch (guests usually cannot read the host's project), and a
+    //    failure here leaves everybody in the current document together.
+    let project: Awaited<ReturnType<typeof projectApi.getProject>>;
+    let scriptResp: Awaited<ReturnType<typeof scriptApi.getScript>>;
+    try {
+      project = await projectApi.getProject(newProjectId);
+      scriptResp = await scriptApi.getScript(newProjectId, newScriptId);
+    } catch (err) {
+      console.error('[Collab] Could not load the document to switch to:', err);
+      showToast('Failed to switch collab document', 'error');
+      return;
+    }
+
+    // 2. Create a shared invite token for the new document so guests can follow
     let sharedToken: string;
     let sharedNonce: string;
     try {
@@ -1010,29 +1112,20 @@ const ScreenplayEditor: React.FC = () => {
       return;
     }
 
-    // 2. Broadcast document-switch to all guests via awareness
-    // (Old invites are NOT revoked here — they expire naturally.
-    //  Revoking during switch caused a race where the backend file write
-    //  from revoke could corrupt reads from concurrent token validation.)
-    providerRef.current.setAwarenessField('user', {
+    // 3. Broadcast document-switch to all guests via awareness
+    // (Old invites are NOT revoked here — a guest still on the old document
+    //  would lose it mid-sentence. Ending the session revokes them all; see
+    //  collabSessionDocsRef.)
+    providerRef.current?.setAwarenessField('user', {
       name: collabUserName,
       color: collabColor,
-      documentSwitch: { projectId: newProjectId, scriptId: newScriptId, token: sharedToken },
+      documentSwitch: { projectId: newProjectId, scriptId: newScriptId, token: sharedToken, title: scriptResp.meta.title },
     });
     await new Promise((r) => setTimeout(r, 400));
 
-    // 4. Load the new script content and reconnect host
+    // 4. Reconnect host to the new document
     try {
-      const project = await projectApi.getProject(newProjectId);
-      const scriptResp = await scriptApi.getScript(newProjectId, newScriptId);
-
-      const content = scriptResp.content as Record<string, unknown> | null;
-      if (content && typeof content === 'object' && 'type' in content && content.type === 'doc') {
-        const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _characterRelationships, _templateId, ...pmDoc } = content as Record<string, unknown>;
-        collabInitialContent.current = pmDoc;
-      } else if (content && typeof content === 'object' && Object.keys(content).length > 0) {
-        collabInitialContent.current = content;
-      }
+      collabInitialContent.current = collabSeedFrom(scriptResp.content);
 
       // Create host's own token for the new document, sharing the same nonce
       let hostToken: string;
@@ -1045,12 +1138,14 @@ const ScreenplayEditor: React.FC = () => {
 
       const docName = `${newProjectId}/${newScriptId}${sharedNonce ? `/${sharedNonce}` : ''}`;
       setupCollab(docName, hostToken, collabUserName, true);
+      collabSessionDocsRef.current.push({ projectId: newProjectId, scriptId: newScriptId, docName });
 
       setCurrentProject(project);
       setCurrentScriptId(newScriptId);
       setDocumentTitle(scriptResp.meta.title);
       setEditorKey((k) => k + 1);
-    } catch {
+    } catch (err) {
+      console.error('[Collab] Could not switch the collab document:', err);
       showToast('Failed to switch collab document', 'error');
     }
   }, [collabColor, currentProject, currentScriptId, setupCollab, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
@@ -1872,6 +1967,7 @@ const ScreenplayEditor: React.FC = () => {
     // Use the logged-in user's display name so remote users see the real name
     const hostDisplayName = useSettingsStore.getState().collabAuth.user?.displayName || 'Host';
     setupCollab(docName, ownerToken, hostDisplayName, true);
+    collabSessionDocsRef.current = [{ projectId: currentProject.id, scriptId: currentScriptId, docName }];
 
     setCollabUserName(hostDisplayName);
     setIsCollabHost(true);

@@ -248,7 +248,9 @@ function loadDefaultScriptFormat(): string | null {
   return null;
 }
 
-const DEFAULT_COLLAB_URL = 'wss://collab.open-draft.com';
+// Same fallback as getCollabWsUrl() in config.ts, so Settings and invite links
+// name the server the app actually connects to.
+const DEFAULT_COLLAB_URL = import.meta.env.VITE_COLLAB_WS_URL || 'wss://collab.open-draft.com';
 
 function loadAuth(): CollabAuth {
   try {
