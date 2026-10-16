@@ -12,7 +12,8 @@ import {
   FaAlignLeft, FaAlignCenter, FaAlignRight, FaAlignJustify,
   FaPlus, FaTrash,
 } from 'react-icons/fa';
-import type { FormattingTemplate, FormattingElementRule } from '../stores/formattingTypes';
+import type { FormattingTemplate, FormattingElementRule, ElementNumbering } from '../stores/formattingTypes';
+import { isNumberableElementId, resetElementIds } from '../utils/elementNumbers';
 import { createDefaultRule, AV_BLOCK_RULE_ID, type AvCellPlacement } from '../stores/formattingTypes';
 import { avPlacementOf } from '../utils/avCellElements';
 import { AV_BASE_CELL_ELEMENT_IDS, AV_SCREENPLAY_CELL_ELEMENT_IDS } from '../editor/extensions/AvBlock';
@@ -32,6 +33,32 @@ function avPlaceable(rule: { id: string; isBuiltIn: boolean }): boolean {
   return (AV_SCREENPLAY_CELL_ELEMENT_IDS as readonly string[]).includes(rule.id);
 }
 import FontPicker from './FontPicker';
+
+/** Rules whose numbering no longer names an element the template has lost. */
+function withoutStaleResets(rules: Record<string, FormattingElementRule>): Record<string, FormattingElementRule> {
+  const out: Record<string, FormattingElementRule> = {};
+  for (const [id, rule] of Object.entries(rules)) {
+    const n = rule.numbering;
+    out[id] = n && n.resetOn.some((r) => !rules[r])
+      ? { ...rule, numbering: { ...n, resetOn: n.resetOn.filter((r) => rules[r]) } }
+      : rule;
+  }
+  return out;
+}
+
+/** "SFX 1, SFX 2, SFX 3 … starting again at every Scene Heading." */
+function numberingSummary(n: ElementNumbering, rules: Record<string, FormattingElementRule>): string {
+  const start = n.startAt ?? 1;
+  const sample = [start, start + 1, start + 2]
+    .map((k) => `${n.prefix ?? ''}${n.style === 'scene' ? `12.${k}` : k}`)
+    .join(', ');
+  const resets = n.resetOn.filter((id) => rules[id]).map((id) => rules[id].label);
+  const when = resets.length === 0
+    ? 'counting through the whole script.'
+    : `starting again at every ${resets.join(' or ')}.`;
+  const scene = n.style === 'scene' ? ' Plain numbers where there is no scene number to show.' : '';
+  return `${sample} … ${when}${scene}`;
+}
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 
@@ -109,11 +136,22 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       name,
       description,
       mode,
-      rules,
+      rules: withoutStaleResets(rules),
       // Only keep break rules for elements that still exist in the template.
       forceBreakBefore: forceBreakBefore.filter((id) => rules[id]),
       updatedAt: new Date().toISOString(),
     });
+  };
+
+  const numbering: ElementNumbering | undefined = selectedRule?.numbering;
+  const updateNumbering = (updates: Partial<ElementNumbering>) => {
+    if (!selectedId) return;
+    const base: ElementNumbering = numbering ?? { enabled: false, resetOn: [] };
+    updateRule(selectedId, { numbering: { ...base, ...updates } });
+  };
+  const toggleReset = (id: string, on: boolean) => {
+    const current = numbering?.resetOn ?? [];
+    updateNumbering({ resetOn: on ? (current.includes(id) ? current : [...current, id]) : current.filter((x) => x !== id) });
   };
 
   // Build element options for dropdowns (for nextOnEnter/nextOnTab)
@@ -523,6 +561,79 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                       : 'This element flows with the rest of the page.'}
                   </span>
                 </div>
+
+                {/* Numbering — running numbers beside this element (utils/elementNumbers). */}
+                {isNumberableElementId(selectedRule.id) && (
+                  <div className="template-editor-field">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={numbering?.enabled === true}
+                        onChange={(e) => updateNumbering({ enabled: e.target.checked })}
+                      />
+                      Number this element
+                    </label>
+                    {numbering?.enabled ? (
+                      <>
+                        <div className="template-editor-field-row">
+                          <div className="template-editor-field">
+                            <label>Prefix</label>
+                            <input
+                              className="dialog-input"
+                              value={numbering.prefix ?? ''}
+                              maxLength={12}
+                              placeholder="None"
+                              onChange={(e) => updateNumbering({ prefix: e.target.value })}
+                            />
+                          </div>
+                          <div className="template-editor-field">
+                            <label>Start at</label>
+                            <input
+                              className="dialog-input"
+                              type="number"
+                              min={0}
+                              step={1}
+                              value={numbering.startAt ?? 1}
+                              onChange={(e) => {
+                                const n = Number.parseInt(e.target.value, 10);
+                                updateNumbering({ startAt: Number.isFinite(n) && n >= 0 ? n : 1 });
+                              }}
+                            />
+                          </div>
+                          <div className="template-editor-field">
+                            <label>Style</label>
+                            <Select
+                              className="dialog-input"
+                              value={numbering.style ?? 'plain'}
+                              onChange={(e) => updateNumbering({ style: e.target.value as 'plain' | 'scene' })}
+                            >
+                              <option value="plain">Plain (3)</option>
+                              <option value="scene">With scene number (12.3)</option>
+                            </Select>
+                          </div>
+                        </div>
+                        <label>Restart numbering at</label>
+                        <div className="template-editor-reset-list">
+                          {resetElementIds(rules).filter((id) => id !== selectedRule.id).map((id) => (
+                            <label key={id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={(numbering.resetOn ?? []).includes(id)}
+                                onChange={(e) => toggleReset(id, e.target.checked)}
+                              />
+                              {rules[id].label}
+                            </label>
+                          ))}
+                        </div>
+                        <span className="template-editor-hint">{numberingSummary(numbering, rules)}</span>
+                      </>
+                    ) : (
+                      <span className="template-editor-hint">
+                        Numbers every “{selectedRule.label}” in the margin, on screen and in PDF, Word and Final Draft exports.
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* Format override */}
                 {mode === 'enforce' && (

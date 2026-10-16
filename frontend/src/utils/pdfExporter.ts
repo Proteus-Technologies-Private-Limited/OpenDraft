@@ -42,6 +42,7 @@ import {
   type NoteSlice,
 } from './footnotes';
 import { noteEntryLabel } from './noteNumbering';
+import { withElementNumbers, elementNumberOf } from './elementNumbers';
 import { noteBlockText } from './noteContent';
 
 // --- Constants matching pagination.ts ---
@@ -305,6 +306,18 @@ function drawPlain(
   drawPieces(pdf, drawnPieces(text, undefined, fonts), x, y, !!opts.bold, false);
 }
 
+/**
+ * An element number (utils/elementNumbers), right-aligned 0.15" left of the
+ * element's own text on its first line — the gap the scene numbers keep, and
+ * the place the editor draws it. `topY` is where the element starts, as
+ * renderElement is given it.
+ */
+function drawElementNumber(pdf: jsPDF, label: string, leftPt: number, topY: number, fonts: FontContext): void {
+  pdf.setFontSize(12);
+  const x = leftPt - 0.15 * PTS_PER_INCH - measurePlain(pdf, label, fonts);
+  drawPlain(pdf, label, x, topY + LINE_HEIGHT_PT, fonts);
+}
+
 /** How wide a piece of furniture draws, across every face it needs. */
 function measurePlain(
   pdf: jsPDF,
@@ -440,6 +453,12 @@ function measureLine(pdf: jsPDF, lineRuns: TextRun[], fonts: FontContext): numbe
 
 export interface PDFExportOptions {
   sceneNumbersVisible?: boolean;
+  /**
+   * Print the numbers the active format puts on elements other than scene
+   * headings (utils/elementNumbers). Absent or false prints none, so a caller
+   * that has never heard of them exports exactly what it always did.
+   */
+  elementNumbersVisible?: boolean;
   /** Document title for header/footer {title} field */
   documentTitle?: string;
   /** Current revision color for {revision} field */
@@ -557,6 +576,13 @@ function fallbackWarning(fallbacks: UnicodeFallbacks): string | undefined {
  */
 export async function renderPDF(doc: JSONContent, title: string, layout: PageLayout, options?: PDFExportOptions): Promise<RenderedPDF> {
   const filename = `${sanitizeExportFilename(title)}.pdf`;
+
+  // Labels for numbered elements, on a copy. The very same document comes back
+  // when nothing is numbered, so nothing below can tell the difference.
+  doc = withElementNumbers(doc, {
+    visible: options?.elementNumbersVisible === true,
+    sceneNumbersVisible: options?.sceneNumbersVisible === true,
+  });
 
   if (!doc || !doc.content || doc.content.length === 0) {
     const pdf = new jsPDF({
@@ -1049,6 +1075,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
             type: childType,
             text: getPlainText(runs),
             runs: applyTypeStyles(runs, childType),
+            number: elementNumberOf(child),
           };
         }));
       const heightPt = dualDialogueLineCount(columns as DualColumns) * LINE_HEIGHT_PT;
@@ -1073,6 +1100,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
             pdf, wrapped, leftIn * PTS_PER_INCH, rightIn * PTS_PER_INCH, y, child.type, fonts,
             revisionMarkX,
           );
+          if (child.number) drawElementNumber(pdf, child.number, leftIn * PTS_PER_INCH, y, fonts);
           y += wrapped.length * LINE_HEIGHT_PT;
         }
       });
@@ -1226,6 +1254,8 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
         pdf, part.wrapped, dIndents[0] * PTS_PER_INCH, dIndents[1] * PTS_PER_INCH,
         currentY, dNode.typeName, fonts, revisionMarkX,
       );
+      const partNumber = elementNumberOf(dNode);
+      if (partNumber) drawElementNumber(pdf, partNumber, dIndents[0] * PTS_PER_INCH, currentY, fonts);
       currentY += part.lines * LINE_HEIGHT_PT;
     };
 
@@ -1339,6 +1369,8 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
 
     // Render the element
     renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, fonts, revisionMarkX);
+    const number = elementNumberOf(node);
+    if (number) drawElementNumber(pdf, number, leftPt, currentY, fonts);
 
     // Render scene numbers on both sides if enabled
     if (typeName === 'sceneHeading' && options?.sceneNumbersVisible && node.attrs?.sceneNumber) {

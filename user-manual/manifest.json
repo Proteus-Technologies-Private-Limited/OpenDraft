@@ -1,5 +1,5 @@
 {
-  "version": "c638c593802dbffb",
+  "version": "59294f8aeec3ccf9",
   "pages": [
     {
       "slug": "index.html",
@@ -29,7 +29,7 @@
       "slug": "formatting.html",
       "title": "Formatting",
       "section": "Writing",
-      "hash": "893aef1dfbe2ad78"
+      "hash": "5e94737204e582ab"
     },
     {
       "slug": "title-page.html",
@@ -53,7 +53,7 @@
       "slug": "scene-navigator.html",
       "title": "Scene Navigator",
       "section": "Story Planning",
-      "hash": "88b857cf05fe3d9e"
+      "hash": "e3a86bdea752a9c7"
     },
     {
       "slug": "index-cards.html",

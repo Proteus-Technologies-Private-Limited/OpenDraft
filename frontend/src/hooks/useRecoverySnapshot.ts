@@ -102,6 +102,7 @@ function metadataUnchanged(a: StoreState, b: StoreState): boolean {
     a.grammarCheckEnabled === b.grammarCheckEnabled &&
     a.sceneNumbersVisible === b.sceneNumbersVisible &&
     a.sceneNumbersLocked === b.sceneNumbersLocked &&
+    a.elementNumbersVisible === b.elementNumbersVisible &&
     a.sceneHeadingSpaceBefore === b.sceneHeadingSpaceBefore &&
     a.pageLayout === b.pageLayout &&
     a.documentTitle === b.documentTitle &&

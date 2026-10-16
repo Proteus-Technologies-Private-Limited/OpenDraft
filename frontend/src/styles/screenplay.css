@@ -2235,6 +2235,32 @@ body {
   text-align: left;
 }
 
+/* Element numbers (utils/elementNumbers) — beside every element a format
+   numbers, in the left margin, while .show-element-numbers is on the page.
+   The attribute is a decoration (editor/extensions/ElementNumbers), never in
+   the document.
+
+   A float whose negative margin outweighs its width: its margin box is
+   narrower than nothing, so it sits in the margin without shortening a single
+   line, and the element's wrapping is exactly what pagination counted. Not
+   absolute positioning — that would make the element `position: relative`,
+   and in print every revision asterisk inside it (`.rev-mark::before`, placed
+   against the nearest positioned ancestor) would land inside the text column
+   instead of the right margin. */
+.show-element-numbers [data-element-number]::before {
+  content: attr(data-element-number);
+  float: left;
+  width: 1in;
+  margin-left: calc(-1in - 0.15in);
+  text-align: right;
+  white-space: nowrap;
+  font-weight: normal;
+  font-style: normal;
+  text-transform: none;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ── Revision marks (Tools → Production → Revision Mode) ──
    One asterisk in the right margin beside every line holding revised text,
    placed by measuring the lines (RevisionGutter in editor/revisionMarks.ts):
@@ -12392,6 +12418,14 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 .template-editor-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 180px; }
 .template-editor-field label { font-size: 11px; color: var(--fd-text-dim, #aaa); text-transform: uppercase; letter-spacing: 0.5px; }
 .template-editor-hint { font-size: 11px; color: var(--fd-text-dim); margin-top: 2px; }
+/* The elements that restart a count, in two columns so a long template still fits. */
+.template-editor-reset-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 4px 12px;
+  margin: 4px 0;
+  font-size: 12px;
+}
 
 .template-editor-mode-toggle { display: flex; gap: 0; }
 .template-mode-btn {

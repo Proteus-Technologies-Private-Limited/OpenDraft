@@ -80,6 +80,33 @@ export interface FormattingElementRule {
   // ── AV two-column body ──
   /** Which AV cell (if any) offers this element. Absent is read as 'none'. */
   avCell?: AvCellPlacement;
+
+  // ── Element numbering ──
+  /** Running numbers printed beside this element (utils/elementNumbers.ts).
+   *  Absent — every template saved before numbering existed — is not numbered. */
+  numbering?: ElementNumbering;
+}
+
+/**
+ * Running numbers on an element other than the scene heading: every line of
+ * dialogue in a podcast, every SFX cue, every shot.
+ *
+ * Each numbered element keeps its own count. `resetOn` names the elements that
+ * start it again — a Scene Heading, a New Act, a custom element — and only
+ * elements: a page break falls in different places on screen, in the PDF and
+ * in Word, so a count reset by one would number the same line differently in
+ * each.
+ */
+export interface ElementNumbering {
+  enabled: boolean;
+  /** Element ids (custom ones included) that restart the count. Empty: it never restarts. */
+  resetOn: string[];
+  /** Printed before the number: "SFX " gives "SFX 4". */
+  prefix?: string;
+  /** The first number after a restart. Default 1. */
+  startAt?: number;
+  /** 'scene' prefixes the scene's number: 12.3. Falls back to plain where there is none. */
+  style?: 'plain' | 'scene';
 }
 
 /** Template category: system templates are read-only, user templates are editable. */

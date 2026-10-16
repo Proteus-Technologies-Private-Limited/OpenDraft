@@ -41,6 +41,7 @@ import TemplateSelectDialog from './TemplateSelectDialog';
 import ScriptFormatPreferencesDialog from './ScriptFormatPreferencesDialog';
 import ScriptFormatPickerDialog from './ScriptFormatPickerDialog';
 import { useFormattingTemplateStore, ensureTemplatesLoaded } from '../stores/formattingTemplateStore';
+import { hasNumbering, numberingRulesOf } from '../utils/elementNumbers';
 import { applyScriptFormat } from '../utils/applyScriptFormat';
 import { isTitlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
 import { INDUSTRY_STANDARD_ID, ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
@@ -334,6 +335,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setSceneNumbersVisible,
     sceneNumbersLocked,
     setSceneNumbersLocked,
+    elementNumbersVisible,
+    setElementNumbersVisible,
     pageLabels,
   } = useEditorStore();
 
@@ -838,6 +841,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   // ── Per-attribute locking from active template ──
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
+  const formatNumbersElements = hasNumbering(numberingRulesOf(activeTemplate.rules));
   const isEnforceMode = activeTemplate.mode === 'enforce';
   const editorRule = editor ? getCurrentElementRule(editor, activeTemplate) : null;
   const locked = getLockedFormatting(editorRule, isEnforceMode);
@@ -1723,7 +1727,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { family: s.fontFamily, size: s.fontSize },
         buildExportFootnotePlan(editor.getJSON(), s.pageLayout, s.notes, s.generalNotes),
         { mode: s.revisionMode, color: s.revisionColor, settings: s.revisionSettings },
-          { sceneNumbersVisible: s.sceneNumbersVisible });
+          { sceneNumbersVisible: s.sceneNumbersVisible, elementNumbersVisible: s.elementNumbersVisible });
     } catch (err) {
       console.error('FDX export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -1825,6 +1829,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     const store = useEditorStore.getState();
     return {
       sceneNumbersVisible: store.sceneNumbersVisible,
+      elementNumbersVisible: store.elementNumbersVisible,
       documentTitle: store.documentTitle,
       revisionColor: store.revisionMode ? store.revisionColor : '',
       documentFont: store.fontFamily,
@@ -2065,6 +2070,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // Word's NUMPAGES, which counts the title page.
         scriptPageCount: store.pageCount,
         includeTitlePage: store.includeTitlePageInOutput,
+        elementNumbersVisible: store.elementNumbersVisible,
+        sceneNumbersVisible: store.sceneNumbersVisible,
       });
     } catch (err) {
       console.error('Word export failed:', err);
@@ -2926,6 +2933,21 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 : 'Lock scene numbers first — an unlocked script can simply delete the scene',
               action: handleOmitScene,
               disabled: !editor || !sceneNumbersLocked,
+            },
+            { separator: true, label: '' },
+            {
+              icon: <FaListOl />,
+              label: elementNumbersVisible && formatNumbersElements ? '\u2713 Show Element Numbers' : 'Show Element Numbers',
+              title: formatNumbersElements
+                ? 'Numbers beside the elements this format numbers, such as every line of dialogue'
+                : `${activeTemplate.name} numbers no elements. Turn numbering on for an element in Element Numbering\u2026`,
+              action: () => setElementNumbersVisible(!elementNumbersVisible),
+              disabled: !formatNumbersElements,
+            },
+            {
+              icon: <FaSlidersH />, label: 'Element Numbering\u2026',
+              title: 'Choose which elements are numbered and what restarts each count, in the formatting template',
+              action: () => setTemplateSelectOpen(true),
             },
             { separator: true, label: '' },
             {

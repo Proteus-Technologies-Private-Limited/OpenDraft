@@ -23,6 +23,7 @@ import { stripSaveMetadata } from './saveContent';
 import { readRevisionState } from './revisionState';
 import { sanitizeForFilename } from './backupNaming';
 import { looksLikeTreatment } from './scriptFormat';
+import { labelSavedContent } from './elementNumbers';
 import type {
   BeatColumn, BeatInfo, CharacterProfile, PageLayout, TagCategory, TagItem,
 } from '../stores/editorStore';
@@ -133,7 +134,9 @@ export function serializeContentForFormat(
   options: SerializeOptions = {},
 ): string {
   const { pmDoc, metadata: m } = stripSaveMetadata(content);
-  const doc = pmDoc as JSONContent;
+  // Element numbers come from this script's own format; .odraft below keeps the
+  // whole payload, never these labels, which are not part of the document.
+  const doc = format === 'odraft' ? pmDoc as JSONContent : labelSavedContent(pmDoc as JSONContent, m);
   const revision = readRevisionState(content);
   const sceneNumbersVisible = m._sceneNumbersVisible !== false;
   const font = options.font ?? { family: 'Courier Prime', size: 12 };

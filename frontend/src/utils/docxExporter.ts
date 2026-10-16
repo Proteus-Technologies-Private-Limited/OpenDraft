@@ -49,6 +49,7 @@ import { avRowNodes, avFrameKey } from './avPdfTable';
 import { readColumnConfig } from '../editor/extensions/AvBlock';
 import { isNonPrintingType } from './nonPrinting';
 import { runFont } from './docxScriptFonts';
+import { withElementNumbers, elementNumberOf } from './elementNumbers';
 
 // --- Layout constants (mirror pdfExporter.ts) ---
 
@@ -420,6 +421,33 @@ function buildElementParagraph(
     ];
   }
 
+  // An element number (utils/elementNumbers) hangs in the margin left of the
+  // text: the first line starts an inch early, a right tab puts the number's
+  // end 0.15" before the text, and a left tab at the indent brings the text
+  // back to where it always starts. Every line wraps at the width it had.
+  // A centred or right-aligned element has no left edge to hang it from, so
+  // there the number simply leads the line.
+  let hanging: number | undefined;
+  const number = elementNumberOf(node);
+  if (number) {
+    const numberRun = new TextRun({
+      text: number, font: runFont(number, docFont), size: FONT_SIZE_HALFPT,
+      bold: false, italics: false, allCaps: false,
+    });
+    if (alignmentForType(typeName) === AlignmentType.LEFT && alignment === AlignmentType.LEFT) {
+      hanging = TWIPS_PER_INCH;
+      tabStops = [
+        { type: TabStopType.RIGHT, position: indent.left - Math.round(0.15 * TWIPS_PER_INCH) },
+        { type: TabStopType.LEFT, position: indent.left },
+        ...(tabStops ?? []),
+      ];
+      const tab = () => new TextRun({ children: [new Tab()], font: docFont, size: FONT_SIZE_HALFPT });
+      children = [tab(), numberRun, tab(), ...children];
+    } else {
+      children = [numberRun, new TextRun({ text: ' ', font: docFont, size: FONT_SIZE_HALFPT }), ...children];
+    }
+  }
+
   return new Paragraph({
     alignment,
     ...(tabStops ? { tabStops } : {}),
@@ -427,6 +455,7 @@ function buildElementParagraph(
     indent: {
       left: indent.left,
       right: indent.right,
+      ...(hanging !== undefined ? { hanging } : {}),
     },
     pageBreakBefore: pageBreakBefore || undefined,
     spacing: {
@@ -521,6 +550,13 @@ export interface DocxExportOptions {
    *  Absent: an asterisk. `showRevisionMarks: false` writes none. */
   revisionSettings?: RevisionSettings | null;
   showRevisionMarks?: boolean;
+  /** Print the numbers the active format puts on elements other than scene
+   *  headings (utils/elementNumbers), in the left margin. Absent or false
+   *  writes none. */
+  elementNumbersVisible?: boolean;
+  /** Scene numbers are shown — only for the 12.3 element-number style; Word
+   *  export writes no scene numbers of its own. */
+  sceneNumbersVisible?: boolean;
 }
 
 export async function exportDocx(
@@ -531,6 +567,11 @@ export async function exportDocx(
 ): Promise<void> {
   const { saveFile } = await import('./fileOps');
   const filename = `${sanitizeExportFilename(title)}.docx`;
+  // Labels for numbered elements, on a copy; the same document when none are.
+  doc = withElementNumbers(doc, {
+    visible: options?.elementNumbersVisible === true,
+    sceneNumbersVisible: options?.sceneNumbersVisible === true,
+  });
 
   // Separate the title-page region (the leading run of titlePage + image nodes)
   // from the body. The title page renders its nodes in DOCUMENT ORDER (free-flow),
