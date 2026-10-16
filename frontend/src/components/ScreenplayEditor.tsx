@@ -274,10 +274,10 @@ const ALL_ELEMENT_TYPES: ElementType[] = [
  * the editor show text before the first sync. Plain fetches on purpose, so a
  * refusal cannot raise the sign-in prompt.
  */
-async function fetchSharedScript(projectId: string, scriptId: string): Promise<{ project: any; scriptResp: any }> {
+async function fetchSharedScript(projectId: string, scriptId: string, collabWsUrl = getCollabWsUrl()): Promise<{ project: any; scriptResp: any }> {
   // Try multiple backends (local + alternatives) for cross-backend joins.
-  // Derive host from the collab server URL setting so cross-machine access works.
-  const collabHttpUrl = getCollabWsUrl().replace(/^ws/, 'http');
+  // Derive host from the collab server URL so cross-machine access works.
+  const collabHttpUrl = collabWsUrl.replace(/^ws/, 'http');
   const collabHost = (() => { try { return new URL(collabHttpUrl).hostname; } catch { return 'localhost'; } })();
   const backends = [
     getApiBase(),
@@ -299,6 +299,33 @@ async function fetchSharedScript(projectId: string, scriptId: string): Promise<{
     } catch { /* try next */ }
   }
   return { project, scriptResp };
+}
+
+/** The collab server refused an invite: revoked, expired or never issued there. */
+class CollabInviteRefusedError extends Error {}
+
+/**
+ * Look an invite up on the collab server the session lives on.
+ *
+ * A guest's own settings may name a different server (or none — the default
+ * is production), so the lookup goes to `collabWsUrl`, the server the guest
+ * actually joined through. A plain fetch, like joining: the invite is the
+ * credential, and the guest's own sign-in has no say. Only when that server
+ * cannot be reached at all does it fall back to the configured one.
+ */
+async function lookupCollabSession(token: string, collabWsUrl: string): Promise<import('../services/api').CollabSession> {
+  const collabHttpUrl = collabWsUrl.replace(/^ws/, 'http');
+  let res: Response;
+  try {
+    res = await platformFetch(`${collabHttpUrl}/api/collab/session/${token}`);
+  } catch (err) {
+    console.warn(`[Collab] ${collabHttpUrl} unreachable for invite lookup, trying the configured server:`, err);
+    return api.validateCollabSession(token);
+  }
+  if (res.ok) return res.json();
+  const detail = await res.text().catch(() => '');
+  if (res.status === 404) throw new CollabInviteRefusedError(`Invite refused by ${collabHttpUrl}: ${detail}`);
+  throw new Error(`Collab server ${collabHttpUrl} answered ${res.status}: ${detail}`);
 }
 
 /** The ProseMirror document to seed a collab room with, or null if there is none. */
@@ -578,6 +605,9 @@ const ScreenplayEditor: React.FC = () => {
 
   // Shared invite of the last host document switch this guest followed.
   const followedSwitchTokenRef = useRef('');
+  // The collab server this session is on — the one from the invite link,
+  // which need not be the one in Settings. Following the host stays there.
+  const collabWsUrlRef = useRef('');
   const handleSessionEndedRef = useRef(handleSessionEnded);
   handleSessionEndedRef.current = handleSessionEnded;
 
@@ -619,6 +649,7 @@ const ScreenplayEditor: React.FC = () => {
     // Use the collab server URL extracted from the invite link if provided,
     // otherwise fall back to the local setting.
     const wsUrl = overrideWsUrl || getCollabWsUrl();
+    collabWsUrlRef.current = wsUrl;
     console.log(`[Collab] setupCollab: docName="${docName}", wsUrl="${wsUrl}", isHost=${isHost}, tokenPrefix="${inviteToken.slice(0, 8)}..."`);
 
     const provider = new HocuspocusProvider({
@@ -789,14 +820,37 @@ const ScreenplayEditor: React.FC = () => {
     // update repeats it. Follow each switch once.
     if (followedSwitchTokenRef.current === sharedToken) return;
     followedSwitchTokenRef.current = sharedToken;
+    const collabWs = collabWsUrlRef.current || getCollabWsUrl();
+    const named = title ? `“${title}”` : 'the new script';
+
+    // A dropped request should not strand the guest: try twice before giving up.
+    let session: import('../services/api').CollabSession | null = null;
+    for (let attempt = 1; attempt <= 2 && !session; attempt++) {
+      try {
+        session = await lookupCollabSession(sharedToken, collabWs);
+      } catch (err) {
+        console.error(`[Collab] Could not follow the host to ${projectId}/${scriptId} (attempt ${attempt}):`, err);
+        if (err instanceof CollabInviteRefusedError || attempt === 2) {
+          showToast(
+            err instanceof CollabInviteRefusedError
+              ? `The host moved to ${named}, but its invite is no longer valid. Ask the host for a new link.`
+              : `Couldn't follow the host to ${named}. You're still in the previous script — check your connection or ask the host for a new link.`,
+            'error',
+          );
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+    // A newer switch arrived while this one was retrying — that one wins.
+    if (!session || followedSwitchTokenRef.current !== sharedToken) return;
+
     try {
-      // Validate the shared token to get the session_nonce for the room name
-      const session = await api.validateCollabSession(sharedToken);
       const nonce = session.session_nonce || '';
 
       // Optional, as when joining: a guest is rarely allowed to read the
       // host's project, and following must not depend on it.
-      const { project, scriptResp } = await fetchSharedScript(projectId, scriptId);
+      const { project, scriptResp } = await fetchSharedScript(projectId, scriptId, collabWs);
 
       // Reset even when nothing loaded, so the previous document's text is
       // never carried into the new room.
@@ -808,7 +862,7 @@ const ScreenplayEditor: React.FC = () => {
       useFormattingTemplateStore.getState().setActiveTemplateId(typeof tplId === 'string' ? tplId : null);
 
       const docName = `${projectId}/${scriptId}${nonce ? `/${nonce}` : ''}`;
-      setupCollab(docName, sharedToken, collabUserName);
+      setupCollab(docName, sharedToken, collabUserName, false, collabWs);
 
       const docTitle = scriptResp?.meta?.title || title || 'Untitled';
       setCurrentProject(project || { id: projectId, name: 'Collaboration' });
@@ -817,8 +871,8 @@ const ScreenplayEditor: React.FC = () => {
       setEditorKey((k) => k + 1);
       showToast(`Host switched to: ${docTitle}`, 'info');
     } catch (err) {
-      console.error('[Collab] Could not follow the host to the new document:', err);
-      showToast('Failed to follow host to new document', 'error');
+      console.error('[Collab] Could not open the document the host switched to:', err);
+      showToast(`Couldn't follow the host to ${named}. You're still in the previous script.`, 'error');
     }
   }, [setupCollab, collabUserName, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
