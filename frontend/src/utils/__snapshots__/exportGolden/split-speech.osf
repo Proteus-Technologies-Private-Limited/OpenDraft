@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<document type="Open Screenplay Format document" version="30">
+  <info/>
+  <settings page_width="2159" page_height="2794" margin_top="317" margin_bottom="220" margin_left="317" margin_right="317" normal_linesperinch="6.0" element_spacing="1.00" scene_numbering="true" scenes_locked="false"/>
+  <styles>
+    <style name="Normal Text" builtin="1" builtin_index="0" label="Normal Text" font="Courier" size="12"/>
+    <style name="Scene Heading" builtin="1" builtin_index="1" label="Scene Heading" basestylename="Normal Text" font="Courier" size="12" spacebefore="2.0" keepwithnext="1" allcaps="1"/>
+    <style name="Action" builtin="1" builtin_index="2" label="Action" basestylename="Normal Text" font="Courier" size="12" spacebefore="1.0"/>
+    <style name="Character" builtin="1" builtin_index="3" label="Character" basestylename="Normal Text" font="Courier" size="12" spacebefore="1.0" keepwithnext="1" leftindent="635" allcaps="1"/>
+    <style name="Parenthetical" builtin="1" builtin_index="4" label="Parenthetical" basestylename="Normal Text" font="Courier" size="12" keepwithnext="1" leftindent="508" rightindent="508"/>
+    <style name="Dialogue" builtin="1" builtin_index="5" label="Dialogue" basestylename="Normal Text" font="Courier" size="12" leftindent="254" rightindent="254"/>
+    <style name="Transition" builtin="1" builtin_index="6" label="Transition" basestylename="Normal Text" font="Courier" size="12" spacebefore="1.0" align="right" allcaps="1"/>
+    <style name="Shot" builtin="1" builtin_index="7" label="Shot" basestylename="Normal Text" font="Courier" size="12" spacebefore="1.0" allcaps="1"/>
+    <style name="Lyrics" label="Lyrics" basestylename="Normal Text" font="Courier" size="12" italic="1"/>
+  </styles>
+  <paragraphs>
+      <para scene_number="1">
+        <style basestylename="Scene Heading"/>
+        <text>INT. COURTROOM - DAY</text>
+      </para>
+      <para>
+        <style basestylename="Action"/>
+        <text>The room falls silent.</text>
+      </para>
+      <para>
+        <style basestylename="Character"/>
+        <text>MARA</text>
+      </para>
+      <para>
+        <style basestylename="Dialogue"/>
+        <text>I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </text>
+      </para>
+      <para>
+        <style basestylename="Dialogue"/>
+        <text>I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </text>
+      </para>
+      <para>
+        <style basestylename="Dialogue"/>
+        <text>I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </text>
+      </para>
+      <para>
+        <style basestylename="Dialogue"/>
+        <text>I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </text>
+      </para>
+      <para>
+        <style basestylename="Dialogue"/>
+        <text>I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </text>
+      </para>
+      <para>
+        <style basestylename="Dialogue"/>
+        <text>I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </text>
+      </para>
+      <para>
+        <style basestylename="Dialogue"/>
+        <text>I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </text>
+      </para>
+      <para>
+        <style basestylename="Dialogue"/>
+        <text>I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </text>
+      </para>
+      <para>
+        <style basestylename="Dialogue"/>
+        <text>I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </text>
+      </para>
+      <para>
+        <style basestylename="Dialogue"/>
+        <text>I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </text>
+      </para>
+      <para>
+        <style basestylename="Dialogue"/>
+        <text>I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </text>
+      </para>
+      <para>
+        <style basestylename="Dialogue"/>
+        <text>I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </text>
+      </para>
+      <para>
+        <style basestylename="Character"/>
+        <text>JONAH</text>
+      </para>
+      <para>
+        <style basestylename="Dialogue"/>
+        <text>Objection.</text>
+      </para>
+      <para>
+        <style name="Normal Text" label="Normal Text" font="Courier" size="12"/>
+        <text></text>
+      </para>
+  </paragraphs>
+</document>

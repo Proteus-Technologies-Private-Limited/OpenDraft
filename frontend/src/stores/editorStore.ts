@@ -808,6 +808,14 @@ interface EditorState {
   setSceneNumbersVisible: (v: boolean) => void;
   sceneNumbersLocked: boolean;
   setSceneNumbersLocked: (v: boolean) => void;
+  /**
+   * Show the numbers a format puts on elements other than scene headings
+   * (utils/elementNumbers). Which elements are numbered is the format's;
+   * this only hides them, for a reading draft. Inert when the format numbers
+   * nothing.
+   */
+  elementNumbersVisible: boolean;
+  setElementNumbersVisible: (v: boolean) => void;
 
   /**
    * Per-document override for the space before a scene heading, in points.
@@ -1320,6 +1328,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSceneNumbersVisible: (v) => set({ sceneNumbersVisible: v }),
   sceneNumbersLocked: false,
   setSceneNumbersLocked: (v) => set({ sceneNumbersLocked: v }),
+  elementNumbersVisible: true,
+  setElementNumbersVisible: (v) => set({ elementNumbersVisible: v }),
 
   sceneHeadingSpaceBefore: null,
   setSceneHeadingSpaceBefore: (v) => set({ sceneHeadingSpaceBefore: v }),

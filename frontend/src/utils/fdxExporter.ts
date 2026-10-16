@@ -13,6 +13,7 @@ import { titlePageAttrsCarryData } from './titlePageRegion';
 import {
   REVISION_COLORS, findRevisionColor, revisionMarkFor, type RevisionSettings,
 } from '../editor/revisionColors';
+import { withElementNumbers, elementNumberOf } from './elementNumbers';
 
 const NODE_TO_FDX: Record<string, string> = {
   sceneHeading: 'Scene Heading',
@@ -277,6 +278,10 @@ export interface FDXExportOptions {
   /** False leaves scene numbers out, as hiding them did before they could be
    *  locked. Absent writes whatever numbers the scenes carry. */
   sceneNumbersVisible?: boolean;
+  /** Write the numbers the active format puts on other elements
+   *  (utils/elementNumbers) as each paragraph's `Number`, which is where Final
+   *  Draft keeps a numbered element's number. Absent or false writes none. */
+  elementNumbersVisible?: boolean;
 }
 
 export interface FDXRevisionState {
@@ -354,6 +359,11 @@ export interface FDXDocumentFont {
 export function exportFDX(doc: JSONContent, _title: string = 'Untitled', characterProfiles?: CharacterProfile[], tagCategories?: TagCategory[], tags?: TagItem[], beats?: BeatInfo[], beatColumns?: BeatColumn[], pageLayout?: PageLayout, documentFont?: FDXDocumentFont, footnotes?: FootnotePlan | null, revisions?: FDXRevisionState, options: FDXExportOptions = {}): string {
   // Printing notes reach a file only when the writer asked them to.
   const plan = footnotes && footnotes.settings.includeInExports ? footnotes : null;
+  // Labels for numbered elements, on a copy; the same document when none are.
+  doc = withElementNumbers(doc, {
+    visible: options.elementNumbersVisible === true,
+    sceneNumbersVisible: options.sceneNumbersVisible !== false,
+  });
   // Final Draft keeps the typeface on each element's FontSpec; the screenplay
   // Courier is the default a file gets when the writer has not changed it.
   const docFont = documentFont?.family || 'Courier Prime';
@@ -520,7 +530,13 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
 
     // Hidden numbers are not printed numbers. Locked ones are kept on the
     // scenes while hidden, so they are left out here rather than by clearing.
-    if (node.attrs?.sceneNumber && options.sceneNumbersVisible !== false) paraAttrs.push(`Number="${node.attrs.sceneNumber}"`);
+    // An element number (utils/elementNumbers) takes the paragraph's one
+    // Number. A script imported from Final Draft and saved before it was ever
+    // opened can still carry Final Draft's own on the paragraph; writing both
+    // would repeat the attribute and break the XML.
+    const elementNumber = elementNumberOf(node);
+    if (elementNumber) paraAttrs.push(`Number="${esc(elementNumber)}"`);
+    else if (node.attrs?.sceneNumber && options.sceneNumbersVisible !== false) paraAttrs.push(`Number="${node.attrs.sceneNumber}"`);
     if (node.attrs?.textAlign) {
       const a = ALIGNMENT_TO_FDX[node.attrs.textAlign as string];
       if (a) paraAttrs.push(`Alignment="${a}"`);

@@ -14,6 +14,7 @@ import { MULTICAM_SITCOM_TEMPLATE, MULTICAM_SITCOM_ID } from './templates/multic
 import { ONE_HOUR_DRAMA_TEMPLATE, ONE_HOUR_DRAMA_ID } from './templates/oneHourDramaTemplate';
 import { STAGE_PLAY_TEMPLATE, STAGE_PLAY_ID } from './templates/stagePlayTemplate';
 import { RADIO_PLAY_TEMPLATE, RADIO_PLAY_ID } from './templates/radioPlayTemplate';
+import { PODCAST_TEMPLATE, PODCAST_ID } from './templates/podcastTemplate';
 import { AV_SCRIPT_TEMPLATE, AV_SCRIPT_ID } from './templates/avScriptTemplate';
 import { api } from '../services/api';
 import { useSettingsStore } from './settingsStore';
@@ -25,6 +26,7 @@ export const SYSTEM_TEMPLATES: Record<string, FormattingTemplate> = {
   [ONE_HOUR_DRAMA_ID]: ONE_HOUR_DRAMA_TEMPLATE,
   [STAGE_PLAY_ID]: STAGE_PLAY_TEMPLATE,
   [RADIO_PLAY_ID]: RADIO_PLAY_TEMPLATE,
+  [PODCAST_ID]: PODCAST_TEMPLATE,
   [AV_SCRIPT_ID]: AV_SCRIPT_TEMPLATE,
 };
 
@@ -35,6 +37,7 @@ export const SYSTEM_TEMPLATE_LIST: FormattingTemplate[] = [
   MULTICAM_SITCOM_TEMPLATE,
   STAGE_PLAY_TEMPLATE,
   RADIO_PLAY_TEMPLATE,
+  PODCAST_TEMPLATE,
   AV_SCRIPT_TEMPLATE,
 ];
 
@@ -136,6 +139,29 @@ function optionalFormatFields(source: Partial<FormattingTemplate>): Partial<Form
 }
 
 /** Resolve an id against the built-in formats first, then the writer's own. */
+/**
+ * `withMissingRules`, answered once per stored template.
+ *
+ * Components subscribe with `useFormattingTemplateStore((s) =>
+ * s.getActiveTemplate())`, and React re-renders whenever that returns a
+ * different object. A template saved without some rules — every duplicate of a
+ * system format but Industry Standard, which alone carries the title-page
+ * rules — was filled in afresh on every read, so the answer was never the same
+ * object twice and the editor re-rendered until React gave up (error #185:
+ * applying "Radio Play (Copy)" left a blank window). Templates are replaced,
+ * never mutated, when they change, so keying on the object is enough.
+ */
+const filledTemplates = new WeakMap<FormattingTemplate, FormattingTemplate>();
+
+function withMissingRulesOnce(template: FormattingTemplate): FormattingTemplate {
+  let filled = filledTemplates.get(template);
+  if (!filled) {
+    filled = withMissingRules(template);
+    filledTemplates.set(template, filled);
+  }
+  return filled;
+}
+
 function resolveTemplate(
   id: string | null | undefined,
   templates: FormattingTemplate[],
@@ -144,7 +170,7 @@ function resolveTemplate(
   const sys = SYSTEM_TEMPLATES[id];
   if (sys) return sys;
   const found = templates.find((t) => t.id === id);
-  return found ? withMissingRules(found) : null;
+  return found ? withMissingRulesOnce(found) : null;
 }
 
 /**

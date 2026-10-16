@@ -32,6 +32,8 @@ import {
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
   StartsNewPage,
 } from '../editor/extensions';
+import { ElementNumbers, ELEMENT_NUMBERS_REFRESH } from '../editor/extensions/ElementNumbers';
+import { getElementNumberingRules } from '../utils/elementNumbers';
 import { registerAvCellPicker, isInAvCell, AV_BASE_CELL_ELEMENT_IDS } from '../editor/extensions/AvBlock';
 import { avCellElementRules } from '../utils/avCellElements';
 import { isBlankBlock, previousSiblingBlock, blankLineTypeFor } from '../editor/blankLine';
@@ -1719,6 +1721,10 @@ const ScreenplayEditor: React.FC = () => {
       Section, Note,
       ShowEpisode, CastList, DualDialogue, DualDialogueColumn, TitlePage,
       AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
+      ElementNumbers.configure({
+        getRules: getElementNumberingRules,
+        getSceneNumbersVisible: () => useEditorStore.getState().sceneNumbersVisible,
+      }),
       ScriptNoteMark, TagMark, TableReadHighlight,
       RevisionMark.configure({
         // A checked-in draft is read-only: draw its revisions, add none.
@@ -1825,6 +1831,18 @@ const ScreenplayEditor: React.FC = () => {
 
     return () => { injectTemplateCss(null); };
   }, [activeTemplateId, templatesLoaded, templates, pageLayout, sceneHeadingSpaceBefore]);
+
+  // Element numbers follow the format and the scene numbers, neither of which
+  // is in the document — so a change to either has to ask for a recount.
+  const elementNumbersVisible = useEditorStore((s) => s.elementNumbersVisible);
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    try {
+      editor.view.dispatch(editor.state.tr.setMeta(ELEMENT_NUMBERS_REFRESH, true).setMeta('addToHistory', false));
+    } catch (err) {
+      console.warn('[elementNumbers] could not refresh element numbers', err);
+    }
+  }, [editor, activeTemplateId, templatesLoaded, templates, sceneNumbersVisible]);
 
   // ── Owner starts collaboration — save current content, create own token, switch to collab mode ──
   const handleStartCollab = useCallback(async (guestSession: import('../services/api').CollabSession) => {
@@ -3344,6 +3362,7 @@ const ScreenplayEditor: React.FC = () => {
             if (typeof c._sceneNumbersLocked === 'boolean') {
               store.setSceneNumbersLocked(c._sceneNumbersLocked);
             }
+            store.setElementNumbersVisible(c._elementNumbersVisible !== false);
             // Restore per-document formatting template
             if (c._templateId && typeof c._templateId === 'string') {
               useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
@@ -4972,7 +4991,7 @@ const ScreenplayEditor: React.FC = () => {
                 }}
               >
                 <div
-                  className={`page${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
+                  className={`page${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
                   ref={pageRef}
                   style={{
                     fontFamily: fontStack(fontFamily),

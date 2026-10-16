@@ -1,0 +1,1020 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document mc:Ignorable="w14 w15 wp14" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:w10="urn:schemas-microsoft-com:office:word" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk" xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:cx="http://schemas.microsoft.com/office/drawing/2014/chartex" xmlns:cx1="http://schemas.microsoft.com/office/drawing/2015/9/8/chartex" xmlns:cx2="http://schemas.microsoft.com/office/drawing/2015/10/21/chartex" xmlns:cx3="http://schemas.microsoft.com/office/drawing/2016/5/9/chartex" xmlns:cx4="http://schemas.microsoft.com/office/drawing/2016/5/10/chartex" xmlns:cx5="http://schemas.microsoft.com/office/drawing/2016/5/11/chartex" xmlns:cx6="http://schemas.microsoft.com/office/drawing/2016/5/12/chartex" xmlns:cx7="http://schemas.microsoft.com/office/drawing/2016/5/13/chartex" xmlns:cx8="http://schemas.microsoft.com/office/drawing/2016/5/14/chartex" xmlns:aink="http://schemas.microsoft.com/office/drawing/2016/ink" xmlns:am3d="http://schemas.microsoft.com/office/drawing/2017/model3d" xmlns:w16cex="http://schemas.microsoft.com/office/word/2018/wordml/cex" xmlns:w16cid="http://schemas.microsoft.com/office/word/2016/wordml/cid" xmlns:w16="http://schemas.microsoft.com/office/word/2018/wordml" xmlns:w16sdtdh="http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash" xmlns:w16se="http://schemas.microsoft.com/office/word/2015/wordml/symex">
+<w:body>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="sceneHeading"/>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="0" w:right="0"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b/>
+<w:bCs/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">SCENE 1</w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:tabs>
+<w:tab w:val="right" w:pos="-216"/>
+<w:tab w:val="left" w:pos="0"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="0" w:right="0" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">FX 1</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">SFX: RAIN ON A TIN ROOF.</w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="character"/>
+<w:spacing w:before="240" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="2880" w:right="0"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">HOST</w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">1</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">Welcome back. Tonight, a story about a lighthouse.</w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:tabs>
+<w:tab w:val="right" w:pos="-216"/>
+<w:tab w:val="left" w:pos="0"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="0" w:right="0" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">MX 1</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">MUSIC: THEME IN, THEN UNDER.</w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="character"/>
+<w:spacing w:before="240" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="2880" w:right="0"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">KEEPER</w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">2</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">3</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">4</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">5</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">6</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">7</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">8</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">9</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">10</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">11</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">12</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">13</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">I have been waiting for this moment for a very long time, and I am not going to let anyone take it away from me now, not after everything we have been through together. </w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:spacing w:before="240" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="0" w:right="0"/>
+<w:jc w:val="left"/>
+</w:pPr>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="character"/>
+<w:spacing w:before="240" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="2880" w:right="0"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">HOST</w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+<w:tab w:val="left" w:pos="9144"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">16</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">Listen. </w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">Footsteps.</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b/>
+<w:bCs/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+<w:t xml:space="preserve">*</w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="sceneHeading"/>
+<w:spacing w:before="480" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="0" w:right="0"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b/>
+<w:bCs/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">SCENE 2</w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:tabs>
+<w:tab w:val="right" w:pos="-216"/>
+<w:tab w:val="left" w:pos="0"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="0" w:right="0" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">FX 2</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">SFX: A DOOR SLAMS.</w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="character"/>
+<w:spacing w:before="240" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="2880" w:right="0"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">KEEPER</w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:tabs>
+<w:tab w:val="right" w:pos="1224"/>
+<w:tab w:val="left" w:pos="1440"/>
+</w:tabs>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1440" w:right="2160" w:hanging="1440"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:b w:val="false"/>
+<w:bCs w:val="false"/>
+<w:i w:val="false"/>
+<w:iCs w:val="false"/>
+<w:caps w:val="false"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">17</w:t>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:tab/>
+</w:r>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">Run.</w:t>
+</w:r>
+</w:p>
+<w:sectPr>
+<w:headerReference w:type="default" r:id="rId7"/>
+<w:headerReference w:type="first" r:id="rId8"/>
+<w:pgSz w:w="11894" w:h="16834" w:orient="portrait"/>
+<w:pgMar w:top="1440" w:right="1094" w:bottom="1440" w:left="2160" w:header="720" w:footer="720" w:gutter="0"/>
+<w:pgNumType w:start="1"/>
+<w:titlePg/>
+<w:docGrid w:linePitch="360"/>
+</w:sectPr>
+</w:body>
+</w:document>

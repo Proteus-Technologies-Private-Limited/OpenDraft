@@ -48,6 +48,7 @@ export const SAVE_METADATA_KEYS = [
   '_grammarCheckEnabled',
   '_sceneNumbersVisible',
   '_sceneNumbersLocked',
+  '_elementNumbersVisible',
   '_pageLayout',
   '_sceneHeadingSpaceBefore',
   '_revisionMode',
@@ -95,6 +96,9 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
     _grammarCheckEnabled: store.grammarCheckEnabled,
     _sceneNumbersVisible: store.sceneNumbersVisible,
     _sceneNumbersLocked: store.sceneNumbersLocked,
+    // Written only when hidden, so a script that never hid them saves exactly
+    // as it did before element numbering existed. Absent reads as shown.
+    ...(store.elementNumbersVisible ? {} : { _elementNumbersVisible: false }),
     _pageLayout: store.pageLayout,
     // Always written, even when null. Its *absence* is the signal that a
     // document predates the two-line scene-heading default, which is what the

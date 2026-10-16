@@ -287,6 +287,31 @@
 
     <p>The template editor shows a <strong>live preview</strong> of each element's formatting as you adjust settings.</p>
 
+    <h3 id="element-numbering">Element Numbering</h3>
+
+    <p>Scene headings are not the only thing a script can number. A template can number any element &mdash; every line of dialogue in a podcast, so a recording session can say &ldquo;pick up from line 41&rdquo;; every sound effect; every shot. The number appears in the left margin beside the element, on screen, in print, and in PDF, Word and Final Draft exports.</p>
+
+    <p>Select an element in the template editor and tick <strong>Number this element</strong>. Then choose:</p>
+    <ul>
+      <li><strong>Restart numbering at</strong> &mdash; the elements that start the count again at 1. Tick <em>Scene Heading</em> to number the dialogue of each scene on its own, tick several to restart at any of them (a Scene Heading <em>or</em> a New Act), or tick none to count through the whole script.</li>
+      <li><strong>Prefix</strong> &mdash; text before the number, such as <code>FX </code> for FX 1, FX 2, FX 3.</li>
+      <li><strong>Start at</strong> &mdash; the first number after each restart.</li>
+      <li><strong>Style</strong> &mdash; <em>Plain</em> (3) or <em>With scene number</em> (12.3). The second needs scene numbers to be showing and falls back to plain numbers where there is none.</li>
+    </ul>
+
+    <p>Each numbered element keeps its own count, so dialogue can restart every scene while sound effects count through the whole script. A count restarts only at elements, never at a page break: pages break in different places on screen, in the PDF and in Word, and a number tied to them would give the same line a different number in each.</p>
+
+    <p>The numbers are worked out from the order of the script, so adding or removing a line renumbers everything after it. They are not part of the text: you cannot type over them, and they never change where a page breaks. To hide them for a reading draft without changing the template, turn off <strong>Tools &gt; Production &gt; Show Element Numbers</strong>. <strong>Tools &gt; Production &gt; Element Numbering&hellip;</strong> opens the template manager.</p>
+
+    <p>The built-in <strong>Podcast</strong> format comes with numbering already on: every line of dialogue is numbered through the whole script, and sound effects and music cues are numbered on their own as FX 1, FX 2&hellip; and MX 1, MX 2&hellip;. To change any of it, duplicate the format and edit the copy.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Good to know:</strong> Fountain has no way to write a number beside anything but a scene, so Fountain exports leave element numbers out. Numbering lives in the template, so a script opened on a device that doesn&rsquo;t have your custom template shows no element numbers there &mdash; the built-in Podcast format is on every device.</p>
+      </div>
+    </div>
+
     <h3 id="enforce-override">Enforce vs. Override Mode</h3>
 
     <p>Every template operates in one of two modes:</p>

@@ -69,6 +69,9 @@ export function hydrateEditorStoresFromContent(
   if (c._sceneNumbersLocked !== undefined) {
     store.setSceneNumbersLocked(c._sceneNumbersLocked === true);
   }
+  // Always set: absent is "shown", and a script must not inherit the previous
+  // one's hidden numbers.
+  store.setElementNumbersVisible(c._elementNumbersVisible !== false);
   if (c._pageLayout !== undefined) {
     store.setPageLayout(parseAttr(c._pageLayout, DEFAULT_PAGE_LAYOUT));
   }

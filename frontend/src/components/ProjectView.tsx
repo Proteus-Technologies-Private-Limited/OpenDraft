@@ -136,6 +136,7 @@ const NewDocumentButton: React.FC<{
 };
 import { showToast } from './Toast';
 import { readRevisionState } from '../utils/revisionState';
+import { labelSavedContent } from '../utils/elementNumbers';
 
 const ITEM_COLORS = [
   '#e06060', '#e89b4f', '#f4d35e', '#6abf69',
@@ -977,7 +978,7 @@ const ProjectView: React.FC = () => {
           case 'fdx':
             {
               const rev = readRevisionState(content);
-              await downloadFDX(content as Parameters<typeof downloadFDX>[0], title, profiles, cats, tags,
+              await downloadFDX(labelSavedContent(content as Parameters<typeof downloadFDX>[0], content), title, profiles, cats, tags,
                 undefined, undefined, undefined, undefined, undefined,
                 { mode: rev.revisionMode, color: rev.revisionColor, settings: rev.revisionSettings },
                 { sceneNumbersVisible: (content as Record<string, unknown>)?._sceneNumbersVisible !== false });
@@ -990,7 +991,7 @@ const ProjectView: React.FC = () => {
             });
             break;
           case 'pdf':
-            await exportPDF(content as any, title, DEFAULT_PAGE_LAYOUT, {
+            await exportPDF(labelSavedContent(content as any, content), title, DEFAULT_PAGE_LAYOUT, {
               revisionSettings: readRevisionState(content).revisionSettings,
             });
             break;
