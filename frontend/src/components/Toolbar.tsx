@@ -361,8 +361,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, [overflowOpen]);
 
-  // Hide order: "1" first, then "2" (matches "2" and "2b"), "3", "4", "5" last
-  const HIDE_ORDER = ['1', '2', '3', '4', '5'];
+  // Hide order: "1" first, then "2" (matches "2" and "2b"), "3", "4", "5",
+  // and "6" (Notes & Tags) last of all. On a phone 3–5 are already off the bar,
+  // so 6 follows Search & Go To: a 375px iPhone (Display Zoom, SE, mini) has
+  // no room for them beside the element picker, and the zoom button they
+  // pushed off the edge is the one control with nowhere else to go.
+  const HIDE_ORDER = ['1', '2', '3', '4', '5', '6'];
 
   /**
    * True while the narrow-layout single zoom button is on screen.  Below the
@@ -421,6 +425,16 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
         for (const prefix of HIDE_ORDER) {
           if (currentTotal <= containerWidth) break;
+          // Notes & Tags go only when the bar really does not fit. The estimate
+          // above is generous (2px per item, room for a "…" that may already be
+          // counted), which costs nothing for the groups before this one but
+          // folded these away on a 402px iPhone where they fit. The groups
+          // hidden so far are already display:none, so the bar's own overflow
+          // is the truth — plus the "…" button if it has yet to appear.
+          if (prefix === '6') {
+            const reserve = toolbar.querySelector('.toolbar-overflow-wrap') ? 0 : OVERFLOW_BTN_WIDTH;
+            if (toolbar.scrollWidth + reserve <= toolbar.clientWidth) break;
+          }
           const matching = allItems.filter(p => p.key.startsWith(prefix));
           for (const { el, key } of matching) {
             newHidden.add(key);
@@ -867,6 +881,25 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     </div>
   ), [setSearchOpen, setGoToPageOpen]);
 
+  const renderNotesTags = useCallback((inOverflow = false) => (
+    <div className="toolbar-group" key="notes-tags">
+      <button
+        className={`toolbar-btn${scriptNotesOpen ? ' active' : ''}`}
+        title="Script Notes"
+        onPointerDown={(e) => { handleNotesClick(e); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaStickyNote />
+      </button>
+      <button
+        className={`toolbar-btn${tagsPanelOpen ? ' active' : ''}`}
+        title="Production Tags"
+        onPointerDown={(e) => { handleTagsClick(e); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaTags />
+      </button>
+    </div>
+  ), [scriptNotesOpen, tagsPanelOpen, handleNotesClick, handleTagsClick]);
+
   const renderZoom = useCallback((_inOverflow = false) => (
     <div className="toolbar-group zoom-group" key="zoom">
       <button
@@ -954,6 +987,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     if (isHiddenExact('4')) { addSep(); items.push(renderFontStyleColors(true)); }
     if (isHiddenExact('3')) { addSep(); items.push(renderAlignment(true)); }
     if (isHiddenExact('2')) { addSep(); items.push(renderSearchGoto(true)); }
+    if (isHiddenExact('6')) { addSep(); items.push(renderNotesTags(true)); }
 
     // Zoom: skip entirely when the narrow layout's own zoom button is on screen.
     if (!mobileZoomVisible) {
@@ -962,7 +996,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     }
 
     return items.length > 0 ? items : null;
-  }, [hiddenPriorities, isHiddenExact, mobileZoomVisible, renderZoomMin, renderZoom, renderSearchGoto, renderAlignment, renderFontStyleColors, renderFontFaceSize]);
+  }, [hiddenPriorities, isHiddenExact, mobileZoomVisible, renderZoomMin, renderZoom, renderSearchGoto, renderNotesTags, renderAlignment, renderFontStyleColors, renderFontFaceSize]);
 
   // Derived from the menu's contents, not from the hidden set: a group can be
   // hidden and still have nothing to offer here (zoom, when the narrow layout
@@ -1097,22 +1131,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
 
       <div className="toolbar-separator" />
 
-      {/* Notes & Tags — always visible */}
-      <div className="toolbar-group">
-        <button
-          className={`toolbar-btn${scriptNotesOpen ? ' active' : ''}`}
-          title="Script Notes"
-          onPointerDown={handleNotesClick}
-        >
-          <FaStickyNote />
-        </button>
-        <button
-          className={`toolbar-btn${tagsPanelOpen ? ' active' : ''}`}
-          title="Production Tags"
-          onPointerDown={handleTagsClick}
-        >
-          <FaTags />
-        </button>
+      {/* Priority 6: Notes & Tags — the last to fold into the overflow menu,
+          only when nothing else is left to give way (see HIDE_ORDER) */}
+      <div className="toolbar-priority-block" data-priority="6">
+        {renderNotesTags()}
       </div>
 
       {/* Spacer */}
