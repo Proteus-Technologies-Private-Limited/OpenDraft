@@ -658,7 +658,12 @@ body {
   background: var(--fd-toolbar-bg); border-bottom: none;
   box-shadow: var(--fd-chrome-shadow);
   padding: 0 8px; gap: 2px; flex-shrink: 0;
-  position: relative; z-index: 1;
+  /* The overflow menu and color pickers hang out of the toolbar and can stack
+     no higher than it does. At 1 the pinned Scenes search (2), the revision
+     gutter (5), page separators and panel resize handles (10) all drew over
+     them (issue #152). Kept under the touch selection handles (39+) and the
+     fullscreen panels and overlays (100+) that are meant to cover it. */
+  position: relative; z-index: 20;
 }
 .toolbar.toolbar-comfortable { height: 36px; }
 .toolbar-group { display: flex; align-items: center; gap: 1px; }
