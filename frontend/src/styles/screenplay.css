@@ -2156,9 +2156,15 @@ body {
 }
 
 /* ============ EDITOR MAIN AREA ============ */
+/* No justify-content: the page is centred by its own auto margins below.
+   `justify-content: center` overflows a page wider than the pane equally on
+   both sides, and a scroll container cannot scroll into overflow on its left —
+   zoomed in, the left half of the page was out of reach (issue #154). Auto
+   margins centre the same way while the page fits, and fall to zero once it
+   does not, so every bit of it can be scrolled to. */
 .editor-main {
   flex: 1; overflow-y: auto; overflow-x: auto;
-  background: var(--fd-bg); display: flex; justify-content: center;
+  background: var(--fd-bg); display: flex;
   padding: 30px 0 60px;
 }
 
@@ -2355,20 +2361,20 @@ body {
 .character {
   text-transform: uppercase;
   margin-top: 12pt;
-  padding-left: calc(3.50in - var(--pl, 1.50in));
-  padding-right: calc(var(--pw, 8.26in) - 7.50in - var(--pr, 0.76in));
+  padding-left: calc((3.50in - var(--pl, 1.50in)) * var(--indent-scale, 1));
+  padding-right: calc((var(--pw, 8.26in) - 7.50in - var(--pr, 0.76in)) * var(--indent-scale, 1));
 }
 
 /* Parenthetical: FDX LeftIndent=3.00, RightIndent=5.50 */
 .parenthetical {
-  padding-left: calc(3.00in - var(--pl, 1.50in));
-  padding-right: calc(var(--pw, 8.26in) - 5.50in - var(--pr, 0.76in));
+  padding-left: calc((3.00in - var(--pl, 1.50in)) * var(--indent-scale, 1));
+  padding-right: calc((var(--pw, 8.26in) - 5.50in - var(--pr, 0.76in)) * var(--indent-scale, 1));
 }
 
 /* Dialogue: FDX LeftIndent=2.50, RightIndent=6.00 */
 .dialogue {
-  padding-left: calc(2.50in - var(--pl, 1.50in));
-  padding-right: calc(var(--pw, 8.26in) - 6.00in - var(--pr, 0.76in));
+  padding-left: calc((2.50in - var(--pl, 1.50in)) * var(--indent-scale, 1));
+  padding-right: calc((var(--pw, 8.26in) - 6.00in - var(--pr, 0.76in)) * var(--indent-scale, 1));
 }
 
 /* Transition: FDX LeftIndent=5.50, RightIndent=7.50 */
@@ -2376,8 +2382,8 @@ body {
   text-transform: uppercase;
   text-align: right;
   margin-top: 12pt;
-  padding-left: calc(5.50in - var(--pl, 1.50in));
-  padding-right: calc(var(--pw, 8.26in) - 7.50in - var(--pr, 0.76in));
+  padding-left: calc((5.50in - var(--pl, 1.50in)) * var(--indent-scale, 1));
+  padding-right: calc((var(--pw, 8.26in) - 7.50in - var(--pr, 0.76in)) * var(--indent-scale, 1));
 }
 
 /* General */
@@ -2409,8 +2415,8 @@ body {
 /* Lyrics: same indents as Dialogue */
 .lyrics {
   font-style: italic;
-  padding-left: calc(2.50in - var(--pl, 1.50in));
-  padding-right: calc(var(--pw, 8.26in) - 6.00in - var(--pr, 0.76in));
+  padding-left: calc((2.50in - var(--pl, 1.50in)) * var(--indent-scale, 1));
+  padding-right: calc((var(--pw, 8.26in) - 6.00in - var(--pr, 0.76in)) * var(--indent-scale, 1));
 }
 
 /* ── Non-printing structure: Fountain Sections and Notes ──────────────
@@ -2478,16 +2484,16 @@ body {
 }
 /* Tighter indents for dialogue elements inside dual columns */
 .dual-dialogue .screenplay-element.character {
-  padding-left: 0.8in;
+  padding-left: calc(0.8in * var(--indent-scale, 1));
   margin-top: 0;
 }
 .dual-dialogue .screenplay-element.dialogue {
-  padding-left: 0.3in;
-  padding-right: 0.1in;
+  padding-left: calc(0.3in * var(--indent-scale, 1));
+  padding-right: calc(0.1in * var(--indent-scale, 1));
 }
 .dual-dialogue .screenplay-element.parenthetical {
-  padding-left: 0.5in;
-  padding-right: 0.1in;
+  padding-left: calc(0.5in * var(--indent-scale, 1));
+  padding-right: calc(0.1in * var(--indent-scale, 1));
 }
 /* First character in each column gets top margin */
 .dual-dialogue-column > .screenplay-element.character:first-child {
@@ -10383,6 +10389,14 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   html.ios .app-container {
     padding-bottom: env(safe-area-inset-bottom);
   }
+  /* iPhone: the app ends where the keyboard begins (main.tsx keeps --vv-height
+     and pins the document), instead of iOS scrolling the menu bar away. */
+  html.ios.phone .app-container {
+    height: var(--vv-height, 100dvh);
+  }
+  html.ios.phone.keyboard-open .app-container {
+    padding-bottom: 0;
+  }
 
   /* iPadOS windowed mode: reserve the top-leading corner for the system's
      window-management control, which draws over the app and is not covered by
@@ -13504,3 +13518,114 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 .scribble-ink.is-default { background: linear-gradient(135deg, #d4d4d4 50%, #6b6b6b 50%); }
 .scribble-ink.is-on { border-color: var(--fd-accent, #3b82f6); }
 .scribble-close.is-on { color: var(--fd-accent, #3b82f6); }
+
+/* ============ PHONE VIEW (View → Layout → Phone) ============
+   The same script and the same page breaks, reflowed to the width of a phone
+   at full-size text. A whole 8.5" sheet fitted to a phone is 8px type
+   (Play Store review, Oct 2026); this view draws no sheet at all. Pagination,
+   page count and every export are untouched — computeBreaks counts characters
+   against the document's own indents, never the screen.
+
+   Screen only. Printing lays the script out afresh as real pages. */
+:root { --phone-page-gap: 36px; } /* PHONE_PAGE_GAP_PX in ScreenplayEditor */
+
+@media screen {
+  /* Paper to the bottom of the screen: a short script would otherwise end in
+     a band of workspace grey, which reads as the end of a sheet. */
+  .editor-main.phone-layout,
+  [data-theme="light"] .editor-main.phone-layout {
+    display: block;
+    padding: 0;
+    overflow-x: hidden;
+    background: var(--page-paper);
+  }
+  .page.phone-view {
+    width: 100%;
+    min-height: 100%;
+    /* Bottom room so the last line can scroll clear of the keyboard bar. */
+    padding: 20px 18px 120px;
+    box-shadow: none;
+    /* Element indents at 40%: dialogue keeps ~30 characters a line on a
+       411px phone instead of the dozen it would keep at full scale, and the
+       elements still read apart by their indents. */
+    --indent-scale: 0.4;
+    /* Revision asterisks and anything else hung in the sheet's margins have
+       no margin here; clip them rather than scroll the script sideways. */
+    overflow-x: clip;
+  }
+  /* Character cues centred. On a sheet the 3.5" cue indent puts a name near
+     the middle of the page; scaled down with the other indents it sat a fifth
+     of the way across and read as left-aligned. Centring is what it looked like
+     on paper. One class more than the template's
+     `.page .screenplay-element.character`, which is injected after this sheet. */
+  .page.phone-view .screenplay-element.character {
+    text-align: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  /* The gap between sheets — whitespace for the foot of the page plus the
+     margins on either side — becomes one divider. The inline margin the
+     pagination plugin writes carries no !important, so this wins. */
+  .page.phone-view .sp-page-start {
+    margin-top: var(--phone-page-gap) !important;
+  }
+  .phone-page-break {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: var(--phone-page-gap);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 18px;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    z-index: 10;
+  }
+  .phone-page-break::before,
+  .phone-page-break::after {
+    content: '';
+    flex: 1;
+    border-top: 1px dashed var(--page-ink-faint);
+  }
+  .phone-page-break-label {
+    font: 11px/1 -apple-system, system-ui, sans-serif;
+    letter-spacing: 0.04em;
+    color: var(--page-ink-muted);
+  }
+  /* Scene numbers sit in both margins of a sheet; here one goes inline. */
+  .page.phone-view.show-scene-numbers .scene-heading[data-scene-number]::before {
+    position: static;
+    margin-right: 1ch;
+  }
+  .page.phone-view.show-scene-numbers .scene-heading[data-scene-number]::after,
+  .page.phone-view.show-element-numbers [data-element-number]::before {
+    display: none;
+  }
+}
+
+/* ============ PHONE CHROME ============
+   html.phone (main.tsx, utils/phoneDevice) — a touch screen whose short side
+   is under 600px, in either view. The comfortable toolbar was sized for a
+   tablet beside a mouse-sized compact one; on a phone its 28px buttons are
+   well under the ~44px a finger needs. Search and Go To fold into the "⋯"
+   menu on their own when the bigger buttons leave no room for them. */
+html.phone .toolbar.toolbar-comfortable { height: 52px; }
+html.phone .toolbar.toolbar-comfortable .toolbar-btn { width: 40px; height: 44px; font-size: 18px; }
+html.phone .toolbar.toolbar-comfortable .element-selector { height: 42px; font-size: 15px; }
+/* The element picker is what a phone writer reaches for most. Left free to
+   shrink, it gave way to the icons beside it down to "Di…"; held at a width
+   that reads "Parenthetical", the toolbar's overflow measurement sends Search
+   and Go To to the "⋯" menu instead. */
+html.phone .toolbar .element-selector { min-width: 128px; }
+/* The page count has to stay on screen. A flex item's minimum width is its
+   content's, so a long title, its file name and "Unsaved changes" widened the
+   status bar past a 411px phone and pushed "Page 16 of 107" off the edge; the
+   (≤480px) rule hiding the project name also lost to the `display: block
+   !important` on every status item that follows it. */
+html.phone .status-bar { min-width: 0; overflow: hidden; }
+html.phone .status-left .status-project,
+html.phone .status-left .status-sep { display: none !important; }
+html.phone .menu-bar.chrome-comfortable { height: 46px; }
+html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }

@@ -197,6 +197,7 @@ import {
   FaUnlock,
   FaSlidersH,
   FaBan,
+  FaMobileAlt,
 } from 'react-icons/fa';
 import { REVISION_COLORS, nextRevisionColor } from '../editor/revisionColors';
 import RevisionSettingsDialog from './RevisionSettingsDialog';
@@ -324,6 +325,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setAppearance,
     toolbarMode,
     setToolbarMode,
+    viewLayout,
+    setViewLayout,
     zoomLevel,
     setZoomLevel,
     navPanelWidth,
@@ -2793,6 +2796,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
           children: [
             { icon: <FaHighlighter />, label: notesVisible ? '\u2713 Note Highlights' : 'Note Highlights', action: () => setNotesVisible(!notesVisible) },
             { icon: <FaHighlighter />, label: tagsVisible ? '\u2713 Tag Highlights' : 'Tag Highlights', action: () => setTagsVisible(!tagsVisible) },
+          ],
+        },
+        {
+          icon: <FaMobileAlt />, label: 'Layout',
+          children: [
+            { icon: <FaRegFileAlt />, label: viewLayout === 'page' ? '\u2713 Page' : 'Page', action: () => setViewLayout('page') },
+            { icon: <FaMobileAlt />, label: viewLayout === 'phone' ? '\u2713 Phone' : 'Phone', action: () => setViewLayout('phone') },
           ],
         },
         { separator: true, label: '' },

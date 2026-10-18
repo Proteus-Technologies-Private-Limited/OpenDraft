@@ -46,6 +46,7 @@ import { isTitlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
 import { isInAvCell, isInAvRow, avCellSideAt } from '../editor/extensions/AvBlock';
 import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 import Select from './Select';
+import { PHONE_DEVICE_CHANGE_EVENT } from '../utils/phoneDevice';
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -457,6 +458,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       remeasure();
     });
     ro.observe(toolbar);
+    // Phone chrome switched on or off (main.tsx): every button changed size.
+    window.addEventListener(PHONE_DEVICE_CHANGE_EVENT, remeasure);
 
     // Crossing the mobile breakpoint changes which groups the stylesheet hides,
     // and on iPad that can happen without the toolbar's own width changing —
@@ -479,6 +482,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     requestAnimationFrame(measure);
     return () => {
       ro.disconnect();
+      window.removeEventListener(PHONE_DEVICE_CHANGE_EVENT, remeasure);
       if (breakpoint) {
         if (typeof breakpoint.removeEventListener === 'function') {
           breakpoint.removeEventListener('change', remeasure);

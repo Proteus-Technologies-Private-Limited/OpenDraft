@@ -5,6 +5,7 @@ import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile, type ScriptProfile } fr
 import { DEFAULT_REVISION_COLOR, DEFAULT_REVISION_SETTINGS, nextRevisionColor, type RevisionSettings } from '../editor/revisionColors';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { findLanguage, urlsFor } from '../editor/languageCatalog';
+import { isPhoneDevice } from '../utils/phoneDevice';
 import {
   NOTE_NUMBER_FORMATS,
   type NoteNumberFormat,
@@ -25,6 +26,10 @@ interface ViewState {
   tagsVisible?: boolean;
   notesActiveTab?: 'script' | 'general';
   zoomLevel?: number;
+  /** Zoom in the phone view, kept apart: there it sets the size of the text,
+   *  and the page view's zoom on a phone is fitted to the screen every time. */
+  phoneZoomLevel?: number;
+  viewLayout?: ViewLayout;
   toolbarMode?: 'compact' | 'comfortable' | 'hidden';
   characterSortBy?: 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance';
   grammarRulesEnabled?: Record<string, boolean>;
@@ -87,6 +92,22 @@ function defaultToolbarMode(): 'compact' | 'comfortable' | 'hidden' {
   }
   return 'compact';
 }
+
+/**
+ * How the script is laid out on screen.
+ *
+ * `page` draws real 8.5" sheets — what prints. `phone` reflows the same script
+ * to the width of a phone at full-size text, with the page breaks drawn as
+ * dividers. Pagination, page count and every export are the same in both; only
+ * the drawing differs. Phones start in the phone view, because a whole page
+ * fitted to one is 8px text (Play Store review, Oct 2026).
+ */
+export type ViewLayout = 'page' | 'phone';
+
+function defaultViewLayout(): ViewLayout {
+  return isPhoneDevice() ? 'phone' : 'page';
+}
+const initialViewLayout: ViewLayout = _vs.viewLayout ?? defaultViewLayout();
 
 // ── Custom dictionary library (named global word lists) ──
 const DICTS_KEY = 'opendraft:dictionaries';
@@ -908,6 +929,11 @@ interface EditorState {
   // Zoom
   zoomLevel: number;
   setZoomLevel: (level: number) => void;
+  viewLayout: ViewLayout;
+  setViewLayout: (layout: ViewLayout) => void;
+  /** The device stopped or started being a phone (utils/phoneDevice). Moves
+   *  the layout with it unless the writer has picked one in View ▸ Layout. */
+  followDevice: (isPhone: boolean) => void;
   zoomPanelOpen: boolean;
   setZoomPanelOpen: (open: boolean) => void;
 
@@ -1499,8 +1525,32 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   editingTagId: null,
   setEditingTagId: (id) => set({ editingTagId: id }),
 
-  zoomLevel: _vs.zoomLevel ?? 100,
-  setZoomLevel: (level) => { const clamped = Math.min(300, Math.max(50, level)); set({ zoomLevel: clamped }); saveViewState({ zoomLevel: clamped }); },
+  zoomLevel: (initialViewLayout === 'phone' ? _vs.phoneZoomLevel : _vs.zoomLevel) ?? 100,
+  setZoomLevel: (level) => {
+    const clamped = Math.min(300, Math.max(50, level));
+    set({ zoomLevel: clamped });
+    saveViewState(get().viewLayout === 'phone' ? { phoneZoomLevel: clamped } : { zoomLevel: clamped });
+  },
+  viewLayout: initialViewLayout,
+  setViewLayout: (layout) => {
+    if (layout === get().viewLayout) return;
+    // Each layout comes back at its own zoom: 100% in the phone view is
+    // full-size text, while the same number in the page view is a whole
+    // sheet the phone has to scroll sideways across.
+    const saved = loadViewState();
+    const zoom = (layout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
+    set({ viewLayout: layout, zoomLevel: zoom });
+    saveViewState({ viewLayout: layout });
+  },
+  followDevice: (isPhone) => {
+    const saved = loadViewState();
+    if (saved.viewLayout) return; // the writer's own choice outranks the device
+    const layout: ViewLayout = isPhone ? 'phone' : 'page';
+    if (layout === get().viewLayout) return;
+    // Not saved: it is still the device's default, and should keep following it.
+    const zoom = (layout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
+    set({ viewLayout: layout, zoomLevel: zoom });
+  },
   zoomPanelOpen: false,
   setZoomPanelOpen: (open) => set({ zoomPanelOpen: open }),
 

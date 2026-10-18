@@ -204,17 +204,19 @@ function generateRuleProperties(
 
   if (inAvCell) return props;
 
-  // Indents — use calc() with CSS variables for responsive layout
+  // Indents — use calc() with CSS variables for responsive layout. Scaled by
+  // --indent-scale, which only the phone view sets: there a 2" dialogue indent
+  // would leave a phone's line a dozen characters wide.
   const leftPad = rule.leftIndent - pl;
   if (leftPad > 0.01) {
-    props.push(`padding-left: calc(${rule.leftIndent}in - var(--pl, ${pl}in));`);
+    props.push(`padding-left: calc((${rule.leftIndent}in - var(--pl, ${pl}in)) * var(--indent-scale, 1));`);
   } else {
     props.push('padding-left: 0;');
   }
 
   const rightPad = pw - rule.rightIndent - prMargin;
   if (rightPad > 0.01) {
-    props.push(`padding-right: calc(var(--pw, ${pw}in) - ${rule.rightIndent}in - var(--pr, ${prMargin}in));`);
+    props.push(`padding-right: calc((var(--pw, ${pw}in) - ${rule.rightIndent}in - var(--pr, ${prMargin}in)) * var(--indent-scale, 1));`);
   } else {
     props.push('padding-right: 0;');
   }
