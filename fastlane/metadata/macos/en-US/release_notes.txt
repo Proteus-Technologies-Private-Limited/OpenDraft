@@ -1,14 +1,11 @@
-RUNNING TIME TO THE SECOND
-The running time estimate now shows minutes and seconds, so even a short film or a single scene gets an exact figure.
+NUMBER ANY LINE
+Number every line of dialogue, every sound effect or every shot, not just your scenes. The numbers sit in the margin on screen, in print and in the scripts you export, and update themselves as you write.
 
-KNOW HOW LONG YOUR FILM WILL RUN
-The running time estimate is now far more accurate. It reads your pages the way a production does, about one page to a minute, and lands close to the real running time of released films.
+NEW PODCAST FORMAT
+A ready-made format for podcasts and audio drama, with dialogue, sound effects and music cues already numbered for your recording sessions.
 
-TELL OPENDRAFT HOW YOUR FILM PLAYS
-Choose a pacing for your script: Brisk for fast talk and quick cuts, Measured for slow-burn and lingering moments, or Standard. Each one shows its running time before you pick. Click the estimate to change it any time.
+SMOOTHER COLLABORATION
+When you switch scripts during a session, your collaborators now come with you. They also know straight away when you end the session. And you stay signed in instead of being asked to sign in again.
 
-TAG YOUR SCRIPT'S GENRES
-Pick as many genres as fit, or add your own. They're saved with your script.
-
-ALSO IMPROVED
-Drop-down lists now match the Dark theme. OpenDraft no longer checks in with our server every time it opens. It only does so when you sign in or open Settings.
+ALSO FIXED
+Using a copy of a built-in format no longer leaves a blank window. Drop-down lists no longer hide behind the Scenes search box.

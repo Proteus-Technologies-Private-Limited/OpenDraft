@@ -178,6 +178,12 @@
       <li><strong>No conflicts</strong> &mdash; OpenDraft uses CRDT technology (Yjs) to merge concurrent edits without conflicts.</li>
     </ul>
 
+    <h3 id="follow-host">Following the Host</h3>
+
+    <p>When the host opens another script during a session, every guest is taken to it, with the same permissions. Guests do not need to be signed in for this: the invite they joined with is enough. A guest who joined through an invite link stays on the collaboration server named in that link, whatever server their own Settings point to.</p>
+
+    <p>If a guest cannot follow, they stay on the previous script and are told why. An invite the server no longer accepts means asking the host for a new link; a server that cannot be reached means trying again once the connection is back.</p>
+
     <h3 id="what-syncs">What Gets Synced</h3>
 
     <p>Everything syncs in real time between all connected collaborators:</p>
@@ -211,7 +217,7 @@
 
     <p>To end a collaboration session:</p>
     <ul>
-      <li><strong>As host:</strong> Click <strong>End Session</strong> in the collaboration bar, or revoke all invites from the Share dialog. All collaborators are disconnected.</li>
+      <li><strong>As host:</strong> Click <strong>End Session</strong> in the collaboration bar, or revoke all invites from the Share dialog. All collaborators are disconnected &mdash; from every script the session used, not just the one open &mdash; and are told that the session has ended.</li>
       <li><strong>As guest:</strong> Close the editor tab or navigate away. Your connection ends but the session continues for others.</li>
     </ul>
 
