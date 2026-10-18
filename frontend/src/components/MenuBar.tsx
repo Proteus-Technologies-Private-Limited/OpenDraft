@@ -3529,6 +3529,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 2.6.0</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v2.7.0</div>
+              <ul className="about-list">
+                <li><strong>Phone View</strong> &mdash; Phones now open in <em>Phone View</em> instead of a whole page shrunk to fit the screen: the text runs the width of the screen at full size, indents are narrowed to fit, character names are centred, and each page break is a thin line marked <em>Page 2</em>, <em>Page 3</em>&hellip;. Pages break on exactly the same lines as on paper, so the page count, print and every export are unchanged. Pinch to change the text size &mdash; the lines rewrap instead of running off the side. <em>View &rarr; Layout</em> switches between <em>Phone</em> and the real <em>Page</em>. Android and iPhone, app and mobile browser alike.</li>
+                <li><strong>Built For Fingers On A Phone</strong> &mdash; Full-size toolbar buttons on a phone, an element pulldown wide enough to read, and Search and Go To in the <em>&#8942;</em> menu to make room. The page count in the status bar no longer gets pushed off the edge.</li>
+                <li><strong>iPhone Keyboard</strong> &mdash; The menu and toolbar now stay put when the keyboard opens, instead of sliding under the camera cut-out, and the line you tapped is scrolled into view above the keyboard.</li>
+                <li><strong>Also Fixed</strong> &mdash; Zoomed in past the width of the window, the left side of the page could not be scrolled to (#154).</li>
+              </ul>
               <div className="about-subsection-title">v2.6.0</div>
               <ul className="about-list">
                 <li><strong>Element Numbering</strong> &mdash; Number any element, not only scene headings: every line of dialogue, every sound effect, every shot. In the format editor, tick <em>Number this element</em>, then choose which elements restart the count, a prefix such as <em>FX</em>, the first number, and a plain (3) or scene-prefixed (12.3) style. The numbers sit in the left margin on screen, in print and in PDF, Word and Final Draft exports, and renumber themselves as you write. <em>Tools &rarr; Production &rarr; Show Element Numbers</em> hides them for a reading draft; <em>Element Numbering&hellip;</em> opens the formats. Fountain has no way to carry them.</li>
