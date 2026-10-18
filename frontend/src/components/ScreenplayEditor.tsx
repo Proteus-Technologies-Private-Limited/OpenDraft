@@ -447,6 +447,10 @@ const SAMPLE_CONTENT = {
   ],
 };
 
+/** Height of the divider that stands in for the gap between sheets in the
+ *  phone view. Must match --phone-page-gap in screenplay.css. */
+const PHONE_PAGE_GAP_PX = 36;
+
 interface OverlayInfo {
   top: number;
   pageNumber: number;
@@ -476,6 +480,7 @@ const ScreenplayEditor: React.FC = () => {
   const {
     setActiveElement, setScenes, setPageCount, setCurrentPage,
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
+    viewLayout,
     beatBoardOpen, statisticsOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen,
@@ -887,6 +892,10 @@ const ScreenplayEditor: React.FC = () => {
   setPageCountRef.current = setPageCount;
   const pageLayoutRef = useRef(pageLayout);
   pageLayoutRef.current = pageLayout;
+  // Phone view: the same pages, reflowed to the screen (see ViewLayout).
+  const phoneView = viewLayout === 'phone';
+  const phoneViewRef = useRef(phoneView);
+  phoneViewRef.current = phoneView;
 
   // ── Touch gestures (must be after editorMainRef) ──
   const isTouch = useIsTouchDevice();
@@ -968,6 +977,12 @@ const ScreenplayEditor: React.FC = () => {
   const autoZoomApplied = useRef(false);
   useEffect(() => {
     const handleAutoZoom = () => {
+      // The phone view has no sheet to fit: its zoom is the size of the text,
+      // and the writer's own.
+      if (phoneView) {
+        autoZoomApplied.current = false;
+        return;
+      }
       if (window.innerWidth <= 768 && editorMainRef.current) {
         const containerWidth = editorMainRef.current.clientWidth - 16; // small padding
         const pageWidthPx = pageLayout.pageWidth * 96; // 1in = 96px
@@ -988,7 +1003,7 @@ const ScreenplayEditor: React.FC = () => {
       window.removeEventListener('resize', handleAutoZoom);
       window.removeEventListener('orientationchange', handleAutoZoom);
     };
-  }, [pageLayout.pageWidth, setZoomLevel]);
+  }, [pageLayout.pageWidth, setZoomLevel, phoneView]);
 
   // ── Handle /collab/:token route — resolve token to project/script, then enter collab mode ──
   const collabInitDone = useRef(false);
@@ -1413,7 +1428,12 @@ const ScreenplayEditor: React.FC = () => {
       if (!el) continue;
       const elRect = el.getBoundingClientRect();
       const contdHeight = brk.isDialogueSplit && showContd ? lineHeightPx : 0;
-      const overlayTop = (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
+      // The phone view replaces the gap between sheets with a divider of its
+      // own height (--phone-page-gap in screenplay.css) directly above the
+      // first element of the page.
+      const overlayTop = phoneViewRef.current
+        ? (elRect.top - pageRect.top) / scale - PHONE_PAGE_GAP_PX
+        : (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
       newOverlays.push({
         top: overlayTop,
         pageNumber: brk.pageNumber,
@@ -2381,6 +2401,27 @@ const ScreenplayEditor: React.FC = () => {
     const timers = [200, 500, 1000].map(ms => setTimeout(run, ms));
     return () => { editor.off('update', run); timers.forEach(clearTimeout); };
   }, [editor, measureOverlays]);
+
+  // Switching layout moves every page break without an editor update.
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => requestAnimationFrame(measureOverlays));
+    return () => cancelAnimationFrame(raf);
+  }, [viewLayout, measureOverlays]);
+
+  // So does anything that reflows the phone view: zoom (which sets its line
+  // length), turning the phone, a web font arriving. The page view's sheet is
+  // a fixed width, which is why it never needed this.
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!phoneView || !el || typeof ResizeObserver === 'undefined') return;
+    let raf = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measureOverlays);
+    });
+    ro.observe(el);
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+  }, [phoneView, measureOverlays]);
 
   const footnotePlan = useFootnotePlan(editor);
   footnotePlanRef.current = footnotePlan;
@@ -5125,10 +5166,13 @@ const ScreenplayEditor: React.FC = () => {
           ) : !isHistoryMode && beatBoardOpen ? (
             <BeatBoard />
           ) : (
-            <div className="editor-main" ref={editorMainRef} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
+            <div className={`editor-main${phoneView ? ' phone-layout' : ''}`} ref={editorMainRef} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
               <div
                 className="page-sizer"
-                style={{
+                style={phoneView ? {
+                  // The screen's width, not the sheet's.
+                  width: '100%',
+                } : {
                   width: `calc(${pageLayout.pageWidth}in * ${zoomScale})`,
                   minWidth: `calc(${pageLayout.pageWidth}in * ${zoomScale})`,
                 }}
@@ -5146,23 +5190,39 @@ const ScreenplayEditor: React.FC = () => {
                     ? {}
                     : { transform: `scale(${zoomScale})` }),
                   transformOrigin: 'top left',
-                  width: `${pageLayout.pageWidth}in`,
-                  minWidth: `${pageLayout.pageWidth}in`,
-                  maxWidth: `${pageLayout.pageWidth}in`,
+                  // Phone view: zoom makes the text bigger and the line
+                  // shorter, rather than the sheet wider than the screen —
+                  // the column is laid out at 1/scale of the screen and
+                  // scaled back up to fill it exactly.
+                  ...(phoneView ? {
+                    width: `calc(100% / ${zoomScale})`,
+                    minWidth: 0,
+                    maxWidth: 'none',
+                  } : {
+                    width: `${pageLayout.pageWidth}in`,
+                    minWidth: `${pageLayout.pageWidth}in`,
+                    maxWidth: `${pageLayout.pageWidth}in`,
+                  }),
                 }}
               >
                 <div
-                  className={`page${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
+                  className={`page${phoneView ? ' phone-view' : ''}${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
                   ref={pageRef}
                   style={{
                     fontFamily: fontStack(fontFamily),
                     fontSize: `${fontSize}pt`,
-                    width: `${pageLayout.pageWidth}in`,
-                    minHeight: `${lastPageEnd + endnoteExtraHeight + (pageLayout.bottomMargin / 72) * 96}px`,
-                    paddingTop: `${pageLayout.topMargin}pt`,
-                    paddingBottom: `${pageLayout.bottomMargin}pt`,
-                    paddingLeft: `${pageLayout.leftMargin}in`,
-                    paddingRight: `${pageLayout.rightMargin}in`,
+                    // Phone view: margins and size come from .page.phone-view
+                    // in screenplay.css. The --pl/--pr/--pw variables below
+                    // stay the document's, because every element's indent is
+                    // measured from them.
+                    ...(phoneView ? {} : {
+                      width: `${pageLayout.pageWidth}in`,
+                      minHeight: `${lastPageEnd + endnoteExtraHeight + (pageLayout.bottomMargin / 72) * 96}px`,
+                      paddingTop: `${pageLayout.topMargin}pt`,
+                      paddingBottom: `${pageLayout.bottomMargin}pt`,
+                      paddingLeft: `${pageLayout.leftMargin}in`,
+                      paddingRight: `${pageLayout.rightMargin}in`,
+                    }),
                     // CSS variables for element padding calculations
                     ...{ '--pl': `${pageLayout.leftMargin}in` } as React.CSSProperties,
                     ...{ '--pr': `${pageLayout.rightMargin}in` } as React.CSSProperties,
@@ -5178,8 +5238,25 @@ const ScreenplayEditor: React.FC = () => {
                     } as React.CSSProperties,
                   }}
                 >
+                  {/* Phone view: one divider per page break, numbered with the
+                      page it opens. No headers, footers or footnotes — those
+                      belong to the sheet, which this view does not draw. */}
+                  {phoneView && overlays.map((ov) => (
+                    <div
+                      key={ov.pageNumber}
+                      className="phone-page-break"
+                      style={{ top: `${ov.top}px` }}
+                    >
+                      <span className="phone-page-break-label">
+                        {/* Counted as the status bar counts — script pages,
+                            the title page aside — or a locked page's label. */}
+                        Page {lockedLabel(ov.pageNumber) ?? ov.pageNumber}
+                      </span>
+                    </div>
+                  ))}
+
                   {/* Page break separators — absolutely positioned, full page width */}
-                  {overlays.map((ov) => {
+                  {!phoneView && overlays.map((ov) => {
                     // `ov.pageNumber` counts script pages, ignoring the title page;
                     // the band shows the PRINTED number, which the starting-number
                     // offset can shift.
@@ -5225,7 +5302,7 @@ const ScreenplayEditor: React.FC = () => {
                       title page precedes it, so without this the very first header
                       would have nowhere to render — invisible on screen even though
                       it printed. */}
-                  {(() => {
+                  {!phoneView && (() => {
                     if (overlays.some((o) => o.isTitlePage)) return null; // the title-page break carries it
                     const printed = printedPageNumber(1, headerFooter.startingPageNumber);
                     if (printed < headerFooter.headerStartPage) return null;
@@ -5239,7 +5316,7 @@ const ScreenplayEditor: React.FC = () => {
                   })()}
 
                   {/* Last page footer — no page break follows the last page, so render its footer separately */}
-                  {(() => {
+                  {!phoneView && (() => {
                     const lastPage = overlays.length > 0
                       ? overlays[overlays.length - 1].pageNumber
                       : 1;
@@ -5263,7 +5340,7 @@ const ScreenplayEditor: React.FC = () => {
                     );
                   })()}
 
-                  {footnotePlan && endnotePages.length > 0 && (
+                  {!phoneView && footnotePlan && endnotePages.length > 0 && (
                     <EndnotePages
                       plan={footnotePlan}
                       pages={endnotePages}

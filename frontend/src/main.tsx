@@ -7,6 +7,8 @@ import { initScratchAssets } from './services/scratchAssets';
 import { scheduleScratchSweep } from './services/scratchSweep';
 import { initDemoInfo } from './services/demoInfo';
 import { getOS, isTauri } from './services/platform';
+import { isPhoneDevice, watchPhoneDevice, PHONE_DEVICE_CHANGE_EVENT } from './utils/phoneDevice';
+import { useEditorStore } from './stores/editorStore';
 import { initCustomFonts } from './services/customFonts';
 import { detectDeviceFonts } from './utils/deviceFonts';
 import { applyAppearance, applyNativeTheme, readAppearance } from './utils/appearance';
@@ -85,6 +87,17 @@ async function init() {
   const platformOS = getOS();
   if (platformOS === 'android') document.documentElement.classList.add('android');
   if (platformOS === 'ios') document.documentElement.classList.add('ios');
+  // Phone-sized touch chrome (screenplay.css), independent of the view layout
+  // the writer picks: a phone is fingers on a small screen either way.
+  if (isPhoneDevice()) document.documentElement.classList.add('phone');
+  // ...and kept current, for a browser that changes what it reports under an
+  // open page (DevTools device mode). The toolbar re-measures what fits on
+  // the event, since its buttons change size without its width changing.
+  watchPhoneDevice((phone) => {
+    document.documentElement.classList.toggle('phone', phone);
+    useEditorStore.getState().followDevice(phone);
+    window.dispatchEvent(new Event(PHONE_DEVICE_CHANGE_EVENT));
+  });
 
   // Only the native app has iPadOS window controls drawn over it — a Split
   // View Safari tab showing the web build has the browser's chrome instead,
@@ -94,16 +107,68 @@ async function init() {
   // Track the visual viewport height as a CSS variable so dialogs/overlays can
   // shrink when the soft keyboard appears. Android WebView's `dvh` unit is
   // unreliable for keyboard insets, but `visualViewport.height` is accurate.
+  //
+  // On an iPhone the same height also sizes the whole app (html.ios.phone in
+  // screenplay.css). iOS does not shrink the page for the keyboard; it scrolls
+  // the document instead, until the caret clears it — which on a phone carried
+  // the menu bar up under the Dynamic Island with nothing to bring it back.
+  // Fitting the app above the keyboard and pinning the document at the top
+  // leaves the editor's own scroller as the only thing that moves, which is
+  // what ProseMirror already scrolls to keep the caret in view.
+  const root = document.documentElement;
+  const isIosPhone = () => root.classList.contains('ios') && root.classList.contains('phone');
+  const pinDocument = () => {
+    if (!isIosPhone()) return;
+    if (window.scrollY !== 0 || (window.visualViewport?.offsetTop ?? 0) !== 0) window.scrollTo(0, 0);
+  };
+  // The caret is scrolled into view when it is tapped, while the editor is
+  // still full height; the keyboard then takes the bottom half away. Once the
+  // app has shrunk, bring the caret back above it.
+  const revealCaret = () => {
+    try {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const node = sel.focusNode;
+      const el = node && (node.nodeType === Node.ELEMENT_NODE ? node as Element : node.parentElement);
+      const scroller = el?.closest('.editor-main');
+      if (!el || !scroller) return;
+      let rect = sel.getRangeAt(0).getBoundingClientRect();
+      // A collapsed range can report an empty box (WebKit, empty lines).
+      if (rect.top === 0 && rect.bottom === 0) rect = el.getBoundingClientRect();
+      const box = scroller.getBoundingClientRect();
+      const margin = 48;
+      if (rect.bottom > box.bottom - margin) scroller.scrollTop += rect.bottom - (box.bottom - margin);
+      else if (rect.top < box.top + margin) scroller.scrollTop -= box.top + margin - rect.top;
+    } catch (err) {
+      console.warn('[keyboard] could not reveal the caret:', err);
+    }
+  };
+  let lastHeight = 0;
+  let revealTimer: ReturnType<typeof setTimeout> | undefined;
   const updateViewportHeight = () => {
     const vv = window.visualViewport;
     const h = vv ? vv.height : window.innerHeight;
-    document.documentElement.style.setProperty('--vv-height', `${h}px`);
+    root.style.setProperty('--vv-height', `${h}px`);
+    if (isIosPhone()) {
+      // The keyboard covers the home indicator, so its inset is not owed.
+      // 120px: more than any browser toolbar collapsing, less than a keyboard.
+      const open = !!vv && window.innerHeight - vv.height > 120;
+      root.classList.toggle('keyboard-open', open);
+      pinDocument();
+      // The keyboard animates in over several resizes; check once it settles.
+      if (open && h !== lastHeight) {
+        clearTimeout(revealTimer);
+        revealTimer = setTimeout(revealCaret, 120);
+      }
+    }
+    lastHeight = h;
   };
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', updateViewportHeight);
     window.visualViewport.addEventListener('scroll', updateViewportHeight);
   }
   window.addEventListener('resize', updateViewportHeight);
+  window.addEventListener('scroll', pinDocument, { passive: true });
   updateViewportHeight();
 
   // On Tauri (desktop + mobile) this swaps the HTTP api with local SQLite.
