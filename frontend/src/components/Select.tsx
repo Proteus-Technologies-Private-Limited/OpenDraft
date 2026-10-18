@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * A drop-in for <select> whose list the app draws itself (issue #138).
@@ -14,6 +15,12 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
  * arrays, fragments and conditionals — so a call site changes only its tag.
  * `onChange` receives an object shaped like the change event the handlers
  * already read: `e.target.value` is the chosen option's value, as a string.
+ *
+ * The list is portalled to <body> (issue #152). Drawn next to its trigger it
+ * stacked inside whatever stacking context the trigger sat in — the toolbar's
+ * is z-index 1 — so its own z-index meant nothing outside it, and the Scenes
+ * search bar (sticky, z-index 2) drew over the Element pulldown. A native list
+ * sits above the whole page; this one has to as well.
  */
 
 export interface SelectChangeEvent {
@@ -227,6 +234,28 @@ const Select: React.FC<SelectProps> = ({
     };
   }, [open]);
 
+  // Out of the trigger's DOM, a press in the list reads as "outside" to every
+  // document-level click-away handler — the toolbar's overflow menu, which
+  // holds the font-size pulldown, would close and unmount the list before the
+  // click landed. A native list's presses never reach the page at all, so
+  // these stop here. Native listeners, on the list itself, so they run before
+  // anything on <body> or the document.
+  useEffect(() => {
+    const list = listRef.current;
+    if (!open || !list) return;
+    const keepPress = (e: Event) => {
+      e.stopPropagation();
+      // Keep focus on the trigger, so the keyboard keeps driving the list.
+      if (e.type === 'mousedown') e.preventDefault();
+    };
+    list.addEventListener('mousedown', keepPress);
+    list.addEventListener('touchstart', keepPress, { passive: true });
+    return () => {
+      list.removeEventListener('mousedown', keepPress);
+      list.removeEventListener('touchstart', keepPress);
+    };
+  }, [open]);
+
   const step = (from: number, delta: number): number => {
     const choosableIdx = options.filter(choosable);
     if (choosableIdx.length === 0) return from;
@@ -305,7 +334,7 @@ const Select: React.FC<SelectProps> = ({
         <span className="od-select-caret" aria-hidden>▾</span>
       </button>
 
-      {open && anchor && (
+      {open && anchor && createPortal(
         <div
           ref={listRef}
           id={listId}
@@ -319,8 +348,6 @@ const Select: React.FC<SelectProps> = ({
             maxWidth: anchor.maxWidth,
             maxHeight: anchor.maxHeight,
           }}
-          // Keep focus on the trigger, so the keyboard keeps driving the list.
-          onMouseDown={(e) => e.preventDefault()}
         >
           {items.map((it, i) => {
             if (it.kind === 'group') {
@@ -349,7 +376,8 @@ const Select: React.FC<SelectProps> = ({
               </div>
             );
           })}
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

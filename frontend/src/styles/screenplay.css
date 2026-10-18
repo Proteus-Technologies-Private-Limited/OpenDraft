@@ -13294,7 +13294,7 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 .font-picker-caret { flex: none; opacity: .6; font-size: 9px; font-family: sans-serif; }
 
 .font-picker-popup {
-  position: fixed; z-index: 4000; min-width: 260px; max-width: 380px;
+  position: fixed; z-index: 2147483000; min-width: 260px; max-width: 380px;
   background: var(--fd-dropdown-bg); color: var(--fd-text);
   border: 1px solid var(--fd-overlay-medium); border-radius: 6px;
   box-shadow: 0 8px 28px var(--fd-shadow);

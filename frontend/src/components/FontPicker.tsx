@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import {
   FONT_CATEGORIES, loadFont, getFontsByCategory, findFont, fontStack, subscribeFonts,
   getFontsVersion,
@@ -200,6 +201,22 @@ const FontPicker: React.FC<FontPickerProps> = ({
     };
   }, [open]);
 
+  // Portalled out of the trigger's DOM, a press in the popup reads as
+  // "outside" to every document-level click-away handler — the toolbar's
+  // overflow menu, which holds this picker, would close and take the popup
+  // with it. Stop presses here; no preventDefault, the search box needs focus.
+  useEffect(() => {
+    const popup = popupRef.current;
+    if (!open || !popup) return;
+    const keepPress = (e: Event) => e.stopPropagation();
+    popup.addEventListener('mousedown', keepPress);
+    popup.addEventListener('touchstart', keepPress, { passive: true });
+    return () => {
+      popup.removeEventListener('mousedown', keepPress);
+      popup.removeEventListener('touchstart', keepPress);
+    };
+  }, [open]);
+
   // Load the webfonts for rows actually on screen, so a list of 180 families
   // costs one stylesheet per font the writer scrolls past — not 180 at once.
   useEffect(() => {
@@ -272,7 +289,9 @@ const FontPicker: React.FC<FontPickerProps> = ({
         <span className="font-picker-caret" aria-hidden>▾</span>
       </button>
 
-      {open && anchor && (
+      {/* Portalled to <body> for the reason Select's list is (issue #152):
+          inline, the toolbar's z-index 1 stacking context capped it. */}
+      {open && anchor && createPortal(
         <div
           ref={popupRef}
           className="font-picker-popup"
@@ -352,7 +371,8 @@ const FontPicker: React.FC<FontPickerProps> = ({
               Add or manage fonts…
             </button>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
