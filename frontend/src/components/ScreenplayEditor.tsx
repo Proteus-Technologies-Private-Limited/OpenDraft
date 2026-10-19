@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import Document from '@tiptap/extension-document';
 import Text from '@tiptap/extension-text';
@@ -172,6 +172,7 @@ import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
 import CompareVersionPicker from './CompareVersionPicker';
 import ZoomPanel from './ZoomPanel';
+import { captureZoomAnchor, restoreZoomAnchor, type ZoomAnchor } from '../utils/zoomAnchor';
 import { useIsTouchDevice, useSwipeEdge, usePinchZoom } from '../hooks/useTouch';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useLinkedFileStore, autoSaveAppliesToOpenDocument } from '../stores/linkedFileStore';
@@ -909,9 +910,14 @@ const ScreenplayEditor: React.FC = () => {
     onSwipe: toggleScriptNotes,
     enabled: isTouch && !rightPanelVisible,
   });
+  // Where the fingers are, for the zoom anchor below to hold still.
+  const pinchFocusRef = useRef<{ x: number; y: number } | null>(null);
   usePinchZoom(editorMainRef, {
     currentZoom: zoomLevel,
-    onZoomChange: setZoomLevel,
+    onZoomChange: (zoom, focus) => {
+      pinchFocusRef.current = focus;
+      setZoomLevel(zoom);
+    },
     enabled: isTouch && !beatBoardOpen,
   });
 
@@ -942,23 +948,75 @@ const ScreenplayEditor: React.FC = () => {
   }, [isTouch]);
 
   const zoomLevelRef = useRef(zoomLevel);
-  // Preserve scroll position when zoom changes: content scales but scrollTop
-  // is in viewport pixels, so without an adjustment the user lands on a
-  // completely different page after each zoom step.
-  const prevZoomRef = useRef(zoomLevel);
+  // Keep the writer's place when zoom changes (issue #156). The store's
+  // listener runs inside set(), before React re-renders, so the old layout is
+  // still on screen: record the line under the pinch (or mid-screen), then
+  // scroll it back under the same point once the new zoom is laid out. See
+  // utils/zoomAnchor.ts for why scaling scrollTop does not do this.
+  const zoomAnchorRef = useRef<ZoomAnchor | null>(null);
+  // Until then, later reflows (fonts, remeasured page breaks) re-apply it.
+  const zoomAnchorUntilRef = useRef(0);
   useEffect(() => {
-    const el = editorMainRef.current;
-    if (!el) {
-      prevZoomRef.current = zoomLevel;
-      return;
+    const unsub = useEditorStore.subscribe((state, prev) => {
+      if (state.zoomLevel === prev.zoomLevel && state.viewLayout === prev.viewLayout) return;
+      const focus = pinchFocusRef.current;
+      pinchFocusRef.current = null;
+      const container = editorMainRef.current;
+      const root = pageRef.current?.querySelector('.ProseMirror');
+      if (!container || !root) return;
+      try {
+        // Mid-pinch, keep the anchor taken at the first step: re-capturing
+        // after every step would let rounding creep the place away.
+        const held = zoomAnchorRef.current;
+        if (!(focus && held && held.el.isConnected && performance.now() < zoomAnchorUntilRef.current)) {
+          zoomAnchorRef.current = captureZoomAnchor(container, root, focus?.y);
+        }
+        zoomAnchorUntilRef.current = performance.now() + 500;
+      } catch (err) {
+        console.warn('[zoom] could not record scroll anchor', err);
+        zoomAnchorRef.current = null;
+      }
+    });
+    return unsub;
+  }, []);
+  useLayoutEffect(() => {
+    const container = editorMainRef.current;
+    const anchor = zoomAnchorRef.current;
+    if (!container || !anchor) return;
+    try {
+      if (!restoreZoomAnchor(container, anchor)) zoomAnchorRef.current = null;
+    } catch (err) {
+      console.warn('[zoom] could not restore scroll anchor', err);
+      zoomAnchorRef.current = null;
     }
-    const oldScale = (prevZoomRef.current || 100) / 100;
-    const newScale = (zoomLevel || 100) / 100;
-    if (oldScale !== newScale && el.scrollTop > 0) {
-      el.scrollTop = el.scrollTop * (newScale / oldScale);
-    }
-    prevZoomRef.current = zoomLevel;
-  }, [zoomLevel]);
+  }, [zoomLevel, viewLayout]);
+  useEffect(() => {
+    const container = editorMainRef.current;
+    const page = pageRef.current;
+    if (!container || !page || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      const anchor = zoomAnchorRef.current;
+      if (!anchor || performance.now() > zoomAnchorUntilRef.current) return;
+      try {
+        restoreZoomAnchor(container, anchor);
+      } catch (err) {
+        console.warn('[zoom] could not restore scroll anchor', err);
+      }
+    });
+    ro.observe(page);
+    // The writer's own scrolling ends the hold.
+    const release = (e: Event) => {
+      if (e instanceof TouchEvent && e.touches.length > 1) return;
+      zoomAnchorUntilRef.current = 0;
+    };
+    container.addEventListener('wheel', release, { passive: true });
+    container.addEventListener('touchstart', release, { passive: true });
+    return () => {
+      ro.disconnect();
+      container.removeEventListener('wheel', release);
+      container.removeEventListener('touchstart', release);
+    };
+  }, [statisticsOpen, beatBoardOpen, isHistoryMode]);
   zoomLevelRef.current = zoomLevel;
 
   const [overlays, setOverlays] = useState<OverlayInfo[]>([]);
@@ -3734,6 +3792,11 @@ const ScreenplayEditor: React.FC = () => {
     const el = editorMainRef.current;
     if (!el) return;
     el.addEventListener('scroll', handleScroll, { passive: true });
+    // Re-read the page whenever the breaks are remeasured, not only on the next
+    // scroll. In the phone view a zoom reflows the text: the scroll that keeps
+    // the writer's place fires while the breaks are still where the old zoom
+    // put them, so the status bar showed a page the screen was not on (#156).
+    handleScroll();
     return () => el.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 

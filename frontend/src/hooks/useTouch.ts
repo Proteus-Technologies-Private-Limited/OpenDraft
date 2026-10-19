@@ -302,7 +302,9 @@ export function useSwipeDismiss(
 
 interface PinchZoomConfig {
   currentZoom: number;
-  onZoomChange: (zoom: number) => void;
+  /** `focus` is the midpoint of the two fingers, in viewport coordinates — the
+   *  point the writer is zooming into, which should stay put on screen. */
+  onZoomChange: (zoom: number, focus: { x: number; y: number }) => void;
   minZoom?: number;
   maxZoom?: number;
   enabled?: boolean;
@@ -364,7 +366,11 @@ export function usePinchZoom(
       const newZoom = Math.round(
         Math.min(maxZoom, Math.max(minZoom, stateRef.current.initialZoom * dampenedRatio)),
       );
-      onZoomRef.current(newZoom);
+      if (newZoom === zoomRef.current) return;
+      onZoomRef.current(newZoom, {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+      });
     };
 
     const handleEnd = () => {
