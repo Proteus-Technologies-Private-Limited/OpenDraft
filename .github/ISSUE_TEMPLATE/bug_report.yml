@@ -26,6 +26,9 @@ body:
         - Desktop — macOS
         - Desktop — Windows
         - Desktop — Linux
+        - Mobile — Android
+        - Mobile — iOS / iPadOS
+        - Browser (open-draft.com)
         - Browser (self-hosted)
     validations:
       required: true
