@@ -4,5 +4,14 @@ Your script now fits your iPhone screen with full-size text, so there's no more 
 EASIER TO WRITE ON A PHONE
 Bigger toolbar buttons that are easy to tap, and the keyboard no longer pushes the menu off the screen. The line you're writing stays in view above the keyboard.
 
+NUMBER ANY LINE
+Number every line of dialogue, every sound effect or every shot, not just your scenes. The numbers sit in the margin on screen, in print and in the scripts you export, and update themselves as you write.
+
+NEW PODCAST FORMAT
+A ready-made format for podcasts and audio drama, with dialogue, sound effects and music cues already numbered for your recording sessions.
+
+SMOOTHER COLLABORATION
+When you switch scripts during a session, your collaborators now come with you. They also know straight away when you end the session. And you stay signed in instead of being asked to sign in again.
+
 ALSO FIXED
-When you zoom in, you can now scroll all the way to the left edge of the page.
+When you zoom in, you can now scroll all the way to the left edge of the page. Using a copy of a built-in format no longer leaves a blank window. Drop-down lists no longer hide behind the Scenes search box.
