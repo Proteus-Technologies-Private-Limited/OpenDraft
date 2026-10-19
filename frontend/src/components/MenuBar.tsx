@@ -3529,6 +3529,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 2.7.0</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v2.7.1</div>
+              <ul className="about-list">
+                <li><strong>Zoom Keeps Your Place</strong> &mdash; Pinching or zooming now holds the line you were looking at still: pinch, and the words under your fingers stay under them; zoom from the toolbar or menu, and the middle of the screen stays put. In Phone View, zooming used to land you pages away &mdash; from page 17 to page 9, then 30 &mdash; because the text rewraps at a new size (#156).</li>
+                <li><strong>Also Fixed</strong> &mdash; After zooming in Phone View, the page number in the status bar could name a page the screen was not on until you scrolled.</li>
+              </ul>
               <div className="about-subsection-title">v2.7.0</div>
               <ul className="about-list">
                 <li><strong>Phone View</strong> &mdash; Phones now open in <em>Phone View</em> instead of a whole page shrunk to fit the screen: the text runs the width of the screen at full size, indents are narrowed to fit, character names are centred, and each page break is a thin line marked <em>Page 2</em>, <em>Page 3</em>&hellip;. Pages break on exactly the same lines as on paper, so the page count, print and every export are unchanged. Pinch to change the text size &mdash; the lines rewrap instead of running off the side. <em>View &rarr; Layout</em> switches between <em>Phone</em> and the real <em>Page</em>. Android and iPhone, app and mobile browser alike.</li>

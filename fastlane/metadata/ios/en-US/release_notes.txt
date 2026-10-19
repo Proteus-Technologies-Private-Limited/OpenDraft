@@ -14,4 +14,4 @@ SMOOTHER COLLABORATION
 When you switch scripts during a session, your collaborators now come with you. They also know straight away when you end the session. And you stay signed in instead of being asked to sign in again.
 
 ALSO FIXED
-When you zoom in, you can now scroll all the way to the left edge of the page. Using a copy of a built-in format no longer leaves a blank window. Drop-down lists no longer hide behind the Scenes search box.
+Pinching to zoom keeps you on the line you were reading instead of jumping to another page. When you zoom in, you can now scroll all the way to the left edge of the page. Using a copy of a built-in format no longer leaves a blank window. Drop-down lists no longer hide behind the Scenes search box.
