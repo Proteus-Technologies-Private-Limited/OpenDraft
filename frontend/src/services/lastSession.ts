@@ -33,6 +33,14 @@ export interface LastSessionScript {
   scriptId: string;
   /** Epoch ms this was recorded. */
   at: number;
+  /**
+   * The account the script belongs to, for a script kept on the server; null
+   * (or absent, in records written before this field) for one on this device.
+   * A server script is reopened only for the account that had it open: for
+   * anyone else the load fails with "Script not found", or a 401 when nobody
+   * is signed in.
+   */
+  owner?: string | null;
 }
 
 let cachedKey: string | null = null;
@@ -66,21 +74,28 @@ function storageKey(): string {
 export function rememberLastSession(
   projectId: string | null,
   scriptId: string | null,
+  owner: string | null = null,
 ): void {
   try {
     if (!projectId || !scriptId) {
       localStorage.removeItem(storageKey());
       return;
     }
-    const entry: LastSessionScript = { projectId, scriptId, at: Date.now() };
+    const entry: LastSessionScript = { projectId, scriptId, at: Date.now(), owner };
     localStorage.setItem(storageKey(), JSON.stringify(entry));
   } catch (err) {
     console.warn('[last-session] could not record the open script:', err);
   }
 }
 
-/** The script to reopen, or null when there is nothing worth reopening. */
-export function readLastSession(): LastSessionScript | null {
+/**
+ * The script to reopen, or null when there is nothing worth reopening.
+ *
+ * `currentUser` is the signed-in account's id, or null. A script recorded for
+ * a different account is passed over but kept, so it still reopens when that
+ * account signs back in.
+ */
+export function readLastSession(currentUser: string | null = null): LastSessionScript | null {
   let raw: string | null;
   try {
     raw = localStorage.getItem(storageKey());
@@ -102,6 +117,7 @@ export function readLastSession(): LastSessionScript | null {
       clearLastSession();
       return null;
     }
+    if (parsed.owner && parsed.owner !== currentUser) return null;
     return parsed;
   } catch (err) {
     console.warn('[last-session] discarding an unreadable record:', err);

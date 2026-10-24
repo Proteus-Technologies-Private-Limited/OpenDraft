@@ -46,6 +46,33 @@ describe('lastSession', () => {
     expect(readLastSession()).toBeNull();
   });
 
+  // A script kept on the server belongs to the account that had it open.
+  // Reopening it for anyone else greeted them with "Script not found" (or a
+  // 401 when nobody was signed in).
+  it('reopens a server script only for the account that had it open', () => {
+    rememberLastSession('p1', 's1', 'user-a');
+    expect(readLastSession('user-a')).toMatchObject({ projectId: 'p1', scriptId: 's1' });
+    expect(readLastSession('user-b')).toBeNull();
+    expect(readLastSession(null)).toBeNull();
+  });
+
+  it('keeps another account’s record for when it signs back in', () => {
+    rememberLastSession('p1', 's1', 'user-a');
+    expect(readLastSession('user-b')).toBeNull();
+    expect(readLastSession('user-a')?.scriptId).toBe('s1');
+  });
+
+  it('reopens a script on this device whoever is signed in', () => {
+    rememberLastSession('p1', 's1', null);
+    expect(readLastSession('user-a')?.scriptId).toBe('s1');
+    expect(readLastSession(null)?.scriptId).toBe('s1');
+  });
+
+  it('still reopens a record written before owners were kept', () => {
+    localStorage.setItem(KEY, JSON.stringify({ projectId: 'p1', scriptId: 's1', at: Date.now() }));
+    expect(readLastSession('user-a')?.scriptId).toBe('s1');
+  });
+
   it('is cleared on request', () => {
     rememberLastSession('p1', 's1');
     clearLastSession();

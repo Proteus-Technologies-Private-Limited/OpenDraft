@@ -3461,7 +3461,7 @@ const ScreenplayEditor: React.FC = () => {
     if (currentProject) return;
     if (useEditorStore.getState().documentOrigin) return;
 
-    const last = readLastSession();
+    const last = readLastSession(useSettingsStore.getState().collabAuth.user?.id ?? null);
     if (!last) return;
     setShowWelcome(false);
     navigate(`/project/${last.projectId}/edit/${last.scriptId}`, { replace: true });
@@ -3480,11 +3480,16 @@ const ScreenplayEditor: React.FC = () => {
     if (collabMode || isHistoryMode) return;
     if (currentProject && currentScriptId) {
       hasOpenedScriptRef.current = true;
-      rememberLastSession(currentProject.id, currentScriptId);
+      // On the web every script is on the server, and so is a cloud script in
+      // the apps: both belong to the signed-in account. A script on this
+      // device belongs to nobody in particular.
+      const onServer = !isTauri() || isCloudScript(currentProject.id, currentScriptId);
+      const owner = onServer ? useSettingsStore.getState().collabAuth.user?.id ?? null : null;
+      rememberLastSession(currentProject.id, currentScriptId, owner);
       return;
     }
     if (hasOpenedScriptRef.current) rememberLastSession(null, null);
-  }, [currentProject, currentScriptId, collabMode, isHistoryMode]);
+  }, [currentProject, currentScriptId, collabMode, isHistoryMode, isCloudScript]);
 
   // --- Load script from URL params ---
   // Reset the guard when the editor instance changes so we reload
