@@ -341,6 +341,16 @@ function collabSeedFrom(content: unknown): Record<string, unknown> | null {
 }
 
 /**
+ * Hours from now until `expiresAt`, for a token meant to last as long as the
+ * session the host started. Never under an hour, so a session about to lapse
+ * (or an unreadable timestamp) still gets a usable token.
+ */
+function collabHoursLeft(expiresAt: string | null): number {
+  const ms = expiresAt ? Date.parse(expiresAt) - Date.now() : NaN;
+  return Number.isFinite(ms) ? Math.max(1, ms / 3_600_000) : 1;
+}
+
+/**
  * Which element the caret is standing on, or null when nothing answers.
  *
  * Shared by `onSelectionUpdate` and every path that replaces the document
@@ -570,6 +580,11 @@ const ScreenplayEditor: React.FC = () => {
   // a document switch is still in an earlier one, so ending the session has
   // to close all of them, not only the current one.
   const collabSessionDocsRef = useRef<{ projectId: string; scriptId: string; docName: string }[]>([]);
+  // When the invite the host picked in the Share dialog runs out. The host's
+  // own token, and the invites for any document switched to, last that long:
+  // the server checks a token on every reconnect, so a shorter one cuts the
+  // host off at the first network blip after it lapses.
+  const collabSessionExpiresAtRef = useRef<string | null>(null);
 
   // Cleanup collab provider
   const destroyCollab = useCallback(() => {
@@ -1230,8 +1245,9 @@ const ScreenplayEditor: React.FC = () => {
     // 2. Create a shared invite token for the new document so guests can follow
     let sharedToken: string;
     let sharedNonce: string;
+    const sessionHours = collabHoursLeft(collabSessionExpiresAtRef.current);
     try {
-      const invite = await api.createCollabInvite(newProjectId, newScriptId, 'Guest', 'editor', 1);
+      const invite = await api.createCollabInvite(newProjectId, newScriptId, 'Guest', 'editor', sessionHours);
       sharedToken = invite.token;
       sharedNonce = invite.session_nonce || '';
     } catch {
@@ -1257,7 +1273,7 @@ const ScreenplayEditor: React.FC = () => {
       // Create host's own token for the new document, sharing the same nonce
       let hostToken: string;
       try {
-        const hostInvite = await api.createCollabInvite(newProjectId, newScriptId, collabUserName, 'editor', 24, sharedNonce);
+        const hostInvite = await api.createCollabInvite(newProjectId, newScriptId, collabUserName, 'editor', sessionHours, sharedNonce);
         hostToken = hostInvite.token;
       } catch {
         hostToken = sharedToken;
@@ -2084,10 +2100,12 @@ const ScreenplayEditor: React.FC = () => {
     const nonce = guestSession.session_nonce || '';
 
     // Create a separate session token for the owner, sharing the same nonce
+    collabSessionExpiresAtRef.current = guestSession.expires_at;
     let ownerToken: string;
     try {
       const ownerSession = await api.createCollabInvite(
-        currentProject.id, currentScriptId, 'Host', 'editor', 1, nonce,
+        currentProject.id, currentScriptId, 'Host', 'editor',
+        collabHoursLeft(guestSession.expires_at), nonce,
       );
       ownerToken = ownerSession.token;
     } catch {
