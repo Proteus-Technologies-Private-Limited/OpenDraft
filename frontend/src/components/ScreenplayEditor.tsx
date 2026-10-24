@@ -585,6 +585,11 @@ const ScreenplayEditor: React.FC = () => {
   // the server checks a token on every reconnect, so a shorter one cuts the
   // host off at the first network blip after it lapses.
   const collabSessionExpiresAtRef = useRef<string | null>(null);
+  // True from the moment sign-out ends a collab session until the editor has
+  // been reset. Turning collab mode off re-arms the URL loader while the URL
+  // still names the script, and a reload landing mid sign-out put the script
+  // back on screen after the reset had cleared it.
+  const signingOutRef = useRef(false);
 
   // Cleanup collab provider
   const destroyCollab = useCallback(() => {
@@ -1350,6 +1355,7 @@ const ScreenplayEditor: React.FC = () => {
   useEffect(() => {
     setLogoutCollabTeardown(async () => {
       if (!collabMode) return;
+      signingOutRef.current = true;
 
       // Immediately disconnect — no awareness delay needed during signout
       const docName = collabDocNameRef.current;
@@ -2658,10 +2664,18 @@ const ScreenplayEditor: React.FC = () => {
         }
 
         // Reset the editor to a fresh, blank document — mirrors handleNewScreenplay.
-        // Drop the stash too, so the signed-out document cannot be restored into
-        // the blank one on the next route change.
+        // Drop the stash and the crash-recovery copy too, so the signed-out
+        // document cannot be restored into the blank one on the next route
+        // change, or offered as "unsaved changes" to whoever uses the app next.
         clearSessionDoc();
-        if (editor && !editor.isDestroyed) {
+        clearRecoverySnapshot();
+        if (collabMode) {
+          // This editor is still bound to the collaboration document the
+          // teardown just destroyed, and setContent on it does not take: the
+          // script stayed on screen after signing out. Mount a fresh one, as
+          // ending a session does. Collab mode is already off, so it starts blank.
+          setEditorKey((k) => k + 1);
+        } else if (editor && !editor.isDestroyed) {
           clearTrackChanges();
           editor.commands.setContent(
             { type: 'doc', content: [{ type: 'sceneHeading', content: [] }] },
@@ -2694,10 +2708,22 @@ const ScreenplayEditor: React.FC = () => {
         }
       } finally {
         scriptSwitchingRef.current = false;
+        // Not cleared here when the URL still names a script: navigate() lands
+        // as a transition, so the render for the reset above still sees the old
+        // route params, and the URL loader re-fetched the script into the blank
+        // editor. The effect below clears it once the params have caught up.
+        if (!urlScriptId) signingOutRef.current = false;
       }
     });
     return () => { setLogoutEditorReset(null); };
-  }, [editor, currentProject, currentScriptId, isCloudScript, buildSaveContent, setCurrentProject, setCurrentScriptId, navigate]);
+  }, [editor, collabMode, currentProject, currentScriptId, isCloudScript, buildSaveContent, setCurrentProject, setCurrentScriptId, navigate, urlScriptId]);
+
+  // Sign-out is finished once the route has moved off the script it started
+  // on — to "/" normally, or to whatever the writer opens next if the reset
+  // could not navigate. The render still on the old params does not run this.
+  useEffect(() => {
+    signingOutRef.current = false;
+  }, [urlScriptId]);
   // Guard: suppress auto-save while switching scripts.  During the switch the
   // store metadata is cleared (0 relationships, 0 profiles, etc.) but the
   // auto-save closure still holds the OLD project/script IDs.  Without this
@@ -3482,6 +3508,7 @@ const ScreenplayEditor: React.FC = () => {
   }, [scriptReloadKey]);
   useEffect(() => {
     if (!editor || !urlProjectId || !urlScriptId) return;
+    if (signingOutRef.current) return;
     const loadKey = `${urlProjectId}/${urlScriptId}${urlCommitHash ? `@${urlCommitHash}` : ''}`;
     // Avoid reloading the same script
     if (loadedScriptRef.current === loadKey) return;
@@ -3541,6 +3568,10 @@ const ScreenplayEditor: React.FC = () => {
             linkedPath ? { scriptId: urlScriptId, path: linkedPath } : null,
           );
           scriptResp = await scriptApi.getScript(urlProjectId, urlScriptId);
+        }
+        if (signingOutRef.current) {
+          console.warn(`[load] ${loadKey} arrived during sign-out; not showing it`);
+          return;
         }
         const content = scriptResp.content as Record<string, unknown> | null;
 

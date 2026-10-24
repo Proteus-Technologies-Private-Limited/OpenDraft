@@ -485,13 +485,21 @@ async function runLogout(): Promise<void> {
 
   // 1. End any active collab session in the editor
   if (_onLogoutCollabTeardown) {
-    try { await _onLogoutCollabTeardown(); } catch { /* best-effort */ }
+    try {
+      await _onLogoutCollabTeardown();
+    } catch (err) {
+      console.warn('[logout] ending the collab session failed; signing out anyway:', err);
+    }
   }
 
   // 2. Flush any pending cloud save and reset the editor to a blank file.
   //    Runs while the access token is still valid.
   if (_onLogoutEditorReset) {
-    try { await _onLogoutEditorReset(); } catch { /* best-effort */ }
+    try {
+      await _onLogoutEditorReset();
+    } catch (err) {
+      console.warn('[logout] resetting the editor failed; signing out anyway:', err);
+    }
   }
 
   // 3. Revoke all collab invite links this user created on the server, and
