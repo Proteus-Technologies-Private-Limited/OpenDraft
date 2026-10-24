@@ -52,7 +52,7 @@ const VerifyEmailRoute: React.FC = () => {
     }}>
       <div style={{
         maxWidth: 420, width: '100%', padding: 24, borderRadius: 8,
-        background: 'var(--fd-surface, #1e1e1e)',
+        background: 'var(--fd-dialog-bg, #333)',
         color: 'var(--fd-text, #eee)',
         boxShadow: '0 4px 24px rgba(0,0,0,0.25)',
         textAlign: 'center',
