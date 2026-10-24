@@ -15,12 +15,14 @@ import { useNavigate } from 'react-router-dom';
 import { leaveEditor } from '../services/pendingSave';
 import { FaCloud, FaUserCircle } from 'react-icons/fa';
 import { useSettingsStore } from '../stores/settingsStore';
-import { performLogout } from '../services/collabAuth';
+import { performLogout, useSigningOut } from '../services/collabAuth';
+import { showToast } from './Toast';
 import CollabLoginDialog from './CollabLoginDialog';
 
 const AuthIndicator: React.FC = () => {
   const collabAuth = useSettingsStore((s) => s.collabAuth);
   const authVerified = useSettingsStore((s) => s.authVerified);
+  const signingOut = useSigningOut((s) => s.signingOut);
   const [loginOpen, setLoginOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -95,6 +97,16 @@ const AuthIndicator: React.FC = () => {
   }
 
   const user = collabAuth.user!;
+
+  if (signingOut) {
+    return (
+      <span className="auth-indicator auth-indicator--busy" role="status" aria-live="polite">
+        <span className="auth-indicator__spinner" aria-hidden="true" />
+        <span>Signing out…</span>
+      </span>
+    );
+  }
+
   const initial = (user.displayName || user.email || '?').charAt(0).toUpperCase();
 
   return (
@@ -137,6 +149,7 @@ const AuthIndicator: React.FC = () => {
             onClick={async () => {
               setMenuOpen(false);
               await performLogout();
+              showToast('Signed out', 'success');
             }}
           >
             Sign out

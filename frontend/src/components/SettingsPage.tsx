@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useGoBack } from '../hooks/useGoBack';
 import { useSettingsStore } from '../stores/settingsStore';
-import { collabAuthApi, handleAuthResponse, performLogout, isDeviceChallenge } from '../services/collabAuth';
+import { collabAuthApi, handleAuthResponse, performLogout, isDeviceChallenge, useSigningOut } from '../services/collabAuth';
 import type { CollabServerConfig, DeviceRecord } from '../services/collabAuth';
 import { initDemoInfo, isDemoMode } from '../services/demoInfo';
 import { showToast } from './Toast';
@@ -96,6 +96,7 @@ const SettingsPage: React.FC = () => {
   } = useSettingsStore();
 
   // ── Local form state ──
+  const signingOut = useSigningOut((s) => s.signingOut);
   const [urlInput, setUrlInput] = useState(collabServerUrl);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
 
@@ -412,7 +413,7 @@ const SettingsPage: React.FC = () => {
 
   const handleLogout = async () => {
     await performLogout();
-    showToast('Logged out', 'success');
+    showToast('Signed out', 'success');
   };
 
   // ── Account: change password ──
@@ -710,8 +711,13 @@ const SettingsPage: React.FC = () => {
                     <div className="settings-email-unverified">Email not verified</div>
                   )}
                 </div>
-                <button className="dialog-btn settings-logout-btn" onClick={handleLogout}>
-                  Sign Out
+                <button
+                  className="dialog-btn settings-logout-btn"
+                  onClick={handleLogout}
+                  disabled={signingOut}
+                  aria-busy={signingOut}
+                >
+                  {signingOut ? 'Signing out…' : 'Sign Out'}
                 </button>
               </div>
 
