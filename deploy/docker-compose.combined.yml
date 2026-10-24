@@ -4,9 +4,10 @@
 # behind supervisord, so we expose both internal ports to Caddy and route
 # the two DuckDNS hostnames at them just like the per-service setup.
 #
-# Image tag is read from OPENDRAFT_VERSION (defaults to "latest"). Pin a
-# specific version in .env (e.g. OPENDRAFT_VERSION=0.16.2) for predictable
-# rollbacks.
+# Image tag is read from OPENDRAFT_VERSION (defaults to "latest", which every
+# release pushes). Leave it unset so `git pull && ./deploy.sh --combined`
+# picks up each release; pin a version in .env (e.g. OPENDRAFT_VERSION=2.7.1)
+# only to roll back.
 
 services:
   caddy:
@@ -36,6 +37,10 @@ services:
     environment:
       JWT_SECRET: ${JWT_SECRET}
       CORS_ORIGINS: ${CORS_ORIGINS}
+      # Base of the links in verification and password-reset emails. Unset, the
+      # collab server falls back to http://localhost:5173 and every emailed
+      # link points at the reader's own machine.
+      APP_URL: ${APP_URL:-https://${DEMO_HOST}}
       # SMTP — empty values fall back to "no email", which auto-verifies users.
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}

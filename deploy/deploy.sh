@@ -22,8 +22,9 @@ set -euo pipefail
 #   ./deploy.sh                  # builds backend + collab from source
 #   ./deploy.sh --combined       # pulls combined image from GHCR (no source build)
 #
-# Update deploy (after git pull or new GHCR release):
-#   ./deploy.sh [--combined]
+# Update after a release (combined mode, OPENDRAFT_VERSION unset in .env so the
+# `latest` image is used). The pull also brings compose-file changes:
+#   git pull && ./deploy.sh --combined
 
 cd "$(dirname "$0")"
 
