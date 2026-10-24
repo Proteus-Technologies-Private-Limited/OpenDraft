@@ -3529,6 +3529,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 2.7.1</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v2.7.2</div>
+              <ul className="about-list">
+                <li><strong>Auto-Save Stops Failing to Renew Your Sign-In</strong> &mdash; The server that keeps you signed in had to check every open session to renew one, so it slowed as more people signed in, until renewals timed out. Auto-save then stopped with <em>&ldquo;Could not renew your sign-in just now&rdquo;</em>, every few minutes. Renewing now takes a few milliseconds however many people are signed in (#147).</li>
+                <li><strong>Password Reset Links Open the Right Page</strong> &mdash; Password reset and email verification links pointed at <code>localhost</code>, so they opened nothing. They now go to open-draft.com (#158).</li>
+                <li><strong>Collaboration Lasts as Long as Your Invite</strong> &mdash; Your own connection as host expired after an hour, whatever you chose under <em>Token Valid For</em>, so a session dropped you at the first network hiccup after that. It now lasts as long as the invite &mdash; up to 30 days (#147).</li>
+                <li><strong>Signing Out</strong> &mdash; Sign out now shows <em>Signing out&hellip;</em> while it works and finishes within five seconds even when the server is slow, instead of sitting there with no sign it had heard you. Signing out during a collaboration session clears the script from the screen, and it is no longer offered as <em>unsaved changes</em> to whoever opens the app next.</li>
+                <li><strong>Also Fixed</strong> &mdash; The reset-password and email-verification pages had dark text on a dark card in the light theme. After someone else signed in on the same browser, the app no longer tries to reopen the previous account's script and reports <em>Script not found</em>.</li>
+              </ul>
               <div className="about-subsection-title">v2.7.1</div>
               <ul className="about-list">
                 <li><strong>Zoom Keeps Your Place</strong> &mdash; Pinching or zooming now holds the line you were looking at still: pinch, and the words under your fingers stay under them; zoom from the toolbar or menu, and the middle of the screen stays put. In Phone View, zooming used to land you pages away &mdash; from page 17 to page 9, then 30 &mdash; because the text rewraps at a new size (#156).</li>
