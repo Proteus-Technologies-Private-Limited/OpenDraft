@@ -16,13 +16,78 @@ export function generateAccessToken(userId: string, email: string): string {
   return jwt.sign(payload, config.jwtSecret, { expiresIn: config.jwtAccessExpiry as any });
 }
 
+interface RefreshTokenMatch {
+  id: string;
+  user_id: string;
+  device_id: string | null;
+}
+
+/** 48 random bytes, base64url-encoded — the only shape we ever issue. */
+const REFRESH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{64}$/;
+/** bcrypt hashes start with `$2`. Only rows issued before tokens were stored
+ *  as SHA-256 carry one. */
+const LEGACY_HASH_PATTERN = '$2%';
+
+/**
+ * How a refresh token is stored. The token is 384 random bits, so a fast
+ * hash is as resistant to a database leak as bcrypt — there is nothing to
+ * brute-force — and, unlike bcrypt, it is deterministic, so the token can be
+ * found by index. Comparing against every live row with bcrypt cost ~60 ms a
+ * row on the event loop and stalled the whole server once a few hundred
+ * sessions were live.
+ */
+function hashRefreshToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+/** The live (unrevoked, unexpired) row a refresh token belongs to, if any. */
+async function findLiveRefreshToken(token: string): Promise<RefreshTokenMatch | null> {
+  if (!REFRESH_TOKEN_PATTERN.test(token)) return null;
+  const db = getDB();
+  const now = new Date().toISOString();
+
+  const row = await db.get<RefreshTokenMatch>(
+    `SELECT id, user_id, device_id FROM refresh_tokens
+     WHERE token_hash = ? AND revoked = 0 AND expires_at > ?`,
+    [hashRefreshToken(token), now],
+  );
+  if (row) return row;
+
+  // Tokens issued before the switch are bcrypt-hashed and can only be found
+  // by comparing. They stop being issued with this change and expire within
+  // the refresh lifetime, after which this query returns nothing. Newest
+  // first: an active session's token is among the most recently issued.
+  // The async compare yields between rounds so other requests keep moving.
+  const legacy = await db.all<RefreshTokenMatch & { token_hash: string }>(
+    `SELECT id, user_id, device_id, token_hash FROM refresh_tokens
+     WHERE token_hash LIKE ? AND revoked = 0 AND expires_at > ?
+     ORDER BY created_at DESC`,
+    [LEGACY_HASH_PATTERN, now],
+  );
+  for (const candidate of legacy) {
+    if (await bcrypt.compare(token, candidate.token_hash)) {
+      return { id: candidate.id, user_id: candidate.user_id, device_id: candidate.device_id };
+    }
+  }
+  return null;
+}
+
+/** Mark a token row revoked. False if something else revoked it first. */
+async function claimRefreshToken(id: string): Promise<boolean> {
+  const result = await getDB().run(
+    'UPDATE refresh_tokens SET revoked = 1 WHERE id = ? AND revoked = 0',
+    [id],
+  );
+  return result.changes > 0;
+}
+
 export async function generateRefreshToken(
   userId: string,
   deviceId: string | null = null,
 ): Promise<{ token: string; expiresAt: string }> {
   const db = getDB();
   const token = crypto.randomBytes(48).toString('base64url');
-  const tokenHash = bcrypt.hashSync(token, 10);
+  const tokenHash = hashRefreshToken(token);
   const id = uuidv4();
   const now = new Date();
 
@@ -59,27 +124,12 @@ export function verifyAccessToken(token: string): { sub: string; email: string }
 
 export async function rotateRefreshToken(oldToken: string): Promise<{ accessToken: string; refreshToken: string; userId: string } | null> {
   const db = getDB();
-  const now = new Date().toISOString();
 
-  // Find all non-revoked, non-expired refresh tokens
-  const rows = await db.all<{ id: string; user_id: string; token_hash: string; device_id: string | null }>(
-    'SELECT * FROM refresh_tokens WHERE revoked = 0 AND expires_at > ?',
-    [now],
-  );
-
-  // Find matching token
-  let matchedRow: { id: string; user_id: string; device_id: string | null } | null = null;
-  for (const row of rows) {
-    if (bcrypt.compareSync(oldToken, row.token_hash)) {
-      matchedRow = row;
-      break;
-    }
-  }
-
+  const matchedRow = await findLiveRefreshToken(oldToken);
   if (!matchedRow) return null;
 
-  // Revoke old token
-  await db.run('UPDATE refresh_tokens SET revoked = 1 WHERE id = ?', [matchedRow.id]);
+  // Single use: if a concurrent refresh already spent this token, refuse.
+  if (!(await claimRefreshToken(matchedRow.id))) return null;
 
   // Look up user for new access token
   const user = await db.get<{ email: string }>('SELECT email FROM users WHERE id = ?', [matchedRow.user_id]);
@@ -99,18 +149,7 @@ export async function revokeAllRefreshTokens(userId: string): Promise<void> {
 }
 
 export async function revokeRefreshToken(token: string): Promise<boolean> {
-  const db = getDB();
-  const now = new Date().toISOString();
-  const rows = await db.all<{ id: string; token_hash: string }>(
-    'SELECT * FROM refresh_tokens WHERE revoked = 0 AND expires_at > ?',
-    [now],
-  );
-
-  for (const row of rows) {
-    if (bcrypt.compareSync(token, row.token_hash)) {
-      await db.run('UPDATE refresh_tokens SET revoked = 1 WHERE id = ?', [row.id]);
-      return true;
-    }
-  }
-  return false;
+  const row = await findLiveRefreshToken(token);
+  if (!row) return false;
+  return claimRefreshToken(row.id);
 }

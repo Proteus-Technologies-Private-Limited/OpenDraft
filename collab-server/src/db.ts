@@ -193,6 +193,7 @@ const SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
   CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+  CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens(token_hash);
   CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
   CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);
   CREATE INDEX IF NOT EXISTS idx_collab_sessions_project_script
