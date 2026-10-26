@@ -53,7 +53,7 @@ const WelcomeDialog: React.FC<WelcomeDialogProps> = ({ onChoice }) => {
             <span className="welcome-choice-icon">&#128194;</span>
             <span className="welcome-choice-text">
               <strong>Import File</strong>
-              <small>.fountain, .fdx, or .txt</small>
+              <small>.fdx, .fountain, .pdf and more</small>
             </span>
           </button>
         </div>

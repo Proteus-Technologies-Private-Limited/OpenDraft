@@ -21,39 +21,85 @@ import { parseOdraft } from './odraftFormat';
 import { hydrateEditorStoresFromContent } from './hydrateStores';
 import { restoreRevisionState } from './revisionState';
 import { useEditorStore, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
+import { pluginRegistry, type PluginImporter } from '../plugins/registry';
 
-/** Every extension File ▸ Import, drag-and-drop and the OS can hand us. */
+/** Every built-in extension File ▸ Import, drag-and-drop and the OS can hand us. */
 export const SCREENPLAY_IMPORT_EXTENSIONS = [
   'fountain',
   'fdx',
   'fadein',
   'osf',
   'odraft',
+  'pdf',
   'txt',
 ] as const;
 
-/** File-dialog filter matching {@link SCREENPLAY_IMPORT_EXTENSIONS}. */
-export const SCREENPLAY_IMPORT_FILTERS = [
-  { name: 'Screenplay', extensions: [...SCREENPLAY_IMPORT_EXTENSIONS] },
-];
-
 /**
- * Extensions whose files are archives rather than text, so they have to be
- * read as bytes.  Reading one as UTF-8 corrupts it.
+ * Built-in extensions whose files are archives or binary rather than text, so
+ * they have to be read as bytes.  Reading one as UTF-8 corrupts it.
  */
-export const BINARY_IMPORT_EXTENSIONS = ['fadein'];
+export const BINARY_IMPORT_EXTENSIONS = ['fadein', 'pdf'];
 
 export function extensionOf(filename: string): string {
   const match = /\.([^.\\/]+)$/.exec(filename);
   return match ? match[1].toLowerCase() : '';
 }
 
+function isBuiltInExtension(ext: string): boolean {
+  return (SCREENPLAY_IMPORT_EXTENSIONS as readonly string[]).includes(ext);
+}
+
+/**
+ * The plugin importer that owns `ext`. A built-in format is never handed to a
+ * plugin, so a plugin cannot quietly change how an .fdx opens.
+ */
+function pluginImporterFor(ext: string): PluginImporter | null {
+  if (!ext || isBuiltInExtension(ext)) return null;
+  return pluginRegistry.getImporterFor(ext);
+}
+
+/**
+ * Every extension the import paths accept right now: the built-in ones, then
+ * whatever registered plugins add. A function rather than a constant because
+ * plugins register after this module loads.
+ */
+export function importExtensions(): string[] {
+  const all: string[] = [...SCREENPLAY_IMPORT_EXTENSIONS];
+  for (const importer of pluginRegistry.getImporters()) {
+    for (const e of importer.extensions) {
+      const ext = e.toLowerCase();
+      if (!all.includes(ext)) all.push(ext);
+    }
+  }
+  return all;
+}
+
+/** Extensions that must be read as bytes — built-in archives and binary plugin formats. */
+export function binaryImportExtensions(): string[] {
+  return importExtensions().filter((ext) => isBinaryImportExtension(ext));
+}
+
+/** File-dialog filter matching {@link importExtensions}. */
+export function importFilters(): Array<{ name: string; extensions: string[] }> {
+  return [{ name: 'Screenplay', extensions: importExtensions() }];
+}
+
+/** Comma-separated accept string for a bare <input type="file">. */
+export function importAccept(): string {
+  return importExtensions().map((e) => `.${e}`).join(',');
+}
+
 export function isBinaryImportExtension(ext: string | null | undefined): boolean {
-  return !!ext && BINARY_IMPORT_EXTENSIONS.includes(ext.toLowerCase());
+  if (!ext) return false;
+  const lower = ext.toLowerCase();
+  if (BINARY_IMPORT_EXTENSIONS.includes(lower)) return true;
+  return pluginImporterFor(lower)?.binary === true;
 }
 
 export function isImportableExtension(ext: string | null | undefined): boolean {
-  return !!ext && (SCREENPLAY_IMPORT_EXTENSIONS as readonly string[]).includes(ext.toLowerCase());
+  if (!ext) return false;
+  const lower = ext.toLowerCase();
+  return isBuiltInExtension(lower) || pluginImporterFor(lower) !== null;
 }
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -62,16 +108,15 @@ const FORMAT_LABELS: Record<string, string> = {
   fadein: 'Fade In (.fadein)',
   osf: 'Open Screenplay Format (.osf)',
   odraft: 'OpenDraft (.odraft)',
+  pdf: 'PDF (.pdf)',
 };
 
 /** Human-readable name for the format an extension denotes. */
 export function importFormatLabel(ext: string | null | undefined): string {
   if (!ext) return 'imported file';
-  return FORMAT_LABELS[ext.toLowerCase()] || `.${ext.toLowerCase()}`;
+  const lower = ext.toLowerCase();
+  return FORMAT_LABELS[lower] || pluginImporterFor(lower)?.label || `.${lower}`;
 }
-
-/** Comma-separated accept string for a bare <input type="file">. */
-export const SCREENPLAY_IMPORT_ACCEPT = SCREENPLAY_IMPORT_EXTENSIONS.map((e) => `.${e}`).join(',');
 
 export interface ImportedScreenplay {
   /** ProseMirror document to hand to editor.commands.setContent(). */
@@ -255,6 +300,39 @@ export async function parseScreenplayImport(
   }
 
   if (hydrateStores) resetStoresForImport();
+
+  const plugin = pluginImporterFor(ext);
+  if (plugin) {
+    const parsed = await plugin.parse(filename, data);
+    return { doc: parsed.doc, title: parsed.title || '', formatLabel, warnings: parsed.warnings ?? [] };
+  }
+
+  if (ext === 'pdf') {
+    // Loaded on demand: the PDF reader is large, and only a PDF import needs it.
+    const { parsePdfScreenplay } = await import('./pdfImport');
+    const parsed = await parsePdfScreenplay(data as ArrayBuffer);
+    // A shooting script's scene numbers come across as printed. Production
+    // numbering (12A, gaps) is shown and locked exactly as an .fdx's would be.
+    const numbering = importedSceneNumbering(parsed.doc as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> });
+    const metadata: Record<string, unknown> = {};
+    if (numbering) {
+      metadata._sceneNumbersVisible = numbering.visible;
+      metadata._sceneNumbersLocked = numbering.locked;
+      metadata._sceneHeadingSpaceBefore = null;
+      if (hydrateStores) {
+        const store = useEditorStore.getState();
+        store.setSceneNumbersVisible(numbering.visible);
+        store.setSceneNumbersLocked(numbering.locked);
+      }
+    }
+    return {
+      doc: parsed.doc,
+      title: parsed.title,
+      formatLabel,
+      warnings: parsed.warnings,
+      ...(numbering ? { metadata } : {}),
+    };
+  }
 
   if (ext === 'fadein') {
     const parsed = await parseFadeIn(data as ArrayBuffer);

@@ -72,7 +72,12 @@ Ordering principle: first close gaps that block **switching** (a writer can't
 bring their scripts in) and **production use** (a script can't go out safely),
 then the daily-writing features, then collaboration and planning depth.
 
-### Phase 0 — Plugin hooks the later work needs (Core, S)
+### Phase 0 — Plugin hooks the later work needs (Core, S) — ✅ done
+
+Shipped as `importers`, `exporters` and `reports` on `OpenDraftPlugin`
+(`frontend/src/plugins/registry.ts`). The backend already had
+`script:after_save`; exports happen in the client, so no backend export hook
+was added — a server-side hook would never fire.
 
 The registry (`frontend/src/plugins/registry.ts`) supports menu items, routes,
 panels and editor extensions. Pro items 17–18 and some core items need three more
@@ -90,7 +95,14 @@ Backend: matching `register_hook` events in `backend/app/plugins.py` for
 **Done when:** a test plugin registers an importer, exporter and report and each
 appears in the menu and runs; no core behaviour changes.
 
-### Phase 1 — Switching & production blockers (4–6 weeks)
+### Phase 1 — Switching & production blockers (4–6 weeks) — ✅ done
+
+All four items shipped: PDF import (`utils/pdfImport.ts`), watermark and
+password export (`PdfSecurityDialog`), sides and selected pages
+(`SidesDialog`, `utils/pageSelection.ts`), and reports (`ReportsDialog`,
+`utils/scriptReports.ts`). Not yet done from the descriptions below: the import
+preview for bulk re-assigning lines, the 2-up sides layout, and *Print → only
+pages with* (the same selection is available as a PDF export).
 
 **1. PDF import** (L)
 - Use `pdfjs-dist` to extract text runs with x/y positions per page.

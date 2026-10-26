@@ -7,7 +7,7 @@ import {
   isImportableExtension,
   importFormatLabel,
   parseScreenplayImport,
-  SCREENPLAY_IMPORT_ACCEPT,
+  importAccept,
   SCREENPLAY_IMPORT_EXTENSIONS,
 } from './importScreenplay';
 import { useEditorStore } from '../stores/editorStore';
@@ -36,6 +36,7 @@ describe('extension helpers', () => {
 
   it('knows which formats are archives', () => {
     expect(isBinaryImportExtension('fadein')).toBe(true);
+    expect(isBinaryImportExtension('pdf')).toBe(true);
     expect(isBinaryImportExtension('fdx')).toBe(false);
     expect(isBinaryImportExtension(null)).toBe(false);
   });
@@ -44,7 +45,7 @@ describe('extension helpers', () => {
     for (const ext of SCREENPLAY_IMPORT_EXTENSIONS) {
       expect(isImportableExtension(ext)).toBe(true);
     }
-    expect(isImportableExtension('pdf')).toBe(false);
+    expect(isImportableExtension('rtf')).toBe(false);
     expect(isImportableExtension(undefined)).toBe(false);
   });
 
@@ -56,7 +57,7 @@ describe('extension helpers', () => {
   });
 
   it('builds an accept string covering every extension', () => {
-    expect(SCREENPLAY_IMPORT_ACCEPT.split(',')).toEqual(
+    expect(importAccept().split(',')).toEqual(
       SCREENPLAY_IMPORT_EXTENSIONS.map((e) => `.${e}`),
     );
   });

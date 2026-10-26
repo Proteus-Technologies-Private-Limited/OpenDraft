@@ -26,7 +26,7 @@ import {
   parseScreenplayImport,
   extensionOf,
   isBinaryImportExtension,
-  SCREENPLAY_IMPORT_ACCEPT,
+  importAccept,
 } from '../utils/importScreenplay';
 import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
@@ -1040,7 +1040,7 @@ const ProjectView: React.FC = () => {
   const handleImportScript = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = SCREENPLAY_IMPORT_ACCEPT;
+    input.accept = importAccept();
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file || !projectId) return;

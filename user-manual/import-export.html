@@ -131,6 +131,24 @@
       <li>Scene synopses and paragraph notes</li>
     </ul>
 
+    <h3 id="import-pdf">PDF (.pdf)</h3>
+    <p>Import a screenplay you only have as a PDF &mdash; a script someone sent you, or one from an application you no longer use. A PDF holds no screenplay elements, only text placed on the page, so OpenDraft reads each line by where it sits: the indent of a character cue, a parenthetical or dialogue, and what the line says, the way you read a script yourself. It brings back:</p>
+    <ul>
+      <li>Scene headings, action, character cues, parentheticals, dialogue, transitions and shots</li>
+      <li>Scene numbers printed in the margins, kept on their headings &mdash; production numbering such as 12A is shown and locked, as it would be from Final Draft</li>
+      <li>The title page: title, credit, author, contact and draft</li>
+      <li>Dual dialogue</li>
+      <li>Speeches carried over a page, joined back together without the <code>(MORE)</code> and <code>(CONT&rsquo;D)</code></li>
+    </ul>
+    <p>Page numbers, headers, <code>CONTINUED</code> lines, revision asterisks and watermarks are left out. Bold, italics and revision colours are not read back.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Tip:</strong> A PDF has to contain text you can select. A scanned script is a picture of pages and cannot be imported. A PDF that needs a password to open has to be saved without one first. If a script uses an unusual layout, skim the import and change any line whose element was misread with the element menu.</p>
+      </div>
+    </div>
+
     <h3 id="import-txt">Plain Text (.txt)</h3>
     <p>Import plain text files. OpenDraft will attempt to detect screenplay element types based on formatting conventions (indentation, capitalization, etc.).</p>
 
@@ -239,6 +257,30 @@
       <li>Decide whether to include the title page &mdash; the checkbox at the bottom of <strong>Format &gt; Title Page</strong>. See <a href="title-page.html#include-in-output">Leaving the Title Page Out</a>.</li>
     </ul>
 
+    <h3 id="export-pdf-secure">PDF with a Watermark or Password</h3>
+    <p>Go to <strong>File &gt; Export &gt; PDF with Watermark or Password&hellip;</strong> before sending a script out.</p>
+    <ul>
+      <li><strong>Watermark</strong> &mdash; text across the middle of every page, or a small line at the foot, at the strength you choose. <code>CONFIDENTIAL</code> by default.</li>
+      <li><strong>One copy per recipient</strong> &mdash; type one name per line and each copy is watermarked with its reader&rsquo;s name, so a leaked copy says whose it was. Put <code>{recipient}</code> in the watermark text to place the name yourself (&ldquo;Copy for {recipient}&rdquo;). The copies are saved together in a <code>.zip</code>.</li>
+      <li><strong>Password to open</strong>, and whether a reader may <strong>print</strong> or <strong>copy text</strong>.</li>
+    </ul>
+    <div class="callout callout-warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div class="callout-content">
+        <p>PDF passwords and restrictions use the PDF standard&rsquo;s basic encryption. They stop casual copying, but determined software can remove them. The watermark is what identifies a copy.</p>
+      </div>
+    </div>
+
+    <h3 id="export-sides">Sides &amp; Selected Pages</h3>
+    <p>Go to <strong>File &gt; Export &gt; Sides &amp; Selected Pages&hellip;</strong> to export only some of the script&rsquo;s pages. Every page keeps the page number and scene numbers it has in the full script, so the pages match everyone else&rsquo;s copy.</p>
+    <ul>
+      <li><strong>Sides</strong> &mdash; tick the scenes an actor needs, or choose a character and press <strong>Add</strong> to tick every scene they speak in. With <strong>Cross out the rest of each page</strong> on, the parts of each page that belong to other scenes are struck through, as sides are marked by hand.</li>
+      <li><strong>Pages with a character</strong> &mdash; every page where that character speaks.</li>
+      <li><strong>Pages at a location</strong> &mdash; every page of the scenes set there.</li>
+      <li><strong>Pages with a tag</strong> &mdash; every page holding an element with that <a href="tags.html">production tag</a>, for the department that looks after it.</li>
+    </ul>
+    <p>The title page is never included.</p>
+
     <h3 id="print">Printing</h3>
     <p>Go to <strong>File &gt; Print</strong> or press <kbd>&#8984;</kbd><kbd>P</kbd> to print your screenplay directly.</p>
     <p>
@@ -292,7 +334,7 @@
         <tr><th>Feature</th><th>.odraft</th><th>.fdx</th><th>.fadein</th><th>.fountain</th><th>.pdf</th><th>.txt</th></tr>
       </thead>
       <tbody>
-        <tr><td>Screenplay elements</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Visual only</td><td>Basic</td></tr>
+        <tr><td>Screenplay elements</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Read back from the layout</td><td>Basic</td></tr>
         <tr><td>Text formatting (bold/italic)</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Visual only</td><td>No</td></tr>
         <tr><td>Colour, highlighting, fonts</td><td>Yes</td><td>Partly</td><td>Yes</td><td>No</td><td>Visual only</td><td>No</td></tr>
         <tr><td>Character profiles (name, description)</td><td>Yes</td><td>Yes (plain text)</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
