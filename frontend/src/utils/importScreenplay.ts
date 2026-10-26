@@ -254,11 +254,16 @@ export async function parseScreenplayImport(
     throw new Error(`Expected text content for a ${formatLabel} file.`);
   }
 
-  if (hydrateStores) resetStoresForImport();
-
+  // Every branch parses before it touches the stores. Resetting first meant a
+  // file that failed to parse had already wiped the open script's beats, notes,
+  // tags, cast and scene list, while its text stayed on screen — and saving it
+  // then saved it without them.
   if (ext === 'fadein') {
     const parsed = await parseFadeIn(data as ArrayBuffer);
-    if (hydrateStores) applyDocumentFont(parsed.documentFont);
+    if (hydrateStores) {
+      resetStoresForImport();
+      applyDocumentFont(parsed.documentFont);
+    }
     return { doc: parsed.doc, title: parsed.scriptTitle, formatLabel, warnings: parsed.warnings };
   }
 
@@ -266,13 +271,17 @@ export async function parseScreenplayImport(
 
   if (ext === 'osf') {
     const parsed = parseOSF(text);
-    if (hydrateStores) applyDocumentFont(parsed.documentFont);
+    if (hydrateStores) {
+      resetStoresForImport();
+      applyDocumentFont(parsed.documentFont);
+    }
     return { doc: parsed.doc, title: parsed.scriptTitle, formatLabel, warnings: parsed.warnings };
   }
 
   if (ext === 'fdx') {
     const parsed = parseFDXFull(text);
     if (hydrateStores) {
+      resetStoresForImport();
       applyFdxSideEffects(parsed);
       applyDocumentFont(parsed.documentFont);
     }
@@ -288,7 +297,10 @@ export async function parseScreenplayImport(
     }
     // Bring back notes, tags, beats and character profiles — without this an
     // imported .odraft comes back as bare text with all of that dropped.
-    if (hydrateStores) hydrateEditorStoresFromContent(parsed.content);
+    if (hydrateStores) {
+      resetStoresForImport();
+      hydrateEditorStoresFromContent(parsed.content);
+    }
     // Images travel in the envelope's `assets` array. They were ignored here
     // entirely, so even a backup that had carefully packed them came back with
     // every picture broken. Restoring them under their original ids is what
@@ -310,5 +322,7 @@ export async function parseScreenplayImport(
   }
 
   // .fountain, .txt, and anything else we were handed as plain text.
-  return { doc: parseFountain(text), title: '', formatLabel, warnings: [] };
+  const doc = parseFountain(text);
+  if (hydrateStores) resetStoresForImport();
+  return { doc, title: '', formatLabel, warnings: [] };
 }

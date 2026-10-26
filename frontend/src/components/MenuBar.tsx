@@ -1329,11 +1329,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
     try {
       const ext = opened.name.toLowerCase().match(/\.([^.]+)$/)?.[1] || '';
 
-      clearTrackChanges();
       const imported = await parseScreenplayImport(
         opened.name,
         opened.bytes ?? opened.text ?? '',
       );
+      // Only once the file has parsed: a failure leaves the open script as it was.
+      clearTrackChanges();
       const store = useEditorStore.getState();
 
       editor.commands.setContent(imported.doc, true);
@@ -1375,10 +1376,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
       const { name } = result;
 
-      // Clear previous document state before importing
-      clearTrackChanges();
-
       const imported = await parseScreenplayImport(name, result.bytes ?? result.text ?? '');
+
+      // Clear previous document state only once the file has parsed, so a
+      // failed import leaves the open script as it was.
+      clearTrackChanges();
       const store = useEditorStore.getState();
 
       editor.commands.setContent(imported.doc, true);

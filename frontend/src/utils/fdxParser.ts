@@ -247,6 +247,20 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
   const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
   const nodes: TipTapNode[] = [];
 
+  // Browsers report malformed XML by substituting a <parsererror> element
+  // rather than throwing, and every query below then finds nothing — a broken
+  // or truncated file came in as a blank script that replaced the open one.
+  const parseError = xmlDoc.getElementsByTagName('parsererror')[0];
+  if (parseError) {
+    throw new Error(
+      // Chrome wraps the error line in a <div> between headings of its own.
+      `Not a valid Final Draft file: ${(parseError.querySelector('div') ?? parseError).textContent?.trim().split('\n')[0] || 'malformed XML'}`,
+    );
+  }
+  if (xmlDoc.documentElement?.tagName !== 'FinalDraft') {
+    throw new Error('Not a Final Draft file: missing <FinalDraft> root element.');
+  }
+
   // --- Parse PageLayout ---
   /**
    * Final Draft writes the typeface on every element's FontSpec, not on the
