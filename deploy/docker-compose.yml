@@ -51,6 +51,10 @@ services:
       RATE_LIMIT_WINDOW_MS: "900000"
       RATE_LIMIT_MAX: "100"
       CORS_ORIGINS: ${CORS_ORIGINS}
+      # Base of the links in verification and password-reset emails. Unset, the
+      # collab server falls back to http://localhost:5173 and every emailed
+      # link points at the reader's own machine.
+      APP_URL: ${APP_URL:-https://${DEMO_HOST}}
     volumes:
       - collab_data:/app/data
 

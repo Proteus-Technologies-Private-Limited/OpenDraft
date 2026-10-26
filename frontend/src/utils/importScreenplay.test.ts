@@ -150,6 +150,62 @@ describe('parseScreenplayImport', () => {
     await expect(parseScreenplayImport('Script.odraft', 'not json')).rejects.toThrow(/Invalid \.odraft file/);
   });
 
+  it('rejects a truncated .fdx instead of importing a blank script', async () => {
+    // xmldom throws on its own here; a browser's DOMParser returns <parsererror>,
+    // which the parser turns into "Not a valid Final Draft file".
+    await expect(
+      parseScreenplayImport('Broken.fdx', '<?xml version="1.0"?><FinalDraft><Content><Paragraph'),
+    ).rejects.toThrow();
+  });
+
+  it('rejects XML that is not a Final Draft document', async () => {
+    await expect(
+      parseScreenplayImport('Other.fdx', '<?xml version="1.0"?><document><paragraphs/></document>'),
+    ).rejects.toThrow(/missing <FinalDraft> root/);
+  });
+
+  describe('a file that fails to parse', () => {
+    const openScene = { id: 'open-1', heading: 'INT. OPEN SCRIPT - DAY' } as never;
+
+    it.each([
+      ['Broken.fdx', '<FinalDraft><Content><Paragraph'],
+      ['Broken.osf', '<document><paragraphs'],
+      ['Broken.odraft', 'not json'],
+    ])('leaves the open script’s state alone (%s)', async (name, data) => {
+      useEditorStore.getState().setScenes([openScene]);
+
+      await expect(parseScreenplayImport(name, data)).rejects.toThrow();
+
+      expect(useEditorStore.getState().scenes).toEqual([openScene]);
+    });
+
+    it('leaves it alone for a corrupt .fadein archive too', async () => {
+      useEditorStore.getState().setScenes([openScene]);
+      const bytes = new Uint8Array([0x50, 0x4b, 3, 4, 1, 2, 3, 4, 5]).buffer;
+
+      await expect(parseScreenplayImport('Broken.fadein', bytes)).rejects.toThrow();
+
+      expect(useEditorStore.getState().scenes).toEqual([openScene]);
+    });
+
+    it('leaves it alone for an unreadable .pdf', async () => {
+      useEditorStore.getState().setScenes([openScene]);
+      const bytes = new TextEncoder().encode('%PDF-1.4 not really a pdf').buffer;
+
+      await expect(parseScreenplayImport('Broken.pdf', bytes)).rejects.toThrow();
+
+      expect(useEditorStore.getState().scenes).toEqual([openScene]);
+    });
+
+    it('still clears it when the file parses', async () => {
+      useEditorStore.getState().setScenes([openScene]);
+
+      await parseScreenplayImport('Good.fountain', 'INT. LAB - NIGHT');
+
+      expect(useEditorStore.getState().scenes).toEqual([]);
+    });
+  });
+
   it('treats an unknown extension as Fountain text', async () => {
     const result = await parseScreenplayImport('notes.md', 'INT. LAB - NIGHT');
 

@@ -775,7 +775,8 @@ export function parseOSF(xmlString: string): OSFParseResult {
   const parseError = xmlDoc.getElementsByTagName('parsererror')[0];
   if (parseError) {
     throw new Error(
-      `Not a valid Open Screenplay Format file: ${parseError.textContent?.trim().split('\n')[0] || 'malformed XML'}`,
+      // Chrome wraps the error line in a <div> between headings of its own.
+      `Not a valid Open Screenplay Format file: ${(parseError.querySelector('div') ?? parseError).textContent?.trim().split('\n')[0] || 'malformed XML'}`,
     );
   }
 

@@ -299,11 +299,14 @@ export async function parseScreenplayImport(
     throw new Error(`Expected text content for a ${formatLabel} file.`);
   }
 
-  if (hydrateStores) resetStoresForImport();
-
+  // Every branch parses before it touches the stores. Resetting first meant a
+  // file that failed to parse had already wiped the open script's beats, notes,
+  // tags, cast and scene list, while its text stayed on screen — and saving it
+  // then saved it without them.
   const plugin = pluginImporterFor(ext);
   if (plugin) {
     const parsed = await plugin.parse(filename, data);
+    if (hydrateStores) resetStoresForImport();
     return { doc: parsed.doc, title: parsed.title || '', formatLabel, warnings: parsed.warnings ?? [] };
   }
 
@@ -315,6 +318,7 @@ export async function parseScreenplayImport(
     // numbering (12A, gaps) is shown and locked exactly as an .fdx's would be.
     const numbering = importedSceneNumbering(parsed.doc as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> });
     const metadata: Record<string, unknown> = {};
+    if (hydrateStores) resetStoresForImport();
     if (numbering) {
       metadata._sceneNumbersVisible = numbering.visible;
       metadata._sceneNumbersLocked = numbering.locked;
@@ -336,7 +340,10 @@ export async function parseScreenplayImport(
 
   if (ext === 'fadein') {
     const parsed = await parseFadeIn(data as ArrayBuffer);
-    if (hydrateStores) applyDocumentFont(parsed.documentFont);
+    if (hydrateStores) {
+      resetStoresForImport();
+      applyDocumentFont(parsed.documentFont);
+    }
     return { doc: parsed.doc, title: parsed.scriptTitle, formatLabel, warnings: parsed.warnings };
   }
 
@@ -344,13 +351,17 @@ export async function parseScreenplayImport(
 
   if (ext === 'osf') {
     const parsed = parseOSF(text);
-    if (hydrateStores) applyDocumentFont(parsed.documentFont);
+    if (hydrateStores) {
+      resetStoresForImport();
+      applyDocumentFont(parsed.documentFont);
+    }
     return { doc: parsed.doc, title: parsed.scriptTitle, formatLabel, warnings: parsed.warnings };
   }
 
   if (ext === 'fdx') {
     const parsed = parseFDXFull(text);
     if (hydrateStores) {
+      resetStoresForImport();
       applyFdxSideEffects(parsed);
       applyDocumentFont(parsed.documentFont);
     }
@@ -366,7 +377,10 @@ export async function parseScreenplayImport(
     }
     // Bring back notes, tags, beats and character profiles — without this an
     // imported .odraft comes back as bare text with all of that dropped.
-    if (hydrateStores) hydrateEditorStoresFromContent(parsed.content);
+    if (hydrateStores) {
+      resetStoresForImport();
+      hydrateEditorStoresFromContent(parsed.content);
+    }
     // Images travel in the envelope's `assets` array. They were ignored here
     // entirely, so even a backup that had carefully packed them came back with
     // every picture broken. Restoring them under their original ids is what
@@ -388,5 +402,7 @@ export async function parseScreenplayImport(
   }
 
   // .fountain, .txt, and anything else we were handed as plain text.
-  return { doc: parseFountain(text), title: '', formatLabel, warnings: [] };
+  const doc = parseFountain(text);
+  if (hydrateStores) resetStoresForImport();
+  return { doc, title: '', formatLabel, warnings: [] };
 }

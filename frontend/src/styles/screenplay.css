@@ -496,6 +496,17 @@ body {
   font-size: 10px; text-transform: uppercase;
   background: #c97; color: #111; padding: 1px 5px; border-radius: 8px;
 }
+.auth-indicator--busy, .auth-indicator--busy:hover { cursor: default; color: var(--fd-text-muted, #aaa); }
+.auth-indicator__spinner {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid currentColor; border-top-color: transparent;
+  animation: auth-indicator-spin 0.8s linear infinite;
+}
+@keyframes auth-indicator-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .auth-indicator__spinner { animation-duration: 2.4s; }
+}
+.settings-logout-btn:disabled { cursor: progress; opacity: 0.7; }
 .auth-indicator-wrap { display: inline-flex; align-items: center; }
 .auth-indicator__menu {
   position: absolute; right: 0; top: calc(100% + 4px);

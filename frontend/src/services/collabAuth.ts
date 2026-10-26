@@ -1,3 +1,4 @@
+import { create } from 'zustand';
 import { getApiBase } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
 import type { CollabAuth, CollabUser } from '../stores/settingsStore';
@@ -439,29 +440,83 @@ export function setLogoutEditorReset(fn: (() => Promise<void>) | null): void {
   _onLogoutEditorReset = fn;
 }
 
-export async function performLogout(): Promise<void> {
+/** How long sign-out waits on the server to revoke tokens and invites. Both
+ *  are best-effort, and a busy or unreachable server should not keep the user
+ *  staring at "Signing out…". */
+const LOGOUT_SERVER_TIMEOUT_MS = 5_000;
+
+/** True while a sign-out is running, so every Sign out button can show it. */
+export const useSigningOut = create<{ signingOut: boolean }>(() => ({ signingOut: false }));
+
+let _logoutInFlight: Promise<void> | null = null;
+
+/** Settles when `work` does or after `ms`, whichever is first. Never throws. */
+async function settleWithin(work: Promise<unknown>, ms: number, what: string): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<'timeout'>((resolve) => {
+    timer = setTimeout(() => resolve('timeout'), ms);
+  });
+  try {
+    const outcome = await Promise.race([work.then(() => 'done' as const), timeout]);
+    if (outcome === 'timeout') console.warn(`[logout] ${what} did not answer within ${ms} ms; signing out anyway`);
+  } catch (err) {
+    console.warn(`[logout] ${what} failed; signing out anyway:`, err);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Sign out. A second call while one is running joins it rather than running
+ * the teardown twice.
+ */
+export function performLogout(): Promise<void> {
+  if (_logoutInFlight) return _logoutInFlight;
+  useSigningOut.setState({ signingOut: true });
+  _logoutInFlight = runLogout().finally(() => {
+    _logoutInFlight = null;
+    useSigningOut.setState({ signingOut: false });
+  });
+  return _logoutInFlight;
+}
+
+async function runLogout(): Promise<void> {
   const { collabAuth, clearCollabAuth } = useSettingsStore.getState();
 
   // 1. End any active collab session in the editor
   if (_onLogoutCollabTeardown) {
-    try { await _onLogoutCollabTeardown(); } catch { /* best-effort */ }
+    try {
+      await _onLogoutCollabTeardown();
+    } catch (err) {
+      console.warn('[logout] ending the collab session failed; signing out anyway:', err);
+    }
   }
 
   // 2. Flush any pending cloud save and reset the editor to a blank file.
   //    Runs while the access token is still valid.
   if (_onLogoutEditorReset) {
-    try { await _onLogoutEditorReset(); } catch { /* best-effort */ }
+    try {
+      await _onLogoutEditorReset();
+    } catch (err) {
+      console.warn('[logout] resetting the editor failed; signing out anyway:', err);
+    }
   }
 
-  // 3. Revoke all collab invite links this user created on the server
+  // 3. Revoke all collab invite links this user created on the server, and
+  // 4. revoke the refresh token. Independent and best-effort, so they run
+  //    side by side under one time limit.
+  const serverCleanup: Promise<void>[] = [];
   if (collabAuth.accessToken) {
-    try { await collabAuthApi.revokeMyCollabSessions(); } catch { /* best-effort */ }
+    serverCleanup.push(settleWithin(
+      collabAuthApi.revokeMyCollabSessions(), LOGOUT_SERVER_TIMEOUT_MS, 'revoking collab invites',
+    ));
   }
-
-  // 4. Revoke the refresh token on the server
   if (collabAuth.refreshToken) {
-    try { await collabAuthApi.logout(collabAuth.refreshToken); } catch { /* best-effort */ }
+    serverCleanup.push(settleWithin(
+      collabAuthApi.logout(collabAuth.refreshToken), LOGOUT_SERVER_TIMEOUT_MS, 'revoking the refresh token',
+    ));
   }
+  await Promise.all(serverCleanup);
 
   // 5. Clear local auth state
   clearCollabAuth();

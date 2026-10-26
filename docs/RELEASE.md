@@ -240,6 +240,34 @@ Wait for the workflow to complete successfully. Verify all platform assets are p
 - [ ] User manual "Download" header link goes to the release page
 - [ ] User manual installation page links to the latest release
 - [ ] About dialog in the app shows the new version and correct "What's New"
+- [ ] open-draft.com updated (next section)
+
+### 8. Update the server (open-draft.com)
+
+The release pushes the combined backend + collab image to GHCR as
+`opendraft-combined:X.Y.Z` and `latest`, but nothing installs it on the VM.
+Desktop and mobile apps talk to that server, so server-side fixes (sign-in,
+email links, collaboration) reach nobody until this is done. Once the
+`build-docker` job is green, on the VM:
+
+```bash
+cd <repo checkout>/deploy && git pull && ./deploy.sh --combined
+```
+
+`OPENDRAFT_VERSION` stays unset in the VM's `deploy/.env`, so this pulls
+`latest`. `git pull` also brings any change to `docker-compose.combined.yml`
+(new environment variables, for instance), so `.env` only needs editing for
+secrets or host names.
+
+Then check:
+
+- [ ] `https://open-draft.com` loads and you can sign in
+- [ ] `https://collab.open-draft.com/health` answers within a second
+- [ ] A password reset email links to `https://open-draft.com/reset-password`
+
+**Rolling back:** set `OPENDRAFT_VERSION=<previous version>` in `deploy/.env`
+and run `./deploy.sh --combined` again. Remove the pin once a fixed release is
+out.
 
 ---
 
