@@ -21,7 +21,7 @@ import {
   serializeContentForFormat, extensionOfPath, isLinkableExtension, normalizeLinkedFormat, linkedFileName,
 } from '../utils/linkedFileFormat';
 import { useLinkedFileStore, autoSaveAppliesToOpenDocument } from '../stores/linkedFileStore';
-import { exportPDF, renderPDF, type PDFExportOptions } from '../utils/pdfExporter';
+import { exportPDF, renderPDF, type PDFExportOptions, type PdfPageSelection } from '../utils/pdfExporter';
 import { buildExportFootnotePlan } from '../utils/exportFootnotes';
 import { downloadDocx } from '../utils/docxExporter';
 import { parseDocx } from '../utils/docxImporter';
@@ -32,8 +32,8 @@ import { copySelection, cutSelection, pasteIntoEditor } from '../utils/clipboard
 import {
   parseScreenplayImport,
   resetStoresForImport,
-  SCREENPLAY_IMPORT_FILTERS,
-  BINARY_IMPORT_EXTENSIONS,
+  importFilters,
+  binaryImportExtensions,
 } from '../utils/importScreenplay';
 import { trackChangesPluginKey } from '../editor/trackChanges';
 import PageSetupDialog from './PageSetupDialog';
@@ -198,9 +198,18 @@ import {
   FaSlidersH,
   FaBan,
   FaMobileAlt,
+  FaTable,
+  FaUserShield,
+  FaFileContract,
+  FaPuzzlePiece,
 } from 'react-icons/fa';
 import { REVISION_COLORS, nextRevisionColor } from '../editor/revisionColors';
 import RevisionSettingsDialog from './RevisionSettingsDialog';
+import ReportsDialog from './ReportsDialog';
+import SidesDialog from './SidesDialog';
+import PdfSecurityDialog, { type PdfSecurityRequest } from './PdfSecurityDialog';
+import { sanitizeExportFilename } from '../utils/exportFilename';
+import type { PluginExporter } from '../plugins/registry';
 import ScriptProfileDialog from './ScriptProfileDialog';
 import { DEFAULT_SCRIPT_PROFILE } from '../utils/scriptProfile';
 import { pagesLocked } from '../editor/extensions/LockedPages';
@@ -1034,6 +1043,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [clearRevisionsOpen, setClearRevisionsOpen] = useState(false);
   const [revisionSettingsOpen, setRevisionSettingsOpen] = useState(false);
+  const [reportsOpen, setReportsOpen] = useState(false);
+  const [pdfSecurityOpen, setPdfSecurityOpen] = useState(false);
+  /** The document Sides was opened on. Its scene indices are what the dialog
+   *  selects by, so the export has to lay out this same document. */
+  const [sidesDoc, setSidesDoc] = useState<JSONContent | null>(null);
+  // Plugins register at startup, but one that registers later still has to
+  // reach the menus — its exporters and menu items are read on render.
+  const [, setPluginRevision] = useState(0);
+  useEffect(() => pluginRegistry.subscribe(() => setPluginRevision((n) => n + 1)), []);
   const scriptProfileOpen = useEditorStore((s) => s.scriptProfileOpen);
   // Stable, so the dialog measures its runtime previews once per opening.
   const getEditorDoc = useCallback(() => (editor && !editor.isDestroyed ? editor.getJSON() : null), [editor]);
@@ -1371,7 +1389,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const handleImport = useCallback(async () => {
     if (!editor) return;
     try {
-      const result = await openTextOrBinaryFile(SCREENPLAY_IMPORT_FILTERS, BINARY_IMPORT_EXTENSIONS);
+      const result = await openTextOrBinaryFile(importFilters(), binaryImportExtensions());
       if (!result) return;
 
       const { name } = result;
@@ -1862,6 +1880,71 @@ const MenuBar: React.FC<MenuBarProps> = ({
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
   }, [editor, documentTitle, pageLayout, pdfOptions]);
+
+  /** File → Export → Sides & Selected Pages…: the pages holding the selection. */
+  const handleExportSelection = useCallback(async (selection: PdfPageSelection, suffix: string) => {
+    if (!sidesDoc) return;
+    const warning = await exportPDF(sidesDoc, `${documentTitle || 'Untitled'} - ${suffix}`, pageLayout, {
+      ...pdfOptions(sidesDoc),
+      // Sides are script pages; the title page never goes with them.
+      includeTitlePage: false,
+      pageSelection: selection,
+    });
+    if (warning) showToast(warning, 'error');
+  }, [sidesDoc, documentTitle, pageLayout, pdfOptions]);
+
+  /**
+   * File → Export → PDF with Watermark or Password…: one file, or one per
+   * recipient saved together as a .zip so the writer is asked where once.
+   */
+  const handleExportSecured = useCallback(async ({ copies, security }: PdfSecurityRequest) => {
+    if (!editor) return;
+    const json = editor.getJSON();
+    const title = documentTitle || 'Untitled';
+    const base = pdfOptions(json);
+    if (copies.length === 1) {
+      const [copy] = copies;
+      const name = copy.recipient ? `${title} - ${copy.recipient}` : title;
+      const warning = await exportPDF(json, name, pageLayout, { ...base, watermark: copy.watermark, security });
+      if (warning) showToast(warning, 'error');
+      return;
+    }
+    const { default: JSZip } = await import('jszip');
+    const zip = new JSZip();
+    let warning: string | undefined;
+    const used = new Set<string>();
+    for (const copy of copies) {
+      const rendered = await renderPDF(json, title, pageLayout, { ...base, watermark: copy.watermark, security });
+      warning = warning ?? rendered.warning;
+      // Two recipients with the same name must not overwrite each other.
+      let file = sanitizeExportFilename(`${title} - ${copy.recipient ?? 'Copy'}`);
+      for (let n = 2; used.has(file.toLowerCase()); n++) file = sanitizeExportFilename(`${title} - ${copy.recipient ?? 'Copy'} (${n})`);
+      used.add(file.toLowerCase());
+      zip.file(`${file}.pdf`, rendered.bytes);
+    }
+    const bytes = await zip.generateAsync({ type: 'uint8array' });
+    const { saveFile } = await import('../utils/fileOps');
+    const saved = await saveFile(bytes, `${sanitizeExportFilename(`${title} - Watermarked`)}.zip`, [{ name: 'ZIP archive', extensions: ['zip'] }]);
+    if (warning) showToast(warning, 'error');
+    else if (saved) showToast(`${copies.length} watermarked copies saved`, 'success');
+  }, [editor, documentTitle, pageLayout, pdfOptions]);
+
+  /** File → Export → a format a plugin added. */
+  const handlePluginExport = useCallback(async (exporter: PluginExporter) => {
+    if (!editor) return;
+    try {
+      const json = editor.getJSON();
+      const title = documentTitle || 'Untitled';
+      const data = await exporter.export({ editor, doc: json, title });
+      const { saveFile } = await import('../utils/fileOps');
+      await saveFile(data, `${sanitizeExportFilename(title)}.${exporter.extension}`, [
+        { name: exporter.filterName ?? exporter.label, extensions: [exporter.extension] },
+      ]);
+    } catch (err) {
+      console.error(`[plugins] export "${exporter.id}" failed:`, err);
+      showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  }, [editor, documentTitle]);
 
   /** Tools → Production → Lock Pages / Unlock Pages. */
   const handleToggleLockPages = useCallback(() => {
@@ -2389,7 +2472,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {
           icon: <FaFileImport />, label: 'Import',
           children: [
-            { icon: <FaFileCode />, label: 'Final Draft / Fountain / Fade In / OpenDraft…', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
+            { icon: <FaFileCode />, label: 'Final Draft / Fountain / Fade In / PDF / OpenDraft…', action: () => confirmOrRun(handleImport), disabled: isCollabGuest },
             { icon: <FaFileWord />, label: 'Microsoft Word (.docx)…', action: handleImportDocx, disabled: isCollabGuest },
             { separator: true, label: '' },
             { icon: <FaFileExcel />, label: 'AV Document (.yaml / .xlsx / .csv)…', action: () => confirmOrRun(handleImportAvSheet), disabled: isCollabGuest },
@@ -2471,6 +2554,17 @@ const MenuBar: React.FC<MenuBarProps> = ({
               icon: <FaFilePdf />, label: 'PDF (Revised Pages Only)', action: handleExportRevisedPDF,
               title: 'Only the pages that carry a revision mark',
             },
+            {
+              icon: <FaUserShield />, label: 'PDF with Watermark or Password\u2026', action: () => setPdfSecurityOpen(true),
+              title: 'A watermark on every page — one copy per recipient — and an optional password',
+              disabled: !editor,
+            },
+            {
+              icon: <FaFileContract />, label: 'Sides & Selected Pages\u2026',
+              title: 'Chosen scenes, or every page with a character, location or tag, keeping their page numbers',
+              action: () => { if (editor) setSidesDoc(editor.getJSON()); },
+              disabled: !editor,
+            },
             { icon: <FaFileWord />, label: 'Microsoft Word (.docx)', action: handleExportDocx },
             { icon: <FaFile />, label: 'OpenDraft (.odraft)', action: handleExportOdraft, disabled: isCollabGuest },
             // AV formats are offered only for documents that have an AV body —
@@ -2482,6 +2576,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
                   { icon: <FaFileExcel />, label: 'AV Spreadsheet (.xlsx)', action: () => handleExportAv('xlsx') },
                   { icon: <FaFileCsv />, label: 'AV Spreadsheet (.csv)', action: () => handleExportAv('csv') },
                   { icon: <FaFileAlt />, label: 'AV Plain Text (.txt)', action: () => handleExportAv('txt') },
+                ]
+              : []),
+            // Formats plugins add, after the built-in ones.
+            ...(pluginRegistry.getExporters().length > 0
+              ? [
+                  { separator: true, label: '' },
+                  ...pluginRegistry.getExporters().map((exporter) => ({
+                    icon: <FaPuzzlePiece />,
+                    label: exporter.label,
+                    action: () => { void handlePluginExport(exporter); },
+                    disabled: !editor,
+                  })),
                 ]
               : []),
           ],
@@ -2890,6 +2996,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
               s.setStatisticsScrollTo('stats-timing-report');
               s.setStatisticsOpen(true);
             } },
+            {
+              icon: <FaTable />, label: 'Reports\u2026', action: () => setReportsOpen(true),
+              title: 'Scene, character, location, cast and breakdown reports, as CSV or PDF',
+              disabled: !editor,
+            },
           ],
         },
         { separator: true, label: '' },
@@ -4012,6 +4123,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
     )}
     {revisionSettingsOpen && (
       <RevisionSettingsDialog onClose={() => setRevisionSettingsOpen(false)} />
+    )}
+    {reportsOpen && (
+      <ReportsDialog editor={editor} onClose={() => setReportsOpen(false)} />
+    )}
+    {pdfSecurityOpen && (
+      <PdfSecurityDialog onExport={handleExportSecured} onClose={() => setPdfSecurityOpen(false)} />
+    )}
+    {sidesDoc && (
+      <SidesDialog doc={sidesDoc} onExport={handleExportSelection} onClose={() => setSidesDoc(null)} />
     )}
     {clearRevisionsOpen && (
       <div className="dialog-overlay" onClick={() => setClearRevisionsOpen(false)}>

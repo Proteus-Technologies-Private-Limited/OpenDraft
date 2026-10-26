@@ -517,6 +517,71 @@ export interface PDFExportOptions {
    * other script is bundled and reports nothing at all.
    */
   onFontProgress?: ProgressHandler;
+  /**
+   * Text laid across every page — a recipient's name, "CONFIDENTIAL" — so a
+   * leaked copy says whose it was. Absent or blank: no watermark.
+   */
+  watermark?: PdfWatermark | null;
+  /**
+   * A password to open the file, and what a reader may do once it is open.
+   * Absent: an ordinary unencrypted PDF.
+   */
+  security?: PdfSecurity | null;
+  /**
+   * Only the pages holding certain elements — sides for an audition, or every
+   * page a character speaks on. Pages keep the numbers they have in the full
+   * script. Throws when nothing matches.
+   */
+  pageSelection?: PdfPageSelection | null;
+}
+
+export interface PdfWatermark {
+  text: string;
+  /** 0–1. Absent: 0.15 diagonal, 0.6 footer — light enough to read the script through. */
+  opacity?: number;
+  /** Across the middle of the page, or one small line at its foot. Absent: diagonal. */
+  style?: 'diagonal' | 'footer';
+}
+
+/**
+ * The watermark one copy carries. `{recipient}` in the text is replaced by the
+ * name; text without it gets the name appended, and no text at all is the
+ * name alone.
+ */
+export function watermarkFor(text: string, recipient: string | null): string {
+  const base = text.trim();
+  if (!recipient) return base.replace(/\s*\{recipient\}\s*/gi, ' ').trim();
+  if (/\{recipient\}/i.test(base)) return base.replace(/\{recipient\}/gi, recipient).trim();
+  return base ? `${base} — ${recipient}` : recipient;
+}
+
+export interface PdfSecurity {
+  /** Needed to open the file at all. Blank: anyone can open it. */
+  userPassword?: string;
+  /**
+   * Needed to change the permissions. Blank: a random one, so the
+   * restrictions below cannot be lifted by a reader who has no password.
+   */
+  ownerPassword?: string;
+  /** Absent: allowed. */
+  allowPrinting?: boolean;
+  /** Absent: allowed. */
+  allowCopying?: boolean;
+}
+
+export interface PdfPageSelection {
+  /**
+   * Whether the top-level element at this index of the document belongs in the
+   * selection. A page is kept when anything on it does.
+   */
+  keep: (srcIndex: number) => boolean;
+  /**
+   * Strike through what is on a kept page but not selected — the rest of the
+   * page around an audition scene — as sides are printed.
+   */
+  crossOutOthers?: boolean;
+  /** The error thrown when no page is kept. */
+  emptyMessage?: string;
 }
 
 /** Resolve dynamic field placeholders in header/footer text. Shared with the
@@ -611,9 +676,11 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   // "Mores & Continueds" config for page-break (MORE)/(CONT'D) markers.
   const mc = resolveMoresContds(layout);
 
+  const encryption = pdfEncryption(options?.security);
   const pdf = new jsPDF({
     unit: 'pt',
     format: [pageWidthPt, pageHeightPt],
+    ...(encryption ? { encryption } : {}),
   });
 
   // Printing notes reach a file only when the writer asked them to. One flag,
@@ -768,6 +835,8 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     drawn.push({ text: revisionMarkFor(revisionMarkX.settings, null), bold: true });
     for (const c of REVISION_COLORS) drawn.push({ text: revisionMarkFor(revisionMarkX.settings, c.name), bold: true });
   }
+  const watermark = options?.watermark?.text?.trim() ? options.watermark : null;
+  if (watermark) drawn.push({ text: watermark.text.trim(), bold: watermark.style !== 'footer' });
   drawn.push(
     { text: mc.moreText }, { text: mc.contdText },
     { text: docTitle }, { text: revColor }, { text: new Date().toLocaleDateString() },
@@ -796,6 +865,16 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   let currentY = topMarginPt;
   let pageNumber = 1;
   let isFirstElement = true;
+
+  /**
+   * Where each element was drawn: its sheet and its vertical extent. Only
+   * kept when a page selection needs it — to know which sheets hold the
+   * selected elements, and what on them to cross out.
+   */
+  const placements: Placement[] | null = options?.pageSelection ? [] : null;
+  const place = (srcIndex: number, top: number, bottom: number): void => {
+    placements?.push({ srcIndex, sheet: pageNumber, top, bottom });
+  };
 
   // Pre-load title-page images (rendered in document order).
   const titleImgData = new Map<number, { dataUrl: string; wPt: number; hPt: number }>();
@@ -1029,6 +1108,21 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     return startsOwnPage({ type: node.typeName, attrs: node.attrs }, forceBreakIds, { lockedPages: true });
   }
 
+  /** A scene heading's number, either side of it, when numbers are shown. */
+  function drawSceneNumbers(node: NodeInfo, topY: number): void {
+    if (node.typeName !== 'sceneHeading' || !options?.sceneNumbersVisible || !node.attrs?.sceneNumber) return;
+    const sceneNum = String(node.attrs.sceneNumber);
+    const y = topY + LINE_HEIGHT_PT; // baseline of first line
+    pdf.setFontSize(12);
+    // Left side: just inside left margin
+    const leftNumX = 1.0 * PTS_PER_INCH;
+    drawPlain(pdf, sceneNum, leftNumX, y, fonts, { bold: true });
+    // Right side: near right margin, right-aligned
+    const rightNumX = 7.75 * PTS_PER_INCH
+      - measurePlain(pdf, sceneNum, fonts, { bold: true }); // bold like scene heading
+    drawPlain(pdf, sceneNum, rightNumX, y, fonts, { bold: true });
+  }
+
   // Process each node
   let i = 0;
   while (i < nodes.length) {
@@ -1106,6 +1200,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       });
       // The taller column decides how far the page has filled.
       currentY = top + heightPt;
+      place(node.srcIndex, top, currentY);
       isFirstElement = false;
       i++;
       continue;
@@ -1115,6 +1210,8 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     // repeated header. See utils/avPdfTable.
     if (typeName === 'avBlock' && node.raw) {
       if (forcedBreak) breakForBlock();
+      const avStartSheet = pageNumber;
+      const avStartY = currentY;
       const bodies = extractAvBodies({ type: 'doc', content: [node.raw] });
       const body = bodies[0];
       if (body) {
@@ -1145,6 +1242,18 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
           { widths: cfg.widths, repeatHeaders },
         );
       }
+      // The table paginates itself, so it is placed sheet by sheet: from where
+      // it started to the foot of each page, and the last down to where it ended.
+      if (placements) {
+        for (let sheet = avStartSheet; sheet <= pageNumber; sheet++) {
+          placements.push({
+            srcIndex: node.srcIndex,
+            sheet,
+            top: sheet === avStartSheet ? avStartY : topMarginPt,
+            bottom: sheet === pageNumber ? currentY : usableBottomPt,
+          });
+        }
+      }
       isFirstElement = false;
       i++;
       continue;
@@ -1168,6 +1277,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
         if (img.align === 'center') x = (contentLeft + contentRight) / 2 - img.wPt / 2;
         else if (img.align === 'right') x = contentRight - img.wPt;
         pdf.addImage(img.dataUrl, 'PNG', x, currentY, img.wPt, img.hPt);
+        place(node.srcIndex, currentY, currentY + img.hPt);
         currentY += img.hPt;
         isFirstElement = false;
       }
@@ -1256,6 +1366,10 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       );
       const partNumber = elementNumberOf(dNode);
       if (partNumber) drawElementNumber(pdf, partNumber, dIndents[0] * PTS_PER_INCH, currentY, fonts);
+      // A heading kept with the one before it — the scene after an OMITTED —
+      // is drawn here, and is numbered like any other.
+      drawSceneNumbers(dNode, currentY);
+      place(dNode.srcIndex, currentY, currentY + part.lines * LINE_HEIGHT_PT);
       currentY += part.lines * LINE_HEIGHT_PT;
     };
 
@@ -1372,20 +1486,9 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     const number = elementNumberOf(node);
     if (number) drawElementNumber(pdf, number, leftPt, currentY, fonts);
 
-    // Render scene numbers on both sides if enabled
-    if (typeName === 'sceneHeading' && options?.sceneNumbersVisible && node.attrs?.sceneNumber) {
-      const sceneNum = String(node.attrs.sceneNumber);
-      const y = currentY + LINE_HEIGHT_PT; // baseline of first line
-      pdf.setFontSize(12);
-      // Left side: just inside left margin
-      const leftNumX = 1.0 * PTS_PER_INCH;
-      drawPlain(pdf, sceneNum, leftNumX, y, fonts, { bold: true });
-      // Right side: near right margin, right-aligned
-      const rightNumX = 7.75 * PTS_PER_INCH
-        - measurePlain(pdf, sceneNum, fonts, { bold: true }); // bold like scene heading
-      drawPlain(pdf, sceneNum, rightNumX, y, fonts, { bold: true });
-    }
+    drawSceneNumbers(node, currentY);
 
+    place(node.srcIndex, currentY, currentY + elementHeightPt);
     currentY += elementHeightPt;
     isFirstElement = false;
 
@@ -1480,11 +1583,44 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     }
   }
 
+  // Which sheets go into the file, when not all of them do. Both filters can
+  // apply at once — the revised pages of one actor's sides — so they narrow
+  // one set rather than each deleting pages of their own.
+  let keep: Set<number> | null = null;
   if (options?.revisedPagesOnly) {
-    const keep = new Set([...sheetRevisions.keys()].filter((sheet) => sheet > titleSheets));
+    keep = new Set([...sheetRevisions.keys()].filter((sheet) => sheet > titleSheets));
     if (keep.size === 0) {
       throw new Error('This script has no revised pages. Revision marks are added while Revision Mode is on.');
     }
+  }
+  const selection = options?.pageSelection;
+  if (selection && placements) {
+    const selected = selectedSheets(placements, selection.keep, titleSheets);
+    keep = keep ? new Set([...keep].filter((sheet) => selected.has(sheet))) : selected;
+    if (keep.size === 0) {
+      throw new Error(selection.emptyMessage || 'Nothing in the script matches what was chosen, so there are no pages to print.');
+    }
+    if (selection.crossOutOthers) {
+      const leftPt = layout.leftMargin * PTS_PER_INCH;
+      const rightPt = pageWidthPt - layout.rightMargin * PTS_PER_INCH;
+      for (const sheet of keep) {
+        pdf.setPage(sheet);
+        for (const band of crossOutBands(placements, selection.keep, sheet)) {
+          drawCrossOut(pdf, leftPt, rightPt, band.top, band.bottom);
+        }
+      }
+    }
+  }
+
+  if (watermark) {
+    for (let sheet = 1; sheet <= totalSheets; sheet++) {
+      if (keep && !keep.has(sheet)) continue;
+      pdf.setPage(sheet);
+      drawWatermark(pdf, watermark, pageWidthPt, pageHeightPt, fonts);
+    }
+  }
+
+  if (keep) {
     // Back to front, so deleting a sheet does not renumber the ones still to go.
     for (let sheet = totalSheets; sheet >= 1; sheet--) {
       if (!keep.has(sheet)) pdf.deletePage(sheet);
@@ -1607,6 +1743,153 @@ function drawRevisionMark(
   if (color === null) return;
   drawPlain(pdf, revisionMarkFor(marker.settings, color), marker.x, y, fonts, { bold: true });
   marker.onMark(color);
+}
+
+/** One element as drawn: the sheet it landed on and the band of it it covers. */
+export interface Placement {
+  srcIndex: number;
+  sheet: number;
+  top: number;
+  bottom: number;
+}
+
+/** The sheets holding at least one selected element. The title page never is one. */
+export function selectedSheets(
+  placements: Placement[], keep: (srcIndex: number) => boolean, titleSheets: number,
+): Set<number> {
+  const sheets = new Set<number>();
+  for (const p of placements) {
+    if (p.sheet > titleSheets && keep(p.srcIndex)) sheets.add(p.sheet);
+  }
+  return sheets;
+}
+
+/**
+ * The bands of a sheet to strike through: each unbroken run of elements that
+ * are not selected, from the top of the first to the foot of the last. Anything
+ * drawn between them — a (MORE), a CONT'D — falls inside the run it belongs to.
+ */
+export function crossOutBands(
+  placements: Placement[], keep: (srcIndex: number) => boolean, sheet: number,
+): Array<{ top: number; bottom: number }> {
+  const onSheet = placements.filter((p) => p.sheet === sheet).sort((a, b) => a.top - b.top);
+  const bands: Array<{ top: number; bottom: number }> = [];
+  let open: { top: number; bottom: number } | null = null;
+  for (const p of onSheet) {
+    if (keep(p.srcIndex)) {
+      if (open) { bands.push(open); open = null; }
+      continue;
+    }
+    if (open) open.bottom = Math.max(open.bottom, p.bottom);
+    else open = { top: p.top, bottom: p.bottom };
+  }
+  if (open) bands.push(open);
+  return bands;
+}
+
+/**
+ * Strike out a band of the page the way sides are marked by hand: a rule
+ * above and below it and a cross through it, in grey so the selected scene
+ * stays the thing the eye lands on.
+ */
+function drawCrossOut(pdf: jsPDF, leftPt: number, rightPt: number, top: number, bottom: number): void {
+  // Text sits on a baseline a line below `top`, its capitals reaching to
+  // about `top + 3` and its descenders to `bottom + 3`; the rules sit just
+  // outside both, in the blank line that always separates scenes.
+  const y0 = top - 2;
+  const y1 = bottom + 4;
+  if (y1 - y0 < 4) return;
+  pdf.setDrawColor(140, 140, 140);
+  pdf.setLineWidth(0.75);
+  pdf.line(leftPt, y0, rightPt, y0);
+  pdf.line(leftPt, y1, rightPt, y1);
+  pdf.line(leftPt, y0, rightPt, y1);
+  pdf.line(leftPt, y1, rightPt, y0);
+  pdf.setDrawColor(0, 0, 0);
+}
+
+type PdfPermission = 'print' | 'modify' | 'copy' | 'annot-forms';
+
+/** jsPDF's encryption settings for `security`, or null for an open file. */
+export function pdfEncryption(security: PdfSecurity | null | undefined): {
+  userPassword?: string;
+  ownerPassword: string;
+  userPermissions: PdfPermission[];
+} | null {
+  if (!security) return null;
+  const userPassword = security.userPassword ?? '';
+  const allowPrinting = security.allowPrinting !== false;
+  const allowCopying = security.allowCopying !== false;
+  // Nothing to protect: no password and nothing withheld.
+  if (!userPassword && allowPrinting && allowCopying) return null;
+  const userPermissions: PdfPermission[] = [];
+  if (allowPrinting) userPermissions.push('print');
+  if (allowCopying) userPermissions.push('copy');
+  return {
+    ...(userPassword ? { userPassword } : {}),
+    ownerPassword: security.ownerPassword || randomOwnerPassword(),
+    userPermissions,
+  };
+}
+
+function randomOwnerPassword(): string {
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * The watermark on the current sheet: large and diagonal across the middle,
+ * or one small centred line at the foot. Drawn translucent and last, over the
+ * script, so it cannot be hidden under a white box by editing the file.
+ */
+function drawWatermark(
+  pdf: jsPDF, watermark: PdfWatermark, pageWidthPt: number, pageHeightPt: number, fonts: FontContext,
+): void {
+  const text = watermark.text.trim();
+  const footer = watermark.style === 'footer';
+  const opacity = Math.min(1, Math.max(0.03, watermark.opacity ?? (footer ? 0.6 : 0.15)));
+  // The face that can write it — a name in Cyrillic needs the fallback.
+  const pieces = drawnPieces(text, 'Helvetica', fonts, { freeFlow: true });
+  const face = pieces.length === 1 ? pieces[0].face : 'helvetica';
+  const drawText = pieces.length === 1 ? pieces[0].text : text;
+
+  const api = pdf as unknown as {
+    GState?: new (params: { opacity: number }) => unknown;
+    setGState?: (state: unknown) => void;
+    saveGraphicsState?: () => void;
+    restoreGraphicsState?: () => void;
+  };
+  api.saveGraphicsState?.();
+  if (api.GState && api.setGState) api.setGState(new api.GState({ opacity }));
+  pdf.setTextColor(110, 110, 110);
+  setFontStyle(pdf, !footer, false, face);
+
+  if (footer) {
+    pdf.setFontSize(9);
+    const w = pdf.getTextWidth(drawText);
+    pdf.text(drawText, (pageWidthPt - w) / 2, pageHeightPt - 18, { isInputVisual: false });
+  } else {
+    // As large as fits along the diagonal, up to 72pt.
+    const angle = Math.atan2(pageHeightPt, pageWidthPt);
+    const diagonal = Math.hypot(pageWidthPt, pageHeightPt);
+    pdf.setFontSize(100);
+    const widthAt100 = pdf.getTextWidth(drawText) || 1;
+    const size = Math.max(18, Math.min(72, (diagonal * 0.7 * 100) / widthAt100));
+    pdf.setFontSize(size);
+    const w = pdf.getTextWidth(drawText);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    // Start half a width back along the baseline from the centre, and drop a
+    // third of the type size so the line is centred on its x-height.
+    const x = pageWidthPt / 2 - (w / 2) * cos + size * 0.33 * sin;
+    const y = pageHeightPt / 2 + (w / 2) * sin + size * 0.33 * cos;
+    pdf.text(drawText, x, y, { angle: (angle * 180) / Math.PI, isInputVisual: false });
+  }
+
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFontSize(12);
+  api.restoreGraphicsState?.();
 }
 
 /**

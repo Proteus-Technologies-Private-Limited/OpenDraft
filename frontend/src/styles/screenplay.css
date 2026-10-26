@@ -3081,6 +3081,67 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 .revision-settings-check input { margin-top: 3px; }
 .revision-settings-error { margin: 12px 0 0; font-size: 13px; color: #dc2626; }
 
+/* ============ REPORTS / SIDES / SECURED PDF DIALOGS ============ */
+.reports-dialog { max-width: 1040px; width: 100%; }
+.reports-body { display: flex; gap: 16px; min-height: 0; }
+.reports-list { list-style: none; margin: 0; padding: 0; width: 220px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; }
+.reports-list li {
+  padding: 8px 10px; border-radius: 6px; cursor: pointer; border: 1px solid transparent;
+  display: flex; flex-direction: column; gap: 2px; outline: none;
+}
+.reports-list li:hover, .reports-list li:focus-visible { background: var(--fd-menu-hover); }
+.reports-list li.selected { border-color: var(--fd-accent); background: var(--fd-menu-hover); }
+.reports-list-label { font-size: 14px; font-weight: 600; color: var(--fd-text); }
+.reports-list-desc { font-size: 12px; color: var(--fd-text-muted); line-height: 1.35; }
+.reports-preview { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.reports-summary { margin: 0 0 8px; font-size: 13px; color: var(--fd-text-muted); }
+.reports-table-wrap { overflow: auto; max-height: 55vh; border: 1px solid var(--fd-border); border-radius: 6px; }
+.reports-table { border-collapse: collapse; width: 100%; font-size: 12px; color: var(--fd-text); }
+.reports-table th {
+  position: sticky; top: 0; background: var(--fd-dropdown-bg); text-align: left; font-weight: 600;
+  padding: 6px 8px; border-bottom: 1px solid var(--fd-border); white-space: nowrap;
+}
+.reports-table td { padding: 5px 8px; border-bottom: 1px solid var(--fd-border); vertical-align: top; }
+.reports-table tbody tr:nth-child(even) td { background: var(--fd-input-bg); }
+.reports-empty { margin: 10px; font-size: 13px; color: var(--fd-text-muted); }
+.reports-error { margin: 0 0 8px; font-size: 13px; color: #dc2626; }
+@media (max-width: 700px) {
+  .reports-body { flex-direction: column; }
+  .reports-list { width: 100%; }
+}
+
+.sides-dialog { max-width: 560px; width: 100%; }
+.sides-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+.sides-mode, .sides-check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--fd-text); cursor: pointer; }
+.sides-check { margin-top: 12px; }
+.sides-help { margin: 12px 0 8px; font-size: 12px; color: var(--fd-text-muted); line-height: 1.4; }
+.sides-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; color: var(--fd-text); flex-wrap: wrap; }
+.sides-row select, .pdf-security-field input[type="text"], .pdf-security-field input[type="password"], .pdf-security-recipients {
+  background: var(--fd-input-bg); color: var(--fd-text); border: 1px solid var(--fd-border);
+  border-radius: 4px; font-size: 14px; outline: none;
+}
+.sides-row select { height: 32px; padding: 0 8px; max-width: 100%; }
+.sides-scenes {
+  max-height: 260px; overflow-y: auto; border: 1px solid var(--fd-border); border-radius: 6px;
+  padding: 4px 0; margin-top: 10px;
+}
+.sides-scene { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: 13px; color: var(--fd-text); cursor: pointer; }
+.sides-scene:hover { background: var(--fd-menu-hover); }
+.sides-scene-number { min-width: 2.5em; color: var(--fd-text-muted); font-variant-numeric: tabular-nums; }
+.sides-scene-heading { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sides-count { font-size: 12px; color: var(--fd-text-muted); }
+
+.pdf-security-dialog { max-width: 480px; width: 100%; }
+.pdf-security-field { display: flex; align-items: center; gap: 12px; margin-top: 10px; font-size: 14px; color: var(--fd-text); }
+.pdf-security-field > span { min-width: 8.5em; }
+.pdf-security-field input[type="text"], .pdf-security-field input[type="password"] { flex: 1; height: 32px; padding: 0 10px; }
+.pdf-security-field input[type="range"] { flex: 1; }
+.pdf-security-field input:focus, .pdf-security-recipients:focus, .sides-row select:focus { border-color: var(--fd-accent); }
+.pdf-security-inline { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 14px; color: var(--fd-text); }
+.pdf-security-inline label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.pdf-security-recipients { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 8px 10px; resize: vertical; font-family: inherit; }
+.pdf-security-dialog .revision-settings-check { margin-top: 10px; }
+
 /* ── Format ▸ Genre & Pacing ── */
 .script-profile-dialog { max-width: 560px; width: 100%; }
 .script-profile-subhead { margin-top: 4px; font-size: 14px; font-weight: 600; color: var(--fd-text); }

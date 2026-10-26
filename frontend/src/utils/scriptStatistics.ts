@@ -12,7 +12,7 @@ import { isNonPrintingType } from './nonPrinting';
 const TIME_WORDS = 'DAY|NIGHT|DAWN|DUSK|MORNING|AFTERNOON|EVENING|SUNSET|SUNRISE|LATER|CONTINUOUS|SAME TIME|MOMENTS LATER|SAME|MAGIC HOUR';
 const PREFIX_RE = /(INT\.?\/?EXT\.?|EXT\.?\/?INT\.?|INT\.?|EXT\.?|I\/E\.?)\s+/i;
 
-function parseHeading(raw: string): { prefix: string; location: string; timeOfDay: string } {
+export function parseHeading(raw: string): { prefix: string; location: string; timeOfDay: string } {
   let rest = raw.trim();
   let prefix = '';
   let timeOfDay = '';

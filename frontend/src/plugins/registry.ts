@@ -10,7 +10,7 @@
  *   pluginRegistry.register({ id: 'my-plugin', name: 'My Plugin', ... });
  */
 
-import type { Editor } from '@tiptap/core';
+import type { Editor, JSONContent } from '@tiptap/core';
 
 // ── Plugin types ──
 
@@ -65,6 +65,75 @@ export interface PluginRouteEntry {
   override?: boolean;
 }
 
+// ── Importers, exporters and reports ──
+//
+// Three places a plugin can join the core's own file and analytics flows
+// instead of adding a menu item that duplicates them: File → Import reads a
+// plugin's formats wherever it reads the built-in ones, File → Export lists a
+// plugin's formats beside FDX and PDF, and Tools → Analytics → Reports lists
+// a plugin's reports beside the built-in ones, with the same CSV and PDF export.
+
+/** What a plugin importer hands back: the same shape a built-in parser does. */
+export interface PluginImportResult {
+  /** ProseMirror document for editor.commands.setContent(). */
+  doc: JSONContent;
+  /** Title the file carries, or empty to fall back on the file name. */
+  title?: string;
+  /** Non-fatal notes worth surfacing to the writer. */
+  warnings?: string[];
+}
+
+export interface PluginImporter {
+  id: string;
+  /** Shown in the file dialog and in messages, e.g. "WriterDuet (.wdz)". */
+  label: string;
+  /** Lower-case extensions without the dot. A built-in format always wins. */
+  extensions: string[];
+  /**
+   * Read the file as bytes (an ArrayBuffer) rather than as UTF-8 text. Any
+   * archive or binary format must say so — decoding one as text corrupts it.
+   */
+  binary?: boolean;
+  parse: (filename: string, data: string | ArrayBuffer) => Promise<PluginImportResult>;
+}
+
+/** Everything an exporter or report is given about the open script. */
+export interface PluginDocumentContext {
+  editor: Editor | null;
+  /** The script as the editor holds it. */
+  doc: JSONContent;
+  /** The script's title, for file names and headings. */
+  title: string;
+}
+
+export interface PluginExporter {
+  id: string;
+  /** The File → Export menu label, e.g. "Movie Magic Scheduling (.sex)". */
+  label: string;
+  /** Extension of the file written, without the dot. */
+  extension: string;
+  /** Name of the file-dialog filter. Defaults to the label. */
+  filterName?: string;
+  export: (ctx: PluginDocumentContext) => Promise<Uint8Array | string>;
+}
+
+/** A report as a table: what the Reports dialog shows and exports. */
+export interface ReportTable {
+  title: string;
+  columns: string[];
+  rows: Array<Array<string | number>>;
+  /** One line under the title — totals, or what the report counts. */
+  summary?: string;
+}
+
+export interface PluginReport {
+  id: string;
+  label: string;
+  /** One line shown under the label in the report list. */
+  description?: string;
+  build: (ctx: PluginDocumentContext) => ReportTable | Promise<ReportTable>;
+}
+
 export interface OpenDraftPlugin {
   id: string;
   name: string;
@@ -73,6 +142,9 @@ export interface OpenDraftPlugin {
   panels?: PluginPanelEntry[];
   routes?: PluginRouteEntry[];
   editorExtensions?: any[];
+  importers?: PluginImporter[];
+  exporters?: PluginExporter[];
+  reports?: PluginReport[];
   init?: (ctx: PluginContext) => Promise<void>;
   destroy?: () => void;
 }
@@ -208,6 +280,39 @@ class PluginRegistry {
       if (plugin.editorExtensions) extensions.push(...plugin.editorExtensions);
     }
     return extensions;
+  }
+
+  /** Every plugin importer, in registration order. */
+  getImporters(): PluginImporter[] {
+    const importers: PluginImporter[] = [];
+    for (const plugin of this._plugins.values()) {
+      if (plugin.importers) importers.push(...plugin.importers);
+    }
+    return importers;
+  }
+
+  /** The importer that reads `ext` (no dot, any case), or null. First registered wins. */
+  getImporterFor(ext: string): PluginImporter | null {
+    const wanted = ext.toLowerCase();
+    return this.getImporters().find((i) => i.extensions.some((e) => e.toLowerCase() === wanted)) ?? null;
+  }
+
+  /** Every plugin exporter, in registration order. */
+  getExporters(): PluginExporter[] {
+    const exporters: PluginExporter[] = [];
+    for (const plugin of this._plugins.values()) {
+      if (plugin.exporters) exporters.push(...plugin.exporters);
+    }
+    return exporters;
+  }
+
+  /** Every plugin report, in registration order. */
+  getReports(): PluginReport[] {
+    const reports: PluginReport[] = [];
+    for (const plugin of this._plugins.values()) {
+      if (plugin.reports) reports.push(...plugin.reports);
+    }
+    return reports;
   }
 
   /** Initialize all plugins. Call once after the editor is ready. */

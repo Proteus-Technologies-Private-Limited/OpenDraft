@@ -54,7 +54,7 @@ A complete list of features in OpenDraft.
 - **Microsoft Word (.docx)** -- Import and export
 - **OpenDraft (.odraft)** -- Lossless export: the script plus its notes, tags, beats, character profiles and images
 - **Paste as Fountain** -- Paste Fountain markup straight into the script as real elements
-- **PDF** -- Export with proper screenplay formatting
+- **PDF** -- Export with proper screenplay formatting, and import a screenplay PDF back into editable elements
 - **Open in place** -- Edit a `.fdx`, `.fountain`, `.fadein`, `.osf`, `.odraft` or `.txt` where it lives and save straight back to it, on desktop and mobile
 
 ## Editing Tools
@@ -62,6 +62,14 @@ A complete list of features in OpenDraft.
 - **Search & Replace** -- Find and replace across your screenplay
 - **Spell Check** -- Built-in spell checker with custom dictionary support
 - **Production Tags** -- Tag elements for production planning
+- **Reports** -- Scene, character, location, cast and breakdown reports, exported as CSV or PDF
+
+## Production Output
+
+- **Sides** -- Export the scenes an actor needs on their original pages, with the rest of each page crossed out
+- **Selected Pages** -- Every page where a character speaks, every page at a location, or every page holding a tagged item
+- **Watermarked PDF** -- A watermark on every page, with one copy per recipient carrying their name
+- **Password-Protected PDF** -- A password to open the file, and printing or copying switched off
 
 ## Windows & Files
 
@@ -85,5 +93,5 @@ A complete list of features in OpenDraft.
 
 ## Extensibility
 
-- **Plugin Architecture** -- Extend OpenDraft with custom plugins
+- **Plugin Architecture** -- Extend OpenDraft with custom plugins: menu items, panels, routes, editor extensions, and importers, exporters and reports that join the built-in File and Analytics menus
 - **Open API** -- FastAPI backend with documented endpoints

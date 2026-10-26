@@ -1,5 +1,5 @@
 {
-  "version": "f9262b7a88ea87e2",
+  "version": "38ad4e151ac9f140",
   "pages": [
     {
       "slug": "index.html",
@@ -83,7 +83,7 @@
       "slug": "script-statistics.html",
       "title": "Script Statistics & Timing",
       "section": "Analysis",
-      "hash": "f429232f97e4d595"
+      "hash": "51bcddfbb4766741"
     },
     {
       "slug": "table-read.html",
@@ -131,7 +131,7 @@
       "slug": "import-export.html",
       "title": "Import & Export",
       "section": "Projects & Files",
-      "hash": "fd1d4ed801a3925e"
+      "hash": "31c9f1ec29c6dda5"
     },
     {
       "slug": "format-compatibility.html",

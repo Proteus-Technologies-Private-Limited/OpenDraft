@@ -8,9 +8,10 @@ OpenDraft is the **open-source core** (MIT license). A separate **OpenDraft-Pro*
 
 The core exposes a plugin architecture so Pro features can be added without modifying core code:
 
-- **Frontend:** `frontend/src/plugins/registry.ts` — `pluginRegistry.register()` to add menu items, sidebar panels, routes, and editor extensions
+- **Frontend:** `frontend/src/plugins/registry.ts` — `pluginRegistry.register()` to add menu items, sidebar panels, routes, editor extensions, and `importers` / `exporters` / `reports`
 - **Backend:** `backend/app/plugins.py` — `register_router()` and `register_hook()` for API routes and lifecycle hooks
 - **Integration points:** MenuBar appends plugin menu items, App.tsx renders plugin routes, ScreenplayEditor renders plugin panels and editor extensions
+- **Importers** join every import path through `utils/importScreenplay.ts` (`importExtensions()`, `isBinaryImportExtension()` …) — a plugin can add a format but never take over a built-in one. **Exporters** are listed under File → Export. **Reports** return a `ReportTable` and appear in Tools → Analytics → Reports beside the built-in ones (`utils/scriptReports.ts`), with the same CSV and PDF export
 
 ### Key Rules
 

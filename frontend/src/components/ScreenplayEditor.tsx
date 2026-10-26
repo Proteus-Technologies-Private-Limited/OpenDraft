@@ -156,9 +156,9 @@ import {
   extensionOf,
   isBinaryImportExtension,
   isImportableExtension,
-  SCREENPLAY_IMPORT_EXTENSIONS,
-  SCREENPLAY_IMPORT_FILTERS,
-  BINARY_IMPORT_EXTENSIONS,
+  importExtensions,
+  importFilters,
+  binaryImportExtensions,
 } from '../utils/importScreenplay';
 import { stashSessionDoc, takeSessionDoc, clearSessionDoc } from '../utils/sessionDoc';
 import SaveAsDialog from './SaveAsDialog';
@@ -4288,7 +4288,7 @@ const ScreenplayEditor: React.FC = () => {
       if (!editor) return;
       try {
         const { openTextOrBinaryFile } = await import('../utils/fileOps');
-        const result = await openTextOrBinaryFile(SCREENPLAY_IMPORT_FILTERS, BINARY_IMPORT_EXTENSIONS);
+        const result = await openTextOrBinaryFile(importFilters(), binaryImportExtensions());
         if (!result) return;
 
         const { name } = result;
@@ -4575,7 +4575,7 @@ const ScreenplayEditor: React.FC = () => {
 
     if (!isImportableExtension(extensionOf(file.name))) {
       showToast(
-        `Unsupported file type. Drop a ${SCREENPLAY_IMPORT_EXTENSIONS.map((e) => `.${e}`).join(', ')} file.`,
+        `Unsupported file type. Drop a ${importExtensions().map((e) => `.${e}`).join(', ')} file.`,
         'error',
       );
       return;
@@ -4679,7 +4679,7 @@ const ScreenplayEditor: React.FC = () => {
             const filePath = paths[0];
             if (!isImportableExtension(extensionOf(filePath))) {
               showToast(
-                `Unsupported file type. Drop a ${SCREENPLAY_IMPORT_EXTENSIONS.map((e) => `.${e}`).join(', ')} file.`,
+                `Unsupported file type. Drop a ${importExtensions().map((e) => `.${e}`).join(', ')} file.`,
                 'error',
               );
               return;
