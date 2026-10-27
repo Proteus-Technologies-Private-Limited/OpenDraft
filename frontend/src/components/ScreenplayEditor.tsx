@@ -86,6 +86,7 @@ import WritingSuggestionsModal from './WritingSuggestionsModal';
 import GrammarRulesPanel from './GrammarRulesPanel';
 // MobileAccessoryBar removed — context menu via 3-finger touch only
 import ScriptContextMenu from './ScriptContextMenu';
+import RenameCharacterDialog from './RenameCharacterDialog';
 import ScribbleInput from './ScribbleInput';
 import PencilCaret from './PencilCaret';
 import SelectionHandles from './SelectionHandles';
@@ -1440,6 +1441,8 @@ const ScreenplayEditor: React.FC = () => {
   const charAutoDismissedRef = useRef(false);
 
   const [formatPanelOpen, setFormatPanelOpen] = useState(false);
+  const renamingCharacter = useEditorStore((s) => s.renamingCharacter);
+  const setRenamingCharacter = useEditorStore((s) => s.setRenamingCharacter);
   /**
    * Whether the handwriting panel is up. Only whether — where it inserts is the
    * editor's live selection, read by the panel itself, because the panel is not
@@ -5586,6 +5589,14 @@ const ScreenplayEditor: React.FC = () => {
       )}
       {!isHistoryMode && formatPanelOpen && editor && (
         <FormatPanel editor={editor} onClose={() => setFormatPanelOpen(false)} />
+      )}
+      {!isHistoryMode && renamingCharacter && editor && (
+        <RenameCharacterDialog
+          key={renamingCharacter}
+          editor={editor}
+          name={renamingCharacter}
+          onClose={() => setRenamingCharacter(null)}
+        />
       )}
       {!isHistoryMode && spellModalOpen && editor && (
         <SpellCheckModal

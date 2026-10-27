@@ -119,6 +119,7 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
   const [showReferred, setShowReferred] = useState(false);
   const sortBy = useEditorStore((s) => s.characterSortBy);
   const setSortBy = useEditorStore((s) => s.setCharacterSortBy);
+  const setRenamingCharacter = useEditorStore((s) => s.setRenamingCharacter);
   const [pendingRemoveChar, setPendingRemoveChar] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fsViewMode, setFsViewMode] = useState<'cards' | 'list'>('cards');
@@ -1095,6 +1096,14 @@ const CharacterProfiles: React.FC<CharacterProfilesProps> = ({ editor, projectId
                       </div>
                     );
                   })()}
+                  <button
+                    className="char-profile-enlarge-btn"
+                    onClick={(e) => { e.stopPropagation(); setRenamingCharacter(name); }}
+                    title="Rename character everywhere"
+                    aria-label={`Rename ${name}`}
+                  >
+                    &#x270E;
+                  </button>
                   <button
                     className="char-profile-enlarge-btn"
                     onClick={(e) => { e.stopPropagation(); setModalChar(name); }}

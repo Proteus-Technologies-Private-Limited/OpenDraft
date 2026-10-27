@@ -44,7 +44,7 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 1 | **PDF import** | FD, WD, AS, HL, CX | Missing — and the README already claims "Import from … PDF" | L | Core |
 | 2 | **Watermarked / password-protected PDF** | FD, WD, FI | Missing (no hits for `watermark`) | S | Core |
 | 3 | **Sides & per-character printing** | FD, WD, FI, CX | Missing | M | Core |
-| 4 | **Global character rename** | FD, WD, FI, AS | Missing — Find & Replace only | S | Core |
+| 4 | **Global character rename** | FD, WD, FI, AS | ✅ Done — `editor/characterRename.ts`, `RenameCharacterDialog` | S | Core |
 | 5 | **Dialogue Tuner** (one character's lines, editable in one place) | FI, FD | Missing | M | Core |
 | 6 | **Script bookmarks** | FI, FD | Missing (`bookmark` only refers to macOS file bookmarks) | S | Core |
 | 7 | **Focus / typewriter mode** | FD, HL, AS, WD | Partial — *Menu & Toolbar → Hidden* exists; no typewriter scrolling, no dimming, no true full-screen | S | Core |
@@ -144,7 +144,8 @@ pages with* (the same selection is available as a PDF export).
 
 ### Phase 2 — Daily writing (4–5 weeks)
 
-**5. Global character rename** (S) — rename in Characters panel or context menu
+**5. Global character rename** (S) — ✅ done (`editor/characterRename.ts`,
+`RenameCharacterDialog`; the Table Read voice travels with the profile). rename in Characters panel or context menu
 on a cue: updates cues (keeping extensions like `(V.O.)`, `(CONT'D)`), the
 character profile, tags, table-read voice assignment, and offers
 "also replace in action/dialogue" as a reviewed list. One undo step.

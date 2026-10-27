@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { uuid } from '../utils/uuid';
+import { characterKey } from '../utils/nodeText';
 import { applyAppearance, applyNativeTheme, readAppearance, saveAppearance, themeOf, type Appearance } from '../utils/appearance';
 import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile, type ScriptProfile } from '../utils/scriptProfile';
 import { DEFAULT_REVISION_COLOR, DEFAULT_REVISION_SETTINGS, nextRevisionColor, type RevisionSettings } from '../editor/revisionColors';
@@ -894,6 +895,13 @@ interface EditorState {
   setCharacterProfiles: (profiles: CharacterProfile[]) => void;
   upsertCharacterProfile: (name: string, updates: Partial<Omit<CharacterProfile, 'name'>>) => void;
   deleteCharacterProfile: (name: string) => void;
+  /**
+   * Moves everything kept about a character to a new name: profile,
+   * relationships, Cast tags and the selection. Renaming onto a character that
+   * already has a profile merges the two, the existing profile winning. The
+   * script text itself is changed by `editor/characterRename`.
+   */
+  renameCharacter: (oldName: string, newName: string) => void;
   characterRelationships: CharacterRelationship[];
   setCharacterRelationships: (rels: CharacterRelationship[]) => void;
   upsertCharacterRelationship: (rel: CharacterRelationship) => void;
@@ -902,6 +910,9 @@ interface EditorState {
   toggleCharacterProfiles: () => void;
   selectedCharacter: string | null;
   setSelectedCharacter: (name: string | null) => void;
+  /** Character whose Rename dialog is open, or null. */
+  renamingCharacter: string | null;
+  setRenamingCharacter: (name: string | null) => void;
 
   // Production tags
   tagCategories: TagCategory[];
@@ -1448,6 +1459,50 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((s) => ({
       characterProfiles: s.characterProfiles.filter((p) => p.name !== name.toUpperCase()),
     })),
+  renameCharacter: (oldName, newName) =>
+    set((s) => {
+      const from = characterKey(oldName);
+      const to = characterKey(newName);
+      if (!from || !to || from === to) return {};
+      const rn = (n: string) => (characterKey(n) === from ? to : n);
+
+      const source = s.characterProfiles.find((p) => p.name === from);
+      const target = s.characterProfiles.find((p) => p.name === to);
+      let characterProfiles = s.characterProfiles;
+      if (source && target) {
+        // Merge: the existing profile wins, empty fields are filled from the old one.
+        const merged: CharacterProfile = { ...target };
+        for (const [k, v] of Object.entries(source) as [keyof CharacterProfile, unknown][]) {
+          if (k === 'name' || k === 'images' || k === 'voice') continue;
+          if (typeof v === 'string' && v && !merged[k]) (merged as unknown as Record<string, unknown>)[k] = v;
+        }
+        merged.images = [...target.images, ...source.images.filter((i) => !target.images.includes(i))];
+        if (!target.voice && source.voice) merged.voice = source.voice;
+        characterProfiles = s.characterProfiles
+          .filter((p) => p.name !== from)
+          .map((p) => (p.name === to ? merged : p));
+      } else if (source) {
+        characterProfiles = s.characterProfiles.map((p) => (p.name === from ? { ...p, name: to } : p));
+      }
+
+      const characterRelationships = s.characterRelationships
+        .map((r) => ({ ...r, characterA: rn(r.characterA), characterB: rn(r.characterB) }))
+        .filter((r) => r.characterA !== r.characterB);
+
+      const characters = Array.from(new Set(s.characters.map(rn)));
+
+      const tags = s.tags.map((t) =>
+        t.categoryId === 'cast' && characterKey(t.name) === from ? { ...t, name: to } : t,
+      );
+
+      return {
+        characterProfiles,
+        characterRelationships,
+        characters,
+        tags,
+        selectedCharacter: s.selectedCharacter && characterKey(s.selectedCharacter) === from ? to : s.selectedCharacter,
+      };
+    }),
   characterRelationships: [],
   setCharacterRelationships: (rels) => set({ characterRelationships: rels }),
   upsertCharacterRelationship: (rel) =>
@@ -1472,6 +1527,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   }),
   selectedCharacter: null,
   setSelectedCharacter: (name) => set({ selectedCharacter: name }),
+  renamingCharacter: null,
+  setRenamingCharacter: (name) => set({ renamingCharacter: name ? characterKey(name) || null : null }),
 
   // Production tags
   tagCategories: [...DEFAULT_TAG_CATEGORIES],
