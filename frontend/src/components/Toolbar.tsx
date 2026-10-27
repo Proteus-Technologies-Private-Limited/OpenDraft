@@ -80,8 +80,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     toggleTagsPanel,
     setPendingTagSelection,
     setEditingTagId,
-    toolbarMode,
+    toolbarMode: savedToolbarMode,
+    focusMode,
   } = useEditorStore();
+  // Focus Mode hides the toolbar like Hidden does, keeping the saved choice.
+  const toolbarMode = focusMode ? 'hidden' : savedToolbarMode;
 
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
   const isEnforceMode = activeTemplate.mode === 'enforce';

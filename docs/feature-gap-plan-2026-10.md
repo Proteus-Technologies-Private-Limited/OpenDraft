@@ -47,7 +47,7 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 4 | **Global character rename** | FD, WD, FI, AS | Missing — Find & Replace only | S | Core |
 | 5 | **Dialogue Tuner** (one character's lines, editable in one place) | FI, FD | Missing | M | Core |
 | 6 | **Script bookmarks** | FI, FD | Missing (`bookmark` only refers to macOS file bookmarks) | S | Core |
-| 7 | **Focus / typewriter mode** | FD, HL, AS, WD | Partial — *Menu & Toolbar → Hidden* exists; no typewriter scrolling, no dimming, no true full-screen | S | Core |
+| 7 | **Focus / typewriter mode** | FD, HL, AS, WD | ✅ Done — `editor/extensions/FocusMode.ts`, View → Focus Mode | S | Core |
 | 8 | **Writing goals, sprints & progress history** | FD (Goals), WD, HL (Sprint), AS | Missing | M | Core |
 | 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | Missing | M | Core |
 | 10 | **Macros / text snippets** | FI, FD | Missing | S | Core |
@@ -158,7 +158,8 @@ ProseMirror nodes, so collaboration and revision marks just work). Optional
 Navigator, `Go to Bookmark` in the Go to Page dialog; stored in the document so
 collaborators share them; exported to FDX as ScriptNotes where possible.
 
-**8. Focus & typewriter mode** (S) — View → Focus Mode: true full-screen (Tauri
+**8. Focus & typewriter mode** (S) — ✅ done (`editor/extensions/FocusMode.ts`,
+`services/fullscreen.ts`). View → Focus Mode: true full-screen (Tauri
 `setFullscreen`, Fullscreen API on web), typewriter scrolling (caret line held at
 a fixed height), optional dimming of all but the current element/scene. Reuses
 the Hidden toolbar mode's reveal-on-hover.

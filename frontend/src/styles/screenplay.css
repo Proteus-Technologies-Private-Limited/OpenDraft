@@ -13701,3 +13701,25 @@ html.phone .status-left .status-project,
 html.phone .status-left .status-sep { display: none !important; }
 html.phone .menu-bar.chrome-comfortable { height: 46px; }
 html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }
+
+/* ============ FOCUS MODE (View → Focus Mode) ============ */
+/* Side panels, their resize handles and the status bar step aside; the menus
+   are already reduced to the floating button (Hidden mode). The panels stay
+   mounted, so each comes back exactly as it was. */
+.app-container.focus-mode .editor-layout > :not(.editor-center),
+.app-container.focus-mode .status-bar-row { display: none !important; }
+
+/* Typewriter scrolling needs room below the last line to hold it mid-screen. */
+.app-container.focus-typewriter .page-sizer { padding-bottom: 60vh; }
+
+/* Dimming (editor/extensions/FocusMode): every text element fades except the
+   ones marked current. Wrappers — dual dialogue, AV blocks — are left alone,
+   or a current line inside one would be faded with it. */
+.app-container.focus-dim .ProseMirror :is(.screenplay-element, .av-para, .av-shot, .av-direction, .av-graphic):not(.dual-dialogue):not(.av-block):not(.focus-current) {
+  opacity: 0.28;
+  transition: opacity 0.2s ease;
+}
+.app-container.focus-dim .ProseMirror .focus-current { opacity: 1; transition: opacity 0.2s ease; }
+@media print {
+  .app-container.focus-dim .ProseMirror * { opacity: 1 !important; }
+}

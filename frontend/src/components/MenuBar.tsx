@@ -13,6 +13,7 @@ import { isInAvRow, isInAvCell, avCellSideAt, avRowContext, readColumnConfig, av
 import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 import { chooseAvFrameImage } from '../utils/avFrame';
 import { formatShortcut } from '../utils/shortcuts';
+import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
 import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
@@ -138,6 +139,7 @@ import {
   FaMousePointer,
   FaSearch,
   FaHashtag,
+  FaBullseye,
   FaSpellCheck,
   FaListOl,
   FaBold,
@@ -332,8 +334,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setSaveAsOpen,
     appearance,
     setAppearance,
-    toolbarMode,
+    toolbarMode: savedToolbarMode,
     setToolbarMode,
+    focusMode,
+    setFocusMode,
+    focusTypewriter,
+    setFocusTypewriter,
+    focusDim,
+    setFocusDim,
     viewLayout,
     setViewLayout,
     zoomLevel,
@@ -351,6 +359,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setElementNumbersVisible,
     pageLabels,
   } = useEditorStore();
+  // Focus Mode puts the menus away the way Hidden does, without changing the saved choice.
+  const toolbarMode = focusMode ? 'hidden' : savedToolbarMode;
 
   const {
     currentProject,
@@ -2924,11 +2934,23 @@ const MenuBar: React.FC<MenuBarProps> = ({
         },
         { separator: true, label: '' },
         {
+          icon: <FaBullseye />, label: 'Focus Mode',
+          children: [
+            { icon: <FaBullseye />, label: focusMode ? 'Leave Focus Mode' : 'Enter Focus Mode', shortcut: formatShortcut(FOCUS_MODE_SHORTCUT), action: () => setFocusMode(!focusMode) },
+            { separator: true, label: '' },
+            { label: focusTypewriter ? '\u2713 Typewriter Scrolling' : 'Typewriter Scrolling', action: () => setFocusTypewriter(!focusTypewriter) },
+            { separator: true, label: '' },
+            { label: focusDim === 'off' ? '\u2713 No Dimming' : 'No Dimming', action: () => setFocusDim('off') },
+            { label: focusDim === 'element' ? '\u2713 Dim All but Current Element' : 'Dim All but Current Element', action: () => setFocusDim('element') },
+            { label: focusDim === 'scene' ? '\u2713 Dim All but Current Scene' : 'Dim All but Current Scene', action: () => setFocusDim('scene') },
+          ],
+        },
+        {
           icon: <FaToolbox />, label: 'Menu & Toolbar',
           children: [
-            { icon: <FaCompressArrowsAlt />, label: toolbarMode === 'compact' ? '\u2713 Compact' : 'Compact', action: () => setToolbarMode('compact') },
-            { icon: <FaExpandArrowsAlt />, label: toolbarMode === 'comfortable' ? '\u2713 Comfortable' : 'Comfortable', action: () => setToolbarMode('comfortable') },
-            { icon: <FaEyeSlash />, label: toolbarMode === 'hidden' ? '\u2713 Hidden' : 'Hidden', action: () => {
+            { icon: <FaCompressArrowsAlt />, label: savedToolbarMode === 'compact' ? '\u2713 Compact' : 'Compact', action: () => setToolbarMode('compact') },
+            { icon: <FaExpandArrowsAlt />, label: savedToolbarMode === 'comfortable' ? '\u2713 Comfortable' : 'Comfortable', action: () => setToolbarMode('comfortable') },
+            { icon: <FaEyeSlash />, label: savedToolbarMode === 'hidden' ? '\u2713 Hidden' : 'Hidden', action: () => {
               setToolbarMode('hidden');
               if (localStorage.getItem('opendraft:hiddenModeIntroShown') !== '1') {
                 setShowHiddenModeIntro(true);

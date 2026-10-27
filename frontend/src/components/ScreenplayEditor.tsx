@@ -33,6 +33,8 @@ import {
   StartsNewPage,
 } from '../editor/extensions';
 import { ElementNumbers, ELEMENT_NUMBERS_REFRESH } from '../editor/extensions/ElementNumbers';
+import { FocusMode, FOCUS_MODE_REFRESH, FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
+import { onBrowserFullscreenExit, setAppFullscreen } from '../services/fullscreen';
 import { getElementNumberingRules } from '../utils/elementNumbers';
 import { registerAvCellPicker, isInAvCell, AV_BASE_CELL_ELEMENT_IDS } from '../editor/extensions/AvBlock';
 import { avCellElementRules } from '../utils/avCellElements';
@@ -98,12 +100,16 @@ import FootnoteBlock from './FootnoteBlock';
 import FootnoteDialog from './FootnoteDialog';
 import EndnotePages from './EndnotePages';
 
+/** Things on screen that close on Esc, and so keep Esc from leaving Focus Mode. */
+const ESC_OWNERS = '.dialog-overlay, .menu-dropdown, .menu-bar--floating, .character-autocomplete, '
+  + '.element-picker, .spell-context-menu, .script-context-menu, .search-replace-panel';
+
 /** Shared empty list, so "nothing prints" never re-renders the overlays. */
 const NO_FOOTNOTE_PAGES: FootnotePageAssignment[] = [];
 const NO_ENDNOTE_PAGES: EndnotePage[] = [];
 import { HANDWRITING_EVENT } from '../utils/handwriting';
 import { ELEMENT_MENU_EVENT } from '../utils/elementMenu';
-import { matchesShortcut } from '../utils/shortcuts';
+import { formatShortcut, matchesShortcut } from '../utils/shortcuts';
 import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { Grammar, grammarPluginKey } from '../editor/extensions/Grammar';
 import { spellChecker, BUILTIN_LANGUAGE } from '../editor/spellchecker';
@@ -1984,6 +1990,14 @@ const ScreenplayEditor: React.FC = () => {
         getSettings: () => useEditorStore.getState().revisionSettings,
       }),
       StartsNewPage,
+      FocusMode.configure({
+        getConfig: () => {
+          const st = useEditorStore.getState();
+          return st.focusMode && !isHistoryModeRef.current
+            ? { typewriter: st.focusTypewriter, dim: st.focusDim }
+            : null;
+        },
+      }),
       LockedPages,
       FootnoteMarkerExtension,
       PaginationExtension,
@@ -2091,6 +2105,54 @@ const ScreenplayEditor: React.FC = () => {
       console.warn('[elementNumbers] could not refresh element numbers', err);
     }
   }, [editor, activeTemplateId, templatesLoaded, templates, sceneNumbersVisible]);
+
+  // ── Focus Mode (View → Focus Mode) ──
+  const focusMode = useEditorStore((s) => s.focusMode);
+  const focusTypewriter = useEditorStore((s) => s.focusTypewriter);
+  const focusDim = useEditorStore((s) => s.focusDim);
+  const setFocusMode = useEditorStore((s) => s.setFocusMode);
+  const focusActive = focusMode && !isHistoryMode;
+
+  // The dimming lives in the editor, which cannot see the store change.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.view.dispatch(editor.state.tr.setMeta(FOCUS_MODE_REFRESH, true).setMeta('addToHistory', false));
+  }, [editor, focusActive, focusTypewriter, focusDim]);
+
+  useEffect(() => {
+    if (!focusActive) return;
+    void setAppFullscreen(true);
+    showToast(`Focus Mode — press Esc or ${formatShortcut(FOCUS_MODE_SHORTCUT)} to leave`, 'info');
+    const stopListening = onBrowserFullscreenExit(() => setFocusMode(false));
+    return () => {
+      stopListening();
+      void setAppFullscreen(false);
+    };
+  }, [focusActive, setFocusMode]);
+
+  // Leaving the editor (back to projects, a version preview) leaves Focus Mode too.
+  useEffect(() => () => useEditorStore.getState().setFocusMode(false), []);
+
+  useEffect(() => {
+    if (isHistoryMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (matchesShortcut(e, FOCUS_MODE_SHORTCUT)) {
+        e.preventDefault();
+        const st = useEditorStore.getState();
+        st.setFocusMode(!st.focusMode);
+        return;
+      }
+      // Esc leaves Focus Mode unless something on screen uses Esc itself.
+      // Checked in the capture phase: the editor marks every Escape as
+      // handled, so by the time it bubbles here it always looks taken.
+      if (e.key === 'Escape' && useEditorStore.getState().focusMode
+        && !document.querySelector(ESC_OWNERS)) {
+        useEditorStore.getState().setFocusMode(false);
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [isHistoryMode]);
 
   // ── Owner starts collaboration — save current content, create own token, switch to collab mode ──
   const handleStartCollab = useCallback(async (guestSession: import('../services/api').CollabSession) => {
@@ -5095,7 +5157,7 @@ const ScreenplayEditor: React.FC = () => {
   }
 
   return (
-    <div className={`app-container${isHistoryMode ? ' history-mode' : ''}`}>
+    <div className={`app-container${isHistoryMode ? ' history-mode' : ''}${focusActive ? ` focus-mode${focusTypewriter ? ' focus-typewriter' : ''}${focusDim !== 'off' ? ' focus-dim' : ''}` : ''}`}>
       {isHistoryMode && (
         <div className="history-banner">
           <span className="history-banner-icon">&#128337;</span>
@@ -5523,7 +5585,7 @@ const ScreenplayEditor: React.FC = () => {
         )}
       </div>
       {!isHistoryMode && (
-        <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+        <div className="status-bar-row" style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
           <StatusBar editorDoc={editor?.getJSON()} />
           {pluginRegistry.getPanels('status-bar').map((p) => (
             <p.component key={p.id} />
