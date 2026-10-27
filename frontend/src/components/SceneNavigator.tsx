@@ -11,6 +11,9 @@ import SynopsisModal from './SynopsisModal';
 import { showToast } from './Toast';
 import { blockContentRange, characterKey, singleLine } from '../utils/nodeText';
 import Select from './Select';
+import { ELEMENT_LABELS, type ElementType } from '../stores/editorStore';
+import { listBookmarks } from '../utils/bookmarks';
+import { goToBookmark, removeBookmark } from './bookmarkActions';
 
 interface SceneNavigatorProps {
   editor: Editor | null;
@@ -18,7 +21,7 @@ interface SceneNavigatorProps {
   style?: React.CSSProperties;
 }
 
-type NavTab = 'scenes' | 'pages' | 'locations' | 'structure';
+type NavTab = 'scenes' | 'pages' | 'locations' | 'structure' | 'bookmarks';
 
 // ── Scene heading parser ────────────────────────────────────────────────
 
@@ -669,6 +672,15 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     [editor, scrollContainer],
   );
 
+  // ── Bookmarks ──
+  const setBookmarkEditing = useEditorStore((s) => s.setBookmarkEditing);
+  const bookmarks = useMemo(
+    () => (editor && activeTab === 'bookmarks' ? listBookmarks(editor.state.doc) : []),
+    // The doc is the real input: `editor` stays the same object as the script changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [editor, editor?.state.doc, activeTab],
+  );
+
   // ── Navigate to a document position ──
 
   const goToPosition = useCallback(
@@ -787,6 +799,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
           <button className={`navigator-tab${activeTab === 'pages' ? ' active' : ''}`} onClick={() => setActiveTab('pages')}>Pages</button>
           <button className={`navigator-tab${activeTab === 'locations' ? ' active' : ''}`} onClick={() => setActiveTab('locations')}>Locations</button>
           <button className={`navigator-tab${activeTab === 'structure' ? ' active' : ''}`} onClick={() => setActiveTab('structure')}>Structure</button>
+          <button className={`navigator-tab${activeTab === 'bookmarks' ? ' active' : ''}`} onClick={() => setActiveTab('bookmarks')}>Bookmarks</button>
         </div>
         <button className="navigator-close" onClick={toggleNavigator} title="Close Navigator">×</button>
       </div>
@@ -1126,6 +1139,53 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                   </div>
                 );
               })
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── Bookmarks tab ────────────────────────────────────────────── */}
+      {activeTab === 'bookmarks' && (
+        <>
+          <div className="navigator-header">
+            <span className="navigator-title">Bookmarks</span>
+            <span className="scene-count">{bookmarks.length}</span>
+          </div>
+          <div className="navigator-list">
+            {bookmarks.length === 0 ? (
+              <div className="navigator-empty">
+                No bookmarks yet. Right-click a line and choose
+                &ldquo;Add Bookmark&hellip;&rdquo;, or use Edit &rarr; Add Bookmark&hellip;
+              </div>
+            ) : (
+              bookmarks.map((b) => (
+                <div key={b.pos} className="bookmark-item" onClick={() => editor && goToBookmark(editor, b.pos)} title="Go to bookmark">
+                  <span className="bookmark-item-flag" aria-hidden="true" />
+                  <div className="bookmark-item-info">
+                    <div className="bookmark-item-name">{b.name}</div>
+                    <div className="bookmark-item-text">
+                      <span className="bookmark-item-type">{ELEMENT_LABELS[b.blockType as ElementType] ?? b.blockType}</span>
+                      {b.text}
+                    </div>
+                  </div>
+                  <div className="bookmark-item-actions">
+                    <button
+                      title="Rename bookmark"
+                      aria-label={`Rename bookmark ${b.name}`}
+                      onClick={(e) => { e.stopPropagation(); setBookmarkEditing({ pos: b.pos, name: b.name, isNew: false }); }}
+                    >
+                      &#x270E;
+                    </button>
+                    <button
+                      title="Remove bookmark"
+                      aria-label={`Remove bookmark ${b.name}`}
+                      onClick={(e) => { e.stopPropagation(); if (editor) removeBookmark(editor, b.pos); }}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </>

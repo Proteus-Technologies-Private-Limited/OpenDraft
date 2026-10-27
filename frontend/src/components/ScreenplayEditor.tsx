@@ -30,7 +30,7 @@ import {
   FormatOverride, CustomElement, DualDialogue, DualDialogueColumn,
   TitlePage,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
-  StartsNewPage,
+  StartsNewPage, Bookmark,
 } from '../editor/extensions';
 import { ElementNumbers, ELEMENT_NUMBERS_REFRESH } from '../editor/extensions/ElementNumbers';
 import { getElementNumberingRules } from '../utils/elementNumbers';
@@ -86,6 +86,7 @@ import WritingSuggestionsModal from './WritingSuggestionsModal';
 import GrammarRulesPanel from './GrammarRulesPanel';
 // MobileAccessoryBar removed — context menu via 3-finger touch only
 import ScriptContextMenu from './ScriptContextMenu';
+import BookmarkDialog from './BookmarkDialog';
 import ScribbleInput from './ScribbleInput';
 import PencilCaret from './PencilCaret';
 import SelectionHandles from './SelectionHandles';
@@ -1440,6 +1441,8 @@ const ScreenplayEditor: React.FC = () => {
   const charAutoDismissedRef = useRef(false);
 
   const [formatPanelOpen, setFormatPanelOpen] = useState(false);
+  const bookmarkEditing = useEditorStore((s) => s.bookmarkEditing);
+  const setBookmarkEditing = useEditorStore((s) => s.setBookmarkEditing);
   /**
    * Whether the handwriting panel is up. Only whether — where it inserts is the
    * editor's live selection, read by the panel itself, because the panel is not
@@ -1984,6 +1987,7 @@ const ScreenplayEditor: React.FC = () => {
         getSettings: () => useEditorStore.getState().revisionSettings,
       }),
       StartsNewPage,
+      Bookmark,
       LockedPages,
       FootnoteMarkerExtension,
       PaginationExtension,
@@ -5531,7 +5535,7 @@ const ScreenplayEditor: React.FC = () => {
         </div>
       )}
       {!isHistoryMode && <SearchReplace editor={editor} />}
-      {!isHistoryMode && <GoToPage onGoToPage={handleGoToPage} />}
+      {!isHistoryMode && <GoToPage editor={editor} onGoToPage={handleGoToPage} />}
       <ZoomPanel />
       {!isHistoryMode && pickerState.visible && (
         <ElementPicker
@@ -5586,6 +5590,16 @@ const ScreenplayEditor: React.FC = () => {
       )}
       {!isHistoryMode && formatPanelOpen && editor && (
         <FormatPanel editor={editor} onClose={() => setFormatPanelOpen(false)} />
+      )}
+      {!isHistoryMode && bookmarkEditing && editor && (
+        <BookmarkDialog
+          key={`${bookmarkEditing.pos}:${bookmarkEditing.name}`}
+          editor={editor}
+          pos={bookmarkEditing.pos}
+          initialName={bookmarkEditing.name}
+          isNew={bookmarkEditing.isNew}
+          onClose={() => setBookmarkEditing(null)}
+        />
       )}
       {!isHistoryMode && spellModalOpen && editor && (
         <SpellCheckModal

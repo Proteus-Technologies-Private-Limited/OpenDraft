@@ -902,6 +902,9 @@ interface EditorState {
   toggleCharacterProfiles: () => void;
   selectedCharacter: string | null;
   setSelectedCharacter: (name: string | null) => void;
+  /** The bookmark being added or renamed: the element's position and the name shown. */
+  bookmarkEditing: { pos: number; name: string; isNew: boolean } | null;
+  setBookmarkEditing: (v: { pos: number; name: string; isNew: boolean } | null) => void;
 
   // Production tags
   tagCategories: TagCategory[];
@@ -1472,6 +1475,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   }),
   selectedCharacter: null,
   setSelectedCharacter: (name) => set({ selectedCharacter: name }),
+  bookmarkEditing: null,
+  setBookmarkEditing: (v) => set({ bookmarkEditing: v }),
 
   // Production tags
   tagCategories: [...DEFAULT_TAG_CATEGORIES],

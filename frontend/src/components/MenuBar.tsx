@@ -138,6 +138,7 @@ import {
   FaMousePointer,
   FaSearch,
   FaHashtag,
+  FaBookmark,
   FaSpellCheck,
   FaListOl,
   FaBold,
@@ -213,6 +214,7 @@ import type { PluginExporter } from '../plugins/registry';
 import ScriptProfileDialog from './ScriptProfileDialog';
 import { DEFAULT_SCRIPT_PROFILE } from '../utils/scriptProfile';
 import { pagesLocked } from '../editor/extensions/LockedPages';
+import { editBookmarkAtSelection } from './bookmarkActions';
 import { omitSceneTransaction, sceneOmittedAt } from '../editor/omitScene';
 
 /** What Fade In carries beyond the text: Revision Mode's colour and marks,
@@ -2662,6 +2664,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           : []),
         { icon: <FaSearch />, label: 'Find & Replace…', shortcut: `${mod}F`, action: () => setSearchOpen(true) },
         { icon: <FaHashtag />, label: 'Go to Page…', shortcut: `${mod}G`, action: () => setGoToPageOpen(true) },
+        { icon: <FaBookmark />, label: 'Add Bookmark…', action: () => { if (editor) editBookmarkAtSelection(editor); }, disabled: !editor },
         {
           icon: <FaSpellCheck />, label: 'Spelling & Grammar',
           children: [

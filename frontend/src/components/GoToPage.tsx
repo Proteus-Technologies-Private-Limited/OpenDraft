@@ -1,11 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import type { Editor } from '@tiptap/react';
 import { useEditorStore } from '../stores/editorStore';
+import { listBookmarks } from '../utils/bookmarks';
+import { goToBookmark } from './bookmarkActions';
 
 interface GoToPageProps {
+  editor: Editor | null;
   onGoToPage: (page: number) => void;
 }
 
-const GoToPage: React.FC<GoToPageProps> = ({ onGoToPage }) => {
+const GoToPage: React.FC<GoToPageProps> = ({ editor, onGoToPage }) => {
   const { goToPageOpen, setGoToPageOpen, pageCount } = useEditorStore();
   const [pageNum, setPageNum] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -39,12 +43,18 @@ const GoToPage: React.FC<GoToPageProps> = ({ onGoToPage }) => {
     }
   };
 
+  // Read when the dialog opens; the script cannot change while it is up.
+  const bookmarks = useMemo(
+    () => (goToPageOpen && editor ? listBookmarks(editor.state.doc) : []),
+    [goToPageOpen, editor],
+  );
+
   if (!goToPageOpen) return null;
 
   return (
     <div className="dialog-overlay" onClick={() => setGoToPageOpen(false)}>
       <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-header">Go to Page</div>
+        <div className="dialog-header">{bookmarks.length ? 'Go to Page or Bookmark' : 'Go to Page'}</div>
         <div className="dialog-body">
           <div className="dialog-row">
             <label>Page number (1-{pageCount}):</label>
@@ -60,6 +70,24 @@ const GoToPage: React.FC<GoToPageProps> = ({ onGoToPage }) => {
               }}
             />
           </div>
+          {bookmarks.length > 0 && editor && (
+            <div className="dialog-row goto-bookmarks">
+              <label>Or go to a bookmark:</label>
+              <ul className="goto-bookmark-list">
+                {bookmarks.map((b) => (
+                  <li key={b.pos}>
+                    <button
+                      onClick={() => { setGoToPageOpen(false); goToBookmark(editor, b.pos); }}
+                      title={b.text}
+                    >
+                      <span className="goto-bookmark-name">{b.name}</span>
+                      <span className="goto-bookmark-text">{b.text}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
         <div className="dialog-actions">
           <button onClick={() => setGoToPageOpen(false)}>Cancel</button>

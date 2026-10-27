@@ -3081,6 +3081,72 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 .revision-settings-check input { margin-top: 3px; }
 .revision-settings-error { margin: 12px 0 0; font-size: 13px; color: #dc2626; }
 
+/* ============ BOOKMARKS ============ */
+/* The flag in the left margin (editor/extensions/Bookmark). A float whose
+   negative margin outweighs its width, like the element numbers above, so it
+   takes no room from the line and the element stays unpositioned. Further out
+   than the element numbers, which end 0.15in from the text. */
+.bookmark-flag {
+  float: left;
+  width: 0.13in;
+  height: 0.16in;
+  margin-left: calc(-0.13in - 1.3in);
+  margin-top: 0.005in;
+  background: var(--fd-accent, #2563eb);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+  pointer-events: none;
+  user-select: none;
+}
+@media print { .bookmark-flag { display: none; } }
+
+.bookmark-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--fd-border);
+}
+.bookmark-item:hover { background: var(--fd-menu-hover); }
+.bookmark-item-flag {
+  flex-shrink: 0; width: 10px; height: 13px; margin-top: 2px;
+  background: var(--fd-accent, #2563eb);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+}
+.bookmark-item-info { flex: 1; min-width: 0; }
+.bookmark-item-name { font-size: 13px; font-weight: 600; color: var(--fd-text); overflow-wrap: anywhere; }
+.bookmark-item-text {
+  font-size: 12px; color: var(--fd-text-muted); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bookmark-item-type { margin-right: 6px; opacity: 0.8; }
+.bookmark-item-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .1s; }
+.bookmark-item:hover .bookmark-item-actions,
+.bookmark-item:focus-within .bookmark-item-actions { opacity: 1; }
+@media (hover: none) { .bookmark-item-actions { opacity: 1; } }
+.bookmark-item-actions button {
+  width: 24px; height: 24px; border: none; border-radius: 4px; background: transparent;
+  color: var(--fd-text-muted); cursor: pointer; font-size: 14px; line-height: 1;
+}
+.bookmark-item-actions button:hover { background: var(--fd-toolbar-hover); color: var(--fd-text); }
+
+.bookmark-dialog-error { margin: 10px 0 0; font-size: 13px; color: #dc2626; }
+.dialog-actions .bookmark-dialog-remove { margin-right: auto; color: #dc2626; }
+
+.goto-bookmarks { margin-top: 18px; }
+.goto-bookmark-list {
+  list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto;
+  border: 1px solid var(--fd-border); border-radius: 6px;
+}
+.goto-bookmark-list li + li { border-top: 1px solid var(--fd-border); }
+.goto-bookmark-list button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
+  padding: 7px 10px; background: transparent; border: none; color: var(--fd-text);
+  cursor: pointer; text-align: left; font: inherit;
+}
+.goto-bookmark-list button:hover { background: var(--fd-menu-hover); }
+.goto-bookmark-name { font-size: 13px; font-weight: 600; }
+.goto-bookmark-text {
+  font-size: 12px; color: var(--fd-text-muted); max-width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* ============ REPORTS / SIDES / SECURED PDF DIALOGS ============ */
 .reports-dialog { max-width: 1040px; width: 100%; }
 .reports-body { display: flex; gap: 16px; min-height: 0; }

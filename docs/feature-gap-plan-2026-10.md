@@ -46,7 +46,7 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 3 | **Sides & per-character printing** | FD, WD, FI, CX | Missing | M | Core |
 | 4 | **Global character rename** | FD, WD, FI, AS | Missing — Find & Replace only | S | Core |
 | 5 | **Dialogue Tuner** (one character's lines, editable in one place) | FI, FD | Missing | M | Core |
-| 6 | **Script bookmarks** | FI, FD | Missing (`bookmark` only refers to macOS file bookmarks) | S | Core |
+| 6 | **Script bookmarks** | FI, FD | ✅ Done — `editor/extensions/Bookmark.ts`, `utils/bookmarks.ts` | S | Core |
 | 7 | **Focus / typewriter mode** | FD, HL, AS, WD | Partial — *Menu & Toolbar → Hidden* exists; no typewriter scrolling, no dimming, no true full-screen | S | Core |
 | 8 | **Writing goals, sprints & progress history** | FD (Goals), WD, HL (Sprint), AS | Missing | M | Core |
 | 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | Missing | M | Core |
@@ -154,7 +154,9 @@ with scene heading context; edits write straight back to the document (same
 ProseMirror nodes, so collaboration and revision marks just work). Optional
 "show the line before" for context. Read-aloud via the existing Table Read.
 
-**7. Bookmarks** (S) — a mark/decoration with a name, a Bookmarks list in the
+**7. Bookmarks** (S) — ✅ done as a `bookmark` attribute on the element
+(`editor/extensions/Bookmark.ts`). Not yet mapped to FDX or Fountain; it rides
+in `.odraft` and backups. Original plan: a mark/decoration with a name, a Bookmarks list in the
 Navigator, `Go to Bookmark` in the Go to Page dialog; stored in the document so
 collaborators share them; exported to FDX as ScriptNotes where possible.
 
