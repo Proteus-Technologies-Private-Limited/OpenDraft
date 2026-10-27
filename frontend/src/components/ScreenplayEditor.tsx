@@ -106,6 +106,7 @@ import { ELEMENT_MENU_EVENT } from '../utils/elementMenu';
 import { matchesShortcut } from '../utils/shortcuts';
 import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { Grammar, grammarPluginKey } from '../editor/extensions/Grammar';
+import { TamilTransliteration } from '../editor/extensions/TamilTransliteration';
 import { spellChecker, BUILTIN_LANGUAGE } from '../editor/spellchecker';
 import { grammarIgnore } from '../editor/grammar/grammarIgnore';
 import { buildSaveContent as buildSaveContentShared, stripSaveMetadata } from '../utils/saveContent';
@@ -1971,6 +1972,7 @@ const ScreenplayEditor: React.FC = () => {
       ...(isHistoryMode ? [] : [EnforceGuardExtension, EnterHandlerExtension, TabHandlerExtension, ElementShortcutExtension, PasteFountainExtension]),
       SpellCheck,
       Grammar,
+      TamilTransliteration,
       ...pluginRegistry.getEditorExtensions(),
     ],
     // In collab mode, pass fetched content so TipTap seeds the Yjs doc on first connect.

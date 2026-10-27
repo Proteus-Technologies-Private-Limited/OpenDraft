@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/react';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useEditorStore, ELEMENT_LABELS, type BuiltInElementType } from '../stores/editorStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useLinkedFileStore } from '../stores/linkedFileStore';
@@ -7,6 +7,7 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { activeTimingOptions, computeSceneTiming, formatRuntime } from '../utils/scriptTiming';
 import { computeScriptStructure } from '../utils/scriptStructure';
 import { DEFAULT_PACING, pacingOption } from '../utils/scriptProfile';
+import TamilKeyboardModal from './TamilKeyboardModal';
 
 const SAVE_STATUS_DISPLAY: Record<string, { label: string; className: string }> = {
   idle: { label: '', className: '' },
@@ -35,6 +36,8 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
     sceneHeadingSpaceBefore,
     scriptProfile,
     setScriptProfileOpen,
+    tamilTypingEnabled,
+    toggleTamilTyping,
   } = useEditorStore();
   // Locked pages read by their label ("Page 12A"), which is what the writer
   // will be asked for by the production.
@@ -101,6 +104,8 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
       return '';
     }
   }, [editorDoc]);
+
+  const [showTamilKeyboard, setShowTamilKeyboard] = useState(false);
 
   return (
     <div className="status-bar">
@@ -175,12 +180,83 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
             Rev: {revisionColor}
           </span>
         )}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+          <button
+            type="button"
+            className={`status-item status-language-toggle${tamilTypingEnabled ? ' active' : ''}`}
+            title={`Tamil Typing (Ctrl+M / Cmd+M) — ${tamilTypingEnabled ? 'Enabled' : 'Disabled'}`}
+            onClick={toggleTamilTyping}
+            style={{
+              background: tamilTypingEnabled ? 'rgba(74, 222, 128, 0.15)' : 'transparent',
+              color: tamilTypingEnabled ? '#4ade80' : 'var(--fd-text-muted)',
+              border: tamilTypingEnabled ? '1px solid rgba(74, 222, 128, 0.4)' : '1px solid transparent',
+              borderRadius: '3px',
+              padding: '1px 6px',
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontWeight: tamilTypingEnabled ? 600 : 400,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <span>{tamilTypingEnabled ? 'தமிழ் (TA)' : 'EN'}</span>
+          </button>
+          {tamilTypingEnabled && (
+            <button
+              type="button"
+              className="status-item status-tamil-keyboard-btn"
+              title="Tamil Keyboard / Transliteration Reference (Scrite reference)"
+              onClick={() => setShowTamilKeyboard(true)}
+              style={{
+                background: showTamilKeyboard ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                color: showTamilKeyboard ? '#38bdf8' : '#e2e8f0',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: '3px',
+                padding: '1px 5px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+              }}
+              aria-label="Open Tamil Keyboard Reference"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="2" y="4" width="20" height="16" rx="2" ry="2" />
+                <line x1="6" y1="8" x2="6.01" y2="8" />
+                <line x1="10" y1="8" x2="10.01" y2="8" />
+                <line x1="14" y1="8" x2="14.01" y2="8" />
+                <line x1="18" y1="8" x2="18.01" y2="8" />
+                <line x1="6" y1="12" x2="6.01" y2="12" />
+                <line x1="10" y1="12" x2="10.01" y2="12" />
+                <line x1="14" y1="12" x2="14.01" y2="12" />
+                <line x1="18" y1="12" x2="18.01" y2="12" />
+                <line x1="7" y1="16" x2="17" y2="16" />
+              </svg>
+            </button>
+          )}
+        </div>
         <span className="status-item status-page">
           {currentLabel
             ? <>Page {currentLabel} <span className="status-locked" title="Pages are locked">(locked)</span></>
             : <>Page {currentPage} of {pageCount}</>}
         </span>
       </div>
+      <TamilKeyboardModal
+        isOpen={showTamilKeyboard && tamilTypingEnabled}
+        onClose={() => setShowTamilKeyboard(false)}
+      />
     </div>
   );
 };

@@ -26,3 +26,4 @@ export { AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage
 export { cueFromDecorations, avCuePluginKey } from './AvBlock';
 export { AV_ASPECT_RATIOS, AV_DEFAULT_COLUMNS, aspectRatioCss, clampColumnWidth, readColumnConfig, gridTemplateFor, avColumnDataCount, avBlockAtSelection } from './AvBlock';
 export type { AvAspectRatio, AvColumnConfig } from './AvBlock';
+export { TamilTransliteration, tamilTransliterationPluginKey } from './TamilTransliteration';

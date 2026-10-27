@@ -973,6 +973,11 @@ interface EditorState {
   spellModalOpen: boolean;
   setSpellModalOpen: (open: boolean) => void;
 
+  // Indic / Tamil Transliteration typing mode
+  tamilTypingEnabled: boolean;
+  toggleTamilTyping: () => void;
+  setTamilTypingEnabled: (v: boolean) => void;
+
   // Grammar / writing suggestions
   grammarCheckEnabled: boolean;
   toggleGrammarCheck: () => void;
@@ -1554,7 +1559,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   zoomPanelOpen: false,
   setZoomPanelOpen: (open) => set({ zoomPanelOpen: open }),
 
-  fontFamily: 'Courier Prime',
+  fontFamily: 'Courier Final Draft',
   setFontFamily: (font) => set({ fontFamily: font }),
   fontSize: 12,
   setFontSize: (size) => set({ fontSize: Math.min(24, Math.max(8, size)) }),
@@ -1590,6 +1595,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSpellCheckEnabled: (v) => set({ spellCheckEnabled: v }),
   spellModalOpen: false,
   setSpellModalOpen: (open) => set({ spellModalOpen: open }),
+
+  tamilTypingEnabled: false,
+  toggleTamilTyping: () => set((s) => ({ tamilTypingEnabled: !s.tamilTypingEnabled })),
+  setTamilTypingEnabled: (v) => set({ tamilTypingEnabled: v }),
 
   grammarCheckEnabled: false,
   toggleGrammarCheck: () => set((s) => ({ grammarCheckEnabled: !s.grammarCheckEnabled })),

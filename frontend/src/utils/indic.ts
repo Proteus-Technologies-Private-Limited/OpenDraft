@@ -325,18 +325,27 @@ export function reorderIndic(text: string, script: IndicScript): string {
       continue;
     }
 
+    const firstConsonant = chars[start];
     i++;
     if (script.nukta !== undefined && i < chars.length && chars[i] === script.nukta) i++;
 
     // Consonants strung together by viramas are one syllable, however many.
+    // In Tamil, consonants with pulli (virama) are independent pure consonants (மெய்யெழுத்து),
+    // and do not form conjunct ligatures with subsequent consonants, except for the Grantha
+    // conjunct க்ஷ (k + virama + ssa: 0x0b95 + 0x0bcd + 0x0bb7). Other consonant+virama
+    // sequences should end the syllable immediately so pre-base signs (like ை in ண்ணை)
+    // belong to their own consonant, not the preceding dead consonant.
     while (i < chars.length && chars[i] === script.virama) {
       let next = i + 1;
       if (next < chars.length && (chars[next] === ZWJ || chars[next] === ZWNJ)) next++;
-      if (next < chars.length && isConsonant(chars[next])) {
+      const isTamilConjunct = script.name === 'Tamil'
+        ? (firstConsonant === 0x0b95 && next < chars.length && chars[next] === 0x0bb7)
+        : true;
+      if (next < chars.length && isConsonant(chars[next]) && isTamilConjunct) {
         i = next + 1;
         if (script.nukta !== undefined && i < chars.length && chars[i] === script.nukta) i++;
       } else {
-        i++; // a virama with no consonant after it still belongs to this syllable
+        i++; // a virama with no consonant after it (or a Tamil non-conjunct) still belongs to this syllable
         break;
       }
     }

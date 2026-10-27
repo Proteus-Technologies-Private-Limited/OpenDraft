@@ -118,10 +118,10 @@ export const FONT_REGISTRY: FontEntry[] = [
   // ── Screenplay Standard ───────────────────────────────────────────────────
   // Courier 12pt is what a screenplay is. Courier Prime is bundled so it is
   // the one face that renders identically on every platform, online or not.
+  bundled('Courier Final Draft', 'Screenplay Standard', 'monospace'),
   bundled('Courier Prime', 'Screenplay Standard', 'monospace'),
   os('Courier New', 'Screenplay Standard', 'monospace'),
   os('Courier', 'Screenplay Standard', 'monospace'),
-  os('Courier Final Draft', 'Screenplay Standard', 'monospace'),
   os('Courier Screenplay', 'Screenplay Standard', 'monospace'),
   os('Arial', 'Screenplay Standard', 'sans-serif'),
 
@@ -441,7 +441,7 @@ export function loadFonts(names: Iterable<string | null | undefined>): void {
  * had the font still reads correctly on one that doesn't.
  */
 const GENERIC_FALLBACKS: Record<FontGeneric, string[]> = {
-  monospace: ["'Courier Prime'", "'Courier New'", 'Courier', 'monospace'],
+  monospace: ["'Courier Final Draft'", "'Courier Prime'", "'Courier New'", 'Courier', 'monospace'],
   serif: ["'Times New Roman'", 'Times', 'serif'],
   'sans-serif': ['Arial', 'Helvetica', 'sans-serif'],
   cursive: ["'Segoe Script'", "'Bradley Hand'", 'cursive'],

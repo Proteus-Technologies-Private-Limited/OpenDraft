@@ -21,7 +21,7 @@ describe('font registry', () => {
     for (const name of alwaysAvailable) {
       const entry = FONT_REGISTRY.find((f) => f.name === name);
       expect(entry, name).toBeDefined();
-      if (name === 'Courier Prime') continue; // bundled with the app
+      if (name === 'Courier Prime' || name === 'Courier Final Draft') continue; // bundled with the app
       expect(entry!.source, name).toBe('system');
     }
   });
@@ -94,7 +94,7 @@ describe('fontStack', () => {
   // What carries a font choice to a machine that hasn't got the font: the name
   // first, then fallbacks of the same kind — never Courier for everything.
   it('falls back to Courier for a screenplay face', () => {
-    expect(fontStack('Courier Prime')).toBe("'Courier Prime', 'Courier New', Courier, monospace");
+    expect(fontStack('Courier Prime')).toBe("'Courier Prime', 'Courier Final Draft', 'Courier New', Courier, monospace");
   });
 
   it('falls back to a serif for a serif, not to Courier', () => {
@@ -110,7 +110,7 @@ describe('fontStack', () => {
   });
 
   it('treats an unknown family as a screenplay font, as OpenDraft always has', () => {
-    expect(fontStack('Some Unknown Face')).toBe("'Some Unknown Face', 'Courier Prime', 'Courier New', Courier, monospace");
+    expect(fontStack('Some Unknown Face')).toBe("'Some Unknown Face', 'Courier Final Draft', 'Courier Prime', 'Courier New', Courier, monospace");
   });
 
   it('classifies an unknown name by what it looks like', () => {
@@ -121,7 +121,7 @@ describe('fontStack', () => {
   });
 
   it('gives the document font a stack when nothing is set', () => {
-    expect(fontStack('')).toBe("'Courier Prime', 'Courier New', Courier, monospace");
+    expect(fontStack('')).toBe("'Courier Final Draft', 'Courier Prime', 'Courier New', Courier, monospace");
     expect(fontStack(null)).toContain('monospace');
   });
 

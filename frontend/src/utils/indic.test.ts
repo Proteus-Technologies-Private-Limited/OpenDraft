@@ -46,6 +46,13 @@ describe('pre-base vowel signs move ahead of their consonant', () => {
     expect(points(reorderIndic('க்ஷெ', TAMIL)))
       .toEqual(['0bc6', '0b95', '0bcd', '0bb7']);
   });
+
+  it('keeps Tamil pure dead consonants intact before a syllable with pre-base matra', () => {
+    // செ (ெ + ச) + ண் (ண + ்) + ணை (ை + ண)
+    // ெ (0bc6), ச (0b9a), ண (0ba3), ் (0bcd), ை (0bc8), ண (0ba3)
+    expect(points(reorderIndic('செண்ணை', TAMIL)))
+      .toEqual(['0bc6', '0b9a', '0ba3', '0bcd', '0bc8', '0ba3']);
+  });
 });
 
 describe('scripts whose signs are never drawn to the left', () => {

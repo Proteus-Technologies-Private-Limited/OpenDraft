@@ -24,6 +24,20 @@
   font-style: italic;
 }
 
+/* Courier Final Draft Regular-Powerline */
+@font-face {
+  font-family: 'Courier Final Draft';
+  src: url('/fonts/CourierFinalDraft-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Courier Final Draft for Powerline';
+  src: url('/fonts/CourierFinalDraft-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 /* ============================================
    OpenDraft — Final Draft Exact Layout
    ============================================
@@ -2209,6 +2223,14 @@ body {
      the odd one out, showing one overflowing line where it counted three. */
   overflow-wrap: break-word;
   word-break: break-word;
+}
+
+/* Tamil script rendering: Tamil should always be rendered at 11pt */
+.screenplay-element:lang(ta),
+.screenplay-element[lang="ta"],
+.screenplay-content :lang(ta),
+.screenplay-content [lang="ta"] {
+  font-size: 11pt;
 }
 
 /* Scene Heading: FDX SpaceBefore=24pt (2 lines) — the Final Draft Screenplay
