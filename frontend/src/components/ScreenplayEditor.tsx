@@ -104,6 +104,7 @@ const NO_ENDNOTE_PAGES: EndnotePage[] = [];
 import { HANDWRITING_EVENT } from '../utils/handwriting';
 import { ELEMENT_MENU_EVENT } from '../utils/elementMenu';
 import { matchesShortcut } from '../utils/shortcuts';
+import { insertMacro, macroForEvent } from './macroActions';
 import { SpellCheck, spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { Grammar, grammarPluginKey } from '../editor/extensions/Grammar';
 import { spellChecker, BUILTIN_LANGUAGE } from '../editor/spellchecker';
@@ -3980,6 +3981,21 @@ const ScreenplayEditor: React.FC = () => {
       window.removeEventListener(ELEMENT_MENU_EVENT, onRequest);
       document.removeEventListener('keydown', onKey);
     };
+  }, [editor]);
+
+  // Macro shortcuts (Settings → Macros). Same rules as the element menu
+  // shortcut above, and a key the editor has already handled — bold, an
+  // element shortcut — keeps its own meaning.
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || !editor?.isFocused || !editor.isEditable) return;
+      const macro = macroForEvent(e, useSettingsStore.getState().macros);
+      if (!macro) return;
+      e.preventDefault();
+      insertMacro(editor, macro);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [editor]);
 
   // Bridge: let the AvKeymap extension surface the same element picker,

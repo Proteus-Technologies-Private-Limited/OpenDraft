@@ -246,6 +246,7 @@
 
     // Keyboard Shortcuts
     { page: 'Keyboard Shortcuts', title: 'Keyboard Shortcuts', section: '', text: 'Quick reference all keyboard shortcuts. Speed up workflow.', url: 'keyboard-shortcuts.html' },
+    { page: 'Keyboard Shortcuts', title: 'Macros', section: 'Macros', text: 'Macros text snippets CONTINUOUS LATER recurring location. Insert Macro Edit menu. Shortcut. Insert as element type character scene heading. Settings Macros manage export import JSON.', url: 'keyboard-shortcuts.html#macros' },
     { page: 'Keyboard Shortcuts', title: 'File Shortcuts', section: 'File', text: 'Cmd N new screenplay. Cmd S save. Cmd P export PDF print.', url: 'keyboard-shortcuts.html#file' },
     { page: 'Keyboard Shortcuts', title: 'Edit Shortcuts', section: 'Edit', text: 'Cmd Z undo. Shift Cmd Z redo. Cmd A select all. Cmd F find replace. Cmd G go to page.', url: 'keyboard-shortcuts.html#edit' },
     { page: 'Keyboard Shortcuts', title: 'Formatting Shortcuts', section: 'Formatting', text: 'Cmd B bold. Cmd I italic. Cmd U underline.', url: 'keyboard-shortcuts.html#formatting-shortcuts' },

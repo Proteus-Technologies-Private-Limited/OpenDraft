@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { parseShortcut } from '../utils/shortcuts';
 import { DEFAULT_ELEMENT_MENU_SHORTCUT } from '../utils/elementMenu';
+import { normalizeMacros, type Macro } from '../utils/macros';
 
 export interface CollabUser {
   id: string;
@@ -136,6 +137,9 @@ interface SettingsState {
    */
   elementMenuShortcut: string;
   setElementMenuShortcut: (spec: string) => void;
+  /** The writer's macros (utils/macros), in menu order. Per device, not per script. */
+  macros: Macro[];
+  setMacros: (macros: Macro[]) => void;
   /**
    * Whether File → Print prints the exported PDF rather than the page.
    *
@@ -177,6 +181,7 @@ const STORAGE_KEY_DEFAULT_FILE_FORMAT = 'opendraft:defaultFileFormat';
 const STORAGE_KEY_ELEMENT_MENU_ON_ENTER = 'opendraft:elementMenuOnEnter';
 const STORAGE_KEY_PRINT_VIA_PDF = 'opendraft:printViaPdf';
 const STORAGE_KEY_ELEMENT_MENU_SHORTCUT = 'opendraft:elementMenuShortcut';
+const STORAGE_KEY_MACROS = 'opendraft:macros';
 
 export const BACKUP_INTERVAL_OPTIONS = [5, 10, 15, 30, 60] as const;
 /** 0 means "keep every snapshot". */
@@ -213,6 +218,15 @@ function loadElementMenuShortcut(): string {
     return raw && parseShortcut(raw) ? raw : '';
   } catch {
     return DEFAULT_ELEMENT_MENU_SHORTCUT;
+  }
+}
+
+function loadMacros(): Macro[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_MACROS);
+    return raw ? normalizeMacros(JSON.parse(raw)) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -430,6 +444,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const clean = spec && parseShortcut(spec) ? spec : '';
     try { localStorage.setItem(STORAGE_KEY_ELEMENT_MENU_SHORTCUT, clean); } catch { /* ignore */ }
     set({ elementMenuShortcut: clean });
+  },
+
+  macros: loadMacros(),
+  setMacros: (macros) => {
+    const clean = normalizeMacros(macros);
+    try { localStorage.setItem(STORAGE_KEY_MACROS, JSON.stringify(clean)); } catch { /* ignore */ }
+    set({ macros: clean });
   },
 }));
 

@@ -10,7 +10,9 @@ import { getDeviceId } from '../services/deviceId';
 import BackupSettingsSection from './BackupSettingsSection';
 import SaveSettingsSection from './SaveSettingsSection';
 import VoiceProviderSettings from './VoiceProviderSettings';
-import { formatShortcut, isMacPlatform, shortcutFromEvent } from '../utils/shortcuts';
+import { isMacPlatform } from '../utils/shortcuts';
+import ShortcutField from './ShortcutField';
+import MacroSettingsSection from './MacroSettingsSection';
 import { printRoute, isTauri as isTauriApp } from '../services/platform';
 import Select from './Select';
 
@@ -24,66 +26,6 @@ const EXPIRY_OPTIONS = [
   { label: '7 days', hours: 168 },
   { label: '30 days', hours: 720 },
 ];
-
-/**
- * Records a keyboard shortcut by listening for one.
- *
- * Click it, press the keys, done — the same gesture every application uses for
- * this, and the only one that does not ask a writer to know that Option is
- * spelled `Alt` in the file. What it shows back is the platform's own
- * spelling: ⌥↩ on a Mac, Alt+Enter elsewhere.
- */
-const ShortcutField: React.FC<{
-  id: string;
-  value: string;
-  onChange: (spec: string) => void;
-}> = ({ id, value, onChange }) => {
-  const [listening, setListening] = useState(false);
-
-  useEffect(() => {
-    if (!listening) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setListening(false); return; }
-      // Swallow everything while listening, so a half-pressed combination
-      // cannot trigger whatever it would normally do.
-      e.preventDefault();
-      e.stopPropagation();
-      const spec = shortcutFromEvent(e);
-      // A bare modifier on the way to a combination: keep waiting for the rest.
-      if (!spec) return;
-      onChange(spec);
-      setListening(false);
-    };
-    document.addEventListener('keydown', onKey, true);
-    return () => document.removeEventListener('keydown', onKey, true);
-  }, [listening, onChange]);
-
-  const label = listening
-    ? 'Press the keys\u2026'
-    : (formatShortcut(value) || 'None');
-
-  return (
-    <span className="shortcut-field">
-      <button
-        id={id}
-        type="button"
-        className={`dialog-input shortcut-capture${listening ? ' is-listening' : ''}`}
-        onClick={() => setListening((on) => !on)}
-        aria-live="polite"
-      >
-        {label}
-      </button>
-      <button
-        type="button"
-        className="shortcut-clear"
-        onClick={() => { setListening(false); onChange(''); }}
-        disabled={!value && !listening}
-      >
-        Clear
-      </button>
-    </span>
-  );
-};
 
 const SettingsPage: React.FC = () => {
   const goBack = useGoBack();
@@ -1275,6 +1217,8 @@ const SettingsPage: React.FC = () => {
             </div>
           </div>
         </section>
+
+        <MacroSettingsSection />
 
         {/* ── Invite Defaults ── */}
         <section className="settings-section">

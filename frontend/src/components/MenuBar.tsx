@@ -13,6 +13,8 @@ import { isInAvRow, isInAvCell, avCellSideAt, avRowContext, readColumnConfig, av
 import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 import { chooseAvFrameImage } from '../utils/avFrame';
 import { formatShortcut } from '../utils/shortcuts';
+import { macroLabel } from '../utils/macros';
+import { insertMacro } from './macroActions';
 import { showToast } from './Toast';
 import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
@@ -138,6 +140,7 @@ import {
   FaMousePointer,
   FaSearch,
   FaHashtag,
+  FaKeyboard,
   FaSpellCheck,
   FaListOl,
   FaBold,
@@ -289,6 +292,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // Written the way this platform writes it, from whatever the writer set.
   const elementMenuShortcut = useSettingsStore((s) => s.elementMenuShortcut);
   const printViaPdf = useSettingsStore((s) => s.printViaPdf);
+  const macros = useSettingsStore((s) => s.macros);
   const tableReadOpen = useTableReadStore((s) => s.open);
   const {
     navigatorOpen,
@@ -524,6 +528,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
   );
   const goToSettings = useCallback(
     () => { void leaveEditor(() => navigate('/settings')); },
+    [leaveEditor, navigate],
+  );
+  const goToMacroSettings = useCallback(
+    () => { void leaveEditor(() => navigate('/settings#macros')); },
     [leaveEditor, navigate],
   );
 
@@ -2662,6 +2670,19 @@ const MenuBar: React.FC<MenuBarProps> = ({
           : []),
         { icon: <FaSearch />, label: 'Find & Replace…', shortcut: `${mod}F`, action: () => setSearchOpen(true) },
         { icon: <FaHashtag />, label: 'Go to Page…', shortcut: `${mod}G`, action: () => setGoToPageOpen(true) },
+        {
+          icon: <FaKeyboard />, label: 'Insert Macro',
+          children: [
+            ...macros.map((m) => ({
+              label: macroLabel(m),
+              shortcut: m.shortcut ? formatShortcut(m.shortcut) : undefined,
+              action: () => { if (editor) insertMacro(editor, m); },
+              disabled: !editor || !m.text,
+            })),
+            ...(macros.length ? [{ separator: true, label: '' }] : []),
+            { label: 'Manage Macros…', action: goToMacroSettings },
+          ],
+        },
         {
           icon: <FaSpellCheck />, label: 'Spelling & Grammar',
           children: [

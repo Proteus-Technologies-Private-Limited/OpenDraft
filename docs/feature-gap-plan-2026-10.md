@@ -50,7 +50,7 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 7 | **Focus / typewriter mode** | FD, HL, AS, WD | Partial — *Menu & Toolbar → Hidden* exists; no typewriter scrolling, no dimming, no true full-screen | S | Core |
 | 8 | **Writing goals, sprints & progress history** | FD (Goals), WD, HL (Sprint), AS | Missing | M | Core |
 | 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | Missing | M | Core |
-| 10 | **Macros / text snippets** | FI, FD | Missing | S | Core |
+| 10 | **Macros / text snippets** | FI, FD | ✅ Done — `utils/macros.ts`, Settings → Macros | S | Core |
 | 11 | **Exportable reports** (scene, character, location, cast, breakdown → CSV/PDF) | FD, FI, WD, CX | Partial — stats are on screen only | S | Core |
 | 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | Partial — notes have colours and @asset refs, no threads or resolve | M | Core |
 | 13 | **Story timeline / plotlines** (assign scenes to story threads, colour-coded timeline) | FD (Story Map, Structure Points), AS (Plot Board) | Missing | M | Core |
@@ -163,7 +163,8 @@ collaborators share them; exported to FDX as ScriptNotes where possible.
 a fixed height), optional dimming of all but the current element/scene. Reuses
 the Hidden toolbar mode's reveal-on-hover.
 
-**9. Macros / snippets** (S) — user-defined text with an optional element type
+**9. Macros / snippets** (S) — ✅ done (`utils/macros.ts`, `MacroSettingsSection`,
+Edit → Insert Macro). user-defined text with an optional element type
 and shortcut (via `utils/shortcuts.ts`), e.g. `CONTINUOUS`, `LATER`, a recurring
 location. Stored in settings, exportable as JSON.
 
