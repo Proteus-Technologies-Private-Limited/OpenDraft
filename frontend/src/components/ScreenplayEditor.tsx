@@ -75,6 +75,7 @@ import CharacterProfiles from './CharacterProfiles';
 import TagsPanel from './TagsPanel';
 import { PluginPanelTabs } from './PluginPanelTabs';
 import LocationDatabase from './LocationDatabase';
+import DialogueTuner from './DialogueTuner';
 import FormatPanel from './FormatPanel';
 import StatusBar from './StatusBar';
 import SearchReplace, { createSearchPlugin } from './SearchReplace';
@@ -494,7 +495,7 @@ const ScreenplayEditor: React.FC = () => {
     viewLayout,
     beatBoardOpen, statisticsOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
-    characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen,
+    characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, dialogueTunerOpen,
     spellCheckEnabled, spellModalOpen, setSpellModalOpen,
     grammarCheckEnabled, grammarModalOpen, setGrammarModalOpen,
     grammarRulesPanelOpen, setGrammarRulesPanelOpen,
@@ -567,7 +568,7 @@ const ScreenplayEditor: React.FC = () => {
     document.body.style.userSelect = 'none';
   }, [navWidth, rightPanelWidth]);
 
-  const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen || locationDatabaseOpen;
+  const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen || locationDatabaseOpen || dialogueTunerOpen;
 
   // Yjs document & provider — stable across renders while collab is active
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -5514,6 +5515,7 @@ const ScreenplayEditor: React.FC = () => {
         {!isHistoryMode && <CharacterProfiles editor={editor} projectId={currentProject?.id || ''} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
+        {!isHistoryMode && <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && (
           <PluginPanelTabs
             editor={editor}

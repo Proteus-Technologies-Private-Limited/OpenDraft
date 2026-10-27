@@ -25,6 +25,7 @@ import { applyCaseToRange, shouldUpperCase } from '../editor/caseTransform';
 import { TextSelection } from '@tiptap/pm/state';
 import { isAvCellPos } from '../editor/extensions/AvBlock';
 import { REVISION_COLORS } from '../editor/revisionColors';
+import { speakerAt } from '../utils/dialogueTuner';
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -823,6 +824,14 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           onClose();
         }}>
           <span>Character Profile...</span>
+        </div>
+      )}
+      {showCharProfile && speakerAt(editor.state.doc, safeSelFrom) && (
+        <div className="ctx-item" onClick={() => {
+          useEditorStore.getState().openDialogueTuner(speakerAt(editor.state.doc, safeSelFrom));
+          onClose();
+        }}>
+          <span>Dialogue Tuner...</span>
         </div>
       )}
       {showDualDialogue && (

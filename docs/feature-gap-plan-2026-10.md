@@ -45,7 +45,7 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 2 | **Watermarked / password-protected PDF** | FD, WD, FI | Missing (no hits for `watermark`) | S | Core |
 | 3 | **Sides & per-character printing** | FD, WD, FI, CX | Missing | M | Core |
 | 4 | **Global character rename** | FD, WD, FI, AS | Missing — Find & Replace only | S | Core |
-| 5 | **Dialogue Tuner** (one character's lines, editable in one place) | FI, FD | Missing | M | Core |
+| 5 | **Dialogue Tuner** (one character's lines, editable in one place) | FI, FD | ✅ Done — `utils/dialogueTuner.ts`, `DialogueTuner` panel | M | Core |
 | 6 | **Script bookmarks** | FI, FD | Missing (`bookmark` only refers to macOS file bookmarks) | S | Core |
 | 7 | **Focus / typewriter mode** | FD, HL, AS, WD | Partial — *Menu & Toolbar → Hidden* exists; no typewriter scrolling, no dimming, no true full-screen | S | Core |
 | 8 | **Writing goals, sprints & progress history** | FD (Goals), WD, HL (Sprint), AS | Missing | M | Core |
@@ -149,7 +149,7 @@ on a cue: updates cues (keeping extensions like `(V.O.)`, `(CONT'D)`), the
 character profile, tags, table-read voice assignment, and offers
 "also replace in action/dialogue" as a reviewed list. One undo step.
 
-**6. Dialogue Tuner** (M) — panel listing every line of one character in order,
+**6. Dialogue Tuner** (M) — ✅ done (`utils/dialogueTuner.ts`, `DialogueTuner.tsx`). panel listing every line of one character in order,
 with scene heading context; edits write straight back to the document (same
 ProseMirror nodes, so collaboration and revision marks just work). Optional
 "show the line before" for context. Read-aloud via the existing Table Read.

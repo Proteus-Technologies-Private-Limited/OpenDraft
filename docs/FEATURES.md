@@ -15,6 +15,7 @@ A complete list of features in OpenDraft.
 
 - **Beat Board & Index Cards** -- Visual story planning with drag-and-drop scene organization
 - **Character Profiles** -- Track characters with role types, highlight colors, and rich descriptions
+- **Dialogue Tuner** -- Every line one character speaks, in order and with the line before for context, editable in place and playable in Table Read
 - **Casting / Reference Images** -- Attach headshots or reference images to characters
 - **Table Read** -- Hear the script read aloud with a voice per character and a live, word-by-word preview; device voices, free on-device Kokoro, or Gemini, OpenAI, ElevenLabs, Azure or your own speech server
 
