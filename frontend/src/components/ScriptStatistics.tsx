@@ -16,6 +16,7 @@ import {
   AreaChart, Area,
 } from 'recharts';
 import '../styles/statistics.css';
+import WritingHeatmap from './WritingHeatmap';
 
 interface Props {
   editor: Editor;
@@ -82,6 +83,8 @@ const ScriptStatistics: React.FC<Props> = ({ editor }) => {
         </div>
 
         {/* B. Dialogue Distribution */}
+        <WritingHeatmap />
+
         <div className="stats-section">
           <h3 className="stats-section-title">Dialogue Distribution</h3>
           <div className="stats-dialogue-chart">

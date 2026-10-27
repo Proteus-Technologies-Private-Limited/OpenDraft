@@ -56,6 +56,7 @@ import { useNavigate } from 'react-router-dom';
 import { flushPendingSave, setLeaveGuard, leaveEditor as leaveEditorScreen } from '../services/pendingSave';
 import { scriptApi } from '../services/scriptApi';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useWritingGoalsStore } from '../stores/writingGoalsStore';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { clearSessionDoc } from '../utils/sessionDoc';
 import { buildSaveContent as buildSaveContentShared } from '../utils/saveContent';
@@ -138,6 +139,7 @@ import {
   FaMousePointer,
   FaSearch,
   FaHashtag,
+  FaBullseye,
   FaSpellCheck,
   FaListOl,
   FaBold,
@@ -2982,6 +2984,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
             if (activeEngineKind(vs) === 'ai' && !isAiProviderConfigured(vs)) tr.setNeedsProvider(true);
           },
           disabled: !editor,
+        },
+        {
+          icon: <FaBullseye />, label: 'Writing Goals & Sprints\u2026',
+          action: () => useWritingGoalsStore.getState().setDialogOpen(true),
         },
         {
           icon: <FaStream />, label: 'Analytics',

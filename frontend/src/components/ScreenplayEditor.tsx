@@ -75,6 +75,9 @@ import CharacterProfiles from './CharacterProfiles';
 import TagsPanel from './TagsPanel';
 import { PluginPanelTabs } from './PluginPanelTabs';
 import LocationDatabase from './LocationDatabase';
+import WritingGoalsDialog from './WritingGoalsDialog';
+import { useWritingGoalsStore } from '../stores/writingGoalsStore';
+import { useWritingTracker } from '../hooks/useWritingTracker';
 import FormatPanel from './FormatPanel';
 import StatusBar from './StatusBar';
 import SearchReplace, { createSearchPlugin } from './SearchReplace';
@@ -2091,6 +2094,10 @@ const ScreenplayEditor: React.FC = () => {
       console.warn('[elementNumbers] could not refresh element numbers', err);
     }
   }, [editor, activeTemplateId, templatesLoaded, templates, sceneNumbersVisible]);
+
+  // Writing goals: count words written, run sprints (Tools → Writing Goals & Sprints).
+  useWritingTracker(editor, currentScriptId || 'unsaved', !isHistoryMode);
+  const writingGoalsOpen = useWritingGoalsStore((s) => s.dialogOpen);
 
   // ── Owner starts collaboration — save current content, create own token, switch to collab mode ──
   const handleStartCollab = useCallback(async (guestSession: import('../services/api').CollabSession) => {
@@ -5584,6 +5591,7 @@ const ScreenplayEditor: React.FC = () => {
           overrideSelection={ctxMenuState.savedSelection}
         />
       )}
+      {!isHistoryMode && writingGoalsOpen && <WritingGoalsDialog />}
       {!isHistoryMode && formatPanelOpen && editor && (
         <FormatPanel editor={editor} onClose={() => setFormatPanelOpen(false)} />
       )}
