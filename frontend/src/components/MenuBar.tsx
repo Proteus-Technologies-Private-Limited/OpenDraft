@@ -38,6 +38,7 @@ import {
   resetStoresForImport,
   importFilters,
   binaryImportExtensions,
+  isImportCancelled,
 } from '../utils/importScreenplay';
 import { trackChangesPluginKey } from '../editor/trackChanges';
 import PageSetupDialog from './PageSetupDialog';
@@ -211,6 +212,7 @@ import {
   FaUserShield,
   FaFileContract,
   FaPuzzlePiece,
+  FaLayerGroup,
 } from 'react-icons/fa';
 import { REVISION_COLORS, nextRevisionColor } from '../editor/revisionColors';
 import RevisionSettingsDialog from './RevisionSettingsDialog';
@@ -223,6 +225,21 @@ import ScriptProfileDialog from './ScriptProfileDialog';
 import { DEFAULT_SCRIPT_PROFILE } from '../utils/scriptProfile';
 import { pagesLocked } from '../editor/extensions/LockedPages';
 import { editBookmarkAtSelection } from './bookmarkActions';
+import {
+  addAlternateTransaction,
+  alternateTargetAt,
+  cycleAlternateTransaction,
+  deleteShownAlternateTransaction,
+  keepOnlyShownTransaction,
+} from '../editor/alternates';
+import {
+  addSceneAlternateTransaction,
+  cycleSceneAlternateTransaction,
+  deleteShownSceneAlternateTransaction,
+  keepOnlyShownSceneTransaction,
+  sceneAlternateTargetAt,
+} from '../editor/sceneAlternates';
+import type { EditorState, Transaction } from '@tiptap/pm/state';
 import { omitSceneTransaction, sceneOmittedAt } from '../editor/omitScene';
 
 /** What Fade In carries beyond the text: Revision Mode's colour and marks,
@@ -1405,12 +1422,41 @@ const MenuBar: React.FC<MenuBarProps> = ({
         setForeignFormatNotice({ name: opened.name, extension: ext });
       }
     } catch (err) {
+      if (isImportCancelled(err)) return;
       console.error('Opening the document failed:', err);
       showToast(`Could not open the file: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
   }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
 
   applyInPlaceRef.current = applyInPlaceDocumentImpl;
+
+  /**
+   * Run an alternates action on the line or scene at the cursor, or say why
+   * it does nothing — the menu is built once, not on every cursor move, so its
+   * items cannot grey themselves out.
+   */
+  const runAlternateAtCursor = (
+    build: (state: EditorState, pos: number) => Transaction | null,
+    kind: 'line' | 'scene',
+  ) => {
+    if (!editor) return;
+    const pos = editor.state.selection.from;
+    const tr = build(editor.state, pos);
+    if (tr) {
+      editor.view.dispatch(tr);
+      editor.commands.focus();
+      return;
+    }
+    const target = kind === 'line' ? alternateTargetAt(editor.state, pos) : sceneAlternateTargetAt(editor.state, pos);
+    showToast(
+      target
+        ? `This ${kind} has no other versions yet.`
+        : kind === 'line'
+          ? 'Put the cursor in a line of dialogue or action first.'
+          : 'Put the cursor in a scene first.',
+      'info',
+    );
+  };
 
   const handleImport = useCallback(async () => {
     if (!editor) return;
@@ -1447,6 +1493,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         for (const w of imported.warnings) console.warn('[Import]', w);
       }
     } catch (err) {
+      if (isImportCancelled(err)) return;
       console.error('Import failed:', err);
       showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
@@ -2701,6 +2748,25 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { icon: <FaHashtag />, label: 'Go to Page…', shortcut: `${mod}G`, action: () => setGoToPageOpen(true) },
         { icon: <FaBookmark />, label: 'Add Bookmark…', action: () => { if (editor) editBookmarkAtSelection(editor); }, disabled: !editor },
         {
+          // The same actions as the right-click menu's Alternates, which a
+          // touch screen never opens (ScreenplayEditor leaves the long press
+          // to text selection) — so this is how a phone or tablet reaches them.
+          icon: <FaLayerGroup />, label: 'Alternates',
+          children: [
+            { label: 'Add Alternate', action: () => runAlternateAtCursor(addAlternateTransaction, 'line'), disabled: !editor },
+            { label: 'Next Alternate', action: () => runAlternateAtCursor((st, p) => cycleAlternateTransaction(st, p, 1), 'line'), disabled: !editor },
+            { label: 'Previous Alternate', action: () => runAlternateAtCursor((st, p) => cycleAlternateTransaction(st, p, -1), 'line'), disabled: !editor },
+            { label: 'Delete This Version', action: () => runAlternateAtCursor(deleteShownAlternateTransaction, 'line'), disabled: !editor },
+            { label: 'Keep Only This Version', action: () => runAlternateAtCursor(keepOnlyShownTransaction, 'line'), disabled: !editor },
+            { separator: true, label: '' },
+            { label: 'Add Alternate Scene', action: () => runAlternateAtCursor(addSceneAlternateTransaction, 'scene'), disabled: !editor },
+            { label: 'Next Version of Scene', action: () => runAlternateAtCursor((st, p) => cycleSceneAlternateTransaction(st, p, 1), 'scene'), disabled: !editor },
+            { label: 'Previous Version of Scene', action: () => runAlternateAtCursor((st, p) => cycleSceneAlternateTransaction(st, p, -1), 'scene'), disabled: !editor },
+            { label: 'Delete This Version of Scene', action: () => runAlternateAtCursor(deleteShownSceneAlternateTransaction, 'scene'), disabled: !editor },
+            { label: 'Keep Only This Version of Scene', action: () => runAlternateAtCursor(keepOnlyShownSceneTransaction, 'scene'), disabled: !editor },
+          ],
+        },
+        {
           icon: <FaKeyboard />, label: 'Insert Macro',
           children: [
             ...macros.map((m) => ({
@@ -3720,18 +3786,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-changelog">
               <div className="about-subsection-title">v2.8.0</div>
               <ul className="about-list">
-                <li><strong>Import A PDF</strong> &mdash; Bring in a script you only have as a PDF. OpenDraft reads each line by where it sits on the page, the way you read a script yourself, and brings back scene headings, action, cues, parentheticals, dialogue, transitions, dual dialogue, scene numbers and the title page. Page numbers, (MORE) and (CONT&rsquo;D), CONTINUED lines and revision asterisks are left behind.</li>
+                <li><strong>Import A PDF</strong> &mdash; Bring in a script you only have as a PDF. OpenDraft reads each line by where it sits on the page, the way you read a script yourself, and brings back scene headings, action, cues, parentheticals, dialogue, transitions, dual dialogue, scene numbers and the title page. Page numbers, (MORE) and (CONT&rsquo;D), CONTINUED lines and revision asterisks are left behind. Before it opens, <em>Check the PDF Import</em> lists every element it read, so you can set any that came in as the wrong kind &mdash; one at a time, or a whole run at once.</li>
                 <li><strong>Watermarks And Passwords</strong> &mdash; <em>File &rarr; Export &rarr; PDF with Watermark or Password&hellip;</em> puts CONFIDENTIAL, or your own text, on every page. Type a list of names for one copy per reader, each carrying its reader&rsquo;s name, and add a password to open it or to stop printing and copying.</li>
-                <li><strong>Sides &amp; Selected Pages</strong> &mdash; Export just the scenes an actor needs, on their original pages and scene numbers, with the rest of each page crossed out. Or every page where a character speaks, every page at a location, or every page holding a production tag.</li>
+                <li><strong>Sides &amp; Selected Pages</strong> &mdash; Export just the scenes an actor needs, on their original pages and scene numbers, with the rest of each page crossed out. Or every page where a character speaks, every page at a location, or every page holding a production tag &mdash; and, if you like, two pages to a landscape sheet.</li>
                 <li><strong>Reports</strong> &mdash; <em>Tools &rarr; Analytics &rarr; Reports&hellip;</em> turns the script into tables a production can work from &mdash; Scene, Character, Location, Cast, Breakdown of tagged props and costumes, and Notes &mdash; as CSV for a spreadsheet or a scheduling program, or as PDF.</li>
                 <li><strong>Rename A Character Everywhere</strong> &mdash; Click &#x270E; on a character&rsquo;s card, or right-click a cue and choose <em>Character &rarr; Rename Character&hellip;</em>. Every cue changes and keeps its (V.O.) or (CONT&rsquo;D); the profile, relationships, tags and Table Read voice follow; mentions in action and dialogue are listed for you to tick. One Undo puts it all back.</li>
                 <li><strong>Dialogue Tuner</strong> &mdash; Everything one character says, in order, under its scene heading, with the line before for context. Edit any speech right there; it is written straight back into the script. <em>View &rarr; Panels &rarr; Dialogue Tuner</em>.</li>
-                <li><strong>Alternates</strong> &mdash; Not sure which take on a line is right? Keep them all. Right-click a line of dialogue or action and choose <em>Alternates &rarr; Add Alternate</em>, then step between versions with the chip in the margin. Only the version showing prints, exports and counts.</li>
+                <li><strong>Alternates</strong> &mdash; Not sure which take on a line is right? Keep them all. Right-click a line of dialogue or action and choose <em>Alternates &rarr; Add Alternate</em>, then step between versions with the chip in the margin. Whole scenes can have versions too: <em>Alternates &rarr; Add Alternate Scene</em>. Only the version showing prints, exports and counts, and Final Draft files OpenDraft writes keep the others.</li>
                 <li><strong>Plotlines And The Story Timeline</strong> &mdash; Name the A story, the B story and each character&rsquo;s arc, put scenes and beats in them, and see every plotline across the script with each scene as wide as its screen time. <em>View &rarr; Panels &rarr; Story Timeline&hellip;</em>.</li>
                 <li><strong>Replies, Resolve And Assign On Notes</strong> &mdash; Every note is now a conversation: reply to it, resolve it when it&rsquo;s done, hand it to a collaborator, and @mention someone. <em>For me</em> shows only the notes waiting on you.</li>
                 <li><strong>Writing Goals &amp; Sprints</strong> &mdash; Set a daily or session goal and watch the ring in the status bar fill. Run a timed sprint, with <em>No backspace</em> if you want to keep moving forward, and see what you wrote each day for the last 18 weeks in Script Statistics.</li>
                 <li><strong>Focus Mode</strong> &mdash; Full screen, nothing but the page. Typewriter scrolling holds the line you are writing at one height, and you can dim everything but the current element or scene. <em>View &rarr; Focus Mode</em>, or &#8984;&#8679;F (Ctrl+Shift+F on Windows and Linux).</li>
-                <li><strong>Bookmarks</strong> &mdash; Name any line and jump back to it from the Navigator&rsquo;s Bookmarks tab or Go to Page. Bookmarks are saved with the script and shared with collaborators.</li>
+                <li><strong>Bookmarks</strong> &mdash; Name any line and jump back to it from the Navigator&rsquo;s Bookmarks tab or Go to Page. Bookmarks are saved with the script, shared with collaborators, and kept in the Final Draft and Fountain files OpenDraft writes.</li>
                 <li><strong>Macros</strong> &mdash; Text you type often &mdash; CONTINUOUS, LATER, a location you keep returning to &mdash; inserted with your own shortcut or from <em>Edit &rarr; Insert Macro</em>, optionally as a given element. Set them up in <em>Settings &rarr; Macros</em>.</li>
                 <li><strong>Also Fixed</strong> &mdash; On a Mac, &#8984;&#8679;N adds a script note, as the menu says, instead of starting a new script, and &#8984;&#8679;F no longer opens Find &amp; Replace along with Focus Mode. The Notes panel named the scene before a note&rsquo;s own.</li>
               </ul>

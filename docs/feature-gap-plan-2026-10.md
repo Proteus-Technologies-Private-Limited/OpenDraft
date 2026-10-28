@@ -49,7 +49,7 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 6 | **Script bookmarks** | FI, FD | ✅ Done — `editor/extensions/Bookmark.ts`, `utils/bookmarks.ts` | S | Core |
 | 7 | **Focus / typewriter mode** | FD, HL, AS, WD | ✅ Done — `editor/extensions/FocusMode.ts`, View → Focus Mode | S | Core |
 | 8 | **Writing goals, sprints & progress history** | FD (Goals), WD, HL (Sprint), AS | ✅ Done — `utils/writingGoals.ts`, Tools → Writing Goals & Sprints | M | Core |
-| 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | ✅ Done for dialogue and action lines; whole scenes not yet | M | Core |
+| 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | ✅ Done — lines (`editor/alternates.ts`) and whole scenes (`editor/sceneAlternates.ts`) | M | Core |
 | 10 | **Macros / text snippets** | FI, FD | ✅ Done — `utils/macros.ts`, Settings → Macros | S | Core |
 | 11 | **Exportable reports** (scene, character, location, cast, breakdown → CSV/PDF) | FD, FI, WD, CX | Partial — stats are on screen only | S | Core |
 | 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | ✅ Done — replies, resolve, assignee, @mentions; export pending | M | Core |
@@ -100,9 +100,12 @@ appears in the menu and runs; no core behaviour changes.
 All four items shipped: PDF import (`utils/pdfImport.ts`), watermark and
 password export (`PdfSecurityDialog`), sides and selected pages
 (`SidesDialog`, `utils/pageSelection.ts`), and reports (`ReportsDialog`,
-`utils/scriptReports.ts`). Not yet done from the descriptions below: the import
-preview for bulk re-assigning lines, the 2-up sides layout, and *Print → only
-pages with* (the same selection is available as a PDF export).
+`utils/scriptReports.ts`). Since then: the import review for re-assigning lines
+in bulk (`components/PdfImportReviewDialog.tsx`, `utils/pdfImportReview.ts`) and
+the 2-up sides layout (`twoUp` on `PdfPageSelection`, laid out by
+`imposeTwoUp` in `utils/pdfExporter.ts`). Not done: *Print → only pages with*
+as a print command — the same selection is a PDF export, and Print prints that
+PDF.
 
 **1. PDF import** (L)
 - Use `pdfjs-dist` to extract text runs with x/y positions per page.
@@ -156,8 +159,11 @@ ProseMirror nodes, so collaboration and revision marks just work). Optional
 "show the line before" for context. Read-aloud via the existing Table Read.
 
 **7. Bookmarks** (S) — ✅ done as a `bookmark` attribute on the element
-(`editor/extensions/Bookmark.ts`). Not yet mapped to FDX or Fountain; it rides
-in `.odraft` and backups. Original plan: a mark/decoration with a name, a Bookmarks list in the
+(`editor/extensions/Bookmark.ts`). Carried in `.odraft` and backups, in FDX as a
+`data-bookmark` attribute on the Paragraph (`openDraftParagraphAttrs` /
+`openDraftAttrsFrom`), and in Fountain as a `[[Bookmark: name]]` note on its
+line — not as a ScriptNote, which would come back as a script note rather than
+a bookmark. Original plan: a mark/decoration with a name, a Bookmarks list in the
 Navigator, `Go to Bookmark` in the Go to Page dialog; stored in the document so
 collaborators share them; exported to FDX as ScriptNotes where possible.
 
@@ -216,9 +222,17 @@ Store as a node attribute array so it rides through Yjs without new plumbing.
 use and the others sit in its `alternates` attribute, so every exporter, the
 page count and the reports see only the active version without changes. Add
 Alternate, Next / Previous, Delete This Version and Keep Only This Version are
-on the right-click menu; the margin chip steps through versions. Whole scenes
-are the remaining step. Older versions of the app drop the attribute when
-they save, keeping the active version.
+on the right-click menu; the margin chip steps through versions. Older
+versions of the app drop the attribute when they save, keeping the active
+version.
+
+✅ **Whole scenes too** (`editor/sceneAlternates.ts`): the other versions are
+the scene's top-level nodes, stored on its heading as `sceneVersions`, so the
+same "the document is the active version" rule holds. A scene is the range
+Omit Scene uses; its number, lock, plotlines, sequence, colour and bookmark
+stay with its place. Line and scene versions both ride in FDX as `data-`
+attributes on the Paragraph, so an .fdx written here keeps them; Final Draft
+shows only the active version.
 
 **13. Story timeline / plotlines** (M) — define plotlines (A-story, B-story,
 character arcs) with colours; assign scenes and beats to them; a horizontal

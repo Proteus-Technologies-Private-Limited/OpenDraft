@@ -57,6 +57,30 @@ function esc(str: string): string {
 }
 
 /**
+ * What OpenDraft keeps on an element that Final Draft has no place for: its
+ * bookmark (utils/bookmarks), the other versions of a line
+ * (editor/alternates) and of a scene (editor/sceneAlternates). They ride as
+ * `data-` attributes on the Paragraph, the way the AV columns do, so an .fdx
+ * written here and opened here again keeps them. Final Draft reads past
+ * attributes it does not know and prints only the version in the text.
+ * Exported for the parser's tests.
+ */
+export function openDraftParagraphAttrs(node: JSONContent): string[] {
+  const out: string[] = [];
+  const a = node.attrs ?? {};
+  if (typeof a.bookmark === 'string' && a.bookmark) out.push(`data-bookmark="${esc(a.bookmark)}"`);
+  if (Array.isArray(a.alternates) && a.alternates.length) {
+    out.push(`data-alternates="${esc(JSON.stringify(a.alternates))}"`);
+    if (a.alternateIndex) out.push(`data-alternate-index="${Number(a.alternateIndex) || 0}"`);
+  }
+  if (Array.isArray(a.sceneVersions) && a.sceneVersions.length) {
+    out.push(`data-scene-versions="${esc(JSON.stringify(a.sceneVersions))}"`);
+    if (a.sceneVersionIndex) out.push(`data-scene-version-index="${Number(a.sceneVersionIndex) || 0}"`);
+  }
+  return out;
+}
+
+/**
  * Build the `<HeaderAndFooter>` block from the document's own settings.
  *
  * Final Draft carries the dynamic fields as `<DynamicLabel>` elements rather
@@ -542,6 +566,7 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
       if (a) paraAttrs.push(`Alignment="${a}"`);
     }
     if (node.attrs?.startsNewPage) paraAttrs.push('StartsNewPage="Yes"');
+    paraAttrs.push(...openDraftParagraphAttrs(node));
 
     const attrStr = paraAttrs.join(' ');
 

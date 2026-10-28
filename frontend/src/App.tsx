@@ -13,6 +13,7 @@ import StorageFallbackDialog from './components/StorageFallbackDialog';
 import SaveErrorDialog from './components/SaveErrorDialog';
 import OneDriveWarningDialog from './components/OneDriveWarningDialog';
 import LinkedFileSync from './components/LinkedFileSync';
+import PdfImportReviewDialog from './components/PdfImportReviewDialog';
 import VerifyEmailRoute from './components/VerifyEmailRoute';
 import ResetPasswordRoute from './components/ResetPasswordRoute';
 import { pluginRegistry } from './plugins/registry';
@@ -59,6 +60,7 @@ function App() {
       <SaveErrorDialog />
       <OneDriveWarningDialog />
       <LinkedFileSync />
+      <PdfImportReviewDialog />
     </>
   );
 }

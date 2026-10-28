@@ -172,6 +172,7 @@ import {
   importExtensions,
   importFilters,
   binaryImportExtensions,
+  isImportCancelled,
 } from '../utils/importScreenplay';
 import { stashSessionDoc, takeSessionDoc, clearSessionDoc } from '../utils/sessionDoc';
 import SaveAsDialog from './SaveAsDialog';
@@ -4426,6 +4427,7 @@ const ScreenplayEditor: React.FC = () => {
         useEditorStore.getState().setImportedSource({ name, format: imported.formatLabel });
         for (const w of imported.warnings) console.warn('[Import]', w);
       } catch (err) {
+        if (isImportCancelled(err)) return;
         console.error('Import failed:', err);
         showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
       }
@@ -4533,6 +4535,7 @@ const ScreenplayEditor: React.FC = () => {
       // that most needs an immediate snapshot.
       useBackupStatusStore.getState().noteDocumentOpened();
     } catch (err) {
+      if (isImportCancelled(err)) return;
       const detail = err instanceof Error ? err.message : String(err);
       console.error('Failed to open external file:', filePath, detail, err);
       showToast(`Failed to open file: ${detail}`, 'error');
@@ -4673,6 +4676,7 @@ const ScreenplayEditor: React.FC = () => {
       useBackupStatusStore.getState().noteDocumentOpened();
       for (const w of imported.warnings) console.warn('[Import]', w);
     } catch (err) {
+      if (isImportCancelled(err)) return;
       console.error('Failed to import dropped file:', err);
       showToast(`Failed to import file: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }

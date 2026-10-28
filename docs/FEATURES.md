@@ -8,10 +8,10 @@ A complete list of features in OpenDraft.
 - **Character Autocomplete** -- Smart suggestions as you type character names
 - **Macros** -- Insert text you type often (CONTINUOUS, a recurring location, a character with an extension) with a shortcut or from Edit → Insert Macro, optionally as a given element; export and import them as JSON
 - **Scene Navigator** -- Jump between scenes instantly from the sidebar
-- **Bookmarks** -- Name any line and jump back to it from the Navigator or Go to Page; saved with the script and shared with collaborators
+- **Bookmarks** -- Name any line and jump back to it from the Navigator or Go to Page; saved with the script, shared with collaborators, and carried in Final Draft and Fountain files
 - **Element Numbering** -- Number any element, not only scene headings: every line of dialogue, every sound effect or shot. The format chooses which elements are numbered, what restarts each count (a scene heading, a new act, any element) and an optional prefix such as FX 1. Shown in the margin on screen, in print, PDF, Word and Final Draft
 - **Podcast format** -- Scripted podcast and audio fiction, with every line of dialogue numbered for the recording session and FX and music cues numbered on their own
-- **Alternates** -- Keep other versions of a line of dialogue or action beside it and switch between them; only the version showing prints and exports
+- **Alternates** -- Keep other versions of a line of dialogue or action, or of a whole scene, beside it and switch between them; only the version showing prints and exports, and Final Draft files keep the others
 - **Distraction-free writing** -- Clean, focused interface with minimal chrome
 - **Focus Mode** -- Full screen with panels and menus out of the way, typewriter scrolling, and optional dimming of all but the current element or scene
 - **Writing Goals & Sprints** -- Daily and session goals in words or pages with a status bar progress ring, timed sprints with an optional no-backspace mode, and a words-written-per-day calendar in Script Statistics, kept on your device only
@@ -62,7 +62,7 @@ A complete list of features in OpenDraft.
 - **Microsoft Word (.docx)** -- Import and export
 - **OpenDraft (.odraft)** -- Lossless export: the script plus its notes, tags, beats, character profiles and images
 - **Paste as Fountain** -- Paste Fountain markup straight into the script as real elements
-- **PDF** -- Export with proper screenplay formatting, and import a screenplay PDF back into editable elements
+- **PDF** -- Export with proper screenplay formatting, and import a screenplay PDF back into editable elements, checking and correcting the element types before it opens
 - **Open in place** -- Edit a `.fdx`, `.fountain`, `.fadein`, `.osf`, `.odraft` or `.txt` where it lives and save straight back to it, on desktop and mobile
 
 ## Editing Tools
@@ -74,7 +74,7 @@ A complete list of features in OpenDraft.
 
 ## Production Output
 
-- **Sides** -- Export the scenes an actor needs on their original pages, with the rest of each page crossed out
+- **Sides** -- Export the scenes an actor needs on their original pages, with the rest of each page crossed out, optionally two pages to a landscape sheet
 - **Selected Pages** -- Every page where a character speaks, every page at a location, or every page holding a tagged item
 - **Watermarked PDF** -- A watermark on every page, with one copy per recipient carrying their name
 - **Password-Protected PDF** -- A password to open the file, and printing or copying switched off

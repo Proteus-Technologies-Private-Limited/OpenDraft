@@ -4,6 +4,8 @@ import { isDocumentFont, isDocumentSize } from './fonts';
 import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
 import { DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { parseFDXRevisions, type FDXRevisionImport } from './fdxRevisions';
+import { BOOKMARKABLE_TYPES, cleanBookmarkName } from './bookmarks';
+import { ALTERNATE_TYPES } from '../editor/alternates';
 
 interface TipTapMark {
   type: string;
@@ -64,6 +66,46 @@ export const CUSTOM_TYPE_TO_FDX: Record<string, string> = {
 };
 
 /** Resolve an FDX paragraph Type to either a built-in element id or a custom-element descriptor. */
+/** A `data-` attribute holding a JSON array, or null when it is missing or is not one. */
+function jsonArrayAttr(para: Element, name: string): unknown[] | null {
+  const raw = para.getAttribute(name);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What an .fdx written by OpenDraft carries for an element beyond Final
+ * Draft's own attributes — its bookmark and the other versions of a line or a
+ * scene (see openDraftParagraphAttrs in fdxExporter). Only on the elements
+ * that can hold each; the editor checks each stored version again before it
+ * shows one, so a file edited by hand cannot break it.
+ */
+export function openDraftAttrsFrom(para: Element, nodeType: string): Record<string, unknown> {
+  const attrs: Record<string, unknown> = {};
+  const bookmark = cleanBookmarkName(para.getAttribute('data-bookmark') || '');
+  if (bookmark && (BOOKMARKABLE_TYPES as readonly string[]).includes(nodeType)) attrs.bookmark = bookmark;
+  if ((ALTERNATE_TYPES as readonly string[]).includes(nodeType)) {
+    const alternates = jsonArrayAttr(para, 'data-alternates');
+    if (alternates) {
+      attrs.alternates = alternates;
+      attrs.alternateIndex = Number(para.getAttribute('data-alternate-index')) || 0;
+    }
+  }
+  if (nodeType === 'sceneHeading') {
+    const versions = jsonArrayAttr(para, 'data-scene-versions');
+    if (versions) {
+      attrs.sceneVersions = versions;
+      attrs.sceneVersionIndex = Number(para.getAttribute('data-scene-version-index')) || 0;
+    }
+  }
+  return attrs;
+}
+
 export function resolveFdxType(fdxType: string): { kind: 'builtin'; id: string } | { kind: 'custom'; customTypeId: string; customLabel: string } | null {
   const builtIn = FDX_TYPE_MAP[fdxType];
   if (builtIn) return { kind: 'builtin', id: builtIn };
@@ -482,6 +524,8 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
 
     const spaceBefore = para.getAttribute('SpaceBefore');
     if (spaceBefore) attrs.spaceBefore = parseInt(spaceBefore, 10);
+
+    Object.assign(attrs, openDraftAttrsFrom(para, nodeType));
 
     const textElements = para.querySelectorAll(':scope > Text');
     const textNodes: TipTapNode[] = [];

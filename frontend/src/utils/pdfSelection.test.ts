@@ -14,7 +14,7 @@ if (testWindow && typeof testWindow.atob !== 'function') {
   testWindow.btoa = btoa;
 }
 
-const { renderPDF, crossOutBands, selectedSheets, pdfEncryption, watermarkFor } = await import('./pdfExporter');
+const { renderPDF, crossOutBands, selectedSheets, pdfEncryption, watermarkFor, twoUpLayout } = await import('./pdfExporter');
 const { DEFAULT_PAGE_LAYOUT } = await import('../stores/editorStore');
 const { extractPdfPages } = await import('./pdfImport');
 const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -162,6 +162,59 @@ describe('password and permissions', () => {
     const pdf = await pdfjs.getDocument({ data: bytes.slice(), password: 'hunter2' }).promise;
     const text = (await (await pdf.getPage(1)).getTextContent()).items.map((i) => ('str' in i ? i.str : '')).join(' ');
     expect(text).toContain('INT. KITCHEN - NIGHT');
+    await pdf.destroy();
+  });
+});
+
+describe('two pages to a sheet', () => {
+  it('fits two pages side by side on the same paper turned landscape', () => {
+    const { sheetWidth, sheetHeight, scale, slots } = twoUpLayout(612, 792);
+    expect([sheetWidth, sheetHeight]).toEqual([792, 612]);
+    const w = 612 * scale;
+    expect(slots[0].x).toBeGreaterThanOrEqual(0);
+    expect(slots[0].x + w).toBeLessThan(slots[1].x);
+    expect(slots[1].x + w).toBeLessThanOrEqual(792);
+    expect(slots[0].y + 792 * scale).toBeLessThanOrEqual(612);
+  });
+
+  it('puts the kept pages two to a landscape sheet, each with its own text', async () => {
+    const flat = await pagesOf({ pageSelection: { keep: () => true } });
+    const bytes = await bytesOf({ pageSelection: { keep: () => true, twoUp: true } });
+    const pdf = await pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, verbosity: 0 }).promise;
+    expect(pdf.numPages).toBe(Math.ceil(flat.length / 2));
+    const first = await pdf.getPage(1);
+    const { width, height } = first.getViewport({ scale: 1 });
+    expect(width).toBeGreaterThan(height);
+    const items = (await first.getTextContent()).items.filter((i) => 'str' in i) as unknown as Array<{ str: string; transform: number[] }>;
+    const left = items.filter((i) => i.transform[4] < width / 2).map((i) => i.str).join(' ');
+    const right = items.filter((i) => i.transform[4] >= width / 2).map((i) => i.str).join(' ');
+    expect(left).toContain('INT. KITCHEN - NIGHT');
+    expect(right).toContain('Kitchen beat');
+    expect(right).not.toContain('INT. KITCHEN - NIGHT');
+    await pdf.destroy();
+  });
+
+  it('leaves the last sheet half empty for an odd number of pages', async () => {
+    const one = await bytesOf({ pageSelection: { keep: keepScenes(script, [2]), twoUp: true } });
+    const pdf = await pdfjs.getDocument({ data: one.slice(), isEvalSupported: false, verbosity: 0 }).promise;
+    expect(pdf.numPages).toBe(1);
+    const page = await pdf.getPage(1);
+    const { width } = page.getViewport({ scale: 1 });
+    const items = (await page.getTextContent()).items.filter((i) => 'str' in i) as unknown as Array<{ str: string; transform: number[] }>;
+    expect(items.every((i) => i.transform[4] < width / 2)).toBe(true);
+    await pdf.destroy();
+  });
+
+  it('still encrypts and watermarks every page', async () => {
+    const bytes = await bytesOf({
+      pageSelection: { keep: () => true, twoUp: true },
+      security: { userPassword: 'pw' },
+      watermark: { text: 'SECRET' },
+    });
+    await expect(pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, verbosity: 0 }).promise).rejects.toThrow();
+    const pdf = await pdfjs.getDocument({ data: bytes.slice(), password: 'pw', isEvalSupported: false, verbosity: 0 }).promise;
+    const text = (await (await pdf.getPage(1)).getTextContent()).items.map((i) => ('str' in i ? i.str : '')).join(' ');
+    expect(text).toContain('SECRET');
     await pdf.destroy();
   });
 });

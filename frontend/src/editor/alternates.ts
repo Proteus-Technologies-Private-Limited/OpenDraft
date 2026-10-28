@@ -23,7 +23,7 @@ import { Fragment, type Node as PmNode } from '@tiptap/pm/model';
 import type { JSONContent } from '@tiptap/core';
 import { uuid } from '../utils/uuid';
 
-/** Elements that can hold alternates. Whole scenes are a later step. */
+/** Elements that can hold alternates. Whole scenes have their own, in editor/sceneAlternates. */
 export const ALTERNATE_TYPES = ['action', 'dialogue'] as const;
 
 export interface Alternate {

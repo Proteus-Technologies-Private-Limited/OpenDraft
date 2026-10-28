@@ -5,6 +5,7 @@ import { clampSectionLevel } from '../editor/extensions/Section';
 import { isNonPrintingType } from './nonPrinting';
 import { parseFountainRevisionNote } from './revisionExport';
 import { REVISABLE_BLOCK_TYPES } from '../editor/extensions/RevisionMark';
+import { BOOKMARKABLE_TYPES, cleanBookmarkName } from './bookmarks';
 
 interface TipTapMark {
   type: string;
@@ -187,6 +188,8 @@ function extractNotes(line: string): { text: string; notes: string[] } {
 
 /** Section heading: one or more leading hashes, e.g. `# ACT ONE`, `## Sequence`. */
 const SECTION_PATTERN = /^(#+)\s*(.*)$/;
+/** A note OpenDraft writes for a bookmark (fountainBookmarkNote in fountainExporter). */
+const BOOKMARK_NOTE = /^Bookmark:\s*(.+)$/i;
 
 /**
  * A synopsis line: a leading `=` that is not the start of a `===` page break.
@@ -307,7 +310,10 @@ export function parseFountain(text: string): TipTapNode {
   // A `===` page break applies to whatever element comes next.
   let pendingPageBreak = false;
 
-  const push = (node: TipTapNode) => {
+  /** The line each element was read from, for the notes that belong to it. */
+  const lineOf = new Map<TipTapNode, number>();
+  const push = (node: TipTapNode, line: number = i) => {
+    lineOf.set(node, line);
     // Never onto a section or a note: neither is printed, so starting a page at
     // one would move the break somewhere the reader cannot see it. The break
     // stays pending and lands on the next element that does reach the page.
@@ -328,6 +334,21 @@ export function parseFountain(text: string): TipTapNode {
     while (flushedThrough < limit) {
       flushedThrough++;
       for (const note of noteLines.get(flushedThrough) ?? []) {
+        // `[[Bookmark: Midpoint]]` is a bookmark OpenDraft wrote: it goes back
+        // onto the element it named, when that element can carry one and is
+        // not already bookmarked.
+        const bookmark = BOOKMARK_NOTE.exec(note);
+        if (bookmark) {
+          const name = cleanBookmarkName(bookmark[1]);
+          // The element read from the note's own line — not simply the last
+          // one, which after a cue is the dialogue under it.
+          const target = [...nodes].reverse().find((n) => (lineOf.get(n) ?? Infinity) <= flushedThrough);
+          if (name && target && (BOOKMARKABLE_TYPES as readonly string[]).includes(target.type) && !target.attrs?.bookmark
+            && !nodes.some((n) => typeof n.attrs?.bookmark === 'string' && n.attrs.bookmark.toLowerCase() === name.toLowerCase())) {
+            target.attrs = { ...target.attrs, bookmark: name };
+            continue;
+          }
+        }
         // `[[* Blue]]` is a revision mark OpenDraft wrote, not a note: it goes
         // back onto the element it marked (see utils/revisionExport).
         const revision = parseFountainRevisionNote(note);
@@ -814,7 +835,7 @@ function mergeDualDialogue(nodes: TipTapNode[]): TipTapNode[] {
 function collectDialogueBlock(
   lines: string[],
   i: number,
-  push: (node: TipTapNode) => void,
+  push: (node: TipTapNode, line: number) => void,
   singleSpaced = false,
 ): number {
   const first = i;
@@ -829,7 +850,7 @@ function collectDialogueBlock(
       // inside dialogue — so without this, a `.fountain` saved by OpenDraft and
       // reopened lost every line of a speech after its first break, as Action.
       if (/^[ \t]{2,}$/.test(line)) {
-        push(makeNode('dialogue', ''));
+        push(makeNode('dialogue', ''), i);
         i++;
         continue;
       }
@@ -851,20 +872,20 @@ function collectDialogueBlock(
 
     // Parenthetical
     if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
-      push(makeNode('parenthetical', trimmed));
+      push(makeNode('parenthetical', trimmed), i);
       i++;
       continue;
     }
 
     // Lyrics sung inside a dialogue block
     if (trimmed.startsWith('~')) {
-      push(makeNode('lyrics', trimmed.substring(1)));
+      push(makeNode('lyrics', trimmed.substring(1)), i);
       i++;
       continue;
     }
 
     // Dialogue
-    push(makeNode('dialogue', trimmed));
+    push(makeNode('dialogue', trimmed), i);
     i++;
   }
   return i;

@@ -8,6 +8,14 @@ import {
   deleteShownAlternateTransaction,
   keepOnlyShownTransaction,
 } from '../editor/alternates';
+import {
+  addSceneAlternateTransaction,
+  cycleSceneAlternateTransaction,
+  deleteShownSceneAlternateTransaction,
+  keepOnlyShownSceneTransaction,
+  sceneAlternateTargetAt,
+  sceneVersionsOf,
+} from '../editor/sceneAlternates';
 import type { Editor } from '@tiptap/react';
 import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorStore';
 import { useEditorStore } from '../stores/editorStore';
@@ -464,6 +472,9 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   // ── Alternates: other versions of this line (editor/alternates) ──
   const alternateTarget = alternateTargetAt(editor.state, savedSelection.current.from);
   const alternateCount = alternateTarget ? alternatesOf(alternateTarget.node).length + 1 : 0;
+  // …and of the whole scene it is in (editor/sceneAlternates).
+  const sceneTarget = sceneAlternateTargetAt(editor.state, savedSelection.current.from);
+  const sceneVersionTotal = sceneTarget ? sceneVersionsOf(sceneTarget.heading).length + 1 : 0;
   const runAlternate = (build: (state: typeof editor.state, pos: number) => Transaction | null) => {
     const tr = build(editor.state, savedSelection.current.from);
     if (tr) editor.view.dispatch(tr);
@@ -971,8 +982,9 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       )}
       <div className="ctx-separator" />
 
-      {/* Alternates submenu — on dialogue and action only */}
-      {alternateTarget && (
+      {/* Alternates submenu — the line's versions on dialogue and action, and
+          the scene's anywhere in a scene */}
+      {(alternateTarget || sceneTarget) && (
         <>
           <div
             className="ctx-has-sub-wrap"
@@ -986,10 +998,12 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
             </div>
             {openSub === 'alternates' && (
               <CtxSubmenu anchorRef={alternatesSubAnchor}>
-                <div className="ctx-item" onClick={() => runAlternate(addAlternateTransaction)}>
-                  <span>Add Alternate</span>
-                </div>
-                {alternateCount > 1 && (
+                {alternateTarget && (
+                  <div className="ctx-item" onClick={() => runAlternate(addAlternateTransaction)}>
+                    <span>Add Alternate</span>
+                  </div>
+                )}
+                {alternateTarget && alternateCount > 1 && (
                   <>
                     <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleAlternateTransaction(st, p, 1))}>
                       <span>Next Alternate</span>
@@ -1002,6 +1016,28 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
                     </div>
                     <div className="ctx-item" onClick={() => runAlternate(keepOnlyShownTransaction)}>
                       <span>Keep Only This Version</span>
+                    </div>
+                  </>
+                )}
+                {alternateTarget && sceneTarget && <div className="ctx-separator" />}
+                {sceneTarget && (
+                  <div className="ctx-item" onClick={() => runAlternate(addSceneAlternateTransaction)}>
+                    <span>Add Alternate Scene</span>
+                  </div>
+                )}
+                {sceneTarget && sceneVersionTotal > 1 && (
+                  <>
+                    <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleSceneAlternateTransaction(st, p, 1))}>
+                      <span>Next Version of Scene ({sceneVersionTotal})</span>
+                    </div>
+                    <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleSceneAlternateTransaction(st, p, -1))}>
+                      <span>Previous Version of Scene</span>
+                    </div>
+                    <div className="ctx-item" onClick={() => runAlternate(deleteShownSceneAlternateTransaction)}>
+                      <span>Delete This Version of Scene</span>
+                    </div>
+                    <div className="ctx-item" onClick={() => runAlternate(keepOnlyShownSceneTransaction)}>
+                      <span>Keep Only This Version of Scene</span>
                     </div>
                   </>
                 )}

@@ -27,6 +27,7 @@ import {
   extensionOf,
   isBinaryImportExtension,
   importAccept,
+  isImportCancelled,
 } from '../utils/importScreenplay';
 import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
@@ -1069,6 +1070,7 @@ const ProjectView: React.FC = () => {
           await fetchScripts();
           navigate(`/project/${projectId}/edit/${resp.meta.id}`, { state: { from: `/project/${projectId}` } });
         } catch (err) {
+          if (isImportCancelled(err)) return;
           console.error('Failed to import script:', err);
           showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
         }

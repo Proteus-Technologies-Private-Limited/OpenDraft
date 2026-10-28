@@ -2328,6 +2328,16 @@ body {
 }
 .alternate-chip-step:hover { color: var(--fd-text); }
 .alternate-chip-label { min-width: 22px; text-align: center; }
+/* A scene's versions (editor/sceneAlternates): the same chip on the heading,
+   but in the left margin, since the right one holds the scene number. It sits
+   between the bookmark flag, 1.3in out, and the left scene number, which can
+   reach 0.55in out for a "123A". */
+.alternate-chip--scene {
+  float: left;
+  width: 0.62in;
+  margin-right: 0;
+  margin-left: calc(-0.62in - 0.64in);
+}
 
 /* ── Revision marks (Tools → Production → Revision Mode) ──
    One asterisk in the right margin beside every line holding revised text,
@@ -3260,6 +3270,64 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 .sides-scene-number { min-width: 2.5em; color: var(--fd-text-muted); font-variant-numeric: tabular-nums; }
 .sides-scene-heading { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sides-count { font-size: 12px; color: var(--fd-text-muted); }
+
+/* Check the PDF Import (components/PdfImportReviewDialog). Tall: the list is
+   the point, so it gets the height and scrolls on its own while the toolbar
+   and the buttons stay put. */
+.pdf-review-dialog {
+  width: min(760px, 100%);
+  max-width: 760px;
+  height: min(720px, 90vh);
+  display: flex;
+  flex-direction: column;
+}
+.pdf-review-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.pdf-review-help { margin: 0 0 8px; font-size: 13px; color: var(--fd-text-muted); line-height: 1.4; }
+.pdf-review-warning { margin: 0 0 8px; font-size: 13px; color: #d97706; }
+.pdf-review-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  padding: 8px 0; font-size: 13px; color: var(--fd-text);
+}
+.pdf-review-field, .pdf-review-check, .pdf-review-bulk { display: inline-flex; align-items: center; gap: 6px; }
+.pdf-review-bulk { margin-left: auto; }
+.pdf-review-toolbar select, .pdf-review-type {
+  background: var(--fd-input-bg); color: var(--fd-text); border: 1px solid var(--fd-border);
+  border-radius: 4px; font-size: 13px; padding: 2px 4px;
+}
+.pdf-review-list {
+  flex: 1; min-height: 0; overflow-y: auto;
+  border: 1px solid var(--fd-border); border-radius: 6px; padding: 2px 0;
+}
+.pdf-review-row {
+  display: grid; grid-template-columns: auto 150px 1fr; align-items: center; gap: 8px;
+  padding: 3px 10px; font-size: 13px; color: var(--fd-text);
+}
+.pdf-review-row:hover { background: var(--fd-menu-hover); }
+.pdf-review-row.is-ticked { background: color-mix(in srgb, var(--fd-accent) 12%, transparent); }
+.pdf-review-row.is-changed .pdf-review-type { border-color: var(--fd-accent); color: var(--fd-accent); }
+.pdf-review-type--fixed { border-style: dashed; color: var(--fd-text-muted); }
+.pdf-review-text {
+  font-family: var(--screenplay-font, 'Courier Prime', monospace);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pdf-review-text--sceneHeading { font-weight: bold; }
+.pdf-review-text--character, .pdf-review-text--transition { padding-left: 2em; }
+.pdf-review-text--dialogue, .pdf-review-text--parenthetical { padding-left: 1em; }
+.pdf-review-text--titlePage, .pdf-review-text--dualDialogue { font-style: italic; color: var(--fd-text-muted); }
+.pdf-review-count { margin-right: auto; font-size: 12px; color: var(--fd-text-muted); display: inline-flex; align-items: center; gap: 8px; }
+.pdf-review-reset { background: none; border: none; padding: 0; color: var(--fd-accent); font: inherit; cursor: pointer; }
+@media (max-width: 600px) {
+  .dialog-box.pdf-review-dialog {
+    position: fixed; inset: 0; width: 100vw; max-width: none;
+    height: var(--vv-height, 100dvh); max-height: var(--vv-height, 100dvh);
+    border-radius: 0; border: none;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pdf-review-row { grid-template-columns: auto 1fr; }
+  .pdf-review-row .pdf-review-text { grid-column: 2; }
+  .pdf-review-bulk { margin-left: 0; }
+}
 
 .pdf-security-dialog { max-width: 480px; width: 100%; }
 .pdf-security-field { display: flex; align-items: center; gap: 12px; margin-top: 10px; font-size: 14px; color: var(--fd-text); }
@@ -14012,6 +14080,11 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   .page.phone-view .alternate-chip {
     margin-right: 0;
     margin-left: 4px;
+  }
+  .page.phone-view .alternate-chip--scene {
+    float: right;
+    width: auto;
+    padding: 0 2px;
   }
 }
 

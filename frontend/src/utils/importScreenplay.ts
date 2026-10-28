@@ -22,6 +22,23 @@ import { hydrateEditorStoresFromContent } from './hydrateStores';
 import { restoreRevisionState } from './revisionState';
 import { useEditorStore, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
 import { pluginRegistry, type PluginImporter } from '../plugins/registry';
+import { requestPdfImportReview } from '../stores/pdfImportReviewStore';
+
+/**
+ * Thrown when the writer backs out of an import part-way — the PDF review's
+ * Cancel. Nothing was changed; callers stay quiet rather than report a failure.
+ */
+export class ImportCancelledError extends Error {
+  constructor() {
+    super('Import cancelled.');
+    this.name = 'ImportCancelledError';
+  }
+}
+
+export function isImportCancelled(err: unknown): boolean {
+  return err instanceof ImportCancelledError
+    || (!!err && typeof err === 'object' && (err as { name?: string }).name === 'ImportCancelledError');
+}
 
 /** Every built-in extension File ▸ Import, drag-and-drop and the OS can hand us. */
 export const SCREENPLAY_IMPORT_EXTENSIONS = [
@@ -314,9 +331,13 @@ export async function parseScreenplayImport(
     // Loaded on demand: the PDF reader is large, and only a PDF import needs it.
     const { parsePdfScreenplay } = await import('./pdfImport');
     const parsed = await parsePdfScreenplay(data as ArrayBuffer);
+    // The writer looks over what was read, and can correct the elements that
+    // came in as the wrong kind, before anything changes (utils/pdfImportReview).
+    const doc = await requestPdfImportReview(filename, parsed.doc, parsed.warnings);
+    if (!doc) throw new ImportCancelledError();
     // A shooting script's scene numbers come across as printed. Production
     // numbering (12A, gaps) is shown and locked exactly as an .fdx's would be.
-    const numbering = importedSceneNumbering(parsed.doc as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> });
+    const numbering = importedSceneNumbering(doc as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> });
     const metadata: Record<string, unknown> = {};
     if (hydrateStores) resetStoresForImport();
     if (numbering) {
@@ -330,7 +351,7 @@ export async function parseScreenplayImport(
       }
     }
     return {
-      doc: parsed.doc,
+      doc,
       title: parsed.title,
       formatLabel,
       warnings: parsed.warnings,

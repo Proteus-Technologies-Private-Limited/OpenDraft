@@ -49,6 +49,7 @@ const SidesDialog: React.FC<Props> = ({ doc, onExport, onClose }) => {
   const [mode, setMode] = useState<Mode>('sides');
   const [chosen, setChosen] = useState<Set<number>>(new Set());
   const [crossOut, setCrossOut] = useState(true);
+  const [twoUp, setTwoUp] = useState(false);
   const [character, setCharacter] = useState(characters[0] ?? '');
   const [location, setLocation] = useState(locations[0] ?? '');
   const [tagKey, setTagKey] = useState(tagChoices[0]?.label ?? '');
@@ -113,7 +114,7 @@ const SidesDialog: React.FC<Props> = ({ doc, onExport, onClose }) => {
     setBusy(true);
     setError(null);
     try {
-      await onExport(built.selection, built.suffix);
+      await onExport({ ...built.selection, twoUp }, built.suffix);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -211,6 +212,11 @@ const SidesDialog: React.FC<Props> = ({ doc, onExport, onClose }) => {
               </select>
             </label>
           )}
+
+          <label className="sides-check">
+            <input type="checkbox" checked={twoUp} onChange={(e) => setTwoUp(e.target.checked)} />
+            <span>Two pages per sheet, side by side</span>
+          </label>
 
           {error && <p className="revision-settings-error" role="alert">{error}</p>}
         </div>

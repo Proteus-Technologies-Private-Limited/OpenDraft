@@ -502,18 +502,32 @@ export function exportFountain(doc: JSONContent, options: FountainExportOptions 
     }
 
     if (node.type !== 'titlePage' && node.type !== 'note' && node.type !== 'section') {
-      const revision = blockRevision(node);
-      if (revision !== null) {
+      /** Put a note at the end of the element's last written line. */
+      const appendNote = (note: string) => {
         for (let k = lines.length - 1; k >= firstLine; k--) {
           if (lines[k].trim() === '' || lines[k] === '===') continue;
-          lines[k] = `${lines[k]} ${fountainRevisionNote(revision, options.revisionSettings)}`;
+          lines[k] = `${lines[k]} ${note}`;
           break;
         }
-      }
+      };
+      const revision = blockRevision(node);
+      if (revision !== null) appendNote(fountainRevisionNote(revision, options.revisionSettings));
+      // A bookmark rides as a note the same way, and comes back as a bookmark
+      // (see BOOKMARK_NOTE in fountainParser). Other apps show it as a note.
+      const bookmark = node.attrs?.bookmark;
+      if (typeof bookmark === 'string' && bookmark) appendNote(fountainBookmarkNote(bookmark));
     }
   });
 
   return lines.join('\n');
+}
+
+/**
+ * The note that carries a bookmark: `[[Bookmark: Midpoint]]`. A name holding
+ * `]]` would end the note early, so those brackets are softened.
+ */
+export function fountainBookmarkNote(name: string): string {
+  return `[[Bookmark: ${name.replace(/\]\]/g, '] ]').replace(/\[\[/g, '[ [')}]]`;
 }
 
 export async function downloadFountain(doc: JSONContent, title: string = 'Untitled', options: FountainExportOptions = {}) {

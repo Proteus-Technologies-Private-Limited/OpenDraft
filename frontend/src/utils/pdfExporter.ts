@@ -582,6 +582,11 @@ export interface PdfPageSelection {
   crossOutOthers?: boolean;
   /** The error thrown when no page is kept. */
   emptyMessage?: string;
+  /**
+   * Two pages side by side on each sheet, the paper turned landscape — how
+   * sides are usually handed out, half the paper and easy to hold.
+   */
+  twoUp?: boolean;
 }
 
 /** Resolve dynamic field placeholders in header/footer text. Shared with the
@@ -1626,6 +1631,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       if (!keep.has(sheet)) pdf.deletePage(sheet);
     }
   }
+  if (selection?.twoUp) imposeTwoUp(pdf, pageWidthPt, pageHeightPt);
 
   return {
     bytes: new Uint8Array(pdf.output('arraybuffer')),
@@ -1785,6 +1791,78 @@ export function crossOutBands(
   }
   if (open) bands.push(open);
   return bands;
+}
+
+/**
+ * Where each page goes on a 2-up sheet: the sheet is the same paper turned
+ * landscape, each half holds one page scaled to fit with a small margin, and
+ * the pages sit centred in their halves. Exported for tests.
+ */
+export function twoUpLayout(pageWidthPt: number, pageHeightPt: number): {
+  sheetWidth: number;
+  sheetHeight: number;
+  scale: number;
+  slots: Array<{ x: number; y: number }>;
+} {
+  const sheetWidth = Math.max(pageWidthPt, pageHeightPt);
+  const sheetHeight = Math.min(pageWidthPt, pageHeightPt);
+  const margin = 18;
+  const half = sheetWidth / 2;
+  const scale = Math.min((half - margin * 1.5) / pageWidthPt, (sheetHeight - margin * 2) / pageHeightPt);
+  const w = pageWidthPt * scale;
+  const h = pageHeightPt * scale;
+  const y = (sheetHeight - h) / 2;
+  return {
+    sheetWidth,
+    sheetHeight,
+    scale,
+    slots: [
+      { x: half - margin * 0.25 - w, y },
+      { x: half + margin * 0.25, y },
+    ],
+  };
+}
+
+/**
+ * Lay the finished pages out two to a landscape sheet, in order.
+ *
+ * Nothing is drawn again: jsPDF shares fonts and graphics states across the
+ * whole document, so each page's own content stream is placed on the new
+ * sheet inside a scale-and-move, clipped to its page and framed with a hairline
+ * so the two pages read as pages. The original sheets then go.
+ */
+function imposeTwoUp(pdf: jsPDF, pageWidthPt: number, pageHeightPt: number): void {
+  const internal = (pdf as unknown as { internal: { pages?: unknown[] } }).internal;
+  const count = pdf.getNumberOfPages();
+  const streams: string[][] = [];
+  for (let n = 1; n <= count; n++) {
+    const stream = internal.pages?.[n];
+    if (!Array.isArray(stream)) {
+      console.warn('[pdf] could not lay the pages out two-up: unexpected page structure');
+      return;
+    }
+    streams.push(stream.map(String));
+  }
+  const { sheetWidth, sheetHeight, scale, slots } = twoUpLayout(pageWidthPt, pageHeightPt);
+  const f = (n: number) => n.toFixed(3);
+  for (let k = 0; k < streams.length; k += 2) {
+    pdf.addPage([sheetWidth, sheetHeight], sheetWidth > sheetHeight ? 'landscape' : 'portrait');
+    const sheet = internal.pages?.[pdf.getNumberOfPages()];
+    if (!Array.isArray(sheet)) return;
+    for (let j = 0; j < 2 && k + j < streams.length; j++) {
+      const { x, y } = slots[j];
+      sheet.push(
+        'q',
+        `${f(scale)} 0 0 ${f(scale)} ${f(x)} ${f(y)} cm`,
+        `0 0 ${f(pageWidthPt)} ${f(pageHeightPt)} re W n`,
+        ...streams[k + j],
+        'Q',
+        // The page's edge, outside the clip so the hairline is not halved.
+        `q 0.55 G 0.5 w ${f(x)} ${f(y)} ${f(pageWidthPt * scale)} ${f(pageHeightPt * scale)} re S Q`,
+      );
+    }
+  }
+  for (let n = count; n >= 1; n--) pdf.deletePage(n);
 }
 
 /**
