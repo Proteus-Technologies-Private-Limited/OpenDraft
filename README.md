@@ -139,8 +139,12 @@ How does OpenDraft stack up against commercial screenwriting software?
 | **Fountain Import/Export** | Yes | No | Yes | Yes |
 | **Web Browser Access** | Yes | No | Yes | Limited |
 | **Plugin Architecture** | Yes | No | No | No |
+| **PDF Import** | Yes | Yes | Yes | Yes |
+| **Watermarked / Password PDF** | Yes | Yes | Yes | Yes |
+| **Sides & Selected Pages** | Yes | Yes | Yes | Yes |
+| **Production Reports (CSV/PDF)** | Yes | Yes | Yes | Yes |
 
-<sub>Comparison based on publicly available product information as of April 2026. If you spot an inaccuracy, please <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/issues/new/choose">open an issue</a>.</sub>
+<sub>Comparison based on publicly available product information as of April 2026 (the PDF import, watermark, sides and reports rows as of October 2026). If you spot an inaccuracy, please <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/issues/new/choose">open an issue</a>.</sub>
 
 ---
 

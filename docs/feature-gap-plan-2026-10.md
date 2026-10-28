@@ -274,15 +274,13 @@ the collab server.
 
 ---
 
-## 5. Housekeeping
+## 5. Housekeeping — ✅ done
 
-- Mark `docs/feature-gap-analysis-fade-in.md` as superseded by this file — most
-  of its P1/P2 items (scene numbering & locking, page locking, omitted scenes,
-  headers/footers, coloured revisions, statistics, table read, templates,
-  shortcuts) have shipped.
-- Fix the README's PDF import claim until item 1 ships, and add the new rows
-  (Sides, Watermark, Dialogue Tuner, Alternates…) to its comparison table as
-  each lands.
+- `docs/feature-gap-analysis-fade-in.md` is marked as superseded by this file.
+- PDF import shipped, so the README's claim stands. The comparison table gained
+  PDF Import, Watermarked / Password PDF, Sides and Production Reports. The
+  Dialogue Tuner, Alternates and Story Timeline rows wait until the competitor
+  columns are confirmed against each vendor's docs.
 
 ---
 

@@ -568,7 +568,10 @@ body {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.12);
+  /* Dark enough to read over the white page as well as the dark chrome: in
+     Focus Mode on a phone the page fills the screen, and a light-on-clear disc
+     there was a blank white circle. */
+  background: rgba(30,30,30,0.78);
   border: 1px solid rgba(255,255,255,0.25);
   box-shadow: 0 2px 10px rgba(0,0,0,0.3);
   display: flex;
@@ -582,8 +585,8 @@ body {
   -webkit-user-select: none;
   transition: transform 0.2s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
-.menu-fab:hover { background: rgba(255,255,255,0.2); color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
-.menu-fab--open { transform: rotate(90deg); background: rgba(255,255,255,0.2); color: #fff; }
+.menu-fab:hover { background: rgba(50,50,50,0.9); color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
+.menu-fab--open { transform: rotate(90deg); background: rgba(50,50,50,0.9); color: #fff; }
 /* Light theme: dark icon on light bg */
 [data-theme="light"] .menu-fab {
   background: rgba(0,0,0,0.06);

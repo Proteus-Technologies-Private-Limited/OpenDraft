@@ -1,6 +1,22 @@
-This update fixes problems with signing in and working together.
+New tools for writing, rewriting and sending your script out.
 
-• Auto-save no longer stops with a message about renewing your sign-in.
-• Password reset emails now open the right page.
-• When you host a collaboration session, it stays open for as long as the invite you sent.
-• Signing out shows that it's working, is quicker, and leaves nothing of your script on screen.
+IMPORT A PDF
+Bring in a script you only have as a PDF. Scene headings, characters, dialogue, dual dialogue, scene numbers and the title page all come back as screenplay elements.
+
+WATERMARKS, PASSWORDS AND SIDES
+Put CONFIDENTIAL, or each reader's name, on every page, and add a password. Export just the scenes an actor needs on their original pages, with the rest crossed out.
+
+REPORTS
+Scene, character, location, cast, breakdown and notes reports, as a spreadsheet or a PDF.
+
+REWRITE WITH EASE
+Rename a character everywhere at once. Read and polish everything one character says in the Dialogue Tuner. Keep other versions of a line beside it and switch between them.
+
+PLAN YOUR STORY
+Name your plotlines, put scenes in them, and see them all across the script on the Story Timeline.
+
+NOTES YOU CAN DISCUSS
+Reply to notes, resolve them, assign them to a collaborator and @mention people.
+
+KEEP WRITING
+Daily goals, timed sprints and a calendar of what you wrote. Focus Mode with typewriter scrolling. Bookmarks, and macros for text you type often.
