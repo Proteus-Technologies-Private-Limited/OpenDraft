@@ -25,6 +25,8 @@ import { applyCaseToRange, shouldUpperCase } from '../editor/caseTransform';
 import { TextSelection } from '@tiptap/pm/state';
 import { isAvCellPos } from '../editor/extensions/AvBlock';
 import { REVISION_COLORS } from '../editor/revisionColors';
+import { bookmarkTargetAt } from '../utils/bookmarks';
+import { editBookmarkAtSelection, removeBookmark } from './bookmarkActions';
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -223,6 +225,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   // iPad this menu opens on a three-finger tap, so it is one of the row controls
   // that needs no hardware keyboard — issue #116.
   const showAvRow = isAvCellPos($from);
+  const bookmarkTarget = bookmarkTargetAt(editor.state.doc, safeSelFrom);
 
   // Detect if cursor is on an existing script note
   const existingNoteId = (() => {
@@ -834,6 +837,20 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           <span>Rename Character...</span>
         </div>
       )}
+      {bookmarkTarget && (bookmarkTarget.node.attrs.bookmark ? (
+        <>
+          <div className="ctx-item" onClick={() => { editBookmarkAtSelection(editor); onClose(); }}>
+            <span>Rename Bookmark...</span>
+          </div>
+          <div className="ctx-item" onClick={() => { removeBookmark(editor, bookmarkTarget.pos); onClose(); }}>
+            <span>Remove Bookmark</span>
+          </div>
+        </>
+      ) : (
+        <div className="ctx-item" onClick={() => { editBookmarkAtSelection(editor); onClose(); }}>
+          <span>Add Bookmark...</span>
+        </div>
+      ))}
       {showDualDialogue && (
         <div className="ctx-item" onClick={() => { console.log('[CtxMenu] Dual Dialogue clicked, commands:', Object.keys(editor.commands).filter(k => k.includes('dual') || k.includes('Dual'))); const result = (editor as any).commands.toggleDualDialogue(); console.log('[CtxMenu] result:', result); onClose(); }}>
           <span>Dual Dialogue</span>
@@ -854,7 +871,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           </div>
         </>
       )}
-      {(showSceneProps || showDualDialogue || showCharProfile || showAvRow) && <div className="ctx-separator" />}
+      {(showSceneProps || showDualDialogue || showCharProfile || showAvRow || bookmarkTarget) && <div className="ctx-separator" />}
 
       {/* Revision */}
       <div className="ctx-item" onClick={() => { setRevisionMode(!revisionMode); onClose(); }}>

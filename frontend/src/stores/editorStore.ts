@@ -913,6 +913,9 @@ interface EditorState {
   /** Character whose Rename dialog is open, or null. */
   renamingCharacter: string | null;
   setRenamingCharacter: (name: string | null) => void;
+  /** The bookmark being added or renamed: the element's position and the name shown. */
+  bookmarkEditing: { pos: number; name: string; isNew: boolean } | null;
+  setBookmarkEditing: (v: { pos: number; name: string; isNew: boolean } | null) => void;
 
   // Production tags
   tagCategories: TagCategory[];
@@ -1529,6 +1532,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSelectedCharacter: (name) => set({ selectedCharacter: name }),
   renamingCharacter: null,
   setRenamingCharacter: (name) => set({ renamingCharacter: name ? characterKey(name) || null : null }),
+  bookmarkEditing: null,
+  setBookmarkEditing: (v) => set({ bookmarkEditing: v }),
 
   // Production tags
   tagCategories: [...DEFAULT_TAG_CATEGORIES],

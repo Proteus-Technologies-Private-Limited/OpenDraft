@@ -89,6 +89,7 @@
     // Scene Navigator
     { page: 'Scene Navigator', title: 'Scene Navigator', section: '', text: 'Jump between scenes script structure at a glance. Side panel navigation.', url: 'scene-navigator.html' },
     { page: 'Scene Navigator', title: 'Scenes Tab', section: 'Scenes', text: 'Lists every scene heading in order. Scene heading text number. Click scene jump to. Fast navigate long screenplay. Updates real-time.', url: 'scene-navigator.html#scenes-tab' },
+    { page: 'Scene Navigator', title: 'Bookmarks', section: 'Bookmarks', text: 'Bookmark named place in script jump back. Add bookmark Edit menu right-click. Flag in margin. Bookmarks tab navigator. Go to bookmark Go to Page. Rename remove. Shared with collaborators saved with script.', url: 'scene-navigator.html#bookmarks' },
     { page: 'Scene Navigator', title: 'Locations Tab', section: 'Locations', text: 'Groups scenes by location. Coffee shop interior exterior day night grouped. Shooting schedule planning. Click scene jump.', url: 'scene-navigator.html#locations-tab' },
     { page: 'Scene Navigator', title: 'Go to Page', section: 'Go to Page', text: 'Cmd G go to page dialog. Type page number enter jump directly.', url: 'scene-navigator.html#go-to-page' },
 
