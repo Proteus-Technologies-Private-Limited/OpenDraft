@@ -12,6 +12,8 @@ import {
   type NoteNumberFormat,
   type FootnoteMarkerStyle,
 } from '../utils/noteNumbering';
+import { normalizeNoteThread, type NoteThread } from '../utils/noteThreads';
+import { useSettingsStore } from './settingsStore';
 
 // ── View-state persistence helpers ──
 const VIEW_STATE_KEY = 'opendraft:viewState';
@@ -27,6 +29,7 @@ interface ViewState {
   notesVisible?: boolean;
   tagsVisible?: boolean;
   notesActiveTab?: 'script' | 'general';
+  notesShowResolved?: boolean;
   zoomLevel?: number;
   /** Zoom in the phone view, kept apart: there it sets the size of the text,
    *  and the page view's zoom on a phone is fitted to the screen every time. */
@@ -485,7 +488,7 @@ export const NOTE_COLORS = [
 
 export type NoteColor = typeof NOTE_COLORS[number]['name'];
 
-export interface NoteInfo {
+export interface NoteInfo extends NoteThread {
   id: string;
   content: string;
   /** Anchored text snippet the note is attached to */
@@ -532,6 +535,18 @@ export function effectiveNotePlacement(
   return note?.printPlacement ?? settings.placement;
 }
 
+/**
+ * The name notes and replies written here are signed with: the name this
+ * window joined the collaboration session under, else the signed-in account's
+ * display name, else nothing — a writer who never signs in is not asked for a
+ * name, and their notes simply carry none.
+ */
+export function currentNoteAuthor(): string {
+  const self = useEditorStore.getState().collabSelfName?.trim();
+  if (self) return self;
+  return useSettingsStore.getState().collabAuth.user?.displayName?.trim() ?? '';
+}
+
 /** Filter state that can be set externally (e.g. from context menu) */
 export interface NoteFilter {
   elementType: string | null;
@@ -542,7 +557,7 @@ export interface NoteFilter {
 }
 
 /** A general note attached to the screenplay file (not anchored to any text) */
-export interface GeneralNote {
+export interface GeneralNote extends NoteThread {
   id: string;
   title: string;
   content: string;
@@ -784,6 +799,16 @@ interface EditorState {
   setNotesActiveTab: (tab: 'script' | 'general') => void;
   notesVisible: boolean;
   setNotesVisible: (v: boolean) => void;
+  /** Whether the Notes panel lists resolved notes too. */
+  notesShowResolved: boolean;
+  setNotesShowResolved: (v: boolean) => void;
+
+  /** Who this window is in the running collaboration session, and who else is
+   *  connected — for note authors, assignees and @mentions. Null and empty
+   *  outside a session. Set by ScreenplayEditor, which owns the session. */
+  collabSelfName: string | null;
+  collabPeerNames: string[];
+  setCollabIdentity: (self: string | null, peers: string[]) => void;
 
   // Scene synopsis & color
   updateSceneSynopsis: (id: string, synopsis: string) => void;
@@ -1220,6 +1245,23 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     saveViewState({ notesVisible: v });
     set({ notesVisible: v });
   },
+  notesShowResolved: _vs.notesShowResolved ?? false,
+  setNotesShowResolved: (v) => {
+    saveViewState({ notesShowResolved: v });
+    set({ notesShowResolved: v });
+  },
+  collabSelfName: null,
+  collabPeerNames: [],
+  // Awareness hands over a fresh list on every cursor move. Only a change of
+  // who is here is worth a store update: every update re-snapshots the shared
+  // metadata for collaboration sync.
+  setCollabIdentity: (collabSelfName, collabPeerNames) => {
+    const s = get();
+    if (s.collabSelfName === collabSelfName
+      && s.collabPeerNames.length === collabPeerNames.length
+      && s.collabPeerNames.every((n, i) => n === collabPeerNames[i])) return;
+    set({ collabSelfName, collabPeerNames });
+  },
 
   updateSceneSynopsis: (id, synopsis) =>
     set((s) => ({
@@ -1233,14 +1275,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   // Notes
   notes: [],
-  setNotes: (notes) => set({ notes }),
+  // Every load path — a script, an import, a backup, a collaborator — comes
+  // through here, so this is where thread data from outside is made safe.
+  setNotes: (notes) => set({ notes: Array.isArray(notes) ? notes.map(normalizeNoteThread) : [] }),
   addNote: (note) => {
     const id = uuid();
+    const author = note.author ?? currentNoteAuthor();
     set((s) => ({
       notes: [
         ...s.notes,
         {
           ...note,
+          ...(author ? { author } : {}),
           id,
           createdAt: new Date().toISOString(),
         },
@@ -1259,13 +1305,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   // General notes
   generalNotes: [],
-  setGeneralNotes: (generalNotes) => set({ generalNotes }),
+  setGeneralNotes: (generalNotes) => set({
+    generalNotes: Array.isArray(generalNotes) ? generalNotes.map(normalizeNoteThread) : [],
+  }),
   addGeneralNote: (note) => {
     const id = uuid();
+    const author = note.author ?? currentNoteAuthor();
     set((s) => ({
       generalNotes: [
         ...s.generalNotes,
-        { ...note, id, createdAt: new Date().toISOString() },
+        { ...note, ...(author ? { author } : {}), id, createdAt: new Date().toISOString() },
       ],
     }));
     return id;

@@ -58,7 +58,7 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | Missing | M | Core |
 | 10 | **Macros / text snippets** | FI, FD | ✅ Done — `utils/macros.ts`, Settings → Macros | S | Core |
 | 11 | **Exportable reports** (scene, character, location, cast, breakdown → CSV/PDF) | FD, FI, WD, CX | Partial — stats are on screen only | S | Core |
-| 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | Partial — notes have colours and @asset refs, no threads or resolve | M | Core |
+| 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | ✅ Done — replies, resolve, assignee, @mentions; export pending | M | Core |
 | 13 | **Story timeline / plotlines** (assign scenes to story threads, colour-coded timeline) | FD (Story Map, Structure Points), AS (Plot Board) | Missing | M | Core |
 | 14 | **Suggest mode for collaborators** (proposed edits accepted/rejected by the owner) | WD, AS | Missing — track changes is against a check-in, not per-collaborator proposals | L | Core |
 | 15 | **Dictation / speech to script** | FD (mobile), WD | Missing | M | Core |
@@ -192,6 +192,25 @@ ring; a small calendar heat-map in Script Statistics.
 `assignee`; "show resolved" toggle; collaborator @mentions through the collab
 server's user list. Needs a schema bump in `.odraft` and the backend note model,
 plus a migration for existing notes. Export resolved/unresolved to PDF notes.
+
+✅ **Done.** Script and general notes both carry `author`, `replies[]`,
+`resolved` / `resolvedBy` / `resolvedAt` and `assignee` (`utils/noteThreads.ts`),
+with Reply, Resolve / Reopen and an assignee pulldown on every card
+(`components/NoteThread.tsx`), a *Show resolved* toggle, a *For me* filter, and
+`@` mentions of collaborators, drawn from who is connected, the collab server's
+invite list for the script and everyone already named in its notes. Resolved
+notes fade to a dashed underline in the script. Exporting notes with their
+status (a Notes report in Tools → Analytics → Reports) is a separate change.
+Two departures from the description above:
+- **No schema bump or backend change.** Notes ride in the saved script as the
+  `_notes` / `_generalNotes` JSON, which the backend stores without reading, so
+  the new fields are optional and additive: absent reads as open, unassigned and
+  without replies, and older versions keep them through an edit. The migration
+  is `normalizeNoteThread` on every load path (`setNotes`), which leaves a
+  legacy note untouched and repairs malformed thread data.
+- **Collaboration is last-writer-wins per notes list**, as all note metadata
+  already is (`services/collabSync.ts`). Two replies posted within the same
+  sync round trip can lose one. Merging replies by id is the follow-up.
 
 **12. Alternates** (M) — on any dialogue or action element (and later whole
 scenes), "Add Alternate" stores sibling versions; a chip in the margin cycles

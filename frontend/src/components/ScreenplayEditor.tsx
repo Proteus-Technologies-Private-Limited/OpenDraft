@@ -186,6 +186,7 @@ import JoinCollabDialog from './JoinCollabDialog';
 import CompareVersionPicker from './CompareVersionPicker';
 import ZoomPanel from './ZoomPanel';
 import { captureZoomAnchor, restoreZoomAnchor, type ZoomAnchor } from '../utils/zoomAnchor';
+import { isNoteResolved } from '../utils/noteThreads';
 import { useIsTouchDevice, useSwipeEdge, usePinchZoom } from '../hooks/useTouch';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useLinkedFileStore, autoSaveAppliesToOpenDocument } from '../stores/linkedFileStore';
@@ -1919,6 +1920,27 @@ const ScreenplayEditor: React.FC = () => {
       },
     })
   );
+
+  // A resolved note keeps its anchor, so it can be reopened and jumped to, but
+  // stops painting the script: only a faint dashed underline is left. A style
+  // rule rather than a mark change, so resolving never edits the document.
+  const notesForHighlight = useEditorStore((s) => s.notes);
+  const resolvedNoteCss = useMemo(() => {
+    const selectors = notesForHighlight
+      .filter(isNoteResolved)
+      .map((n) => `.script-note-highlight[data-note-id="${CSS.escape(n.id)}"]`);
+    if (selectors.length === 0) return '';
+    return `${selectors.join(',\n')} {\n  background-color: transparent !important;\n  border-bottom: 1px dashed rgba(128, 128, 128, 0.6) !important;\n}`;
+  }, [notesForHighlight]);
+
+  // Notes sign what is written here with the session name, and offer whoever
+  // is connected for assigning and @mentions.
+  useEffect(() => {
+    useEditorStore.getState().setCollabIdentity(
+      collabMode ? collabUserName : null,
+      collabMode ? collabUsers.map((u) => u.name) : [],
+    );
+  }, [collabMode, collabUserName, collabUsers]);
 
   // Build collaboration extensions when in collab mode
   const collabExtensions = useMemo(() => {
@@ -5414,6 +5436,7 @@ const ScreenplayEditor: React.FC = () => {
                   }),
                 }}
               >
+                {resolvedNoteCss && <style>{resolvedNoteCss}</style>}
                 <div
                   className={`page${phoneView ? ' phone-view' : ''}${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
                   ref={pageRef}

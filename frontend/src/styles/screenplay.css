@@ -5755,6 +5755,168 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   color: #ff6b6b;
 }
 
+/* ── Threaded notes: replies, resolve, assign ── */
+.sn-thread-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--fd-border);
+  flex-shrink: 0;
+}
+.sn-show-resolved {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--fd-text-muted);
+  cursor: pointer;
+  margin-left: auto;
+}
+/* A resolved note stays readable but steps back from the open ones. */
+.note-item-resolved {
+  opacity: 0.6;
+}
+.note-item-resolved:hover {
+  opacity: 0.9;
+}
+.note-item-author {
+  color: var(--fd-text);
+  font-weight: 500;
+}
+.note-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.note-replies {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 8px;
+  border-left: 2px solid var(--fd-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.note-reply {
+  font-size: 12px;
+  min-width: 0;
+}
+.note-reply-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--fd-text-muted);
+}
+.note-reply-author {
+  color: var(--fd-text);
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-reply-date { white-space: nowrap; flex-shrink: 0; }
+.note-reply-content {
+  color: var(--fd-text);
+  overflow-wrap: break-word;
+}
+.note-reply-actions,
+.note-reply-composer-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.note-reply-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.note-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  color: var(--fd-text-muted);
+  cursor: pointer;
+}
+.note-link-btn:hover { color: var(--fd-accent); }
+.note-link-danger:hover { color: #ff6b6b; }
+.note-reply-submit {
+  background: var(--fd-accent);
+  border: 1px solid var(--fd-accent);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.note-reply-submit:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.note-thread-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+/* Same box as the print pulldown, sharing whatever width the buttons leave. */
+.note-assign-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 24px;
+  background: var(--fd-input-bg);
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  color: var(--fd-text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.note-assign-select.active {
+  border-color: var(--fd-accent);
+  color: var(--fd-accent);
+}
+.note-resolve-btn {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  background: var(--fd-input-bg);
+  color: var(--fd-text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.note-resolve-btn:hover {
+  border-color: #6abf69;
+  color: #6abf69;
+}
+.note-resolve-btn.resolved:hover {
+  border-color: var(--fd-accent);
+  color: var(--fd-accent);
+}
+.note-resolved-line {
+  font-size: 10px;
+  color: #6abf69;
+}
+/* ── @mentions of collaborators ── */
+.note-mention {
+  color: var(--fd-accent);
+  font-weight: 600;
+}
+.note-mention-me {
+  background: rgba(74, 158, 255, 0.18);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
 /* ── Printed notes: footnote markers and the block at the page foot ── */
 
 /* The reference number drawn beside a printing note. A widget decoration, so

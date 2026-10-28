@@ -132,6 +132,8 @@
     { page: 'Script Notes', title: 'Note Colors', section: 'Colors', text: 'Yellow general reminders. Red issues problems. Blue research references. Green approved completed. Orange feedback collaborators. Purple creative ideas alternatives.', url: 'script-notes.html#note-colors' },
     { page: 'Script Notes', title: 'Embedding Media', section: 'Media', text: 'Images reference photos mood boards. Videos YouTube Vimeo URLs. Asset references @AssetName syntax link project assets.', url: 'script-notes.html#media' },
     { page: 'Script Notes', title: 'Filtering Notes', section: 'Filter', text: 'Filter by color. Filter by element type dialogue. Filter by scene context.', url: 'script-notes.html#filtering' },
+    { page: 'Script Notes', title: 'Replies, Resolving and Assigning', section: 'Threads', text: 'Threaded comments. Reply to a note, conversation, discussion. Resolve, mark done, reopen, show resolved. Assign a note to a collaborator, assignee. Edit or delete your reply. Author who wrote it.', url: 'script-notes.html#threads' },
+    { page: 'Script Notes', title: 'Mentioning Someone', section: 'Mentions', text: 'At mention a collaborator @name. For me filter, assigned to me, mentions me. Notify tag a person.', url: 'script-notes.html#mentions' },
 
     // Script Statistics & Timing
     { page: 'Script Statistics & Timing', title: 'Writing Goals & Sprints', section: 'Goals', text: 'Writing goals daily word goal session goal pages. Sprint timer no backspace. Words written per day history calendar heat map streak. Progress ring status bar. Stored on this device only.', url: 'script-statistics.html#writing-goals' },
