@@ -7,6 +7,7 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { activeTimingOptions, computeSceneTiming, formatRuntime } from '../utils/scriptTiming';
 import { computeScriptStructure } from '../utils/scriptStructure';
 import { DEFAULT_PACING, pacingOption } from '../utils/scriptProfile';
+import WritingProgress from './WritingProgress';
 
 const SAVE_STATUS_DISPLAY: Record<string, { label: string; className: string }> = {
   idle: { label: '', className: '' },
@@ -175,6 +176,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
             Rev: {revisionColor}
           </span>
         )}
+        <WritingProgress />
         <span className="status-item status-page">
           {currentLabel
             ? <>Page {currentLabel} <span className="status-locked" title="Pages are locked">(locked)</span></>

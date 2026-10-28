@@ -54,6 +54,7 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 6 | **Script bookmarks** | FI, FD | Missing (`bookmark` only refers to macOS file bookmarks) | S | Core |
 | 7 | **Focus / typewriter mode** | FD, HL, AS, WD | ✅ Done — `editor/extensions/FocusMode.ts`, View → Focus Mode | S | Core |
 | 8 | **Writing goals, sprints & progress history** | FD (Goals), WD, HL (Sprint), AS | Missing | M | Core |
+| 8 | **Writing goals, sprints & progress history** | FD (Goals), WD, HL (Sprint), AS | ✅ Done — `utils/writingGoals.ts`, Tools → Writing Goals & Sprints | M | Core |
 | 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | Missing | M | Core |
 | 10 | **Macros / text snippets** | FI, FD | ✅ Done — `utils/macros.ts`, Settings → Macros | S | Core |
 | 11 | **Exportable reports** (scene, character, location, cast, breakdown → CSV/PDF) | FD, FI, WD, CX | Partial — stats are on screen only | S | Core |
@@ -177,7 +178,10 @@ Edit → Insert Macro). user-defined text with an optional element type
 and shortcut (via `utils/shortcuts.ts`), e.g. `CONTINUOUS`, `LATER`, a recurring
 location. Stored in settings, exportable as JSON.
 
-**10. Writing goals & sprints** (M) — daily/session word or page goals, a sprint
+**10. Writing goals & sprints** (M) — ✅ done (`utils/writingGoals.ts`,
+`stores/writingGoalsStore.ts`, `hooks/useWritingTracker.ts`; counted from the
+script a few seconds after typing stops rather than from save diffs, so the
+ring is live and autosave settings don't matter). daily/session word or page goals, a sprint
 timer with a no-backspace option, and a local history of words written per day
 (computed from save diffs, stored locally — no telemetry). Status bar progress
 ring; a small calendar heat-map in Script Statistics.

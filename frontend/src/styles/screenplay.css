@@ -13869,3 +13869,44 @@ html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }
 .dialogue-tuner-line:focus { outline: none; border-color: var(--fd-accent); background: var(--fd-input-bg); }
 .dialogue-tuner-parenthetical { padding-left: 18px; color: var(--fd-text-muted); }
 .dialogue-tuner-lyrics { font-style: italic; }
+/* ============ WRITING GOALS & SPRINTS ============ */
+/* Status bar ring (WritingProgress). A button that reads as status text, like .status-timing. */
+.status-goals {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: inherit; color: var(--fd-text-muted); font-variant-numeric: tabular-nums;
+}
+.status-goals:hover { color: var(--fd-text); }
+.status-goals-track { fill: none; stroke: var(--fd-border); stroke-width: 2; }
+.status-goals-fill { fill: none; stroke: var(--fd-accent); stroke-width: 2; stroke-linecap: round; transition: stroke-dasharray .3s; }
+.status-goals.is-met .status-goals-fill { stroke: #22a06b; }
+.status-goals.is-sprint { color: var(--fd-text); }
+.status-goals.is-sprint .status-goals-fill { stroke: #e8912d; }
+
+.writing-goals-dialog { max-width: 460px; width: 100%; }
+.writing-goals-summary { margin: 0 0 16px; font-size: 14px; color: var(--fd-text); }
+.writing-goals-row { margin-top: 14px; }
+.writing-goals-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.writing-goals-inline input { flex: 1; min-width: 90px; }
+.writing-goals-sprint { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--fd-border); display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+.writing-goals-sprint-title { font-weight: 600; }
+.writing-goals-check { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--fd-text-muted); cursor: pointer; }
+.writing-goals-check input { margin-top: 2px; }
+.writing-goals-note { margin: 18px 0 0; font-size: 12px; color: var(--fd-text-muted); line-height: 1.45; }
+
+/* Script Statistics heat-map (WritingHeatmap). */
+.writing-heatmap-summary { margin: 0 0 10px; font-size: 13px; color: var(--fd-text-muted); }
+.writing-heatmap-goals { background: none; border: none; padding: 0; color: var(--fd-accent); cursor: pointer; font: inherit; }
+.writing-heatmap-goals:hover { text-decoration: underline; }
+.writing-heatmap { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 4px; }
+.writing-heatmap-col { display: flex; flex-direction: column; gap: 3px; }
+.writing-heatmap-cell { width: 12px; height: 12px; border-radius: 2px; background: color-mix(in srgb, var(--fd-text) 10%, transparent); display: inline-block; flex-shrink: 0; }
+.writing-heatmap-cell.level-1 { background: color-mix(in srgb, var(--fd-accent) 30%, var(--fd-border)); }
+.writing-heatmap-cell.level-2 { background: color-mix(in srgb, var(--fd-accent) 55%, var(--fd-border)); }
+.writing-heatmap-cell.level-3 { background: color-mix(in srgb, var(--fd-accent) 78%, var(--fd-border)); }
+.writing-heatmap-cell.level-4 { background: var(--fd-accent); }
+.writing-heatmap-cell.is-future { background: transparent; }
+.writing-heatmap-cell.is-today { outline: 1px solid var(--fd-text-muted); outline-offset: 1px; }
+.writing-heatmap-legend { display: flex; align-items: center; gap: 3px; margin-top: 6px; font-size: 11px; color: var(--fd-text-muted); flex-wrap: wrap; }
+.writing-heatmap-legend .writing-heatmap-cell { width: 10px; height: 10px; }
+.writing-heatmap-private { margin-left: auto; font-style: italic; }

@@ -78,6 +78,9 @@ import TagsPanel from './TagsPanel';
 import { PluginPanelTabs } from './PluginPanelTabs';
 import LocationDatabase from './LocationDatabase';
 import DialogueTuner from './DialogueTuner';
+import WritingGoalsDialog from './WritingGoalsDialog';
+import { useWritingGoalsStore } from '../stores/writingGoalsStore';
+import { useWritingTracker } from '../hooks/useWritingTracker';
 import FormatPanel from './FormatPanel';
 import StatusBar from './StatusBar';
 import SearchReplace, { createSearchPlugin } from './SearchReplace';
@@ -2162,6 +2165,9 @@ const ScreenplayEditor: React.FC = () => {
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
   }, [isHistoryMode]);
+  // Writing goals: count words written, run sprints (Tools → Writing Goals & Sprints).
+  useWritingTracker(editor, currentScriptId || 'unsaved', !isHistoryMode);
+  const writingGoalsOpen = useWritingGoalsStore((s) => s.dialogOpen);
 
   // ── Owner starts collaboration — save current content, create own token, switch to collab mode ──
   const handleStartCollab = useCallback(async (guestSession: import('../services/api').CollabSession) => {
@@ -5671,6 +5677,7 @@ const ScreenplayEditor: React.FC = () => {
           overrideSelection={ctxMenuState.savedSelection}
         />
       )}
+      {!isHistoryMode && writingGoalsOpen && <WritingGoalsDialog />}
       {!isHistoryMode && formatPanelOpen && editor && (
         <FormatPanel editor={editor} onClose={() => setFormatPanelOpen(false)} />
       )}

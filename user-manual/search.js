@@ -134,6 +134,7 @@
     { page: 'Script Notes', title: 'Filtering Notes', section: 'Filter', text: 'Filter by color. Filter by element type dialogue. Filter by scene context.', url: 'script-notes.html#filtering' },
 
     // Script Statistics & Timing
+    { page: 'Script Statistics & Timing', title: 'Writing Goals & Sprints', section: 'Goals', text: 'Writing goals daily word goal session goal pages. Sprint timer no backspace. Words written per day history calendar heat map streak. Progress ring status bar. Stored on this device only.', url: 'script-statistics.html#writing-goals' },
     { page: 'Script Statistics & Timing', title: 'Script Statistics & Timing', section: '', text: 'Analyze screenplay charts dialogue breakdowns runtime estimates. Tools script statistics menu.', url: 'script-statistics.html' },
     { page: 'Script Statistics & Timing', title: 'Overview Cards', section: 'Overview', text: 'Pages scenes characters words. Total page count estimated runtime. Average scene length. Dialogue lines word count per page.', url: 'script-statistics.html#overview' },
     { page: 'Script Statistics & Timing', title: 'Dialogue Distribution', section: 'Dialogue', text: 'Dialogue distribution bar chart per character. Word count percentage lines scenes role. Character highlight color.', url: 'script-statistics.html#dialogue-distribution' },
