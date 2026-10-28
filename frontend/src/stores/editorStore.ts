@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { uuid } from '../utils/uuid';
 import { characterKey } from '../utils/nodeText';
+import { newPlotline, normalizePlotlines, type Plotline } from '../utils/plotlines';
 import { applyAppearance, applyNativeTheme, readAppearance, saveAppearance, themeOf, type Appearance } from '../utils/appearance';
 import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile, type ScriptProfile } from '../utils/scriptProfile';
 import { DEFAULT_REVISION_COLOR, DEFAULT_REVISION_SETTINGS, nextRevisionColor, type RevisionSettings } from '../editor/revisionColors';
@@ -475,6 +476,8 @@ export interface SceneInfo {
   sceneNumber: string | null;
   color: string;
   synopsis: string;
+  /** The plotlines the scene carries (utils/plotlines). */
+  plotlineIds?: string[];
 }
 
 export const NOTE_COLORS = [
@@ -746,6 +749,8 @@ export interface BeatInfo {
   y: number;           // custom-arrange: absolute Y position on canvas
   imageHeight: number; // pixels, 0 = default (140px)
   linkPreviews?: BeatLinkPreview[]; // cached link preview metadata
+  /** The plotlines this beat belongs to (utils/plotlines). Absent = none. */
+  plotlineIds?: string[];
 }
 
 export type BeatArrangeMode = 'auto' | 'custom';
@@ -830,6 +835,18 @@ interface EditorState {
   updateGeneralNote: (id: string, updates: Partial<Omit<GeneralNote, 'id' | 'createdAt'>>) => void;
   deleteGeneralNote: (id: string) => void;
 
+  // Plotlines (utils/plotlines). Which scenes carry each is on the scene
+  // headings; these are the plotlines themselves.
+  plotlines: Plotline[];
+  setPlotlines: (plotlines: Plotline[]) => void;
+  addPlotline: () => string;
+  updatePlotline: (id: string, updates: Partial<Omit<Plotline, 'id'>>) => void;
+  /** Removes the plotline and takes it off every beat. Scenes are the
+   *  editor's to change — see removePlotlineFromScenesTransaction. */
+  deletePlotline: (id: string) => void;
+  storyTimelineOpen: boolean;
+  setStoryTimelineOpen: (open: boolean) => void;
+
   // Beats
   beatArrangeMode: BeatArrangeMode;
   setBeatArrangeMode: (mode: BeatArrangeMode) => void;
@@ -841,7 +858,7 @@ interface EditorState {
   beats: BeatInfo[];
   setBeats: (beats: BeatInfo[]) => void;
   addBeat: (title: string, columnId: string) => void;
-  updateBeat: (id: string, updates: Partial<{ title: string; description: string; columnId: string; position: number; color: string; imageUrl: string; cardWidth: number; cardHeight: number; x: number; y: number; imageHeight: number }>) => void;
+  updateBeat: (id: string, updates: Partial<{ title: string; description: string; columnId: string; position: number; color: string; imageUrl: string; cardWidth: number; cardHeight: number; x: number; y: number; imageHeight: number; plotlineIds: string[] }>) => void;
   deleteBeat: (id: string) => void;
   // Beat undo/redo
   beatUndo: () => void;
@@ -1367,6 +1384,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }),
 
   // Beats
+  plotlines: [],
+  setPlotlines: (plotlines) => set({ plotlines: normalizePlotlines(plotlines) }),
+  addPlotline: () => {
+    const p = newPlotline(get().plotlines);
+    set((s) => ({ plotlines: [...s.plotlines, p] }));
+    return p.id;
+  },
+  updatePlotline: (id, updates) =>
+    set((s) => ({ plotlines: s.plotlines.map((p) => (p.id === id ? { ...p, ...updates } : p)) })),
+  deletePlotline: (id) =>
+    set((s) => ({
+      plotlines: s.plotlines.filter((p) => p.id !== id),
+      beats: s.beats.some((b) => b.plotlineIds?.includes(id))
+        ? s.beats.map((b) => (b.plotlineIds?.includes(id) ? { ...b, plotlineIds: b.plotlineIds.filter((x) => x !== id) } : b))
+        : s.beats,
+    })),
+  storyTimelineOpen: false,
+  setStoryTimelineOpen: (open) => set({ storyTimelineOpen: open }),
+
   beatArrangeMode: 'auto',
   setBeatArrangeMode: (mode) => set({ beatArrangeMode: mode }),
   beatColumns: [],

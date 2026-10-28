@@ -179,6 +179,8 @@ import TitlePageEditor from './TitlePageEditor';
 import MoresContdsDialog from './MoresContdsDialog';
 import FontsDialog from './FontsDialog';
 import { fontStack } from '../utils/fonts';
+import { plotlineIdsOf } from '../utils/plotlines';
+import StoryTimeline from './StoryTimeline';
 import { titlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
 import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
@@ -519,6 +521,7 @@ const ScreenplayEditor: React.FC = () => {
     saveStatus, saveError, setSaveStatus,
   } = useEditorStore();
   const tableReadOpen = useTableReadStore((s) => s.open);
+  const storyTimelineOpen = useEditorStore((s) => s.storyTimelineOpen);
 
   const { currentProject, currentScriptId, setCurrentProject, setCurrentScriptId, scriptReloadKey, markCloudScript, isCloudScript } = useProjectStore();
 
@@ -2314,6 +2317,7 @@ const ScreenplayEditor: React.FC = () => {
       sceneNumber: numbers[i] ?? String(i + 1),
       color: node.attrs.sceneColor || '',
       synopsis: node.attrs.synopsis || '',
+      plotlineIds: plotlineIdsOf(node.attrs),
     }));
     const attrUpdates = headings
       .map((h, i) => ({ pos: h.pos, number: numbers[i], was: h.node.attrs.sceneNumber }))
@@ -2789,6 +2793,7 @@ const ScreenplayEditor: React.FC = () => {
         store.setDocumentTitle('Untitled Screenplay');
         store.setBeats([]);
         store.setBeatColumns([]);
+        store.setPlotlines([]);
         store.setBeatArrangeMode('auto');
         store.setNotes([]);
         store.setGeneralNotes([]);
@@ -3265,6 +3270,7 @@ const ScreenplayEditor: React.FC = () => {
         state.tags === prev.tags &&
         state.beats === prev.beats &&
         state.beatColumns === prev.beatColumns &&
+        state.plotlines === prev.plotlines &&
         state.scriptProfile === prev.scriptProfile &&
         state.spellCheckEnabled === prev.spellCheckEnabled &&
         state.grammarCheckEnabled === prev.grammarCheckEnabled
@@ -3720,6 +3726,7 @@ const ScreenplayEditor: React.FC = () => {
           store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
           store.setBeats([]);
           store.setBeatColumns([]);
+          store.setPlotlines([]);
           store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
           // Pacing and genres; a script without them opens as Standard.
           store.setScriptProfile(normalizeScriptProfile((content as Record<string, unknown> | null | undefined)?._scriptProfile));
@@ -3754,6 +3761,7 @@ const ScreenplayEditor: React.FC = () => {
             store.setBeats(beatsArr as import('../stores/editorStore').BeatInfo[]);
             const beatColsArr = parseAttr(c._beatColumns);
             store.setBeatColumns(beatColsArr as import('../stores/editorStore').BeatColumn[]);
+            store.setPlotlines(parseAttr(c._plotlines) as import('../utils/plotlines').Plotline[]);
             if (c._beatArrangeMode === 'auto' || c._beatArrangeMode === 'custom') {
               store.setBeatArrangeMode(c._beatArrangeMode);
             }
@@ -4255,6 +4263,7 @@ const ScreenplayEditor: React.FC = () => {
         store.setTagCategories([...DEFAULT_TAG_CATEGORIES]);
         store.setBeats([]);
         store.setBeatColumns([]);
+        store.setPlotlines([]);
         store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
         store.setScriptProfile(normalizeScriptProfile((content as Record<string, unknown> | null | undefined)?._scriptProfile));
         // Default per-doc spell/grammar to off; the block below overrides
@@ -4292,6 +4301,7 @@ const ScreenplayEditor: React.FC = () => {
           store.setBeats(beatsArr2 as import('../stores/editorStore').BeatInfo[]);
           const beatCols2 = parseAttr2(c._beatColumns);
           store.setBeatColumns(beatCols2 as import('../stores/editorStore').BeatColumn[]);
+          store.setPlotlines(parseAttr2(c._plotlines) as import('../utils/plotlines').Plotline[]);
           // Restore per-document template
           if (c._templateId && typeof c._templateId === 'string') {
             useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
@@ -5619,6 +5629,9 @@ const ScreenplayEditor: React.FC = () => {
             </div>
           )}
           {/* Table Read docks over the bottom of the script it is reading. */}
+          {storyTimelineOpen && editor && (
+            <StoryTimeline editor={editor} onClose={() => useEditorStore.getState().setStoryTimelineOpen(false)} />
+          )}
           {!isHistoryMode && tableReadOpen && editor && !statisticsOpen && !beatBoardOpen && (
             <TableReadPanel editor={editor} />
           )}

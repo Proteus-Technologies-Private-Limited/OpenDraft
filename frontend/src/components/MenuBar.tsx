@@ -1606,6 +1606,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     store.setDocumentTitle('Untitled Screenplay');
     store.setBeats([]);
     store.setBeatColumns([]);
+    store.setPlotlines([]);
     store.setBeatArrangeMode('auto');
     store.setNotes([]);
     // General notes belong to the document too — leaving them behind carried
@@ -2928,6 +2929,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaCompass />, label: navigatorOpen ? '\u2713 Navigator' : 'Navigator', action: toggleNavigator },
             { icon: <FaTh />, label: indexCardsOpen ? '\u2713 Index Cards' : 'Index Cards', action: toggleIndexCards },
             { icon: <FaStream />, label: beatBoardOpen ? '\u2713 Beat Board' : 'Beat Board', action: toggleBeatBoard },
+            { icon: <FaProjectDiagram />, label: 'Story Timeline…', title: 'Plotlines across the scenes, by screen time', action: () => {
+              // The timeline edits scene headings, so the script has to be on
+              // screen under it, not the Beat Board or Statistics.
+              const s = useEditorStore.getState();
+              if (s.beatBoardOpen) s.toggleBeatBoard();
+              if (s.statisticsOpen) s.setStatisticsOpen(false);
+              s.setStoryTimelineOpen(true);
+            } },
             { icon: <FaStickyNote />, label: scriptNotesOpen ? '\u2713 Notes Panel' : 'Notes Panel', action: () => {
               const hasSelection = editor && !editor.state.selection.empty;
               useEditorStore.getState().setNotesActiveTab(hasSelection ? 'script' : 'general');

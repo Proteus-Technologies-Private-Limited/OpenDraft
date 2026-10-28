@@ -233,6 +233,15 @@ character arcs) with colours; assign scenes and beats to them; a horizontal
 timeline view showing scene length (from the timing engine) per plotline;
 shared with Beat Board so beats and scenes stay linked.
 
+✅ **Done** (`utils/plotlines.ts`, `utils/storyTimeline.ts`,
+`components/StoryTimeline.tsx`). Plotlines are saved as `_plotlines` and synced
+in collaboration; a scene's plotlines are a `plotlines` attribute on its scene
+heading, so they move with the scene; a beat lists its own (`plotlineIds`).
+View → Panels → Story Timeline shows one row per plotline with scenes as wide
+as their screen time; click to assign. Beat cards get a plotline picker and
+the Scene Navigator shows a dot per plotline. Beats share the plotlines but
+are not yet linked to particular scenes.
+
 **14. Suggest mode** (L) — collaborators with a "Suggest" role produce
 insert/delete marks attributed to them; the owner accepts/rejects per change or
 all. Reuse the mark machinery from `editor/trackChanges.ts`; enforce the role in

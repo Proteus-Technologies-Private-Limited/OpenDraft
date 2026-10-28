@@ -19,6 +19,7 @@ A complete list of features in OpenDraft.
 ## Story Planning
 
 - **Beat Board & Index Cards** -- Visual story planning with drag-and-drop scene organization
+- **Plotlines & Story Timeline** -- Name the story's threads, put scenes and beats in them, and see every plotline across the script by screen time
 - **Character Profiles** -- Track characters with role types, highlight colors, and rich descriptions
 - **Global Character Rename** -- Rename a character everywhere in one undoable step: cues keep their extensions, the profile, relationships and Cast tags follow, and mentions in action and dialogue are offered for review
 - **Dialogue Tuner** -- Every line one character speaks, in order and with the line before for context, editable in place and playable in Table Read

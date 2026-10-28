@@ -35,6 +35,7 @@ export const SAVE_METADATA_KEYS = [
   '_beats',
   '_beatColumns',
   '_beatArrangeMode',
+  '_plotlines',
   '_templateId',
   '_ignoredWords',
   '_ignoredOnce',
@@ -81,6 +82,9 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
     _beats: store.beats,
     _beatColumns: store.beatColumns,
     _beatArrangeMode: store.beatArrangeMode,
+    // Written only when there are some, so a script that never uses plotlines
+    // saves exactly as before. Absent reads as none.
+    ...(store.plotlines.length ? { _plotlines: store.plotlines } : {}),
     _templateId: tplStore.activeTemplateId,
     _ignoredWords: spellChecker.getIgnoredWords(),
     _ignoredOnce: spellChecker.getIgnoredOnce(),

@@ -97,6 +97,7 @@ function metadataUnchanged(a: StoreState, b: StoreState): boolean {
     a.characterRelationships === b.characterRelationships &&
     a.beats === b.beats &&
     a.beatColumns === b.beatColumns &&
+    a.plotlines === b.plotlines &&
     a.beatArrangeMode === b.beatArrangeMode &&
     a.spellCheckEnabled === b.spellCheckEnabled &&
     a.grammarCheckEnabled === b.grammarCheckEnabled &&

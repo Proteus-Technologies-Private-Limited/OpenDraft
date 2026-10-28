@@ -60,6 +60,7 @@ export function hydrateEditorStoresFromContent(
   store.setCharacterRelationships(parseAttr(c._characterRelationships, []));
   store.setBeats(parseAttr(c._beats, []));
   store.setBeatColumns(parseAttr(c._beatColumns, []));
+  store.setPlotlines(parseAttr(c._plotlines, []));
   if (c._beatArrangeMode !== undefined) {
     store.setBeatArrangeMode(parseAttr<'auto' | 'custom'>(c._beatArrangeMode, 'auto'));
   }

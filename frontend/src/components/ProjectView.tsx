@@ -791,6 +791,7 @@ const ProjectView: React.FC = () => {
     edStore.setDocumentTitle('Untitled Screenplay');
     edStore.setBeats([]);
     edStore.setBeatColumns([]);
+    edStore.setPlotlines([]);
     edStore.setBeatArrangeMode('auto');
     edStore.setNotes([]);
     edStore.setGeneralNotes([]);
