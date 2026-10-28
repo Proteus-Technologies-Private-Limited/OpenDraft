@@ -9,6 +9,7 @@ A complete list of features in OpenDraft.
 - **Scene Navigator** -- Jump between scenes instantly from the sidebar
 - **Element Numbering** -- Number any element, not only scene headings: every line of dialogue, every sound effect or shot. The format chooses which elements are numbered, what restarts each count (a scene heading, a new act, any element) and an optional prefix such as FX 1. Shown in the margin on screen, in print, PDF, Word and Final Draft
 - **Podcast format** -- Scripted podcast and audio fiction, with every line of dialogue numbered for the recording session and FX and music cues numbered on their own
+- **Alternates** -- Keep other versions of a line of dialogue or action beside it and switch between them; only the version showing prints and exports
 - **Distraction-free writing** -- Clean, focused interface with minimal chrome
 
 ## Story Planning
@@ -62,7 +63,6 @@ A complete list of features in OpenDraft.
 - **Search & Replace** -- Find and replace across your screenplay
 - **Spell Check** -- Built-in spell checker with custom dictionary support
 - **Production Tags** -- Tag elements for production planning
-- **Alternates** -- Keep other versions of a line of dialogue or action beside it and switch between them; only the version showing prints and exports
 - **Reports** -- Scene, character, location, cast and breakdown reports, exported as CSV or PDF
 
 ## Production Output
