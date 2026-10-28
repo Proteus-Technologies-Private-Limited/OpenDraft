@@ -6,6 +6,7 @@ A complete list of features in OpenDraft.
 
 - **Industry-standard formatting** -- Scene headings, action, character, dialogue, parenthetical, transition, and shot elements with proper Courier Prime formatting
 - **Character Autocomplete** -- Smart suggestions as you type character names
+- **Macros** -- Insert text you type often (CONTINUOUS, a recurring location, a character with an extension) with a shortcut or from Edit → Insert Macro, optionally as a given element; export and import them as JSON
 - **Scene Navigator** -- Jump between scenes instantly from the sidebar
 - **Bookmarks** -- Name any line and jump back to it from the Navigator or Go to Page; saved with the script and shared with collaborators
 - **Element Numbering** -- Number any element, not only scene headings: every line of dialogue, every sound effect or shot. The format chooses which elements are numbered, what restarts each count (a scene heading, a new act, any element) and an optional prefix such as FX 1. Shown in the margin on screen, in print, PDF, Word and Final Draft

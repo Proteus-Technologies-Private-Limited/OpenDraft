@@ -13784,3 +13784,23 @@ html.phone .status-left .status-project,
 html.phone .status-left .status-sep { display: none !important; }
 html.phone .menu-bar.chrome-comfortable { height: 46px; }
 html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }
+
+/* ============ MACROS (Settings → Macros) ============ */
+.macro-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.macro-row {
+  border: 1px solid var(--fd-border); border-radius: 6px; padding: 12px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.macro-row-fields {
+  display: grid; gap: 10px 14px;
+  grid-template-columns: minmax(140px, 1fr) minmax(200px, 2fr);
+}
+.macro-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--fd-text-muted); min-width: 0; }
+.macro-field input, .macro-field textarea { width: 100%; box-sizing: border-box; font-size: 14px; }
+.macro-field textarea { resize: vertical; min-height: 36px; padding: 8px 10px; font-family: 'Courier Prime', 'Courier New', monospace; }
+.macro-row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.macro-row-actions .dialog-btn { height: 30px; padding: 0 12px; }
+.macro-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 600px) {
+  .macro-row-fields { grid-template-columns: 1fr; }
+}
