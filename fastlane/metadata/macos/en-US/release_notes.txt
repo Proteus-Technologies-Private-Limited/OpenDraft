@@ -1,11 +1,6 @@
-NUMBER ANY LINE
-Number every line of dialogue, every sound effect or every shot, not just your scenes. The numbers sit in the margin on screen, in print and in the scripts you export, and update themselves as you write.
+This update fixes problems with signing in and working together.
 
-NEW PODCAST FORMAT
-A ready-made format for podcasts and audio drama, with dialogue, sound effects and music cues already numbered for your recording sessions.
-
-SMOOTHER COLLABORATION
-When you switch scripts during a session, your collaborators now come with you. They also know straight away when you end the session. And you stay signed in instead of being asked to sign in again.
-
-ALSO FIXED
-Auto-save no longer stops with a message about renewing your sign-in. Password reset emails now open the right page. When you host a collaboration session, it stays open for as long as the invite you sent. Signing out shows that it's working, is quicker, and leaves nothing of your script on screen. Zooming in or out keeps you on the part of the script you were reading. When you zoom in past the width of the window, you can now scroll all the way to the left edge of the page. Using a copy of a built-in format no longer leaves a blank window. Drop-down lists no longer hide behind the Scenes search box.
+• Auto-save no longer stops with a message about renewing your sign-in.
+• Password reset emails now open the right page.
+• When you host a collaboration session, it stays open for as long as the invite you sent.
+• Signing out shows that it's working, is quicker, and leaves nothing of your script on screen.
