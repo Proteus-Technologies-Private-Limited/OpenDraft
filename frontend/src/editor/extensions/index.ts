@@ -22,6 +22,7 @@ export { TagMark } from './TagMark';
 export { FormatOverride } from './FormatOverride';
 export { CustomElement } from './CustomElement';
 export { StartsNewPage, selectionStartsNewPage, PAGE_BREAKABLE_TYPES } from './StartsNewPage';
+export { Alternates } from './Alternates';
 export { AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations, AvBlockExtensions } from './AvBlock';
 export { cueFromDecorations, avCuePluginKey } from './AvBlock';
 export { AV_ASPECT_RATIOS, AV_DEFAULT_COLUMNS, aspectRatioCss, clampColumnWidth, readColumnConfig, gridTemplateFor, avColumnDataCount, avBlockAtSelection } from './AvBlock';

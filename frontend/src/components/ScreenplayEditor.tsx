@@ -30,7 +30,7 @@ import {
   FormatOverride, CustomElement, DualDialogue, DualDialogueColumn,
   TitlePage,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
-  StartsNewPage,
+  StartsNewPage, Alternates,
 } from '../editor/extensions';
 import { ElementNumbers, ELEMENT_NUMBERS_REFRESH } from '../editor/extensions/ElementNumbers';
 import { getElementNumberingRules } from '../utils/elementNumbers';
@@ -1984,6 +1984,7 @@ const ScreenplayEditor: React.FC = () => {
         getSettings: () => useEditorStore.getState().revisionSettings,
       }),
       StartsNewPage,
+      Alternates,
       LockedPages,
       FootnoteMarkerExtension,
       PaginationExtension,

@@ -30,7 +30,7 @@ import {
   TitlePage, CustomElement,
   DualDialogue, DualDialogueColumn,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage,
-  StartsNewPage,
+  StartsNewPage, Alternates,
 } from '../editor/extensions';
 
 /** The extensions `testSchema` is built from, for a test that needs one more. */
@@ -47,6 +47,7 @@ export const testExtensions = [
   DualDialogue, DualDialogueColumn,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage,
   StartsNewPage,
+  Alternates,
   ScriptNoteMark,
   TagMark,
   // Configured as the editor configures it: without `multicolor` the mark

@@ -2283,6 +2283,47 @@ body {
   user-select: none;
 }
 
+/* Alternates (editor/extensions/Alternates) — the ‹ 2/3 › chip beside a line
+   that has other versions. Floated past the element's right edge the way
+   element numbers float past its left: the margin box is narrower than
+   nothing, so no line is shortened and wrapping stays what pagination
+   counted. Inside the first 0.6in of the right margin, so it stays on the
+   page beside a full-width action line and clear of the revision asterisks
+   at 0.65in. Only dialogue and action have versions, and neither carries a
+   scene number. */
+.alternate-chip {
+  float: right;
+  width: 0.55in;
+  margin-right: calc(-0.55in - 0.05in);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 10px;
+  font-weight: normal;
+  font-style: normal;
+  text-transform: none;
+  line-height: 16px;
+  color: var(--fd-accent);
+  border: 1px solid var(--fd-accent);
+  border-radius: 8px;
+  background: var(--fd-page-bg, white);
+  user-select: none;
+  white-space: nowrap;
+}
+.alternate-chip-step {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.alternate-chip-step:hover { color: var(--fd-text); }
+.alternate-chip-label { min-width: 22px; text-align: center; }
+
 /* ── Revision marks (Tools → Production → Revision Mode) ──
    One asterisk in the right margin beside every line holding revised text,
    placed by measuring the lines (RevisionGutter in editor/revisionMarks.ts):
@@ -2307,6 +2348,7 @@ body {
    on the line it starts on — close enough for a print that is not the PDF
    route (the default), which marks every line exactly. */
 @media print {
+  .alternate-chip { display: none !important; }
   .rev-gutter { display: none !important; }
   .rev-mark::before {
     content: var(--rev-mark, '*');
@@ -13674,6 +13716,11 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   .page.phone-view.show-scene-numbers .scene-heading[data-scene-number]::after,
   .page.phone-view.show-element-numbers [data-element-number]::before {
     display: none;
+  }
+  /* No margin to sit in: the chip takes a little of the line's own width. */
+  .page.phone-view .alternate-chip {
+    margin-right: 0;
+    margin-left: 4px;
   }
 }
 

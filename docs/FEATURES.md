@@ -62,6 +62,7 @@ A complete list of features in OpenDraft.
 - **Search & Replace** -- Find and replace across your screenplay
 - **Spell Check** -- Built-in spell checker with custom dictionary support
 - **Production Tags** -- Tag elements for production planning
+- **Alternates** -- Keep other versions of a line of dialogue or action beside it and switch between them; only the version showing prints and exports
 - **Reports** -- Scene, character, location, cast and breakdown reports, exported as CSV or PDF
 
 ## Production Output
