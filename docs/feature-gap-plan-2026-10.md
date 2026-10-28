@@ -53,7 +53,7 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 10 | **Macros / text snippets** | FI, FD | Missing | S | Core |
 | 11 | **Exportable reports** (scene, character, location, cast, breakdown → CSV/PDF) | FD, FI, WD, CX | Partial — stats are on screen only | S | Core |
 | 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | Partial — notes have colours and @asset refs, no threads or resolve | M | Core |
-| 13 | **Story timeline / plotlines** (assign scenes to story threads, colour-coded timeline) | FD (Story Map, Structure Points), AS (Plot Board) | ✅ Done — plotlines on scenes and beats, Story Timeline | M | Core |
+| 13 | **Story timeline / plotlines** (assign scenes to story threads, colour-coded timeline) | FD (Story Map, Structure Points), AS (Plot Board) | Missing | M | Core |
 | 14 | **Suggest mode for collaborators** (proposed edits accepted/rejected by the owner) | WD, AS | Missing — track changes is against a check-in, not per-collaborator proposals | L | Core |
 | 15 | **Dictation / speech to script** | FD (mobile), WD | Missing | M | Core |
 | 16 | **Graphic novel / comic template** | FD, FI | Missing | S | Core |
