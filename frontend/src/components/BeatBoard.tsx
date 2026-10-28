@@ -234,6 +234,13 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
   beat, onUpdate, onDelete, dragHandleProps, resizePointerDown,
 }) => {
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showPlotlines, setShowPlotlines] = useState(false);
+  const plotlines = useEditorStore((s) => s.plotlines);
+  const beatPlotlines = plotlines.filter((p) => beat.plotlineIds?.includes(p.id));
+  const togglePlotline = (id: string) => {
+    const ids = beat.plotlineIds ?? [];
+    onUpdate(beat.id, { plotlineIds: ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id] });
+  };
   const [descFocused, setDescFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const descHeightRef = useRef<number | null>(null);
@@ -446,6 +453,16 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
         </>
       )}
 
+      {beatPlotlines.length > 0 && (
+        <div className="beat-card-plotlines">
+          {beatPlotlines.map((p) => (
+            <span key={p.id} className="beat-plotline-chip" style={{ borderColor: p.color, color: p.color }}>
+              {p.name || 'Plotline'}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="beat-card-toolbar" style={{ marginTop: 'auto' }}>
         <div className="beat-color-picker-wrap">
           <button
@@ -468,6 +485,32 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
             </div>
           )}
         </div>
+        {plotlines.length > 0 && (
+          <div className="beat-color-picker-wrap">
+            <button
+              className="beat-toolbar-btn"
+              onClick={() => setShowPlotlines(!showPlotlines)}
+              title="Plotlines"
+              aria-label="Plotlines"
+              aria-expanded={showPlotlines}
+            >&#8801;</button>
+            {showPlotlines && (
+              <div className="beat-plotline-picker">
+                {plotlines.map((p) => (
+                  <label key={p.id} className="beat-plotline-option">
+                    <input
+                      type="checkbox"
+                      checked={!!beat.plotlineIds?.includes(p.id)}
+                      onChange={() => togglePlotline(p.id)}
+                    />
+                    <span className="beat-plotline-dot" style={{ background: p.color }} />
+                    <span>{p.name || 'Plotline'}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <button className="beat-toolbar-btn" onClick={() => fileInputRef.current?.click()} title="Attach image">&#128247;</button>
         <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
         {(beat.cardWidth > 0 || beat.cardHeight > 0) && (

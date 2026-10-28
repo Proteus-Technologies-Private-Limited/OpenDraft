@@ -53,7 +53,7 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 10 | **Macros / text snippets** | FI, FD | Missing | S | Core |
 | 11 | **Exportable reports** (scene, character, location, cast, breakdown → CSV/PDF) | FD, FI, WD, CX | Partial — stats are on screen only | S | Core |
 | 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | Partial — notes have colours and @asset refs, no threads or resolve | M | Core |
-| 13 | **Story timeline / plotlines** (assign scenes to story threads, colour-coded timeline) | FD (Story Map, Structure Points), AS (Plot Board) | Missing | M | Core |
+| 13 | **Story timeline / plotlines** (assign scenes to story threads, colour-coded timeline) | FD (Story Map, Structure Points), AS (Plot Board) | ✅ Done — plotlines on scenes and beats, Story Timeline | M | Core |
 | 14 | **Suggest mode for collaborators** (proposed edits accepted/rejected by the owner) | WD, AS | Missing — track changes is against a check-in, not per-collaborator proposals | L | Core |
 | 15 | **Dictation / speech to script** | FD (mobile), WD | Missing | M | Core |
 | 16 | **Graphic novel / comic template** | FD, FI | Missing | S | Core |
@@ -188,6 +188,15 @@ Store as a node attribute array so it rides through Yjs without new plumbing.
 character arcs) with colours; assign scenes and beats to them; a horizontal
 timeline view showing scene length (from the timing engine) per plotline;
 shared with Beat Board so beats and scenes stay linked.
+
+✅ **Done** (`utils/plotlines.ts`, `utils/storyTimeline.ts`,
+`components/StoryTimeline.tsx`). Plotlines are saved as `_plotlines` and synced
+in collaboration; a scene's plotlines are a `plotlines` attribute on its scene
+heading, so they move with the scene; a beat lists its own (`plotlineIds`).
+View → Panels → Story Timeline shows one row per plotline with scenes as wide
+as their screen time; click to assign. Beat cards get a plotline picker and
+the Scene Navigator shows a dot per plotline. Beats share the plotlines but
+are not yet linked to particular scenes.
 
 **14. Suggest mode** (L) — collaborators with a "Suggest" role produce
 insert/delete marks attributed to them; the owner accepts/rejects per change or

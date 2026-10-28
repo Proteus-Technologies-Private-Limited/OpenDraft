@@ -265,6 +265,7 @@ const SectionOutline: React.FC<SectionOutlineProps> = ({
 const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style }) => {
   const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis, updateSceneColor, pageLabels } = useEditorStore();
   const pageLayout = useEditorStore((s) => s.pageLayout);
+  const plotlines = useEditorStore((s) => s.plotlines);
   const fontFamily = useEditorStore((s) => s.fontFamily);
   const fontSize = useEditorStore((s) => s.fontSize);
   const [activeTab, setActiveTab] = useState<NavTab>('scenes');
@@ -930,6 +931,14 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                             return label ? <span className="scene-act-badge" title={`Act ${label.slice(1)}`}>{label}</span> : null;
                           })()}
                           <span className="scene-heading-label">{highlightText(scene.heading, searchQuery)}</span>
+                          {/* The plotlines this scene carries — View → Story Timeline. */}
+                          {plotlines.some((p) => scene.plotlineIds?.includes(p.id)) && (
+                            <span className="scene-plotline-dots">
+                              {plotlines.filter((p) => scene.plotlineIds?.includes(p.id)).map((p) => (
+                                <span key={p.id} className="scene-plotline-dot" style={{ background: p.color }} title={p.name || 'Plotline'} />
+                              ))}
+                            </span>
+                          )}
                         </div>
                         {detail && detail.pageLength > 0 && (
                           <div className="scene-length" data-tooltip={

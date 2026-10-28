@@ -102,6 +102,7 @@
     { page: 'Beat Board', title: 'Beat Board', section: '', text: 'Plan story structure beats organized by act. Story events turning points. Three-act structure.', url: 'beat-board.html' },
     { page: 'Beat Board', title: 'Working with Beats', section: 'Beats', text: 'Add beat button. Title short name inciting incident. Description what happens. Edit delete beats. Outline planning.', url: 'beat-board.html#working-with-beats' },
     { page: 'Beat Board', title: 'Acts', section: 'Acts', text: 'Three-act structure. Act 1 setup introduce characters 25 percent. Act 2 confrontation rising action 50 percent. Act 3 resolution climax 25 percent. TV scripts multiple acts.', url: 'beat-board.html#acts' },
+    { page: 'Beat Board', title: 'Plotlines and the Story Timeline', section: 'Plotlines', text: 'Plotlines story threads A story B story subplot character arc. View Panels Story Timeline. Scenes by screen time, click to assign a scene to a plotline. Colour, rename, delete plotline. Beats in plotlines. Scene navigator dots. Structure map plot board.', url: 'beat-board.html#plotlines' },
 
     // Characters
     { page: 'Managing Projects', title: 'Saving a Project in a Folder', section: 'Folders', text: 'Project folder on disk external drive RAID network drive NAS. Open folder as project. Storage save to a folder move show in folder check for new files save in library only. Save to file as. Fountain fdx odraft. Changed outside OpenDraft use the file version keep OpenDraft version. Drive offline not saved to file.', url: 'projects.html#project-folders' },

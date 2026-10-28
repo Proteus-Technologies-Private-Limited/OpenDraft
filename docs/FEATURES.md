@@ -14,6 +14,7 @@ A complete list of features in OpenDraft.
 ## Story Planning
 
 - **Beat Board & Index Cards** -- Visual story planning with drag-and-drop scene organization
+- **Plotlines & Story Timeline** -- Name the story's threads, put scenes and beats in them, and see every plotline across the script by screen time
 - **Character Profiles** -- Track characters with role types, highlight colors, and rich descriptions
 - **Casting / Reference Images** -- Attach headshots or reference images to characters
 - **Table Read** -- Hear the script read aloud with a voice per character and a live, word-by-word preview; device voices, free on-device Kokoro, or Gemini, OpenAI, ElevenLabs, Azure or your own speech server

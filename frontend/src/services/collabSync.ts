@@ -22,6 +22,7 @@ const SYNC_KEYS = [
   'tagCategories',
   'beats',
   'beatColumns',
+  'plotlines',
   'beatArrangeMode',
   // Revision Mode is per script, so every collaborator marks edits the same
   // way — one writer in Revision Mode and another not would leave the draft
@@ -64,6 +65,7 @@ export function startCollabSync(ydoc: Y.Doc, isHost: boolean): void {
       metaMap!.set('tagCategories', JSON.stringify(store.tagCategories));
       metaMap!.set('beats', JSON.stringify(store.beats));
       metaMap!.set('beatColumns', JSON.stringify(store.beatColumns));
+      metaMap!.set('plotlines', JSON.stringify(store.plotlines));
       metaMap!.set('beatArrangeMode', JSON.stringify(store.beatArrangeMode));
       metaMap!.set('revisionMode', JSON.stringify(store.revisionMode));
       metaMap!.set('revisionColor', JSON.stringify(store.revisionColor));
@@ -127,6 +129,7 @@ function takeSnapshot(): Record<SyncKey, string> {
     tagCategories: JSON.stringify(s.tagCategories),
     beats: JSON.stringify(s.beats),
     beatColumns: JSON.stringify(s.beatColumns),
+    plotlines: JSON.stringify(s.plotlines),
     beatArrangeMode: JSON.stringify(s.beatArrangeMode),
     revisionMode: JSON.stringify(s.revisionMode),
     revisionColor: JSON.stringify(s.revisionColor),
@@ -184,6 +187,11 @@ function applyYjsToStore() {
     const bc = metaMap.get('beatColumns');
     if (bc) {
       try { store.setBeatColumns(JSON.parse(bc)); } catch { /* ignore */ }
+    }
+
+    const pl = metaMap.get('plotlines');
+    if (pl) {
+      try { store.setPlotlines(JSON.parse(pl)); } catch { /* ignore */ }
     }
 
     const rm = metaMap.get('revisionMode');

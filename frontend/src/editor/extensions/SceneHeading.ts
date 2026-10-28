@@ -17,6 +17,21 @@ export const SceneHeading = Node.create({
       // A scene cut after its number was locked: the heading stays, reading
       // OMITTED, so the numbers around it never move (editor/omitScene.ts).
       omitted: { default: false },
+      // The plotlines this scene carries (utils/plotlines). Not copied onto a
+      // heading split off this one: a new scene starts in no plotline.
+      plotlines: {
+        default: null,
+        keepOnSplit: false,
+        parseHTML: (el: HTMLElement) => {
+          const raw = el.getAttribute('data-plotlines');
+          const ids = raw ? raw.split(' ').filter(Boolean) : [];
+          return ids.length ? ids : null;
+        },
+        renderHTML: (attrs: Record<string, unknown>) =>
+          Array.isArray(attrs.plotlines) && attrs.plotlines.length
+            ? { 'data-plotlines': attrs.plotlines.join(' ') }
+            : {},
+      },
     };
   },
 
