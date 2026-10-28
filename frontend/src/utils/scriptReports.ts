@@ -21,6 +21,30 @@ export interface ReportInput {
   tagCategories: TagCategory[];
   /** How scene length and screen time are measured — the script's own layout. */
   timing: TimingOptions;
+  /** Script and general notes, for the notes reports. Absent reads as none. */
+  notes?: ReportNote[];
+  generalNotes?: ReportNote[];
+}
+
+/**
+ * A note as the notes reports read it. Only `id`, `content` and `createdAt`
+ * are certain; the rest is read when present — the anchor text of a script
+ * note, the title of a general note, and the thread fields (author, replies,
+ * resolved, assignee) of a script whose notes carry them. A note without
+ * them reports as open, unassigned and without replies.
+ */
+export interface ReportNote {
+  id: string;
+  content: string;
+  createdAt: string;
+  anchorText?: string;
+  title?: string;
+  author?: string;
+  assignee?: string;
+  resolved?: boolean;
+  resolvedBy?: string;
+  resolvedAt?: string;
+  replies?: Array<{ author?: string; content?: string; createdAt?: string }>;
 }
 
 export interface BuiltInReport {
@@ -305,12 +329,127 @@ function tagBreakdownReport(input: ReportInput): ReportTable {
   };
 }
 
+/**
+ * Where each anchored note sits: the index of the top-level node its
+ * highlight first appears in, by note id. Notes inside dual dialogue are found
+ * too. A note whose highlight is gone from the script has no entry.
+ */
+function noteAnchors(doc: JSONContent): Map<string, number> {
+  const found = new Map<string, number>();
+  const visit = (node: JSONContent, nodeIndex: number) => {
+    for (const mark of node.marks ?? []) {
+      const id = mark.type === 'scriptNote' ? mark.attrs?.noteId : null;
+      if (typeof id === 'string' && !found.has(id)) found.set(id, nodeIndex);
+    }
+    for (const child of node.content ?? []) visit(child, nodeIndex);
+  };
+  (doc.content ?? []).forEach((node, i) => visit(node, i));
+  return found;
+}
+
+const isResolved = (n: ReportNote) => n.resolved === true;
+const repliesOf = (n: ReportNote) => (Array.isArray(n.replies) ? n.replies : []);
+
+/**
+ * Write `@Jane_Doe` as "@Jane Doe" when Jane Doe has written in, been
+ * assigned or resolved any of these notes. A mention is stored as one word;
+ * on paper it reads as the name. Anything else is left as typed.
+ */
+function mentionsAsNames(notes: ReportNote[]): (text: string) => string {
+  const people = new Map<string, string>();
+  const add = (name: string | undefined) => {
+    const n = (name ?? '').trim().replace(/\s+/g, ' ');
+    if (n && !people.has(n.toLowerCase())) people.set(n.toLowerCase(), n);
+  };
+  for (const n of notes) {
+    add(n.author); add(n.assignee); add(n.resolvedBy);
+    for (const r of repliesOf(n)) add(r.author);
+  }
+  return (text) => text.replace(/@(\S+)/g, (token, word: string) => {
+    const trimmed = word.replace(/[.,;:!?)]+$/, '');
+    for (const candidate of [word, trimmed]) {
+      const person = candidate && people.get(candidate.replace(/_/g, ' ').toLowerCase());
+      if (person) return `@${person}${word.slice(candidate.length)}`;
+    }
+    return token;
+  });
+}
+
+/** A date as a report prints it: the day, which sorts as text. */
+const reportDate = (iso: string | undefined) => (iso ?? '').slice(0, 10);
+
+/**
+ * Every note and its replies, one row each: the note numbered 1, 2, 3… in
+ * script order with its scene, its replies 1.1, 1.2… under it. General notes
+ * follow, then any note whose highlight is no longer in the script.
+ */
+function buildNotesReport(input: ReportInput, openOnly: boolean): ReportTable {
+  const scenes = collectReportScenes(input.doc, input.timing);
+  const anchors = noteAnchors(input.doc);
+  const sceneAt = (nodeIndex: number) => {
+    let found: ReportScene | null = null;
+    for (const sc of scenes) {
+      if (sc.nodeIndex > nodeIndex) break;
+      found = sc;
+    }
+    return found;
+  };
+
+  type Entry = { note: ReportNote; scene: string; on: string; order: number };
+  const anchored: Entry[] = [];
+  const orphaned: Entry[] = [];
+  (input.notes ?? []).forEach((note, i) => {
+    const at = anchors.get(note.id);
+    const on = singleLine(note.anchorText ?? '').trim();
+    if (at === undefined) {
+      orphaned.push({ note, scene: '', on, order: i });
+    } else {
+      anchored.push({ note, scene: sceneAt(at)?.number ?? '', on, order: at * 1e6 + i });
+    }
+  });
+  anchored.sort((a, b) => a.order - b.order);
+  const general: Entry[] = (input.generalNotes ?? []).map((note, i) => ({
+    note, scene: 'General', on: singleLine(note.title ?? '').trim(), order: i,
+  }));
+
+  const all = [...anchored, ...general, ...orphaned];
+  const text = mentionsAsNames(all.map((e) => e.note));
+  const listed = openOnly ? all.filter((e) => !isResolved(e.note)) : all;
+  const rows: Array<Array<string | number>> = [];
+  let replyCount = 0;
+  listed.forEach((entry, i) => {
+    const n = i + 1;
+    const { note } = entry;
+    const status = isResolved(note)
+      ? `Resolved${note.resolvedBy ? ` by ${note.resolvedBy}` : ''}${note.resolvedAt ? ` ${reportDate(note.resolvedAt)}` : ''}`
+      : 'Open';
+    rows.push([String(n), entry.scene, entry.on, note.author ?? '', text(note.content), status, note.assignee ?? '', reportDate(note.createdAt)]);
+    repliesOf(note).forEach((r, k) => {
+      replyCount++;
+      rows.push([`${n}.${k + 1}`, '', '', r.author ?? '', text(r.content ?? ''), '', '', reportDate(r.createdAt)]);
+    });
+  });
+
+  const resolved = all.filter((e) => isResolved(e.note)).length;
+  const replies = `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`;
+  return {
+    title: openOnly ? 'Open Notes' : 'Notes Report',
+    summary: openOnly
+      ? `${plural(listed.length, 'open note')} · ${replies}`
+      : `${plural(all.length, 'note')} · ${all.length - resolved} open · ${resolved} resolved · ${replies}`,
+    columns: ['#', 'Scene', 'On', 'From', 'Comment', 'Status', 'Assigned To', 'Date'],
+    rows,
+  };
+}
+
 export const BUILT_IN_REPORTS: BuiltInReport[] = [
   { id: 'scenes', label: 'Scene Report', description: 'Every scene with its location, length, screen time and who speaks', build: sceneReport },
   { id: 'characters', label: 'Character Report', description: 'Speeches, words and scenes for every speaking character', build: characterReport },
   { id: 'locations', label: 'Location Report', description: 'Each location, how often it is used and for how many pages', build: locationReport },
   { id: 'cast', label: 'Cast Report', description: 'Character profiles with role, gender, age and speaking scenes', build: castReport },
   { id: 'breakdown', label: 'Breakdown Report', description: 'Tagged props, costumes, vehicles and more, with their scenes', build: tagBreakdownReport },
+  { id: 'notes', label: 'Notes Report', description: 'Every note with its replies, who wrote it, who it is assigned to, and whether it is resolved', build: (input) => buildNotesReport(input, false) },
+  { id: 'open-notes', label: 'Open Notes', description: 'Only the notes not yet resolved, with their replies — what is still to do', build: (input) => buildNotesReport(input, true) },
 ];
 
 // ── Output ──────────────────────────────────────────────────────────────────
