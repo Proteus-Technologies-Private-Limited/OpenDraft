@@ -32,6 +32,8 @@ interface ViewState {
   phoneZoomLevel?: number;
   viewLayout?: ViewLayout;
   toolbarMode?: 'compact' | 'comfortable' | 'hidden';
+  focusTypewriter?: boolean;
+  focusDim?: 'off' | 'element' | 'scene';
   characterSortBy?: 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance';
   grammarRulesEnabled?: Record<string, boolean>;
   spellingSettings?: SpellingSettings;
@@ -971,6 +973,18 @@ interface EditorState {
   // Toolbar display mode
   toolbarMode: 'compact' | 'comfortable' | 'hidden';
   setToolbarMode: (mode: 'compact' | 'comfortable' | 'hidden') => void;
+  /**
+   * View → Focus Mode: full screen, menus and panels out of the way. Not
+   * saved — every launch starts with the normal window. Its two options are.
+   */
+  focusMode: boolean;
+  setFocusMode: (on: boolean) => void;
+  /** In Focus Mode, hold the line being written at a fixed height. */
+  focusTypewriter: boolean;
+  setFocusTypewriter: (on: boolean) => void;
+  /** In Focus Mode, fade everything but the current element or scene. */
+  focusDim: 'off' | 'element' | 'scene';
+  setFocusDim: (dim: 'off' | 'element' | 'scene') => void;
 
   // Character sort preference
   characterSortBy: 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance';
@@ -1636,6 +1650,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   toolbarMode: (_vs.toolbarMode as 'compact' | 'comfortable' | 'hidden') ?? defaultToolbarMode(),
   setToolbarMode: (mode) => { set({ toolbarMode: mode }); saveViewState({ toolbarMode: mode }); },
+  focusMode: false,
+  setFocusMode: (on) => set({ focusMode: on }),
+  focusTypewriter: _vs.focusTypewriter ?? true,
+  setFocusTypewriter: (on) => { set({ focusTypewriter: on }); saveViewState({ focusTypewriter: on }); },
+  focusDim: _vs.focusDim === 'element' || _vs.focusDim === 'scene' ? _vs.focusDim : 'off',
+  setFocusDim: (dim) => { set({ focusDim: dim }); saveViewState({ focusDim: dim }); },
 
   characterSortBy: (_vs.characterSortBy as 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance') ?? 'importance',
   setCharacterSortBy: (sort) => { set({ characterSortBy: sort }); saveViewState({ characterSortBy: sort }); },
