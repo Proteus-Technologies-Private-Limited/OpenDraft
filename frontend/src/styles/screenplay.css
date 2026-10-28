@@ -13824,3 +13824,48 @@ html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }
 @media print {
   .app-container.focus-dim .ProseMirror * { opacity: 1 !important; }
 }
+/* ============ DIALOGUE TUNER (View → Panels → Dialogue Tuner) ============ */
+/* The panel shell comes from .tags-panel (layout, phone and tablet overlay). */
+.tags-panel.dialogue-tuner { width: 380px; }
+.dialogue-tuner-controls {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  padding: 10px 12px; border-bottom: 1px solid var(--fd-border); flex-shrink: 0;
+}
+.dialogue-tuner-controls .od-select { min-width: 160px; }
+.dialogue-tuner-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fd-text-muted); cursor: pointer; }
+.dialogue-tuner-list { padding: 4px 0 24px; }
+.dialogue-tuner-scene {
+  position: sticky; top: 0; z-index: 1;
+  padding: 6px 12px; font-size: 11px; font-weight: 600; letter-spacing: .02em;
+  color: var(--fd-text-muted); background: var(--fd-navigator-bg);
+  border-bottom: 1px solid var(--fd-border); text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dialogue-tuner-speech { padding: 8px 12px 10px; border-bottom: 1px solid var(--fd-border); }
+.dialogue-tuner-before {
+  font-size: 12px; color: var(--fd-text-muted); font-style: italic; margin-bottom: 6px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.dialogue-tuner-before-speaker { font-style: normal; font-weight: 600; }
+.dialogue-tuner-cue-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.dialogue-tuner-cue {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: 600 12px 'Courier Prime', 'Courier New', monospace; color: var(--fd-accent);
+}
+.dialogue-tuner-cue:hover { text-decoration: underline; }
+.dialogue-tuner-hear {
+  margin-left: auto; width: 24px; height: 22px; border-radius: 4px; border: 1px solid var(--fd-border);
+  background: transparent; color: var(--fd-text-muted); cursor: pointer; font-size: 10px;
+}
+.dialogue-tuner-hear:hover { color: var(--fd-text); background: var(--fd-toolbar-hover); }
+.dialogue-tuner-nolines { font-size: 12px; color: var(--fd-text-muted); font-style: italic; }
+.dialogue-tuner-line {
+  display: block; width: 100%; box-sizing: border-box; resize: none; overflow: hidden;
+  margin: 2px 0; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px;
+  background: transparent; color: var(--fd-text);
+  font: 13px/1.45 'Courier Prime', 'Courier New', monospace; field-sizing: content;
+}
+.dialogue-tuner-line:hover { border-color: var(--fd-border); }
+.dialogue-tuner-line:focus { outline: none; border-color: var(--fd-accent); background: var(--fd-input-bg); }
+.dialogue-tuner-parenthetical { padding-left: 18px; color: var(--fd-text-muted); }
+.dialogue-tuner-lyrics { font-style: italic; }

@@ -23,6 +23,7 @@ interface ViewState {
   characterProfilesOpen?: boolean;
   tagsPanelOpen?: boolean;
   locationDatabaseOpen?: boolean;
+  dialogueTunerOpen?: boolean;
   notesVisible?: boolean;
   tagsVisible?: boolean;
   notesActiveTab?: 'script' | 'general';
@@ -935,6 +936,14 @@ interface EditorState {
   toggleTagsPanel: () => void;
   locationDatabaseOpen: boolean;
   toggleLocationDatabase: () => void;
+  /** View → Panels → Dialogue Tuner: one character's lines, editable in one place. */
+  dialogueTunerOpen: boolean;
+  /** Open the tuner, on `character` when one is given. */
+  openDialogueTuner: (character?: string) => void;
+  closeDialogueTuner: () => void;
+  /** The character the tuner shows; null lets it pick the one at the cursor. */
+  dialogueTunerCharacter: string | null;
+  setDialogueTunerCharacter: (name: string | null) => void;
   /** When set, the Tags panel shows a "select category" prompt for this selection */
   pendingTagSelection: { from: number; to: number; text: string; elementType: string; sceneId: string | null } | null;
   setPendingTagSelection: (sel: { from: number; to: number; text: string; elementType: string; sceneId: string | null } | null) => void;
@@ -1591,6 +1600,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return { tagsPanelOpen: v };
   }),
   locationDatabaseOpen: _vs.locationDatabaseOpen ?? false,
+  dialogueTunerOpen: _vs.dialogueTunerOpen ?? false,
+  openDialogueTuner: (character) => {
+    saveViewState({ dialogueTunerOpen: true });
+    set(character ? { dialogueTunerOpen: true, dialogueTunerCharacter: character } : { dialogueTunerOpen: true });
+  },
+  closeDialogueTuner: () => { saveViewState({ dialogueTunerOpen: false }); set({ dialogueTunerOpen: false }); },
+  dialogueTunerCharacter: null,
+  setDialogueTunerCharacter: (name) => set({ dialogueTunerCharacter: name }),
   toggleLocationDatabase: () => set((s) => {
     const v = !s.locationDatabaseOpen;
     saveViewState({ locationDatabaseOpen: v });

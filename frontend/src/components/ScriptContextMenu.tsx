@@ -27,6 +27,7 @@ import { isAvCellPos } from '../editor/extensions/AvBlock';
 import { REVISION_COLORS } from '../editor/revisionColors';
 import { bookmarkTargetAt } from '../utils/bookmarks';
 import { editBookmarkAtSelection, removeBookmark } from './bookmarkActions';
+import { speakerAt } from '../utils/dialogueTuner';
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -851,6 +852,14 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           <span>Add Bookmark...</span>
         </div>
       ))}
+      {showCharProfile && speakerAt(editor.state.doc, safeSelFrom) && (
+        <div className="ctx-item" onClick={() => {
+          useEditorStore.getState().openDialogueTuner(speakerAt(editor.state.doc, safeSelFrom));
+          onClose();
+        }}>
+          <span>Dialogue Tuner...</span>
+        </div>
+      )}
       {showDualDialogue && (
         <div className="ctx-item" onClick={() => { console.log('[CtxMenu] Dual Dialogue clicked, commands:', Object.keys(editor.commands).filter(k => k.includes('dual') || k.includes('Dual'))); const result = (editor as any).commands.toggleDualDialogue(); console.log('[CtxMenu] result:', result); onClose(); }}>
           <span>Dual Dialogue</span>
