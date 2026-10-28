@@ -52,7 +52,7 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | Missing | M | Core |
 | 10 | **Macros / text snippets** | FI, FD | Missing | S | Core |
 | 11 | **Exportable reports** (scene, character, location, cast, breakdown → CSV/PDF) | FD, FI, WD, CX | Partial — stats are on screen only | S | Core |
-| 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | ✅ Done — replies, resolve, assignee, @mentions, notes reports | M | Core |
+| 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | ✅ Done — replies, resolve, assignee, @mentions; export pending | M | Core |
 | 13 | **Story timeline / plotlines** (assign scenes to story threads, colour-coded timeline) | FD (Story Map, Structure Points), AS (Plot Board) | Missing | M | Core |
 | 14 | **Suggest mode for collaborators** (proposed edits accepted/rejected by the owner) | WD, AS | Missing — track changes is against a check-in, not per-collaborator proposals | L | Core |
 | 15 | **Dictation / speech to script** | FD (mobile), WD | Missing | M | Core |
@@ -185,8 +185,8 @@ with Reply, Resolve / Reopen and an assignee pulldown on every card
 (`components/NoteThread.tsx`), a *Show resolved* toggle, a *For me* filter, and
 `@` mentions of collaborators, drawn from who is connected, the collab server's
 invite list for the script and everyone already named in its notes. Resolved
-notes fade to a dashed underline in the script. Export is the new *Notes Report*
-and *Open Notes* in Tools → Analytics → Reports (CSV and PDF).
+notes fade to a dashed underline in the script. Exporting notes with their
+status (a Notes report in Tools → Analytics → Reports) is a separate change.
 Two departures from the description above:
 - **No schema bump or backend change.** Notes ride in the saved script as the
   `_notes` / `_generalNotes` JSON, which the backend stores without reading, so
