@@ -117,3 +117,58 @@ describe('formatting', () => {
     expect(csv).toBe('\uFEFFName,Note\r\n"\'=HYPERLINK(""x"")","a, ""b""\nc"\r\nZoë,3\r\n');
   });
 });
+
+describe('notes reports', () => {
+  const noted = (id: string) => [{ type: 'scriptNote', attrs: { noteId: id, color: '#f4d35e' } }];
+  const notesDoc: JSONContent = {
+    type: 'doc',
+    content: [
+      el('sceneHeading', 'INT. KITCHEN - NIGHT', { sceneNumber: '1' }),
+      el('action', 'Maya grips the knife.', undefined, noted('late')),
+      el('sceneHeading', 'EXT. ROOF - DAY', { sceneNumber: '2' }),
+      {
+        type: 'dualDialogue',
+        content: [{ type: 'dualDialogueColumn', content: [el('character', 'MAYA'), el('dialogue', 'Now.', undefined, noted('dual'))] }],
+      },
+    ],
+  };
+  const base = { elementType: 'action', contextLabel: '', color: 'Yellow' as const, sceneId: null, createdAt: '2026-10-01T09:00:00.000Z' };
+  const notes = [
+    // Stored newest first; the report lists them in script order.
+    { ...base, id: 'dual', content: 'Overlap? @ana_ruiz', anchorText: 'Now.', author: 'Ana', assignee: 'Ben' },
+    {
+      ...base, id: 'late', content: 'Cut this', anchorText: 'Maya grips', author: 'Ben',
+      resolved: true, resolvedBy: 'Ana', resolvedAt: '2026-10-03T00:00:00.000Z',
+      replies: [{ id: 'r1', author: 'Ana Ruiz', content: 'Done, @Ben.', createdAt: '2026-10-02T00:00:00.000Z' }],
+    },
+    { ...base, id: 'gone', content: 'Highlight was deleted', anchorText: 'old text' },
+  ];
+  const generalNotes = [{ id: 'g', title: 'Tone', content: 'Darker', color: 'Blue' as const, createdAt: '2026-10-04T00:00:00.000Z' }];
+  const notesInput: ReportInput = { ...input, doc: notesDoc, notes, generalNotes };
+  const build = (id: string) => BUILT_IN_REPORTS.find((r) => r.id === id)!.build(notesInput);
+
+  it('lists notes in script order with their scene, replies under them, then general and stray notes', () => {
+    const t = build('notes');
+    expect(t.rows.map((r) => [r[0], r[1], r[2], r[3], r[4]])).toEqual([
+      ['1', '1', 'Maya grips', 'Ben', 'Cut this'],
+      ['1.1', '', '', 'Ana Ruiz', 'Done, @Ben.'],
+      ['2', '2', 'Now.', 'Ana', 'Overlap? @Ana Ruiz'],
+      ['3', 'General', 'Tone', '', 'Darker'],
+      ['4', '', 'old text', '', 'Highlight was deleted'],
+    ]);
+    expect(t.rows[0][5]).toBe('Resolved by Ana 2026-10-03');
+    expect(t.rows[2].slice(5)).toEqual(['Open', 'Ben', '2026-10-01']);
+    expect(t.summary).toBe('4 notes · 3 open · 1 resolved · 1 reply');
+  });
+
+  it('leaves resolved notes and their replies out of Open Notes', () => {
+    const t = build('open-notes');
+    expect(t.rows.map((r) => r[4])).toEqual(['Overlap? @Ana Ruiz', 'Darker', 'Highlight was deleted']);
+    expect(t.rows.map((r) => r[0])).toEqual(['1', '2', '3']);
+    expect(t.summary).toBe('3 open notes · 0 replies');
+  });
+
+  it('reports nothing for a script without notes', () => {
+    expect(BUILT_IN_REPORTS.find((r) => r.id === 'notes')!.build(input).rows).toEqual([]);
+  });
+});
