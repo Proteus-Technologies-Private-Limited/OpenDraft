@@ -3081,6 +3081,24 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 .revision-settings-check input { margin-top: 3px; }
 .revision-settings-error { margin: 12px 0 0; font-size: 13px; color: #dc2626; }
 
+/* ============ RENAME CHARACTER DIALOG ============ */
+.rename-char-dialog { max-width: 560px; width: 100%; }
+.rename-char-error { margin: 10px 0 0; font-size: 13px; color: #dc2626; }
+.rename-char-note { margin: 10px 0 0; font-size: 13px; color: var(--fd-accent); }
+.rename-char-summary { margin: 14px 0 0; font-size: 13px; color: var(--fd-text-muted); line-height: 1.45; }
+.rename-char-toggle { display: flex; align-items: flex-start; gap: 8px; margin-top: 16px; font-size: 14px; color: var(--fd-text); cursor: pointer; }
+.rename-char-toggle input { margin-top: 3px; }
+.rename-char-mentions {
+  list-style: none; margin: 10px 0 0; padding: 0; max-height: 240px; overflow-y: auto;
+  border: 1px solid var(--fd-border); border-radius: 6px;
+}
+.rename-char-mentions li + li { border-top: 1px solid var(--fd-border); }
+.rename-char-mentions label { display: flex; align-items: baseline; gap: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer; }
+.rename-char-mention-type { flex-shrink: 0; width: 92px; color: var(--fd-text-muted); font-size: 12px; }
+.rename-char-mention-text { font-family: 'Courier Prime', 'Courier New', monospace; word-break: break-word; }
+.rename-char-mention-text del { color: #dc2626; }
+.rename-char-mention-text ins { color: #16a34a; text-decoration: none; font-weight: 600; }
+
 /* ============ REPORTS / SIDES / SECURED PDF DIALOGS ============ */
 .reports-dialog { max-width: 1040px; width: 100%; }
 .reports-body { display: flex; gap: 16px; min-height: 0; }

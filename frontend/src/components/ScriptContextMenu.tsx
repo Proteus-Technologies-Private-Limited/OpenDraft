@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from
 import type { Editor } from '@tiptap/react';
 import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorStore';
 import { useEditorStore } from '../stores/editorStore';
-import { singleLine } from '../utils/nodeText';
+import { characterKey, singleLine } from '../utils/nodeText';
 import { spellChecker, PROJECT_DICT_TARGET } from '../editor/spellchecker';
 import { spellCheckPluginKey } from '../editor/extensions/SpellCheck';
 import { grammarPluginKey } from '../editor/extensions/Grammar';
@@ -166,6 +166,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   const [revisionSubOpen, setRevisionSubOpen] = useState(false);
   const [addDictSubOpen, setAddDictSubOpen] = useState(false);
   const appendWordToGlobalDictionary = useEditorStore((s) => s.appendWordToGlobalDictionary);
+  const setRenamingCharacter = useEditorStore((s) => s.setRenamingCharacter);
 
   const {
     revisionMode, setRevisionMode, revisionColor, setRevisionColor,
@@ -823,6 +824,14 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           onClose();
         }}>
           <span>Character Profile...</span>
+        </div>
+      )}
+      {currentNodeType === 'character' && characterKey($from.parent.textContent) && (
+        <div className="ctx-item" onClick={() => {
+          setRenamingCharacter($from.parent.textContent);
+          onClose();
+        }}>
+          <span>Rename Character...</span>
         </div>
       )}
       {showDualDialogue && (
