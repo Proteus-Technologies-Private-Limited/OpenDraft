@@ -14055,6 +14055,8 @@ html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }
 .macro-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 600px) {
   .macro-row-fields { grid-template-columns: 1fr; }
+}
+
 /* ============ FOCUS MODE (View → Focus Mode) ============ */
 /* Side panels, their resize handles and the status bar step aside; the menus
    are already reduced to the floating button (Hidden mode). The panels stay
