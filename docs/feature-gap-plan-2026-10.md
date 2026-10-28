@@ -57,6 +57,8 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 8 | **Writing goals, sprints & progress history** | FD (Goals), WD, HL (Sprint), AS | ✅ Done — `utils/writingGoals.ts`, Tools → Writing Goals & Sprints | M | Core |
 | 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | Missing | M | Core |
 | 10 | **Macros / text snippets** | FI, FD | ✅ Done — `utils/macros.ts`, Settings → Macros | S | Core |
+| 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | ✅ Done for dialogue and action lines; whole scenes not yet | M | Core |
+| 10 | **Macros / text snippets** | FI, FD | Missing | S | Core |
 | 11 | **Exportable reports** (scene, character, location, cast, breakdown → CSV/PDF) | FD, FI, WD, CX | Partial — stats are on screen only | S | Core |
 | 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | ✅ Done — replies, resolve, assignee, @mentions; export pending | M | Core |
 | 13 | **Story timeline / plotlines** (assign scenes to story threads, colour-coded timeline) | FD (Story Map, Structure Points), AS (Plot Board) | Missing | M | Core |
@@ -216,6 +218,15 @@ Two departures from the description above:
 scenes), "Add Alternate" stores sibling versions; a chip in the margin cycles
 them; only the active one prints/exports; FDX export picks the active one.
 Store as a node attribute array so it rides through Yjs without new plumbing.
+
+✅ **Done for dialogue and action** (`editor/alternates.ts`,
+`editor/extensions/Alternates.ts`). The element's own text is the version in
+use and the others sit in its `alternates` attribute, so every exporter, the
+page count and the reports see only the active version without changes. Add
+Alternate, Next / Previous, Delete This Version and Keep Only This Version are
+on the right-click menu; the margin chip steps through versions. Whole scenes
+are the remaining step. Older versions of the app drop the attribute when
+they save, keeping the active version.
 
 **13. Story timeline / plotlines** (M) — define plotlines (A-story, B-story,
 character arcs) with colours; assign scenes and beats to them; a horizontal

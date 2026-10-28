@@ -30,7 +30,7 @@ import {
   FormatOverride, CustomElement, DualDialogue, DualDialogueColumn,
   TitlePage,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
-  StartsNewPage, Bookmark,
+  StartsNewPage, Bookmark, Alternates,
 } from '../editor/extensions';
 import { ElementNumbers, ELEMENT_NUMBERS_REFRESH } from '../editor/extensions/ElementNumbers';
 import { FocusMode, FOCUS_MODE_REFRESH, FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
@@ -2032,6 +2032,7 @@ const ScreenplayEditor: React.FC = () => {
             : null;
         },
       }),
+      Alternates,
       LockedPages,
       FootnoteMarkerExtension,
       PaginationExtension,

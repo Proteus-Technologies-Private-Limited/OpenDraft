@@ -1,4 +1,13 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
+import type { Transaction } from '@tiptap/pm/state';
+import {
+  addAlternateTransaction,
+  alternateTargetAt,
+  alternatesOf,
+  cycleAlternateTransaction,
+  deleteShownAlternateTransaction,
+  keepOnlyShownTransaction,
+} from '../editor/alternates';
 import type { Editor } from '@tiptap/react';
 import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorStore';
 import { useEditorStore } from '../stores/editorStore';
@@ -446,6 +455,16 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
 
     // Open the notes panel
     if (!scriptNotesOpen) toggleScriptNotes();
+    onClose();
+  };
+
+  // ── Alternates: other versions of this line (editor/alternates) ──
+  const alternateTarget = alternateTargetAt(editor.state, savedSelection.current.from);
+  const alternateCount = alternateTarget ? alternatesOf(alternateTarget.node).length + 1 : 0;
+  const runAlternate = (build: (state: typeof editor.state, pos: number) => Transaction | null) => {
+    const tr = build(editor.state, savedSelection.current.from);
+    if (tr) editor.view.dispatch(tr);
+    editor.commands.focus();
     onClose();
   };
 
@@ -930,6 +949,32 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
         </div>
       )}
       <div className="ctx-separator" />
+
+      {/* Alternates — on dialogue and action only */}
+      {alternateTarget && (
+        <>
+          <div className="ctx-item" onClick={() => runAlternate(addAlternateTransaction)}>
+            <span>Add Alternate</span>
+          </div>
+          {alternateCount > 1 && (
+            <>
+              <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleAlternateTransaction(st, p, 1))}>
+                <span>Next Alternate</span>
+              </div>
+              <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleAlternateTransaction(st, p, -1))}>
+                <span>Previous Alternate</span>
+              </div>
+              <div className="ctx-item" onClick={() => runAlternate(deleteShownAlternateTransaction)}>
+                <span>Delete This Version</span>
+              </div>
+              <div className="ctx-item" onClick={() => runAlternate(keepOnlyShownTransaction)}>
+                <span>Keep Only This Version</span>
+              </div>
+            </>
+          )}
+          <div className="ctx-separator" />
+        </>
+      )}
 
       {/* Production Tags */}
       {existingTagInfo ? (
