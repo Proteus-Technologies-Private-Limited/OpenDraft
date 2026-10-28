@@ -443,7 +443,11 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
   const getSceneName = useCallback(
     (sceneId: string | null) => {
       if (!sceneId) return null;
-      const scene = scenes.find((s) => s.id === sceneId);
+      // A note's sceneId counts scenes from 0 (`scene-0` is the first, see
+      // ScriptContextMenu / Toolbar), while the navigator's scene ids count
+      // from 1 — so look the scene up by position, not by id.
+      const index = Number(/^scene-(\d+)$/.exec(sceneId)?.[1]);
+      const scene = Number.isInteger(index) ? scenes[index] : undefined;
       return scene ? scene.heading : null;
     },
     [scenes],

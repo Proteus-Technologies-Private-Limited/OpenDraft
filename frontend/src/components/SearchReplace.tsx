@@ -246,8 +246,9 @@ const SearchReplace: React.FC<SearchReplaceProps> = ({ editor }) => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl+F to open
-      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+      // Cmd/Ctrl+F to open. Not with Shift: Cmd+Shift+F is Focus Mode, and on a
+      // Mac that still arrives as a lowercase 'f'.
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f') {
         e.preventDefault();
         setSearchOpen(true);
         return;

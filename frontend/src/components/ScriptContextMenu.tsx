@@ -167,15 +167,16 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
 }) => {
   const setGrammarRuleEnabled = useEditorStore((s) => s.setGrammarRuleEnabled);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [elementSubOpen, setElementSubOpen] = useState(false);
+  // Only one submenu is open at a time.
+  const [openSub, setOpenSub] = useState<'element' | 'style' | 'revision' | 'character' | 'alternates' | null>(null);
   // Each submenu is placed against the row it hangs off, so each row needs a ref.
   const elementMenuShortcut = useSettingsStore((st) => st.elementMenuShortcut);
   const elementSubAnchor = useRef<HTMLDivElement>(null);
   const styleSubAnchor = useRef<HTMLDivElement>(null);
   const revisionSubAnchor = useRef<HTMLDivElement>(null);
+  const characterSubAnchor = useRef<HTMLDivElement>(null);
+  const alternatesSubAnchor = useRef<HTMLDivElement>(null);
   const addDictAnchor = useRef<HTMLDivElement>(null);
-  const [styleSubOpen, setStyleSubOpen] = useState(false);
-  const [revisionSubOpen, setRevisionSubOpen] = useState(false);
   const [addDictSubOpen, setAddDictSubOpen] = useState(false);
   const appendWordToGlobalDictionary = useEditorStore((s) => s.appendWordToGlobalDictionary);
   const setRenamingCharacter = useEditorStore((s) => s.setRenamingCharacter);
@@ -231,6 +232,8 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   const showSceneProps = currentNodeType === 'sceneHeading';
   // Context-sensitive: show character profile for character/dialogue/parenthetical
   const showCharProfile = ['character', 'dialogue', 'parenthetical'].includes(currentNodeType);
+  const canRenameCharacter = currentNodeType === 'character' && !!characterKey($from.parent.textContent);
+  const tunerSpeaker = showCharProfile ? speakerAt(editor.state.doc, safeSelFrom) : null;
   // Context-sensitive: AV row actions inside a two-column AV body. On iPhone and
   // iPad this menu opens on a three-finger tap, so it is one of the row controls
   // that needs no hardware keyboard — issue #116.
@@ -640,7 +643,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
 
   const handleRevisionColor = (color: string) => {
     setRevisionColor(color);
-    setRevisionSubOpen(false);
+    setOpenSub(null);
     onClose();
   };
 
@@ -757,15 +760,15 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       <div
         className="ctx-has-sub-wrap"
         ref={elementSubAnchor}
-        onPointerEnter={(e) => { if (e.pointerType === 'mouse') { setElementSubOpen(true); setStyleSubOpen(false); setRevisionSubOpen(false); } }}
-        onPointerLeave={(e) => { if (e.pointerType === 'mouse') setElementSubOpen(false); }}
+        onPointerEnter={(e) => { if (e.pointerType === 'mouse') setOpenSub('element'); }}
+        onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpenSub(null); }}
       >
-        <div className="ctx-item ctx-has-sub" onClick={() => { setElementSubOpen(true); setStyleSubOpen(false); setRevisionSubOpen(false); }}>
+        <div className="ctx-item ctx-has-sub" onClick={() => setOpenSub('element')}>
           <span>Element</span>
           {elementMenuShortcut && <span className="ctx-shortcut">{formatShortcut(elementMenuShortcut)}</span>}
           <span className="ctx-arrow">&#9656;</span>
         </div>
-        {elementSubOpen && (
+        {openSub === 'element' && (
           <CtxSubmenu anchorRef={elementSubAnchor}>
             {ELEMENT_MENU_ITEMS
               .filter(({ type }) => {
@@ -790,14 +793,14 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       <div
         className="ctx-has-sub-wrap"
         ref={styleSubAnchor}
-        onPointerEnter={(e) => { if (e.pointerType === 'mouse') { setStyleSubOpen(true); setElementSubOpen(false); setRevisionSubOpen(false); } }}
-        onPointerLeave={(e) => { if (e.pointerType === 'mouse') setStyleSubOpen(false); }}
+        onPointerEnter={(e) => { if (e.pointerType === 'mouse') setOpenSub('style'); }}
+        onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpenSub(null); }}
       >
-        <div className="ctx-item ctx-has-sub" onClick={() => { setStyleSubOpen(true); setElementSubOpen(false); setRevisionSubOpen(false); }}>
+        <div className="ctx-item ctx-has-sub" onClick={() => setOpenSub('style')}>
           <span>Style</span>
           <span className="ctx-arrow">&#9656;</span>
         </div>
-        {styleSubOpen && (
+        {openSub === 'style' && (
           <CtxSubmenu anchorRef={styleSubAnchor}>
             <div className={`ctx-item${locked.bold ? ' ctx-disabled' : ''}${editor.isActive('bold') ? ' ctx-active' : ''}`} onClick={() => { if (!locked.bold) handleBold(); }}>
               <span>Bold</span>
@@ -841,20 +844,46 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           <span>Scene Properties...</span>
         </div>
       )}
-      {showCharProfile && (
-        <div className="ctx-item" onClick={() => {
-          if (!characterProfilesOpen) toggleCharacterProfiles();
-          onClose();
-        }}>
-          <span>Character Profile...</span>
-        </div>
-      )}
-      {currentNodeType === 'character' && characterKey($from.parent.textContent) && (
-        <div className="ctx-item" onClick={() => {
-          setRenamingCharacter($from.parent.textContent);
-          onClose();
-        }}>
-          <span>Rename Character...</span>
+      {/* Character submenu: profile, rename (on a cue) and the Dialogue Tuner */}
+      {(showCharProfile || canRenameCharacter || tunerSpeaker) && (
+        <div
+          className="ctx-has-sub-wrap"
+          ref={characterSubAnchor}
+          onPointerEnter={(e) => { if (e.pointerType === 'mouse') setOpenSub('character'); }}
+          onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpenSub(null); }}
+        >
+          <div className="ctx-item ctx-has-sub" onClick={() => setOpenSub('character')}>
+            <span>Character</span>
+            <span className="ctx-arrow">&#9656;</span>
+          </div>
+          {openSub === 'character' && (
+            <CtxSubmenu anchorRef={characterSubAnchor}>
+              {showCharProfile && (
+                <div className="ctx-item" onClick={() => {
+                  if (!characterProfilesOpen) toggleCharacterProfiles();
+                  onClose();
+                }}>
+                  <span>Character Profile...</span>
+                </div>
+              )}
+              {canRenameCharacter && (
+                <div className="ctx-item" onClick={() => {
+                  setRenamingCharacter($from.parent.textContent);
+                  onClose();
+                }}>
+                  <span>Rename Character...</span>
+                </div>
+              )}
+              {tunerSpeaker && (
+                <div className="ctx-item" onClick={() => {
+                  useEditorStore.getState().openDialogueTuner(tunerSpeaker);
+                  onClose();
+                }}>
+                  <span>Dialogue Tuner...</span>
+                </div>
+              )}
+            </CtxSubmenu>
+          )}
         </div>
       )}
       {bookmarkTarget && (bookmarkTarget.node.attrs.bookmark ? (
@@ -871,14 +900,6 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           <span>Add Bookmark...</span>
         </div>
       ))}
-      {showCharProfile && speakerAt(editor.state.doc, safeSelFrom) && (
-        <div className="ctx-item" onClick={() => {
-          useEditorStore.getState().openDialogueTuner(speakerAt(editor.state.doc, safeSelFrom));
-          onClose();
-        }}>
-          <span>Dialogue Tuner...</span>
-        </div>
-      )}
       {showDualDialogue && (
         <div className="ctx-item" onClick={() => { console.log('[CtxMenu] Dual Dialogue clicked, commands:', Object.keys(editor.commands).filter(k => k.includes('dual') || k.includes('Dual'))); const result = (editor as any).commands.toggleDualDialogue(); console.log('[CtxMenu] result:', result); onClose(); }}>
           <span>Dual Dialogue</span>
@@ -908,14 +929,14 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       <div
         className="ctx-has-sub-wrap"
         ref={revisionSubAnchor}
-        onPointerEnter={(e) => { if (e.pointerType === 'mouse') { setRevisionSubOpen(true); setElementSubOpen(false); setStyleSubOpen(false); } }}
-        onPointerLeave={(e) => { if (e.pointerType === 'mouse') setRevisionSubOpen(false); }}
+        onPointerEnter={(e) => { if (e.pointerType === 'mouse') setOpenSub('revision'); }}
+        onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpenSub(null); }}
       >
-        <div className="ctx-item ctx-has-sub" onClick={() => { setRevisionSubOpen(true); setElementSubOpen(false); setStyleSubOpen(false); }}>
+        <div className="ctx-item ctx-has-sub" onClick={() => setOpenSub('revision')}>
           <span>Revision Color</span>
           <span className="ctx-arrow">&#9656;</span>
         </div>
-        {revisionSubOpen && (
+        {openSub === 'revision' && (
           <CtxSubmenu anchorRef={revisionSubAnchor} className="ctx-submenu-colors">
             {REVISION_COLORS.map(({ name, slug }) => (
               <div
@@ -950,28 +971,43 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       )}
       <div className="ctx-separator" />
 
-      {/* Alternates — on dialogue and action only */}
+      {/* Alternates submenu — on dialogue and action only */}
       {alternateTarget && (
         <>
-          <div className="ctx-item" onClick={() => runAlternate(addAlternateTransaction)}>
-            <span>Add Alternate</span>
+          <div
+            className="ctx-has-sub-wrap"
+            ref={alternatesSubAnchor}
+            onPointerEnter={(e) => { if (e.pointerType === 'mouse') setOpenSub('alternates'); }}
+            onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpenSub(null); }}
+          >
+            <div className="ctx-item ctx-has-sub" onClick={() => setOpenSub('alternates')}>
+              <span>Alternates{alternateCount > 1 ? ` (${alternateCount})` : ''}</span>
+              <span className="ctx-arrow">&#9656;</span>
+            </div>
+            {openSub === 'alternates' && (
+              <CtxSubmenu anchorRef={alternatesSubAnchor}>
+                <div className="ctx-item" onClick={() => runAlternate(addAlternateTransaction)}>
+                  <span>Add Alternate</span>
+                </div>
+                {alternateCount > 1 && (
+                  <>
+                    <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleAlternateTransaction(st, p, 1))}>
+                      <span>Next Alternate</span>
+                    </div>
+                    <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleAlternateTransaction(st, p, -1))}>
+                      <span>Previous Alternate</span>
+                    </div>
+                    <div className="ctx-item" onClick={() => runAlternate(deleteShownAlternateTransaction)}>
+                      <span>Delete This Version</span>
+                    </div>
+                    <div className="ctx-item" onClick={() => runAlternate(keepOnlyShownTransaction)}>
+                      <span>Keep Only This Version</span>
+                    </div>
+                  </>
+                )}
+              </CtxSubmenu>
+            )}
           </div>
-          {alternateCount > 1 && (
-            <>
-              <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleAlternateTransaction(st, p, 1))}>
-                <span>Next Alternate</span>
-              </div>
-              <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleAlternateTransaction(st, p, -1))}>
-                <span>Previous Alternate</span>
-              </div>
-              <div className="ctx-item" onClick={() => runAlternate(deleteShownAlternateTransaction)}>
-                <span>Delete This Version</span>
-              </div>
-              <div className="ctx-item" onClick={() => runAlternate(keepOnlyShownTransaction)}>
-                <span>Keep Only This Version</span>
-              </div>
-            </>
-          )}
           <div className="ctx-separator" />
         </>
       )}

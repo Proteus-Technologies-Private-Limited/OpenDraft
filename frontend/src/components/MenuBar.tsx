@@ -15,6 +15,7 @@ import { chooseAvFrameImage } from '../utils/avFrame';
 import { formatShortcut } from '../utils/shortcuts';
 import { macroLabel } from '../utils/macros';
 import { insertMacro } from './macroActions';
+import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
 import { downloadFDX } from '../utils/fdxExporter';
@@ -2133,10 +2134,17 @@ const MenuBar: React.FC<MenuBarProps> = ({
       }
       const m = e.metaKey || e.ctrlKey;
       if (!m) return;
+      // On a Mac, Cmd+Shift+<letter> still arrives as the lowercase letter, so
+      // shifted combinations are told apart here rather than by e.key.
       switch (e.key) {
         case 'n':
+        case 'N':
           e.preventDefault();
-          if (!isCollabGuest) handleNewScreenplay();
+          if (e.shiftKey) {
+            if (editor) addScriptNoteAtSelection(editor);
+          } else if (!isCollabGuest) {
+            handleNewScreenplay();
+          }
           break;
         case 's':
         case 'S':
@@ -2148,10 +2156,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
           void handlePrint();
           break;
         case 'f':
+          // Cmd+Shift+F is Focus Mode (editor/extensions/FocusMode).
+          if (e.shiftKey) break;
           e.preventDefault();
           setSearchOpen(true);
           break;
         case 'g':
+          if (e.shiftKey) break;
           e.preventDefault();
           setGoToPageOpen(true);
           break;
@@ -2168,7 +2179,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleSave, handleSaveAs, handleNewScreenplay, handlePrint, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel, setSpellModalOpen, setGrammarModalOpen]);
+  }, [editor, handleSave, handleSaveAs, handleNewScreenplay, handlePrint, isCollabGuest, setSearchOpen, setGoToPageOpen, setZoomLevel, setSpellModalOpen, setGrammarModalOpen]);
 
   const handleExportDocx = useCallback(async () => {
     if (!editor) return;

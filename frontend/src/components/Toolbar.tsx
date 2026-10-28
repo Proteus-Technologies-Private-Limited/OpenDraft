@@ -25,9 +25,9 @@ import {
   FaPlus,
   FaTrashAlt,
 } from 'react-icons/fa';
-import { useEditorStore, NOTE_COLORS } from '../stores/editorStore';
+import { useEditorStore } from '../stores/editorStore';
 import type { ElementType } from '../stores/editorStore';
-import { singleLine } from '../utils/nodeText';
+import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { BUILT_IN_ELEMENT_IDS, ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
 import {
@@ -74,8 +74,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     setGoToPageOpen,
     scriptNotesOpen,
     toggleScriptNotes,
-    addNote,
-    setNoteFilter,
     tagsPanelOpen,
     toggleTagsPanel,
     setPendingTagSelection,
@@ -515,79 +513,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   const handleNotesClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
     e.preventDefault();
     if (!editor) { toggleScriptNotes(); return; }
-
-    // Detect if cursor is on an existing note
-    const noteMarkType = editor.schema.marks.scriptNote;
-    if (noteMarkType) {
-      const $from = editor.state.selection.$from;
-      let noteMark = $from.marks().find((m) => m.type === noteMarkType);
-      if (!noteMark) {
-        const node = $from.nodeAfter || $from.nodeBefore;
-        if (node?.marks) noteMark = node.marks.find((m) => m.type === noteMarkType);
-      }
-      if (noteMark) {
-        setNoteFilter({ elementType: null, contextLabel: null, color: null, noteId: noteMark.attrs.noteId as string });
-        if (!scriptNotesOpen) toggleScriptNotes();
-        return;
-      }
-    }
-
-    const { from, to, empty } = editor.state.selection;
-    const $from = editor.state.selection.$from;
-    const selFrom = empty ? $from.start() : from;
-    const selTo = empty ? $from.end() : to;
-    const text = editor.state.doc.textBetween(selFrom, selTo, ' ');
-
-    if (text.trim()) {
-      const currentNodeType = $from.parent.type.name;
-      const nodeText = singleLine($from.parent.textContent);
-      let contextLabel = nodeText.slice(0, 60);
-      if (currentNodeType === 'character') {
-        contextLabel = nodeText.replace(/\s*\([^)]*\)\s*/g, '').trim();
-      } else if (currentNodeType === 'sceneHeading') {
-        contextLabel = nodeText;
-      } else if (currentNodeType === 'dialogue' || currentNodeType === 'parenthetical') {
-        let charName = '';
-        editor.state.doc.nodesBetween(0, selFrom, (node) => {
-          if (node.type.name === 'character') {
-            charName = singleLine(node.textContent).replace(/\s*\([^)]*\)\s*/g, '').trim();
-          }
-          return true;
-        });
-        if (charName) contextLabel = charName;
-      }
-
-      let sceneId: string | null = null;
-      let sceneIdx = 0;
-      editor.state.doc.nodesBetween(0, selFrom, (node) => {
-        if (node.type.name === 'sceneHeading') { sceneId = `scene-${sceneIdx}`; sceneIdx++; }
-        return true;
-      });
-
-      const defaultColor = NOTE_COLORS[0];
-      const noteId = addNote({
-        content: '',
-        anchorText: text.slice(0, 120),
-        elementType: currentNodeType,
-        contextLabel,
-        color: defaultColor.name,
-        sceneId,
-      });
-
-      const { tr } = editor.state;
-      const markType = editor.schema.marks.scriptNote;
-      if (markType) {
-        tr.addMark(selFrom, selTo, markType.create({ noteId, color: defaultColor.hex }));
-        editor.view.dispatch(tr);
-        editor.emit('update', { editor, transaction: tr });
-      }
-
-      setNoteFilter({ elementType: null, contextLabel: null, color: null, noteId });
-      if (!scriptNotesOpen) toggleScriptNotes();
-    } else {
-      toggleScriptNotes();
-    }
-  }, [editor, scriptNotesOpen, toggleScriptNotes, addNote, setNoteFilter]);
+    addScriptNoteAtSelection(editor);
+  }, [editor, toggleScriptNotes]);
 
   // ── Tags handler (shared between inline and overflow) ──
   const handleTagsClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
