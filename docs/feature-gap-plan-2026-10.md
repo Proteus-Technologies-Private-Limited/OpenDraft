@@ -45,20 +45,12 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 2 | **Watermarked / password-protected PDF** | FD, WD, FI | Missing (no hits for `watermark`) | S | Core |
 | 3 | **Sides & per-character printing** | FD, WD, FI, CX | Missing | M | Core |
 | 4 | **Global character rename** | FD, WD, FI, AS | ✅ Done — `editor/characterRename.ts`, `RenameCharacterDialog` | S | Core |
-| 5 | **Dialogue Tuner** (one character's lines, editable in one place) | FI, FD | Missing | M | Core |
-| 6 | **Script bookmarks** | FI, FD | ✅ Done — `editor/extensions/Bookmark.ts`, `utils/bookmarks.ts` | S | Core |
-| 4 | **Global character rename** | FD, WD, FI, AS | Missing — Find & Replace only | S | Core |
 | 5 | **Dialogue Tuner** (one character's lines, editable in one place) | FI, FD | ✅ Done — `utils/dialogueTuner.ts`, `DialogueTuner` panel | M | Core |
-| 6 | **Script bookmarks** | FI, FD | Missing (`bookmark` only refers to macOS file bookmarks) | S | Core |
-| 7 | **Focus / typewriter mode** | FD, HL, AS, WD | Partial — *Menu & Toolbar → Hidden* exists; no typewriter scrolling, no dimming, no true full-screen | S | Core |
-| 6 | **Script bookmarks** | FI, FD | Missing (`bookmark` only refers to macOS file bookmarks) | S | Core |
+| 6 | **Script bookmarks** | FI, FD | ✅ Done — `editor/extensions/Bookmark.ts`, `utils/bookmarks.ts` | S | Core |
 | 7 | **Focus / typewriter mode** | FD, HL, AS, WD | ✅ Done — `editor/extensions/FocusMode.ts`, View → Focus Mode | S | Core |
-| 8 | **Writing goals, sprints & progress history** | FD (Goals), WD, HL (Sprint), AS | Missing | M | Core |
 | 8 | **Writing goals, sprints & progress history** | FD (Goals), WD, HL (Sprint), AS | ✅ Done — `utils/writingGoals.ts`, Tools → Writing Goals & Sprints | M | Core |
-| 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | Missing | M | Core |
-| 10 | **Macros / text snippets** | FI, FD | ✅ Done — `utils/macros.ts`, Settings → Macros | S | Core |
 | 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | ✅ Done for dialogue and action lines; whole scenes not yet | M | Core |
-| 10 | **Macros / text snippets** | FI, FD | Missing | S | Core |
+| 10 | **Macros / text snippets** | FI, FD | ✅ Done — `utils/macros.ts`, Settings → Macros | S | Core |
 | 11 | **Exportable reports** (scene, character, location, cast, breakdown → CSV/PDF) | FD, FI, WD, CX | Partial — stats are on screen only | S | Core |
 | 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | ✅ Done — replies, resolve, assignee, @mentions; export pending | M | Core |
 | 13 | **Story timeline / plotlines** (assign scenes to story threads, colour-coded timeline) | FD (Story Map, Structure Points), AS (Plot Board) | Missing | M | Core |
