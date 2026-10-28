@@ -23,7 +23,23 @@ import { showToast } from './Toast';
 import { useFootnotePlan } from '../hooks/useFootnotePlan';
 import { resolveFootnotes, type NotePlacement } from '../stores/editorStore';
 import { noteEntryLabel } from '../utils/noteNumbering';
+import {
+  isNoteResolved,
+  knownPeople,
+  noteIsForPerson,
+  samePerson,
+  splitMention,
+  type NoteThreadUpdate,
+} from '../utils/noteThreads';
+import { useSettingsStore } from '../stores/settingsStore';
 import Select from './Select';
+import NoteThread, { MentionDropdown } from './NoteThread';
+import {
+  buildMentionSuggestions,
+  insertSuggestion,
+  mentionQueryAt,
+  type MentionSuggestion,
+} from '../utils/noteMentions';
 
 /** Open a URL in the default browser. Uses Tauri invoke on desktop, window.open on web. */
 const openInBrowser = (url: string) => {
@@ -59,16 +75,19 @@ const toEmbedUrl = (url: string): string | null => {
 
 
 /**
- * Render note content with media embeds and @asset references.
+ * Render note content with media embeds, @asset references and @mentions.
  * - URLs on their own line that look like images render as <img>
  * - URLs that look like videos render as <video> or iframe embed
  * - @AssetName references render as clickable asset links
+ * - @Person_Name mentions of a known collaborator render as a name chip
  */
 const NoteContentDisplay: React.FC<{
   content: string;
   assets: Asset[];
   projectId: string | null;
-}> = ({ content, assets, projectId }) => {
+  people?: string[];
+  me?: string;
+}> = ({ content, assets, projectId, people = [], me = '' }) => {
   if (!content) return null;
 
   const lines = content.split('\n');
@@ -155,9 +174,27 @@ const NoteContentDisplay: React.FC<{
             );
           }
         } else {
-          lineElements.push(
-            <span key={j} className="note-asset-ref note-asset-unresolved">{part}</span>,
-          );
+          // An asset wins over a person of the same name: asset references
+          // came first, and an existing note must keep meaning what it meant.
+          const mention = splitMention(part, people);
+          if (mention) {
+            const { person, trail } = mention;
+            lineElements.push(
+              <span
+                key={j}
+                className={`note-mention${samePerson(person, me) ? ' note-mention-me' : ''}`}
+                title={samePerson(person, me) ? 'Mentions you' : `Mentions ${person}`}
+              >
+                @{person}
+              </span>,
+            );
+            // Keep what trailed the name — "@Jane_Doe," keeps its comma.
+            if (trail) lineElements.push(<span key={`${j}-t`}>{trail}</span>);
+          } else {
+            lineElements.push(
+              <span key={j} className="note-asset-ref note-asset-unresolved">{part}</span>,
+            );
+          }
         }
       } else {
         // Detect URLs in plain text and render as clickable links
@@ -214,8 +251,42 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
   } = useEditorStore();
 
   const { assets } = useAssetStore();
-  const { currentProject } = useProjectStore();
+  const { currentProject, currentScriptId } = useProjectStore();
   const projectId = currentProject?.id ?? null;
+
+  // ── Who notes are from and for ──
+  const showResolved = useEditorStore((st) => st.notesShowResolved);
+  const setShowResolved = useEditorStore((st) => st.setNotesShowResolved);
+  const collabSelfName = useEditorStore((st) => st.collabSelfName);
+  const collabPeerNames = useEditorStore((st) => st.collabPeerNames);
+  const accountName = useSettingsStore((st) => st.collabAuth.user?.displayName ?? '');
+  const signedIn = useSettingsStore((st) => !!st.collabAuth.accessToken);
+  const me = (collabSelfName || accountName).trim();
+
+  // The people invited to collaborate on this script, from the collaboration
+  // server, so a note can be assigned to someone who is not online right now.
+  // Only the account that sent the invites can list them; for anyone else
+  // this quietly finds nobody and the panel falls back to who is connected.
+  const [invitedNames, setInvitedNames] = useState<string[]>([]);
+  useEffect(() => {
+    setInvitedNames([]);
+    if (!scriptNotesOpen || !signedIn || !projectId || !currentScriptId) return;
+    let cancelled = false;
+    api.listCollabSessions(projectId, currentScriptId)
+      .then((sessions) => {
+        if (!cancelled) setInvitedNames(sessions.map((x) => x.collaborator_name).filter(Boolean));
+      })
+      .catch(() => { /* offline, or no server: who is connected is enough */ });
+    return () => { cancelled = true; };
+  }, [scriptNotesOpen, signedIn, projectId, currentScriptId]);
+
+  const people = useMemo(
+    () => knownPeople([...notes, ...generalNotes], [me, ...collabPeerNames, ...invitedNames]),
+    [notes, generalNotes, me, collabPeerNames, invitedNames],
+  );
+
+  /** Only notes waiting on the writer: assigned to them or mentioning them. */
+  const [forMeOnly, setForMeOnly] = useState(false);
 
   // Which notes print, and what number each will carry. Null while nothing
   // prints, which is what keeps the panel exactly as it was for everyone who
@@ -303,9 +374,9 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
   // Track which general note is being edited
   const [editingGeneralNoteId, setEditingGeneralNoteId] = useState<string | null>(null);
 
-  // @asset autocomplete state
+  // @ autocomplete state: collaborators and assets
   const [assetQuery, setAssetQuery] = useState<string | null>(null);
-  const [assetSuggestions, setAssetSuggestions] = useState<Asset[]>([]);
+  const [assetSuggestions, setAssetSuggestions] = useState<MentionSuggestion[]>([]);
   const [assetSugIdx, setAssetSugIdx] = useState(0);
   const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
 
@@ -329,18 +400,45 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
     };
   }, [notes]);
 
+  /** The thread filters both tabs share: resolved notes, and notes for me. */
+  const passesThreadFilters = useCallback(
+    (n: Parameters<typeof noteIsForPerson>[0]) => {
+      if (!showResolved && isNoteResolved(n)) return false;
+      if (forMeOnly && me && !noteIsForPerson(n, me)) return false;
+      return true;
+    },
+    [showResolved, forMeOnly, me],
+  );
+
   const filteredNotes = useMemo(() => {
     return notes.filter((n) => {
-      // If filtering to a specific note by ID, only show that one
+      // If filtering to a specific note by ID, only show that one — resolved
+      // or not, since it was asked for by name.
       if (localFilter.noteId) return n.id === localFilter.noteId;
       if (localFilter.elementType && n.elementType !== localFilter.elementType) return false;
       if (localFilter.contextLabel && n.contextLabel !== localFilter.contextLabel) return false;
       if (localFilter.color && n.color !== localFilter.color) return false;
-      return true;
+      return passesThreadFilters(n);
     });
-  }, [notes, localFilter]);
+  }, [notes, localFilter, passesThreadFilters]);
+
+  const visibleGeneralNotes = useMemo(
+    () => generalNotes.filter(passesThreadFilters),
+    [generalNotes, passesThreadFilters],
+  );
+
+  const resolvedCount = useMemo(
+    () => notes.filter(isNoteResolved).length + generalNotes.filter(isNoteResolved).length,
+    [notes, generalNotes],
+  );
+  const forMeCount = useMemo(
+    () => (me ? [...notes, ...generalNotes].filter((n) => !isNoteResolved(n) && noteIsForPerson(n, me)).length : 0),
+    [notes, generalNotes, me],
+  );
 
   const isFiltered = localFilter.elementType || localFilter.contextLabel || localFilter.color || localFilter.noteId;
+  /** Fewer notes are listed than exist — said in the tab count. */
+  const scriptCountFiltered = filteredNotes.length !== notes.length;
 
   const getSceneName = useCallback(
     (sceneId: string | null) => {
@@ -501,52 +599,36 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
       // Check for @mention trigger
       const textarea = textareaRefs.current.get(noteId);
       if (!textarea) return;
-      const cursor = textarea.selectionStart;
-      const before = value.slice(0, cursor);
-      const atMatch = before.match(/@(\S*)$/);
-      if (atMatch) {
-        const query = atMatch[1].toLowerCase();
-        setAssetQuery(query);
-        const matches = assets.filter(
-          (a) =>
-            a.original_name.toLowerCase().includes(query) ||
-            a.original_name.replace(/\s+/g, '_').toLowerCase().includes(query),
-        ).slice(0, 8);
-        setAssetSuggestions(matches);
+      const query = mentionQueryAt(value, textarea.selectionStart);
+      if (query !== null) {
+        setAssetQuery(query.toLowerCase());
+        setAssetSuggestions(buildMentionSuggestions(query, people, assets));
         setAssetSugIdx(0);
       } else {
         setAssetQuery(null);
         setAssetSuggestions([]);
       }
     },
-    [updateNote, assets],
+    [updateNote, assets, people],
   );
 
   const insertAssetRef = useCallback(
-    (noteId: string, asset: Asset) => {
+    (noteId: string, suggestion: MentionSuggestion) => {
       const note = notes.find((n) => n.id === noteId);
       if (!note) return;
       const textarea = textareaRefs.current.get(noteId);
       if (!textarea) return;
 
-      const cursor = textarea.selectionStart;
-      const before = note.content.slice(0, cursor);
-      const after = note.content.slice(cursor);
-      const atMatch = before.match(/@(\S*)$/);
-      if (!atMatch) return;
-
-      const prefix = before.slice(0, before.length - atMatch[0].length);
-      const ref = `@${asset.original_name.replace(/\s+/g, '_')}`;
-      const newContent = prefix + ref + ' ' + after;
-      updateNote(noteId, { content: newContent });
+      const next = insertSuggestion(note.content, textarea.selectionStart, suggestion);
+      if (next.value === note.content) return;
+      updateNote(noteId, { content: next.value });
 
       setAssetQuery(null);
       setAssetSuggestions([]);
 
       // Restore cursor position after insert
       requestAnimationFrame(() => {
-        const pos = prefix.length + ref.length + 1;
-        textarea.setSelectionRange(pos, pos);
+        textarea.setSelectionRange(next.caret, next.caret);
         textarea.focus();
       });
     },
@@ -584,6 +666,10 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
     });
   };
 
+  const renderThreadContent = (text: string) => (
+    <NoteContentDisplay content={text} assets={assets} projectId={projectId} people={people} me={me} />
+  );
+
   const { shouldRender, animationState } = useDelayedUnmount(scriptNotesOpen, 250);
   const panelRef = useRef<HTMLDivElement>(null);
   useSwipeDismiss(panelRef, { direction: 'right', onDismiss: toggleScriptNotes, enabled: shouldRender });
@@ -616,15 +702,43 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
           className={`sn-tab${activeTab === 'general' ? ' active' : ''}`}
           onClick={() => setActiveTab('general')}
         >
-          General{generalNotes.length > 0 ? ` (${generalNotes.length})` : ''}
+          General{generalNotes.length > 0
+            ? ` (${visibleGeneralNotes.length !== generalNotes.length ? `${visibleGeneralNotes.length}/` : ''}${generalNotes.length})`
+            : ''}
         </button>
         <button
           className={`sn-tab${activeTab === 'script' ? ' active' : ''}`}
           onClick={() => setActiveTab('script')}
         >
-          Script{notes.length > 0 ? ` (${isFiltered ? `${filteredNotes.length}/` : ''}${notes.length})` : ''}
+          Script{notes.length > 0 ? ` (${scriptCountFiltered ? `${filteredNotes.length}/` : ''}${notes.length})` : ''}
         </button>
       </div>
+
+      {/* ── Thread filters, shared by both tabs ── */}
+      {(resolvedCount > 0 || me) && (
+        <div className="sn-thread-filters">
+          {me && (
+            <button
+              className={`sn-chip${forMeOnly ? ' active' : ''}`}
+              onClick={() => setForMeOnly((v) => !v)}
+              title="Only open notes assigned to you or mentioning you"
+              aria-pressed={forMeOnly}
+            >
+              For me{forMeCount > 0 ? ` (${forMeCount})` : ''}
+            </button>
+          )}
+          {resolvedCount > 0 && (
+            <label className="sn-show-resolved">
+              <input
+                type="checkbox"
+                checked={showResolved}
+                onChange={(e) => setShowResolved(e.target.checked)}
+              />
+              Show resolved ({resolvedCount})
+            </label>
+          )}
+        </div>
+      )}
 
       {activeTab === 'script' && <>
       {/* ── Multi-dimensional filter bar ── */}
@@ -734,7 +848,9 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
           <div className="script-notes-empty">
             {notes.length === 0
               ? 'No notes yet. Select text in the editor, right-click, and choose "Add Script Note".'
-              : 'No notes match this filter.'}
+              : !isFiltered && !forMeOnly && !showResolved && notes.every(isNoteResolved)
+                ? 'Every note is resolved. Tick "Show resolved" to see them.'
+                : 'No notes match this filter.'}
           </div>
         ) : (
           filteredNotes.map((note) => {
@@ -743,11 +859,12 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
             const elemLabel = ELEMENT_LABELS[note.elementType as ElementType] || note.elementType;
             const isEditing = editingNoteId === note.id;
             const marker = markerFor(note.id);
+            const resolved = isNoteResolved(note);
 
             return (
               <div
                 key={note.id}
-                className="note-item"
+                className={`note-item${resolved ? ' note-item-resolved' : ''}`}
                 style={{ borderLeftColor: hex }}
               >
                 <div className="note-item-header">
@@ -774,7 +891,10 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                       <span className="note-item-fn-badge muted">Not printed &mdash; empty</span>
                     )}
                   </div>
-                  <span className="note-item-date">{formatDate(note.createdAt)}</span>
+                  <span className="note-item-date">
+                    {note.author && <span className="note-item-author">{note.author} &middot; </span>}
+                    {formatDate(note.createdAt)}
+                  </span>
                 </div>
 
                 {note.anchorText && (
@@ -806,31 +926,16 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                           setAssetSuggestions([]);
                         }, 200);
                       }}
-                      placeholder="Write your note... (use @filename to reference assets, paste media URLs on their own line)"
+                      placeholder="Write your note... (@ to mention a collaborator or reference an asset, paste media URLs on their own line)"
                       rows={3}
                       autoFocus
                     />
                     {assetSuggestions.length > 0 && assetQuery !== null && (
-                      <div className="note-asset-dropdown">
-                        {assetSuggestions.map((a, idx) => (
-                          <div
-                            key={a.id}
-                            className={`note-asset-option${idx === assetSugIdx ? ' selected' : ''}`}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              insertAssetRef(note.id, a);
-                            }}
-                          >
-                            <span className="note-asset-option-icon">
-                              {a.mime_type.startsWith('image/') ? '🖼' : a.mime_type.startsWith('video/') ? '🎬' : '📎'}
-                            </span>
-                            <span className="note-asset-option-name">{a.original_name}</span>
-                            <span className="note-asset-option-tags">
-                              {a.tags.slice(0, 2).join(', ')}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                      <MentionDropdown
+                        suggestions={assetSuggestions}
+                        selected={assetSugIdx}
+                        onPick={(sug) => insertAssetRef(note.id, sug)}
+                      />
                     )}
                   </div>
                 ) : (
@@ -844,12 +949,24 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                         content={note.content}
                         assets={assets}
                         projectId={projectId}
+                        people={people}
+                        me={me}
                       />
                     ) : (
                       <span className="note-item-placeholder">Click to add note...</span>
                     )}
                   </div>
                 )}
+
+                <NoteThread
+                  note={note}
+                  me={me}
+                  people={people}
+                  assets={assets}
+                  onUpdate={(updates: NoteThreadUpdate) => updateNote(note.id, updates)}
+                  renderContent={renderThreadContent}
+                  formatDate={formatDate}
+                />
 
                 <div className="note-item-actions">
                   <div className="note-item-colors">
@@ -927,17 +1044,20 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
             <button className="general-notes-add-btn" onClick={handleAddGeneralNote}>+ Add Note</button>
           </div>
           <div className="script-notes-list">
-            {generalNotes.length === 0 ? (
+            {visibleGeneralNotes.length === 0 ? (
               <div className="script-notes-empty">
-                No general notes yet. Click &ldquo;+ Add Note&rdquo; to create one.
+                {generalNotes.length === 0
+                  ? <>No general notes yet. Click &ldquo;+ Add Note&rdquo; to create one.</>
+                  : 'No general notes match this filter.'}
               </div>
             ) : (
-              generalNotes.map((gn) => {
+              visibleGeneralNotes.map((gn) => {
                 const hex = getNoteColorHex(gn.color);
                 const isEditing = editingGeneralNoteId === gn.id;
                 const gnMarker = markerFor(gn.id);
+                const resolved = isNoteResolved(gn);
                 return (
-                  <div key={gn.id} className="note-item" style={{ borderLeftColor: hex }}>
+                  <div key={gn.id} className={`note-item${resolved ? ' note-item-resolved' : ''}`} style={{ borderLeftColor: hex }}>
                     <div className="note-item-header">
                       {gnMarker && (
                         <span className="note-item-fn-badge">Endnote {gnMarker}</span>
@@ -945,7 +1065,10 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                       {!gnMarker && gn.printInScript && (
                         <span className="note-item-fn-badge muted">Not printed &mdash; empty</span>
                       )}
-                      <span className="note-item-date">{formatDate(gn.createdAt)}</span>
+                      <span className="note-item-date">
+                        {gn.author && <span className="note-item-author">{gn.author} &middot; </span>}
+                        {formatDate(gn.createdAt)}
+                      </span>
                     </div>
                     {isEditing ? (
                       <>
@@ -973,7 +1096,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                       >
                         {gn.title && <div className="general-note-title">{gn.title}</div>}
                         {gn.content ? (
-                          <NoteContentDisplay content={gn.content} assets={assets} projectId={projectId} />
+                          <NoteContentDisplay content={gn.content} assets={assets} projectId={projectId} people={people} me={me} />
                         ) : (
                           <span className="note-item-placeholder">
                             {gn.title ? '' : 'Click to add note...'}
@@ -981,6 +1104,15 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
                         )}
                       </div>
                     )}
+                    <NoteThread
+                      note={gn}
+                      me={me}
+                      people={people}
+                      assets={assets}
+                      onUpdate={(updates: NoteThreadUpdate) => updateGeneralNote(gn.id, updates)}
+                      renderContent={renderThreadContent}
+                      formatDate={formatDate}
+                    />
                     <div className="note-item-actions">
                       <div className="note-item-colors">
                         {NOTE_COLORS.map((c) => (

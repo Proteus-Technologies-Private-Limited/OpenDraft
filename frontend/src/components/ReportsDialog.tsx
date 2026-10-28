@@ -50,6 +50,8 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
           tags: s.tags,
           tagCategories: s.tagCategories,
           timing: activeTimingOptions(s.pageLayout),
+          notes: s.notes,
+          generalNotes: s.generalNotes,
         });
       },
     }));

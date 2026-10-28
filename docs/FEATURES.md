@@ -23,7 +23,7 @@ A complete list of features in OpenDraft.
 - **Multiple Projects** -- Organize all your screenplays with metadata (genre, logline, synopsis)
 - **Project Folders** -- On the desktop, save a project's scripts as files in any folder (external disk, RAID, network drive), with changes made elsewhere detected
 - **Asset Management** -- Attach reference images, research docs, and notes to projects
-- **Script Notes** -- Inline annotations for review and feedback
+- **Script Notes** -- Inline annotations for review and feedback, with threaded replies, resolve and reopen, assigning to a collaborator, and @mentions
 
 ## Version Control
 
@@ -62,7 +62,7 @@ A complete list of features in OpenDraft.
 - **Search & Replace** -- Find and replace across your screenplay
 - **Spell Check** -- Built-in spell checker with custom dictionary support
 - **Production Tags** -- Tag elements for production planning
-- **Reports** -- Scene, character, location, cast and breakdown reports, exported as CSV or PDF
+- **Reports** -- Scene, character, location, cast, breakdown and notes reports, exported as CSV or PDF
 
 ## Production Output
 
