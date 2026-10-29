@@ -20,7 +20,8 @@ export type AuditAction =
   | 'password_reset_failed'
   | 'password_reset'
   | 'account_deleted'
-  | 'device_revoked';
+  | 'device_revoked'
+  | 'suggestion_refused';
 
 export async function logEvent(
   action: AuditAction,

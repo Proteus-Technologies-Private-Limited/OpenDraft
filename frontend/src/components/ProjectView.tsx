@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import type { JSONContent } from '@tiptap/react';
+import { withoutSuggestionsJSON } from '../editor/suggestions';
 import { DEFAULT_SCRIPT_PROFILE } from '../utils/scriptProfile';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaCloud, FaDesktop, FaFolder, FaExclamationTriangle } from 'react-icons/fa';
@@ -968,8 +970,12 @@ const ProjectView: React.FC = () => {
       if (!projectId) return;
       try {
         const resp = await client.getScript(projectId, id);
-        const content = resp.content as Record<string, unknown>;
+        const saved = resp.content as Record<string, unknown>;
         const title = resp.meta.title || 'Untitled';
+        // Pending suggestions stay out of every file but .odraft (editor/suggestions).
+        const content = format === 'odraft'
+          ? saved
+          : { ...saved, ...(withoutSuggestionsJSON(saved as JSONContent) as Record<string, unknown>) };
 
         // Extract embedded metadata from content if present
         const profiles = (content as any)?._characterProfiles;

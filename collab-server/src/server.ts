@@ -6,6 +6,7 @@ import type {
   onLoadDocumentPayload,
   onStoreDocumentPayload,
   onChangePayload,
+  beforeHandleMessagePayload,
 } from '@hocuspocus/server';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -22,6 +23,7 @@ import { initDB, getDB } from './db';
 import { seedDemoUser } from './bootstrap/seedDemoUser';
 import { verifyAccessToken } from './services/tokenService';
 import * as auditService from './services/auditService';
+import { checkSuggesterUpdate, updateInMessage, SUGGESTION_REFUSED_CLOSE_CODE, SUGGESTION_REFUSED_REASON, type YjsLike } from './services/suggestionGuard';
 import authRoutes from './routes/auth';
 import collabRoutes from './routes/collab';
 import { standardLimiter } from './middleware/rateLimit';
@@ -167,6 +169,9 @@ const hocuspocus = new Hocuspocus({
     }
     incrementCounter(connectionsPerUser, userKey);
 
+    // A viewer's connection takes no changes at all; Hocuspocus drops them.
+    if (session.role === 'viewer') data.connectionConfig.readOnly = true;
+
     // Store session info in the connection context
     data.context.user = {
       id: userId,
@@ -202,6 +207,34 @@ const hocuspocus = new Hocuspocus({
     await auditService.logEvent('disconnect', user?.id || null, data.documentName, {
       name: user?.name,
     });
+  },
+
+  /**
+   * A suggester's changes must be suggestions, signed with their own name —
+   * see services/suggestionGuard. Anything else is refused before it reaches
+   * the document, and the connection is closed.
+   */
+  async beforeHandleMessage(data: beforeHandleMessagePayload) {
+    const user = data.context?.user;
+    if (user?.role !== 'suggester') return;
+    let update: Uint8Array | null;
+    try {
+      update = updateInMessage(data.update);
+    } catch (err) {
+      throw new Error(`Unreadable message from a suggester: ${(err as Error).message}`);
+    }
+    if (!update) return;
+    const why = checkSuggesterUpdate(Y as unknown as YjsLike, data.document, update, user.name);
+    if (why) {
+      console.warn(`[suggest] Refused a change from ${user.name} on ${data.documentName}: ${why}`);
+      await auditService.logEvent('suggestion_refused', user.id || null, data.documentName, { name: user.name, why });
+      // A close code of its own, so the client can say why and stop
+      // reconnecting: it would only send the same change again.
+      throw Object.assign(new Error(`Suggesters can only suggest: ${why}`), {
+        code: SUGGESTION_REFUSED_CLOSE_CODE,
+        reason: SUGGESTION_REFUSED_REASON,
+      });
+    }
   },
 
   async onChange(data: onChangePayload) {

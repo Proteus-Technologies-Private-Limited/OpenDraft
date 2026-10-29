@@ -181,6 +181,7 @@
 
     // Collaboration
     { page: 'Collaboration', title: 'Following the Host', section: 'During a Session', text: 'Host opens another script guests follow taken to it automatically switch scripts. Guests not signed in invite link enough. Invite link collaboration server Settings different server. Cannot follow told why new link server unreachable previous script.', url: 'collaboration.html#follow-host' },
+    { page: 'Collaboration', title: 'Suggest Mode', section: 'During a Session', text: 'Suggest mode suggesting suggest changes suggestions track changes propose edits accept reject accept all reject all review suggestions panel. Suggest permission invite suggester cannot turn off server checks refused disconnected. Words typed underlined green deleted struck through red. New line join type change was Action. Withdraw my suggestion. Formatting cannot be suggested line break. Revision mode accepted. Exports leave suggestions out odraft keeps them.', url: 'collaboration.html#suggest-mode' },
     { page: 'Collaboration', title: 'Ending a Session', section: 'End Session', text: 'End Session collaboration bar revoke all invites Share dialog. Collaborators disconnected every script the session used. Session has ended message instead of reconnecting. Guest close tab leave.', url: 'collaboration.html#end-session' },
 
     // Managing Projects

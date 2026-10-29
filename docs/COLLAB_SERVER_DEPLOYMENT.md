@@ -18,6 +18,14 @@ curl https://collab.open-draft.com/health
 curl https://collab.open-draft.com/auth/config
 ```
 
+**Suggest invites need this server's own update.** A collaborator invited to
+suggest is held to suggesting by the client and, from the version that adds
+the Suggest permission, by the server (`src/services/suggestionGuard.ts`),
+which refuses any change from them that is not their own suggestion. An older
+server accepts the role but does not check it, so deploy the new image before
+relying on Suggest invites with people you do not trust. The same update makes
+Read Only connections read-only on the server too.
+
 The Cloud Run service below is an alternative deployment target — useful for
 free-tier hosting or when you don't want to run a VM. Both layouts are
 supported; pick whichever fits your operational model.
