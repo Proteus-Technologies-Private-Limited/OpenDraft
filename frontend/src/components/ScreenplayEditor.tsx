@@ -157,6 +157,7 @@ import { scriptApi } from '../services/scriptApi';
 import { getApiBase, getCollabWsUrl } from '../config';
 import { showToast } from './Toast';
 import { useSuggestModeStore, suggestionAuthor } from '../stores/suggestModeStore';
+import { suggesterIdOf } from '../utils/suggesterId';
 
 /**
  * How collab-server/src/services/suggestionGuard closes a connection over a
@@ -658,6 +659,7 @@ const ScreenplayEditor: React.FC = () => {
       ydocRef.current.destroy();
       ydocRef.current = null;
     }
+    useSuggestModeStore.getState().setUid(null);
     setCollabUsers([]);
   }, []);
 
@@ -704,6 +706,9 @@ const ScreenplayEditor: React.FC = () => {
     destroyCollab();
     collabDocNameRef.current = docName;
     collabExitingRef.current = false;
+    // What this window's suggestions are signed with in the session, as the
+    // collab server works it out from the same token (utils/suggesterId).
+    useSuggestModeStore.getState().setUid(suggesterIdOf(inviteToken));
     setCollabConnectionState('connecting');
     setCollabActivityLog([]);
     addCollabActivity('Starting collaboration session');

@@ -11,9 +11,13 @@ import { EditorState, type Transaction } from '@tiptap/pm/state';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import type { JSONContent } from '@tiptap/core';
 import { testSchema, block, doc } from '../test/screenplaySchema';
-import { listSuggestions, resolveSuggestionTransaction, suggestTransaction } from './suggestions';
+import { createHash } from 'node:crypto';
+import { isOwn, listSuggestions, onlyGivesSceneIds, resolveSuggestionTransaction, suggestTransaction } from './suggestions';
+import { ensureSceneUid } from '../utils/beatScenes';
+import { sha256Hex } from '../utils/sha256';
+import { suggesterIdOf } from '../utils/suggesterId';
 import {
-  checkSuggesterUpdate, updateInMessage, SCRIPT_FIELD, type YjsLike,
+  checkSuggesterUpdate, suggesterIdOf as serverSuggesterIdOf, updateInMessage, MAX_ALIGN_CELLS, SCRIPT_FIELD, type YjsLike,
 } from '../../../collab-server/src/services/suggestionGuard';
 
 const Yjs = Y as unknown as YjsLike;
@@ -33,7 +37,7 @@ function synced(...blocks: JSONContent[]) {
      * Apply `tr` and sync it: what the server would make of it from `by`.
      * Returns null when it would be let through, else why not.
      */
-    send(tr: Transaction, by = 'Ann'): string | null {
+    send(tr: Transaction, by = 'Ann', uid: string | null = null): string | null {
       const before = Y.encodeStateAsUpdate(ydoc);
       let update: Uint8Array | null = null;
       const listener = (u: Uint8Array) => { update = update ? Y.mergeUpdates([update, u]) : u; };
@@ -45,7 +49,7 @@ function synced(...blocks: JSONContent[]) {
       if (!update) throw new Error('the edit produced no update');
       const server = new Y.Doc();
       Y.applyUpdate(server, before);
-      return checkSuggesterUpdate(Yjs, server, update, by);
+      return checkSuggesterUpdate(Yjs, server, update, { name: by, uid });
     },
   };
 }
@@ -56,8 +60,8 @@ const at = (s: EditorState, index: number, offset = 0) => {
   return pos + 1 + offset;
 };
 
-const suggesting = (s: EditorState, edit: (tr: Transaction) => Transaction, by = 'Ann') =>
-  suggestTransaction(s, edit(s.tr), { by, now: 1 });
+const suggesting = (s: EditorState, edit: (tr: Transaction) => Transaction, by = 'Ann', uid: string | null = null) =>
+  suggestTransaction(s, edit(s.tr), { by, uid, now: 1 });
 
 describe('what a suggester may send', () => {
   it('a suggested insertion', () => {
@@ -106,7 +110,7 @@ describe('what a suggester may send', () => {
     (c.ydoc.getXmlFragment(SCRIPT_FIELD).get(0) as Y.XmlElement).setAttribute('someNewSetting', 0 as unknown as string);
     const server = new Y.Doc();
     Y.applyUpdate(server, before);
-    expect(checkSuggesterUpdate(Yjs, server, update!, 'Ann')).toBeNull();
+    expect(checkSuggesterUpdate(Yjs, server, update!, { name: 'Ann' })).toBeNull();
   });
 });
 
@@ -155,6 +159,144 @@ describe('what a suggester may not send', () => {
     expect(c.send(c.state.tr.split(at(c.state, 0, 7)))).toMatch(/not a suggested new line/);
     const d = synced(block('action', 'MAYA'));
     expect(d.send(d.state.tr.setBlockType(1, 1, testSchema.nodes.character))).toMatch(/without suggesting/);
+  });
+});
+
+describe('two suggesters with the same name', () => {
+  it('each owns only their own suggestions, by id', () => {
+    const c = synced(block('action', 'Go.'));
+    expect(c.send(suggesting(c.state, (tr) => tr.insertText('Now', at(c.state, 0, 2)), 'Sam', 'id-one'), 'Sam', 'id-one')).toBeNull();
+    const first = listSuggestions(c.state.doc)[0];
+    expect(first.uid).toBe('id-one');
+    expect(isOwn(first, { by: 'Sam', uid: 'id-two' })).toBe(false);
+    expect(isOwn(first, { by: 'Sam', uid: 'id-one' })).toBe(true);
+    // The other Sam can neither withdraw it nor sign as the first.
+    expect(c.send(resolveSuggestionTransaction(c.state, first.id, false)!, 'Sam', 'id-two')).toMatch(/deleted text/);
+    const d = synced(block('action', 'Go.'));
+    expect(d.send(suggesting(d.state, (tr) => tr.insertText('Now', at(d.state, 0, 2)), 'Sam', 'id-one'), 'Sam', 'id-two')).toMatch(/not a suggestion/);
+  });
+
+  it('a suggestion made before ids goes by name', () => {
+    const c = synced(block('action', 'Go.'));
+    expect(c.send(suggesting(c.state, (tr) => tr.insertText('Now', at(c.state, 0, 2)), 'Sam'), 'Sam', 'id-one')).toBeNull();
+    const old = listSuggestions(c.state.doc)[0];
+    expect(c.send(resolveSuggestionTransaction(c.state, old.id, false)!, 'Sam', 'id-one')).toBeNull();
+  });
+
+  it('a name with someone else’s id is not theirs either', () => {
+    const c = synced(block('action', 'Go.'));
+    expect(c.send(suggesting(c.state, (tr) => tr.insertText('Now', at(c.state, 0, 2)), 'Ben', 'id-one'), 'Sam', 'id-one')).toMatch(/not a suggestion/);
+  });
+
+  it('the editor and the collab server work out the same id from an invite', () => {
+    const node = (text: string) => createHash('sha256').update(text).digest('hex');
+    for (const text of ['', 'abc', 'é and 日本', 'x'.repeat(1000)]) expect(sha256Hex(text)).toBe(node(text));
+    const token = 'k3J9_example-invite-token';
+    expect(suggesterIdOf(token)).toBe(serverSuggesterIdOf(node, token));
+    expect(suggesterIdOf(token)).toMatch(/^[0-9a-f]{16}$/);
+    expect(suggesterIdOf('')).toBeNull();
+  });
+});
+
+describe('linking a Beat Board beat to a scene, as a suggester', () => {
+  it('may give a heading its first id, and nothing more', () => {
+    const c = synced(block('sceneHeading', 'INT. ROOM - DAY'), block('action', 'She waits.'));
+    const given = ensureSceneUid(c.state, 0)!;
+    expect(onlyGivesSceneIds(given.tr!)).toBe(true);
+    expect(c.send(given.tr!)).toBeNull();
+    // Changing it again — what a copy's heading is given — is not housekeeping a suggester keeps.
+    const changed = c.state.tr.setNodeAttribute(0, 'sceneUid', 'another').setMeta('addToHistory', false);
+    expect(onlyGivesSceneIds(changed)).toBe(false);
+    expect(c.send(changed)).toMatch(/sceneUid/);
+  });
+
+  it('not on an element that is not a scene heading, nor alongside other changes', () => {
+    // An action has no such attribute in the editor; a changed client could still write one.
+    const c = synced(block('action', 'She waits.'));
+    const before = Y.encodeStateAsUpdate(c.ydoc);
+    let update: Uint8Array | null = null;
+    c.ydoc.on('update', (u: Uint8Array) => { update = u; });
+    (c.ydoc.getXmlFragment(SCRIPT_FIELD).get(0) as Y.XmlElement).setAttribute('sceneUid', 'x');
+    const server = new Y.Doc();
+    Y.applyUpdate(server, before);
+    expect(checkSuggesterUpdate(Yjs, server, update!, { name: 'Ann' })).toMatch(/sceneUid/);
+    const s = synced(block('sceneHeading', 'INT. ROOM - DAY')).state;
+    expect(onlyGivesSceneIds(s.tr.setNodeAttribute(0, 'sceneUid', 'x').insertText('!', 3))).toBe(false);
+  });
+});
+
+describe('one server document across many messages', () => {
+  /** Two clients on one server document that keeps a copy for checking, as the collab server does. */
+  function room(...blocks: JSONContent[]) {
+    const host = synced(...blocks);
+    const server = new Y.Doc();
+    Y.applyUpdate(server, Y.encodeStateAsUpdate(host.ydoc));
+    const meta = { mapping: new Map(), isOMark: new Map() };
+    const guest = { state: host.state };
+    const guestDoc = new Y.Doc();
+    Y.applyUpdate(guestDoc, Y.encodeStateAsUpdate(server));
+    const fragment = guestDoc.getXmlFragment(SCRIPT_FIELD);
+    return {
+      guest,
+      /** The suggester's edit as it reaches the server: checked, then applied if let through. */
+      suggest(tr: Transaction): string | null {
+        let update: Uint8Array | null = null;
+        const listener = (u: Uint8Array) => { update = update ? Y.mergeUpdates([update, u]) : u; };
+        guestDoc.on('update', listener);
+        guest.state = guest.state.apply(tr);
+        guestDoc.transact(() => updateYFragment(guestDoc, fragment, guest.state.doc, meta));
+        guestDoc.off('update', listener);
+        const why = checkSuggesterUpdate(Yjs, server, update!, { name: 'Ann', uid: 'ann' });
+        if (!why) Y.applyUpdate(server, update!);
+        return why;
+      },
+      /** An editor's own change, straight into the server document. */
+      edit(apply: (fragment: Y.XmlFragment) => void) {
+        const before = Y.encodeStateVector(server);
+        apply(server.getXmlFragment(SCRIPT_FIELD));
+        Y.applyUpdate(guestDoc, Y.encodeStateAsUpdate(server, before));
+        // y-prosemirror would bring it into the guest's editor; here the next
+        // edit is made against a state read back from the guest's document.
+      },
+      server,
+    };
+  }
+
+  it('checks each message against the document as it now is', () => {
+    const lines = Array.from({ length: 200 }, (_, i) => block('action', `Line ${i}.`));
+    const r = room(...lines);
+    const at0 = (i: number, o: number) => at(r.guest.state, i, o);
+    for (let i = 0; i < 20; i++) {
+      expect(r.suggest(suggesting(r.guest.state, (tr) => tr.insertText('!', at0(i * 7, 4)), 'Ann', 'ann'))).toBeNull();
+    }
+    expect(r.suggest(suggesting(r.guest.state, (tr) => tr.delete(at0(150, 0), at0(150, 4)), 'Ann', 'ann'))).toBeNull();
+    // A refusal is refused however many messages came first…
+    expect(r.suggest(r.guest.state.tr.insertText('plain', at0(199, 0)))).toMatch(/not a suggestion/);
+  });
+
+  it('keeps up with the editor’s changes between a suggester’s', () => {
+    const r = room(block('action', 'One.'), block('action', 'Two.'), block('action', 'Three.'));
+    expect(r.suggest(suggesting(r.guest.state, (tr) => tr.insertText(' more', at(r.guest.state, 1, 3)), 'Ann', 'ann'))).toBeNull();
+    // The editor edits line 0 directly: the server's copy follows the document.
+    r.edit((f) => (((f.get(0) as Y.XmlElement).get(0)) as Y.XmlText).insert(0, 'Just '));
+    expect((r.server.getXmlFragment(SCRIPT_FIELD).get(0) as Y.XmlElement).toString()).toContain('Just One.');
+    // Without the editor's change in the guest's view, taking back its own
+    // suggestion still checks against what the server holds.
+    const own = listSuggestions(r.guest.state.doc)[0];
+    expect(r.suggest(resolveSuggestionTransaction(r.guest.state, own.id, false)!)).toBeNull();
+  });
+});
+
+describe('a large change', () => {
+  it('a long suggested replacement passes without the full alignment', () => {
+    const lines = Array.from({ length: 400 }, (_, i) => block('action', `This is line number ${i} of the script.`));
+    const c = synced(...lines);
+    const end = c.state.doc.content.size - 1;
+    const pasted = 'An entirely new scene, pasted over all of it. '.repeat(120);
+    const tr = suggesting(c.state, (t) => t.insertText(pasted, 1, end), 'Ann');
+    const size = (c.state.doc.textContent.length) * (pasted.length);
+    expect(size).toBeGreaterThan(MAX_ALIGN_CELLS);
+    expect(c.send(tr)).toBeNull();
   });
 });
 

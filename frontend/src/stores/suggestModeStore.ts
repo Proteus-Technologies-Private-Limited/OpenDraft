@@ -8,6 +8,7 @@
  */
 import { create } from 'zustand';
 import { currentNoteAuthor } from './editorStore';
+import type { Suggester } from '../editor/suggestions';
 
 interface SuggestModeState {
   /** Edits become suggestions. */
@@ -16,26 +17,32 @@ interface SuggestModeState {
   locked: boolean;
   /** The Suggestions panel. */
   panelOpen: boolean;
+  /** This window's stable id in the collaboration session it is in (utils/suggesterId). */
+  uid: string | null;
   setSuggesting: (on: boolean) => void;
   /** Join or leave a session as a suggester. */
   setLocked: (locked: boolean) => void;
   setPanelOpen: (open: boolean) => void;
+  setUid: (uid: string | null) => void;
 }
 
 export const useSuggestModeStore = create<SuggestModeState>((set) => ({
   suggesting: false,
   locked: false,
   panelOpen: false,
+  uid: null,
   setSuggesting: (on) => set((s) => ({ suggesting: s.locked ? true : on })),
   setLocked: (locked) => set({ locked, suggesting: locked }),
   setPanelOpen: (panelOpen) => set({ panelOpen }),
+  setUid: (uid) => set({ uid }),
 }));
 
 /**
- * The name to sign a suggestion with — the one notes are signed with: the
- * collaboration session name, else the account's, else a plain "You". The
- * collab server checks a suggester signs with their own session name.
+ * Who suggestions made here are signed by: the name notes are signed with —
+ * the collaboration session name, else the account's, else a plain "You" —
+ * and, in a session, this window's id there. The collab server checks a
+ * suggester signs with their own.
  */
-export function suggestionAuthor(): string {
-  return currentNoteAuthor() || 'You';
+export function suggestionAuthor(): Suggester {
+  return { by: currentNoteAuthor() || 'You', uid: useSuggestModeStore.getState().uid };
 }

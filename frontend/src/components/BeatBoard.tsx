@@ -32,6 +32,7 @@ import {
   findSceneByUid,
   linkableScenes,
   resolveBeatScenes,
+  sceneUidOf,
   toggleBeatScene,
   type LinkableScene,
 } from '../utils/beatScenes';
@@ -916,7 +917,15 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
             showToast('That scene has moved. Open the list again and pick it.', 'error');
             return;
           }
-          if (given.tr) editor.view.dispatch(given.tr);
+          if (given.tr) {
+            editor.view.dispatch(given.tr);
+            // A suggester's session keeps a new id but not a changed one
+            // (editor/suggestions onlyGivesSceneIds): link only what landed.
+            if (sceneUidOf(editor.state.doc.nodeAt(scene.pos)?.attrs) !== given.uid) {
+              showToast('That scene can’t be linked while you are suggesting. Ask the writer to link it.', 'error');
+              return;
+            }
+          }
           uid = given.uid;
         }
         updateBeat(beatId, { sceneIds: toggleBeatScene(beat, uid) });

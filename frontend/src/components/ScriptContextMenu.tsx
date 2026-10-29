@@ -17,7 +17,7 @@ import {
   sceneAlternatesOf,
 } from '../editor/sceneAlternates';
 import type { Editor } from '@tiptap/react';
-import { resolveSuggestionTransaction, suggestionAt } from '../editor/suggestions';
+import { isOwn, resolveSuggestionTransaction, suggestionAt } from '../editor/suggestions';
 import { useSuggestModeStore, suggestionAuthor } from '../stores/suggestModeStore';
 import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorStore';
 import { useEditorStore } from '../stores/editorStore';
@@ -735,7 +735,7 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       )}
 
       {/* A suggestion here: an editor accepts or rejects it; a suggester can withdraw their own */}
-      {suggestion && (!suggestLocked || suggestion.by === suggestionAuthor()) && (
+      {suggestion && (!suggestLocked || isOwn(suggestion, suggestionAuthor())) && (
         <>
           <div className="ctx-item ctx-disabled" style={{ fontSize: 11, opacity: 0.7 }}>Suggested by {suggestion.by}</div>
           {!suggestLocked && (

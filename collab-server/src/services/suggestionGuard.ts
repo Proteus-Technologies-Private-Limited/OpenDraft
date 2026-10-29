@@ -21,6 +21,16 @@
  * - set or clear their own `suggestedJoin` / `suggestedType` on an element,
  *   and change its type when it carries their `suggestedType`.
  *
+ * They may also give a scene heading that has none its `sceneUid` — what
+ * linking a Beat Board beat to the scene does (frontend/src/utils/beatScenes).
+ * It is an id, not part of the script, and one already given is not theirs
+ * to change.
+ *
+ * "Their own" means signed with their session name and, when the stamp has
+ * one, their id (`uid`, worked out from their invite token; see server.ts).
+ * The id is what tells apart two collaborators invited under the same name.
+ * A stamp without one, from a version of the app before ids, goes by name.
+ *
  * Nothing else about the script: no plain text, no formatting, no other
  * attribute. Only the script itself (the `default` fragment) is checked; the
  * notes, beats and other panels sync beside it as they do for any
@@ -33,10 +43,23 @@
  * without the collab server's packages installed. What is used of Yjs is
  * described structurally below.
  */
-interface YTextLike { toDelta(): unknown[] }
-interface YElementLike { nodeName: string; getAttributes(): Record<string, unknown>; toArray(): unknown[] }
-interface YFragmentLike { toArray(): unknown[] }
-interface YDocLike { getXmlFragment(name: string): YFragmentLike; destroy(): void }
+interface YTypeLike { readonly parent: unknown }
+interface YTextLike extends YTypeLike { toDelta(): unknown[] }
+interface YElementLike extends YTypeLike { nodeName: string; getAttributes(): Record<string, unknown>; toArray(): unknown[] }
+interface YEventLike { target: unknown }
+interface YFragmentLike {
+  toArray(): unknown[];
+  observeDeep(f: (events: YEventLike[]) => void): void;
+  unobserveDeep(f: (events: YEventLike[]) => void): void;
+}
+interface YDocLike {
+  getXmlFragment(name: string): YFragmentLike;
+  destroy(): void;
+  on(event: 'update', f: (update: Uint8Array) => void): void;
+  on(event: 'destroy', f: () => void): void;
+  off(event: 'update', f: (update: Uint8Array) => void): void;
+  off(event: 'destroy', f: () => void): void;
+}
 /** The parts of the `yjs` module the check needs. */
 export interface YjsLike {
   Doc: new () => YDocLike;
@@ -44,6 +67,14 @@ export interface YjsLike {
   XmlElement: abstract new (...args: never[]) => YElementLike;
   applyUpdate(doc: YDocLike, update: Uint8Array): void;
   encodeStateAsUpdate(doc: YDocLike): Uint8Array;
+  encodeStateVector(doc: YDocLike): Uint8Array;
+  decodeStateVector(state: Uint8Array): Map<number, number>;
+}
+
+/** Who a suggester is: their session name and, from their invite, their id. */
+export interface SuggesterIdentity {
+  name: string;
+  uid?: string | null;
 }
 
 /**
@@ -71,26 +102,26 @@ const stableJSON = (v: unknown): string => {
   return `{${Object.keys(o).sort().map((k) => `${JSON.stringify(k)}:${stableJSON(o[k])}`).join(',')}}`;
 };
 
+/** One node of the script, and everything in it, as a flat run of units. */
+function flattenNode(Y: YjsLike, child: unknown, out: Unit[]): void {
+  if (child instanceof Y.XmlText) {
+    for (const op of (child as YTextLike).toDelta() as Array<{ insert: unknown; attributes?: Attrs }>) {
+      if (typeof op.insert !== 'string') continue;
+      const marks = op.attributes ?? {};
+      for (const ch of op.insert) out.push({ kind: 'char', ch, marks });
+    }
+  } else if (child instanceof Y.XmlElement) {
+    const el = child as YElementLike;
+    out.push({ kind: 'open', name: el.nodeName, attrs: el.getAttributes() as Attrs });
+    for (const inner of el.toArray()) flattenNode(Y, inner, out);
+    out.push({ kind: 'close', name: el.nodeName });
+  }
+}
+
 /** The script as a flat run of characters and element boundaries. */
 export function flatten(Y: YjsLike, fragment: YFragmentLike): Unit[] {
   const out: Unit[] = [];
-  const walk = (node: YFragmentLike) => {
-    for (const child of node.toArray()) {
-      if (child instanceof Y.XmlText) {
-        for (const op of (child as YTextLike).toDelta() as Array<{ insert: unknown; attributes?: Attrs }>) {
-          if (typeof op.insert !== 'string') continue;
-          const marks = op.attributes ?? {};
-          for (const ch of op.insert) out.push({ kind: 'char', ch, marks });
-        }
-      } else if (child instanceof Y.XmlElement) {
-        const el = child as YElementLike;
-        out.push({ kind: 'open', name: el.nodeName, attrs: el.getAttributes() as Attrs });
-        walk(el);
-        out.push({ kind: 'close', name: el.nodeName });
-      }
-    }
-  };
-  walk(fragment);
+  for (const child of fragment.toArray()) flattenNode(Y, child, out);
   return out;
 }
 
@@ -121,16 +152,28 @@ const meaningful = (v: unknown): unknown => {
 const same = (a: unknown, b: unknown) => stableJSON(meaningful(a)) === stableJSON(meaningful(b))
   || (isEmpty(a) && isEmpty(b));
 
-const stampBy = (v: unknown): string | null =>
-  v && typeof v === 'object' && typeof (v as { by?: unknown }).by === 'string' ? (v as { by: string }).by : null;
+/**
+ * Whether a stamp — a suggestion mark's attributes, or a suggestion attribute
+ * on an element — is the suggester's own: their name, and their id if it
+ * carries one. A stamp in their name with someone else's id is not theirs.
+ */
+function owns(v: unknown, me: SuggesterIdentity): boolean {
+  if (!v || typeof v !== 'object') return false;
+  const { by, uid } = v as { by?: unknown; uid?: unknown };
+  if (typeof by !== 'string' || by !== me.name) return false;
+  return isEmpty(uid) || uid === me.uid;
+}
 
 /** Attribute keys of a mark, with y-prosemirror's `--hash` suffix for overlapping marks removed. */
 const markName = (key: string) => key.replace(/--[a-zA-Z0-9+/=]{8}$/, '');
 
 const SUGGESTION_ATTRS = new Set(['suggestedSplit', 'suggestedJoin', 'suggestedType']);
 
+/** A scene heading's stable id, which Beat Board links go by. */
+const SCENE_UID = 'sceneUid';
+
 /** Why a change from `a` to `b` of the same character is not the author's to make, or null. */
-function charChange(a: Attrs, b: Attrs, by: string): string | null {
+function charChange(a: Attrs, b: Attrs, me: SuggesterIdentity): string | null {
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
   for (const key of keys) {
     const before = a[key];
@@ -139,8 +182,8 @@ function charChange(a: Attrs, b: Attrs, by: string): string | null {
     const name = markName(key);
     if (name === 'scriptNote') continue;
     if (name === 'suggestionDelete') {
-      if (after !== undefined && stampBy(after) !== by) return 'marked a deletion as someone else';
-      if (after === undefined && stampBy(before) !== by) return "removed someone else's suggested deletion";
+      if (after !== undefined && !owns(after, me)) return 'marked a deletion as someone else';
+      if (after === undefined && !owns(before, me)) return "removed someone else's suggested deletion";
       continue;
     }
     return `changed ${name} on existing text`;
@@ -149,10 +192,10 @@ function charChange(a: Attrs, b: Attrs, by: string): string | null {
 }
 
 /** Why a change to an element's type or attributes is not the author's to make, or null. */
-function elementChange(a: Unit & { kind: 'open' }, b: Unit & { kind: 'open' }, by: string): string | null {
+function elementChange(a: Unit & { kind: 'open' }, b: Unit & { kind: 'open' }, me: SuggesterIdentity): string | null {
   // A line the author suggested is theirs: its type and settings are part of
   // the suggestion (the editor makes a new line, then sets what it is).
-  if (stampBy(a.attrs.suggestedSplit) === by && stampBy(b.attrs.suggestedSplit) === by) return null;
+  if (owns(a.attrs.suggestedSplit, me) && owns(b.attrs.suggestedSplit, me)) return null;
   const keys = new Set([...Object.keys(a.attrs), ...Object.keys(b.attrs)]);
   for (const key of keys) {
     const before = a.attrs[key];
@@ -161,28 +204,61 @@ function elementChange(a: Unit & { kind: 'open' }, b: Unit & { kind: 'open' }, b
     if (!SUGGESTION_ATTRS.has(key)) {
       // A type change replaces the element, and its attributes go back to
       // their defaults: tolerated only alongside the author's suggestedType.
-      if (a.name !== b.name && (stampBy(b.attrs.suggestedType) === by || stampBy(a.attrs.suggestedType) === by)) continue;
+      if (a.name !== b.name && (owns(b.attrs.suggestedType, me) || owns(a.attrs.suggestedType, me))) continue;
+      // Linking a beat to a scene gives its heading an id, once.
+      if (key === SCENE_UID && a.name === 'sceneHeading' && b.name === 'sceneHeading'
+        && isEmpty(before) && typeof after === 'string') continue;
       return `changed ${key} on a ${a.name}`;
     }
-    if (after !== undefined && stampBy(after) !== by) return `set ${key} as someone else`;
-    if (after === undefined && stampBy(before) !== by) return `cleared someone else's ${key}`;
+    if (after !== undefined && !owns(after, me)) return `set ${key} as someone else`;
+    if (after === undefined && !owns(before, me)) return `cleared someone else's ${key}`;
   }
-  if (a.name !== b.name && stampBy(b.attrs.suggestedType) !== by && stampBy(a.attrs.suggestedType) !== by) {
+  if (a.name !== b.name && !owns(b.attrs.suggestedType, me) && !owns(a.attrs.suggestedType, me)) {
     return `changed a ${a.name} to ${b.name} without suggesting it`;
   }
   return null;
 }
 
-function insertedUnit(u: Unit, by: string): string | null {
-  if (u.kind === 'char') return stampBy(u.marks.suggestionInsert) === by ? null : 'added text that is not a suggestion';
-  if (u.kind === 'open') return stampBy(u.attrs.suggestedSplit) === by ? null : `added a ${u.name} that is not a suggested new line`;
+function insertedUnit(u: Unit, me: SuggesterIdentity): string | null {
+  if (u.kind === 'char') return owns(u.marks.suggestionInsert, me) ? null : 'added text that is not a suggestion';
+  if (u.kind === 'open') return owns(u.attrs.suggestedSplit, me) ? null : `added a ${u.name} that is not a suggested new line`;
   return null;
 }
 
-function removedUnit(u: Unit, by: string): string | null {
-  if (u.kind === 'char') return stampBy(u.marks.suggestionInsert) === by ? null : 'deleted text instead of suggesting the deletion';
-  if (u.kind === 'open') return stampBy(u.attrs.suggestedSplit) === by ? null : `removed a ${u.name}`;
+function removedUnit(u: Unit, me: SuggesterIdentity): string | null {
+  if (u.kind === 'char') return owns(u.marks.suggestionInsert, me) ? null : 'deleted text instead of suggesting the deletion';
+  if (u.kind === 'open') return owns(u.attrs.suggestedSplit, me) ? null : `removed a ${u.name}`;
   return null;
+}
+
+/** Why one unit becoming another of the same kind is not the author's to make, or null. */
+function unitChange(x: Unit, y: Unit, me: SuggesterIdentity): string | null {
+  if (x.kind === 'char' && y.kind === 'char') return charChange(x.marks, y.marks, me);
+  if (x.kind === 'open' && y.kind === 'open') return elementChange(x, y, me);
+  return null;
+}
+
+/**
+ * A pairing of `a` with `b` that shows the change is the author's to make,
+ * found in one pass, or null when this pass finds none. Each unit of `b` is
+ * either the next unit of `a`, changed only as the author may, or something
+ * they may add; each unit of `a` not paired is something they may take away.
+ * Any pairing like that is proof enough, so this can only refuse wrongly,
+ * never accept wrongly — and a refusal falls back to the full alignment.
+ */
+function greedyPairs(a: Unit[], b: Unit[], me: SuggesterIdentity): Array<[number, number]> | null {
+  const pairs: Array<[number, number]> = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    const x = a[i];
+    const y = b[j];
+    if (x && y && alignKey(x) === alignKey(y) && !unitChange(x, y, me)) { pairs.push([i, j]); i++; j++; continue; }
+    if (y && !insertedUnit(y, me)) { j++; continue; }
+    if (x && !removedUnit(x, me)) { i++; continue; }
+    return null;
+  }
+  return pairs;
 }
 
 /** Longest common subsequence of two short runs, as aligned index pairs. */
@@ -206,14 +282,19 @@ function align(a: Unit[], b: Unit[]): Array<[number, number]> {
   return pairs;
 }
 
-/** Above this many unit pairs the general alignment is too slow to run per message. */
-const MAX_ALIGN_CELLS = 16_000_000;
+/**
+ * Above this many unit pairs the full alignment is too slow and too big
+ * (4 bytes a pair) to run on a message: 4M is 16 MB and a few tens of ms.
+ * Typing never comes near it — the changed part is a line or two — and the
+ * one-pass check above handles large, ordinary suggestions before this.
+ */
+export const MAX_ALIGN_CELLS = 4_000_000;
 
 /**
  * Why the script `after` is not one `by` could reach by suggesting from
  * `before`, or null when it is.
  */
-export function suggestionViolation(before: Unit[], after: Unit[], by: string): string | null {
+export function suggestionViolation(before: Unit[], after: Unit[], me: SuggesterIdentity): string | null {
   let p = 0;
   while (p < before.length && p < after.length && fullKey(before[p]) === fullKey(after[p])) p++;
   let s = 0;
@@ -227,51 +308,170 @@ export function suggestionViolation(before: Unit[], after: Unit[], by: string): 
   if (a.length === b.length && a.every((u, i) => alignKey(u) === alignKey(b[i]))) {
     // The usual case for a deletion: the same text, now struck.
     pairs = a.map((_, i) => [i, i]);
-  } else if (a.length * b.length <= MAX_ALIGN_CELLS) {
-    pairs = align(a, b);
   } else {
-    return 'changed too much of the script in one go to check';
+    const quick = greedyPairs(a, b, me);
+    if (quick) return null;
+    if (a.length * b.length > MAX_ALIGN_CELLS) return 'changed too much of the script in one go to check';
+    pairs = align(a, b);
   }
 
   const matchedA = new Set(pairs.map(([i]) => i));
   const matchedB = new Set(pairs.map(([, j]) => j));
   for (const [i, j] of pairs) {
-    const x = a[i];
-    const y = b[j];
-    const why = x.kind === 'char' && y.kind === 'char'
-      ? charChange(x.marks, y.marks, by)
-      : x.kind === 'open' && y.kind === 'open'
-        ? elementChange(x, y, by)
-        : null;
+    const why = unitChange(a[i], b[j], me);
     if (why) return why;
   }
   for (let i = 0; i < a.length; i++) {
     if (matchedA.has(i)) continue;
-    const why = removedUnit(a[i], by);
+    const why = removedUnit(a[i], me);
     if (why) return why;
   }
   for (let j = 0; j < b.length; j++) {
     if (matchedB.has(j)) continue;
-    const why = insertedUnit(b[j], by);
+    const why = insertedUnit(b[j], me);
     if (why) return why;
   }
   return null;
 }
 
 /**
- * Why `update` is not something `by` may do to `doc` as a suggester, or null.
- * The document itself is left alone: the update is tried on a copy.
+ * A copy of one document's script to try suggesters' updates on, kept in step
+ * with the document and remembering each top-level element flattened, so a
+ * message costs about the size of the lines it touches rather than of the
+ * script. Made for a document the first time a suggester sends it a change,
+ * and dropped with the document.
+ *
+ * It costs a second copy of the document in memory while suggesters are in
+ * it. Refusing an update leaves the copy with it applied, so it is rebuilt.
  */
-export function checkSuggesterUpdate(Y: YjsLike, doc: YDocLike, update: Uint8Array, by: string): string | null {
-  const before = flatten(Y, doc.getXmlFragment(SCRIPT_FIELD));
-  const trial = new Y.Doc();
-  try {
-    Y.applyUpdate(trial, Y.encodeStateAsUpdate(doc));
-    Y.applyUpdate(trial, update);
-    return suggestionViolation(before, flatten(Y, trial.getXmlFragment(SCRIPT_FIELD)), by);
-  } finally {
-    trial.destroy();
+class ShadowScript {
+  private shadow!: YDocLike;
+  private fragment!: YFragmentLike;
+  private readonly units = new Map<unknown, Unit[]>();
+  /** The top-level nodes the update being tried changed. */
+  private readonly touched = new Set<unknown>();
+  private readonly follow = (update: Uint8Array) => this.Y.applyUpdate(this.shadow, update);
+  private readonly forget = (events: YEventLike[]) => {
+    for (const { target } of events) {
+      const top = this.topLevel(target);
+      if (top !== null) { this.units.delete(top); this.touched.add(top); }
+    }
+  };
+
+  private readonly Y: YjsLike;
+  private readonly doc: YDocLike;
+
+  constructor(Y: YjsLike, doc: YDocLike) {
+    this.Y = Y;
+    this.doc = doc;
+    this.build();
+    doc.on('update', this.follow);
   }
+
+  private build(): void {
+    this.shadow = new this.Y.Doc();
+    this.Y.applyUpdate(this.shadow, this.Y.encodeStateAsUpdate(this.doc));
+    this.fragment = this.shadow.getXmlFragment(SCRIPT_FIELD);
+    this.fragment.observeDeep(this.forget);
+    this.units.clear();
+  }
+
+  private rebuild(): void {
+    this.fragment.unobserveDeep(this.forget);
+    this.shadow.destroy();
+    this.build();
+  }
+
+  dispose(): void {
+    this.doc.off('update', this.follow);
+    this.fragment.unobserveDeep(this.forget);
+    this.shadow.destroy();
+  }
+
+  /** The top-level node of the script holding `type`, or null for the script itself. */
+  private topLevel(type: unknown): unknown {
+    let node = type;
+    while (node && (node as YTypeLike).parent !== this.fragment) {
+      node = (node as YTypeLike).parent;
+    }
+    return node ?? null;
+  }
+
+  private unitsOf(node: unknown): Unit[] {
+    let out = this.units.get(node);
+    if (!out) {
+      out = [];
+      flattenNode(this.Y, node, out);
+      this.units.set(node, out);
+    }
+    return out;
+  }
+
+  check(update: Uint8Array, me: SuggesterIdentity): string | null {
+    // The copy follows the document through its own updates; if it has
+    // somehow fallen out of step, start again from the document.
+    if (!sameState(this.Y, this.shadow, this.doc)) this.rebuild();
+
+    const beforeNodes = this.fragment.toArray();
+    const beforeUnits = beforeNodes.map((n) => this.unitsOf(n));
+    this.touched.clear();
+    try {
+      this.Y.applyUpdate(this.shadow, update);
+    } catch (err) {
+      // Half applied, perhaps: the copy is no longer the document.
+      this.rebuild();
+      throw err;
+    }
+    const afterNodes = this.fragment.toArray();
+
+    // Lines the update left alone at either end are the same objects, untouched.
+    const same = (x: unknown, y: unknown) => x === y && !this.touched.has(x);
+    let p = 0;
+    while (p < beforeNodes.length && p < afterNodes.length && same(beforeNodes[p], afterNodes[p])) p++;
+    let s = 0;
+    while (s < beforeNodes.length - p && s < afterNodes.length - p
+      && same(beforeNodes[beforeNodes.length - 1 - s], afterNodes[afterNodes.length - 1 - s])) s++;
+    const before = beforeUnits.slice(p, beforeNodes.length - s).flat();
+    const after = afterNodes.slice(p, afterNodes.length - s).flatMap((n) => this.unitsOf(n));
+
+    const why = suggestionViolation(before, after, me);
+    if (why) this.rebuild();
+    return why;
+  }
+}
+
+/** Whether two documents have seen the same updates, by their state vectors. */
+function sameState(Y: YjsLike, x: YDocLike, y: YDocLike): boolean {
+  const a = Y.decodeStateVector(Y.encodeStateVector(x));
+  const b = Y.decodeStateVector(Y.encodeStateVector(y));
+  if (a.size !== b.size) return false;
+  for (const [client, clock] of a) if (b.get(client) !== clock) return false;
+  return true;
+}
+
+const shadows = new WeakMap<YDocLike, ShadowScript>();
+
+/**
+ * Why `update` is not something `me` may do to `doc` as a suggester, or null.
+ * The document itself is left alone: the update is tried on a copy of it.
+ */
+export function checkSuggesterUpdate(Y: YjsLike, doc: YDocLike, update: Uint8Array, me: SuggesterIdentity): string | null {
+  let shadow = shadows.get(doc);
+  if (!shadow) {
+    const made = new ShadowScript(Y, doc);
+    shadows.set(doc, made);
+    doc.on('destroy', () => { made.dispose(); shadows.delete(doc); });
+    shadow = made;
+  }
+  return shadow.check(update, me);
+}
+
+/**
+ * A suggester's id, from the invite token they joined with — the same as
+ * frontend/src/utils/suggesterId works it out, given a SHA-256 in hex.
+ */
+export function suggesterIdOf(sha256Hex: (text: string) => string, inviteToken: string): string | null {
+  return inviteToken ? sha256Hex(`opendraft-suggester:${inviteToken}`).slice(0, 16) : null;
 }
 
 // ── Reading the y-protocols message a client sends ───────────────────────
