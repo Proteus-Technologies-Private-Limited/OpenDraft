@@ -4,6 +4,7 @@ import { useEditorStore, ELEMENT_LABELS, type BuiltInElementType } from '../stor
 import { useProjectStore } from '../stores/projectStore';
 import { useLinkedFileStore } from '../stores/linkedFileStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { isTitlePageRuleId, titlePageRuleId, TITLE_PAGE_ELEMENTS } from '../stores/formattingTypes';
 import { activeTimingOptions, computeSceneTiming, formatRuntime } from '../utils/scriptTiming';
 import { computeScriptStructure } from '../utils/scriptStructure';
 import { DEFAULT_PACING, pacingOption } from '../utils/scriptProfile';
@@ -71,10 +72,17 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
     if (builtIn) return builtIn;
     try {
       const rule = getActiveTemplate().rules[activeElement];
-      return rule?.label || activeElement;
-    } catch {
-      return activeElement;
+      if (rule?.label) return rule.label;
+    } catch (err) {
+      console.warn('[StatusBar] element label lookup failed', err);
     }
+    // A title-page line with no rule of its own (the blank lines between
+    // fields) showed its internal id, "titlePage:blank".
+    if (isTitlePageRuleId(activeElement)) {
+      const field = TITLE_PAGE_ELEMENTS.find((f) => titlePageRuleId(f.field) === activeElement);
+      return field?.label ?? ELEMENT_LABELS.titlePage;
+    }
+    return activeElement;
   }, [activeElement, getActiveTemplate]);
 
   const estimatedRuntime = useMemo(() => {

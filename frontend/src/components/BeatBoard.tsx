@@ -1107,6 +1107,14 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
       {beatArrangeMode === 'auto' ? (
         <DndContext sensors={sensors} collisionDetection={beatCollisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
           <div className={`beat-board-columns${maximizedColumnId ? ' beat-board-columns-maximized' : ''}`}>
+            {/* A new script's board has no columns, and nothing else on it
+                says where beats come from. */}
+            {sortedColumns.length === 0 && (
+              <div className="beat-board-empty">
+                <p>Beats are the turning points of your story. Add a column &mdash; an act, a sequence &mdash; then add beats to it.</p>
+                <button className="beat-board-add-col-btn" onClick={handleAddColumn}>+ Add Column</button>
+              </div>
+            )}
             {sortedColumns.map((col) => {
               if (maximizedColumnId && maximizedColumnId !== col.id) return null;
               const colBeats = beats.filter((b) => b.columnId === col.id).sort((a, b) => a.position - b.position);

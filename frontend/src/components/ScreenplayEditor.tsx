@@ -5214,12 +5214,13 @@ const ScreenplayEditor: React.FC = () => {
       });
     };
 
-    // Attach to the editor's parent to catch all right-clicks in the editor area
-    const editorEl = editor.view.dom.parentElement;
-    if (editorEl) {
-      editorEl.addEventListener('contextmenu', handleContextMenu);
-      return () => editorEl.removeEventListener('contextmenu', handleContextMenu);
-    }
+    // On the document, not the element holding the editor: opening a side
+    // panel (Notes, the Dialogue Tuner…) moves the editor into a new holder,
+    // and a listener on the old one heard nothing more — every right-click in
+    // the script got the system menu until the script was reopened. The check
+    // at the top keeps it to right-clicks in the script.
+    document.addEventListener('contextmenu', handleContextMenu);
+    return () => document.removeEventListener('contextmenu', handleContextMenu);
   }, [editor]);
 
   const handleCtxMenuClose = useCallback(() => {

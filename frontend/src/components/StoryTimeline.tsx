@@ -34,6 +34,10 @@ interface Props {
 
 /** Narrowest a scene is drawn, so a short scene can still be clicked. */
 const MIN_SCENE_PX = 18;
+/** Width given to each second of screen time once a script is too long to fit
+ *  the dialog — a minute is 36px — so the track scrolls with scenes still
+ *  sized by screen time instead of all shrinking to MIN_SCENE_PX. */
+const PX_PER_SECOND = 0.6;
 
 const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
   const plotlines = useEditorStore((s) => s.plotlines);
@@ -115,7 +119,14 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
     flex: `${Math.max(s.seconds, 1)} 0 0`,
     minWidth: MIN_SCENE_PX,
   });
-  const trackStyle: React.CSSProperties = { minWidth: scenes.length * MIN_SCENE_PX };
+  // Room for every scene at its screen-time width. Sized only to fit them at
+  // MIN_SCENE_PX, a feature-length script left no width over to share out by
+  // screen time, and every scene came out the same.
+  const trackMinWidth = useMemo(
+    () => scenes.reduce((w, s) => w + Math.max(MIN_SCENE_PX, s.seconds * PX_PER_SECOND), 0),
+    [scenes],
+  );
+  const trackStyle: React.CSSProperties = { minWidth: trackMinWidth };
 
   return (
     <div className="dialog-overlay" onClick={onClose}>

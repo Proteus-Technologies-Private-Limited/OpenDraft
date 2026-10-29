@@ -218,7 +218,9 @@ const NoteThread: React.FC<NoteThreadProps> = ({
           {replies.map((r) => (
             <li key={r.id} className="note-reply">
               <div className="note-reply-header">
-                <span className="note-reply-author">{r.author || 'Unknown'}</span>
+                {/* Signed out, a writer has no name to put here; their notes
+                    leave it out too rather than calling them "Unknown". */}
+                <span className="note-reply-author">{r.author}</span>
                 <span className="note-reply-date">
                   {r.createdAt ? formatDate(r.createdAt) : ''}
                   {r.editedAt ? ' (edited)' : ''}

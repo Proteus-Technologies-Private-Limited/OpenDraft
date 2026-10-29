@@ -56,12 +56,15 @@ function parseHeading(raw: string): ParsedHeading {
     rest = rest.slice(prefixMatch.index + prefixMatch[0].length);
   }
 
-  const dashTime = rest.match(new RegExp(`\\s+-\\s+(${TIME_WORDS})\\.?$`, 'i'));
+  // As utils/scriptStatistics: notes in brackets after the time ("NIGHT
+  // (1973)") are neither time nor location.
+  const trailing = String.raw`(?:\s*(?:\([^)]*\)|\[[^\]]*\]))*`;
+  const dashTime = rest.match(new RegExp(`\\s+-\\s+(${TIME_WORDS})\\.?${trailing}\\s*$`, 'i'));
   if (dashTime) {
     timeOfDay = dashTime[1].toUpperCase();
     rest = rest.slice(0, -dashTime[0].length);
   } else {
-    const dotTime = rest.match(new RegExp(`\\.\\s*(${TIME_WORDS})\\.?$`, 'i'));
+    const dotTime = rest.match(new RegExp(`\\.\\s*(${TIME_WORDS})\\.?${trailing}\\s*$`, 'i'));
     if (dotTime) {
       timeOfDay = dotTime[1].toUpperCase();
       rest = rest.slice(0, -dotTime[0].length);
