@@ -69,6 +69,38 @@ describe('typing while suggesting', () => {
     expect(listSuggestions(s.doc)).toHaveLength(1);
   });
 
+  it('a word typed a letter at a time is one run, timed from its first letter', () => {
+    // What the editor does: a keystroke each, each a moment later.
+    const typeAt = (st: EditorState, edit: (tr: Transaction) => Transaction, now: number) =>
+      st.apply(suggestTransaction(st, edit(st.tr), { by: 'Ann', now }));
+    let s = stateOf(block('action', 'Go. Stay here.'));
+    'Now'.split('').forEach((ch, i) => { s = typeAt(s, (tr) => tr.insertText(ch, at(s, 0, 2 + i)), 1000 + i * 40); });
+    // Backspacing "here" from its end, a letter at a time.
+    for (let i = 0; i < 4; i++) s = typeAt(s, (tr) => tr.delete(at(s, 0, 15 - i), at(s, 0, 16 - i)), 2000 + i * 40);
+    expect(show(s)).toBe('action:Go{+Now+}. Stay [-here-].');
+    const runs: Array<{ text: string; at: unknown }> = [];
+    s.doc.child(0).forEach((n) => {
+      const m = n.marks.find((x) => x.type.name === SUGGEST_INSERT || x.type.name === SUGGEST_DELETE);
+      if (m) runs.push({ text: n.text ?? '', at: m.attrs.at });
+    });
+    expect(runs).toEqual([{ text: 'Now', at: 1000 }, { text: 'here', at: 2000 }]);
+    expect(listSuggestions(s.doc).map((x) => x.at)).toEqual([1000, 2000]);
+  });
+
+  it('a word typed in a session keeps its author’s id on every letter, as one run', () => {
+    let s = stateOf(block('action', 'Go.'));
+    'Now'.split('').forEach((ch, i) => {
+      s = s.apply(suggestTransaction(s, s.tr.insertText(ch, at(s, 0, 2 + i)), { by: 'Sam', uid: 'sam-1', now: 1000 + i * 40 }));
+    });
+    const runs: Array<Record<string, unknown>> = [];
+    s.doc.child(0).forEach((n) => {
+      const m = n.marks.find((x) => x.type.name === SUGGEST_INSERT);
+      if (m) runs.push({ text: n.text, ...m.attrs });
+    });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({ text: 'Now', by: 'Sam', uid: 'sam-1', at: 1000 });
+  });
+
   it('two people typing side by side make two suggestions', () => {
     let s = stateOf(block('action', 'Go.'));
     s = suggest(s, (tr) => tr.insertText('A', at(s, 0, 2)), 'Ann');
