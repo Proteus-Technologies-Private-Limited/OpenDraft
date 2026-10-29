@@ -9,7 +9,9 @@ venv/
 
 # Node dependencies (rebuilt in container)
 frontend/node_modules
-collab-server/
+# All but its source, which the frontend's tests type-check against.
+collab-server/*
+!collab-server/src
 
 # Build artifacts
 frontend/dist

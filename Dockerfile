@@ -5,6 +5,9 @@ WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
+# Frontend tests check the collab server's code too (suggestionGuard.test.ts
+# imports ../../../collab-server/src), and `tsc -b` type-checks them.
+COPY collab-server/src/ /collab-server/src/
 RUN npm run build
 
 # ── Stage 2: Python backend ──
