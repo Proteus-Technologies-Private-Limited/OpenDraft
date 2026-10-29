@@ -54,7 +54,7 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 11 | **Exportable reports** (scene, character, location, cast, breakdown → CSV/PDF) | FD, FI, WD, CX | Partial — stats are on screen only | S | Core |
 | 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | ✅ Done — replies, resolve, assignee, @mentions; export pending | M | Core |
 | 13 | **Story timeline / plotlines** (assign scenes to story threads, colour-coded timeline) | FD (Story Map, Structure Points), AS (Plot Board) | Missing | M | Core |
-| 14 | **Suggest mode for collaborators** (proposed edits accepted/rejected by the owner) | WD, AS | Missing — track changes is against a check-in, not per-collaborator proposals | L | Core |
+| 14 | **Suggest mode for collaborators** (proposed edits accepted/rejected by the owner) | WD, AS | ✅ Done — `editor/suggestions.ts`, Suggest invite role, enforced by `collab-server/src/services/suggestionGuard.ts` | L | Core |
 | 15 | **Dictation / speech to script** | FD (mobile), WD | Missing | M | Core |
 | 16 | **Graphic novel / comic template** | FD, FI | Missing | S | Core |
 | 17 | **Breakdown → schedule** (stripboard, shooting schedule, call sheets, DOOD) | CX, WD Pro, StudioBinder | Missing (tags exist) | L | **Pro** |
@@ -238,6 +238,29 @@ are not yet linked to particular scenes.
 insert/delete marks attributed to them; the owner accepts/rejects per change or
 all. Reuse the mark machinery from `editor/trackChanges.ts`; enforce the role in
 the collab server.
+
+✅ **Done**, with one change of plan: `editor/trackChanges.ts` turned out to be a
+diff against a check-in drawn as decorations, with no marks to reuse, so
+suggestions have their own model (`editor/suggestions.ts`):
+- `suggestionInsert` / `suggestionDelete` marks on text, and `suggestedSplit`,
+  `suggestedJoin` and `suggestedType` stamps on elements, each `{ id, by, at }`.
+  All are document content, so they save, sync through Yjs and survive reload.
+- While suggesting, the view's dispatch is wrapped (`editor/extensions/
+  Suggestions.ts`) and each edit is rewritten: deletions are struck instead of
+  removed, insertions marked, a suggester's own suggestions really undone.
+  Remote changes, undo and its own transactions pass through.
+- Accept and reject per suggestion or for everything shown, in the Suggestions
+  panel or on the right-click menu. Accepting is what marks a revision.
+- Roles: `suggester` beside `editor` and `viewer`, whitelisted at invite time.
+  The collab server checks each update from a suggester in
+  `beforeHandleMessage` (`services/suggestionGuard.ts`) by comparing the script
+  before and after, unit by unit, and closes the connection on anything that is
+  not the author's own suggestion; viewers now get a read-only connection.
+- Not suggestible yet: formatting, and an inline line break (y-prosemirror does
+  not store marks on inline nodes). Panels other than the script — notes,
+  beats, characters — sync as they do for any collaborator.
+- Exports, print, sides and linked files leave pending suggestions out
+  (`withoutSuggestionsJSON`); `.odraft` keeps them.
 
 ### Phase 4 — Reach (as capacity allows)
 

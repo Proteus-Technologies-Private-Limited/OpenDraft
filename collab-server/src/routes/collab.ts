@@ -34,6 +34,12 @@ router.post('/invite', requireAuth, async (req, res) => {
       res.status(400).json({ error: 'project_id, script_id, and collaborator_name are required' });
       return;
     }
+    // What the server enforces: editors edit, suggesters suggest
+    // (services/suggestionGuard), viewers only read.
+    if (!['editor', 'suggester', 'viewer'].includes(role)) {
+      res.status(400).json({ error: 'role must be editor, suggester or viewer' });
+      return;
+    }
 
     const db = getDB();
     const token = generateToken();

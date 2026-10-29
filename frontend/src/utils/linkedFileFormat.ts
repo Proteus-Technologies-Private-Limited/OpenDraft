@@ -13,6 +13,7 @@
  * In's .fadein is a zip archive, written in one non-atomic pass, so it is left
  * to Open File from Disk, where every save is one the writer asked for.
  */
+import { withoutSuggestionsJSON } from '../editor/suggestions';
 import type { JSONContent } from '@tiptap/core';
 import type { ScriptMeta } from '../services/api';
 import { exportFDX } from './fdxExporter';
@@ -136,7 +137,9 @@ export function serializeContentForFormat(
   const { pmDoc, metadata: m } = stripSaveMetadata(content);
   // Element numbers come from this script's own format; .odraft below keeps the
   // whole payload, never these labels, which are not part of the document.
-  const doc = format === 'odraft' ? pmDoc as JSONContent : labelSavedContent(pmDoc as JSONContent, m);
+  // Suggestions are OpenDraft's own: another format would print struck and
+  // suggested words alike as plain text, so it gets the script without them.
+  const doc = format === 'odraft' ? pmDoc as JSONContent : labelSavedContent(withoutSuggestionsJSON(pmDoc as JSONContent), m);
   const revision = readRevisionState(content);
   const sceneNumbersVisible = m._sceneNumbersVisible !== false;
   const font = options.font ?? { family: 'Courier Prime', size: 12 };

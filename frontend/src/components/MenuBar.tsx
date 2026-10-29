@@ -18,6 +18,16 @@ import { insertMacro } from './macroActions';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
+import { useSuggestModeStore } from '../stores/suggestModeStore';
+import { withoutSuggestionsJSON } from '../editor/suggestions';
+import type { Editor as TiptapEditor } from '@tiptap/react';
+
+/**
+ * The script as it goes out of the app — files, print, sides, plugins: as it
+ * stands before any pending suggestion, so nothing nobody has accepted reaches
+ * paper (editor/suggestions).
+ */
+const exportJSON = (editor: TiptapEditor) => withoutSuggestionsJSON(editor.getJSON());
 import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
 import { exportFadeIn } from '../utils/osfExporter';
@@ -211,6 +221,7 @@ import {
   FaUserShield,
   FaFileContract,
   FaPuzzlePiece,
+  FaUserEdit,
 } from 'react-icons/fa';
 import { REVISION_COLORS, nextRevisionColor } from '../editor/revisionColors';
 import RevisionSettingsDialog from './RevisionSettingsDialog';
@@ -408,7 +419,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       // Fade In's archive is the one binary format; it stays here because
       // only a file opened in place is ever written in it.
       if (format === 'fadein') {
-        return exportFadeIn(editor.getJSON(), { font: { family: s.fontFamily, size: String(s.fontSize) }, ...osfExtras(s) });
+        return exportFadeIn(exportJSON(editor), { font: { family: s.fontFamily, size: String(s.fontSize) }, ...osfExtras(s) });
       }
       // Everything else goes through the same serializer as files linked to
       // library scripts (issue #135), so the two can never write a format
@@ -1016,6 +1027,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // Backups asked for before a folder was chosen: ask for one here, then go on.
   const [backupFolderPrompt, setBackupFolderPrompt] = useState<'backup' | 'open' | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const suggesting = useSuggestModeStore((st) => st.suggesting);
+  const suggestLocked = useSuggestModeStore((st) => st.locked);
+  const suggestionsPanelOpen = useSuggestModeStore((st) => st.panelOpen);
   // Asked of the platform rather than assumed: iPad can tile a second window
   // but iPhone cannot, and Android needs API 32+ (issue #63). Desktop answers
   // true immediately, so the item never flickers in there.
@@ -1773,9 +1787,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (!editor) return;
     try {
       const s = useEditorStore.getState();
-      await downloadFDX(editor.getJSON(), documentTitle, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns, s.pageLayout,
+      await downloadFDX(exportJSON(editor), documentTitle, s.characterProfiles, s.tagCategories, s.tags, s.beats, s.beatColumns, s.pageLayout,
         { family: s.fontFamily, size: s.fontSize },
-        buildExportFootnotePlan(editor.getJSON(), s.pageLayout, s.notes, s.generalNotes),
+        buildExportFootnotePlan(exportJSON(editor), s.pageLayout, s.notes, s.generalNotes),
         { mode: s.revisionMode, color: s.revisionColor, settings: s.revisionSettings },
           { sceneNumbersVisible: s.sceneNumbersVisible, elementNumbersVisible: s.elementNumbersVisible });
     } catch (err) {
@@ -1789,7 +1803,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     try {
       const s = useEditorStore.getState();
       const { downloadFadeIn } = await import('../utils/osfExporter');
-      await downloadFadeIn(editor.getJSON(), documentTitle, {
+      await downloadFadeIn(exportJSON(editor), documentTitle, {
         font: { family: s.fontFamily, size: String(s.fontSize) },
         ...osfExtras(s),
       });
@@ -1802,7 +1816,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const handleExportFountain = useCallback(async () => {
     if (!editor) return;
     try {
-      await downloadFountain(editor.getJSON(), documentTitle, {
+      await downloadFountain(exportJSON(editor), documentTitle, {
         revisionSettings: useEditorStore.getState().revisionSettings,
         sceneNumbersVisible: useEditorStore.getState().sceneNumbersVisible,
       });
@@ -1857,7 +1871,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const handleExportAv = useCallback(async (kind: 'xlsx' | 'csv' | 'txt' | 'yaml') => {
     if (!editor) return;
     try {
-      const json = editor.getJSON();
+      const json = exportJSON(editor);
       if (kind === 'yaml') {
         const { downloadAvYaml } = await import('../utils/avYaml');
         await downloadAvYaml(json, documentTitle);
@@ -1896,7 +1910,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const handleExportRevisedPDF = useCallback(async () => {
     if (!editor) return;
     try {
-      const json = editor.getJSON();
+      const json = exportJSON(editor);
       const warning = await exportPDF(json, `${documentTitle || 'Untitled'} - Revised Pages`, pageLayout, {
         ...pdfOptions(json),
         revisedPagesOnly: true,
@@ -1926,7 +1940,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
    */
   const handleExportSecured = useCallback(async ({ copies, security }: PdfSecurityRequest) => {
     if (!editor) return;
-    const json = editor.getJSON();
+    const json = exportJSON(editor);
     const title = documentTitle || 'Untitled';
     const base = pdfOptions(json);
     if (copies.length === 1) {
@@ -1960,7 +1974,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const handlePluginExport = useCallback(async (exporter: PluginExporter) => {
     if (!editor) return;
     try {
-      const json = editor.getJSON();
+      const json = exportJSON(editor);
       const title = documentTitle || 'Untitled';
       const data = await exporter.export({ editor, doc: json, title });
       const { saveFile } = await import('../utils/fileOps');
@@ -2019,7 +2033,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const handleExportPDF = useCallback(async () => {
     if (!editor) return;
     try {
-      const json = editor.getJSON();
+      const json = exportJSON(editor);
       // A font that would not load leaves the script it was for blank on the
       // page — the writer has to hear that now, not from whoever they send it
       // to. See RenderedPDF.warning.
@@ -2051,7 +2065,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (route === 'dialog' && printViaPdf && editor) {
       try {
         showToast('Preparing your script for printing…');
-        const json = editor.getJSON();
+        const json = exportJSON(editor);
         const { renderPDF } = await import('../utils/pdfExporter');
         const { printPDFBytes } = await import('../utils/printPdf');
         const { bytes, filename, warning } = await renderPDF(json, documentTitle, pageLayout, pdfOptions(json));
@@ -2107,7 +2121,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         ? 'Preparing your script — choose Print in the share sheet.'
         : 'Preparing your script for printing…');
 
-      const json = editor.getJSON();
+      const json = exportJSON(editor);
       if (route === 'ios-share-sheet') {
         const warning = await exportPDF(json, documentTitle, pageLayout, pdfOptions(json));
         if (warning) showToast(warning, 'error');
@@ -2185,8 +2199,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     if (!editor) return;
     try {
       const store = useEditorStore.getState();
-      await downloadDocx(editor.getJSON(), documentTitle, pageLayout, {
-        footnotes: buildExportFootnotePlan(editor.getJSON(), pageLayout, store.notes, store.generalNotes),
+      await downloadDocx(exportJSON(editor), documentTitle, pageLayout, {
+        footnotes: buildExportFootnotePlan(exportJSON(editor), pageLayout, store.notes, store.generalNotes),
         documentTitle: store.documentTitle,
         revisionSettings: store.revisionSettings,
         revisionColor: store.revisionMode ? store.revisionColor : '',
@@ -2599,7 +2613,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             {
               icon: <FaFileContract />, label: 'Sides & Selected Pages\u2026',
               title: 'Chosen scenes, or every page with a character, location or tag, keeping their page numbers',
-              action: () => { if (editor) setSidesDoc(editor.getJSON()); },
+              action: () => { if (editor) setSidesDoc(exportJSON(editor)); },
               disabled: !editor,
             },
             { icon: <FaFileWord />, label: 'Microsoft Word (.docx)', action: handleExportDocx },
@@ -2957,6 +2971,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaTags />, label: tagsPanelOpen ? '\u2713 Tags' : 'Tags', action: toggleTagsPanel },
             { icon: <FaCompass />, label: locationDatabaseOpen ? '\u2713 Locations' : 'Locations', action: toggleLocationDatabase },
             { icon: <FaComments />, label: dialogueTunerOpen ? '\u2713 Dialogue Tuner' : 'Dialogue Tuner', action: () => (dialogueTunerOpen ? closeDialogueTuner() : openDialogueTuner()) },
+            { icon: <FaUserEdit />, label: suggestionsPanelOpen ? '\u2713 Suggestions' : 'Suggestions', action: () => useSuggestModeStore.getState().setPanelOpen(!suggestionsPanelOpen) },
           ],
         },
         {
@@ -3035,6 +3050,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaSignInAlt />, label: 'Join Collaboration…', action: onJoinCollab, disabled: isCollabGuest },
           ],
         },
+        {
+          // Edits become suggestions for the writer to accept (editor/suggestions).
+          // A collaborator invited to suggest cannot turn it off.
+          icon: <FaUserEdit />,
+          label: suggesting ? '\u2713 Suggest Changes' : 'Suggest Changes',
+          title: suggestLocked ? 'You joined to suggest: your edits are suggestions for the writer' : 'Make edits as suggestions, to accept or reject later',
+          action: () => {
+            const st = useSuggestModeStore.getState();
+            st.setSuggesting(!st.suggesting);
+            if (!st.suggesting) showToast('Suggesting: your edits are now suggestions. Tools → Review Suggestions… to see them.', 'info');
+          },
+          disabled: suggestLocked,
+        },
+        { icon: <FaUserEdit />, label: 'Review Suggestions…', action: () => useSuggestModeStore.getState().setPanelOpen(true) },
         { separator: true, label: '' },
         { icon: <FaProjectDiagram />, label: 'Manage Projects…', action: goToProjects, disabled: isCollabGuest },
         { icon: <FaBoxes />, label: 'Asset Manager', action: () => useAssetStore.getState().toggleAssetManager() },

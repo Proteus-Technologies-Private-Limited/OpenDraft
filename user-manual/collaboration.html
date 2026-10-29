@@ -147,6 +147,7 @@
       <li>Choose a <strong>permission level</strong>:
         <ul>
           <li><strong>Co-Edit</strong> &mdash; Full read-write access. The collaborator can modify the screenplay.</li>
+          <li><strong>Suggest</strong> &mdash; The collaborator&rsquo;s edits arrive as suggestions, for you to accept or reject. See <a href="#suggest-mode">Suggest Mode</a>.</li>
           <li><strong>Read Only</strong> &mdash; View-only access. The collaborator can see the screenplay and follow edits in real time but cannot make changes.</li>
         </ul>
       </li>
@@ -197,13 +198,40 @@
       <li>Scene synopses</li>
     </ul>
 
+    <h2 id="suggest-mode">Suggest Mode</h2>
+
+    <p>In suggest mode, edits are proposed rather than made. Words you type are underlined in green; words you delete stay where they were, struck through in red. Nothing is part of the script until it is accepted.</p>
+
+    <ul>
+      <li><strong>For yourself</strong> &mdash; turn on <strong>Tools &gt; Suggest Changes</strong> to try a pass you are not sure of. A <strong>Suggesting</strong> pill in the status bar shows it is on; click it to edit directly again.</li>
+      <li><strong>For a collaborator</strong> &mdash; invite them with the <strong>Suggest</strong> permission. They are suggesting for the whole session and cannot turn it off, and the collaboration server checks every change they send: anything that is not a suggestion signed with their own name is refused and they are disconnected.</li>
+    </ul>
+
+    <p>What can be suggested:</p>
+    <ul>
+      <li>Adding and deleting words, and replacing them &mdash; select a word and type over it.</li>
+      <li>A new line (<kbd>Enter</kbd>): a green rule in the margin marks it.</li>
+      <li>Joining a line to the one before (<kbd>Backspace</kbd> at its start): marked <strong>&#10514; join</strong> in the margin.</li>
+      <li>Changing an element&rsquo;s type, say Action to Dialogue: marked <strong>was Action</strong> in the margin.</li>
+    </ul>
+
+    <p>Formatting cannot be suggested yet, nor a line break inside an element (<kbd>Shift</kbd>+<kbd>Enter</kbd>); you are told when you try. Script notes still work, so a reviewer can comment on anything.</p>
+
+    <h3 id="review-suggestions">Reviewing Suggestions</h3>
+
+    <p>Open <strong>Tools &gt; Review Suggestions&hellip;</strong> (or <strong>View &gt; Panels &gt; Suggestions</strong>). Each card says who suggested what, and when; click it to go to the change. <strong>Accept</strong> makes it part of the script, <strong>Reject</strong> puts the script back as it was, and <strong>Accept all</strong> / <strong>Reject all</strong> do every suggestion shown &mdash; or only one person&rsquo;s, when you pick them in the list at the top. You can also right-click a suggestion in the script.</p>
+
+    <p>A collaborator who is suggesting cannot accept anything, but can <strong>Withdraw</strong> their own suggestions. Deleting words you suggested yourself simply removes them, as you would expect.</p>
+
+    <p>Suggestions are saved with the script and shared with everyone in the session. In <a href="revision-mode.html">Revision Mode</a>, a suggestion is not marked as a revision until it is accepted. Exports, printing and sides show the script as it stands without pending suggestions; only an <code>.odraft</code> file keeps them.</p>
+
     <h2 id="manage-invites">Managing Invites</h2>
 
     <p>The Share dialog (<strong>Tools &gt; Collaborate...</strong>) shows all active invites for the current screenplay.</p>
 
     <p>For each invite, you can see:</p>
     <ul>
-      <li>The collaborator's name and role (Co-Edit or Read Only)</li>
+      <li>The collaborator's name and role (Co-Edit, Suggest or Read Only)</li>
       <li>When the invite was created and when it expires</li>
     </ul>
 

@@ -12089,7 +12089,8 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 
 .collab-invite-options {
   display: flex;
-  gap: 24px;
+  flex-wrap: wrap;
+  gap: 0 24px;
   margin-top: 4px;
 }
 
@@ -12100,7 +12101,8 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 
 .collab-role-radios {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 6px 16px;
   margin-top: 4px;
 }
 
@@ -12108,6 +12110,7 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
   font-size: 13px;
   color: var(--fd-text-primary, #e0e0e0);
   cursor: pointer;
@@ -12160,6 +12163,101 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   background: rgba(245, 124, 0, 0.1);
   color: #f57c00;
 }
+
+.collab-role-suggester {
+  background: rgba(76, 175, 80, 0.15);
+  color: #66bb6a;
+}
+[data-theme="light"] .collab-role-suggester {
+  background: rgba(46, 125, 50, 0.1);
+  color: #2e7d32;
+}
+
+/* ============ SUGGEST MODE (editor/suggestions) ============
+   Suggested words in green, underlined; suggested deletions struck through in
+   red and kept readable. On the page, so the colours are fixed rather than
+   themed — the page is white in every theme. Never printed: exports leave
+   suggestions out (withoutSuggestionsJSON). */
+ins.suggestion-insert {
+  text-decoration: underline;
+  text-decoration-color: #2e7d32;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  color: #1b5e20;
+  background: rgba(46, 125, 50, 0.08);
+}
+del.suggestion-delete {
+  text-decoration: line-through;
+  text-decoration-color: #c62828;
+  text-decoration-thickness: 2px;
+  color: #b71c1c;
+  background: rgba(198, 40, 40, 0.06);
+}
+/* A suggested new line: a green rule down its left, in the margin, so the
+   text does not move. Two shadows: the page colour, then the rule under it,
+   which leaves a gap between the rule and the text. */
+[data-suggested-split] {
+  box-shadow: -5px 0 0 0 var(--fd-page-bg, #fff), -8px 0 0 0 #2e7d32;
+}
+.suggestion-label {
+  float: left;
+  margin-left: calc(-0.9in - 0.1in);
+  width: 0.9in;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 10px;
+  font-weight: normal;
+  font-style: normal;
+  text-transform: none;
+  line-height: 16px;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: auto;
+  user-select: none;
+}
+.suggestion-label--join { color: #c62828; }
+.suggestion-label--type { color: #2e7d32; }
+@media print {
+  .suggestion-label { display: none !important; }
+}
+.page.phone-view .suggestion-label {
+  float: none;
+  display: inline-block;
+  margin: 0 6px 0 0;
+  width: auto;
+}
+/* The Suggestions panel (components/SuggestionsPanel) — on the shared
+   side-panel layout. */
+.suggestions-controls { padding: 8px 12px; border-bottom: 1px solid var(--fd-border); display: flex; flex-direction: column; gap: 8px; }
+.suggestions-mode { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--fd-text); cursor: pointer; line-height: 1.35; }
+.suggestions-mode input { margin-top: 2px; }
+.suggestions-bulk { display: flex; gap: 6px; }
+.suggestions-bulk .dialog-btn { flex: 1; padding: 4px 8px; font-size: 12px; }
+.suggestion-card { border-bottom: 1px solid var(--fd-border); padding: 6px 12px 8px; }
+.suggestion-card-main {
+  display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left;
+  background: none; border: none; padding: 2px 0; color: var(--fd-text); cursor: pointer; font: inherit;
+}
+.suggestion-card-who { font-size: 12px; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
+.suggestion-card-when { font-weight: normal; color: var(--fd-text-muted); font-size: 11px; }
+.suggestion-card-what { font-size: 12px; line-height: 1.4; color: var(--fd-text); overflow-wrap: anywhere; }
+.suggestion-card-actions { display: flex; gap: 6px; margin-top: 4px; }
+.suggestion-card-actions button {
+  flex: 1; font-size: 12px; padding: 3px 6px; border-radius: 4px; cursor: pointer;
+  background: transparent; border: 1px solid var(--fd-border); color: var(--fd-text);
+}
+.suggestion-accept:hover { border-color: #2e7d32; color: #66bb6a; }
+.suggestion-reject:hover { border-color: #c62828; color: #ef5350; }
+
+/* Status-bar pill while suggesting. */
+.suggest-mode-pill {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; white-space: nowrap;
+  padding: 0 8px; border-radius: 8px; font-size: 11px; line-height: 16px;
+  background: rgba(46, 125, 50, 0.18); color: #66bb6a; border: none; cursor: pointer;
+}
+.suggest-mode-pill[disabled] { cursor: default; }
+[data-theme="light"] .suggest-mode-pill { color: #2e7d32; background: rgba(46, 125, 50, 0.12); }
 
 /* ============ SETTINGS PAGE ============ */
 

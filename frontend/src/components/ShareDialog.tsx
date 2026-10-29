@@ -48,7 +48,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
   onClose,
 }) => {
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'editor' | 'viewer'>('editor');
+  const [role, setRole] = useState<'editor' | 'suggester' | 'viewer'>('editor');
   const [expiryHours, setExpiryHours] = useState(
     useSettingsStore.getState().defaultInviteExpiry || 1,
   );
@@ -235,6 +235,16 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
                   />
                   Co-Edit
                 </label>
+                <label className="collab-radio-label" title="Their edits arrive as suggestions for you to accept or reject">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="suggester"
+                    checked={role === 'suggester'}
+                    onChange={() => setRole('suggester')}
+                  />
+                  Suggest
+                </label>
                 <label className="collab-radio-label">
                   <input
                     type="radio"
@@ -276,7 +286,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
                     <span className="collab-session-name">
                       {s.collaborator_name}
                       <span className={`collab-role-badge collab-role-${s.role || 'editor'}`}>
-                        {s.role === 'viewer' ? 'Read Only' : 'Co-Edit'}
+                        {s.role === 'viewer' ? 'Read Only' : s.role === 'suggester' ? 'Suggest' : 'Co-Edit'}
                       </span>
                     </span>
                     <span className="collab-session-date">

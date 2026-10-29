@@ -9,6 +9,8 @@ import {
   keepOnlyShownTransaction,
 } from '../editor/alternates';
 import type { Editor } from '@tiptap/react';
+import { resolveSuggestionTransaction, suggestionAt } from '../editor/suggestions';
+import { useSuggestModeStore, suggestionAuthor } from '../stores/suggestModeStore';
 import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorStore';
 import { useEditorStore } from '../stores/editorStore';
 import { characterKey, singleLine } from '../utils/nodeText';
@@ -462,6 +464,17 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
   };
 
   // ── Alternates: other versions of this line (editor/alternates) ──
+  // ── A suggested change under the cursor (editor/suggestions) ──
+  const suggestion = suggestionAt(editor.state.doc, savedSelection.current.from);
+  const suggestLocked = useSuggestModeStore.getState().locked;
+  const runSuggestion = (accept: boolean) => {
+    if (!suggestion) return;
+    const tr = resolveSuggestionTransaction(editor.state, suggestion.id, accept);
+    if (tr) editor.view.dispatch(tr);
+    editor.commands.focus();
+    onClose();
+  };
+
   const alternateTarget = alternateTargetAt(editor.state, savedSelection.current.from);
   const alternateCount = alternateTarget ? alternatesOf(alternateTarget.node).length + 1 : 0;
   const runAlternate = (build: (state: typeof editor.state, pos: number) => Transaction | null) => {
@@ -702,6 +715,23 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
           <div className="ctx-item" onClick={handleGrammarIgnoreOnce}>Ignore Once</div>
           <div className="ctx-item" onClick={handleGrammarIgnoreRuleForDoc}>Ignore in Document</div>
           <div className="ctx-item" onClick={handleGrammarDisableRule}>Disable Rule</div>
+          <div className="ctx-separator" />
+        </>
+      )}
+
+      {/* A suggestion here: an editor accepts or rejects it; a suggester can withdraw their own */}
+      {suggestion && (!suggestLocked || suggestion.by === suggestionAuthor()) && (
+        <>
+          <div className="ctx-item ctx-disabled" style={{ fontSize: 11, opacity: 0.7 }}>Suggested by {suggestion.by}</div>
+          {!suggestLocked && (
+            <div className="ctx-item" onClick={() => runSuggestion(true)}><span>Accept Suggestion</span></div>
+          )}
+          <div className="ctx-item" onClick={() => runSuggestion(false)}>
+            <span>{suggestLocked ? 'Withdraw My Suggestion' : 'Reject Suggestion'}</span>
+          </div>
+          <div className="ctx-item" onClick={() => { useSuggestModeStore.getState().setPanelOpen(true); onClose(); }}>
+            <span>All Suggestions…</span>
+          </div>
           <div className="ctx-separator" />
         </>
       )}

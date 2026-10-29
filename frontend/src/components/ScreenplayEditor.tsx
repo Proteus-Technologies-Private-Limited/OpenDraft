@@ -30,7 +30,7 @@ import {
   FormatOverride, CustomElement, DualDialogue, DualDialogueColumn,
   TitlePage,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
-  StartsNewPage, Bookmark, Alternates,
+  StartsNewPage, Bookmark, Alternates, Suggestions,
 } from '../editor/extensions';
 import { ElementNumbers, ELEMENT_NUMBERS_REFRESH } from '../editor/extensions/ElementNumbers';
 import { FocusMode, FOCUS_MODE_REFRESH, FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
@@ -78,6 +78,7 @@ import TagsPanel from './TagsPanel';
 import { PluginPanelTabs } from './PluginPanelTabs';
 import LocationDatabase from './LocationDatabase';
 import DialogueTuner from './DialogueTuner';
+import SuggestionsPanel from './SuggestionsPanel';
 import WritingGoalsDialog from './WritingGoalsDialog';
 import { useWritingGoalsStore } from '../stores/writingGoalsStore';
 import { useWritingTracker } from '../hooks/useWritingTracker';
@@ -154,6 +155,31 @@ import { projectApi } from '../services/projectApi';
 import { scriptApi } from '../services/scriptApi';
 import { getApiBase, getCollabWsUrl } from '../config';
 import { showToast } from './Toast';
+import { useSuggestModeStore, suggestionAuthor } from '../stores/suggestModeStore';
+
+/**
+ * How collab-server/src/services/suggestionGuard closes a connection over a
+ * refused change. Hocuspocus closes one document of a shared socket with the
+ * reason it was given but a plain code, so the reason is what to look for.
+ */
+const SUGGESTION_REFUSED_REASON = 'suggestion-refused';
+
+type CollabRole = 'editor' | 'viewer' | 'suggester';
+/** The role an invite carries, as the editor understands it; anything unknown is an editor's, as before. */
+function collabRoleOf(role: unknown): CollabRole {
+  return role === 'viewer' || role === 'suggester' ? role : 'editor';
+}
+
+/** Said once in a while, not on every keystroke, when a suggester tries what a suggestion cannot carry. */
+let blockedToastAt = 0;
+function sayCannotBeSuggested(what: 'formatting' | 'lineBreak') {
+  const now = Date.now();
+  if (now - blockedToastAt < 8000) return;
+  blockedToastAt = now;
+  showToast(what === 'lineBreak'
+    ? 'A line break inside an element can’t be suggested — press Enter for a new line instead.'
+    : 'Formatting can’t be suggested — only words, new lines and element types. Script notes still work.', 'info');
+}
 import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -529,7 +555,13 @@ const ScreenplayEditor: React.FC = () => {
   const [collabMode, setCollabMode] = useState(false);
   const [collabUserName, setCollabUserName] = useState('Owner');
   const [isCollabHost, setIsCollabHost] = useState(false);
-  const [collabRole, setCollabRole] = useState<'editor' | 'viewer'>('editor');
+  const [collabRole, setCollabRole] = useState<CollabRole>('editor');
+  // A suggester stays in suggest mode for as long as they are in the session.
+  useEffect(() => {
+    const store = useSuggestModeStore.getState();
+    const locked = collabMode && collabRole === 'suggester';
+    if (locked !== store.locked) store.setLocked(locked);
+  }, [collabMode, collabRole]);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [collabLoginOpen, setCollabLoginOpen] = useState(false);
   const [joinCollabOpen, setJoinCollabOpen] = useState(false);
@@ -584,7 +616,8 @@ const ScreenplayEditor: React.FC = () => {
     document.body.style.userSelect = 'none';
   }, [navWidth, rightPanelWidth]);
 
-  const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen || locationDatabaseOpen || dialogueTunerOpen;
+  const suggestionsPanelOpen = useSuggestModeStore((s) => s.panelOpen);
+  const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen || locationDatabaseOpen || dialogueTunerOpen || suggestionsPanelOpen;
 
   // Yjs document & provider — stable across renders while collab is active
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -709,6 +742,15 @@ const ScreenplayEditor: React.FC = () => {
         console.log(`[Collab] Connection closed for "${docName}": code=${event.code}`);
         setCollabConnectionState('disconnected');
         addCollabActivity(`Connection lost (code ${event.code})`);
+
+        // The server refused a change from a suggester that was not a
+        // suggestion (collab-server/src/services/suggestionGuard). Reconnecting
+        // would send the same change again, so stop and say so.
+        if ((event as { reason?: string }).reason === SUGGESTION_REFUSED_REASON) {
+          provider.disconnect();
+          showToast('The collaboration server refused a change that was not a suggestion, and disconnected you. Open the invite link again to carry on.', 'error');
+          return;
+        }
 
         // The server closed this document but left the socket open — what
         // Hocuspocus does when the host ends the session (close-document) or
@@ -1137,7 +1179,7 @@ const ScreenplayEditor: React.FC = () => {
         setupCollab(docName, urlCollabToken, session.collaborator_name);
 
         setCollabUserName(session.collaborator_name);
-        setCollabRole((session.role as 'editor' | 'viewer') || 'editor');
+        setCollabRole(collabRoleOf(session.role));
         setCollabMode(true);
         setEditorKey((k) => k + 1);
 
@@ -1146,6 +1188,9 @@ const ScreenplayEditor: React.FC = () => {
         setDocumentTitle(scriptResp?.meta?.title || 'Untitled');
         setCollabLoading(false);
 
+        if (session.role === 'suggester') {
+          showToast('Connected as a suggester: your edits are suggestions for the writer to accept', 'info');
+        }
         if (session.role === 'viewer') {
           showToast('Connected as viewer (read-only)', 'info');
         }
@@ -1329,7 +1374,7 @@ const ScreenplayEditor: React.FC = () => {
       setupCollab(docName, token, session.collaborator_name, false, collabWs);
 
       setCollabUserName(session.collaborator_name);
-      setCollabRole((session.role as 'editor' | 'viewer') || 'editor');
+      setCollabRole(collabRoleOf(session.role));
       setCollabMode(true);
       setJoinCollabOpen(false);
       setEditorKey((k) => k + 1);
@@ -1341,6 +1386,8 @@ const ScreenplayEditor: React.FC = () => {
 
       if (session.role === 'viewer') {
         showToast('Connected as viewer (read-only)', 'info');
+      } else if (session.role === 'suggester') {
+        showToast(`Joined as ${session.collaborator_name} to suggest: your edits are suggestions for the writer to accept`, 'success');
       } else {
         showToast(`Joined collaboration as ${session.collaborator_name}`, 'success');
       }
@@ -2036,6 +2083,12 @@ const ScreenplayEditor: React.FC = () => {
         },
       }),
       Alternates,
+      // While suggesting, edits become suggestions (editor/suggestions).
+      Suggestions.configure({
+        suggester: () => (useSuggestModeStore.getState().suggesting ? suggestionAuthor() : null),
+        onBlocked: sayCannotBeSuggested,
+        dropHousekeeping: () => useSuggestModeStore.getState().locked,
+      }),
       LockedPages,
       FootnoteMarkerExtension,
       PaginationExtension,
@@ -5240,7 +5293,7 @@ const ScreenplayEditor: React.FC = () => {
           <span className={`collab-dot${collabConnectionState === 'disconnected' ? ' collab-dot-disconnected' : collabConnectionState === 'connecting' || collabConnectionState === 'connected' ? ' collab-dot-connecting' : ''}`} />
           <span className="collab-banner-text">
             Live Collaboration{collabConnectionState === 'synced' ? '' : collabConnectionState === 'disconnected' ? ' — Reconnecting\u2026' : ' — Connecting\u2026'}
-            {collabConnectionState === 'synced' && <> — {collabRole === 'viewer' ? 'Read Only' : 'Editing'} as <strong>{collabUserName}</strong></>}
+            {collabConnectionState === 'synced' && <> — {collabRole === 'viewer' ? 'Read Only' : collabRole === 'suggester' ? 'Suggesting' : 'Editing'} as <strong>{collabUserName}</strong></>}
             {collabConnectionState === 'synced' && collabUsers.length > 0 && ` — ${collabUsers.length} user${collabUsers.length !== 1 ? 's' : ''} connected`}
           </span>
           <div className="collab-avatars">
@@ -5644,6 +5697,7 @@ const ScreenplayEditor: React.FC = () => {
         {!isHistoryMode && <TagsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
+        {!isHistoryMode && <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && (
           <PluginPanelTabs
             editor={editor}

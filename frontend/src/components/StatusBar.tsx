@@ -8,6 +8,7 @@ import { activeTimingOptions, computeSceneTiming, formatRuntime } from '../utils
 import { computeScriptStructure } from '../utils/scriptStructure';
 import { DEFAULT_PACING, pacingOption } from '../utils/scriptProfile';
 import WritingProgress from './WritingProgress';
+import { useSuggestModeStore } from '../stores/suggestModeStore';
 
 const SAVE_STATUS_DISPLAY: Record<string, { label: string; className: string }> = {
   idle: { label: '', className: '' },
@@ -153,6 +154,8 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
         </span>
       </div>
       <div className="status-right">
+        {/* Here rather than in the centre, which phones hide. */}
+        <SuggestingPill />
         {currentAct && (
           <span className="status-item status-acts" title="Act structure">
             {currentAct}
@@ -188,3 +191,21 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
 };
 
 export default StatusBar;
+
+/** "Suggesting" while edits become suggestions; click to stop, unless a Suggest invite holds it on. */
+function SuggestingPill() {
+  const suggesting = useSuggestModeStore((st) => st.suggesting);
+  const locked = useSuggestModeStore((st) => st.locked);
+  if (!suggesting) return null;
+  return (
+    <button
+      type="button"
+      className="suggest-mode-pill"
+      disabled={locked}
+      onClick={() => useSuggestModeStore.getState().setSuggesting(false)}
+      title={locked ? 'You joined to suggest: the writer accepts or rejects your edits' : 'Your edits are suggestions. Click to edit directly again.'}
+    >
+      &#9998; Suggesting
+    </button>
+  );
+}

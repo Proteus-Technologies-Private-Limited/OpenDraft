@@ -51,7 +51,8 @@ A complete list of features in OpenDraft.
 ## Collaboration
 
 - **Real-time Co-editing** -- Multiple writers editing simultaneously with live cursors and presence
-- **Permissions** -- Invite collaborators with Co-Edit or Read Only access
+- **Permissions** -- Invite collaborators with Co-Edit, Suggest or Read Only access; the collaboration server enforces Suggest and Read Only
+- **Suggest Mode** -- Edits proposed rather than made: typed words underlined, deleted words struck through, new lines, joins and type changes marked, each signed by its author, to accept or reject one at a time or all at once. For a collaborator invited to suggest, or for yourself (Tools → Suggest Changes)
 - **Self-hosted** -- Run your own collaboration server for full privacy
 
 ## Import & Export
