@@ -636,18 +636,54 @@ class MainActivity : TauriActivity() {
 
             // PrintManager.print must be called from the main thread, and Rust
             // calls in on whichever thread served the command.
+            // Normally no paper preference of our own: the dialog opens on the
+            // printer's default, and the spooler fits the PDF's pages to
+            // whatever the writer picks. The exception is a landscape PDF
+            // (sides printed two pages to a sheet): left to the default, the
+            // dialog previews each sheet shrunk onto portrait paper, so the
+            // job asks for the same paper turned sideways instead.
+            val attributes = landscapePrintAttributes(file)
             Handler(Looper.getMainLooper()).post {
                 try {
-                    // null attributes: no paper-size preference of our own, so
-                    // the dialog opens on the printer's default. The PDF carries
-                    // its own page size and the spooler fits it to whatever the
-                    // writer picks.
-                    printManager.print(jobName, PdfPrintAdapter(file, jobName), null)
+                    printManager.print(jobName, PdfPrintAdapter(file, jobName), attributes)
                 } catch (e: Exception) {
                     android.util.Log.e("OpenDraft", "[print] could not start job: ${e.message}")
                 }
             }
             return null
+        }
+
+        /**
+         * Print attributes asking for landscape Letter or A4 when the PDF's
+         * first page is that paper turned sideways; null otherwise, which keeps
+         * the printer's own default. Any failure reading the PDF is null too —
+         * this only chooses how the dialog opens, never whether it does.
+         */
+        private fun landscapePrintAttributes(file: File): PrintAttributes? {
+            return try {
+                ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
+                    android.graphics.pdf.PdfRenderer(fd).use { renderer ->
+                        if (renderer.pageCount == 0) return null
+                        renderer.openPage(0).use { page ->
+                            // Points: Letter is 792 x 612 landscape, A4 842 x 595.
+                            val w = page.width
+                            val h = page.height
+                            if (w <= h) return null
+                            val media = when {
+                                kotlin.math.abs(w - 792) <= 4 && kotlin.math.abs(h - 612) <= 4 ->
+                                    PrintAttributes.MediaSize.NA_LETTER.asLandscape()
+                                kotlin.math.abs(w - 842) <= 4 && kotlin.math.abs(h - 595) <= 4 ->
+                                    PrintAttributes.MediaSize.ISO_A4.asLandscape()
+                                else -> return null
+                            }
+                            PrintAttributes.Builder().setMediaSize(media).build()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("OpenDraft", "[print] could not read page size: ${e.message}")
+                null
+            }
         }
     }
 

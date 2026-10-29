@@ -22,9 +22,9 @@ const plugin: OpenDraftPlugin = {
   version: '1.0.0',
   importers: [
     {
-      id: 'wdz',
-      label: 'WriterDuet (.wdz)',
-      extensions: ['WDZ'],
+      id: 'mmsw',
+      label: 'Movie Magic Screenwriter (.mmsw)',
+      extensions: ['MMSW'],
       binary: true,
       parse: async (filename, data) => ({
         doc: doc(`${filename}:${(data as ArrayBuffer).byteLength}`),
@@ -47,23 +47,23 @@ afterEach(() => pluginRegistry.unregister(plugin.id));
 
 describe('plugin importers', () => {
   it('add their extensions to every import path', () => {
-    expect(isImportableExtension('wdz')).toBe(false);
+    expect(isImportableExtension('mmsw')).toBe(false);
     pluginRegistry.register(plugin);
-    expect(importExtensions()).toContain('wdz');
-    expect(isImportableExtension('wdz')).toBe(true);
-    expect(isBinaryImportExtension('wdz')).toBe(true);
-    expect(binaryImportExtensions()).toEqual(expect.arrayContaining(['fadein', 'pdf', 'wdz']));
-    expect(importAccept()).toContain('.wdz');
-    expect(importFormatLabel('wdz')).toBe('WriterDuet (.wdz)');
+    expect(importExtensions()).toContain('mmsw');
+    expect(isImportableExtension('mmsw')).toBe(true);
+    expect(isBinaryImportExtension('mmsw')).toBe(true);
+    expect(binaryImportExtensions()).toEqual(expect.arrayContaining(['fadein', 'pdf', 'mmsw']));
+    expect(importAccept()).toContain('.mmsw');
+    expect(importFormatLabel('mmsw')).toBe('Movie Magic Screenwriter (.mmsw)');
   });
 
   it('are handed the file and their result is used as the import', async () => {
     pluginRegistry.register(plugin);
-    const out = await parseScreenplayImport('Script.wdz', new ArrayBuffer(7), { hydrateStores: false });
+    const out = await parseScreenplayImport('Script.mmsw', new ArrayBuffer(7), { hydrateStores: false });
     expect(out.title).toBe('From plugin');
     expect(out.warnings).toEqual(['note']);
-    expect(out.formatLabel).toBe('WriterDuet (.wdz)');
-    expect(out.doc.content?.[0]?.content?.[0]?.text).toBe('Script.wdz:7');
+    expect(out.formatLabel).toBe('Movie Magic Screenwriter (.mmsw)');
+    expect(out.doc.content?.[0]?.content?.[0]?.text).toBe('Script.mmsw:7');
   });
 
   it('cannot replace a built-in format', async () => {
@@ -78,7 +78,7 @@ describe('plugin importers', () => {
   it('are gone once the plugin is unregistered', () => {
     pluginRegistry.register(plugin);
     pluginRegistry.unregister(plugin.id);
-    expect(isImportableExtension('wdz')).toBe(false);
+    expect(isImportableExtension('mmsw')).toBe(false);
   });
 });
 

@@ -209,6 +209,23 @@ describe('classifying layouts other applications print', () => {
     expect(doc.content![8].attrs?.textAlign).toBe('center');
   });
 
+  it('reports where each paragraph sat, in step with the document', () => {
+    const lines = groupIntoLines([
+      line(0, 1.5, 'INT. OFFICE - DAY'),
+      line(2, 1.5, 'Papers everywhere.'),
+      line(4, 3.7, 'BOSS'),
+      line(5, 2.5, 'Sit down.'),
+    ]);
+    const { doc, layout } = screenplayFromPdfPages([{ width: 8.5 * inch, height: 11 * inch, lines }]);
+    expect(layout).toHaveLength(doc.content!.length);
+    expect(layout).toEqual([
+      { page: 1, indent: 0 },
+      { page: 1, indent: 0 },
+      { page: 1, indent: 2.2 },
+      { page: 1, indent: 1 },
+    ]);
+  });
+
   it('joins wrapped lines of one paragraph and keeps blank-line paragraphs apart', () => {
     const lines = groupIntoLines([
       line(0, 1.5, 'First line of action that'),

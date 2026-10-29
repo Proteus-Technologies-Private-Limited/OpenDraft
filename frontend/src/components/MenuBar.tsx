@@ -35,6 +35,7 @@ import { pasteAsFountain } from '../utils/pasteFountain';
 import { copySelection, cutSelection, pasteIntoEditor } from '../utils/clipboardCommands';
 import {
   parseScreenplayImport,
+  isImportCancelled,
   resetStoresForImport,
   importFilters,
   binaryImportExtensions,
@@ -215,7 +216,7 @@ import {
 import { REVISION_COLORS, nextRevisionColor } from '../editor/revisionColors';
 import RevisionSettingsDialog from './RevisionSettingsDialog';
 import ReportsDialog from './ReportsDialog';
-import SidesDialog from './SidesDialog';
+import SidesDialog, { type SidesIntent } from './SidesDialog';
 import PdfSecurityDialog, { type PdfSecurityRequest } from './PdfSecurityDialog';
 import { sanitizeExportFilename } from '../utils/exportFilename';
 import type { PluginExporter } from '../plugins/registry';
@@ -1074,6 +1075,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
   /** The document Sides was opened on. Its scene indices are what the dialog
    *  selects by, so the export has to lay out this same document. */
   const [sidesDoc, setSidesDoc] = useState<JSONContent | null>(null);
+  /** Whether Sides was opened from Export or from Print — its main button. */
+  const [sidesIntent, setSidesIntent] = useState<SidesIntent>('export');
   // Plugins register at startup, but one that registers later still has to
   // reach the menus — its exporters and menu items are read on render.
   const [, setPluginRevision] = useState(0);
@@ -1405,6 +1408,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         setForeignFormatNotice({ name: opened.name, extension: ext });
       }
     } catch (err) {
+      if (isImportCancelled(err)) return;
       console.error('Opening the document failed:', err);
       showToast(`Could not open the file: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
@@ -1447,6 +1451,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         for (const w of imported.warnings) console.warn('[Import]', w);
       }
     } catch (err) {
+      if (isImportCancelled(err)) return;
       console.error('Import failed:', err);
       showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
@@ -1918,6 +1923,30 @@ const MenuBar: React.FC<MenuBarProps> = ({
       pageSelection: selection,
     });
     if (warning) showToast(warning, 'error');
+  }, [sidesDoc, documentTitle, pageLayout, pdfOptions]);
+
+  /**
+   * File → Print Selected Pages…, and Print in the Sides dialog: the same PDF
+   * the export would save, sent by File → Print's route for this platform.
+   * Always the PDF, whatever "Print the PDF" says — a selection of pages is
+   * something only the exporter can lay out. Throws to the dialog, which says
+   * why; a font warning still reaches a toast.
+   */
+  const handlePrintSelection = useCallback(async (selection: PdfPageSelection, suffix: string) => {
+    if (!sidesDoc) return;
+    const route = printRoute();
+    showToast(route === 'ios-share-sheet'
+      ? 'Preparing the pages — choose Print in the share sheet.'
+      : 'Preparing the pages for printing…');
+    const { bytes, filename, warning } = await renderPDF(sidesDoc, `${documentTitle || 'Untitled'} - ${suffix}`, pageLayout, {
+      ...pdfOptions(sidesDoc),
+      includeTitlePage: false,
+      pageSelection: selection,
+    });
+    const { printPDFOnRoute } = await import('../utils/printPdf');
+    const outcome = await printPDFOnRoute(bytes, filename, route, isDesktopTauri());
+    if (warning) showToast(warning, 'error');
+    else if (outcome === 'opened-externally') showToast('Opened the pages as a PDF — print them from there.');
   }, [sidesDoc, documentTitle, pageLayout, pdfOptions]);
 
   /**
@@ -2599,7 +2628,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             {
               icon: <FaFileContract />, label: 'Sides & Selected Pages\u2026',
               title: 'Chosen scenes, or every page with a character, location or tag, keeping their page numbers',
-              action: () => { if (editor) setSidesDoc(editor.getJSON()); },
+              action: () => { if (editor) { setSidesIntent('export'); setSidesDoc(editor.getJSON()); } },
               disabled: !editor,
             },
             { icon: <FaFileWord />, label: 'Microsoft Word (.docx)', action: handleExportDocx },
@@ -2675,6 +2704,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // where anyone looks for it — the writer who wants the title page kept
         // out of a PDF is the writer already looking at their title page.
         { icon: <FaPrint />, label: 'Print…', shortcut: `${mod}P`, action: () => { void handlePrint(); } },
+        {
+          icon: <FaPrint />, label: 'Print Selected Pages\u2026',
+          title: 'Print sides, or only the pages with a character, location or tag',
+          action: () => { if (editor) { setSidesIntent('print'); setSidesDoc(editor.getJSON()); } },
+          disabled: !editor,
+        },
       ],
     },
     {
@@ -3716,8 +3751,21 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 2.7.2</div>
+              <div className="about-section-title">What's New in 2.8.0</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v2.8.0</div>
+              <ul className="about-list">
+                <li><strong>Bring Your Scripts From Anywhere</strong> &mdash; Import a screenplay PDF, a Highland <code>.highland</code>, a WriterDuet <code>.wdz</code> or a Celtx <code>.celtx</code> file. A PDF opens in an <em>Import Preview</em> first, where you can fix any misread lines in bulk &mdash; select every line read as Action and make them General in one step &mdash; before anything replaces the open script.</li>
+                <li><strong>Sides, Selected Pages and Two to a Sheet</strong> &mdash; <em>File &rarr; Print Selected Pages&hellip;</em> prints sides, or every page with a character, a location or a tag, keeping the script&rsquo;s page and scene numbers. <em>Two pages per sheet</em> puts them side by side on landscape paper, as sides are handed out on set. Also under <em>File &rarr; Export</em>, with watermarked and password-protected PDFs, one copy per recipient.</li>
+                <li><strong>Reports</strong> &mdash; Scene, character, location, cast, breakdown and notes reports in <em>Tools &rarr; Analytics &rarr; Reports</em>, as CSV or PDF.</li>
+                <li><strong>Alternates</strong> &mdash; Keep other versions of a line of dialogue or action, or of a whole scene, and step between them with the chip beside it. Only the version you choose prints and exports. Right-click &rarr; <em>Alternates</em>.</li>
+                <li><strong>Plotlines and the Story Timeline</strong> &mdash; Give scenes to your A story, B story or a character&rsquo;s arc and see them as coloured rows sized by screen time (<em>View &rarr; Panels &rarr; Story Timeline</em>). Beat Board beats can link to the scenes that carry them, and jump straight there.</li>
+                <li><strong>Comic Book Scripts</strong> &mdash; A new <em>Comic Book</em> format: pages spelled out (PAGE ONE), panels numbered on each page, captions and balloons lettered in order. Turn it on in <em>Format &rarr; Script Format Preferences</em>.</li>
+                <li><strong>Notes You Can Discuss</strong> &mdash; Reply to a note, resolve it, assign it to a collaborator, and @mention people. Replies posted at the same moment by two collaborators no longer lose one. A Notes Report lists them all.</li>
+                <li><strong>Writing Tools</strong> &mdash; Rename a character everywhere in one step (right-click a cue &rarr; <em>Character</em>); the <em>Dialogue Tuner</em> lists every line one character speaks; bookmarks; macros for text you type often; <em>Focus Mode</em> with typewriter scrolling (<kbd>&#8679;&#8984;F</kbd>); and daily goals, sprints and a words-written calendar.</li>
+                <li><strong>Your Work Travels</strong> &mdash; Bookmarks and alternates are kept in Final Draft, Fade In and Fountain files and come back when OpenDraft opens them. Update OpenDraft on every device you use: an older version opens these scripts but drops bookmarks, alternates and plotlines if it saves them.</li>
+                <li><strong>Also Fixed</strong> &mdash; <kbd>&#8679;&#8984;N</kbd> adds a script note, as the menu says, instead of starting a new script, and <kbd>&#8679;&#8984;F</kbd> no longer opens Find as well. Script notes showed the scene before their own. In PDFs, the scene after an OMITTED heading lost its scene number. A damaged file you import now says so instead of replacing your script with a blank one.</li>
+              </ul>
               <div className="about-subsection-title">v2.7.2</div>
               <ul className="about-list">
                 <li><strong>Auto-Save Stops Failing to Renew Your Sign-In</strong> &mdash; The server that keeps you signed in had to check every open session to renew one, so it slowed as more people signed in, until renewals timed out. Auto-save then stopped with <em>&ldquo;Could not renew your sign-in just now&rdquo;</em>, every few minutes. Renewing now takes a few milliseconds however many people are signed in (#147).</li>
@@ -4207,7 +4255,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
       <PdfSecurityDialog onExport={handleExportSecured} onClose={() => setPdfSecurityOpen(false)} />
     )}
     {sidesDoc && (
-      <SidesDialog doc={sidesDoc} onExport={handleExportSelection} onClose={() => setSidesDoc(null)} />
+      <SidesDialog
+        doc={sidesDoc}
+        intent={sidesIntent}
+        onExport={handleExportSelection}
+        onPrint={handlePrintSelection}
+        onClose={() => setSidesDoc(null)}
+      />
     )}
     {clearRevisionsOpen && (
       <div className="dialog-overlay" onClick={() => setClearRevisionsOpen(false)}>

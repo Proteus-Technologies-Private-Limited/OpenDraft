@@ -25,6 +25,7 @@ import { isDocumentFont, isDocumentSize } from './fonts';
 import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
 import { parseOsfRevisionColors } from './revisionExport';
 import { REVISION_COLORS, latestRevision } from '../editor/revisionColors';
+import { osfParagraphAnnotations } from './formatAnnotations';
 
 interface TipTapMark {
   type: string;
@@ -471,6 +472,9 @@ function parseParagraph(
   } else if (synopsisParts.length > 0) {
     warnings.push(`Note on a non-scene-heading paragraph was dropped: "${synopsisParts[0].slice(0, 40)}"`);
   }
+
+  // A Fade In bookmark, and the other versions of a line OpenDraft wrote.
+  Object.assign(attrs, osfParagraphAnnotations(para, nodeType, warnings));
 
   if (styleEl) {
     const align = attr(styleEl, 'align')?.toLowerCase();

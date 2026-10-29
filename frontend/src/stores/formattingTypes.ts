@@ -105,8 +105,22 @@ export interface ElementNumbering {
   prefix?: string;
   /** The first number after a restart. Default 1. */
   startAt?: number;
-  /** 'scene' prefixes the scene's number: 12.3. Falls back to plain where there is none. */
-  style?: 'plain' | 'scene';
+  /** 'scene' prefixes the scene's number: 12.3. Falls back to plain where there is none.
+   *  'words' spells the number out in capitals — PAGE ONE, PAGE TWENTY-TWO — as
+   *  comic scripts head their pages; digits again past 999. */
+  style?: 'plain' | 'scene' | 'words';
+  /** Where the number goes. 'margin' (the default, and what absent means) hangs it
+   *  in the left margin beside the element. 'inline' makes it the start of the
+   *  line itself — a comic script's PAGE ONE, PANEL 3 — and, because such a
+   *  heading is often nothing but its number, counts the element even while it
+   *  has no text. */
+  placement?: 'margin' | 'inline';
+  /** Another numbered element whose count this one shares: a Caption counting
+   *  with Dialogue letters captions and balloons 1, 2, 3 in one run down a comic
+   *  page. That element's `resetOn` and `startAt` then govern the count; this
+   *  one's own prefix and style still apply. Ignored when the element named is
+   *  not numbered itself, or itself counts with another. */
+  countWith?: string;
 }
 
 /** Template category: system templates are read-only, user templates are editable. */

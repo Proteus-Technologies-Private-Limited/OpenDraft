@@ -14,6 +14,9 @@ import {
   REVISION_COLORS, findRevisionColor, revisionMarkFor, type RevisionSettings,
 } from '../editor/revisionColors';
 import { withElementNumbers, elementNumberOf } from './elementNumbers';
+import {
+  bookmarkOf, encodeAlternates, FDX_ALTERNATES_ATTR, FDX_ALTERNATE_INDEX_ATTR,
+} from './formatAnnotations';
 
 const NODE_TO_FDX: Record<string, string> = {
   sceneHeading: 'Scene Heading',
@@ -363,6 +366,8 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
   doc = withElementNumbers(doc, {
     visible: options.elementNumbersVisible === true,
     sceneNumbersVisible: options.sceneNumbersVisible !== false,
+    // An inline number (PANEL 3) prints as the start of its line.
+    inlineAsText: true,
   });
   // Final Draft keeps the typeface on each element's FontSpec; the screenplay
   // Courier is the default a file gets when the writer has not changed it.
@@ -542,6 +547,14 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
       if (a) paraAttrs.push(`Alignment="${a}"`);
     }
     if (node.attrs?.startsNewPage) paraAttrs.push('StartsNewPage="Yes"');
+    // Final Draft's own bookmark attribute; the other versions of a line go in
+    // attributes only OpenDraft reads (see utils/formatAnnotations).
+    const bookmark = bookmarkOf(node);
+    if (bookmark) paraAttrs.push(`Bookmark="${esc(bookmark)}"`);
+    const alternates = encodeAlternates(node);
+    if (alternates) {
+      paraAttrs.push(`${FDX_ALTERNATES_ATTR}="${esc(alternates.json)}"`, `${FDX_ALTERNATE_INDEX_ATTR}="${alternates.index}"`);
+    }
 
     const attrStr = paraAttrs.join(' ');
 
@@ -679,7 +692,9 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
                 // paragraph types have no FDX equivalent and stay General,
                 // which is what this export has always degraded them to.
                 const fdxType = resolveFdxExportType(para);
-                lines.push(`    <Paragraph Type="${esc(fdxType)}" data-av-side="${esc(side)}" data-av-row-id="${esc(rowId)}" data-av-style="${esc(para.type || 'avPara')}"><Text>${esc(text)}</Text></Paragraph>`);
+                const cellBookmark = bookmarkOf(para);
+                const bookmarkAttr = cellBookmark ? ` Bookmark="${esc(cellBookmark)}"` : '';
+                lines.push(`    <Paragraph Type="${esc(fdxType)}"${bookmarkAttr} data-av-side="${esc(side)}" data-av-row-id="${esc(rowId)}" data-av-style="${esc(para.type || 'avPara')}"><Text>${esc(text)}</Text></Paragraph>`);
               }
             }
           }

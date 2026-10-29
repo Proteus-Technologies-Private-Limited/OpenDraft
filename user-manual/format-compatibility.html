@@ -211,6 +211,100 @@
       OpenDraft writes it and reads it back, and no other application is harmed by it.
     </p>
 
+    <h2 id="importing-other-apps">Importing From Highland, WriterDuet and Celtx</h2>
+
+    <p>
+      These are import-only: OpenDraft opens them as a new script and cannot save back to them.
+      Highland stores its script as Fountain, so everything in the Fountain column above applies.
+      WriterDuet and Celtx use their own element names, which come in as:
+    </p>
+
+    <div style="overflow-x: auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>OpenDraft element</th>
+          <th>WriterDuet (.wdz)</th>
+          <th>Celtx (.celtx)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Scene Heading</td><td>Slugline</td><td>Scene Heading; comic Panel</td></tr>
+        <tr><td>Action</td><td>Action</td><td>Action, Stage Direction; comic Caption</td></tr>
+        <tr><td>Character</td><td>Character</td><td>Character; radio Sound, Voice and Music cues</td></tr>
+        <tr><td>Parenthetical</td><td>Parenthetical</td><td>Parenthetical; comic Balloon Type</td></tr>
+        <tr><td>Dialogue</td><td>Dialogue</td><td>Dialog; comic Balloon</td></tr>
+        <tr><td>Transition</td><td>Transition</td><td>Transition</td></tr>
+        <tr><td>Shot</td><td>Shot</td><td>Shot</td></tr>
+        <tr><td>General</td><td>Text</td><td>Text, Production Note</td></tr>
+        <tr><td>New Act</td><td>Act</td><td>Act; comic Page</td></tr>
+        <tr><td>End of Act</td><td>End Act</td><td>&mdash;</td></tr>
+        <tr><td>Section</td><td>Outline, Sequence</td><td>&mdash;</td></tr>
+        <tr><td>Note</td><td>Note</td><td>&mdash;</td></tr>
+        <tr><td>Dual dialogue</td><td class="lossy"><strong>not imported</strong></td><td>&mdash; <span class="muted">(Celtx has none)</span></td></tr>
+        <tr><td>Scene numbers</td><td class="lossy"><strong>not imported</strong></td><td>imported</td></tr>
+        <tr><td>Title page</td><td>sorted from its lines</td><td>title, byline, author, source, copyright, contact</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+      An element type not in this table comes in as Action, and the import tells you which types
+      that happened to.
+    </p>
+
+    <h2 id="bookmarks-alternates">Bookmarks, Alternates, Plotlines and Note Threads</h2>
+
+    <p>
+      These live in the script rather than on the printed page, so carrying them never changes what
+      prints or what another application shows as the script. Where a format has its own place for one,
+      OpenDraft uses it; where it does not, OpenDraft either writes it somewhere the other application
+      ignores, or leaves it out.
+    </p>
+
+    <div style="overflow-x: auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Final Draft (.fdx)</th>
+          <th>Fade In / OSF</th>
+          <th>Fountain</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Bookmarks</td><td>Final Draft bookmark &mdash; there and back</td><td>Fade In bookmark &mdash; there and back</td><td><code>[[Bookmark: &hellip;]]</code> note on the line &mdash; read back as the bookmark</td></tr>
+        <tr><td>Alternates <span class="muted">(other versions of a line)</span></td><td>the version in use as the line; the others kept for OpenDraft only &mdash; there and back</td><td>the version in use as the line; the others kept for OpenDraft only &mdash; there and back</td><td><code>[[Alternate 1/3: &hellip;]]</code> notes on the line &mdash; read back as versions</td></tr>
+        <tr><td>Plotlines</td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td></tr>
+        <tr><td>Note author, replies, resolved, assignee</td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td><td class="lossy"><strong>not exported</strong></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <ul>
+      <li><strong>Bookmarks</strong> are a feature of Final Draft and Fade In both, so a bookmark arrives
+        in either application as one of its own and comes back from it the same way &mdash; including
+        bookmarks you set in Final Draft or Fade In. Fountain has no bookmarks, so the name goes in a
+        note on the bookmarked line, which is never printed and shows in the margin of applications
+        that show notes. A bookmark on a Fountain <em>Note</em>, or on a line with no text, cannot be
+        written.</li>
+      <li><strong>Alternates</strong>: only the version you have chosen is written as the line, so it is
+        what Final Draft, Fade In and every Fountain app show and print. Final Draft&rsquo;s own alt
+        dialogue is not a documented part of its file format, so the other versions are not Final Draft
+        alts: they are kept in the file where only OpenDraft reads them, and come back exactly &mdash;
+        formatting included &mdash; when OpenDraft opens it. Saving the file again from Final Draft or
+        Fade In drops them. In Fountain each other version is a note, numbered the way the version
+        switcher numbers it; a line break inside a version becomes a space, and other formatting than
+        bold, italic and underline is not kept.</li>
+      <li><strong>Plotlines</strong> have no equivalent in any of these formats &mdash; Final Draft&rsquo;s
+        Story Map lanes follow outline elements, not story threads &mdash; so they stay in
+        <code>.odraft</code>, with the beats and tags.</li>
+      <li><strong>Note threads</strong> &mdash; who wrote a note, its replies, whether it is resolved and
+        who it is assigned to &mdash; belong to script notes, which these formats do not carry (see
+        below). Final Draft has an author on its own script notes, but nothing for replies, resolving
+        or assigning.</li>
+    </ul>
+
     <h2 id="fountain-general">Why General comes back as Action</h2>
 
     <p>
@@ -257,6 +351,9 @@
         but not tags. A note you have set to <em>print</em> is different &mdash; it is content rather
         than an annotation, and it travels: see
         <a href="script-notes.html#footnote-formats">What Each Format Supports</a>.</li>
+      <li><strong>Plotlines</strong> and <strong>note threads</strong> &mdash; see
+        <a href="#bookmarks-alternates">Bookmarks, Alternates, Plotlines and Note Threads</a>.
+        Bookmarks and alternates do travel.</li>
       <li><strong>Version history</strong> &mdash; kept in your OpenDraft library, not in an exported
         file. <strong>Revision marks</strong> travel to PDF (beside every revised line), to
         <code>.fdx</code> and back, to Word and Fade In (beside each revised paragraph) and to

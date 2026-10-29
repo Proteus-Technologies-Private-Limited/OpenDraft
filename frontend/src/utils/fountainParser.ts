@@ -5,6 +5,10 @@ import { clampSectionLevel } from '../editor/extensions/Section';
 import { isNonPrintingType } from './nonPrinting';
 import { parseFountainRevisionNote } from './revisionExport';
 import { REVISABLE_BLOCK_TYPES } from '../editor/extensions/RevisionMark';
+import { BOOKMARKABLE_TYPES } from './bookmarks';
+import {
+  FOUNTAIN_ALTERNATE_TYPES, parseFountainAnnotation, restoreFountainAlternates,
+} from './formatAnnotations';
 
 interface TipTapMark {
   type: string;
@@ -196,6 +200,9 @@ const SECTION_PATTERN = /^(#+)\s*(.*)$/;
  */
 const SYNOPSIS_PATTERN = /^=(?!=)\s*(.*)$/;
 
+/** Elements a bookmark note can be put back on. */
+const BOOKMARKABLE: ReadonlySet<string> = new Set(BOOKMARKABLE_TYPES);
+
 /** The elements a synopsis can be filed under. */
 const SYNOPSIS_TARGETS = new Set(['sceneHeading', 'section']);
 
@@ -307,7 +314,12 @@ export function parseFountain(text: string): TipTapNode {
   // A `===` page break applies to whatever element comes next.
   let pendingPageBreak = false;
 
-  const push = (node: TipTapNode) => {
+  // The line each element was read from, so a bookmark or alternate note lands
+  // on the element written on its line — a dialogue block reads several lines
+  // before any of their notes are flushed.
+  const lineOf = new Map<TipTapNode, number>();
+
+  const push = (node: TipTapNode, line: number = i) => {
     // Never onto a section or a note: neither is printed, so starting a page at
     // one would move the break somewhere the reader cannot see it. The break
     // stays pending and lands on the next element that does reach the page.
@@ -315,7 +327,43 @@ export function parseFountain(text: string): TipTapNode {
       node.attrs = { ...node.attrs, startsNewPage: true };
       pendingPageBreak = false;
     }
+    lineOf.set(node, line);
     nodes.push(node);
+  };
+
+  /** The element read from `line`, or the nearest one above it. */
+  const elementAtLine = (line: number): TipTapNode | undefined => {
+    for (let k = nodes.length - 1; k >= 0; k--) {
+      const at = lineOf.get(nodes[k]);
+      if (at !== undefined && at <= line) return nodes[k];
+    }
+    return undefined;
+  };
+
+  // Alternate notes are gathered per element and put together at the end,
+  // once every version has been seen.
+  const alternateNotes = new Map<TipTapNode, Array<{ note: string; number: number; total: number; text: string }>>();
+
+  /**
+   * A bookmark or alternate note OpenDraft wrote, put back on its element.
+   * False when the note is not one of those, or its element cannot take it —
+   * then it stays an ordinary note, and nothing is lost.
+   */
+  const applyAnnotation = (note: string, line: number): boolean => {
+    const annotation = parseFountainAnnotation(note);
+    if (!annotation) return false;
+    const target = elementAtLine(line);
+    if (!target) return false;
+    if (annotation.kind === 'bookmark') {
+      if (!BOOKMARKABLE.has(target.type) || target.attrs?.bookmark) return false;
+      target.attrs = { ...target.attrs, bookmark: annotation.name };
+      return true;
+    }
+    if (!FOUNTAIN_ALTERNATE_TYPES.has(target.type)) return false;
+    const list = alternateNotes.get(target) ?? [];
+    list.push({ note, ...annotation });
+    alternateNotes.set(target, list);
+    return true;
   };
 
   // Notes are emitted once the line they were lifted from has been parsed, so
@@ -328,6 +376,7 @@ export function parseFountain(text: string): TipTapNode {
     while (flushedThrough < limit) {
       flushedThrough++;
       for (const note of noteLines.get(flushedThrough) ?? []) {
+        if (applyAnnotation(note, flushedThrough)) continue;
         // `[[* Blue]]` is a revision mark OpenDraft wrote, not a note: it goes
         // back onto the element it marked (see utils/revisionExport).
         const revision = parseFountainRevisionNote(note);
@@ -494,6 +543,17 @@ export function parseFountain(text: string): TipTapNode {
 
   // Anything filed against the last lines of the document.
   flushNotesBefore(lines.length);
+
+  // Each element's versions, from its alternate notes. Notes that do not add
+  // up to a set of versions go back in as the ordinary notes they are.
+  for (const [target, found] of alternateNotes) {
+    const restored = restoreFountainAlternates(found, parseInline);
+    if (restored) {
+      target.attrs = { ...target.attrs, ...restored };
+    } else {
+      nodes.splice(nodes.indexOf(target) + 1, 0, ...found.map((f) => makeNode('note', f.note)));
+    }
+  }
 
   // Post-process: merge dual dialogue pairs
   const merged = mergeDualDialogue(nodes);
@@ -814,7 +874,7 @@ function mergeDualDialogue(nodes: TipTapNode[]): TipTapNode[] {
 function collectDialogueBlock(
   lines: string[],
   i: number,
-  push: (node: TipTapNode) => void,
+  push: (node: TipTapNode, line: number) => void,
   singleSpaced = false,
 ): number {
   const first = i;
@@ -829,7 +889,7 @@ function collectDialogueBlock(
       // inside dialogue — so without this, a `.fountain` saved by OpenDraft and
       // reopened lost every line of a speech after its first break, as Action.
       if (/^[ \t]{2,}$/.test(line)) {
-        push(makeNode('dialogue', ''));
+        push(makeNode('dialogue', ''), i);
         i++;
         continue;
       }
@@ -851,20 +911,20 @@ function collectDialogueBlock(
 
     // Parenthetical
     if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
-      push(makeNode('parenthetical', trimmed));
+      push(makeNode('parenthetical', trimmed), i);
       i++;
       continue;
     }
 
     // Lyrics sung inside a dialogue block
     if (trimmed.startsWith('~')) {
-      push(makeNode('lyrics', trimmed.substring(1)));
+      push(makeNode('lyrics', trimmed.substring(1)), i);
       i++;
       continue;
     }
 
     // Dialogue
-    push(makeNode('dialogue', trimmed));
+    push(makeNode('dialogue', trimmed), i);
     i++;
   }
   return i;

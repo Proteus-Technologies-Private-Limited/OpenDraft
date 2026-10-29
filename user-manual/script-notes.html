@@ -104,11 +104,15 @@
     <h2 id="create-note">Creating a Note</h2>
 
     <ol class="steps">
-      <li>Select the text in your screenplay that you want to annotate.</li>
-      <li>In the Script Notes panel, click <strong>+ New Note</strong>.</li>
-      <li>Type your note text.</li>
+      <li>Select the text in your screenplay that you want to annotate. With nothing selected, the note goes on the whole line the cursor is in.</li>
+      <li>Right-click and choose <strong>Add Script Note</strong>, click the <strong>Script Notes</strong> button on the toolbar, or press <kbd>&#8679;</kbd><kbd>&#8984;</kbd><kbd>N</kbd> (<kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>N</kbd> on Windows and Linux).</li>
+      <li>The Script Notes panel opens on the new note. Click <strong>Click to add note&hellip;</strong> and type your note text.</li>
       <li>The note is anchored to the selected text &mdash; it stays connected even as you edit the script around it.</li>
     </ol>
+
+    <p>With the cursor on text that already has a note, the toolbar button and <kbd>&#8679;</kbd><kbd>&#8984;</kbd><kbd>N</kbd> open that note instead of adding another. On an empty line they simply show or hide the panel.</p>
+
+    <p>In a web browser the shortcut may open a new private window instead, because some browsers keep <kbd>&#8679;</kbd><kbd>&#8984;</kbd><kbd>N</kbd> for themselves. Use the right-click menu or the toolbar button there.</p>
 
     <h2 id="note-colors">Note Colors</h2>
 
@@ -175,6 +179,18 @@
     <p>The people you can assign or mention are you, everyone connected to the session now, everyone you have invited to this script (when you are the one who sent the invites), and everyone named anywhere in its notes.</p>
 
     <p>Replies, assignees and resolved notes travel with the script: they are saved with it, kept in backups and <code>.odraft</code> files, and shared live in a collaboration session. Final Draft, Fountain and Fade In have no way to hold a conversation, so those exports carry the note itself and leave its replies out.</p>
+
+    <h3 id="notes-collab">Notes in a Collaboration Session</h3>
+
+    <p>In a <a href="collaboration.html">collaboration session</a>, everyone can write notes and replies at the same time. If two people reply to the same note, or add notes, within a second or two of each other, both are kept. A note or reply that someone deletes stays deleted, even if someone else was replying at that moment.</p>
+
+    <ul>
+      <li>If one person resolves a note while another is replying to it, the note reopens with the new reply, just as replying to a resolved note always does.</li>
+      <li>If two people edit the same reply at once, the later edit is kept.</li>
+      <li>If two people change the same note&rsquo;s text, colour or assignee at once, one of the changes is kept, the same for everyone.</li>
+    </ul>
+
+    <p>Everyone in the session should use the current version of OpenDraft. An older version still shows every note and reply, but a reply it posts at the same moment as someone else&rsquo;s can be lost. In rare cases, a note it deletes can also come back.</p>
 
     <h2 id="visibility">Note Visibility</h2>
 

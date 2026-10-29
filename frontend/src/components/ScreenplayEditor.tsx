@@ -39,6 +39,7 @@ import { getElementNumberingRules } from '../utils/elementNumbers';
 import { registerAvCellPicker, isInAvCell, AV_BASE_CELL_ELEMENT_IDS } from '../editor/extensions/AvBlock';
 import { avCellElementRules } from '../utils/avCellElements';
 import { isBlankBlock, previousSiblingBlock, blankLineTypeFor } from '../editor/blankLine';
+import { enterFromNumberedHeading } from '../editor/numberedHeadingEnter';
 import Strike from '@tiptap/extension-strike';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
@@ -166,6 +167,7 @@ import { downloadOdraft } from '../utils/odraftFormat';
 import { pasteAsFountain } from '../utils/pasteFountain';
 import {
   parseScreenplayImport,
+  isImportCancelled,
   extensionOf,
   isBinaryImportExtension,
   isImportableExtension,
@@ -1703,6 +1705,14 @@ const ScreenplayEditor: React.FC = () => {
               }
               return true;
             }
+
+            // An empty heading that still reads "PANEL 3" moves on like one
+            // with text, rather than opening the menu (editor/numberedHeadingEnter).
+            if (isEmpty && enterFromNumberedHeading(
+              editor.state, editor.view.dispatch,
+              useFormattingTemplateStore.getState().getActiveTemplate().rules,
+              useEditorStore.getState().elementNumbersVisible,
+            )) return true;
 
             // Inside dualDialogue on an empty line: exit the container
             if (isEmpty) {
@@ -4426,6 +4436,7 @@ const ScreenplayEditor: React.FC = () => {
         useEditorStore.getState().setImportedSource({ name, format: imported.formatLabel });
         for (const w of imported.warnings) console.warn('[Import]', w);
       } catch (err) {
+        if (isImportCancelled(err)) return;
         console.error('Import failed:', err);
         showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
       }
@@ -4533,6 +4544,7 @@ const ScreenplayEditor: React.FC = () => {
       // that most needs an immediate snapshot.
       useBackupStatusStore.getState().noteDocumentOpened();
     } catch (err) {
+      if (isImportCancelled(err)) return;
       const detail = err instanceof Error ? err.message : String(err);
       console.error('Failed to open external file:', filePath, detail, err);
       showToast(`Failed to open file: ${detail}`, 'error');
@@ -4673,6 +4685,7 @@ const ScreenplayEditor: React.FC = () => {
       useBackupStatusStore.getState().noteDocumentOpened();
       for (const w of imported.warnings) console.warn('[Import]', w);
     } catch (err) {
+      if (isImportCancelled(err)) return;
       console.error('Failed to import dropped file:', err);
       showToast(`Failed to import file: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
@@ -5406,7 +5419,7 @@ const ScreenplayEditor: React.FC = () => {
           {!isHistoryMode && statisticsOpen && editor ? (
             <ScriptStatistics editor={editor} />
           ) : !isHistoryMode && beatBoardOpen ? (
-            <BeatBoard />
+            <BeatBoard editor={editor} />
           ) : (
             <div className={`editor-main${phoneView ? ' phone-layout' : ''}`} ref={editorMainRef} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
               <div

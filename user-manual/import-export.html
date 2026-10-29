@@ -95,7 +95,7 @@
     </div>
 
     <h1>Import &amp; Export</h1>
-    <p class="page-subtitle">Work with Final Draft, Fountain, Fade In, PDF, and plain text formats.</p>
+    <p class="page-subtitle">Work with Final Draft, Fountain, Fade In, Highland, WriterDuet, Celtx, PDF, and plain text formats.</p>
 
     <h2 id="import">Importing Scripts</h2>
 
@@ -131,6 +131,38 @@
       <li>Scene synopses and paragraph notes</li>
     </ul>
 
+    <h3 id="import-highland">Highland (.highland)</h3>
+    <p>Open scripts saved by <a href="https://quoteunquoteapps.com/highland-pro/" target="_blank" rel="noopener">Highland</a> directly. A <code>.highland</code> file is a compressed bundle with the script inside it as Fountain, so it imports exactly as a <code>.fountain</code> file would: every element, the title page, scene numbers, dual dialogue, sections, synopses and notes. The document takes its name from the script&rsquo;s title.</p>
+    <p>Highland&rsquo;s own extras &mdash; the bin, sprints, gender analysis, character highlighting and images &mdash; are left behind. A Highland document written as Markdown rather than a screenplay still opens, read as Fountain; check its elements afterwards.</p>
+
+    <h3 id="import-wdz">WriterDuet (.wdz)</h3>
+    <p>Open a <code>.wdz</code> file saved by <a href="https://www.writerduet.com/" target="_blank" rel="noopener">WriterDuet</a> or WriterSolo. Imported:</p>
+    <ul>
+      <li>Scene headings, action, character, parenthetical, dialogue, transition, shot, text, notes, acts and outline sections</li>
+      <li>Bold, italic and underline</li>
+      <li>Page breaks</li>
+      <li>The title page &mdash; WriterDuet keeps it as free lines, so OpenDraft sorts them into title, credit, author, draft, date, copyright and contact by what they say</li>
+    </ul>
+    <p>WriterDuet does not publish its file format, so dual dialogue, scene numbers, comments and revision colours are not read from a <code>.wdz</code>. When you need those, use <strong>Export &gt; Final Draft</strong> in WriterDuet and import the <code>.fdx</code> instead. An element type OpenDraft does not recognise comes in as Action, and you are told which.</p>
+
+    <h3 id="import-celtx">Celtx (.celtx)</h3>
+    <p>Open a project file from the desktop version of <a href="https://www.celtx.com/" target="_blank" rel="noopener">Celtx</a>. Imported:</p>
+    <ul>
+      <li>Film and AV scripts: scene headings, action, character, parenthetical, dialogue, transition, shot and text</li>
+      <li>Stage plays (acts and stage directions), radio scripts (sound, voice and music cues, production notes) and comic scripts (pages, panels, captions and balloons), each mapped to the closest OpenDraft element</li>
+      <li>The title page: title, byline, author, based on, copyright and contact</li>
+      <li>Scene numbers &mdash; production numbering such as 12A is shown and locked &mdash; and page breaks you inserted</li>
+      <li>Bold, italic and underline</li>
+    </ul>
+    <p>A Celtx project can hold several scripts; the first one is imported and you are told the others were skipped. Storyboards, catalog items and breakdowns are not imported. The current Celtx web app saves to the cloud rather than to <code>.celtx</code> files &mdash; export Final Draft or PDF from it and import that.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Tip:</strong> If a file from one of these apps will not open, OpenDraft says why &mdash; for instance that it is not a valid archive, or has no script inside. Exporting Final Draft (<code>.fdx</code>) or Fountain from the original app always works as a fallback.</p>
+      </div>
+    </div>
+
     <h3 id="import-pdf">PDF (.pdf)</h3>
     <p>Import a screenplay you only have as a PDF &mdash; a script someone sent you, or one from an application you no longer use. A PDF holds no screenplay elements, only text placed on the page, so OpenDraft reads each line by where it sits: the indent of a character cue, a parenthetical or dialogue, and what the line says, the way you read a script yourself. It brings back:</p>
     <ul>
@@ -145,9 +177,21 @@
     <div class="callout callout-info">
       <span class="callout-icon">&#8505;&#65039;</span>
       <div class="callout-content">
-        <p><strong>Tip:</strong> A PDF has to contain text you can select. A scanned script is a picture of pages and cannot be imported. A PDF that needs a password to open has to be saved without one first. If a script uses an unusual layout, skim the import and change any line whose element was misread with the element menu.</p>
+        <p><strong>Tip:</strong> A PDF has to contain text you can select. A scanned script is a picture of pages and cannot be imported. A PDF that needs a password to open has to be saved without one first.</p>
       </div>
     </div>
+
+    <h4 id="import-pdf-preview">Checking the import before it goes in</h4>
+    <p>Reading a PDF by its indents is never perfect for a script laid out by another application &mdash; and when it goes wrong, it usually goes wrong for a whole kind of line at once, such as every character cue read as centred action. So before a PDF replaces the open script, OpenDraft shows an <strong>Import Preview</strong>: every paragraph in order, with the element it was read as, the scene it falls in, and the page and indent it came from.</p>
+    <ol>
+      <li><strong>Select the lines that were misread.</strong> Click a line to select it, <kbd>Shift</kbd>-click to select a range, and <kbd>&#8984;</kbd>/<kbd>Ctrl</kbd>-click or tick its box to add a line. <kbd>&#8593;</kbd>/<kbd>&#8595;</kbd> move through the list and <kbd>&#8984;</kbd>/<kbd>Ctrl</kbd>+<kbd>A</kbd> selects every line shown.</li>
+      <li><strong>Widen the selection in one step.</strong> <strong>Same type</strong> selects every line of the element(s) you have selected; <strong>Same indent</strong> selects every line that sat at the same indent, in the same case &mdash; usually exactly the lines that were misread together.</li>
+      <li><strong>Set their element</strong> with the <strong>Set type</strong> menu, or press <kbd>1</kbd>&ndash;<kbd>8</kbd> (in the order the menu lists them). Changed lines are highlighted, and <strong>Undo</strong> or <strong>Revert all</strong> take changes back.</li>
+      <li>Use <strong>Show</strong> to list only one element, or only the lines you have changed.</li>
+      <li>Press <strong>Import</strong> to bring the script in with your corrections, or <strong>Cancel</strong> to leave the open script exactly as it was.</li>
+    </ol>
+    <p>On a phone or tablet, tick the boxes to select several lines, and tap <strong>Range&hellip;</strong> and then a line to select everything from the last line you picked to that one. Dual dialogue is shown but cannot be changed here &mdash; fix it in the script after importing. Lines can only be given a different element in the preview; to split or join paragraphs, edit them after importing.</p>
+    <p>The preview appears wherever a PDF is imported: <strong>File &gt; Import</strong>, the welcome screen, dragging a PDF onto the editor, opening one from your computer or phone, and <strong>Import Script</strong> in a project.</p>
 
     <h3 id="import-txt">Plain Text (.txt)</h3>
     <p>Import plain text files. OpenDraft will attempt to detect screenplay element types based on formatting conventions (indentation, capitalization, etc.).</p>
@@ -280,6 +324,8 @@
       <li><strong>Pages with a tag</strong> &mdash; every page holding an element with that <a href="tags.html">production tag</a>, for the department that looks after it.</li>
     </ul>
     <p>The title page is never included.</p>
+    <p>Tick <strong>Two pages per sheet (landscape)</strong> to put the pages side by side, two to a landscape sheet of the script&rsquo;s own paper (Letter or A4), scaled down to fit &mdash; the way sides are usually handed out on set. Each page keeps its own page number, scene numbers and cross-outs. With an odd number of pages, the last sheet has one page on it.</p>
+    <p>The dialog has a <strong>Print&hellip;</strong> button beside <strong>Export PDF&hellip;</strong>, so the same pages can go straight to the printer &mdash; see <a href="#print-selected">Printing selected pages</a>.</p>
 
     <h3 id="print">Printing</h3>
     <p>Go to <strong>File &gt; Print</strong> or press <kbd>&#8984;</kbd><kbd>P</kbd> to print your screenplay directly.</p>
@@ -294,6 +340,22 @@
       Print hands the script to the system. On iPhone and iPad it appears in the share sheet, where
       <strong>Print</strong> sits alongside Save to Files and AirDrop; on Android it opens the
       standard Android print dialog, which also offers <strong>Save as PDF</strong>.
+    </p>
+
+    <h4 id="print-selected">Printing selected pages</h4>
+    <p>
+      Go to <strong>File &gt; Print Selected Pages&hellip;</strong> to print sides, or only the pages
+      with a chosen character, location or production tag. It opens the
+      <a href="#export-sides">Sides &amp; Selected Pages</a> dialog with <strong>Print&hellip;</strong>
+      as its main button; choose what to print, tick <strong>Two pages per sheet</strong> if you want
+      them two-up, and press <strong>Print&hellip;</strong>.
+    </p>
+    <p>
+      The pages go to the printer the same way File &gt; Print sends the script: opened in your PDF
+      viewer on the desktop, the print dialog in a browser, the share sheet on iPhone and iPad, and the
+      Android print dialog on Android. They are always printed from the PDF, even if
+      <strong>Print the PDF</strong> is turned off below &mdash; only the PDF can leave pages out and
+      keep each one&rsquo;s page number.
     </p>
 
     <h4 id="print-via-pdf">Printing the page instead</h4>

@@ -132,6 +132,28 @@ export interface ElementNumberOptions {
   sceneNumbersVisible: boolean;
 }
 
+/** Is this element's number the start of its own line rather than a margin note? */
+export function isInlineNumbering(numbering: ElementNumbering | undefined | null): boolean {
+  return numbering?.placement === 'inline';
+}
+
+const ONES = ['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN',
+  'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];
+const TENS = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'];
+
+/**
+ * A count spelled out in capitals, the way a comic script heads its pages:
+ * ONE, TWENTY-TWO, ONE HUNDRED FOUR. Digits from 1000 on — no script has that
+ * many pages, and a number nobody can read at a glance helps no one.
+ */
+export function numberInWords(n: number): string {
+  if (!Number.isInteger(n) || n < 0 || n > 999) return String(n);
+  if (n < 20) return ONES[n];
+  if (n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? `-${ONES[n % 10]}` : '');
+  const rest = n % 100;
+  return `${ONES[Math.floor(n / 100)]} HUNDRED${rest ? ` ${numberInWords(rest)}` : ''}`;
+}
+
 /**
  * The label each element should carry, in document order — null where it
  * carries none.
@@ -145,15 +167,23 @@ export function assignElementNumbers(
   const ids = Object.keys(rules);
   if (ids.length === 0) return out;
 
+  /** The element whose count this one advances — itself, unless it counts with
+   *  another numbered element that keeps a count of its own (one level only, so
+   *  a chain or a loop of `countWith` cannot leave an element without one). */
+  const counterOf = (id: string): string => {
+    const w = rules[id].countWith;
+    return w && w !== id && rules[w] && !rules[w].countWith ? w : id;
+  };
+  const counters = ids.filter((id) => counterOf(id) === id);
   const startOf = (id: string): number => {
     const s = rules[id].startAt;
     return typeof s === 'number' && Number.isFinite(s) ? Math.max(0, Math.floor(s)) : 1;
   };
-  /** The number the next one of each element gets. */
-  const next = new Map<string, number>(ids.map((id) => [id, startOf(id)]));
+  /** The number the next one of each count gets. */
+  const next = new Map<string, number>(counters.map((id) => [id, startOf(id)]));
   /** For each element that restarts counts, the counts it restarts. */
   const resetBy = new Map<string, string[]>();
-  for (const id of ids) {
+  for (const id of counters) {
     for (const trigger of rules[id].resetOn ?? []) {
       // An element restarting its own count would number every one of them 1.
       if (trigger === id) continue;
@@ -170,10 +200,16 @@ export function assignElementNumbers(
     for (const id of resetBy.get(item.elementId) ?? []) next.set(id, startOf(id));
 
     const rule = rules[item.elementId];
-    if (!rule || item.empty) return;
-    const n = next.get(item.elementId) ?? startOf(item.elementId);
-    next.set(item.elementId, n + 1);
-    const num = rule.style === 'scene' && scene ? `${scene}.${n}` : String(n);
+    // An empty line waits for its text before taking a number — except a
+    // heading whose number IS its text, which is numbered from the moment it
+    // is made.
+    if (!rule || (item.empty && !isInlineNumbering(rule))) return;
+    const counter = counterOf(item.elementId);
+    const n = next.get(counter) ?? startOf(counter);
+    next.set(counter, n + 1);
+    const num = rule.style === 'scene' && scene
+      ? `${scene}.${n}`
+      : rule.style === 'words' ? numberInWords(n) : String(n);
     out[i] = `${rule.prefix ?? ''}${num}`;
   });
   return out;
@@ -215,8 +251,30 @@ export function collectJSON(doc: JSONContent): Array<{ node: JSONContent; item: 
 }
 
 /**
+ * A node with `label` written in front of its text, as an inline-numbered
+ * heading prints: PANEL 3, or PAGE ONE (SPLASH) when the writer added to it.
+ */
+function withLeadingLabel(node: JSONContent, label: string): JSONContent {
+  const [first, ...rest] = node.content ?? [];
+  const text = jsonHasText(node) ? `${label} ` : label;
+  // Joined to plain text that follows it, so Word and Final Draft get one run
+  // rather than two; kept apart from styled text, whose marks are not its own.
+  if (first?.type === 'text' && typeof first.text === 'string' && !first.marks?.length) {
+    return { ...node, content: [{ ...first, text: text + first.text }, ...rest] };
+  }
+  return { ...node, content: [{ type: 'text', text }, ...(first ? [first, ...rest] : [])] };
+}
+
+/**
  * A copy of `doc` whose numbered elements carry their label in
  * `attrs.elementNumber`, for an exporter to print.
+ *
+ * `inlineAsText` is for the outputs that only ever leave the app — PDF, Word,
+ * an exported Final Draft file: an inline-numbered element (PANEL 3) gets its
+ * label as the start of its text, so it prints as the line it is on screen.
+ * Without it the label goes in the attribute like any other, which is what a
+ * linked file wants: one read back must not come home with "PANEL 3" typed
+ * into a panel the template numbers again.
  *
  * Returns `doc` itself — not a copy — when nothing is numbered or numbers are
  * hidden, so every script that does not use numbering exports exactly as it
@@ -224,7 +282,7 @@ export function collectJSON(doc: JSONContent): Array<{ node: JSONContent; item: 
  */
 export function withElementNumbers(
   doc: JSONContent,
-  opts: ElementNumberOptions & { visible: boolean; rules?: NumberingRules },
+  opts: ElementNumberOptions & { visible: boolean; rules?: NumberingRules; inlineAsText?: boolean },
 ): JSONContent {
   if (!opts.visible || !doc?.content) return doc;
   const rules = opts.rules ?? getElementNumberingRules();
@@ -232,13 +290,18 @@ export function withElementNumbers(
 
   const found = collectJSON(doc);
   const labels = assignElementNumbers(found.map((f) => f.item), rules, opts);
-  const byNode = new Map<JSONContent, string>();
-  found.forEach((f, i) => { if (labels[i] != null) byNode.set(f.node, labels[i] as string); });
+  const byNode = new Map<JSONContent, { label: string; inline: boolean }>();
+  found.forEach((f, i) => {
+    const label = labels[i];
+    if (label == null) return;
+    byNode.set(f.node, { label, inline: opts.inlineAsText === true && isInlineNumbering(rules[f.item.elementId]) });
+  });
   if (byNode.size === 0) return doc;
 
   const copy = (node: JSONContent): JSONContent => {
-    const label = byNode.get(node);
-    if (label != null) return { ...node, attrs: { ...(node.attrs ?? {}), [ELEMENT_NUMBER_ATTR]: label } };
+    const hit = byNode.get(node);
+    if (hit?.inline) return withLeadingLabel(node, hit.label);
+    if (hit) return { ...node, attrs: { ...(node.attrs ?? {}), [ELEMENT_NUMBER_ATTR]: hit.label } };
     const type = node.type || 'general';
     if (DESCEND.has(type) && node.content) return { ...node, content: node.content.map(copy) };
     return node;

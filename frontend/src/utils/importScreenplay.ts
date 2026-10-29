@@ -18,10 +18,16 @@ import { parseFDXFull } from './fdxParser';
 import { parseOSF, parseFadeIn, type DocumentFont } from './osfParser';
 import { COURIER_FONTS } from './fonts';
 import { parseOdraft } from './odraftFormat';
+import { parseHighland } from './highlandParser';
+import { parseWriterDuet } from './writerDuetParser';
+import { parseCeltx } from './celtxParser';
 import { hydrateEditorStoresFromContent } from './hydrateStores';
 import { restoreRevisionState } from './revisionState';
 import { useEditorStore, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
 import { pluginRegistry, type PluginImporter } from '../plugins/registry';
+import { reviewPdfImport } from './pdfImportReview';
+
+export { ImportCancelledError, isImportCancelled } from './pdfImportReview';
 
 /** Every built-in extension File ▸ Import, drag-and-drop and the OS can hand us. */
 export const SCREENPLAY_IMPORT_EXTENSIONS = [
@@ -32,13 +38,27 @@ export const SCREENPLAY_IMPORT_EXTENSIONS = [
   'odraft',
   'pdf',
   'txt',
+  'highland',
+  'wdz',
+  'celtx',
 ] as const;
 
 /**
  * Built-in extensions whose files are archives or binary rather than text, so
  * they have to be read as bytes.  Reading one as UTF-8 corrupts it.
  */
-export const BINARY_IMPORT_EXTENSIONS = ['fadein', 'pdf'];
+export const BINARY_IMPORT_EXTENSIONS = ['fadein', 'pdf', 'highland', 'wdz', 'celtx'];
+
+/**
+ * The app each archive format comes from, so the "cannot be opened on this
+ * platform" message names the app to export from rather than always Fade In.
+ */
+const ARCHIVE_SOURCE_APPS: Record<string, string> = {
+  fadein: 'Fade In',
+  highland: 'Highland',
+  wdz: 'WriterDuet',
+  celtx: 'Celtx',
+};
 
 export function extensionOf(filename: string): string {
   const match = /\.([^.\\/]+)$/.exec(filename);
@@ -109,6 +129,9 @@ const FORMAT_LABELS: Record<string, string> = {
   osf: 'Open Screenplay Format (.osf)',
   odraft: 'OpenDraft (.odraft)',
   pdf: 'PDF (.pdf)',
+  highland: 'Highland (.highland)',
+  wdz: 'WriterDuet (.wdz)',
+  celtx: 'Celtx (.celtx)',
 };
 
 /** Human-readable name for the format an extension denotes. */
@@ -271,6 +294,13 @@ export interface ParseScreenplayOptions {
    * open document's state would be wrong.
    */
   hydrateStores?: boolean;
+  /**
+   * Whether a PDF goes through the import preview, where the writer corrects
+   * misread element types before anything is replaced. Default true; a
+   * headless caller passes false. Cancelling the preview rejects with an
+   * ImportCancelledError (see isImportCancelled) — callers say nothing then.
+   */
+  review?: boolean;
 }
 
 /**
@@ -285,14 +315,14 @@ export async function parseScreenplayImport(
   data: string | ArrayBuffer,
   options: ParseScreenplayOptions = {},
 ): Promise<ImportedScreenplay> {
-  const { hydrateStores = true } = options;
+  const { hydrateStores = true, review = true } = options;
   const ext = extensionOf(filename);
   const formatLabel = importFormatLabel(ext);
 
   if (isBinaryImportExtension(ext) && typeof data === 'string') {
     throw new Error(
       `${formatLabel} files are compressed archives and cannot be opened on this platform. ` +
-        'Export the script from Fade In as .fdx, .fountain or .osf and import that instead.',
+        `Export the script from ${ARCHIVE_SOURCE_APPS[ext] ?? 'Fade In'} as .fdx, .fountain or .osf and import that instead.`,
     );
   }
   if (!isBinaryImportExtension(ext) && typeof data !== 'string') {
@@ -314,6 +344,9 @@ export async function parseScreenplayImport(
     // Loaded on demand: the PDF reader is large, and only a PDF import needs it.
     const { parsePdfScreenplay } = await import('./pdfImport');
     const parsed = await parsePdfScreenplay(data as ArrayBuffer);
+    // The preview comes before anything touches the stores: Cancel must leave
+    // the open script exactly as it was.
+    if (review) parsed.doc = await reviewPdfImport(filename, parsed);
     // A shooting script's scene numbers come across as printed. Production
     // numbering (12A, gaps) is shown and locked exactly as an .fdx's would be.
     const numbering = importedSceneNumbering(parsed.doc as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> });
@@ -345,6 +378,32 @@ export async function parseScreenplayImport(
       applyDocumentFont(parsed.documentFont);
     }
     return { doc: parsed.doc, title: parsed.scriptTitle, formatLabel, warnings: parsed.warnings };
+  }
+
+  // Other screenwriting apps' archives: Highland's zipped Fountain, WriterDuet's
+  // operation log, Celtx's HTML project. See each parser for the format.
+  if (ext === 'highland' || ext === 'wdz' || ext === 'celtx') {
+    const parse = ext === 'highland' ? parseHighland : ext === 'wdz' ? parseWriterDuet : parseCeltx;
+    const parsed = await parse(data as ArrayBuffer);
+    // Celtx and Highland carry scene numbers; production numbering is shown
+    // and locked exactly as an .fdx's would be.
+    const numbering = importedSceneNumbering(parsed.doc as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> });
+    if (hydrateStores) {
+      resetStoresForImport();
+      if (numbering) {
+        useEditorStore.getState().setSceneNumbersVisible(numbering.visible);
+        useEditorStore.getState().setSceneNumbersLocked(numbering.locked);
+      }
+    }
+    return {
+      doc: parsed.doc as JSONContent,
+      title: parsed.title,
+      formatLabel,
+      warnings: parsed.warnings,
+      ...(numbering
+        ? { metadata: { _sceneNumbersVisible: numbering.visible, _sceneNumbersLocked: numbering.locked, _sceneHeadingSpaceBefore: null } }
+        : {}),
+    };
   }
 
   const text = data as string;

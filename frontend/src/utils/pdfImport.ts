@@ -48,11 +48,29 @@ export interface PdfPageText {
   lines: PdfLine[];
 }
 
+/**
+ * Where one imported paragraph sat on the page — what the import preview
+ * groups lines by ("every line at this indent") when the writer corrects the
+ * classification in bulk.
+ */
+export interface PdfElementLayout {
+  /** Page it starts on, counting from 1 as the PDF does. */
+  page: number;
+  /** Left edge of its first line, in inches right of the action margin, to 0.1in. */
+  indent: number;
+}
+
 export interface ParsedPdfScreenplay {
   doc: JSONContent;
   /** The title from the title page, or empty when the PDF has none. */
   title: string;
   warnings: string[];
+  /**
+   * One entry per node of `doc.content`, in step with it: where that
+   * paragraph sat, or null for what was not read off a single line — the
+   * title page and dual dialogue.
+   */
+  layout?: Array<PdfElementLayout | null>;
 }
 
 // ── Extraction ──────────────────────────────────────────────────────────────
@@ -363,6 +381,7 @@ interface Element {
   type: string;
   lines: string[];
   attrs?: Record<string, unknown>;
+  layout?: PdfElementLayout;
 }
 
 const elementText = (el: Element) => el.lines.join(' ').replace(/\s+/g, ' ').trim();
@@ -533,7 +552,7 @@ export function screenplayFromPdfPages(pages: PdfPageText[]): ParsedPdfScreenpla
 
   const cleaned = pages.slice(firstBodyPage).map((p, i) => cleanPage(p, i + firstBodyPage));
   const all = cleaned.flatMap((c) => c.lines);
-  if (all.length === 0) return { doc: { type: 'doc', content }, title, warnings };
+  if (all.length === 0) return { doc: { type: 'doc', content }, title, warnings, layout: content.map(() => null) };
 
   const left = actionMargin(all);
   const singles = all.filter((l) => l.segments.length === 1);
@@ -573,8 +592,9 @@ export function screenplayFromPdfPages(pages: PdfPageText[]): ParsedPdfScreenpla
     if (current) elements.push(current);
     current = null;
   };
-  const start = (el: Element) => {
+  const start = (el: Element, from: BodyLine) => {
     flush();
+    el.layout = { page: from.page + 1, indent: Math.round(((startOf(from) - left) / PTS_PER_INCH) * 10) / 10 };
     current = el;
   };
 
@@ -637,17 +657,17 @@ export function screenplayFromPdfPages(pages: PdfPageText[]): ParsedPdfScreenpla
             const type = line.sceneNumber ? 'sceneHeading' : actionTypeOf(text);
             const attrs: Record<string, unknown> = {};
             if (type === 'sceneHeading' && line.sceneNumber) attrs.sceneNumber = line.sceneNumber;
-            start({ type, lines: [text], attrs });
+            start({ type, lines: [text], attrs }, line);
             if (type === 'sceneHeading') lastCue = '';
           }
           break;
         }
         case 'cue':
           lastCue = text;
-          start({ type: 'character', lines: [cleanCue(text)] });
+          start({ type: 'character', lines: [cleanCue(text)] }, line);
           break;
         case 'paren':
-          start({ type: 'parenthetical', lines: [text] });
+          start({ type: 'parenthetical', lines: [text] }, line);
           break;
         case 'dialogue': {
           if (cur?.type === 'parenthetical' && !gapBefore && !/\)\s*$/.test(elementText(cur))) {
@@ -659,15 +679,15 @@ export function screenplayFromPdfPages(pages: PdfPageText[]): ParsedPdfScreenpla
             // a (MORE) broke in the middle.
             cur.lines.push(text);
           } else {
-            start({ type: 'dialogue', lines: [text] });
+            start({ type: 'dialogue', lines: [text] }, line);
           }
           break;
         }
         case 'right':
-          start({ type: 'transition', lines: [text] });
+          start({ type: 'transition', lines: [text] }, line);
           break;
         case 'center':
-          start({ type: 'action', lines: [text], attrs: { textAlign: 'center' } });
+          start({ type: 'action', lines: [text], attrs: { textAlign: 'center' } }, line);
           break;
       }
     }
@@ -675,13 +695,16 @@ export function screenplayFromPdfPages(pages: PdfPageText[]): ParsedPdfScreenpla
   }
   flush();
 
+  const layout: Array<PdfElementLayout | null> = content.map(() => null);
   for (const el of elements) {
-    content.push('lines' in el ? toNode(el as Element) : el);
+    const read = 'lines' in el ? (el as Element) : null;
+    content.push(read ? toNode(read) : el as JSONContent);
+    layout.push(read?.layout ?? null);
   }
   if (!content.some((n) => n.type === 'sceneHeading' || n.type === 'character')) {
     warnings.push('No scene headings or dialogue were recognised — the PDF may not be laid out as a screenplay.');
   }
-  return { doc: { type: 'doc', content }, title, warnings };
+  return { doc: { type: 'doc', content }, title, warnings, layout };
 }
 
 /** Import a screenplay PDF: read its text, then rebuild its elements. */

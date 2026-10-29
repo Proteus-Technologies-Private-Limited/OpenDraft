@@ -751,6 +751,9 @@ export interface BeatInfo {
   linkPreviews?: BeatLinkPreview[]; // cached link preview metadata
   /** The plotlines this beat belongs to (utils/plotlines). Absent = none. */
   plotlineIds?: string[];
+  /** The scenes this beat is linked to, by scene heading `sceneUid`
+   *  (utils/beatScenes). Absent = none. */
+  sceneIds?: string[];
 }
 
 export type BeatArrangeMode = 'auto' | 'custom';
@@ -858,7 +861,7 @@ interface EditorState {
   beats: BeatInfo[];
   setBeats: (beats: BeatInfo[]) => void;
   addBeat: (title: string, columnId: string) => void;
-  updateBeat: (id: string, updates: Partial<{ title: string; description: string; columnId: string; position: number; color: string; imageUrl: string; cardWidth: number; cardHeight: number; x: number; y: number; imageHeight: number; plotlineIds: string[] }>) => void;
+  updateBeat: (id: string, updates: Partial<{ title: string; description: string; columnId: string; position: number; color: string; imageUrl: string; cardWidth: number; cardHeight: number; x: number; y: number; imageHeight: number; plotlineIds: string[]; sceneIds: string[] }>) => void;
   deleteBeat: (id: string) => void;
   // Beat undo/redo
   beatUndo: () => void;

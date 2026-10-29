@@ -13,9 +13,11 @@
  * What round-trips: element types, inline bold/italic/underline/strikethrough,
  * colour and highlight, per-run font and size, hard line breaks, alignment,
  * forced page breaks, scene numbers, synopses, dual dialogue, and the title
- * page. What does not: OpenDraft's own additions — notes, tags, beats,
- * character profiles — which the format has nowhere to put. They stay in the
- * .odraft copy, and the exporter does not pretend otherwise.
+ * page, and bookmarks (OSF's own per-paragraph `bookmark`). Alternate versions
+ * of a line ride along in attributes only OpenDraft reads. What does not:
+ * OpenDraft's own additions — notes, tags, beats, plotlines, character
+ * profiles — which the format has nowhere to put. They stay in the .odraft
+ * copy, and the exporter does not pretend otherwise.
  */
 import JSZip from 'jszip';
 import type { JSONContent } from '@tiptap/react';
@@ -24,6 +26,9 @@ import { titlePageAttrsCarryData } from './titlePageRegion';
 import { isNonPrintingType } from './nonPrinting';
 import { blockRevision, osfRevisionColors, osfRevisionIndex } from './revisionExport';
 import { latestRevision, type RevisionSettings } from '../editor/revisionColors';
+import {
+  bookmarkOf, encodeAlternates, OSF_ALTERNATES_ATTR, OSF_ALTERNATE_INDEX_ATTR,
+} from './formatAnnotations';
 
 /** Element type → the OSF style a paragraph is based on. */
 const NODE_TO_OSF_STYLE: Record<string, string> = {
@@ -242,6 +247,16 @@ function paragraph(node: JSONContent, dual = false, sceneNumbers = true): string
   }
   if (typeof attrs.synopsis === 'string' && attrs.synopsis.trim() !== '') {
     paraAttrs += ` synopsis="${esc(attrs.synopsis.trim())}"`;
+  }
+  // OSF's own per-paragraph bookmark; the other versions of a line go in
+  // attributes only OpenDraft reads (see utils/formatAnnotations).
+  const bookmark = bookmarkOf(node);
+  if (bookmark) paraAttrs += ` bookmark="${esc(bookmark)}"`;
+  const alternates = encodeAlternates(node);
+  if (alternates) {
+    // JSON escapes its own newlines, so the attribute stays on one line.
+    paraAttrs += ` ${OSF_ALTERNATES_ATTR}="${esc(alternates.json)}"`
+      + ` ${OSF_ALTERNATE_INDEX_ATTR}="${alternates.index}"`;
   }
 
   const revision = blockRevision(node);

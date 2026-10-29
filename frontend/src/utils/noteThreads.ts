@@ -238,3 +238,185 @@ export function knownPeople(notes: NoteThread[], extra: Array<string | null | un
   }
   return out.sort((a, b) => a.localeCompare(b));
 }
+
+// ── Merging collaborators' copies ───────────────────────────────────────────
+//
+// In a collaboration session each notes list travels as one value, so two
+// people changing notes within the same round trip each send a whole list and
+// one of them wins (services/collabSync). Merging puts the other's work back:
+// the list that arrived is taken as it is, and whatever this copy has that the
+// arrival lacks — a reply just posted, a note just added — is kept, unless it
+// is missing because somebody deleted it.
+//
+// Telling "not seen yet" from "deleted" is what the merge context is for.
+// Deletions made by this version are recorded as tombstones: ids kept by
+// collabSync in a map of their own beside the notes rather than in them, so
+// the notes look exactly as they always have to an older version, which
+// never shows a deleted reply. An older version records no tombstone, so as a
+// fallback an id that was in the last copy received from collaborators and is
+// missing from this one counts as deleted too: whoever sent it had seen the
+// item and took it out.
+
+/** What the merge knows besides the two lists. */
+export interface NoteMergeContext {
+  /** Whether somebody in the session deleted this note or reply. */
+  isDeleted: (id: string) => boolean;
+  /** Ids of notes and replies in the last copy received from collaborators.
+   *  Absent when nothing has been received yet. */
+  lastRemote?: ReadonlySet<string>;
+}
+
+type ThreadedNote = NoteThread & { id: string };
+
+/** Every note and reply id in a list, for `NoteMergeContext.lastRemote`. */
+export function noteListIds(list: readonly ThreadedNote[]): Set<string> {
+  const ids = new Set<string>();
+  for (const n of list) {
+    ids.add(n.id);
+    for (const r of noteReplies(n)) ids.add(r.id);
+  }
+  return ids;
+}
+
+/**
+ * The notes and replies in `prev` that are gone from `next` — what was just
+ * deleted here. A reply that went with its whole note is not listed: the
+ * note's own id covers it.
+ */
+export function removedNoteIds(prev: readonly ThreadedNote[], next: readonly ThreadedNote[]): string[] {
+  const nextById = new Map(next.map((n) => [n.id, n]));
+  const out: string[] = [];
+  for (const p of prev) {
+    const n = nextById.get(p.id);
+    if (!n) {
+      out.push(p.id);
+      continue;
+    }
+    if (n === p) continue;
+    const kept = new Set(noteReplies(n).map((r) => r.id));
+    for (const r of noteReplies(p)) if (!kept.has(r.id)) out.push(r.id);
+  }
+  return out;
+}
+
+/** The notes and replies in `next` that `prev` did not have. */
+export function addedNoteIds(prev: readonly ThreadedNote[], next: readonly ThreadedNote[]): string[] {
+  const had = noteListIds(prev);
+  return [...noteListIds(next)].filter((id) => !had.has(id));
+}
+
+/** Whether an item this copy has and the arrival lacks is new rather than deleted. */
+const keepLocalOnly = (id: string, ctx: NoteMergeContext) =>
+  !ctx.isDeleted(id) && !ctx.lastRemote?.has(id);
+
+/** When a reply last changed, for choosing between two copies of it. */
+const replyStamp = (r: NoteReply) => r.editedAt || r.createdAt || '';
+
+/**
+ * Replies from both copies, by id. Of two copies of one reply the later edit
+ * wins, and on a tie the arrival, so both ends settle on the same text. A
+ * reply only this copy has goes in among the others by when it was posted.
+ */
+function mergeReplyLists(
+  local: NoteReply[],
+  remote: NoteReply[],
+  ctx: NoteMergeContext,
+): { replies: NoteReply[]; gained: boolean } {
+  const localById = new Map(local.map((r) => [r.id, r]));
+  const remoteIds = new Set(remote.map((r) => r.id));
+  const replies: NoteReply[] = [];
+  for (const r of remote) {
+    if (ctx.isDeleted(r.id)) continue;
+    const mine = localById.get(r.id);
+    replies.push(mine && replyStamp(mine) > replyStamp(r) ? mine : r);
+  }
+  let gained = false;
+  for (const r of local) {
+    if (remoteIds.has(r.id) || !keepLocalOnly(r.id, ctx)) continue;
+    gained = true;
+    const at = replies.findIndex((x) => (x.createdAt || '') > (r.createdAt || ''));
+    if (at === -1) replies.push(r);
+    else replies.splice(at, 0, r);
+  }
+  return { replies, gained };
+}
+
+/**
+ * One note as both copies have it. Everything but the replies — the text, the
+ * colour, the assignee, resolved or open — comes from the arrival, which is
+ * what every collaborator received, so all of them end up agreeing. The one
+ * exception: a reply the arrival had not seen reopens the note, as replying to
+ * a resolved note always does, so a reply racing "Resolve" is not buried
+ * under a resolved note.
+ */
+export function mergeNote<T extends ThreadedNote>(local: T, remote: T, ctx: NoteMergeContext): T {
+  const remoteReplies = noteReplies(remote);
+  const { replies, gained } = mergeReplyLists(noteReplies(local), remoteReplies, ctx);
+  const sameReplies = replies.length === remoteReplies.length && replies.every((r, i) => r === remoteReplies[i]);
+  const reopen = gained && isNoteResolved(remote) && !isNoteResolved(local);
+  if (sameReplies && !reopen) return remote;
+  const out = { ...remote };
+  if (!sameReplies) out.replies = replies;
+  if (reopen) {
+    out.resolved = false;
+    delete out.resolvedBy;
+    delete out.resolvedAt;
+  }
+  return out;
+}
+
+/**
+ * A notes list as it arrived from collaborators, merged with this copy (see
+ * above). Notes keep the arrival's order; a note only this copy has goes at
+ * the end. Returns the arrival itself when there is nothing to add to it or
+ * take out, so the caller can tell whether its own copy needs sending back.
+ */
+export function mergeNoteLists<T extends ThreadedNote>(
+  local: readonly T[],
+  remote: readonly T[],
+  ctx: NoteMergeContext,
+): T[] {
+  const localById = new Map(local.map((n) => [n.id, n]));
+  const remoteIds = new Set(remote.map((n) => n.id));
+  let changed = false;
+  const out: T[] = [];
+  for (const r of remote) {
+    if (ctx.isDeleted(r.id)) {
+      changed = true;
+      continue;
+    }
+    const mine = localById.get(r.id);
+    const merged = mine ? mergeNote(mine, r, ctx) : withoutDeletedReplies(r, ctx.isDeleted);
+    if (merged !== r) changed = true;
+    out.push(merged);
+  }
+  for (const n of local) {
+    if (remoteIds.has(n.id) || !keepLocalOnly(n.id, ctx)) continue;
+    changed = true;
+    out.push(withoutDeletedReplies(n, ctx.isDeleted));
+  }
+  return changed ? out : (remote as T[]);
+}
+
+/** A note without its deleted replies; the same note when it has none. */
+function withoutDeletedReplies<T extends ThreadedNote>(note: T, isDeleted: (id: string) => boolean): T {
+  const replies = noteReplies(note);
+  const live = replies.filter((r) => !isDeleted(r.id));
+  return live.length === replies.length ? note : { ...note, replies: live };
+}
+
+/** A list with every deleted note and reply taken out; the same list when there are none. */
+export function withoutDeletedNotes<T extends ThreadedNote>(list: readonly T[], isDeleted: (id: string) => boolean): T[] {
+  let changed = false;
+  const out: T[] = [];
+  for (const n of list) {
+    if (isDeleted(n.id)) {
+      changed = true;
+      continue;
+    }
+    const live = withoutDeletedReplies(n, isDeleted);
+    if (live !== n) changed = true;
+    out.push(live);
+  }
+  return changed ? out : (list as T[]);
+}

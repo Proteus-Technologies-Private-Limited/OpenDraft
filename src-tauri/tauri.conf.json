@@ -82,6 +82,24 @@
         "description": "Fade In Screenplay"
       },
       {
+        "ext": ["highland"],
+        "mimeType": "application/zip",
+        "description": "Highland Screenplay",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["wdz"],
+        "mimeType": "application/zip",
+        "description": "WriterDuet Screenplay",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["celtx"],
+        "mimeType": "application/zip",
+        "description": "Celtx Project",
+        "rank": "Alternate"
+      },
+      {
         "ext": ["osf"],
         "mimeType": "application/xml",
         "description": "Open Screenplay Format"

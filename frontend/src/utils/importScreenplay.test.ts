@@ -140,6 +140,63 @@ describe('parseScreenplayImport', () => {
     });
   });
 
+  describe('other apps’ archives', () => {
+    it('treats .highland, .wdz and .celtx as archives with their own names', () => {
+      for (const ext of ['highland', 'wdz', 'celtx']) {
+        expect(isImportableExtension(ext)).toBe(true);
+        expect(isBinaryImportExtension(ext)).toBe(true);
+      }
+      expect(importFormatLabel('highland')).toBe('Highland (.highland)');
+      expect(importFormatLabel('wdz')).toBe('WriterDuet (.wdz)');
+      expect(importFormatLabel('celtx')).toBe('Celtx (.celtx)');
+    });
+
+    it('dispatches .highland to the Fountain inside it', async () => {
+      const zip = new JSZip();
+      zip.file('text.fountain', 'Title: Night Swim\n\nINT. POOL - NIGHT\n\nWater.\n');
+      const result = await parseScreenplayImport('Night Swim.highland', await zip.generateAsync({ type: 'arraybuffer' }));
+      expect(bodyTypesOf(result.doc)).toEqual(['sceneHeading', 'action']);
+      expect(result.title).toBe('Night Swim');
+      expect(result.formatLabel).toBe('Highland (.highland)');
+    });
+
+    it('dispatches .celtx and locks production scene numbers', async () => {
+      const zip = new JSZip();
+      zip.file(
+        'script-a.html',
+        '<html><head><title>T</title></head><body>' +
+          '<p class="sceneheading" scenestr="4A">INT. A - DAY<br></p><p class="action">Hi.<br></p></body></html>',
+      );
+      const result = await parseScreenplayImport('T.celtx', await zip.generateAsync({ type: 'arraybuffer' }));
+      expect(bodyTypesOf(result.doc)).toEqual(['sceneHeading', 'action']);
+      expect(result.metadata).toMatchObject({ _sceneNumbersVisible: true, _sceneNumbersLocked: true });
+      expect(useEditorStore.getState().sceneNumbersLocked).toBe(true);
+    });
+
+    it('dispatches .wdz to the WriterDuet reader', async () => {
+      const zip = new JSZip();
+      zip.file('script.json', JSON.stringify({ data: { a: { type: 'Slugline', text: 'EXT. SEA - DAY' } } }));
+      const result = await parseScreenplayImport('Sea.wdz', await zip.generateAsync({ type: 'arraybuffer' }));
+      expect(typesOf(result.doc)).toEqual(['sceneHeading']);
+      expect(result.formatLabel).toBe('WriterDuet (.wdz)');
+    });
+
+    it('names the right app when an archive arrives as text', async () => {
+      await expect(parseScreenplayImport('Script.wdz', 'garbled')).rejects.toThrow(/Export the script from WriterDuet/);
+      await expect(parseScreenplayImport('Script.celtx', 'garbled')).rejects.toThrow(/Export the script from Celtx/);
+    });
+
+    it('leaves the open script’s state alone when the archive is corrupt', async () => {
+      const openScene = { id: 'open-2', heading: 'INT. OPEN - DAY' } as never;
+      useEditorStore.getState().setScenes([openScene]);
+      const bytes = new Uint8Array([0x50, 0x4b, 3, 4, 1, 2, 3]).buffer;
+      for (const name of ['Broken.highland', 'Broken.wdz', 'Broken.celtx']) {
+        await expect(parseScreenplayImport(name, bytes)).rejects.toThrow(/not a valid/);
+      }
+      expect(useEditorStore.getState().scenes).toEqual([openScene]);
+    });
+  });
+
   it('explains why a .fadein cannot be read from text content', async () => {
     await expect(parseScreenplayImport('Script.fadein', 'garbled')).rejects.toThrow(
       /compressed archives.*Export the script from Fade In/s,

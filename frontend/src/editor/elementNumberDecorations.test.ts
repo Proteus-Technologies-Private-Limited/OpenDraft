@@ -78,6 +78,25 @@ describe('ElementNumbers decorations', () => {
     expect(JSON.stringify(s.doc.toJSON())).not.toContain('elementNumber');
   });
 
+  it('marks an inline number with its own attribute, so it is drawn on the line and not in the margin', () => {
+    const panel = (text?: string): JSONContent => ({
+      type: 'customElement',
+      attrs: { customTypeId: 'panel', customLabel: 'Panel' },
+      ...(text ? { content: [{ type: 'text', text }] } : {}),
+    });
+    const s = stateFor(doc(panel(), block('dialogue', 'one'), panel('(WIDE)')), {
+      getRules: () => ({ ...DIALOGUE, panel: { enabled: true, resetOn: [], prefix: 'PANEL ', placement: 'inline' } }),
+      getSceneNumbersVisible: () => false,
+    });
+    const set = elementNumbersPluginKey.getState(s) as DecorationSet;
+    const attrs = set.find().map((deco) => (deco as unknown as { type: { attrs: Record<string, string> } }).type.attrs);
+    expect(attrs).toEqual([
+      { 'data-element-label': 'PANEL 1' },
+      { 'data-element-number': '1' },
+      { 'data-element-label': 'PANEL 2' },
+    ]);
+  });
+
   it('survives rules it cannot read', () => {
     const s = stateFor(doc(block('dialogue', 'one')), {
       getRules: () => { throw new Error('store not ready'); },

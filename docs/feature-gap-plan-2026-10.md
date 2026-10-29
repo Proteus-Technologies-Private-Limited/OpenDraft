@@ -41,25 +41,25 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 
 | # | Feature | Who has it | Status in OpenDraft | Effort | Repo |
 |---|---------|-----------|---------------------|--------|------|
-| 1 | **PDF import** | FD, WD, AS, HL, CX | Missing — and the README already claims "Import from … PDF" | L | Core |
-| 2 | **Watermarked / password-protected PDF** | FD, WD, FI | Missing (no hits for `watermark`) | S | Core |
-| 3 | **Sides & per-character printing** | FD, WD, FI, CX | Missing | M | Core |
+| 1 | **PDF import** | FD, WD, AS, HL, CX | ✅ Done — `utils/pdfImport.ts`, with an Import Preview for bulk re-typing (`PdfImportPreview`) | L | Core |
+| 2 | **Watermarked / password-protected PDF** | FD, WD, FI | ✅ Done — `PdfSecurityDialog` | S | Core |
+| 3 | **Sides & per-character printing** | FD, WD, FI, CX | ✅ Done — `SidesDialog`, 2-up (`utils/pdfTwoUp.ts`), File → Print Selected Pages | M | Core |
 | 4 | **Global character rename** | FD, WD, FI, AS | ✅ Done — `editor/characterRename.ts`, `RenameCharacterDialog` | S | Core |
 | 5 | **Dialogue Tuner** (one character's lines, editable in one place) | FI, FD | ✅ Done — `utils/dialogueTuner.ts`, `DialogueTuner` panel | M | Core |
 | 6 | **Script bookmarks** | FI, FD | ✅ Done — `editor/extensions/Bookmark.ts`, `utils/bookmarks.ts` | S | Core |
 | 7 | **Focus / typewriter mode** | FD, HL, AS, WD | ✅ Done — `editor/extensions/FocusMode.ts`, View → Focus Mode | S | Core |
 | 8 | **Writing goals, sprints & progress history** | FD (Goals), WD, HL (Sprint), AS | ✅ Done — `utils/writingGoals.ts`, Tools → Writing Goals & Sprints | M | Core |
-| 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | ✅ Done for dialogue and action lines; whole scenes not yet | M | Core |
+| 9 | **Alternates** (alternative lines/scenes kept beside the chosen one) | FD, AS, WD | ✅ Done — lines (`editor/alternates.ts`) and whole scenes (`editor/sceneAlternates.ts`) | M | Core |
 | 10 | **Macros / text snippets** | FI, FD | ✅ Done — `utils/macros.ts`, Settings → Macros | S | Core |
-| 11 | **Exportable reports** (scene, character, location, cast, breakdown → CSV/PDF) | FD, FI, WD, CX | Partial — stats are on screen only | S | Core |
-| 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | ✅ Done — replies, resolve, assignee, @mentions; export pending | M | Core |
-| 13 | **Story timeline / plotlines** (assign scenes to story threads, colour-coded timeline) | FD (Story Map, Structure Points), AS (Plot Board) | Missing | M | Core |
+| 11 | **Exportable reports** (scene, character, location, cast, breakdown → CSV/PDF) | FD, FI, WD, CX | ✅ Done — `ReportsDialog`, `utils/scriptReports.ts`, plus Notes and Open Notes | S | Core |
+| 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | ✅ Done — replies, resolve, assignee, @mentions, Notes report, replies merged by id in collaboration | M | Core |
+| 13 | **Story timeline / plotlines** (assign scenes to story threads, colour-coded timeline) | FD (Story Map, Structure Points), AS (Plot Board) | ✅ Done — `utils/plotlines.ts`, `StoryTimeline`, beats linked to scenes (`utils/beatScenes.ts`) | M | Core |
 | 14 | **Suggest mode for collaborators** (proposed edits accepted/rejected by the owner) | WD, AS | Missing — track changes is against a check-in, not per-collaborator proposals | L | Core |
 | 15 | **Dictation / speech to script** | FD (mobile), WD | Missing | M | Core |
-| 16 | **Graphic novel / comic template** | FD, FI | Missing | S | Core |
+| 16 | **Graphic novel / comic template** | FD, FI | ✅ Done — `stores/templates/comicTemplate.ts` | S | Core |
 | 17 | **Breakdown → schedule** (stripboard, shooting schedule, call sheets, DOOD) | CX, WD Pro, StudioBinder | Missing (tags exist) | L | **Pro** |
 | 18 | **AI writing assistant** (bring-your-own-key, local model option) | AS, WD, CX | Missing | L | **Pro** |
-| 19 | **Import from WriterDuet / Highland / Celtx native files** | — (switching aid) | Missing | M | Core |
+| 19 | **Import from WriterDuet / Highland / Celtx native files** | — (switching aid) | ✅ Done — `highlandParser.ts`, `writerDuetParser.ts`, `celtxParser.ts`; `.wdz` is reverse-engineered and untested against a real file | M | Core |
 
 Items 17 and 18 are commercial-grade features. Per the open-core rule they are
 built in OpenDraft-Pro; the core only gains the plugin hooks they need (§4, phase 0).
@@ -100,9 +100,11 @@ appears in the menu and runs; no core behaviour changes.
 All four items shipped: PDF import (`utils/pdfImport.ts`), watermark and
 password export (`PdfSecurityDialog`), sides and selected pages
 (`SidesDialog`, `utils/pageSelection.ts`), and reports (`ReportsDialog`,
-`utils/scriptReports.ts`). Not yet done from the descriptions below: the import
-preview for bulk re-assigning lines, the 2-up sides layout, and *Print → only
-pages with* (the same selection is available as a PDF export).
+`utils/scriptReports.ts`). The follow-ups are done too: the Import Preview for
+bulk re-assigning lines (`PdfImportPreview`, `utils/pdfImportReview.ts`), the
+2-up sides layout (`utils/pdfTwoUp.ts`), and *File → Print Selected Pages…*,
+which prints the same selection through the PDF on every platform (on Android
+the print dialog opens on landscape paper for 2-up sheets).
 
 **1. PDF import** (L)
 - Use `pdfjs-dist` to extract text runs with x/y positions per page.
@@ -156,8 +158,9 @@ ProseMirror nodes, so collaboration and revision marks just work). Optional
 "show the line before" for context. Read-aloud via the existing Table Read.
 
 **7. Bookmarks** (S) — ✅ done as a `bookmark` attribute on the element
-(`editor/extensions/Bookmark.ts`). Not yet mapped to FDX or Fountain; it rides
-in `.odraft` and backups. Original plan: a mark/decoration with a name, a Bookmarks list in the
+(`editor/extensions/Bookmark.ts`). Carried natively by FDX (`Bookmark=` on the
+paragraph) and Fade In/OSF (`bookmark=`), and as a `[[Bookmark: …]]` note in
+Fountain (`utils/formatAnnotations.ts`); it also rides in `.odraft` and backups. Original plan: a mark/decoration with a name, a Bookmarks list in the
 Navigator, `Go to Bookmark` in the Go to Page dialog; stored in the document so
 collaborators share them; exported to FDX as ScriptNotes where possible.
 
@@ -204,7 +207,10 @@ Two departures from the description above:
   legacy note untouched and repairs malformed thread data.
 - **Collaboration is last-writer-wins per notes list**, as all note metadata
   already is (`services/collabSync.ts`). Two replies posted within the same
-  sync round trip can lose one. Merging replies by id is the follow-up.
+  sync round trip could lose one. ✅ Now merged by id (`mergeNoteLists` in
+  `utils/noteThreads.ts`), with deletions kept as tombstones in their own Yjs
+  map so a merge never brings a deleted reply back. Concurrent edits to one
+  note's text, colour or assignee are still last-writer-wins.
 
 **12. Alternates** (M) — on any dialogue or action element (and later whole
 scenes), "Add Alternate" stores sibling versions; a chip in the margin cycles
@@ -231,8 +237,11 @@ in collaboration; a scene's plotlines are a `plotlines` attribute on its scene
 heading, so they move with the scene; a beat lists its own (`plotlineIds`).
 View → Panels → Story Timeline shows one row per plotline with scenes as wide
 as their screen time; click to assign. Beat cards get a plotline picker and
-the Scene Navigator shows a dot per plotline. Beats share the plotlines but
-are not yet linked to particular scenes.
+the Scene Navigator shows a dot per plotline. ✅ Beats now link to scenes too
+(`utils/beatScenes.ts`, through a stable `sceneUid` on the scene heading): the
+card shows the linked scenes and jumps to them, and the timeline has a Beats
+row. Plotlines have no equivalent in FDX, Fade In or Fountain, so they stay in
+`.odraft`.
 
 **14. Suggest mode** (L) — collaborators with a "Suggest" role produce
 insert/delete marks attributed to them; the owner accepts/rejects per change or
@@ -243,10 +252,13 @@ the collab server.
 
 - **15. Dictation** — Web Speech API on web/desktop, platform speech on iOS/Android;
   voice commands for element changes ("new scene", "character Sarah").
-- **16. Graphic novel template** — page/panel/caption/balloon elements,
-  auto-numbered pages and panels (element numbering already supports this).
-- **19. Competitor native imports** — WriterDuet `.wdz`, Highland `.highland`
-  (zip containing Fountain), Celtx export — as `importers` from phase 0.
+- **16. Graphic novel template** — ✅ done: the *Comic Book* format
+  (`stores/templates/comicTemplate.ts`) — pages in words, panels restarting per
+  page, captions and balloons lettered across the page.
+- **19. Competitor native imports** — ✅ done as built-in formats rather than
+  plugins: Highland `.highland` (a zipped TextBundle around Fountain), Celtx
+  `.celtx` (RDF manifest + HTML script) and WriterDuet `.wdz` (an operation log
+  in `script.json`, reverse-engineered; no real file tested yet).
 
 ### Pro track (OpenDraft-Pro, in parallel, on the phase 0 hooks)
 
@@ -290,8 +302,16 @@ the collab server.
 
 | Release | Contents |
 |---------|----------|
-| 2.8 | Phase 0 hooks, Watermark/password PDF, Exportable reports, Character rename, Bookmarks |
-| 2.9 | PDF import, Sides & selective printing, Focus/typewriter mode, Macros |
-| 3.0 | Dialogue Tuner, Writing goals & sprints, Threaded comments, Alternates |
-| 3.1 | Story timeline, Suggest mode |
-| later | Dictation, Graphic novel template, competitor imports |
+| 2.8 | Everything in phases 0–3 except Suggest mode, plus the graphic novel template and competitor imports — all on `main`, unreleased as of 29 Oct 2026 |
+| 2.9 | Suggest mode (item 14) |
+| later | Dictation (item 15) |
+
+What is still open, besides items 14 and 15:
+- Note threads are not exported to FDX/Fade In/Fountain. Script notes only
+  travel when they are set to print, so exporting threads would put private
+  notes into files people send on — a product decision, not a format gap.
+- Older app versions drop bookmarks, alternates, plotlines and beat-scene links
+  when they save a script that has them. Worth saying in release notes.
+- WriterDuet `.wdz` import needs testing against a real file.
+- Concurrent switching of the same alternate (line or scene) by two
+  collaborators can double the text until undone — a y-prosemirror limit.

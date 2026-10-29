@@ -8,6 +8,14 @@ import {
   deleteShownAlternateTransaction,
   keepOnlyShownTransaction,
 } from '../editor/alternates';
+import {
+  addSceneAlternateTransaction,
+  cycleSceneAlternateTransaction,
+  deleteShownSceneAlternateTransaction,
+  keepOnlyShownSceneTransaction,
+  sceneAlternateTargetAt,
+  sceneAlternatesOf,
+} from '../editor/sceneAlternates';
 import type { Editor } from '@tiptap/react';
 import { ELEMENT_LABELS, NOTE_COLORS, type ElementType } from '../stores/editorStore';
 import { useEditorStore } from '../stores/editorStore';
@@ -461,12 +469,18 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
     onClose();
   };
 
-  // ── Alternates: other versions of this line (editor/alternates) ──
+  // ── Alternates: other versions of this line (editor/alternates) or of
+  // the scene it is in (editor/sceneAlternates) ──
   const alternateTarget = alternateTargetAt(editor.state, savedSelection.current.from);
   const alternateCount = alternateTarget ? alternatesOf(alternateTarget.node).length + 1 : 0;
+  const sceneAlternateTarget = sceneAlternateTargetAt(editor.state, savedSelection.current.from);
+  const sceneAlternateCount = sceneAlternateTarget ? sceneAlternatesOf(sceneAlternateTarget.heading).length + 1 : 0;
+  // The count beside the submenu is the line's on a line, else the scene's.
+  const alternatesMenuCount = alternateTarget ? alternateCount : sceneAlternateCount;
   const runAlternate = (build: (state: typeof editor.state, pos: number) => Transaction | null) => {
     const tr = build(editor.state, savedSelection.current.from);
     if (tr) editor.view.dispatch(tr);
+    else console.warn('[alternates] the version could not be changed here');
     editor.commands.focus();
     onClose();
   };
@@ -971,8 +985,9 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
       )}
       <div className="ctx-separator" />
 
-      {/* Alternates submenu — on dialogue and action only */}
-      {alternateTarget && (
+      {/* Alternates submenu — line entries on dialogue and action, scene
+          entries anywhere in a scene */}
+      {(alternateTarget || sceneAlternateTarget) && (
         <>
           <div
             className="ctx-has-sub-wrap"
@@ -981,14 +996,16 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
             onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpenSub(null); }}
           >
             <div className="ctx-item ctx-has-sub" onClick={() => setOpenSub('alternates')}>
-              <span>Alternates{alternateCount > 1 ? ` (${alternateCount})` : ''}</span>
+              <span>Alternates{alternatesMenuCount > 1 ? ` (${alternatesMenuCount})` : ''}</span>
               <span className="ctx-arrow">&#9656;</span>
             </div>
             {openSub === 'alternates' && (
               <CtxSubmenu anchorRef={alternatesSubAnchor}>
+                {alternateTarget && (
                 <div className="ctx-item" onClick={() => runAlternate(addAlternateTransaction)}>
                   <span>Add Alternate</span>
                 </div>
+                )}
                 {alternateCount > 1 && (
                   <>
                     <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleAlternateTransaction(st, p, 1))}>
@@ -1002,6 +1019,29 @@ const ScriptContextMenu: React.FC<ScriptContextMenuProps> = ({
                     </div>
                     <div className="ctx-item" onClick={() => runAlternate(keepOnlyShownTransaction)}>
                       <span>Keep Only This Version</span>
+                    </div>
+                  </>
+                )}
+                {alternateTarget && sceneAlternateTarget && <div className="ctx-separator" />}
+                {sceneAlternateTarget && (
+                  <div className="ctx-item" onClick={() => runAlternate(addSceneAlternateTransaction)}>
+                    <span>Add Scene Alternate</span>
+                  </div>
+                )}
+                {sceneAlternateCount > 1 && (
+                  <>
+                    <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleSceneAlternateTransaction(st, p, 1))}>
+                      <span>Next Scene Alternate</span>
+                      <span className="ctx-shortcut">{sceneAlternateTarget ? `${sceneAlternateCount} versions` : ''}</span>
+                    </div>
+                    <div className="ctx-item" onClick={() => runAlternate((st, p) => cycleSceneAlternateTransaction(st, p, -1))}>
+                      <span>Previous Scene Alternate</span>
+                    </div>
+                    <div className="ctx-item" onClick={() => runAlternate(deleteShownSceneAlternateTransaction)}>
+                      <span>Delete This Scene Version</span>
+                    </div>
+                    <div className="ctx-item" onClick={() => runAlternate(keepOnlyShownSceneTransaction)}>
+                      <span>Keep Only This Scene Version</span>
                     </div>
                   </>
                 )}

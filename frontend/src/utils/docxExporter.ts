@@ -571,6 +571,8 @@ export async function exportDocx(
   doc = withElementNumbers(doc, {
     visible: options?.elementNumbersVisible === true,
     sceneNumbersVisible: options?.sceneNumbersVisible === true,
+    // An inline number (PANEL 3) prints as the start of its line.
+    inlineAsText: true,
   });
 
   // Separate the title-page region (the leading run of titlePage + image nodes)

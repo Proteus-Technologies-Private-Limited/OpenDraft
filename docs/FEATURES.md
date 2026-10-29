@@ -11,7 +11,8 @@ A complete list of features in OpenDraft.
 - **Bookmarks** -- Name any line and jump back to it from the Navigator or Go to Page; saved with the script and shared with collaborators
 - **Element Numbering** -- Number any element, not only scene headings: every line of dialogue, every sound effect or shot. The format chooses which elements are numbered, what restarts each count (a scene heading, a new act, any element) and an optional prefix such as FX 1. Shown in the margin on screen, in print, PDF, Word and Final Draft
 - **Podcast format** -- Scripted podcast and audio fiction, with every line of dialogue numbered for the recording session and FX and music cues numbered on their own
-- **Alternates** -- Keep other versions of a line of dialogue or action beside it and switch between them; only the version showing prints and exports
+- **Comic Book format** -- Full comic and graphic novel scripts: pages spelled out (PAGE ONE), panels numbered on each page, captions and balloons lettered across the page
+- **Alternates** -- Keep other versions of a line of dialogue or action, or of a whole scene, beside it and switch between them; only the version showing prints and exports
 - **Distraction-free writing** -- Clean, focused interface with minimal chrome
 - **Focus Mode** -- Full screen with panels and menus out of the way, typewriter scrolling, and optional dimming of all but the current element or scene
 - **Writing Goals & Sprints** -- Daily and session goals in words or pages with a status bar progress ring, timed sprints with an optional no-backspace mode, and a words-written-per-day calendar in Script Statistics, kept on your device only
@@ -20,6 +21,7 @@ A complete list of features in OpenDraft.
 
 - **Beat Board & Index Cards** -- Visual story planning with drag-and-drop scene organization
 - **Plotlines & Story Timeline** -- Name the story's threads, put scenes and beats in them, and see every plotline across the script by screen time
+- **Beats Linked to Scenes** -- Link a Beat Board beat to the scenes that carry it and jump straight to them; linked beats show on the Story Timeline
 - **Character Profiles** -- Track characters with role types, highlight colors, and rich descriptions
 - **Global Character Rename** -- Rename a character everywhere in one undoable step: cues keep their extensions, the profile, relationships and Cast tags follow, and mentions in action and dialogue are offered for review
 - **Dialogue Tuner** -- Every line one character speaks, in order and with the line before for context, editable in place and playable in Table Read
@@ -62,7 +64,8 @@ A complete list of features in OpenDraft.
 - **Microsoft Word (.docx)** -- Import and export
 - **OpenDraft (.odraft)** -- Lossless export: the script plus its notes, tags, beats, character profiles and images
 - **Paste as Fountain** -- Paste Fountain markup straight into the script as real elements
-- **PDF** -- Export with proper screenplay formatting, and import a screenplay PDF back into editable elements
+- **PDF** -- Export with proper screenplay formatting, and import a screenplay PDF back into editable elements, checking and bulk-fixing misread lines in an Import Preview first
+- **Highland (.highland), WriterDuet (.wdz), Celtx (.celtx)** -- Import, for writers switching from those apps
 - **Open in place** -- Edit a `.fdx`, `.fountain`, `.fadein`, `.osf`, `.odraft` or `.txt` where it lives and save straight back to it, on desktop and mobile
 
 ## Editing Tools
@@ -75,7 +78,8 @@ A complete list of features in OpenDraft.
 ## Production Output
 
 - **Sides** -- Export the scenes an actor needs on their original pages, with the rest of each page crossed out
-- **Selected Pages** -- Every page where a character speaks, every page at a location, or every page holding a tagged item
+- **Selected Pages** -- Every page where a character speaks, every page at a location, or every page holding a tagged item, exported or printed (File → Print Selected Pages)
+- **Two Pages per Sheet** -- Sides and selected pages side by side on landscape paper, each page keeping its own numbers
 - **Watermarked PDF** -- A watermark on every page, with one copy per recipient carrying their name
 - **Password-Protected PDF** -- A password to open the file, and printing or copying switched off
 

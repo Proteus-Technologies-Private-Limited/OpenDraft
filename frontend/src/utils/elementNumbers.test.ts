@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
 import {
   assignElementNumbers, collectJSON, withElementNumbers, elementNumberOf,
-  numberingRulesOf, numberableElementIds, resetElementIds, type NumberingRules,
+  numberingRulesOf, numberableElementIds, resetElementIds, numberInWords, type NumberingRules,
 } from './elementNumbers';
 import { doc, block } from '../test/screenplaySchema';
 import { rule, titlePageRules, avBlockRule, outlineRules } from '../stores/templates/_helpers';
@@ -125,6 +125,77 @@ describe('assignElementNumbers', () => {
 
   it('numbers nothing without rules', () => {
     expect(labels(doc(block('dialogue', 'a')), {})).toEqual([]);
+  });
+});
+
+describe('comic numbering: inline headings, per-page counts, shared lettering', () => {
+  const emptyCustom = (id: string): JSONContent => ({ type: 'customElement', attrs: { customTypeId: id, customLabel: id } });
+  const COMIC: NumberingRules = {
+    page: { enabled: true, resetOn: [], prefix: 'PAGE ', style: 'words', placement: 'inline' },
+    panel: { enabled: true, resetOn: ['page'], prefix: 'PANEL ', placement: 'inline' },
+    dialogue: { enabled: true, resetOn: ['page'] },
+    caption: { enabled: true, resetOn: [], countWith: 'dialogue' },
+  };
+  const script = doc(
+    emptyCustom('page'), emptyCustom('panel'), block('action', 'Wide.'),
+    custom('caption', 'CAPTION: 1953.'), block('character', 'MARA'), block('dialogue', 'a'),
+    emptyCustom('panel'), block('character', 'MARA'), block('dialogue', 'b'), custom('caption', 'CAPTION: Later.'),
+    custom('page', '(SPLASH)'), emptyCustom('panel'), block('dialogue', 'c'),
+  );
+
+  it('numbers pages through the script, panels and lettering again on every page', () => {
+    expect(labels(script, COMIC)).toEqual([
+      'PAGE ONE', 'PANEL 1', '1', '2', 'PANEL 2', '3', '4',
+      'PAGE TWO', 'PANEL 1', '1',
+    ]);
+  });
+
+  it('counts an empty inline heading, but still not an empty margin-numbered line', () => {
+    const d = doc(emptyCustom('panel'), empty('dialogue'), emptyCustom('panel'), block('dialogue', 'a'));
+    expect(labels(d, COMIC)).toEqual(['PANEL 1', 'PANEL 2', '1']);
+  });
+
+  it('a shared count follows its owner\'s restarts and start, not its own', () => {
+    const rules: NumberingRules = {
+      dialogue: { enabled: true, resetOn: ['page'], startAt: 10 },
+      caption: { enabled: true, resetOn: [], startAt: 99, prefix: 'C', countWith: 'dialogue' },
+    };
+    const d = doc(custom('caption', 'x'), block('dialogue', 'a'), custom('page', 'P'), custom('caption', 'y'));
+    expect(labels(d, rules)).toEqual(['C10', '11', 'C10']);
+  });
+
+  it('keeps its own count when the element it counts with is not numbered, or counts with another', () => {
+    const d = doc(custom('caption', 'x'), block('dialogue', 'a'), custom('caption', 'y'));
+    expect(labels(d, { caption: { enabled: true, resetOn: [], countWith: 'dialogue' } })).toEqual(['1', '2']);
+    // A loop: each falls back to a count of its own.
+    expect(labels(d, {
+      caption: { enabled: true, resetOn: [], countWith: 'dialogue' },
+      dialogue: { enabled: true, resetOn: [], countWith: 'caption' },
+    })).toEqual(['1', '1', '2']);
+  });
+
+  it('spells numbers out in capitals, digits from a thousand', () => {
+    expect([0, 1, 13, 20, 22, 99, 100, 104, 342, 999, 1000].map(numberInWords)).toEqual([
+      'ZERO', 'ONE', 'THIRTEEN', 'TWENTY', 'TWENTY-TWO', 'NINETY-NINE', 'ONE HUNDRED',
+      'ONE HUNDRED FOUR', 'THREE HUNDRED FORTY-TWO', 'NINE HUNDRED NINETY-NINE', '1000',
+    ]);
+  });
+
+  it('writes inline labels into the text only when asked to', () => {
+    const asAttr = withElementNumbers(script, { visible: true, sceneNumbersVisible: true, rules: COMIC });
+    expect(elementNumberOf(asAttr.content?.[0])).toBe('PAGE ONE');
+    expect(asAttr.content?.[0].content).toBeUndefined();
+
+    const asText = withElementNumbers(script, { visible: true, sceneNumbersVisible: true, rules: COMIC, inlineAsText: true });
+    const text = (n: JSONContent | undefined) => (n?.content ?? []).map((c) => c.text).join('');
+    expect(text(asText.content?.[0])).toBe('PAGE ONE');
+    expect(elementNumberOf(asText.content?.[0])).toBeNull();
+    expect(text(asText.content?.[10])).toBe('PAGE TWO (SPLASH)');
+    // Margin numbers are still attributes, for the exporter to hang.
+    expect(elementNumberOf(asText.content?.[3])).toBe('1');
+    expect(text(asText.content?.[3])).toBe('CAPTION: 1953.');
+    // The original is untouched.
+    expect(script.content?.[0].content).toBeUndefined();
   });
 });
 

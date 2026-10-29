@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import { sceneUidPastePlugin } from '../../utils/beatScenes';
 
 export const SceneHeading = Node.create({
   name: 'sceneHeading',
@@ -31,6 +32,16 @@ export const SceneHeading = Node.create({
           Array.isArray(attrs.plotlines) && attrs.plotlines.length
             ? { 'data-plotlines': attrs.plotlines.join(' ') }
             : {},
+      },
+      // A stable id for the scene, given the first time something links to it
+      // — a Beat Board beat (utils/beatScenes) — so the link survives edits,
+      // reordering and renumbering. Not copied onto a heading split off this one.
+      sceneUid: {
+        default: null,
+        keepOnSplit: false,
+        parseHTML: (el: HTMLElement) => el.getAttribute('data-scene-uid') || null,
+        renderHTML: (attrs: Record<string, unknown>) =>
+          typeof attrs.sceneUid === 'string' && attrs.sceneUid ? { 'data-scene-uid': attrs.sceneUid } : {},
       },
     };
   },
@@ -93,5 +104,9 @@ export const SceneHeading = Node.create({
 
   addInputRules() {
     return [];
+  },
+
+  addProseMirrorPlugins() {
+    return [sceneUidPastePlugin()];
   },
 });

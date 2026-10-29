@@ -4,7 +4,8 @@
  *
  * The numbers are node decorations carrying `data-element-number`, which the
  * stylesheet prints in the left margin while `.show-element-numbers` is on the
- * page. Being decorations they are never part of the document: not saved, not
+ * page — or `data-element-label` for an inline number (a comic script's PAGE
+ * ONE, PANEL 3), printed as the start of the line itself. Being decorations they are never part of the document: not saved, not
  * in undo history, not sent to collaborators. A format that numbers nothing
  * gets an empty set and the document is never walked.
  *
@@ -16,7 +17,7 @@ import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import {
-  assignElementNumbers, hasNumbering, type NumberingItem, type NumberingRules,
+  assignElementNumbers, hasNumbering, isInlineNumbering, type NumberingItem, type NumberingRules,
 } from '../../utils/elementNumbers';
 import { elementIdOf } from '../../utils/pageBreaks';
 import { AV_BLOCK_RULE_ID } from '../../stores/formattingTypes';
@@ -70,7 +71,11 @@ export function buildElementNumberDecorations(
   const decorations: Decoration[] = [];
   found.forEach((f, i) => {
     const label = labels[i];
-    if (label != null) decorations.push(Decoration.node(f.from, f.to, { 'data-element-number': label }));
+    if (label == null) return;
+    // An inline number (PANEL 3) is drawn as the start of the line, not in the
+    // margin — a different attribute, so the margin rule never picks it up.
+    const attr = isInlineNumbering(rules[f.item.elementId]) ? 'data-element-label' : 'data-element-number';
+    decorations.push(Decoration.node(f.from, f.to, { [attr]: label }));
   });
   return decorations.length ? DecorationSet.create(doc, decorations) : DecorationSet.empty;
 }

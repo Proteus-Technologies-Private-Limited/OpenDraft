@@ -11,6 +11,7 @@ import type { JSONContent } from '@tiptap/react';
 import { jsonBlockText, singleLine } from './nodeText';
 import { parseHeading } from './scriptStatistics';
 import { cueName } from './scriptReports';
+import type { PdfPageSelection } from './pdfExporter';
 
 export interface SceneRange {
   /** Position among the scenes, from 0. */
@@ -114,6 +115,67 @@ export function scenesWithCharacter(doc: JSONContent, character: string): number
       return false;
     })
     .map((r) => r.index);
+}
+
+/** What the Sides dialog was asked for, before it is turned into pages. */
+export type PageChoice =
+  | { mode: 'sides'; scenes: ReadonlySet<number>; crossOut: boolean }
+  | { mode: 'character'; character: string }
+  | { mode: 'location'; location: string }
+  | { mode: 'tag'; label: string; tagIds: string[] };
+
+/** A choice made into what the exporter takes, and the words for the file's name. */
+export interface BuiltPageSelection {
+  selection: PdfPageSelection;
+  /** Appended to the script's title: "Sides (Sc. 4, 7)", "Pages with MAYA". */
+  suffix: string;
+}
+
+/**
+ * The page selection for a choice — the same for export and for print, so
+ * what comes off the printer is what would have been saved. Null when the
+ * choice is not complete yet (no scene ticked, no character to pick).
+ */
+export function buildPageSelection(
+  doc: JSONContent, choice: PageChoice, options: { twoUp?: boolean } = {},
+): BuiltPageSelection | null {
+  const built = ((): BuiltPageSelection | null => {
+    switch (choice.mode) {
+      case 'sides': {
+        if (choice.scenes.size === 0) return null;
+        const numbers = sceneRanges(doc).filter((s) => choice.scenes.has(s.index)).map((s) => s.number);
+        if (numbers.length === 0) return null;
+        return {
+          selection: {
+            keep: keepScenes(doc, choice.scenes),
+            crossOutOthers: choice.crossOut,
+            emptyMessage: 'The chosen scenes are empty.',
+          },
+          suffix: `Sides (Sc. ${numbers.join(', ')})`,
+        };
+      }
+      case 'character':
+        if (!choice.character) return null;
+        return {
+          selection: { keep: keepCharacter(doc, choice.character), emptyMessage: `${choice.character} has no lines in this script.` },
+          suffix: `Pages with ${choice.character}`,
+        };
+      case 'location':
+        if (!choice.location) return null;
+        return {
+          selection: { keep: keepLocation(doc, choice.location), emptyMessage: `No scene is set at ${choice.location}.` },
+          suffix: `Pages at ${choice.location}`,
+        };
+      case 'tag':
+        if (!choice.label || choice.tagIds.length === 0) return null;
+        return {
+          selection: { keep: keepTags(doc, choice.tagIds), emptyMessage: `Nothing in the script is tagged ${choice.label}.` },
+          suffix: `Pages with ${choice.label.replace(/:/g, ' -')}`,
+        };
+    }
+  })();
+  if (!built || !options.twoUp) return built;
+  return { selection: { ...built.selection, twoUp: true }, suffix: `${built.suffix} 2-up` };
 }
 
 /** Every speaking character, in order of first appearance. */

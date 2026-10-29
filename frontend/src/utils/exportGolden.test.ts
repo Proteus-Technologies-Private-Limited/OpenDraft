@@ -415,6 +415,91 @@ describe('golden export: podcast, numbering on', () => {
   });
 });
 
+// ── Comic book: inline page and panel numbers ───────────────────────────
+//
+// A format whose numbers are part of the line (PAGE ONE, PANEL 3) prints them
+// as text at the start of the line in PDF, Word and an exported Final Draft
+// file, and keeps margin numbers for the lettering beside them.
+
+const { COMIC_ID, COMIC_PAGE, COMIC_PANEL, COMIC_CAPTION } = await import('../stores/templates/comicTemplate');
+
+const emptyCustom = (id: string, label: string): JSONContent =>
+  ({ type: 'customElement', attrs: { customTypeId: id, customLabel: label } });
+
+const comic: JSONContent = doc(
+  custom(COMIC_PAGE, 'Page', '(TWO PANELS)'),
+  emptyCustom(COMIC_PANEL, 'Panel'),
+  block('action', 'Wide on the lighthouse. Night.'),
+  custom(COMIC_CAPTION, 'Caption', 'CAPTION: The northern coast.'),
+  ...speech('MARA', 'Twenty years.'),
+  emptyCustom(COMIC_PANEL, 'Panel'),
+  ...speech('MARA (WHISPER)', 'Until tonight.'),
+  emptyCustom(COMIC_PAGE, 'Page'),
+  emptyCustom(COMIC_PANEL, 'Panel'),
+  ...speech('KEEPER', 'Run.'),
+);
+
+/** The text drawn on the PDF, in order, with each new sheet as `--page--`. */
+function drawnText(cs: string[]): string[] {
+  return cs
+    .filter((c) => c.startsWith('text(') || c.startsWith('addPage'))
+    .map((c) => (c.startsWith('addPage')
+      ? '--page--'
+      : JSON.parse(/^text\(("(?:[^"\\]|\\.)*")/.exec(c)?.[1] ?? 'null') as string));
+}
+
+describe('golden export: comic book, numbering on', () => {
+  beforeEach(() => {
+    useFormattingTemplateStore.setState({ activeTemplateId: COMIC_ID });
+  });
+
+  it('PDF: pages and panels print as their own lines, every comic page on a new sheet', async () => {
+    const out = await pdfCalls(comic, true);
+    const text = drawnText(out);
+    expect(text).toEqual(expect.arrayContaining(['PAGE ONE (TWO PANELS)', 'PANEL 1', 'PANEL 2', 'PAGE TWO']));
+    // Lettering numbers in the margin, starting again on the second page.
+    expect(text.filter((t) => /^\d+$/.test(t))).toEqual(['1', '2', '3', '1']);
+    // PAGE TWO opens a fresh sheet.
+    expect(text[text.indexOf('PAGE TWO') - 1]).toBe('--page--');
+    await expect(out.join('\n') + '\n').toMatchFileSnapshot(SNAP('comic-numbered', 'pdf.txt'));
+  });
+
+  it('PDF: with numbers hidden the headings print as written, unnumbered', async () => {
+    const text = drawnText(await pdfCalls(comic, false));
+    expect(text).toContain('(TWO PANELS)');
+    expect(text.some((t) => /PAGE ONE|PANEL \d/.test(t))).toBe(false);
+  });
+
+  it('FDX: the headings carry their number as text; lettering is each paragraph\'s Number', async () => {
+    const out = exportFDX(comic, 'Golden', undefined, undefined, undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined, { sceneNumbersVisible: true, elementNumbersVisible: true });
+    const errors: string[] = [];
+    const xml = new XmldomDOMParser({ onError: (level: string, msg: string) => { if (level !== 'warning') errors.push(msg); } })
+      .parseFromString(out, 'text/xml');
+    expect(errors).toEqual([]);
+    const paragraphs = Array.from(xml.getElementsByTagName('Paragraph'));
+    expect(paragraphs.map((p) => p.textContent?.trim()))
+      .toEqual(expect.arrayContaining(['PAGE ONE (TWO PANELS)', 'PANEL 1', 'PANEL 2', 'PAGE TWO']));
+    expect(paragraphs.map((p) => p.getAttribute('Number')).filter((n): n is string => !!n)).toEqual(['1', '2', '3', '1']);
+    await expect(out).toMatchFileSnapshot(SNAP('comic-numbered', 'fdx'));
+  });
+
+  it('DOCX: the headings carry their number as text; lettering hangs in the margin', async () => {
+    await exportDocx(comic, 'Golden', DEFAULT_PAGE_LAYOUT, { elementNumbersVisible: true, sceneNumbersVisible: true });
+    const xml = await docxXmlFromSaved();
+    for (const t of ['PAGE ONE (TWO PANELS)', 'PANEL 1', 'PANEL 2', 'PAGE TWO']) expect(xml).toContain(t);
+    expect(xml.split('<w:p>').slice(1).filter((p) => p.includes('w:hanging='))).toHaveLength(4);
+    await expect(xml).toMatchFileSnapshot(SNAP('comic-numbered', 'docx.xml'));
+  });
+
+  it('Fountain: written as the podcast format is, without numbers', () => {
+    const out = exportFountain(comic, { sceneNumbersVisible: true });
+    expect(out).toContain('(TWO PANELS)');
+    expect(out).toContain('CAPTION: The northern coast.');
+    expect(out).not.toMatch(/PAGE ONE|PANEL \d/);
+  });
+});
+
 async function docxXmlFromSaved(): Promise<string> {
   const bytes = saved.buf;
   if (!bytes) throw new Error('exportDocx wrote nothing');

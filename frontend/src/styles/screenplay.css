@@ -14355,3 +14355,264 @@ html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }
 @media (max-width: 600px) {
   .story-timeline-labels { flex-basis: 140px; }
 }
+
+/* ── Scene alternates (editor/sceneAlternates, editor/extensions/Alternates) ──
+   The ‹ Scene 2/3 › chip of a scene that has other versions. The same chip as
+   a line's (.alternate-chip, which also hides it in print and pulls it in on a
+   phone), wider for its label, and lifted one line into the space above the
+   heading: the heading's own line has the scene numbers in both margins.
+   It hangs in the LEFT margin: "Scene 12/12" needs about 0.9in and the right
+   margin beside a heading is under 0.8in, so on the right it ran off the
+   page. The left margin is 1.5in, and the line above a heading is blank there
+   (the bookmark flag and left scene number sit on the heading's own line).
+   The offset is on the float only — the heading itself stays unpositioned,
+   for the revision asterisks' sake. */
+.alternate-chip.scene-alternate-chip {
+  float: left;
+  width: 0.9in;
+  margin-right: 0;
+  margin-left: calc(-0.9in - 0.2in);
+  position: relative;
+  top: -1.25em;
+}
+.page.phone-view .alternate-chip.scene-alternate-chip {
+  float: right;
+  width: auto;
+  margin-right: 0;
+  margin-left: 4px;
+  top: 0;
+}
+/* ============ PDF IMPORT PREVIEW (components/PdfImportPreview.tsx) ============
+   Shown between reading a PDF and replacing the open script with it. The
+   list scrolls on its own and is windowed: rows are absolutely placed inside
+   a spacer as tall as the whole list, at the height the component uses
+   (28px, or 44px on html.phone — keep the two in step). */
+.pdf-review-dialog { max-width: 880px; width: 100%; height: calc(var(--vv-height, 100dvh) - 5vh - 32px); }
+.pdf-review-file { margin-left: 8px; font-weight: 400; font-size: 13px; color: var(--fd-text-muted); overflow-wrap: anywhere; }
+.pdf-review-body { display: flex; flex-direction: column; gap: 10px; overflow: hidden; padding: 14px 20px; min-height: 0; }
+.pdf-review-help { margin: 0; font-size: 12px; color: var(--fd-text-muted); line-height: 1.4; }
+.pdf-review-warning { margin: 0; font-size: 12px; color: #d97706; }
+.pdf-review-toolbar, .pdf-review-apply { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--fd-text); }
+.pdf-review-select-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.pdf-review-toolbar .dialog-btn, .pdf-review-apply .dialog-btn { height: 30px; padding: 0 12px; font-size: 13px; }
+.pdf-review-toolbar .dialog-btn:disabled, .pdf-review-apply .dialog-btn:disabled { opacity: .5; cursor: default; }
+.pdf-review-range.active { border-color: var(--fd-accent); color: var(--fd-accent); }
+.pdf-review-filter, .pdf-review-settype { display: flex; align-items: center; gap: 6px; }
+.pdf-review-filter .od-select, .pdf-review-settype .od-select {
+  height: 30px; padding: 0 8px; background: var(--fd-input-bg); color: var(--fd-text);
+  border: 1px solid var(--fd-border); border-radius: 4px; font-size: 13px; max-width: 100%;
+}
+.pdf-review-list {
+  flex: 1 1 auto; min-height: 160px; overflow-y: auto; position: relative;
+  border: 1px solid var(--fd-border); border-radius: 4px; background: var(--fd-input-bg); outline: none;
+}
+.pdf-review-list:focus-visible { border-color: var(--fd-accent); }
+.pdf-review-spacer { position: relative; }
+.pdf-review-empty { margin: 12px; font-size: 13px; color: var(--fd-text-muted); }
+.pdf-review-row {
+  position: absolute; left: 0; right: 0; box-sizing: border-box;
+  display: flex; align-items: center; gap: 8px; padding: 0 10px;
+  font-size: 13px; color: var(--fd-text); cursor: default; user-select: none;
+  border-bottom: 1px solid var(--fd-overlay-subtle);
+}
+.pdf-review-row:hover { background: var(--fd-overlay-light); }
+.pdf-review-row.selected { background: var(--fd-accent-bg, rgba(59,130,246,0.2)); }
+.pdf-review-row.locked { color: var(--fd-text-muted); }
+.pdf-review-row input[type="checkbox"] { margin: 0; flex-shrink: 0; }
+.pdf-review-scene { width: 2.5em; flex-shrink: 0; text-align: right; color: var(--fd-text-muted); font-variant-numeric: tabular-nums; }
+.pdf-review-type { width: 7.5em; flex-shrink: 0; font-size: 12px; color: var(--fd-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pdf-review-type-sceneHeading { color: var(--fd-text); font-weight: 600; }
+.pdf-review-row.changed .pdf-review-type { color: var(--fd-accent); font-weight: 600; }
+.pdf-review-text {
+  flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--screenplay-font, 'Courier Prime', 'Courier New', monospace);
+}
+.pdf-review-text-sceneHeading { font-weight: 700; }
+.pdf-review-text-character, .pdf-review-text-transition { padding-left: 2em; }
+.pdf-review-text-dialogue, .pdf-review-text-parenthetical { padding-left: 1em; }
+.pdf-review-meta { flex-shrink: 0; font-size: 11px; color: var(--fd-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pdf-review-count { min-width: 6em; color: var(--fd-text-muted); }
+.pdf-review-summary { margin-right: auto; align-self: center; font-size: 12px; color: var(--fd-text-muted); }
+
+/* Phones: full bleed like the manual — the ≤480px dialog sheet would cap the
+   list at a few rows — and room for a thumb. No shift or ⌘ here, so the
+   checkboxes and "Range…" are how several lines get selected. */
+@media (max-width: 600px) {
+  .dialog-box.pdf-review-dialog {
+    position: fixed; top: 0; left: 0;
+    width: 100vw !important; min-width: 0; max-width: none !important;
+    height: var(--vv-height, 100dvh); max-height: var(--vv-height, 100dvh);
+    border-radius: 0; border: none; overflow: hidden;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pdf-review-body { padding: 10px 12px; }
+  .pdf-review-help, .pdf-review-meta { display: none; }
+  .pdf-review-scene { width: 2em; }
+  .pdf-review-type { width: 6.5em; }
+}
+html.phone .pdf-review-row { font-size: 14px; gap: 10px; }
+html.phone .pdf-review-row input[type="checkbox"] { width: 20px; height: 20px; }
+html.phone .pdf-review-toolbar .dialog-btn, html.phone .pdf-review-apply .dialog-btn,
+html.phone .pdf-review-filter .od-select, html.phone .pdf-review-settype .od-select { height: 40px; font-size: 15px; }
+/* ============ INLINE ELEMENT NUMBERS ============
+   An element a format numbers inline — a comic script's PAGE ONE and PANEL 3
+   (stores/templates/comicTemplate.ts) — shows its number as the start of the
+   line, not in the margin. The attribute is a decoration
+   (editor/extensions/ElementNumbers), never in the document, so the number is
+   not something the writer can type over or delete.
+
+   Specific enough to beat a template's own empty-line placeholder, which is
+   the same ::before on the same element: a Panel with no text yet reads
+   "PANEL 3", not its placeholder. Every placeholder property is undone so the
+   number is set in the element's own ink and sits on the line. Left on in
+   phone view, unlike the margin numbers: it is the line's own text, not
+   something hanging in a margin the phone does not have. */
+.show-element-numbers div.screenplay-element[data-element-label][data-element-label]::before {
+  content: attr(data-element-label) " ";
+  float: none;
+  height: auto;
+  color: inherit;
+  font-style: inherit;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Beats linked to scenes (utils/beatScenes) ─────────────────────────────
+   Linked-scene chips and the scene picker on a Beat Board card, and the
+   Beats row in the Story Timeline. */
+.beat-card-scenes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 0 8px 4px;
+  /* A long scene heading must shorten its chip, not widen the card — on a
+     phone it pushed the card past the column's edge. The card is as wide as
+     its content, so the chip row is left out of that measurement and takes
+     whatever width the card already has. */
+  min-width: 0;
+  contain: inline-size;
+}
+.beat-card { min-width: 0; }
+.beat-scene-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  font-size: 10px;
+  line-height: 16px;
+  padding: 0 6px;
+  border: 1px solid var(--fd-border);
+  border-radius: 8px;
+  background: var(--fd-input-bg);
+  color: var(--fd-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.beat-scene-chip { min-width: 0; flex: 0 1 auto; }
+.beat-scene-chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-accent); }
+.beat-scene-chip-missing {
+  border-style: dashed;
+  color: var(--fd-text-muted);
+  font-style: italic;
+  cursor: default;
+}
+.beat-scene-chip-remove {
+  background: none;
+  border: none;
+  padding: 0 0 0 2px;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.beat-scene-chip-remove:hover { color: #ff6b6b; }
+.beat-toolbar-btn.beat-toolbar-btn-on { color: var(--fd-accent); }
+/* Portalled to <body> and placed by BeatBoard (fixed, beside its button), so
+   no column or card can clip it. */
+.beat-scene-picker {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 4px 0;
+  background: var(--fd-dropdown-bg);
+  border: 1px solid var(--fd-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 10000;
+}
+.beat-scene-picker-title {
+  padding: 2px 10px 4px;
+  font-size: 11px;
+  color: var(--fd-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.beat-scene-picker-filter {
+  display: block;
+  width: calc(100% - 16px);
+  margin: 0 8px 4px;
+  padding: 3px 6px;
+  font-size: 12px;
+  background: var(--fd-input-bg);
+  color: var(--fd-text);
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+.beat-scene-picker-list {
+  max-height: 240px;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+.beat-scene-picker-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.beat-scene-picker-empty {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--fd-text-muted);
+  font-style: italic;
+}
+.story-timeline-beats-label {
+  height: 28px;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--fd-text-muted);
+}
+.story-timeline-beats { height: 28px; }
+.story-timeline-beat-cell {
+  height: 22px;
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+  border: 1px solid var(--fd-border);
+  border-radius: 3px;
+  background: var(--fd-input-bg);
+  cursor: pointer;
+}
+.story-timeline-beat-cell:hover { border-color: var(--fd-accent); }
+.story-timeline-beat-cell.empty {
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+}
+.story-timeline-beat {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--fd-accent);
+}
+.story-timeline-beat-more {
+  font-size: 9px;
+  color: var(--fd-text-muted);
+}

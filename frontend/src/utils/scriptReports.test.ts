@@ -109,6 +109,10 @@ describe('formatting', () => {
   it('reads cues without their extensions', () => {
     expect(cueName("maya (v.o.) (cont'd)")).toBe('MAYA');
     expect(cueName('DR. SMITH (O.S.)')).toBe('DR. SMITH');
+    // A comic script's balloon types.
+    expect(cueName('MARA (WHISPER)')).toBe('MARA');
+    expect(cueName('ROBOT (ELECTRONIC)')).toBe('ROBOT');
+    expect(cueName('KEEPER (OFF) (THOUGHT)')).toBe('KEEPER');
   });
 
   it('writes CSV a spreadsheet opens safely', () => {

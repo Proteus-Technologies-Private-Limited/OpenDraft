@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import type { Editor } from '@tiptap/react';
 import {
   DndContext,
   closestCenter,
@@ -24,6 +26,37 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useEditorStore, type BeatInfo, type BeatLinkPreview } from '../stores/editorStore';
 import { api } from '../services/api';
+import {
+  beatSceneIds,
+  ensureSceneUid,
+  findSceneByUid,
+  linkableScenes,
+  resolveBeatScenes,
+  toggleBeatScene,
+  type LinkableScene,
+} from '../utils/beatScenes';
+import { showToast } from './Toast';
+
+/* ─── Linked scenes (utils/beatScenes) ─── */
+interface BeatScenesApi {
+  /** The script's scenes; empty when the board has no editor to read. */
+  scenes: LinkableScene[];
+  /** Whether linking can give a scene the id it needs. */
+  canLink: boolean;
+  toggleScene: (beatId: string, scene: LinkableScene) => void;
+  removeLink: (beatId: string, sceneId: string) => void;
+  goToScene: (sceneId: string) => void;
+}
+
+const BeatScenesContext = createContext<BeatScenesApi>({
+  scenes: [],
+  canLink: false,
+  toggleScene: () => {},
+  removeLink: () => {},
+  goToScene: () => {},
+});
+
+const sceneLabel = (s: LinkableScene) => `${s.number}. ${s.heading}`;
 
 const BEAT_COLORS = [
   '', '#8b5cf6', '#4f46e5', '#2563eb', '#059669',
@@ -241,6 +274,65 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
     const ids = beat.plotlineIds ?? [];
     onUpdate(beat.id, { plotlineIds: ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id] });
   };
+  const sceneLinks = useContext(BeatScenesContext);
+  const [showScenes, setShowScenes] = useState(false);
+  const [sceneFilter, setSceneFilter] = useState('');
+  /**
+   * Where the scene picker sits, fixed to the viewport and worked out once when
+   * it opens. Drawn inside the card it was clipped by the column (it opened up
+   * into the column header), and it rode along with its button — ticking a
+   * scene adds a chip row above the button, so the list moved under the finger
+   * and the next tap landed on the wrong scene. Fixed and portalled, it stays
+   * where it opened while the card grows underneath it.
+   */
+  const [scenePickerPos, setScenePickerPos] = useState<React.CSSProperties | null>(null);
+  const sceneBtnRef = useRef<HTMLButtonElement>(null);
+  const scenePickerRef = useRef<HTMLDivElement>(null);
+  const closeScenePicker = useCallback(() => { setShowScenes(false); setScenePickerPos(null); }, []);
+  const toggleScenePicker = () => {
+    if (showScenes) { closeScenePicker(); return; }
+    const btn = sceneBtnRef.current;
+    if (!btn) return;
+    const r = btn.getBoundingClientRect();
+    const width = Math.min(260, window.innerWidth - 16);
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
+    // Below the button when the list fits there, otherwise above it.
+    const below = window.innerHeight - r.bottom >= 300 || r.top < 300;
+    setScenePickerPos(below
+      ? { position: 'fixed', top: r.bottom + 4, left, width, maxHeight: window.innerHeight - r.bottom - 12 }
+      : { position: 'fixed', bottom: window.innerHeight - r.top + 4, left, width, maxHeight: r.top - 12 });
+    setSceneFilter('');
+    setShowScenes(true);
+  };
+  // Close on a click or tap outside, on Esc, and when the board scrolls (the
+  // list is fixed to where the button was).
+  useEffect(() => {
+    if (!showScenes) return;
+    const inside = (t: EventTarget | null) =>
+      t instanceof Node && (!!scenePickerRef.current?.contains(t) || !!sceneBtnRef.current?.contains(t));
+    const onDown = (e: PointerEvent) => { if (!inside(e.target)) closeScenePicker(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); closeScenePicker(); } };
+    const onScroll = (e: Event) => { if (!inside(e.target)) closeScenePicker(); };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey, true);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', closeScenePicker);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', closeScenePicker);
+    };
+  }, [showScenes, closeScenePicker]);
+  const linkedIds = beatSceneIds(beat);
+  const { linked: linkedScenes, missing: missingScenes } = useMemo(
+    () => resolveBeatScenes(beat, sceneLinks.scenes),
+    [beat, sceneLinks.scenes],
+  );
+  const pickableScenes = useMemo(() => {
+    const q = sceneFilter.trim().toLowerCase();
+    return q ? sceneLinks.scenes.filter((s) => sceneLabel(s).toLowerCase().includes(q)) : sceneLinks.scenes;
+  }, [sceneLinks.scenes, sceneFilter]);
   const [descFocused, setDescFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const descHeightRef = useRef<number | null>(null);
@@ -463,6 +555,36 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
         </div>
       )}
 
+      {(linkedScenes.length > 0 || missingScenes.length > 0) && (
+        <div className="beat-card-scenes">
+          {linkedScenes.map((s) => (
+            <button
+              key={s.uid!}
+              className="beat-scene-chip"
+              onClick={() => sceneLinks.goToScene(s.uid!)}
+              title={`Go to scene ${sceneLabel(s)}`}
+            >
+              <span className="beat-scene-chip-label">{sceneLabel(s)}</span>
+            </button>
+          ))}
+          {missingScenes.map((id) => (
+            <span
+              key={id}
+              className="beat-scene-chip beat-scene-chip-missing"
+              title="The scene this beat was linked to is no longer in the script. Undoing its deletion brings the link back."
+            >
+              Scene deleted
+              <button
+                className="beat-scene-chip-remove"
+                onClick={() => sceneLinks.removeLink(beat.id, id)}
+                title="Remove this link"
+                aria-label="Remove link to deleted scene"
+              >&times;</button>
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="beat-card-toolbar" style={{ marginTop: 'auto' }}>
         <div className="beat-color-picker-wrap">
           <button
@@ -508,6 +630,63 @@ const BeatCardContent: React.FC<BeatCardContentProps> = ({
                   </label>
                 ))}
               </div>
+            )}
+          </div>
+        )}
+        {sceneLinks.canLink && (
+          <div className="beat-color-picker-wrap">
+            <button
+              ref={sceneBtnRef}
+              className={`beat-toolbar-btn${linkedIds.length ? ' beat-toolbar-btn-on' : ''}`}
+              onClick={toggleScenePicker}
+              title="Linked scenes"
+              aria-label="Linked scenes"
+              aria-expanded={showScenes}
+            >&#127916;</button>
+            {showScenes && scenePickerPos && createPortal(
+              <div
+                ref={scenePickerRef}
+                className="beat-scene-picker"
+                role="group"
+                aria-label="Linked scenes"
+                style={scenePickerPos}
+                // The card under it is draggable; keep presses here from starting a drag.
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <div className="beat-scene-picker-title">Linked scenes</div>
+                {sceneLinks.scenes.length === 0 ? (
+                  <div className="beat-scene-picker-empty">No scenes in the script yet.</div>
+                ) : (
+                  <>
+                    {sceneLinks.scenes.length > 8 && (
+                      <input
+                        className="beat-scene-picker-filter"
+                        value={sceneFilter}
+                        onChange={(e) => setSceneFilter(e.target.value)}
+                        placeholder="Find a scene..."
+                        aria-label="Find a scene"
+                        autoFocus
+                      />
+                    )}
+                    <div className="beat-scene-picker-list">
+                      {pickableScenes.map((s) => (
+                        <label key={s.pos} className="beat-plotline-option" title={sceneLabel(s)}>
+                          <input
+                            type="checkbox"
+                            checked={!!s.uid && linkedIds.includes(s.uid)}
+                            onChange={() => sceneLinks.toggleScene(beat.id, s)}
+                          />
+                          <span className="beat-scene-picker-label">{sceneLabel(s)}</span>
+                        </label>
+                      ))}
+                      {pickableScenes.length === 0 && (
+                        <div className="beat-scene-picker-empty">No scene matches.</div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>,
+              document.body,
             )}
           </div>
         )}
@@ -678,7 +857,13 @@ const beatCollisionDetection: CollisionDetection = (args) => {
 };
 
 /* ─── Main Beat Board ─── */
-const BeatBoard: React.FC = () => {
+interface BeatBoardProps {
+  /** The script's editor, for linking beats to its scenes. Without one the
+   *  board works as before, minus scene links. */
+  editor?: Editor | null;
+}
+
+const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
   const {
     beats, beatBoardOpen, beatColumns, beatArrangeMode,
     addBeat, updateBeat, deleteBeat, setBeats,
@@ -686,6 +871,86 @@ const BeatBoard: React.FC = () => {
     setBeatArrangeMode, toggleBeatBoard,
     beatUndo, beatRedo,
   } = useEditorStore();
+
+  // The script's scenes, kept current while the board is open — a
+  // collaborator can add or move scenes meanwhile. Watched through
+  // 'transaction', not 'update': loading a script sets its content without an
+  // update event, so a board already open when the app started (the panel is
+  // restored) kept the empty document's scene list and showed every linked
+  // scene as deleted.
+  const [docVersion, setDocVersion] = useState(0);
+  useEffect(() => {
+    if (!editor || !beatBoardOpen) return;
+    const bump = ({ transaction }: { transaction: { docChanged: boolean } }) => {
+      if (transaction.docChanged) setDocVersion((v) => v + 1);
+    };
+    editor.on('transaction', bump);
+    // The document may have changed while the board was closed.
+    setDocVersion((v) => v + 1);
+    return () => { editor.off('transaction', bump); };
+  }, [editor, beatBoardOpen]);
+  const scenes = useMemo<LinkableScene[]>(
+    () => (editor && !editor.isDestroyed && beatBoardOpen ? linkableScenes(editor.state.doc) : []),
+    // docVersion stands for editor.state.doc, which is not a React value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [editor, docVersion, beatBoardOpen],
+  );
+
+  const sceneLinks = useMemo<BeatScenesApi>(() => ({
+    scenes,
+    canLink: !!editor && !editor.isDestroyed,
+    toggleScene: (beatId, scene) => {
+      if (!editor || editor.isDestroyed) return;
+      const beat = useEditorStore.getState().beats.find((b) => b.id === beatId);
+      if (!beat) return;
+      try {
+        let uid = scene.uid;
+        if (!uid) {
+          // First link to this scene: its heading needs an id.
+          if (!editor.isEditable) {
+            showToast('This script is read-only, so a beat cannot be linked to a new scene.', 'error');
+            return;
+          }
+          const given = ensureSceneUid(editor.state, scene.pos);
+          if (!given) {
+            showToast('That scene has moved. Open the list again and pick it.', 'error');
+            return;
+          }
+          if (given.tr) editor.view.dispatch(given.tr);
+          uid = given.uid;
+        }
+        updateBeat(beatId, { sceneIds: toggleBeatScene(beat, uid) });
+      } catch (err) {
+        console.error('[BeatBoard] could not link the beat to the scene', err);
+        showToast('Could not link the beat to that scene.', 'error');
+      }
+    },
+    removeLink: (beatId, sceneId) => {
+      const beat = useEditorStore.getState().beats.find((b) => b.id === beatId);
+      if (!beat) return;
+      updateBeat(beatId, { sceneIds: beatSceneIds(beat).filter((id) => id !== sceneId) });
+    },
+    goToScene: (sceneId) => {
+      if (!editor || editor.isDestroyed) return;
+      if (!findSceneByUid(editor.state.doc, sceneId)) {
+        showToast('That scene is no longer in the script.', 'info');
+        return;
+      }
+      // The board stands in for the script; close it, then go to the scene
+      // once the script is back on screen.
+      if (useEditorStore.getState().beatBoardOpen) toggleBeatBoard();
+      setTimeout(() => requestAnimationFrame(() => {
+        if (editor.isDestroyed) return;
+        const scene = findSceneByUid(editor.state.doc, sceneId);
+        if (!scene) return;
+        try {
+          editor.chain().focus().setTextSelection(scene.pos + 1).scrollIntoView().run();
+        } catch (err) {
+          console.error('[BeatBoard] could not go to the linked scene', err);
+        }
+      }), 0);
+    },
+  }), [editor, scenes, updateBeat, toggleBeatBoard]);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -799,6 +1064,7 @@ const BeatBoard: React.FC = () => {
   if (!beatBoardOpen) return null;
 
   return (
+    <BeatScenesContext.Provider value={sceneLinks}>
     <div className="beat-board" ref={boardRef}>
       <div className="beat-board-header">
         <span className="beat-board-title">Beat Board</span>
@@ -871,6 +1137,7 @@ const BeatBoard: React.FC = () => {
         />
       )}
     </div>
+    </BeatScenesContext.Provider>
   );
 };
 

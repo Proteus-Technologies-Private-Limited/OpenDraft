@@ -13,7 +13,7 @@ import {
   FaPlus, FaTrash,
 } from 'react-icons/fa';
 import type { FormattingTemplate, FormattingElementRule, ElementNumbering } from '../stores/formattingTypes';
-import { isNumberableElementId, resetElementIds } from '../utils/elementNumbers';
+import { isNumberableElementId, resetElementIds, numberInWords, isInlineNumbering } from '../utils/elementNumbers';
 import { createDefaultRule, AV_BLOCK_RULE_ID, type AvCellPlacement } from '../stores/formattingTypes';
 import { avPlacementOf } from '../utils/avCellElements';
 import { AV_BASE_CELL_ELEMENT_IDS, AV_SCREENPLAY_CELL_ELEMENT_IDS } from '../editor/extensions/AvBlock';
@@ -48,16 +48,22 @@ function withoutStaleResets(rules: Record<string, FormattingElementRule>): Recor
 
 /** "SFX 1, SFX 2, SFX 3 … starting again at every Scene Heading." */
 function numberingSummary(n: ElementNumbering, rules: Record<string, FormattingElementRule>): string {
-  const start = n.startAt ?? 1;
+  // Counting with another element: that element's start and restarts apply.
+  const owner = n.countWith && rules[n.countWith]?.numbering?.enabled && !rules[n.countWith].numbering?.countWith
+    ? rules[n.countWith] : null;
+  const counting = owner?.numbering ?? n;
+  const start = counting.startAt ?? 1;
   const sample = [start, start + 1, start + 2]
-    .map((k) => `${n.prefix ?? ''}${n.style === 'scene' ? `12.${k}` : k}`)
+    .map((k) => `${n.prefix ?? ''}${n.style === 'scene' ? `12.${k}` : n.style === 'words' ? numberInWords(k) : k}`)
     .join(', ');
-  const resets = n.resetOn.filter((id) => rules[id]).map((id) => rules[id].label);
+  const resets = counting.resetOn.filter((id) => rules[id]).map((id) => rules[id].label);
   const when = resets.length === 0
-    ? 'counting through the whole script.'
-    : `starting again at every ${resets.join(' or ')}.`;
+    ? 'counting through the whole script'
+    : `starting again at every ${resets.join(' or ')}`;
+  const shared = owner ? `, in one count with every “${owner.label}”.` : '.';
   const scene = n.style === 'scene' ? ' Plain numbers where there is no scene number to show.' : '';
-  return `${sample} … ${when}${scene}`;
+  const where = isInlineNumbering(n) ? ' Shown as the start of the line, even before anything is typed on it.' : '';
+  return `${sample} … ${when}${shared}${scene}${where}`;
 }
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
@@ -605,10 +611,38 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                             <Select
                               className="dialog-input"
                               value={numbering.style ?? 'plain'}
-                              onChange={(e) => updateNumbering({ style: e.target.value as 'plain' | 'scene' })}
+                              onChange={(e) => updateNumbering({ style: e.target.value as 'plain' | 'scene' | 'words' })}
                             >
                               <option value="plain">Plain (3)</option>
                               <option value="scene">With scene number (12.3)</option>
+                              <option value="words">In words (THREE)</option>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="template-editor-field-row">
+                          <div className="template-editor-field">
+                            <label>Show the number</label>
+                            <Select
+                              className="dialog-input"
+                              value={numbering.placement ?? 'margin'}
+                              onChange={(e) => updateNumbering({ placement: e.target.value as 'margin' | 'inline' })}
+                            >
+                              <option value="margin">In the margin</option>
+                              <option value="inline">At the start of the line</option>
+                            </Select>
+                          </div>
+                          <div className="template-editor-field">
+                            <label>Count with</label>
+                            <Select
+                              className="dialog-input"
+                              value={numbering.countWith ?? ''}
+                              onChange={(e) => updateNumbering({ countWith: e.target.value || undefined })}
+                            >
+                              <option value="">Its own count</option>
+                              {Object.keys(rules)
+                                .filter((id) => id !== selectedRule.id && rules[id].enabled
+                                  && rules[id].numbering?.enabled && !rules[id].numbering?.countWith)
+                                .map((id) => <option key={id} value={id}>{rules[id].label}</option>)}
                             </Select>
                           </div>
                         </div>

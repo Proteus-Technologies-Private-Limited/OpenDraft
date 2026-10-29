@@ -54,10 +54,11 @@ export interface BuiltInReport {
   build: (input: ReportInput) => ReportTable;
 }
 
-/** A character cue without the extensions that do not change who is talking. */
+/** A character cue without the extensions that do not change who is talking —
+ *  a comic script's balloon types (OFF), (WHISPER), (THOUGHT) among them. */
 export function cueName(text: string): string {
   return text.trim().toUpperCase()
-    .replace(/\s*\((?:V\.O\.|O\.S\.|O\.C\.|CONT['’]?D|CONT\.?|CONTINUED|PRE-LAP|FILTERED|ON PHONE|INTO PHONE|SUBTITLED)\)/gi, '')
+    .replace(/\s*\((?:V\.O\.|O\.S\.|O\.C\.|CONT['’]?D|CONT\.?|CONTINUED|PRE-LAP|FILTERED|ON PHONE|INTO PHONE|SUBTITLED|OFF|WHISPER|THOUGHT|ELECTRONIC|BURST)\)/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
 }

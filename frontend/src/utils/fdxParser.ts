@@ -4,6 +4,7 @@ import { isDocumentFont, isDocumentSize } from './fonts';
 import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
 import { DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { parseFDXRevisions, type FDXRevisionImport } from './fdxRevisions';
+import { fdxParagraphAnnotations } from './formatAnnotations';
 
 interface TipTapMark {
   type: string;
@@ -482,6 +483,9 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
 
     const spaceBefore = para.getAttribute('SpaceBefore');
     if (spaceBefore) attrs.spaceBefore = parseInt(spaceBefore, 10);
+
+    // A Final Draft bookmark, and the other versions of a line OpenDraft wrote.
+    Object.assign(attrs, fdxParagraphAnnotations(para, nodeType));
 
     const textElements = para.querySelectorAll(':scope > Text');
     const textNodes: TipTapNode[] = [];

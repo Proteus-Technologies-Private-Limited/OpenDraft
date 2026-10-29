@@ -296,7 +296,9 @@
       <li><strong>Restart numbering at</strong> &mdash; the elements that start the count again at 1. Tick <em>Scene Heading</em> to number the dialogue of each scene on its own, tick several to restart at any of them (a Scene Heading <em>or</em> a New Act), or tick none to count through the whole script.</li>
       <li><strong>Prefix</strong> &mdash; text before the number, such as <code>FX </code> for FX 1, FX 2, FX 3.</li>
       <li><strong>Start at</strong> &mdash; the first number after each restart.</li>
-      <li><strong>Style</strong> &mdash; <em>Plain</em> (3) or <em>With scene number</em> (12.3). The second needs scene numbers to be showing and falls back to plain numbers where there is none.</li>
+      <li><strong>Style</strong> &mdash; <em>Plain</em> (3), <em>With scene number</em> (12.3), or <em>In words</em> (THREE). <em>With scene number</em> needs scene numbers to be showing and falls back to plain numbers where there is none. <em>In words</em> spells the number out in capitals, as comic scripts head their pages: PAGE ONE, PAGE TWENTY-TWO.</li>
+      <li><strong>Show the number</strong> &mdash; <em>In the margin</em> beside the element, or <em>At the start of the line</em>, where the number becomes the line itself: PANEL 3. A line numbered this way is numbered as soon as you make it, even before you type anything on it, and whatever you type follows the number. In PDF, Word and Final Draft exports it prints as part of the line.</li>
+      <li><strong>Count with</strong> &mdash; share another numbered element&rsquo;s count instead of keeping one of its own. A Caption counting with Dialogue numbers captions and balloons 1, 2, 3 in one run; the restarts and start number of the element it counts with apply.</li>
     </ul>
 
     <p>Each numbered element keeps its own count, so dialogue can restart every scene while sound effects count through the whole script. A count restarts only at elements, never at a page break: pages break in different places on screen, in the PDF and in Word, and a number tied to them would give the same line a different number in each.</p>
@@ -309,6 +311,48 @@
       <span class="callout-icon">&#8505;&#65039;</span>
       <div class="callout-content">
         <p><strong>Good to know:</strong> Fountain has no way to write a number beside anything but a scene, so Fountain exports leave element numbers out. Numbering lives in the template, so a script opened on a device that doesn&rsquo;t have your custom template shows no element numbers there &mdash; the built-in Podcast format is on every device.</p>
+      </div>
+    </div>
+
+    <h3 id="comic-book">Comic Book Scripts</h3>
+
+    <p>The built-in <strong>Comic Book</strong> format is for comic book and graphic novel full scripts, laid out the way they are written for publishers: each page of the comic broken into panels, each panel described for the artist, then the captions, balloons and sound effects the letterer places on it. To start one, tick <em>Comic Book</em> (listed under <em>Comics</em>) in <strong>Format &gt; Script Format Preferences&hellip;</strong> and choose it in the format picker when you create a new script; a new script opens with a short sample page to write over.</p>
+
+    <p>Nothing is numbered by hand. The numbers are worked out from the order of the script, so adding, moving or cutting a panel or a page renumbers everything after it:</p>
+    <ul>
+      <li><strong>Page</strong> &mdash; PAGE ONE, PAGE TWO&hellip;, counted through the whole script. Each comic page starts on a new sheet of the script, so the artist can work from one sheet per page of art. Type a note after the number if you like: <code>(SPLASH)</code>, <code>(FIVE PANELS)</code>.</li>
+      <li><strong>Panel</strong> &mdash; PANEL 1, PANEL 2&hellip;, starting again at 1 on every page.</li>
+      <li><strong>Description</strong> &mdash; what the artist draws in the panel.</li>
+      <li><strong>Caption</strong> &mdash; a narration box, typed as <code>CAPTION: &hellip;</code>.</li>
+      <li><strong>Character</strong> and <strong>Balloon (Dialogue)</strong> &mdash; who is speaking and what the balloon says. Add the balloon type to the name: <code>MARA (WHISPER)</code>, <code>KEEPER (OFF)</code>, <code>ROBOT (ELECTRONIC)</code>, <code>MARA (THOUGHT)</code>. Reports still count these as the same character.</li>
+      <li><strong>SFX</strong> &mdash; a lettered sound effect, typed as <code>SFX: &hellip;</code>.</li>
+      <li><strong>Note to Artist</strong> &mdash; an aside for the artist. Unlike an outline Note, it prints.</li>
+    </ul>
+
+    <p>Captions and balloons share one lettering count down each page, shown in the left margin and starting again on every page: the numbers a letterer marks on the art. Sound effects are not lettered.</p>
+
+    <p><strong>Enter</strong> and <strong>Tab</strong> move through the elements in the order a page is written:</p>
+    <table>
+      <thead>
+        <tr><th>From</th><th>Enter</th><th>Tab</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Page</td><td>Panel</td><td>Description</td></tr>
+        <tr><td>Panel</td><td>Description</td><td>Character</td></tr>
+        <tr><td>Description</td><td>Character</td><td>Caption</td></tr>
+        <tr><td>Caption</td><td>Character</td><td>SFX</td></tr>
+        <tr><td>Character</td><td>Balloon</td><td>Parenthetical</td></tr>
+        <tr><td>Balloon</td><td>Character</td><td>Panel</td></tr>
+        <tr><td>SFX</td><td>Panel</td><td>Character</td></tr>
+        <tr><td>Note to Artist</td><td>Description</td><td>Panel</td></tr>
+      </tbody>
+    </table>
+    <p>A Page or Panel with nothing typed on it still reads PAGE ONE or PANEL 3, so pressing Enter on it moves on to the next element rather than opening the element menu.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Good to know:</strong> page, panel and lettering numbers print in PDF and Word exports and in print, and an exported Final Draft file carries PAGE ONE and PANEL 1 as text. Fountain has no comic elements, so a Fountain export leaves the numbers out, as it does for the Podcast format. <strong>Tools &gt; Production &gt; Show Element Numbers</strong> hides all of them at once. The page and panel numbers are not scene numbers, so the Scenes navigator and the scene reports have nothing to list unless you add Scene Headings yourself. To change any of the numbering &mdash; digits instead of words, no new sheet per page &mdash; duplicate the format and edit the copy.</p>
       </div>
     </div>
 

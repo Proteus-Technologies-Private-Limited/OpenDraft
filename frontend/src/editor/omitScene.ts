@@ -52,7 +52,8 @@ export function omitSceneTransaction(state: EditorState, pos: number): Transacti
   if (!range) return null;
   const heading = state.doc.child(range.headingIndex);
   const omitted = heading.type.create(
-    { ...heading.attrs, omitted: true, synopsis: '', timingOverride: null },
+    // Its other versions go with it (editor/sceneAlternates).
+    { ...heading.attrs, omitted: true, synopsis: '', timingOverride: null, sceneAlternates: null, sceneAlternateIndex: 0 },
     state.schema.text(OMITTED_TEXT),
   );
   return state.tr.replaceWith(range.from, range.to, omitted).scrollIntoView();

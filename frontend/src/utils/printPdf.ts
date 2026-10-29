@@ -20,6 +20,7 @@
  * so the file is written out and opened in whatever the system uses for PDFs,
  * and printed from there.
  */
+import type { PrintRoute } from '../services/platform';
 
 /** Where a print landed, for the message the writer is shown afterwards. */
 export type PrintPdfOutcome = 'printed' | 'opened-externally';
@@ -119,4 +120,39 @@ export async function printPDFBytes(
   }
   await printInFrame(bytes);
   return 'printed';
+}
+
+/** Where a PDF sent by `printPDFOnRoute` went, for what the writer is told. */
+export type PdfRouteOutcome = PrintPdfOutcome | 'share-sheet';
+
+/**
+ * Send an already-rendered PDF to the printer by `route` — the same three
+ * routes File → Print takes (see printRoute()) — for the prints that only
+ * ever go as a PDF. Selected pages and sides cannot be cut out of the
+ * editor's own page, so they take this route even where the writer has
+ * Print set to use the page.
+ *
+ * - dialog: the browser's print dialog, or the system PDF viewer on desktop.
+ * - ios-share-sheet: the share sheet, whose Print is AirPrint (issue #97).
+ * - android-print-service: PrintManager, through `android_print_pdf`.
+ *
+ * Throws with the reason when the route fails, so the caller can say so.
+ */
+export async function printPDFOnRoute(
+  bytes: Uint8Array,
+  filename: string,
+  route: PrintRoute,
+  viaSystemViewer: boolean,
+): Promise<PdfRouteOutcome> {
+  if (route === 'ios-share-sheet') {
+    const { saveFile } = await import('./fileOps');
+    await saveFile(bytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
+    return 'share-sheet';
+  }
+  if (route === 'android-print-service') {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('android_print_pdf', { filename, contents: Array.from(bytes) });
+    return 'printed';
+  }
+  return printPDFBytes(bytes, filename, viaSystemViewer);
 }

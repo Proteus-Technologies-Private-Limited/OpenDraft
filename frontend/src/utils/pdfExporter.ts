@@ -44,6 +44,7 @@ import {
 import { noteEntryLabel } from './noteNumbering';
 import { withElementNumbers, elementNumberOf } from './elementNumbers';
 import { noteBlockText } from './noteContent';
+import { composeTwoUp } from './pdfTwoUp';
 
 // --- Constants matching pagination.ts ---
 
@@ -582,6 +583,11 @@ export interface PdfPageSelection {
   crossOutOthers?: boolean;
   /** The error thrown when no page is kept. */
   emptyMessage?: string;
+  /**
+   * Two pages side by side on each landscape sheet, scaled to fit — sides as
+   * they are handed out on set. Each page keeps its own numbers. See pdfTwoUp.
+   */
+  twoUp?: boolean;
 }
 
 /** Resolve dynamic field placeholders in header/footer text. Shared with the
@@ -647,6 +653,8 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   doc = withElementNumbers(doc, {
     visible: options?.elementNumbersVisible === true,
     sceneNumbersVisible: options?.sceneNumbersVisible === true,
+    // An inline number (PANEL 3) prints as the start of its line.
+    inlineAsText: true,
   });
 
   if (!doc || !doc.content || doc.content.length === 0) {
@@ -1626,6 +1634,8 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       if (!keep.has(sheet)) pdf.deletePage(sheet);
     }
   }
+
+  if (selection?.twoUp) composeTwoUp(pdf, pageWidthPt, pageHeightPt);
 
   return {
     bytes: new Uint8Array(pdf.output('arraybuffer')),

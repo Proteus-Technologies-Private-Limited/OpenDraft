@@ -5,7 +5,9 @@
  * screen time (utils/storyTimeline). Click a scene in a row to put it in that
  * plotline or take it out; click a scene number to go to it. Plotlines are
  * named, coloured and removed in the column on the left, which also says how
- * much of the script, and how many beats, each one carries.
+ * much of the script, and how many beats, each one carries. Beats linked to
+ * scenes on the Beat Board (utils/beatScenes) show in a row of their own,
+ * under the scenes they are linked to.
  *
  * A dialog over the editor rather than a view in its place, because putting a
  * scene in a plotline is an edit to its scene heading, and the editor has to
@@ -23,6 +25,7 @@ import {
   type TimelineScene,
 } from '../utils/storyTimeline';
 import { activeTimingOptions, formatSceneDuration } from '../utils/scriptTiming';
+import { beatsByScene, linkableScenes } from '../utils/beatScenes';
 
 interface Props {
   editor: Editor;
@@ -56,6 +59,21 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [editor, docVersion, pageLayout],
   );
+  // The same scenes as above, in the same order, with their stable ids.
+  const sceneUids = useMemo(
+    () => linkableScenes(editor.state.doc).map((s) => s.uid),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [editor, docVersion],
+  );
+  const linkedBeats = useMemo(() => beatsByScene(beats), [beats]);
+  const beatsAt = (s: TimelineScene) => {
+    const uid = sceneUids[s.index];
+    return (uid && linkedBeats.get(uid)) || [];
+  };
+  const linkedBeatCount = useMemo(() => {
+    const live = new Set(sceneUids.filter(Boolean));
+    return beats.filter((b) => (b.sceneIds ?? []).some((id) => live.has(id))).length;
+  }, [beats, sceneUids]);
   const totalSeconds = scenes.reduce((n, s) => n + s.seconds, 0);
   const unassigned = scenes.filter((s) => !s.plotlineIds.some((id) => plotlines.some((p) => p.id === id)));
 
@@ -123,6 +141,12 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
               {/* Left: the plotlines */}
               <div className="story-timeline-labels">
                 <div className="story-timeline-label story-timeline-ruler-label">Scene</div>
+                {linkedBeatCount > 0 && (
+                  <div className="story-timeline-label story-timeline-beats-label">
+                    <span>Beats</span>
+                    <span className="story-timeline-sum">{linkedBeatCount} linked</span>
+                  </div>
+                )}
                 {plotlines.map((p) => {
                   const sum = plotlineSummary(scenes, p.id);
                   const beatCount = beats.filter((b) => b.plotlineIds?.includes(p.id)).length;
@@ -200,6 +224,29 @@ const StoryTimeline: React.FC<Props> = ({ editor, onClose }) => {
                     </button>
                   ))}
                 </div>
+                {linkedBeatCount > 0 && (
+                  <div className="story-timeline-track story-timeline-beats" style={trackStyle} role="group" aria-label="Linked beats">
+                    {scenes.map((s) => {
+                      const here = beatsAt(s);
+                      if (!here.length) return <span key={s.pos} className="story-timeline-beat-cell empty" style={cellStyle(s)} />;
+                      return (
+                        <button
+                          key={s.pos}
+                          className="story-timeline-beat-cell"
+                          style={cellStyle(s)}
+                          onClick={() => goTo(s)}
+                          title={`${sceneTitle(s)}\n${here.map((b) => `• ${b.title || 'Untitled beat'}`).join('\n')}\nClick to go to the scene`}
+                          aria-label={`${here.length} beat${here.length === 1 ? '' : 's'} at scene ${s.number} — go to scene`}
+                        >
+                          {here.slice(0, 3).map((b) => (
+                            <span key={b.id} className="story-timeline-beat" style={b.color ? { background: b.color } : undefined} />
+                          ))}
+                          {here.length > 3 && <span className="story-timeline-beat-more">+{here.length - 3}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 {plotlines.map((p) => (
                   <div key={p.id} className="story-timeline-track" style={trackStyle} role="group" aria-label={p.name || 'Plotline'}>
                     {scenes.map((s) => {

@@ -6,6 +6,7 @@ import { clampSectionLevel } from '../editor/extensions/Section';
 import { DEFAULT_TITLE_PAGE_CREDIT } from './titlePageBlocks';
 import { blockRevision, fountainRevisionNote } from './revisionExport';
 import type { RevisionSettings } from '../editor/revisionColors';
+import { bookmarkOf, fountainAlternateNotes, fountainBookmarkNote } from './formatAnnotations';
 
 export interface FountainExportOptions {
   /** The marks revised lines are written with; absent writes `*`. */
@@ -288,6 +289,45 @@ function synopsisLines(node: JSONContent): string[] {
   return synopsis.split('\n').map((line) => `= ${line.trim()}`);
 }
 
+/**
+ * Elements whose bookmark and alternates have no line of their own to sit on:
+ * a note is already nothing but a note, and the containers are annotated
+ * through their children (dual dialogue) or flattened to Action (AV).
+ */
+const NO_ELEMENT_NOTES = new Set(['titlePage', 'note', 'screenplayImage', 'dualDialogue', 'avBlock']);
+
+/**
+ * The notes that carry an element's bookmark and its other versions, which
+ * Fountain has no syntax for (see utils/formatAnnotations). Notes are not
+ * printed, so the script itself reads exactly as it does without them.
+ */
+function elementNotes(node: JSONContent): string[] {
+  if (!node.type || NO_ELEMENT_NOTES.has(node.type)) return [];
+  const notes: string[] = [];
+  const bookmark = bookmarkOf(node);
+  if (bookmark) notes.push(fountainBookmarkNote(bookmark));
+  notes.push(...fountainAlternateNotes(node, (version) => getTextContent(version)));
+  return notes;
+}
+
+/**
+ * Put notes at the end of the first line an element wrote from `from` on. The
+ * first, because a bookmark marks where the element starts, and a speech or
+ * paragraph with breaks in it comes back from Fountain as one element per
+ * line. An element that wrote no text has no line to carry them.
+ */
+function appendToFirstLine(lines: string[], from: number, notes: string[]): void {
+  if (notes.length === 0) return;
+  for (let k = from; k < lines.length; k++) {
+    const physical = lines[k].split('\n');
+    const at = physical.findIndex((line) => line.trim() !== '' && line !== '===');
+    if (at < 0) continue;
+    physical[at] = `${physical[at]} ${notes.join(' ')}`;
+    lines[k] = physical.join('\n');
+    return;
+  }
+}
+
 export function exportFountain(doc: JSONContent, options: FountainExportOptions = {}): string {
   const lines: string[] = [];
 
@@ -447,6 +487,7 @@ export function exportFountain(doc: JSONContent, options: FountainExportOptions 
           node.content.forEach((col, colIndex) => {
             if (col.type === 'dualDialogueColumn' && col.content) {
               col.content.forEach((child, childIndex) => {
+                const childFirstLine = lines.length;
                 if (child.type === 'character') {
                   lines.push('');
                   // Second column character gets ^ marker — it must stay on the
@@ -459,6 +500,7 @@ export function exportFountain(doc: JSONContent, options: FountainExportOptions 
                   lines.push(dialogueText(child));
                   if (!continuesDialogue(col.content?.[childIndex + 1])) lines.push('');
                 }
+                appendToFirstLine(lines, childFirstLine, elementNotes(child));
               });
             }
           });
@@ -500,6 +542,8 @@ export function exportFountain(doc: JSONContent, options: FountainExportOptions 
         lines.push(text);
         break;
     }
+
+    appendToFirstLine(lines, firstLine, elementNotes(node));
 
     if (node.type !== 'titlePage' && node.type !== 'note' && node.type !== 'section') {
       const revision = blockRevision(node);

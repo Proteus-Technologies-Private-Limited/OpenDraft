@@ -1682,7 +1682,11 @@ fn android_backup_probe(tree_uri: String) -> Result<FolderProbe, String> {
 struct PendingFile(Mutex<Option<String>>);
 
 /// Extensions that OpenDraft can open via file association.
-const OPENABLE_EXTENSIONS: &[&str] = &["fdx", "fountain", "fadein", "osf", "odraft", "txt"];
+/// Highland, WriterDuet and Celtx files are import-only: they open as a new
+/// document, never in place, because OpenDraft cannot write them back.
+const OPENABLE_EXTENSIONS: &[&str] = &[
+    "fdx", "fountain", "fadein", "osf", "odraft", "txt", "highland", "wdz", "celtx",
+];
 
 fn is_openable_file(path: &str) -> bool {
     let ext = path.rsplit('.').next().unwrap_or("");

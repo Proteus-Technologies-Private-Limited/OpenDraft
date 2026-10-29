@@ -15,6 +15,7 @@ import { ONE_HOUR_DRAMA_TEMPLATE, ONE_HOUR_DRAMA_ID } from './templates/oneHourD
 import { STAGE_PLAY_TEMPLATE, STAGE_PLAY_ID } from './templates/stagePlayTemplate';
 import { RADIO_PLAY_TEMPLATE, RADIO_PLAY_ID } from './templates/radioPlayTemplate';
 import { PODCAST_TEMPLATE, PODCAST_ID } from './templates/podcastTemplate';
+import { COMIC_TEMPLATE, COMIC_ID } from './templates/comicTemplate';
 import { AV_SCRIPT_TEMPLATE, AV_SCRIPT_ID } from './templates/avScriptTemplate';
 import { api } from '../services/api';
 import { useSettingsStore } from './settingsStore';
@@ -27,6 +28,7 @@ export const SYSTEM_TEMPLATES: Record<string, FormattingTemplate> = {
   [STAGE_PLAY_ID]: STAGE_PLAY_TEMPLATE,
   [RADIO_PLAY_ID]: RADIO_PLAY_TEMPLATE,
   [PODCAST_ID]: PODCAST_TEMPLATE,
+  [COMIC_ID]: COMIC_TEMPLATE,
   [AV_SCRIPT_ID]: AV_SCRIPT_TEMPLATE,
 };
 
@@ -38,6 +40,7 @@ export const SYSTEM_TEMPLATE_LIST: FormattingTemplate[] = [
   STAGE_PLAY_TEMPLATE,
   RADIO_PLAY_TEMPLATE,
   PODCAST_TEMPLATE,
+  COMIC_TEMPLATE,
   AV_SCRIPT_TEMPLATE,
 ];
 

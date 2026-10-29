@@ -24,6 +24,7 @@ import { useGoBackTo } from '../hooks/useGoBack';
 import type { ProjectInfo, ScriptMeta, VersionInfo } from '../services/api';
 import {
   parseScreenplayImport,
+  isImportCancelled,
   extensionOf,
   isBinaryImportExtension,
   importAccept,
@@ -1069,6 +1070,7 @@ const ProjectView: React.FC = () => {
           await fetchScripts();
           navigate(`/project/${projectId}/edit/${resp.meta.id}`, { state: { from: `/project/${projectId}` } });
         } catch (err) {
+          if (isImportCancelled(err)) return;
           console.error('Failed to import script:', err);
           showToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
         }

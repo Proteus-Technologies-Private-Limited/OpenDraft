@@ -189,8 +189,11 @@ describe('alternates in the document', () => {
     const json = threeVersions().doc.toJSON();
     const fountain = exportFountain(json);
     expect(fountain).toContain('Three');
-    expect(fountain).not.toContain('One');
-    expect(fountain).not.toContain('Two');
+    // The other versions travel as Fountain notes, which are never printed
+    // (utils/formatAnnotations); the script text holds only the one showing.
+    const script = fountain.replace(/\[\[[\s\S]*?\]\]/g, '');
+    expect(script).not.toContain('One');
+    expect(script).not.toContain('Two');
     const fdx = exportFDX(json);
     expect(fdx).toContain('Three');
     expect(fdx).not.toMatch(/>One<|>Two</);

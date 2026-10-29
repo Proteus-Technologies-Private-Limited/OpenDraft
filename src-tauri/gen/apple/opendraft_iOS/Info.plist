@@ -53,6 +53,42 @@
 		<dict>
 			<key>CFBundleTypeExtensions</key>
 			<array>
+				<string>highland</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>highland</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>wdz</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>wdz</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>celtx</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>celtx</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
 				<string>osf</string>
 			</array>
 			<key>LSItemContentTypes</key>
@@ -110,9 +146,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.7.0</string>
+	<string>2.7.2</string>
 	<key>CFBundleVersion</key>
-	<string>2.7.0</string>
+	<string>2.7.2</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>

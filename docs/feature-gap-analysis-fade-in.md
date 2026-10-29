@@ -1,5 +1,7 @@
 # Feature Gap Analysis: OpenDraft vs Fade In Professional
 
+> **Superseded.** Written for v0.12 and now mostly out of date. See `docs/feature-gap-plan-2026-10.md` for the current gap analysis and plan.
+
 ## Summary
 
 This document identifies features present in **Fade In Professional Screenwriting Software** that are missing or incomplete in **OpenDraft** (v0.12.0). Features are categorized by priority based on how critical they are for professional screenwriting workflows.

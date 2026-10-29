@@ -6,26 +6,37 @@
  * out. Or every page holding a character's lines, a location's scenes, or a
  * tagged item — Final Draft's "print pages with" — for the department that
  * only needs those.
+ *
+ * Also File → Print Selected Pages…: the same dialog, with Print as its main
+ * button. Either way both are offered — the choice is what to put on paper,
+ * and whether it is saved or printed is the last thing decided. Two pages to
+ * a landscape sheet is an option for any of it.
  */
 import React, { useMemo, useState } from 'react';
 import type { JSONContent } from '@tiptap/react';
 import { useEditorStore } from '../stores/editorStore';
 import type { PdfPageSelection } from '../utils/pdfExporter';
 import {
-  sceneRanges, keepScenes, keepCharacter, keepLocation, keepTags,
-  scenesWithCharacter, speakingCharacters,
+  sceneRanges, scenesWithCharacter, speakingCharacters, buildPageSelection, type PageChoice,
 } from '../utils/pageSelection';
+
+/** What the dialog was opened for: its main button. */
+export type SidesIntent = 'export' | 'print';
 
 interface Props {
   doc: JSONContent;
+  /** Which of Export and Print is the main button. Absent: export. */
+  intent?: SidesIntent;
   /** Render and save the PDF; resolves once it is saved, rejects with the reason. */
   onExport: (selection: PdfPageSelection, fileSuffix: string) => Promise<void>;
+  /** Render the PDF and send it to the printer; resolves once it is handed over. */
+  onPrint: (selection: PdfPageSelection, fileSuffix: string) => Promise<void>;
   onClose: () => void;
 }
 
-type Mode = 'sides' | 'character' | 'location' | 'tag';
+type Mode = PageChoice['mode'];
 
-const SidesDialog: React.FC<Props> = ({ doc, onExport, onClose }) => {
+const SidesDialog: React.FC<Props> = ({ doc, intent = 'export', onExport, onPrint, onClose }) => {
   const tags = useEditorStore((s) => s.tags);
   const tagCategories = useEditorStore((s) => s.tagCategories);
   const scenes = useMemo(() => sceneRanges(doc), [doc]);
@@ -52,7 +63,8 @@ const SidesDialog: React.FC<Props> = ({ doc, onExport, onClose }) => {
   const [character, setCharacter] = useState(characters[0] ?? '');
   const [location, setLocation] = useState(locations[0] ?? '');
   const [tagKey, setTagKey] = useState(tagChoices[0]?.label ?? '');
-  const [busy, setBusy] = useState(false);
+  const [twoUp, setTwoUp] = useState(false);
+  const [busy, setBusy] = useState<SidesIntent | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const toggleScene = (index: number) => {
@@ -68,59 +80,61 @@ const SidesDialog: React.FC<Props> = ({ doc, onExport, onClose }) => {
     setChosen((prev) => new Set([...prev, ...scenesWithCharacter(doc, name)]));
   };
 
-  const build = (): { selection: PdfPageSelection; suffix: string } | null => {
+  const choice = (): PageChoice | null => {
     switch (mode) {
-      case 'sides': {
-        if (chosen.size === 0) return null;
-        const numbers = scenes.filter((s) => chosen.has(s.index)).map((s) => s.number);
-        return {
-          selection: {
-            keep: keepScenes(doc, chosen),
-            crossOutOthers: crossOut,
-            emptyMessage: 'The chosen scenes are empty.',
-          },
-          suffix: `Sides (Sc. ${numbers.join(', ')})`,
-        };
-      }
-      case 'character':
-        if (!character) return null;
-        return {
-          selection: { keep: keepCharacter(doc, character), emptyMessage: `${character} has no lines in this script.` },
-          suffix: `Pages with ${character}`,
-        };
-      case 'location':
-        if (!location) return null;
-        return {
-          selection: { keep: keepLocation(doc, location), emptyMessage: `No scene is set at ${location}.` },
-          suffix: `Pages at ${location}`,
-        };
+      case 'sides': return { mode, scenes: chosen, crossOut };
+      case 'character': return { mode, character };
+      case 'location': return { mode, location };
       case 'tag': {
-        const choice = tagChoices.find((t) => t.label === tagKey);
-        if (!choice) return null;
-        return {
-          selection: { keep: keepTags(doc, choice.ids), emptyMessage: `Nothing in the script is tagged ${choice.label}.` },
-          suffix: `Pages with ${choice.label.replace(/:/g, ' -')}`,
-        };
+        const tag = tagChoices.find((t) => t.label === tagKey);
+        return tag ? { mode, label: tag.label, tagIds: tag.ids } : null;
       }
     }
+  };
+  const build = () => {
+    const picked = choice();
+    return picked ? buildPageSelection(doc, picked, { twoUp }) : null;
   };
 
   const ready = build() !== null;
 
-  const run = async () => {
+  const run = async (action: SidesIntent) => {
     const built = build();
     if (!built) return;
-    setBusy(true);
+    setBusy(action);
     setError(null);
     try {
-      await onExport(built.selection, built.suffix);
+      await (action === 'print' ? onPrint : onExport)(built.selection, built.suffix);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      console.error(`[sides] ${action} failed:`, err);
+      const reason = err instanceof Error ? err.message : String(err);
+      setError(action === 'print' ? `Could not print: ${reason}` : reason);
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
+
+  const exportButton = (
+    <button
+      key="export"
+      className={intent === 'export' ? 'dialog-primary' : undefined}
+      onClick={() => { void run('export'); }}
+      disabled={!ready || busy !== null}
+    >
+      {busy === 'export' ? 'Exporting…' : 'Export PDF…'}
+    </button>
+  );
+  const printButton = (
+    <button
+      key="print"
+      className={intent === 'print' ? 'dialog-primary' : undefined}
+      onClick={() => { void run('print'); }}
+      disabled={!ready || busy !== null}
+    >
+      {busy === 'print' ? 'Preparing…' : 'Print…'}
+    </button>
+  );
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
@@ -131,7 +145,9 @@ const SidesDialog: React.FC<Props> = ({ doc, onExport, onClose }) => {
         aria-modal="true"
         aria-labelledby="sides-dialog-title"
       >
-        <div className="dialog-header" id="sides-dialog-title">Sides &amp; Selected Pages</div>
+        <div className="dialog-header" id="sides-dialog-title">
+          {intent === 'print' ? 'Print Selected Pages' : 'Sides & Selected Pages'}
+        </div>
         <div className="dialog-body">
           <div className="sides-modes" role="radiogroup" aria-label="What to print">
             {([
@@ -212,13 +228,17 @@ const SidesDialog: React.FC<Props> = ({ doc, onExport, onClose }) => {
             </label>
           )}
 
+          <label className="sides-check">
+            <input type="checkbox" checked={twoUp} onChange={(e) => setTwoUp(e.target.checked)} />
+            <span>Two pages per sheet (landscape)</span>
+          </label>
+
           {error && <p className="revision-settings-error" role="alert">{error}</p>}
         </div>
         <div className="dialog-actions">
           <button onClick={onClose}>Cancel</button>
-          <button className="dialog-primary" onClick={() => { void run(); }} disabled={!ready || busy}>
-            {busy ? 'Exporting…' : 'Export PDF…'}
-          </button>
+          {/* The main button last, where the dialog's other actions put it. */}
+          {intent === 'print' ? [exportButton, printButton] : [printButton, exportButton]}
         </div>
       </div>
     </div>

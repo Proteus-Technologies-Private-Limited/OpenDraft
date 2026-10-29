@@ -85,7 +85,7 @@ export interface PluginImportResult {
 
 export interface PluginImporter {
   id: string;
-  /** Shown in the file dialog and in messages, e.g. "WriterDuet (.wdz)". */
+  /** Shown in the file dialog and in messages, e.g. "Movie Magic Screenwriter (.mmsw)". */
   label: string;
   /** Lower-case extensions without the dot. A built-in format always wins. */
   extensions: string[];
