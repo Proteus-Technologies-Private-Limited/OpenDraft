@@ -73,7 +73,7 @@ export type SuggestionKind = 'insert' | 'delete' | 'split' | 'join' | 'type';
  * explain. A line break inside an element is one: collaboration stores marks
  * on text only, so a suggested break would reach everyone else unmarked.
  */
-export type Blocked = 'formatting' | 'lineBreak';
+export type Blocked = 'formatting' | 'lineBreak' | 'alternates';
 
 export interface SuggestOptions {
   /** The suggester's name, as collaborators see it. */

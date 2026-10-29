@@ -99,8 +99,16 @@ function swapIn(
     alternateIndex: alternates.length ? alternateIndex : 0,
   });
   tr.replaceWith(pos + 1, pos + node.nodeSize - 1, fragment);
-  return tr;
+  return tr.setMeta(ALTERNATES_META, true);
 }
+
+/**
+ * Set on every transaction that adds, switches or drops a version (here and
+ * in editor/sceneAlternates). Suggest mode refuses these whole: a suggestion
+ * can carry the text of a switch but not the stored versions, so half-applying
+ * one struck the old version, inserted the other, and left it stored as well.
+ */
+export const ALTERNATES_META = 'alternates';
 
 /**
  * Keep the current text as a version and stay on the line to write the next
@@ -127,7 +135,7 @@ export function addAlternateTransaction(state: EditorState, pos: number): Transa
   const from = target.pos + 1;
   const to = target.pos + node.nodeSize - 1;
   tr.setSelection(TextSelection.create(tr.doc, from, to));
-  return tr;
+  return tr.setMeta(ALTERNATES_META, true);
 }
 
 /** Show the next (+1) or previous (-1) version. */
@@ -165,5 +173,5 @@ export function keepOnlyShownTransaction(state: EditorState, pos: number): Trans
     ...target.node.attrs,
     alternates: null,
     alternateIndex: 0,
-  });
+  }).setMeta(ALTERNATES_META, true);
 }

@@ -12,7 +12,14 @@ import {
   keepOnlyShownTransaction,
   versionCount,
   versionIndex,
+  ALTERNATES_META,
 } from './alternates';
+import {
+  addSceneAlternateTransaction,
+  cycleSceneAlternateTransaction,
+  deleteShownSceneAlternateTransaction,
+  keepOnlyShownSceneTransaction,
+} from './sceneAlternates';
 import { buildAlternateDecorations } from './extensions/Alternates';
 import { exportFountain } from '../utils/fountainExporter';
 import { exportFDX } from '../utils/fdxExporter';
@@ -197,5 +204,40 @@ describe('alternates in the document', () => {
     const fdx = exportFDX(json);
     expect(fdx).toContain('Three');
     expect(fdx).not.toMatch(/>One<|>Two</);
+  });
+});
+
+describe('marking alternates transactions for suggest mode', () => {
+  // Suggest mode refuses these whole (extensions/Suggestions): a suggestion
+  // can carry the text of a switch but not the stored versions.
+  it('marks every line action', () => {
+    const s = threeVersions();
+    const pos = inside(s, 1);
+    for (const tr of [
+      addAlternateTransaction(s, pos),
+      cycleAlternateTransaction(s, pos, 1),
+      cycleAlternateTransaction(s, pos, -1),
+      deleteShownAlternateTransaction(s, pos),
+      keepOnlyShownTransaction(s, pos),
+    ]) expect(tr?.getMeta(ALTERNATES_META)).toBe(true);
+  });
+
+  it('marks every scene action', () => {
+    let s = stateOf(block('sceneHeading', 'INT. ROOM - DAY'), block('action', 'She waits.'));
+    const added = addSceneAlternateTransaction(s, inside(s, 0));
+    expect(added?.getMeta(ALTERNATES_META)).toBe(true);
+    s = s.apply(added!);
+    const pos = inside(s, 0);
+    for (const tr of [
+      cycleSceneAlternateTransaction(s, pos, 1),
+      cycleSceneAlternateTransaction(s, pos, -1),
+      deleteShownSceneAlternateTransaction(s, pos),
+      keepOnlyShownSceneTransaction(s, pos),
+    ]) expect(tr?.getMeta(ALTERNATES_META)).toBe(true);
+  });
+
+  it('leaves ordinary typing unmarked', () => {
+    const s = stateOf(block('action', 'She waits.'));
+    expect(s.tr.insertText('!', inside(s, 0) + 3).getMeta(ALTERNATES_META)).toBeUndefined();
   });
 });

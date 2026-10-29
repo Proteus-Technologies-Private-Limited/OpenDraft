@@ -17,6 +17,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import { BOOKMARKABLE_TYPES } from '../../utils/bookmarks';
+import { ALTERNATES_META } from '../alternates';
 import {
   SUGGEST_DELETE, SUGGEST_INSERT, SUGGESTED_JOIN, SUGGESTED_SPLIT, SUGGESTED_TYPE,
   isHousekeeping, isLocalEdit, suggestTransaction, type Blocked, type SuggestionStamp, type TypeStamp,
@@ -161,6 +162,13 @@ export const Suggestions = Extension.create<SuggestionsOptions>({
       dispatchTransaction(tr) {
         if (options.dropHousekeeping() && isHousekeeping(tr)) return;
         const by = options.suggester();
+        // Adding, switching or dropping a version of a line or scene is not
+        // something a suggestion can carry (editor/alternates): refused whole,
+        // not half-applied.
+        if (by && tr.getMeta(ALTERNATES_META) && isLocalEdit(tr)) {
+          options.onBlocked('alternates');
+          return;
+        }
         const next = by && isLocalEdit(tr)
           ? suggestTransaction(view.state, tr, { by, onBlocked: options.onBlocked })
           : tr;

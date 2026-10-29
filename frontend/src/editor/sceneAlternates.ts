@@ -33,6 +33,7 @@
 import type { EditorState, Transaction } from '@tiptap/pm/state';
 import { TextSelection } from '@tiptap/pm/state';
 import { closeHistory } from '@tiptap/pm/history';
+import { ALTERNATES_META } from './alternates';
 import { Fragment, Slice, type Node as PmNode } from '@tiptap/pm/model';
 import type { JSONContent } from '@tiptap/core';
 import { uuid } from '../utils/uuid';
@@ -202,7 +203,7 @@ function swapIn(
   if (sel.from >= target.from && sel.to <= target.to) {
     tr.setSelection(TextSelection.create(tr.doc, target.from + 1));
   }
-  return tr;
+  return tr.setMeta(ALTERNATES_META, true);
 }
 
 /**
@@ -229,7 +230,7 @@ export function addSceneAlternateTransaction(state: EditorState, pos: number): T
   if (!(sel.from >= target.from && sel.to <= target.to)) {
     tr.setSelection(TextSelection.create(tr.doc, target.from + 1));
   }
-  return tr.scrollIntoView();
+  return tr.setMeta(ALTERNATES_META, true).scrollIntoView();
 }
 
 /** Show the scene's next (+1) or previous (-1) version. */
@@ -265,7 +266,7 @@ export function keepOnlyShownSceneTransaction(state: EditorState, pos: number): 
     ...target.heading.attrs,
     [SCENE_ALTERNATES_ATTR]: null,
     [SCENE_ALTERNATE_INDEX_ATTR]: 0,
-  });
+  }).setMeta(ALTERNATES_META, true);
 }
 
 /**
