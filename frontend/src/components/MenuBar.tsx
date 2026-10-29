@@ -212,6 +212,7 @@ import {
   FaUserShield,
   FaFileContract,
   FaPuzzlePiece,
+  FaLayerGroup,
 } from 'react-icons/fa';
 import { REVISION_COLORS, nextRevisionColor } from '../editor/revisionColors';
 import RevisionSettingsDialog from './RevisionSettingsDialog';
@@ -224,6 +225,21 @@ import ScriptProfileDialog from './ScriptProfileDialog';
 import { DEFAULT_SCRIPT_PROFILE } from '../utils/scriptProfile';
 import { pagesLocked } from '../editor/extensions/LockedPages';
 import { editBookmarkAtSelection } from './bookmarkActions';
+import {
+  addAlternateTransaction,
+  alternateTargetAt,
+  cycleAlternateTransaction,
+  deleteShownAlternateTransaction,
+  keepOnlyShownTransaction,
+} from '../editor/alternates';
+import {
+  addSceneAlternateTransaction,
+  cycleSceneAlternateTransaction,
+  deleteShownSceneAlternateTransaction,
+  keepOnlyShownSceneTransaction,
+  sceneAlternateTargetAt,
+} from '../editor/sceneAlternates';
+import type { EditorState, Transaction } from '@tiptap/pm/state';
 import { omitSceneTransaction, sceneOmittedAt } from '../editor/omitScene';
 
 /** What Fade In carries beyond the text: Revision Mode's colour and marks,
@@ -1415,6 +1431,34 @@ const MenuBar: React.FC<MenuBarProps> = ({
   }, [editor, clearTrackChanges, setCurrentProject, setCurrentScriptId, setScripts]);
 
   applyInPlaceRef.current = applyInPlaceDocumentImpl;
+
+  /**
+   * Run an alternates action on the line or scene at the cursor, or say why
+   * it does nothing — the menu is built once, not on every cursor move, so its
+   * items cannot grey themselves out. (Edit → Alternates, from #172.)
+   */
+  const runAlternateAtCursor = (
+    build: (state: EditorState, pos: number) => Transaction | null,
+    kind: 'line' | 'scene',
+  ) => {
+    if (!editor) return;
+    const pos = editor.state.selection.from;
+    const tr = build(editor.state, pos);
+    if (tr) {
+      editor.view.dispatch(tr);
+      editor.commands.focus();
+      return;
+    }
+    const target = kind === 'line' ? alternateTargetAt(editor.state, pos) : sceneAlternateTargetAt(editor.state, pos);
+    showToast(
+      target
+        ? `This ${kind} has no other versions yet.`
+        : kind === 'line'
+          ? 'Put the cursor in a line of dialogue or action first.'
+          : 'Put the cursor in a scene first.',
+      'info',
+    );
+  };
 
   const handleImport = useCallback(async () => {
     if (!editor) return;
@@ -2735,6 +2779,25 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { icon: <FaSearch />, label: 'Find & Replace…', shortcut: `${mod}F`, action: () => setSearchOpen(true) },
         { icon: <FaHashtag />, label: 'Go to Page…', shortcut: `${mod}G`, action: () => setGoToPageOpen(true) },
         { icon: <FaBookmark />, label: 'Add Bookmark…', action: () => { if (editor) editBookmarkAtSelection(editor); }, disabled: !editor },
+        {
+          // The same actions as the right-click menu's Alternates, which a
+          // touch screen only opens with a three-finger tap — so this is how a
+          // phone or tablet reaches them.
+          icon: <FaLayerGroup />, label: 'Alternates',
+          children: [
+            { label: 'Add Alternate', action: () => runAlternateAtCursor(addAlternateTransaction, 'line'), disabled: !editor },
+            { label: 'Next Alternate', action: () => runAlternateAtCursor((st, p) => cycleAlternateTransaction(st, p, 1), 'line'), disabled: !editor },
+            { label: 'Previous Alternate', action: () => runAlternateAtCursor((st, p) => cycleAlternateTransaction(st, p, -1), 'line'), disabled: !editor },
+            { label: 'Delete This Version', action: () => runAlternateAtCursor(deleteShownAlternateTransaction, 'line'), disabled: !editor },
+            { label: 'Keep Only This Version', action: () => runAlternateAtCursor(keepOnlyShownTransaction, 'line'), disabled: !editor },
+            { separator: true, label: '' },
+            { label: 'Add Scene Alternate', action: () => runAlternateAtCursor(addSceneAlternateTransaction, 'scene'), disabled: !editor },
+            { label: 'Next Scene Alternate', action: () => runAlternateAtCursor((st, p) => cycleSceneAlternateTransaction(st, p, 1), 'scene'), disabled: !editor },
+            { label: 'Previous Scene Alternate', action: () => runAlternateAtCursor((st, p) => cycleSceneAlternateTransaction(st, p, -1), 'scene'), disabled: !editor },
+            { label: 'Delete This Scene Version', action: () => runAlternateAtCursor(deleteShownSceneAlternateTransaction, 'scene'), disabled: !editor },
+            { label: 'Keep Only This Scene Version', action: () => runAlternateAtCursor(keepOnlyShownSceneTransaction, 'scene'), disabled: !editor },
+          ],
+        },
         {
           icon: <FaKeyboard />, label: 'Insert Macro',
           children: [
