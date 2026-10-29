@@ -18,13 +18,26 @@ curl https://collab.open-draft.com/health
 curl https://collab.open-draft.com/auth/config
 ```
 
-**Suggest invites need this server's own update.** A collaborator invited to
-suggest is held to suggesting by the client and, from the version that adds
-the Suggest permission, by the server (`src/services/suggestionGuard.ts`),
-which refuses any change from them that is not their own suggestion. An older
-server accepts the role but does not check it, so deploy the new image before
-relying on Suggest invites with people you do not trust. The same update makes
-Read Only connections read-only on the server too.
+**Deploy the collab server before the app that offers Suggest invites.** A
+collaborator invited to suggest is held to suggesting by their client and by
+the server (`src/services/suggestionGuard.ts`), which refuses any change from
+them that is not their own suggestion. A server older than the Suggest
+permission accepts the role but checks nothing, so a new app against an old
+server gets the role with no enforcement behind it — the client alone, which
+anyone can change. The order is therefore always:
+
+1. Deploy the new collab server image.
+2. Then release or update the app.
+
+The same server update makes Read Only connections read-only on the server
+too, gives each suggester an id from their invite (so two people invited
+under the same name cannot withdraw each other's suggestions), and lets a
+suggester link a Beat Board beat to a scene. An old app against the new
+server keeps working: suggestions without an id go by name, as before.
+
+While a suggester is connected, the server keeps a second copy of that
+document in memory to try their changes on before applying them — budget
+about twice the document's size for each document with a suggester in it.
 
 The Cloud Run service below is an alternative deployment target — useful for
 free-tier hosting or when you don't want to run a VM. Both layouts are

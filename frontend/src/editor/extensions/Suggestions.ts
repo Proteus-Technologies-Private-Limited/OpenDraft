@@ -20,13 +20,20 @@ import { BOOKMARKABLE_TYPES } from '../../utils/bookmarks';
 import { ALTERNATES_META } from '../alternates';
 import {
   SUGGEST_DELETE, SUGGEST_INSERT, SUGGESTED_JOIN, SUGGESTED_SPLIT, SUGGESTED_TYPE,
-  isHousekeeping, isLocalEdit, suggestTransaction, type Blocked, type SuggestionStamp, type TypeStamp,
+  isHousekeeping, isLocalEdit, onlyGivesSceneIds, suggestTransaction, type Blocked, type Suggester, type SuggestionStamp, type TypeStamp,
 } from '../suggestions';
 
 const when = (at: unknown) => {
   const n = Number(at);
   if (!n) return '';
   try { return new Date(n).toLocaleString(); } catch { return ''; }
+};
+
+/** The author's stable id in a collaboration session (SuggestionStamp.uid). */
+const uidAttribute = {
+  default: null,
+  parseHTML: (el: HTMLElement) => el.getAttribute('data-suggestion-uid') || null,
+  renderHTML: (a: Record<string, unknown>) => (a.uid ? { 'data-suggestion-uid': String(a.uid) } : {}),
 };
 
 export const SuggestionInsert = Mark.create({
@@ -37,6 +44,7 @@ export const SuggestionInsert = Mark.create({
       id: { default: null, parseHTML: (el) => el.getAttribute('data-suggestion-id'), renderHTML: (a) => ({ 'data-suggestion-id': a.id }) },
       by: { default: '', parseHTML: (el) => el.getAttribute('data-suggestion-by') || '', renderHTML: (a) => ({ 'data-suggestion-by': a.by }) },
       at: { default: 0, parseHTML: (el) => Number(el.getAttribute('data-suggestion-at')) || 0, renderHTML: (a) => ({ 'data-suggestion-at': String(a.at || 0) }) },
+      uid: uidAttribute,
     };
   },
   parseHTML() { return [{ tag: 'ins[data-suggestion-id]' }]; },
@@ -56,6 +64,7 @@ export const SuggestionDelete = Mark.create({
       id: { default: null, parseHTML: (el) => el.getAttribute('data-suggestion-id'), renderHTML: (a) => ({ 'data-suggestion-id': a.id }) },
       by: { default: '', parseHTML: (el) => el.getAttribute('data-suggestion-by') || '', renderHTML: (a) => ({ 'data-suggestion-by': a.by }) },
       at: { default: 0, parseHTML: (el) => Number(el.getAttribute('data-suggestion-at')) || 0, renderHTML: (a) => ({ 'data-suggestion-at': String(a.at || 0) }) },
+      uid: uidAttribute,
     };
   },
   parseHTML() { return [{ tag: 'del[data-suggestion-id]' }]; },
@@ -124,7 +133,7 @@ export function buildSuggestionDecorations(doc: PmNode): DecorationSet {
 
 export interface SuggestionsOptions {
   /** Who is suggesting now, or null when edits go straight in. Read on every edit. */
-  suggester: () => string | null;
+  suggester: () => Suggester | null;
   /** Told when part of an edit was dropped because a suggestion cannot carry it. */
   onBlocked: (what: Blocked) => void;
   /** True in a suggester's session: the app's own housekeeping changes are not applied (see isHousekeeping). */
@@ -160,17 +169,17 @@ export const Suggestions = Extension.create<SuggestionsOptions>({
     const options = this.options;
     view.setProps({
       dispatchTransaction(tr) {
-        if (options.dropHousekeeping() && isHousekeeping(tr)) return;
-        const by = options.suggester();
+        if (options.dropHousekeeping() && isHousekeeping(tr) && !onlyGivesSceneIds(tr)) return;
+        const me = options.suggester();
         // Adding, switching or dropping a version of a line or scene is not
         // something a suggestion can carry (editor/alternates): refused whole,
         // not half-applied.
-        if (by && tr.getMeta(ALTERNATES_META) && isLocalEdit(tr)) {
+        if (me && tr.getMeta(ALTERNATES_META) && isLocalEdit(tr)) {
           options.onBlocked('alternates');
           return;
         }
-        const next = by && isLocalEdit(tr)
-          ? suggestTransaction(view.state, tr, { by, onBlocked: options.onBlocked })
+        const next = me && isLocalEdit(tr)
+          ? suggestTransaction(view.state, tr, { ...me, onBlocked: options.onBlocked })
           : tr;
         original.call(view, next);
       },

@@ -33,12 +33,13 @@
 import type { EditorState, Transaction } from '@tiptap/pm/state';
 import { TextSelection } from '@tiptap/pm/state';
 import { Fragment, Slice, type Mark, type MarkType, type Node as PmNode, type Schema } from '@tiptap/pm/model';
-import { canJoin } from '@tiptap/pm/transform';
+import { AttrStep, canJoin } from '@tiptap/pm/transform';
 import {
   AddMarkStep, RemoveMarkStep, ReplaceAroundStep, ReplaceStep, type Mappable, type Step, type StepMap,
 } from '@tiptap/pm/transform';
 import type { JSONContent } from '@tiptap/core';
 import { uuid } from '../utils/uuid';
+import { SCENE_UID_ATTR, sceneUidOf } from '../utils/beatScenes';
 import { REVISION_SKIP_META } from './revisionMarks';
 
 export const SUGGEST_INSERT = 'suggestionInsert';
@@ -59,6 +60,29 @@ export interface SuggestionStamp {
   id: string;
   by: string;
   at: number;
+  /**
+   * The author's stable id in a collaboration session (utils/suggesterId),
+   * when they had one: what tells apart two collaborators with one name.
+   */
+  uid?: string | null;
+}
+
+/** Who is suggesting, or who is asking whether a suggestion is theirs. */
+export interface Suggester {
+  by: string;
+  uid?: string | null;
+}
+
+/**
+ * Whether a suggestion (its stamp or mark attributes) is `me`'s own: in their
+ * name and, when both it and they have an id, with theirs — the rule the
+ * collab server holds a suggester to (collab-server/src/services/
+ * suggestionGuard). One without an id, made outside a session or by an app
+ * from before ids, goes by name.
+ */
+export function isOwn(stamp: { by?: unknown; uid?: unknown } | null | undefined, me: Suggester): boolean {
+  if (!stamp || stamp.by !== me.by) return false;
+  return !stamp.uid || !me.uid || stamp.uid === me.uid;
 }
 
 export interface TypeStamp extends SuggestionStamp {
@@ -78,6 +102,8 @@ export type Blocked = 'formatting' | 'lineBreak' | 'alternates';
 export interface SuggestOptions {
   /** The suggester's name, as collaborators see it. */
   by: string;
+  /** Their stable id in a collaboration session, if any (SuggestionStamp.uid). */
+  uid?: string | null;
   now?: number;
   /** Called when part of the edit was dropped because it cannot be suggested. */
   onBlocked?: (what: Blocked) => void;
@@ -132,6 +158,24 @@ export function isHousekeeping(tr: Transaction): boolean {
     && !tr.getMeta('y-sync$') && !tr.getMeta(SUGGESTION_META);
 }
 
+/**
+ * Housekeeping a suggester's session keeps: giving a scene heading that has
+ * no id one, which linking a Beat Board beat to the scene does
+ * (utils/beatScenes). Without it the beat would point at a scene that is not
+ * there. The id is not part of the script, and the collab server lets a
+ * suggester give one, once; changing an id a heading already has is still
+ * dropped.
+ */
+export function onlyGivesSceneIds(tr: Transaction): boolean {
+  if (!tr.docChanged) return false;
+  return tr.steps.every((step, i) => {
+    if (!(step instanceof AttrStep) || step.attr !== SCENE_UID_ATTR) return false;
+    const node = tr.docs[i].nodeAt(step.pos);
+    return node?.type.name === 'sceneHeading' && !sceneUidOf(node.attrs)
+      && typeof step.value === 'string' && !!step.value;
+  });
+}
+
 function replacesWholeDoc(tr: Transaction): boolean {
   const size = tr.before.content.size;
   return tr.steps.some((s) => s instanceof ReplaceStep && s.from === 0 && s.to === size);
@@ -147,12 +191,18 @@ interface Ctx {
   now: number;
 }
 
+/** A new stamp for the author, with their id when they have one. */
+function stampFor(ctx: Ctx, id: string): SuggestionStamp {
+  const { by, uid } = ctx.opts;
+  return uid ? { id, by, at: ctx.now, uid } : { id, by, at: ctx.now };
+}
+
 /** The author's own suggestion mark right beside `pos`, to join rather than start a new one. */
-function neighbourId(doc: PmNode, pos: number, mark: MarkType, by: string): string | null {
+function neighbourId(doc: PmNode, pos: number, mark: MarkType, me: Suggester): string | null {
   const $pos = doc.resolve(pos);
   for (const node of [$pos.nodeBefore, $pos.nodeAfter]) {
     const m = node && mark.isInSet(node.marks);
-    if (m && m.attrs.by === by && typeof m.attrs.id === 'string') return m.attrs.id;
+    if (m && isOwn(m.attrs, me) && typeof m.attrs.id === 'string') return m.attrs.id;
   }
   return null;
 }
@@ -165,8 +215,8 @@ function suggestDeletion(ctx: Ctx, from: number, to: number): string | null {
   const { out, types, opts } = ctx;
   if (to <= from) return null;
   const doc = out.doc;
-  const id = neighbourId(doc, from, types.del, opts.by) ?? neighbourId(doc, to, types.del, opts.by) ?? uuid();
-  const stamp = { id, by: opts.by, at: ctx.now };
+  const id = neighbourId(doc, from, types.del, opts) ?? neighbourId(doc, to, types.del, opts) ?? uuid();
+  const stamp = stampFor(ctx, id);
 
   const toMark: Array<[number, number]> = [];
   const toRemove: Array<[number, number]> = [];
@@ -178,7 +228,7 @@ function suggestDeletion(ctx: Ctx, from: number, to: number): string | null {
       // one before, unless it is the author's own suggested new line, which
       // simply goes.
       const split = stampOf(node, SUGGESTED_SPLIT);
-      if (split && split.by === opts.by) joins.push(pos);
+      if (split && isOwn(split, opts)) joins.push(pos);
       else if (tracksBlocks(node) && !stampOf(node, SUGGESTED_JOIN)) joinMarks.push(pos);
     }
     if (!node.isInline) return true;
@@ -186,7 +236,7 @@ function suggestDeletion(ctx: Ctx, from: number, to: number): string | null {
     const end = Math.min(to, pos + node.nodeSize);
     if (end <= start) return false;
     const inserted = types.ins.isInSet(node.marks);
-    if (inserted && inserted.attrs.by === opts.by) toRemove.push([start, end]);
+    if (inserted && isOwn(inserted.attrs, opts)) toRemove.push([start, end]);
     else if (!types.del.isInSet(node.marks)) toMark.push([start, end]);
     return false;
   });
@@ -208,22 +258,22 @@ function suggestDeletion(ctx: Ctx, from: number, to: number): string | null {
 }
 
 /** The author's own suggested deletion just before `from` or just after `to`. */
-function struckBesideId(doc: PmNode, from: number, to: number, mark: MarkType, by: string): string | null {
+function struckBesideId(doc: PmNode, from: number, to: number, mark: MarkType, me: Suggester): string | null {
   for (const node of [doc.resolve(from).nodeBefore, doc.resolve(to).nodeAfter]) {
     const m = node && mark.isInSet(node.marks);
-    if (m && m.attrs.by === by && typeof m.attrs.id === 'string') return m.attrs.id;
+    if (m && isOwn(m.attrs, me) && typeof m.attrs.id === 'string') return m.attrs.id;
   }
   return null;
 }
 
 /** The author's own suggested new line holding `pos`: typing into it is part of it. */
-function ownNewLineId(doc: PmNode, pos: number, by: string): string | null {
+function ownNewLineId(doc: PmNode, pos: number, me: Suggester): string | null {
   const $pos = doc.resolve(pos);
   for (let d = $pos.depth; d > 0; d--) {
     const node = $pos.node(d);
     if (!node.isTextblock) continue;
     const split = stampOf(node, SUGGESTED_SPLIT);
-    return split && split.by === by ? split.id : null;
+    return split && isOwn(split, me) ? split.id : null;
   }
   return null;
 }
@@ -239,13 +289,13 @@ function markInserted(ctx: Ctx, from: number, to: number, preferredId: string | 
     return !newLines;
   });
   const id = preferredId
-    ?? neighbourId(out.doc, from, types.ins, opts.by)
-    ?? neighbourId(out.doc, to, types.ins, opts.by)
+    ?? neighbourId(out.doc, from, types.ins, opts)
+    ?? neighbourId(out.doc, to, types.ins, opts)
     // Typed right beside words you struck out: the replacement for them.
-    ?? (newLines ? null : struckBesideId(out.doc, from, to, types.del, opts.by))
-    ?? ownNewLineId(out.doc, from, opts.by)
+    ?? (newLines ? null : struckBesideId(out.doc, from, to, types.del, opts))
+    ?? ownNewLineId(out.doc, from, opts)
     ?? uuid();
-  const stamp = { id, by: opts.by, at: ctx.now };
+  const stamp = stampFor(ctx, id);
   // Pasted text struck through elsewhere is not a deletion here.
   out.removeMark(from, to, types.del);
   out.addMark(from, to, types.ins.create(stamp));
@@ -381,7 +431,7 @@ function suggestReplaceAround(ctx: Ctx, step: ReplaceAroundStep, toOut: PosMap):
       out.setNodeAttribute(pos, SUGGESTED_TYPE, null);
     } else {
       const id = prior?.id ?? uuid();
-      out.setNodeAttribute(pos, SUGGESTED_TYPE, { id, by: opts.by, at: ctx.now, from: original } satisfies TypeStamp);
+      out.setNodeAttribute(pos, SUGGESTED_TYPE, { ...stampFor(ctx, id), from: original } satisfies TypeStamp);
     }
   }
   return true;
@@ -471,6 +521,7 @@ export interface Suggestion {
   id: string;
   by: string;
   at: number;
+  uid?: string | null;
   kinds: SuggestionKind[];
   /** What was suggested, to show in a list. */
   inserted: string;
@@ -489,7 +540,7 @@ export function listSuggestions(doc: PmNode): Suggestion[] {
   const get = (stamp: SuggestionStamp, pos: number): Suggestion => {
     let s = byId.get(stamp.id);
     if (!s) {
-      s = { id: stamp.id, by: stamp.by, at: Number(stamp.at) || 0, kinds: [], inserted: '', deleted: '', pos };
+      s = { id: stamp.id, by: stamp.by, at: Number(stamp.at) || 0, uid: typeof stamp.uid === 'string' ? stamp.uid : null, kinds: [], inserted: '', deleted: '', pos };
       byId.set(stamp.id, s);
       order.push(stamp.id);
     }

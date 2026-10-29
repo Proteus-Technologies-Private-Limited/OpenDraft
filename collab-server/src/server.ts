@@ -8,6 +8,7 @@ import type {
   onChangePayload,
   beforeHandleMessagePayload,
 } from '@hocuspocus/server';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
@@ -23,7 +24,7 @@ import { initDB, getDB } from './db';
 import { seedDemoUser } from './bootstrap/seedDemoUser';
 import { verifyAccessToken } from './services/tokenService';
 import * as auditService from './services/auditService';
-import { checkSuggesterUpdate, updateInMessage, SUGGESTION_REFUSED_CLOSE_CODE, SUGGESTION_REFUSED_REASON, type YjsLike } from './services/suggestionGuard';
+import { checkSuggesterUpdate, suggesterIdOf, updateInMessage, SUGGESTION_REFUSED_CLOSE_CODE, SUGGESTION_REFUSED_REASON, type YjsLike } from './services/suggestionGuard';
 import authRoutes from './routes/auth';
 import collabRoutes from './routes/collab';
 import { standardLimiter } from './middleware/rateLimit';
@@ -180,6 +181,9 @@ const hocuspocus = new Hocuspocus({
       projectId: session.project_id,
       scriptId: session.script_id,
       role: session.role || 'editor',
+      // What a suggester's suggestions must be signed with beside their name:
+      // two people invited under the same name are told apart by it.
+      suggesterId: suggesterIdOf((text) => crypto.createHash('sha256').update(text).digest('hex'), inviteToken),
       _connKey: userKey, // internal: for tracking disconnections
     };
 
@@ -224,7 +228,7 @@ const hocuspocus = new Hocuspocus({
       throw new Error(`Unreadable message from a suggester: ${(err as Error).message}`);
     }
     if (!update) return;
-    const why = checkSuggesterUpdate(Y as unknown as YjsLike, data.document, update, user.name);
+    const why = checkSuggesterUpdate(Y as unknown as YjsLike, data.document, update, { name: user.name, uid: user.suggesterId });
     if (why) {
       console.warn(`[suggest] Refused a change from ${user.name} on ${data.documentName}: ${why}`);
       await auditService.logEvent('suggestion_refused', user.id || null, data.documentName, { name: user.name, why });

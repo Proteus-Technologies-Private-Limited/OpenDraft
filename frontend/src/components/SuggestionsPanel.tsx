@@ -13,7 +13,7 @@ import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { ELEMENT_LABELS } from '../stores/editorStore';
 import { useSuggestModeStore, suggestionAuthor } from '../stores/suggestModeStore';
 import {
-  listSuggestions, resolveSuggestionTransaction, resolveSuggestionsTransaction, type Suggestion,
+  isOwn, listSuggestions, resolveSuggestionTransaction, resolveSuggestionsTransaction, type Suggestion,
 } from '../editor/suggestions';
 import Select from './Select';
 
@@ -91,7 +91,7 @@ const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
     run(resolveSuggestionsTransaction(editor.state, (st) => ids.has(st.id), accept));
   };
   /** A suggester may only take back their own. */
-  const canResolve = (s: Suggestion) => !locked || s.by === me;
+  const canResolve = (s: Suggestion) => !locked || isOwn(s, me);
 
   return (
     <div ref={panelRef} className={`tags-panel suggestions-panel ${panelClass}`} style={style} aria-label="Suggestions">
