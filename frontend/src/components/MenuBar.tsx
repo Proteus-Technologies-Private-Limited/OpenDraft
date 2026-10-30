@@ -236,6 +236,8 @@ import SidesDialog, { type SidesIntent } from './SidesDialog';
 import PdfSecurityDialog, { type PdfSecurityRequest } from './PdfSecurityDialog';
 import DeleteScriptDialog from './DeleteScriptDialog';
 import { confirmTargetName } from '../utils/deleteConfirm';
+import PdfExportDialog, { type PdfExportChoice } from './PdfExportDialog';
+import { sceneRangeDocument } from '../utils/pdfSceneExport';
 import { sanitizeExportFilename } from '../utils/exportFilename';
 import type { PluginExporter } from '../plugins/registry';
 import ScriptProfileDialog from './ScriptProfileDialog';
@@ -1120,6 +1122,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const [revisionSettingsOpen, setRevisionSettingsOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
   const [pdfSecurityOpen, setPdfSecurityOpen] = useState(false);
+  const [pdfExportOpen, setPdfExportOpen] = useState(false);
   // File › Delete Script…: what the dialog shows, captured when it opens so a
   // later change to the editor cannot retarget the delete.
   const [deleteScriptInfo, setDeleteScriptInfo] = useState<{
@@ -2207,14 +2210,44 @@ const MenuBar: React.FC<MenuBarProps> = ({
     }
   }, [editor]);
 
-  const handleExportPDF = useCallback(async () => {
+  /** File → Export → PDF opens the choices; the export itself is below. */
+  const handleExportPDF = useCallback(() => {
     if (!editor) return;
+    setPdfExportOpen(true);
+  }, [editor]);
+
+  const handleExportPDFWithChoice = useCallback(async (choice: PdfExportChoice) => {
+    if (!editor) return;
+    setPdfExportOpen(false);
     try {
       const json = exportJSON(editor);
+      const doc = sceneRangeDocument(json, {
+        from: choice.fromIndex,
+        to: choice.toIndex,
+        oneScenePerPage: choice.oneScenePerPage,
+      });
+      const base = pdfOptions(doc);
+      const sceneCount = useEditorStore.getState().scenes.length;
+      const fullRange = choice.fromIndex === 0 && choice.toIndex >= sceneCount - 1;
+      // A range's pages are its own, so the labels of the full script would be
+      // wrong on it; the same goes for one-scene-per-page, which re-paginates.
+      const keepsPageLabels = fullRange && !choice.oneScenePerPage;
+      const name = keepsPageLabels
+        ? documentTitle
+        : `${documentTitle || 'Untitled'} - Scenes ${choice.fromIndex + 1}-${choice.toIndex + 1}`;
       // A font that would not load leaves the script it was for blank on the
       // page — the writer has to hear that now, not from whoever they send it
       // to. See RenderedPDF.warning.
-      const warning = await exportPDF(json, documentTitle, pageLayout, pdfOptions(json));
+      const warning = await exportPDF(doc, name, pageLayout, {
+        ...base,
+        includeTitlePage: choice.includeTitlePage,
+        sceneNumbersVisible: choice.sceneNumbers,
+        pageNumbers: choice.pageNumbers,
+        pageLabels: keepsPageLabels ? base.pageLabels : null,
+        watermark: choice.watermark
+          ? { text: choice.watermarkText.trim(), opacity: 0.15, style: 'diagonal' }
+          : null,
+      });
       if (warning) showToast(warning, 'error');
     } catch (err) {
       console.error('PDF export failed:', err);
@@ -2794,7 +2827,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaFileCode />, label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
             { icon: <FaFileAlt />, label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
             { icon: <FaFileCode />, label: 'Fade In (.fadein)', action: handleExportFadeIn, disabled: isCollabGuest },
-            { icon: <FaFilePdf />, label: 'PDF', action: handleExportPDF },
+            { icon: <FaFilePdf />, label: 'PDF…', action: handleExportPDF },
             {
               icon: <FaFilePdf />, label: 'PDF (Revised Pages Only)', action: handleExportRevisedPDF,
               title: 'Only the pages that carry a revision mark',
@@ -4498,6 +4531,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
         onCancel={() => setDeleteScriptInfo(null)}
         onConfirm={handleConfirmDeleteScript}
       />
+    )}
+    {pdfExportOpen && (
+      <PdfExportDialog onExport={handleExportPDFWithChoice} onClose={() => setPdfExportOpen(false)} />
     )}
     {sidesDoc && (
       <SidesDialog
