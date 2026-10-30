@@ -5589,19 +5589,18 @@ const ScreenplayEditor: React.FC = () => {
         )}
         <div className="editor-center">
           <div className={`editor-main-area${splitScreenOpen && !outlineOpen && !statisticsOpen && !beatBoardOpen && !isHistoryMode ? ` split-screen split-${splitScreenMode}` : ''}`}>
-          {!isHistoryMode && !outlineOpen && !splitScreenOpen && (
-            <IndexCards
-              editor={editor}
-              scrollContainer={editorMainRef.current}
-              variant="panel"
-            />
-          )}
           {!isHistoryMode && outlineOpen && editor ? (
             <OutlineView editor={editor} />
           ) : !isHistoryMode && statisticsOpen && editor ? (
             <ScriptStatistics editor={editor} />
           ) : !isHistoryMode && beatBoardOpen ? (
             <BeatBoard editor={editor} />
+          ) : !isHistoryMode && indexCardsOpen && !splitScreenOpen && editor ? (
+            <IndexCards
+              editor={editor}
+              scrollContainer={editorMainRef.current}
+              variant="view"
+            />
           ) : (
             <div className={`editor-main${phoneView ? ' phone-layout' : ''}`} ref={editorMainRef} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
               <div

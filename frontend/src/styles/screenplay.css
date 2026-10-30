@@ -4600,6 +4600,28 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   overflow-y: auto;
   flex-shrink: 0;
 }
+/* The Index Cards as the editor's view: the cards fill the writing area,
+   with the timeline along the bottom. */
+.index-cards.index-cards-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  overflow: hidden;
+  border-bottom: none;
+}
+.index-cards-view .index-cards-grid {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  padding: 18px 24px 24px;
+  gap: 14px;
+  align-content: start;
+}
+.index-cards-view .index-card { min-height: 170px; }
+.index-cards-view .story-map { border-top: 1px solid var(--fd-border); }
 /* ── Fullscreen mode ── */
 .index-cards-fullscreen {
   position: fixed;
