@@ -4321,6 +4321,27 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   min-width: 0;
 }
 
+/* Split screen: the script on the left, its index cards on the right. */
+.editor-center.split-screen { flex-direction: row; align-items: stretch; }
+.editor-center.split-screen .index-cards.index-cards-split {
+  order: 2;
+  width: 380px;
+  min-width: 280px;
+  max-width: 46vw;
+  max-height: none;
+  height: 100%;
+  border-bottom: none;
+  border-left: 1px solid var(--fd-border);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.editor-center.split-screen .editor-main { order: 1; flex: 1; min-width: 0; }
+.editor-center.split-screen .index-cards-grid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  padding: 12px 14px;
+  gap: 10px;
+}
+
 /* ============ INDEX CARDS ============ */
 .index-cards {
   background: var(--fd-navigator-bg);

@@ -802,6 +802,9 @@ interface EditorState {
   toggleIndexCards: () => void;
   beatBoardOpen: boolean;
   toggleBeatBoard: () => void;
+  /** Editor and index cards side by side. */
+  splitScreenOpen: boolean;
+  toggleSplitScreen: () => void;
   statisticsOpen: boolean;
   setStatisticsOpen: (open: boolean) => void;
   statisticsScrollTo: string | null;
@@ -1255,6 +1258,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const v = !s.beatBoardOpen;
     saveViewState({ beatBoardOpen: v });
     return { beatBoardOpen: v };
+  }),
+  splitScreenOpen: false,
+  toggleSplitScreen: () => set((s) => {
+    const open = !s.splitScreenOpen;
+    // Split screen is the editor plus cards; the full-width planning views
+    // would leave no editor to split.
+    return open
+      ? { splitScreenOpen: true, statisticsOpen: false, beatBoardOpen: false }
+      : { splitScreenOpen: false };
   }),
   statisticsOpen: false,
   setStatisticsOpen: (open) => set({ statisticsOpen: open }),

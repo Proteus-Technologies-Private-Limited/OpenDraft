@@ -8,9 +8,15 @@ import SynopsisModal from './SynopsisModal';
 interface IndexCardsProps {
   editor: Editor | null;
   scrollContainer: HTMLDivElement | null;
+  /** "split" docks the cards beside the editor instead of above it. */
+  variant?: 'panel' | 'split';
+  /** Closes the split pane; defaults to toggling the panel. */
+  onRequestClose?: () => void;
 }
 
-const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
+const IndexCards: React.FC<IndexCardsProps> = ({
+  editor, scrollContainer, variant = 'panel', onRequestClose,
+}) => {
   const { scenes, indexCardsOpen, updateSceneSynopsis, updateSceneColor, toggleIndexCards, pageLayout } = useEditorStore();
 
   const [fullscreen, setFullscreen] = useState(false);
@@ -555,9 +561,9 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
     };
   }, [dragIdx, insertIdx]);
 
-  if (!indexCardsOpen) return null;
+  if (!indexCardsOpen && variant !== 'split') return null;
 
-  const containerClass = `index-cards${fullscreen ? ' index-cards-fullscreen' : ''}`;
+  const containerClass = `index-cards${variant === 'split' ? ' index-cards-split' : ''}${fullscreen ? ' index-cards-fullscreen' : ''}`;
   const indicatorStyle = getIndicatorStyle();
 
   return (
@@ -634,7 +640,10 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
           </button>
           <button
             className="ic-action-btn ic-close-btn"
-            onClick={() => { if (fullscreen) setFullscreen(false); toggleIndexCards(); }}
+            onClick={() => {
+              if (fullscreen) setFullscreen(false);
+              (onRequestClose ?? toggleIndexCards)();
+            }}
             title="Close Index Cards"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">

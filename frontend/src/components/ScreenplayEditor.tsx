@@ -544,7 +544,7 @@ const ScreenplayEditor: React.FC = () => {
     setActiveElement, setScenes, setPageCount, setCurrentPage,
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     viewLayout,
-    beatBoardOpen, statisticsOpen,
+    beatBoardOpen, statisticsOpen, splitScreenOpen, toggleSplitScreen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, dialogueTunerOpen,
     spellCheckEnabled, spellModalOpen, setSpellModalOpen,
@@ -5560,8 +5560,15 @@ const ScreenplayEditor: React.FC = () => {
         {!isHistoryMode && navigatorOpen && (
           <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
         )}
-        <div className="editor-center">
-          {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainRef.current} />}
+        <div className={`editor-center${splitScreenOpen ? ' split-screen' : ''}`}>
+          {!isHistoryMode && (
+            <IndexCards
+              editor={editor}
+              scrollContainer={editorMainRef.current}
+              variant={splitScreenOpen ? 'split' : 'panel'}
+              onRequestClose={splitScreenOpen ? toggleSplitScreen : undefined}
+            />
+          )}
           {!isHistoryMode && statisticsOpen && editor ? (
             <ScriptStatistics editor={editor} />
           ) : !isHistoryMode && beatBoardOpen ? (

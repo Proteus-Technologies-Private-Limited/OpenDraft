@@ -38,6 +38,7 @@ import {
   FaListUl,
   FaStream,
   FaListOl,
+  FaClone,
 } from 'react-icons/fa';
 import { useEditorStore } from '../stores/editorStore';
 import { useAiStore } from '../stores/aiStore';
@@ -114,6 +115,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     toggleIndexCards,
     beatBoardOpen,
     toggleBeatBoard,
+    splitScreenOpen,
+    toggleSplitScreen,
     setTitlePageEditorOpen,
     openNavigatorTab,
   } = useEditorStore();
@@ -924,6 +927,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           <FaTh />
         </button>
         <button
+          className={`toolbar-btn${splitScreenOpen ? ' active' : ''}`}
+          title="Split Screen"
+          onClick={() => { toggleSplitScreen(); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaClone />
+        </button>
+        <button
           className="toolbar-btn"
           title="Reports"
           onClick={() => { requestAppCommand('reports'); if (inOverflow) setOverflowOpen(false); }}
@@ -949,7 +959,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   }, [
     sceneNumbersVisible, setSceneNumbersVisible, setTitlePageEditorOpen,
     viewLayout, setViewLayout, indexCardsOpen, toggleIndexCards, openNavigatorTab,
-    beatBoardOpen, toggleBeatBoard,
+    beatBoardOpen, toggleBeatBoard, splitScreenOpen, toggleSplitScreen,
   ]);
 
   const renderNotesTags = useCallback((inOverflow = false) => (
