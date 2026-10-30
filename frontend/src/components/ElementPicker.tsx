@@ -4,6 +4,8 @@ import { ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { AV_SCRIPT_TEMPLATE } from '../stores/templates/avScriptTemplate';
 import { pickerElementTypes } from '../utils/elementPickerOrder';
+import { formatShortcut } from '../utils/shortcuts';
+import { elementShortcutSpec } from '../utils/elementShortcuts';
 
 interface ElementPickerProps {
   position: { top: number; left: number };
@@ -153,8 +155,10 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
         // The menu only opens on a blank line, so the row the line is already
         // on cannot mean "convert" — it means one more line of this element.
         // Say so, rather than leaving it to be discovered (issue #100).
+        const shortcut = elementShortcutSpec(type);
         const hint = [
           type === defaultType && onInsertBlankLine ? 'blank line' : '',
+          shortcut ? formatShortcut(shortcut) : '',
           hasNavigated && i === selectedIndex ? '\u23CE' : '',
         ].filter(Boolean).join(' ');
         return (
