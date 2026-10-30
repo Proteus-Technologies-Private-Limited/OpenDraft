@@ -19,6 +19,7 @@ import { useEditorStore } from '../stores/editorStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { spellChecker } from '../editor/spellchecker';
 import { grammarIgnore } from '../editor/grammar/grammarIgnore';
+import { normalizeCapitalsJSON } from './capitals';
 
 /**
  * Every `_`-prefixed key `buildSaveContent` writes. Used to separate app
@@ -70,7 +71,11 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
   if (!editor || editor.isDestroyed) return undefined;
   const store = useEditorStore.getState();
   const tplStore = useFormattingTemplateStore.getState();
-  const doc = editor.getJSON();
+  // One-time normalisation for scripts written before capitals elements were
+  // stored in capitals: every save and every backup carries the corrected text
+  // from the first save on. Already-normalised documents are returned as they
+  // are (utils/capitals).
+  const doc = normalizeCapitalsJSON(editor.getJSON());
   return {
     ...doc,
     _notes: store.notes,

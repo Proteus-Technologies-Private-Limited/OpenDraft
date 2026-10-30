@@ -13,6 +13,8 @@ import { isInAvRow, isInAvCell, avCellSideAt, avRowContext, readColumnConfig, av
 import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 import { chooseAvFrameImage } from '../utils/avFrame';
 import { formatShortcut } from '../utils/shortcuts';
+import { normalizeCapitalsJSON } from '../utils/capitals';
+import { APP_COMMAND_EVENT, type AppCommand } from '../utils/appCommands';
 import { macroLabel } from '../utils/macros';
 import { insertMacro } from './macroActions';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
@@ -27,7 +29,11 @@ import type { Editor as TiptapEditor } from '@tiptap/react';
  * stands before any pending suggestion, so nothing nobody has accepted reaches
  * paper (editor/suggestions).
  */
-const exportJSON = (editor: TiptapEditor) => withoutSuggestionsJSON(editor.getJSON());
+const exportJSON = (editor: TiptapEditor) =>
+  // Capitals elements are stored in capitals (utils/capitals); a script written
+  // before that is normalised here too, so an export made before the next save
+  // is not the one output that still shows lower case.
+  normalizeCapitalsJSON(withoutSuggestionsJSON(editor.getJSON()));
 import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
 import { exportFadeIn } from '../utils/osfExporter';
@@ -171,6 +177,8 @@ import {
   FaAlignRight,
   FaAlignJustify,
   FaColumns,
+  FaClone,
+  FaMap,
   FaFileAlt,
   FaCommentDots,
   FaHeading,
@@ -213,6 +221,7 @@ import {
   FaMoon,
   FaRegFileAlt,
   FaStepForward,
+  FaBolt,
   FaEraser,
   FaUnlock,
   FaSlidersH,
@@ -230,6 +239,8 @@ import RevisionSettingsDialog from './RevisionSettingsDialog';
 import ReportsDialog from './ReportsDialog';
 import SidesDialog, { type SidesIntent } from './SidesDialog';
 import PdfSecurityDialog, { type PdfSecurityRequest } from './PdfSecurityDialog';
+import PdfExportDialog, { type PdfExportChoice } from './PdfExportDialog';
+import { sceneRangeDocument, sceneSelectionDocument } from '../utils/pdfSceneExport';
 import { sanitizeExportFilename } from '../utils/exportFilename';
 import type { PluginExporter } from '../plugins/registry';
 import ScriptProfileDialog from './ScriptProfileDialog';
@@ -336,6 +347,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
     toggleIndexCards,
     beatBoardOpen,
     toggleBeatBoard,
+    splitScreenOpen,
+    toggleSplitScreen,
+    splitScreenMode,
+    setSplitScreenMode,
+    splitScreenPane,
+    setSplitScreenPane,
+    storyMapOpen,
+    toggleStoryMap,
+    outlineOpen,
+    toggleOutline,
     scriptNotesOpen,
     toggleScriptNotes,
     characterProfilesOpen,
@@ -1102,6 +1123,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const [revisionSettingsOpen, setRevisionSettingsOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
   const [pdfSecurityOpen, setPdfSecurityOpen] = useState(false);
+  const [pdfExportOpen, setPdfExportOpen] = useState(false);
   /** The document Sides was opened on. Its scene indices are what the dialog
    *  selects by, so the export has to lay out this same document. */
   const [sidesDoc, setSidesDoc] = useState<JSONContent | null>(null);
@@ -2103,20 +2125,79 @@ const MenuBar: React.FC<MenuBarProps> = ({
     }
   }, [editor]);
 
-  const handleExportPDF = useCallback(async () => {
+  /** File → Export → PDF opens the choices; the export itself is below. */
+  const handleExportPDF = useCallback(() => {
     if (!editor) return;
+    setPdfExportOpen(true);
+  }, [editor]);
+
+  const handleExportPDFWithChoice = useCallback(async (choice: PdfExportChoice) => {
+    if (!editor) return;
+    setPdfExportOpen(false);
     try {
       const json = exportJSON(editor);
+      const doc = choice.mode === 'pick'
+        ? sceneSelectionDocument(json, {
+          scenes: choice.selectedScenes,
+          oneScenePerPage: choice.oneScenePerPage,
+        })
+        : sceneRangeDocument(json, {
+          from: choice.fromIndex,
+          to: choice.toIndex,
+          oneScenePerPage: choice.oneScenePerPage,
+        });
+      const base = pdfOptions(doc);
+      const sceneCount = useEditorStore.getState().scenes.length;
+      const fullRange = choice.mode === 'pick'
+        ? choice.selectedScenes.length >= sceneCount
+        : choice.fromIndex === 0 && choice.toIndex >= sceneCount - 1;
+      // A range's pages are its own, so the labels of the full script would be
+      // wrong on it; the same goes for one-scene-per-page, which re-paginates.
+      const keepsPageLabels = fullRange && !choice.oneScenePerPage;
+      const name = keepsPageLabels
+        ? documentTitle
+        : choice.mode === 'pick'
+          ? `${documentTitle || 'Untitled'} - Selected Scenes`
+          : `${documentTitle || 'Untitled'} - Scenes ${choice.fromIndex + 1}-${choice.toIndex + 1}`;
       // A font that would not load leaves the script it was for blank on the
       // page — the writer has to hear that now, not from whoever they send it
       // to. See RenderedPDF.warning.
-      const warning = await exportPDF(json, documentTitle, pageLayout, pdfOptions(json));
+      const warning = await exportPDF(doc, name, pageLayout, {
+        ...base,
+        includeTitlePage: choice.includeTitlePage,
+        sceneNumbersVisible: choice.sceneNumbers,
+        pageNumbers: choice.pageNumbers,
+        pageLabels: keepsPageLabels ? base.pageLabels : null,
+        watermark: choice.watermark
+          ? { text: choice.watermarkText.trim(), opacity: 0.15, style: 'diagonal' }
+          : null,
+      });
       if (warning) showToast(warning, 'error');
     } catch (err) {
       console.error('PDF export failed:', err);
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
   }, [editor, documentTitle, pageLayout, pdfOptions]);
+
+  // The toolbar's file and report buttons run the menu handlers, so those
+  // actions still go through the unsaved-changes guard, the file origin and
+  // the library. One implementation, two entry points.
+  useEffect(() => {
+    const onCommand = (event: Event) => {
+      const command = (event as CustomEvent<AppCommand>).detail;
+      switch (command) {
+        case 'new-script': handleNewScreenplay(); break;
+        case 'open-script': confirmOrRun(() => setOpenFileOpen(true)); break;
+        case 'import-script': confirmOrRun(handleImport); break;
+        case 'save-script': void handleSave(); break;
+        case 'export-pdf': void handleExportPDF(); break;
+        case 'reports': setReportsOpen(true); break;
+        default: break;
+      }
+    };
+    window.addEventListener(APP_COMMAND_EVENT, onCommand);
+    return () => window.removeEventListener(APP_COMMAND_EVENT, onCommand);
+  }, [handleNewScreenplay, confirmOrRun, setOpenFileOpen, handleSave, handleExportPDF, handleImport]);
 
   /**
    * File → Print (and ⌘P).
@@ -2400,7 +2481,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
    * caret comes back somewhere other than where the writer left it. A menu
    * that does not take focus leaves the selection exactly as it was.
    *
-   * Same treatment as ElementPicker and CharacterAutocomplete: mousedown
+   * Same treatment as ElementPicker and SmartTypePopup: mousedown
    * rather than pointerdown, because preventing the pointer event suppresses
    * the click that follows it and the menu would stop responding at all.
    * Nothing inside a menu wants focus of its own.
@@ -2675,7 +2756,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaFileCode />, label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
             { icon: <FaFileAlt />, label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
             { icon: <FaFileCode />, label: 'Fade In (.fadein)', action: handleExportFadeIn, disabled: isCollabGuest },
-            { icon: <FaFilePdf />, label: 'PDF', action: handleExportPDF },
+            { icon: <FaFilePdf />, label: 'PDF…', action: handleExportPDF },
             {
               icon: <FaFilePdf />, label: 'PDF (Revised Pages Only)', action: handleExportRevisedPDF,
               title: 'Only the pages that carry a revision mark',
@@ -3054,6 +3135,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaCompass />, label: navigatorOpen ? '\u2713 Navigator' : 'Navigator', action: toggleNavigator },
             { icon: <FaTh />, label: indexCardsOpen ? '\u2713 Index Cards' : 'Index Cards', action: toggleIndexCards },
             { icon: <FaStream />, label: beatBoardOpen ? '\u2713 Beat Board' : 'Beat Board', action: toggleBeatBoard },
+            { icon: <FaListUl />, label: outlineOpen ? '\u2713 Outline' : 'Outline', action: toggleOutline },
             { icon: <FaProjectDiagram />, label: 'Story Timeline…', title: 'Plotlines across the scenes, by screen time', action: () => {
               // The timeline edits scene headings, so the script has to be on
               // screen under it, not the Beat Board or Statistics.
@@ -3075,6 +3157,22 @@ const MenuBar: React.FC<MenuBarProps> = ({
           ],
         },
         {
+          icon: <FaClone />, label: splitScreenOpen ? '\u2713 Split Screen' : 'Split Screen', children: [
+            { label: splitScreenMode === 'side-by-side' && splitScreenOpen ? '\u2713 Side by Side' : 'Side by Side', action: () => setSplitScreenMode('side-by-side') },
+            { label: splitScreenMode === 'stacked' && splitScreenOpen ? '\u2713 Stacked' : 'Stacked', action: () => setSplitScreenMode('stacked') },
+            { separator: true, label: '' },
+            { label: splitScreenOpen ? 'One Pane' : '\u2713 One Pane', action: () => { if (splitScreenOpen) toggleSplitScreen(); } },
+            { separator: true, label: '' },
+            { label: 'Second Pane', children: [
+              { icon: <FaFileAlt />, label: splitScreenPane === 'page-view' && splitScreenOpen ? '\u2713 Page View' : 'Page View', action: () => setSplitScreenPane('page-view') },
+              { icon: <FaTh />, label: splitScreenPane === 'index-cards' && splitScreenOpen ? '\u2713 Index Cards' : 'Index Cards', action: () => setSplitScreenPane('index-cards') },
+              { icon: <FaListUl />, label: splitScreenPane === 'outline' && splitScreenOpen ? '\u2713 Outline' : 'Outline', action: () => setSplitScreenPane('outline') },
+              { icon: <FaStream />, label: splitScreenPane === 'beat-board' && splitScreenOpen ? '\u2713 Beat Board' : 'Beat Board', action: () => setSplitScreenPane('beat-board') },
+            ] },
+          ] },
+        {
+          icon: <FaMap />, label: storyMapOpen ? '\u2713 Story Map' : 'Story Map', action: toggleStoryMap },
+        {
           icon: <FaHighlighter />, label: 'Highlights',
           children: [
             { icon: <FaHighlighter />, label: notesVisible ? '\u2713 Note Highlights' : 'Note Highlights', action: () => setNotesVisible(!notesVisible) },
@@ -3086,6 +3184,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           children: [
             { icon: <FaRegFileAlt />, label: viewLayout === 'page' ? '\u2713 Page' : 'Page', action: () => setViewLayout('page') },
             { icon: <FaMobileAlt />, label: viewLayout === 'phone' ? '\u2713 Phone' : 'Phone', action: () => setViewLayout('phone') },
+            { icon: <FaBolt />, label: viewLayout === 'speed' ? '\u2713 Speed' : 'Speed', action: () => setViewLayout('speed') },
           ],
         },
         { separator: true, label: '' },
@@ -4347,6 +4446,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
     )}
     {pdfSecurityOpen && (
       <PdfSecurityDialog onExport={handleExportSecured} onClose={() => setPdfSecurityOpen(false)} />
+    )}
+    {pdfExportOpen && (
+      <PdfExportDialog onExport={handleExportPDFWithChoice} onClose={() => setPdfExportOpen(false)} />
     )}
     {sidesDoc && (
       <SidesDialog

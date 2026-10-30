@@ -30,7 +30,7 @@ import {
   FormatOverride, CustomElement, DualDialogue, DualDialogueColumn,
   TitlePage,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
-  StartsNewPage, Bookmark, Alternates, Suggestions,
+  StartsNewPage, Bookmark, Alternates, Suggestions, AutoUppercase,
 } from '../editor/extensions';
 import { ElementNumbers, ELEMENT_NUMBERS_REFRESH } from '../editor/extensions/ElementNumbers';
 import { FocusMode, FOCUS_MODE_REFRESH, FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
@@ -68,12 +68,16 @@ import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
 import IndexCards from './IndexCards';
 import BeatBoard from './BeatBoard';
+import OutlineView from './OutlineView';
+import PagePreviewPane from './PagePreviewPane';
+import StoryMap from './StoryMap';
 import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
 import VoiceProviderDialog from './VoiceProviderDialog';
 import { TableReadHighlight } from '../editor/extensions/TableReadHighlight';
 import { useTableReadStore } from '../stores/tableReadStore';
 import ScriptNotes from './ScriptNotes';
+import AiAssistantPanel from './AiAssistantPanel';
 import CharacterProfiles from './CharacterProfiles';
 import TagsPanel from './TagsPanel';
 import { PluginPanelTabs } from './PluginPanelTabs';
@@ -88,7 +92,7 @@ import StatusBar from './StatusBar';
 import SearchReplace, { createSearchPlugin } from './SearchReplace';
 import GoToPage from './GoToPage';
 import ElementPicker from './ElementPicker';
-import CharacterAutocomplete from './CharacterAutocomplete';
+import SmartTypePopup from './SmartTypePopup';
 import SpellCheckModal from './SpellCheckModal';
 import WritingSuggestionsModal from './WritingSuggestionsModal';
 import GrammarRulesPanel from './GrammarRulesPanel';
@@ -109,7 +113,7 @@ import FootnoteDialog from './FootnoteDialog';
 import EndnotePages from './EndnotePages';
 
 /** Things on screen that close on Esc, and so keep Esc from leaving Focus Mode. */
-const ESC_OWNERS = '.dialog-overlay, .menu-dropdown, .menu-bar--floating, .character-autocomplete, '
+const ESC_OWNERS = '.dialog-overlay, .menu-dropdown, .menu-bar--floating, .smarttype-popup, '
   + '.element-picker, .spell-context-menu, .script-context-menu, .search-replace-panel';
 
 /** Shared empty list, so "nothing prints" never re-renders the overlays. */
@@ -128,6 +132,8 @@ import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
 import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile } from '../utils/scriptProfile';
 import { restoreRevisionState } from '../utils/revisionState';
 import { characterKey } from '../utils/nodeText';
+import { buildScriptIndex, emptyScriptIndex, suggestSmartType, type BlockLike, type ScriptIndex } from '../editor/smartType';
+import { ELEMENT_SHORTCUT_TYPES } from '../utils/elementShortcuts';
 import { computeContdChanges, type ContdBlock } from '../editor/contdAuto';
 import { useBackupScheduler } from '../hooks/useBackupScheduler';
 import { useRecoverySnapshot } from '../hooks/useRecoverySnapshot';
@@ -157,6 +163,7 @@ import { scriptApi } from '../services/scriptApi';
 import { getApiBase, getCollabWsUrl } from '../config';
 import { showToast } from './Toast';
 import { useSuggestModeStore, suggestionAuthor } from '../stores/suggestModeStore';
+import { useAiStore } from '../stores/aiStore';
 import { suggesterIdOf } from '../utils/suggesterId';
 
 /**
@@ -540,7 +547,11 @@ const ScreenplayEditor: React.FC = () => {
     setActiveElement, setScenes, setPageCount, setCurrentPage,
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     viewLayout,
-    beatBoardOpen, statisticsOpen,
+    beatBoardOpen, statisticsOpen, splitScreenOpen, toggleSplitScreen,
+    splitScreenMode, splitScreenPane,
+    indexCardsOpen,
+    storyMapOpen, toggleStoryMap,
+    outlineOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, dialogueTunerOpen,
     spellCheckEnabled, spellModalOpen, setSpellModalOpen,
@@ -623,7 +634,8 @@ const ScreenplayEditor: React.FC = () => {
   }, [navWidth, rightPanelWidth]);
 
   const suggestionsPanelOpen = useSuggestModeStore((s) => s.panelOpen);
-  const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen || locationDatabaseOpen || dialogueTunerOpen || suggestionsPanelOpen;
+  const aiPanelOpen = useAiStore((s) => s.panelOpen);
+  const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen || locationDatabaseOpen || dialogueTunerOpen || suggestionsPanelOpen || aiPanelOpen;
 
   // Yjs document & provider — stable across renders while collab is active
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -984,8 +996,14 @@ const ScreenplayEditor: React.FC = () => {
   pageLayoutRef.current = pageLayout;
   // Phone view: the same pages, reflowed to the screen (see ViewLayout).
   const phoneView = viewLayout === 'phone';
+  // Speed view: the page's sheet with the page breaks taken out, for drafting.
+  const speedView = viewLayout === 'speed';
   const phoneViewRef = useRef(phoneView);
   phoneViewRef.current = phoneView;
+  // Speed view draws no gap between pages, so the overlay must not subtract
+  // one: measureOverlays reads both refs while computing the page anchors.
+  const speedViewRef = useRef(speedView);
+  speedViewRef.current = speedView;
 
   // ── Touch gestures (must be after editorMainRef) ──
   const isTouch = useIsTouchDevice();
@@ -1504,14 +1522,22 @@ const ScreenplayEditor: React.FC = () => {
    */
   const pickerDismissedAtRef = useRef<number | null>(null);
 
-  // Character autocomplete state
-  const [knownCharacters, setKnownCharacters] = useState<string[]>([]);
-  const [charAutoState, setCharAutoState] = useState<{
+  // SmartType state: the completion popup for character cues, scene headings
+  // and transitions. `from` is the character offset in the block that the
+  // chosen item replaces (see editor/smartType).
+  const smartTypeIndexRef = useRef<ScriptIndex>(emptyScriptIndex());
+  const [smartTypeState, setSmartTypeState] = useState<{
     visible: boolean;
     position: { top: number; left: number };
     suggestions: string[];
-  }>({ visible: false, position: { top: 0, left: 0 }, suggestions: [] });
-  const charAutoDismissedRef = useRef(false);
+    from: number;
+  }>({ visible: false, position: { top: 0, left: 0 }, suggestions: [], from: 0 });
+  /**
+   * The exact block text the popup was dismissed at, or accepted into. Hidden
+   * only while the text is unchanged, so typing again — or accepting a prefix —
+   * never leaves the writer without suggestions until they change line.
+   */
+  const smartTypeHiddenForRef = useRef<string | null>(null);
 
   const [formatPanelOpen, setFormatPanelOpen] = useState(false);
   const renamingCharacter = useEditorStore((s) => s.renamingCharacter);
@@ -1591,7 +1617,10 @@ const ScreenplayEditor: React.FC = () => {
       // first element of the page.
       const overlayTop = phoneViewRef.current
         ? (elRect.top - pageRect.top) / scale - PHONE_PAGE_GAP_PX
-        : (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
+        : speedViewRef.current
+          // No page gap to step over in the one continuous sheet.
+          ? (elRect.top - pageRect.top) / scale
+          : (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
       newOverlays.push({
         top: overlayTop,
         pageNumber: brk.pageNumber,
@@ -1908,7 +1937,7 @@ const ScreenplayEditor: React.FC = () => {
       name: 'elementShortcuts',
       priority: 999,
       addKeyboardShortcuts() {
-        const types = ['sceneHeading', 'action', 'character', 'dialogue', 'parenthetical', 'transition', 'general', 'shot'];
+        const types = ELEMENT_SHORTCUT_TYPES;
         const shortcuts: Record<string, any> = {};
         types.forEach((type, i) => {
           shortcuts[`Mod-${i + 1}`] = ({ editor }: { editor: any }) => {
@@ -2030,6 +2059,26 @@ const ScreenplayEditor: React.FC = () => {
     extensions: [
       Document.extend({
         content: 'block+',
+        // Sequence labels live on the document (and on each scene heading's
+        // sequenceId), so the Outline can group scenes without inserting
+        // structure nodes into the script.
+        addAttributes() {
+          return {
+            sequences: {
+              default: null,
+              parseHTML: (element: HTMLElement) => {
+                const raw = element.getAttribute('data-sequences');
+                if (!raw) return null;
+                try { return JSON.parse(raw); } catch { return null; }
+              },
+              renderHTML: (attributes: Record<string, unknown>) => (
+                attributes.sequences
+                  ? { 'data-sequences': JSON.stringify(attributes.sequences) }
+                  : {}
+              ),
+            },
+          };
+        },
       }),
       // HardBreakLeafText must travel with ScreenplayHardBreak — see that module.
       Text, ScreenplayHardBreak, HardBreakLeafText,
@@ -2113,7 +2162,12 @@ const ScreenplayEditor: React.FC = () => {
       ContdCaseExtension,
       SearchExtension,
       TrackChangesExtension,
-      ...(isHistoryMode ? [] : [EnforceGuardExtension, EnterHandlerExtension, TabHandlerExtension, ElementShortcutExtension, PasteFountainExtension]),
+      ...(isHistoryMode ? [] : [
+        EnforceGuardExtension, EnterHandlerExtension, TabHandlerExtension, ElementShortcutExtension, PasteFountainExtension,
+        // A viewer in a collaboration session must not write, and that
+        // includes normalising a line's case.
+        AutoUppercase.configure({ canNormalise: () => !(collabMode && collabRole === 'viewer') }),
+      ]),
       SpellCheck,
       Grammar,
       ...pluginRegistry.getEditorExtensions(),
@@ -2133,6 +2187,13 @@ const ScreenplayEditor: React.FC = () => {
       transformPastedHTML: (html) => stripNoteBackgrounds(html),
     },
     onSelectionUpdate: ({ editor: ed }) => {
+      const type = resolveActiveElement(ed);
+      if (type) setActiveElement(type);
+    },
+    // A shortcut that changes the element type (Ctrl/⌘+1 … 8) moves no caret,
+    // so `onSelectionUpdate` never fires and the toolbar's element picker kept
+    // showing the previous type. Every transaction can change it.
+    onTransaction: ({ editor: ed }) => {
       const type = resolveActiveElement(ed);
       if (type) setActiveElement(type);
     },
@@ -2512,7 +2573,6 @@ const ScreenplayEditor: React.FC = () => {
       return true;
     });
     const sorted = Array.from(names).sort();
-    setKnownCharacters(sorted);
     setCharacters(sorted);
   }, [editor, setCharacters]);
 
@@ -2606,48 +2666,84 @@ const ScreenplayEditor: React.FC = () => {
     };
   }, [editor, characterContd, contdText]);
 
-  // --- Character autocomplete: show/update on each editor update while in character block ---
+  // --- SmartType: what the script already uses ---
+  // Rebuilt on a short debounce, so typing never waits on a walk of the whole
+  // document. Until the first rebuild the popup still has the built-in lists,
+  // and a location only has to exist in an earlier block to be offered here.
   useEffect(() => {
     if (!editor) return;
+    const rebuild = () => {
+      const blocks: BlockLike[] = [];
+      editor.state.doc.forEach((node) => {
+        blocks.push({ type: node.type.name, text: node.textContent });
+      });
+      smartTypeIndexRef.current = buildScriptIndex(blocks);
+    };
+    rebuild();
+    let timeout: ReturnType<typeof setTimeout> | null = null;
     const onUpdate = () => {
-      if (!editor.isActive('character')) {
-        setCharAutoState(s => s.visible ? { ...s, visible: false } : s);
-        charAutoDismissedRef.current = false;
-        return;
-      }
-      if (charAutoDismissedRef.current) return;
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(rebuild, 250);
+    };
+    editor.on('update', onUpdate);
+    return () => {
+      editor.off('update', onUpdate);
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [editor]);
 
+  // --- SmartType: show/update on each editor update ---
+  useEffect(() => {
+    if (!editor) return;
+    const hide = () => setSmartTypeState(s => (s.visible ? { ...s, visible: false } : s));
+    const onUpdate = () => {
       const { $from } = editor.state.selection;
-      const text = characterKey($from.parent.textContent);
-      if (!text) {
-        setCharAutoState(s => s.visible ? { ...s, visible: false } : s);
-        charAutoDismissedRef.current = false;
+      const element = $from.parent.type.name;
+      if (element !== 'character' && element !== 'sceneHeading' && element !== 'transition') {
+        hide();
+        smartTypeHiddenForRef.current = null;
         return;
       }
 
-      // Filter known characters that start with typed text (exclude exact match)
-      // Only match against base names (without extensions)
-      const matches = knownCharacters.filter(
-        n => n.startsWith(text) && n !== text,
-      );
-
-      if (matches.length === 0) {
-        setCharAutoState(s => s.visible ? { ...s, visible: false } : s);
+      const text = $from.parent.textContent;
+      // A dismissal (or an accepted item) hides the popup for that exact text
+      // only: the next keystroke offers again, and Tab after accepting a
+      // prefix cannot accept a location the writer never asked for.
+      if (smartTypeHiddenForRef.current !== null) {
+        if (smartTypeHiddenForRef.current === text) return;
+        smartTypeHiddenForRef.current = null;
+      }
+      // An IME composition owns the text being built; rewriting it with a
+      // completion would break the composition.
+      if (editor.view.composing) {
+        hide();
+        return;
+      }
+      // A hard break is a leaf node with no text, so the offset would no
+      // longer map to a document position; those blocks have no completions.
+      if ($from.parent.content.size !== text.length) {
+        hide();
         return;
       }
 
-      const { from } = editor.state.selection;
-      const coords = editor.view.coordsAtPos(from);
-      setCharAutoState({
+      const result = suggestSmartType(element, text, $from.parentOffset, smartTypeIndexRef.current);
+      if (!result) {
+        hide();
+        return;
+      }
+
+      const coords = editor.view.coordsAtPos($from.pos);
+      setSmartTypeState({
         visible: true,
         position: { top: coords.bottom + 4, left: coords.left },
-        suggestions: matches,
+        suggestions: result.items,
+        from: result.from,
       });
     };
     editor.on('update', onUpdate);
     editor.on('selectionUpdate', onUpdate);
     return () => { editor.off('update', onUpdate); editor.off('selectionUpdate', onUpdate); };
-  }, [editor, knownCharacters]);
+  }, [editor]);
 
   // Re-measure overlays after editor updates (decorations settle)
   useEffect(() => {
@@ -4053,13 +4149,20 @@ const ScreenplayEditor: React.FC = () => {
       const pageRect = pageRef.current.getBoundingClientRect();
       const containerRect = editorMainRef.current.getBoundingClientRect();
       const scale = (zoomLevelRef.current || 100) / 100;
+      // Speed view has no page gap to step over: the break's element is
+      // already a point in the one continuous sheet.
+      if (speedView) {
+        const scrollTo = editorMainRef.current.scrollTop + (pageRect.top + ov.top * scale - containerRect.top);
+        editorMainRef.current.scrollTo({ top: Math.max(0, scrollTo), behavior: 'auto' });
+        return;
+      }
       const layout = pageLayoutRef.current;
       const bottomMarginPx = (layout.bottomMargin / 72) * 96;
       const pageTopOffset = ov.top + bottomMarginPx + 40; // 40 = page-sep-gap
       const scrollTo = editorMainRef.current.scrollTop + (pageRect.top + pageTopOffset * scale - containerRect.top);
       editorMainRef.current.scrollTo({ top: scrollTo, behavior: 'auto' });
     }
-  }, [overlays]);
+  }, [overlays, speedView]);
 
   // Wire up the picker trigger
   showPickerRef.current = useCallback((defaultType: ElementType, availableTypes?: ElementType[]) => {
@@ -5056,25 +5159,33 @@ const ScreenplayEditor: React.FC = () => {
     [editor, currentProject, currentScriptId, setCompareVersionOpen, setTrackChangesEnabled, setTrackChangesLabel],
   );
 
-  const handleCharAutoSelect = useCallback((name: string) => {
+  const handleSmartTypeSelect = useCallback((item: string) => {
     if (!editor) return;
-    // Replace the current character block text with the selected name
+    // Replace from the offset SmartType decided on (a character's extension,
+    // the location after the prefix, the time after the dash) to the end of
+    // the block. Character names start at 0, which is the whole cue.
     const { $from } = editor.state.selection;
-    const start = $from.start();
+    const start = $from.start() + smartTypeState.from;
     const end = $from.end();
+    // The text this produces, so the popup stays closed until the next
+    // keystroke instead of reopening on the word just accepted.
+    smartTypeHiddenForRef.current = $from.parent.textContent.slice(0, smartTypeState.from) + item;
     editor.chain().focus()
       .command(({ tr }) => {
-        tr.insertText(name, start, end);
+        tr.insertText(item, start, end);
         return true;
       })
       .run();
-    setCharAutoState(s => ({ ...s, visible: false }));
-  }, [editor]);
+    setSmartTypeState(s => ({ ...s, visible: false }));
+  }, [editor, smartTypeState.from]);
 
-  const handleCharAutoDismiss = useCallback(() => {
-    setCharAutoState(s => ({ ...s, visible: false }));
-    charAutoDismissedRef.current = true;
-  }, []);
+  const handleSmartTypeDismiss = useCallback(() => {
+    if (editor) {
+      const { $from } = editor.state.selection;
+      smartTypeHiddenForRef.current = $from.parent.textContent;
+    }
+    setSmartTypeState(s => ({ ...s, visible: false }));
+  }, [editor]);
 
   // --- Click on script note highlight → auto-filter notes panel ---
   // Only opens the panel when note highlights are visible (notesVisible).
@@ -5477,11 +5588,19 @@ const ScreenplayEditor: React.FC = () => {
           <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
         )}
         <div className="editor-center">
-          {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainRef.current} />}
-          {!isHistoryMode && statisticsOpen && editor ? (
+          <div className={`editor-main-area${splitScreenOpen && !outlineOpen && !statisticsOpen && !beatBoardOpen && !isHistoryMode ? ` split-screen split-${splitScreenMode}` : ''}`}>
+          {!isHistoryMode && outlineOpen && editor ? (
+            <OutlineView editor={editor} />
+          ) : !isHistoryMode && statisticsOpen && editor ? (
             <ScriptStatistics editor={editor} />
           ) : !isHistoryMode && beatBoardOpen ? (
             <BeatBoard editor={editor} />
+          ) : !isHistoryMode && indexCardsOpen && !splitScreenOpen && editor ? (
+            <IndexCards
+              editor={editor}
+              scrollContainer={editorMainRef.current}
+              variant="view"
+            />
           ) : (
             <div className={`editor-main${phoneView ? ' phone-layout' : ''}`} ref={editorMainRef} onDragOver={handleEditorDragOver} onDragLeave={handleEditorDragLeave} onDrop={handleEditorDrop}>
               <div
@@ -5524,7 +5643,7 @@ const ScreenplayEditor: React.FC = () => {
               >
                 {resolvedNoteCss && <style>{resolvedNoteCss}</style>}
                 <div
-                  className={`page${phoneView ? ' phone-view' : ''}${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
+                  className={`page${phoneView ? ' phone-view' : ''}${speedView ? ' speed-view' : ''}${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
                   ref={pageRef}
                   style={{
                     fontFamily: fontStack(fontFamily),
@@ -5535,7 +5654,10 @@ const ScreenplayEditor: React.FC = () => {
                     // measured from them.
                     ...(phoneView ? {} : {
                       width: `${pageLayout.pageWidth}in`,
-                      minHeight: `${lastPageEnd + endnoteExtraHeight + (pageLayout.bottomMargin / 72) * 96}px`,
+                      // Speed view is one continuous sheet: its height is the
+                      // script's, not a page's, or it would end in a blank
+                      // page-sized tail below the last line.
+                      minHeight: speedView ? 0 : `${lastPageEnd + endnoteExtraHeight + (pageLayout.bottomMargin / 72) * 96}px`,
                       paddingTop: `${pageLayout.topMargin}pt`,
                       paddingBottom: `${pageLayout.bottomMargin}pt`,
                       paddingLeft: `${pageLayout.leftMargin}in`,
@@ -5574,7 +5696,7 @@ const ScreenplayEditor: React.FC = () => {
                   ))}
 
                   {/* Page break separators — absolutely positioned, full page width */}
-                  {!phoneView && overlays.map((ov) => {
+                  {!phoneView && !speedView && overlays.map((ov) => {
                     // `ov.pageNumber` counts script pages, ignoring the title page;
                     // the band shows the PRINTED number, which the starting-number
                     // offset can shift.
@@ -5620,7 +5742,7 @@ const ScreenplayEditor: React.FC = () => {
                       title page precedes it, so without this the very first header
                       would have nowhere to render — invisible on screen even though
                       it printed. */}
-                  {!phoneView && (() => {
+                  {!phoneView && !speedView && (() => {
                     if (overlays.some((o) => o.isTitlePage)) return null; // the title-page break carries it
                     const printed = printedPageNumber(1, headerFooter.startingPageNumber);
                     if (printed < headerFooter.headerStartPage) return null;
@@ -5634,7 +5756,7 @@ const ScreenplayEditor: React.FC = () => {
                   })()}
 
                   {/* Last page footer — no page break follows the last page, so render its footer separately */}
-                  {!phoneView && (() => {
+                  {!phoneView && !speedView && (() => {
                     const lastPage = overlays.length > 0
                       ? overlays[overlays.length - 1].pageNumber
                       : 1;
@@ -5658,7 +5780,7 @@ const ScreenplayEditor: React.FC = () => {
                     );
                   })()}
 
-                  {!phoneView && footnotePlan && endnotePages.length > 0 && (
+                  {!phoneView && !speedView && footnotePlan && endnotePages.length > 0 && (
                     <EndnotePages
                       plan={footnotePlan}
                       pages={endnotePages}
@@ -5703,6 +5825,31 @@ const ScreenplayEditor: React.FC = () => {
               </div>
             </div>
           )}
+          {splitScreenOpen && !outlineOpen && !statisticsOpen && !beatBoardOpen && !isHistoryMode && editor && (
+            <div className={`split-pane split-pane-${splitScreenPane}`}>
+              {splitScreenPane === 'index-cards' && (
+                <IndexCards
+                  editor={editor}
+                  scrollContainer={editorMainRef.current}
+                  variant="split"
+                  onRequestClose={toggleSplitScreen}
+                />
+              )}
+              {splitScreenPane === 'outline' && (
+                <OutlineView editor={editor} onRequestClose={toggleSplitScreen} />
+              )}
+              {splitScreenPane === 'beat-board' && (
+                <BeatBoard editor={editor} embedded onRequestClose={toggleSplitScreen} />
+              )}
+              {splitScreenPane === 'page-view' && (
+                <PagePreviewPane editor={editor} onRequestClose={toggleSplitScreen} />
+              )}
+            </div>
+          )}
+          </div>
+          {!isHistoryMode && storyMapOpen && editor && !outlineOpen && !statisticsOpen && !beatBoardOpen && !indexCardsOpen && (
+            <StoryMap editor={editor} onRequestClose={toggleStoryMap} scrollContainer={editorMainRef.current} />
+          )}
           {/* Table Read docks over the bottom of the script it is reading. */}
           {storyTimelineOpen && editor && (
             <StoryTimeline editor={editor} onClose={() => useEditorStore.getState().setStoryTimelineOpen(false)} />
@@ -5720,6 +5867,7 @@ const ScreenplayEditor: React.FC = () => {
         {!isHistoryMode && <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
+        {!isHistoryMode && <AiAssistantPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && (
           <PluginPanelTabs
             editor={editor}
@@ -5750,12 +5898,12 @@ const ScreenplayEditor: React.FC = () => {
           onDismiss={handlePickerDismiss}
         />
       )}
-      {!isHistoryMode && charAutoState.visible && !pickerState.visible && (
-        <CharacterAutocomplete
-          position={charAutoState.position}
-          suggestions={charAutoState.suggestions}
-          onSelect={handleCharAutoSelect}
-          onDismiss={handleCharAutoDismiss}
+      {!isHistoryMode && smartTypeState.visible && !pickerState.visible && (
+        <SmartTypePopup
+          position={smartTypeState.position}
+          suggestions={smartTypeState.suggestions}
+          onSelect={handleSmartTypeSelect}
+          onDismiss={handleSmartTypeDismiss}
         />
       )}
       {/* Handwriting input (Apple Pencil). Mounted here rather than on a

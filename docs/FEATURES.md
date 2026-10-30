@@ -6,6 +6,8 @@ A complete list of features in OpenDraft.
 
 - **Industry-standard formatting** -- Scene headings, action, character, dialogue, parenthetical, transition, and shot elements with proper Courier Prime formatting
 - **Character Autocomplete** -- Smart suggestions as you type character names
+- **SmartType** -- Complete scene-heading prefixes, locations already used in the script, times of day, character extensions such as (V.O.) and (CONT'D), and transitions, from the script and a standard list. Tab or Enter accepts, arrows move, Escape dismisses
+- **Automatic Capitals** -- Scene headings, character cues, transitions and the other capitals elements are stored in capitals too, so the scene navigator, Word and Final Draft exports agree with the page; scripts written before this are normalised on their next save or export
 - **Macros** -- Insert text you type often (CONTINUOUS, a recurring location, a character with an extension) with a shortcut or from Edit → Insert Macro, optionally as a given element; export and import them as JSON
 - **Scene Navigator** -- Jump between scenes instantly from the sidebar
 - **Bookmarks** -- Name any line and jump back to it from the Navigator or Go to Page; saved with the script and shared with collaborators
@@ -14,6 +16,7 @@ A complete list of features in OpenDraft.
 - **Comic Book format** -- Full comic and graphic novel scripts: pages spelled out (PAGE ONE), panels numbered on each page, captions and balloons lettered across the page
 - **Alternates** -- Keep other versions of a line of dialogue or action, or of a whole scene, beside it and switch between them; only the version showing prints and exports
 - **Distraction-free writing** -- Clean, focused interface with minimal chrome
+- **Speed View** -- The page layout without page breaks: one continuous sheet for drafting, while pagination, page count and every export stay unchanged (View → Layout → Speed)
 - **Focus Mode** -- Full screen with panels and menus out of the way, typewriter scrolling, and optional dimming of all but the current element or scene
 - **Writing Goals & Sprints** -- Daily and session goals in words or pages with a status bar progress ring, timed sprints with an optional no-backspace mode, and a words-written-per-day calendar in Script Statistics, kept on your device only
 
@@ -38,7 +41,7 @@ A complete list of features in OpenDraft.
 ## Version Control
 
 - **Built-in Version History** -- Check in drafts at any point
-- **Visual Diff** -- Compare any two versions side-by-side to see exactly what changed
+- **Visual Diff** -- Compare any two versions side-by-side to see exactly what changed, with word-level marks for rewritten lines and moved lines and scenes detected
 - **Restore** -- Roll back to any previous draft instantly
 
 ## Backups
@@ -75,6 +78,7 @@ A complete list of features in OpenDraft.
 - **Spell Check** -- Built-in spell checker with custom dictionary support
 - **Production Tags** -- Tag elements for production planning
 - **Reports** -- Scene, character, location, cast, breakdown and notes reports, exported as CSV or PDF
+- **AI Assistant (local)** -- Ask in plain language and have the script changed through OpenDraft's own commands, so inserted dialogue and scenes arrive correctly formatted. Every change is shown as a preview to accept or discard, and a simple "X dice: ..." is written without the model. Works with Ollama or any OpenAI-compatible server (Unsloth Studio, LM Studio, llama.cpp); nothing leaves the machine unless you point it at a remote server
 
 ## Production Output
 

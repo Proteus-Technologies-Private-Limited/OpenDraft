@@ -862,9 +862,13 @@ interface BeatBoardProps {
   /** The script's editor, for linking beats to its scenes. Without one the
    *  board works as before, minus scene links. */
   editor?: Editor | null;
+  /** Draw the board in the split screen even when it is not the open view. */
+  embedded?: boolean;
+  /** Closes the hosting pane; defaults to toggling the board view. */
+  onRequestClose?: () => void;
 }
 
-const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
+const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null, embedded = false, onRequestClose }) => {
   const {
     beats, beatBoardOpen, beatColumns, beatArrangeMode,
     addBeat, updateBeat, deleteBeat, setBeats,
@@ -881,7 +885,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
   // scene as deleted.
   const [docVersion, setDocVersion] = useState(0);
   useEffect(() => {
-    if (!editor || !beatBoardOpen) return;
+    if (!editor || (!beatBoardOpen && !embedded)) return;
     const bump = ({ transaction }: { transaction: { docChanged: boolean } }) => {
       if (transaction.docChanged) setDocVersion((v) => v + 1);
     };
@@ -889,12 +893,12 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
     // The document may have changed while the board was closed.
     setDocVersion((v) => v + 1);
     return () => { editor.off('transaction', bump); };
-  }, [editor, beatBoardOpen]);
+  }, [editor, beatBoardOpen, embedded]);
   const scenes = useMemo<LinkableScene[]>(
-    () => (editor && !editor.isDestroyed && beatBoardOpen ? linkableScenes(editor.state.doc) : []),
+    () => (editor && !editor.isDestroyed && (beatBoardOpen || embedded) ? linkableScenes(editor.state.doc) : []),
     // docVersion stands for editor.state.doc, which is not a React value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [editor, docVersion, beatBoardOpen],
+    [editor, docVersion, beatBoardOpen, embedded],
   );
 
   const sceneLinks = useMemo<BeatScenesApi>(() => ({
@@ -1070,7 +1074,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
     }, 0);
   }, [defaultColumnId, beats.length, addBeat, addBeatColumn, updateBeat]);
 
-  if (!beatBoardOpen) return null;
+  if (!beatBoardOpen && !embedded) return null;
 
   return (
     <BeatScenesContext.Provider value={sceneLinks}>
@@ -1105,7 +1109,7 @@ const BeatBoard: React.FC<BeatBoardProps> = ({ editor = null }) => {
             that opened it is not an obvious way back out. */}
         <button
           className="panel-close-btn"
-          onClick={toggleBeatBoard}
+          onClick={() => (onRequestClose ?? toggleBeatBoard)()}
           title="Close Beat Board"
           aria-label="Close Beat Board"
         >

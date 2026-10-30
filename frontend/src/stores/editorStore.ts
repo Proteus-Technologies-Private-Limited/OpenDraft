@@ -22,6 +22,8 @@ interface ViewState {
   navigatorOpen?: boolean;
   indexCardsOpen?: boolean;
   beatBoardOpen?: boolean;
+  storyMapOpen?: boolean;
+  storyMapUnits?: 'pages' | 'time';
   scriptNotesOpen?: boolean;
   characterProfilesOpen?: boolean;
   tagsPanelOpen?: boolean;
@@ -106,11 +108,12 @@ function defaultToolbarMode(): 'compact' | 'comfortable' | 'hidden' {
  *
  * `page` draws real 8.5" sheets — what prints. `phone` reflows the same script
  * to the width of a phone at full-size text, with the page breaks drawn as
- * dividers. Pagination, page count and every export are the same in both; only
- * the drawing differs. Phones start in the phone view, because a whole page
- * fitted to one is 8px text (Play Store review, Oct 2026).
+ * dividers. `speed` is the page's sheet without page breaks: one continuous
+ * scroll for drafting. Pagination, page count and every export are the same in
+ * all three; only the drawing differs. Phones start in the phone view, because
+ * a whole page fitted to one is 8px text (Play Store review, Oct 2026).
  */
-export type ViewLayout = 'page' | 'phone';
+export type ViewLayout = 'page' | 'phone' | 'speed';
 
 function defaultViewLayout(): ViewLayout {
   return isPhoneDevice() ? 'phone' : 'page';
@@ -758,6 +761,15 @@ export interface BeatInfo {
 
 export type BeatArrangeMode = 'auto' | 'custom';
 
+/** How the split screen arranges its two panes. */
+export type SplitScreenMode = 'side-by-side' | 'stacked';
+
+/** What the split screen shows beside the script. */
+export type SplitScreenPane = 'page-view' | 'index-cards' | 'outline' | 'beat-board';
+
+/** Whether the Story Map sizes scenes by pages or by screen time. */
+export type StoryMapUnits = 'pages' | 'time';
+
 interface EditorState {
   // Current element type
   activeElement: ElementType;
@@ -791,12 +803,31 @@ interface EditorState {
   setScenes: (scenes: SceneInfo[]) => void;
   navigatorOpen: boolean;
   toggleNavigator: () => void;
+  /** Ask the navigator to switch tab the next time it is shown. */
+  pendingNavigatorTab: string | null;
+  openNavigatorTab: (tab: string) => void;
+  clearPendingNavigatorTab: () => void;
 
   // Panels
   indexCardsOpen: boolean;
   toggleIndexCards: () => void;
   beatBoardOpen: boolean;
   toggleBeatBoard: () => void;
+  /** Editor and a second pane beside or below it. */
+  splitScreenOpen: boolean;
+  toggleSplitScreen: () => void;
+  splitScreenMode: SplitScreenMode;
+  setSplitScreenMode: (mode: SplitScreenMode) => void;
+  splitScreenPane: SplitScreenPane;
+  setSplitScreenPane: (pane: SplitScreenPane) => void;
+  /** The scenes as one strip under the editor, sized by page length. */
+  storyMapOpen: boolean;
+  toggleStoryMap: () => void;
+  storyMapUnits: StoryMapUnits;
+  setStoryMapUnits: (units: StoryMapUnits) => void;
+  /** Dedicated outline editor (acts, sequences, sections, scenes). */
+  outlineOpen: boolean;
+  toggleOutline: () => void;
   statisticsOpen: boolean;
   setStatisticsOpen: (open: boolean) => void;
   statisticsScrollTo: string | null;
@@ -1232,6 +1263,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     saveViewState({ navigatorOpen: v });
     return { navigatorOpen: v };
   }),
+  pendingNavigatorTab: null,
+  openNavigatorTab: (tab) => set((s) => {
+    if (!s.navigatorOpen) saveViewState({ navigatorOpen: true });
+    return { navigatorOpen: true, pendingNavigatorTab: tab };
+  }),
+  clearPendingNavigatorTab: () => set({ pendingNavigatorTab: null }),
 
   indexCardsOpen: _vs.indexCardsOpen ?? false,
   toggleIndexCards: () => set((s) => {
@@ -1244,6 +1281,47 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const v = !s.beatBoardOpen;
     saveViewState({ beatBoardOpen: v });
     return { beatBoardOpen: v };
+  }),
+  splitScreenOpen: false,
+  toggleSplitScreen: () => set((s) => {
+    const open = !s.splitScreenOpen;
+    // Split screen is the editor plus a second pane; the full-width planning
+    // views would leave no editor to split.
+    return open
+      ? { splitScreenOpen: true, statisticsOpen: false, beatBoardOpen: false, outlineOpen: false }
+      : { splitScreenOpen: false };
+  }),
+  splitScreenMode: 'side-by-side',
+  setSplitScreenMode: (mode) => set((s) => (s.splitScreenOpen && s.splitScreenMode === mode
+    ? {}
+    : {
+      splitScreenMode: mode, splitScreenOpen: true,
+      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false,
+    })),
+  splitScreenPane: 'index-cards',
+  setSplitScreenPane: (pane) => set((s) => (s.splitScreenOpen && s.splitScreenPane === pane
+    ? {}
+    : {
+      splitScreenPane: pane, splitScreenOpen: true,
+      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false,
+    })),
+  storyMapOpen: _vs.storyMapOpen ?? false,
+  toggleStoryMap: () => set((s) => {
+    const v = !s.storyMapOpen;
+    saveViewState({ storyMapOpen: v });
+    return { storyMapOpen: v };
+  }),
+  storyMapUnits: _vs.storyMapUnits ?? 'pages',
+  setStoryMapUnits: (units) => set(() => {
+    saveViewState({ storyMapUnits: units });
+    return { storyMapUnits: units };
+  }),
+  outlineOpen: false,
+  toggleOutline: () => set((s) => {
+    const open = !s.outlineOpen;
+    return open
+      ? { outlineOpen: true, statisticsOpen: false, beatBoardOpen: false, splitScreenOpen: false }
+      : { outlineOpen: false };
   }),
   statisticsOpen: false,
   setStatisticsOpen: (open) => set({ statisticsOpen: open }),

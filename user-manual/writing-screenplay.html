@@ -113,6 +113,19 @@
       <li>Zoom in or out using the zoom control in the toolbar (50%&ndash;200%).</li>
     </ul>
 
+    <h2 id="views">Page, Phone and Speed Views</h2>
+
+    <p>Choose <strong>View &rarr; Layout</strong> to change how the script is drawn on screen.
+       The script itself, its pagination, page count and every export are the same in all three:</p>
+    <ul>
+      <li><strong>Page</strong> &mdash; real 8.5" sheets with page breaks, headers and footers, exactly as it prints.</li>
+      <li><strong>Phone</strong> &mdash; the same pages reflowed to a narrow screen at full-size text, with a divider
+          for each page break. Phones start here.</li>
+      <li><strong>Speed</strong> &mdash; one continuous sheet with the page breaks taken out, for drafting
+          without the page turn interrupting you. Go to Page still finds the right line, and printing and
+          exporting are unchanged.</li>
+    </ul>
+
     <h2 id="screenplay-elements">Screenplay Elements</h2>
 
     <p>Screenplays use specific element types for different kinds of content. Each element has its own formatting (font size, alignment, margins) following industry standards.</p>
@@ -269,9 +282,76 @@
       </div>
     </div>
 
-    <h2 id="character-autocomplete">Character Autocomplete</h2>
+    <h2 id="smarttype">SmartType: Characters, Locations and Transitions</h2>
 
-    <p>When typing a <strong>Character</strong> element, OpenDraft suggests character names that already appear in your script. Start typing and select from the dropdown suggestions to ensure consistent spelling.</p>
+    <p>As you type a <strong>Character</strong>, <strong>Scene Heading</strong> or <strong>Transition</strong>,
+       OpenDraft completes the parts a script repeats:</p>
+    <ul>
+      <li><strong>Scene headings</strong> &mdash; the INT./EXT. prefix, locations already used in the script,
+          and times of day after the dash.</li>
+      <li><strong>Character cues</strong> &mdash; names already used, and extensions such as (V.O.), (O.S.),
+          (O.C.) and (CONT'D) after an opening parenthesis.</li>
+      <li><strong>Transitions</strong> &mdash; CUT TO:, DISSOLVE TO:, FADE OUT. and the other standard
+          transitions, plus any already used in the script.</li>
+    </ul>
+
+    <p>Press <kbd>Tab</kbd> or <kbd>Enter</kbd> to accept the highlighted suggestion, the arrow keys to move
+       through the list, and <kbd>Esc</kbd> to dismiss it. SmartType only completes the end of the line you
+       are typing. Dismissing it hides it until you type the next character, and accepting an item does not
+       reopen it on the word just completed.</p>
+
+    <p>Scene headings, character cues, transitions and the other capitals elements are stored in capitals:
+       leave the line and the text is raised, so the scene navigator, Word and Final Draft exports read the
+       same as the page. Scripts written before this are normalised on their next save or export.</p>
+
+    <h2 id="ai-assistant">AI Assistant (local)</h2>
+
+    <p>The robot button in the toolbar opens the assistant. Ask in plain language &mdash; for example
+       &ldquo;Scrivi un dialogo di Ben che dice &lsquo;Ciao a tutti&rsquo;&rdquo; &mdash; and the script is
+       changed through OpenDraft&rsquo;s own commands. The model never pastes text: it asks the app to insert
+       a cue and a line, so the formatting is always the screenplay&rsquo;s.</p>
+
+    <p>Before anything reaches the script the panel shows a <strong>proposal</strong>: the blocks exactly as
+       they will land, with <strong>Inserisci</strong> and <strong>Annulla</strong>. Nothing is changed until
+       you accept, and a wrong attribution or an unrequested transition is easy to refuse. The preview can be
+       turned off in the assistant&rsquo;s settings.</p>
+
+    <p>A request that is only one character and one line &mdash; &ldquo;Ben dice: &lsquo;Ciao a tutti&rsquo;&rdquo;,
+       &ldquo;Scrivi un dialogo di Ben che dice&hellip;&rdquo;, &ldquo;Fai dire a Ben: &hellip;&rdquo; &mdash; is
+       written <strong>without the model</strong>: instant, exact, and unaffected by how small the local model
+       is. Anything more complex goes to the model.</p>
+
+    <p>A clear scene change is handled the same way: &ldquo;ora siamo fuori casa, poco dopo&hellip;&rdquo;
+       becomes <code>EXT. CASA - LATER</code> and the sentence after it an action, with no model and no
+       transition. A heading scene described in one go is split into the heading, its actions and its
+       quoted lines &mdash; each with the speaker named in the request &mdash; keeping the writer&rsquo;s
+       language. The assistant knows every element type; the generic insertion command covers shot,
+       general, new act, end of act and lyrics.</p>
+
+    <h3>Ollama</h3>
+    <ol>
+      <li>Install Ollama and start it (<code>ollama serve</code>).</li>
+      <li>Download a model that can call tools, e.g. <code>ollama pull qwen2.5</code>.</li>
+      <li>In the assistant&rsquo;s settings choose <strong>Ollama</strong>, the server
+          <code>http://localhost:11434</code>, and the model.</li>
+      <li>If the request is refused for CORS, start Ollama with <code>OLLAMA_ORIGINS=*</code>.</li>
+    </ol>
+
+    <h3>Unsloth Studio, LM Studio, llama.cpp</h3>
+    <p>Choose <strong>OpenAI-compatible</strong> and use the server&rsquo;s <code>/v1</code> address &mdash;
+       Unsloth Studio exposes <code>http://localhost:8080/v1</code>, LM Studio
+       <code>http://localhost:1234/v1</code>. OpenDraft sends the tools natively; if the server does not
+       accept them, the model answers with one JSON action
+       (<code>{"tool":"script.insertDialogue","args":{...}}</code>) and the app runs it, so tool calling does
+       not need to be supported.</p>
+
+    <p>The conversation stays in the panel for the session and is not saved with the script. Everything runs
+       on your machine unless you configure a remote server; an API key, when one is needed, is kept in this
+       device&rsquo;s local storage.</p>
+
+    <p>The quality depends on the model. For real use choose an instruct model of 7B or more
+       (Qwen2.5-7B-Instruct, Llama 3.1 8B): 3B models can attribute a line to the wrong character or leave
+       out the text of an action.</p>
 
     <h2 id="handwriting">Handwriting with an Apple Pencil (iPad)</h2>
 

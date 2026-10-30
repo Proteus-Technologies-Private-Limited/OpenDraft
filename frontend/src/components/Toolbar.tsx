@@ -15,6 +15,8 @@ import {
   FaRedo,
   FaSearchPlus,
   FaSearchMinus,
+  FaSun,
+  FaMoon,
   FaSearch,
   FaStickyNote,
   FaTags,
@@ -24,8 +26,26 @@ import {
   FaHashtag,
   FaPlus,
   FaTrashAlt,
+  FaRobot,
+  FaCompass,
+  FaFile,
+  FaFolderOpen,
+  FaSave,
+  FaFilePdf,
+  FaColumns,
+  FaFileAlt,
+  FaRegFileAlt,
+  FaTh,
+  FaTable,
+  FaListUl,
+  FaStream,
+  FaListOl,
+  FaClone,
+  FaMap,
 } from 'react-icons/fa';
 import { useEditorStore } from '../stores/editorStore';
+import { useAiStore } from '../stores/aiStore';
+import { requestAppCommand } from '../utils/appCommands';
 import type { ElementType } from '../stores/editorStore';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
@@ -47,10 +67,18 @@ import { isInAvCell, isInAvRow, avCellSideAt } from '../editor/extensions/AvBloc
 import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 import Select from './Select';
 import { PHONE_DEVICE_CHANGE_EVENT } from '../utils/phoneDevice';
+import { formatShortcut } from '../utils/shortcuts';
+import { elementShortcutSpec } from '../utils/elementShortcuts';
 
 interface ToolbarProps {
   editor: Editor | null;
 }
+
+/** The shortcut that reaches an element, for the dropdown's right-hand column. */
+const shortcutFor = (id: string): string | undefined => {
+  const spec = elementShortcutSpec(id);
+  return spec ? formatShortcut(spec) : undefined;
+};
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 
@@ -80,9 +108,32 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     setEditingTagId,
     toolbarMode: savedToolbarMode,
     focusMode,
+    navigatorOpen,
+    toggleNavigator,
+    viewLayout,
+    setViewLayout,
+    sceneNumbersVisible,
+    setSceneNumbersVisible,
+    indexCardsOpen,
+    toggleIndexCards,
+    beatBoardOpen,
+    toggleBeatBoard,
+    splitScreenOpen,
+    toggleSplitScreen,
+    outlineOpen,
+    toggleOutline,
+    storyMapOpen,
+    toggleStoryMap,
+    appearance,
+    setAppearance,
+    setTitlePageEditorOpen,
+    openNavigatorTab,
   } = useEditorStore();
   // Focus Mode hides the toolbar like Hidden does, keeping the saved choice.
   const toolbarMode = focusMode ? 'hidden' : savedToolbarMode;
+
+  const aiPanelOpen = useAiStore((s) => s.panelOpen);
+  const toggleAiPanel = useAiStore((s) => s.togglePanel);
 
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
   const isEnforceMode = activeTemplate.mode === 'enforce';
@@ -513,13 +564,19 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   const handleNotesClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
     e.preventDefault();
     if (!editor) { toggleScriptNotes(); return; }
+    // With the panel open the button closes it; otherwise it adds a note at
+    // the selection, which is what opened the panel in the first place.
+    if (scriptNotesOpen) { toggleScriptNotes(); return; }
     addScriptNoteAtSelection(editor);
-  }, [editor, toggleScriptNotes]);
+  }, [editor, scriptNotesOpen, toggleScriptNotes]);
 
   // ── Tags handler (shared between inline and overflow) ──
   const handleTagsClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
     e.preventDefault();
     if (!editor) { toggleTagsPanel(); return; }
+    // A second click closes the panel rather than opening it on a selection
+    // the writer may have left behind.
+    if (tagsPanelOpen) { toggleTagsPanel(); return; }
 
     const markType = editor.schema.marks.productionTag;
     if (markType) {
@@ -811,6 +868,124 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     </div>
   ), [setSearchOpen, setGoToPageOpen]);
 
+  // File actions live in MenuBar (unsaved-changes guard, file origin, library);
+  // these buttons send it the same named request the menu items use.
+  const renderDocumentActions = useCallback((inOverflow = false) => (
+    <div className="toolbar-group" key="document-actions">
+      <button
+        className={`toolbar-btn${navigatorOpen ? ' active' : ''}`}
+        title="Navigator"
+        onClick={() => { toggleNavigator(); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaCompass />
+      </button>
+      <button
+        className="toolbar-btn"
+        title="New Script"
+        onClick={() => { requestAppCommand('new-script'); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaFile />
+      </button>
+      <button
+        className="toolbar-btn"
+        title="Import Script"
+        onClick={() => { requestAppCommand('import-script'); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaFolderOpen />
+      </button>
+      <button
+        className="toolbar-btn"
+        title="Save Script"
+        onClick={() => { requestAppCommand('save-script'); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaSave />
+      </button>
+      <button
+        className="toolbar-btn"
+        title="Export PDF"
+        onClick={() => { requestAppCommand('export-pdf'); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaFilePdf />
+      </button>
+    </div>
+  ), [navigatorOpen, toggleNavigator]);
+
+  const renderViewTools = useCallback((inOverflow = false) => {
+    return (
+      <div className="toolbar-group" key="view-tools">
+        <button
+          className={`toolbar-btn${sceneNumbersVisible ? ' active' : ''}`}
+          title="Scene Numbers"
+          onClick={() => { setSceneNumbersVisible(!sceneNumbersVisible); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaListOl />
+        </button>
+        <button
+          className="toolbar-btn"
+          title="Title Page"
+          onClick={() => { setTitlePageEditorOpen(true); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaFileAlt />
+        </button>
+        <button
+          className={`toolbar-btn${viewLayout === 'page' ? ' active' : ''}`}
+          title="Page View"
+          onClick={() => { setViewLayout('page'); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaRegFileAlt />
+        </button>
+        <button
+          className={`toolbar-btn${indexCardsOpen ? ' active' : ''}`}
+          title="Index Cards"
+          onClick={() => { toggleIndexCards(); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaTh />
+        </button>
+        <button
+          className={`toolbar-btn${splitScreenOpen ? ' active' : ''}`}
+          title="Split Screen"
+          onClick={() => { toggleSplitScreen(); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaClone />
+        </button>
+        <button
+          className="toolbar-btn"
+          title="Reports"
+          onClick={() => { requestAppCommand('reports'); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaTable />
+        </button>
+        <button
+          className={`toolbar-btn${outlineOpen ? ' active' : ''}`}
+          title="Outline"
+          onClick={() => { toggleOutline(); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaListUl />
+        </button>
+        <button
+          className={`toolbar-btn${storyMapOpen ? ' active' : ''}`}
+          title="Story Map"
+          onClick={() => { toggleStoryMap(); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaMap />
+        </button>
+        <button
+          className={`toolbar-btn${beatBoardOpen ? ' active' : ''}`}
+          title="Beat Board"
+          onClick={() => { toggleBeatBoard(); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaStream />
+        </button>
+      </div>
+    );
+  }, [
+    sceneNumbersVisible, setSceneNumbersVisible, setTitlePageEditorOpen,
+    viewLayout, setViewLayout, indexCardsOpen, toggleIndexCards, openNavigatorTab,
+    beatBoardOpen, toggleBeatBoard, splitScreenOpen, toggleSplitScreen,
+    outlineOpen, toggleOutline,
+    storyMapOpen, toggleStoryMap,
+  ]);
+
   const renderNotesTags = useCallback((inOverflow = false) => (
     <div className="toolbar-group" key="notes-tags">
       <button
@@ -827,8 +1002,20 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       >
         <FaTags />
       </button>
+      <button
+        className={`toolbar-btn${aiPanelOpen ? ' active' : ''}`}
+        title="AI Assistant"
+        aria-label="AI Assistant"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          toggleAiPanel();
+          if (inOverflow) setOverflowOpen(false);
+        }}
+      >
+        <FaRobot />
+      </button>
     </div>
-  ), [scriptNotesOpen, tagsPanelOpen, handleNotesClick, handleTagsClick]);
+  ), [scriptNotesOpen, tagsPanelOpen, aiPanelOpen, handleNotesClick, handleTagsClick, toggleAiPanel]);
 
   const renderZoom = useCallback((_inOverflow = false) => (
     <div className="toolbar-group zoom-group" key="zoom">
@@ -917,6 +1104,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     if (isHiddenExact('4')) { addSep(); items.push(renderFontStyleColors(true)); }
     if (isHiddenExact('3')) { addSep(); items.push(renderAlignment(true)); }
     if (isHiddenExact('2')) { addSep(); items.push(renderSearchGoto(true)); }
+    if (isHiddenExact('2c')) { addSep(); items.push(renderDocumentActions(true)); }
+    if (isHiddenExact('2d')) { addSep(); items.push(renderViewTools(true)); }
     if (isHiddenExact('6')) { addSep(); items.push(renderNotesTags(true)); }
 
     // Zoom: skip entirely when the narrow layout's own zoom button is on screen.
@@ -926,7 +1115,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     }
 
     return items.length > 0 ? items : null;
-  }, [hiddenPriorities, isHiddenExact, mobileZoomVisible, renderZoomMin, renderZoom, renderSearchGoto, renderNotesTags, renderAlignment, renderFontStyleColors, renderFontFaceSize]);
+  }, [hiddenPriorities, isHiddenExact, mobileZoomVisible, renderZoomMin, renderZoom, renderSearchGoto, renderNotesTags, renderAlignment, renderFontStyleColors, renderFontFaceSize, renderDocumentActions, renderViewTools]);
 
   // Derived from the menu's contents, not from the hidden set: a group can be
   // hidden and still have nothing to offer here (zoom, when the narrow layout
@@ -959,6 +1148,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         >
           <FaRedo />
         </button>
+      </div>
+
+      <div className="toolbar-separator" />
+
+      <div className="toolbar-priority-block" data-priority="2c">
+        {renderDocumentActions()}
       </div>
 
       <div className="toolbar-separator" />
@@ -997,11 +1192,18 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             ? avCellElementRules(activeTemplate, avCellSide, String(activeElement))
             : scriptBodyElementRules(activeTemplate, isTitlePageRuleId)
           ).map((r) => (
-            <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]}>
+            <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]} data-shortcut={shortcutFor(r.id)}>
               {r.label}
             </option>
           ))}
         </Select>
+        <button
+          className={`toolbar-btn${editor?.isActive('dualDialogue') ? ' active' : ''}`}
+          title="Dual Dialogue"
+          onClick={() => (editor as any)?.chain().focus().toggleDualDialogue().run()}
+        >
+          <FaColumns />
+        </button>
       </div>
 
       {/* AV row controls — the only route to a new row without a hardware
@@ -1057,6 +1259,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       {/* Priority 2: Search & Go to — collapsible on desktop */}
       <div className="toolbar-priority-block" data-priority="2">
         {renderSearchGoto()}
+      </div>
+
+      <div className="toolbar-priority-block" data-priority="2d">
+        {renderViewTools()}
       </div>
 
       <div className="toolbar-separator" />
@@ -1141,6 +1347,17 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           onClick={() => setZoomPanelOpen(!zoomPanelOpen)}
         >
           <FaSearchPlus />
+        </button>
+      </div>
+      {/* Light / dark, next to the zoom controls it belongs with. */}
+      <div className="toolbar-group theme-toggle-group">
+        <button
+          className="toolbar-btn"
+          title={appearance === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          aria-label={appearance === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          onClick={() => setAppearance(appearance === 'light' ? 'dark' : 'light')}
+        >
+          {appearance === 'light' ? <FaMoon /> : <FaSun />}
         </button>
       </div>
     </div>

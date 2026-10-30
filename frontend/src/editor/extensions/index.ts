@@ -25,6 +25,7 @@ export { StartsNewPage, selectionStartsNewPage, PAGE_BREAKABLE_TYPES } from './S
 export { Bookmark, bookmarkPluginKey } from './Bookmark';
 export { Alternates } from './Alternates';
 export { Suggestions, SuggestionInsert, SuggestionDelete, suggestionsPluginKey } from './Suggestions';
+export { AutoUppercase } from './AutoUppercase';
 export { AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations, AvBlockExtensions } from './AvBlock';
 export { cueFromDecorations, avCuePluginKey } from './AvBlock';
 export { AV_ASPECT_RATIOS, AV_DEFAULT_COLUMNS, aspectRatioCss, clampColumnWidth, readColumnConfig, gridTemplateFor, avColumnDataCount, avBlockAtSelection } from './AvBlock';
