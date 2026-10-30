@@ -33,8 +33,21 @@ const ELEMENT_LABEL: Record<string, string> = {
   endOfAct: 'End of Act',
 };
 
-const ScriptDiffView: React.FC<Props> = ({ docA, docB, labelA, labelB, onClose }) => {
-  const [mode, setMode] = useState<ViewMode>('side-by-side');
+const elementLabel = (block: DiffBlock): string => {
+  const label = ELEMENT_LABEL[block.elementType] || block.elementType;
+  const oldLabel = block.oldElementType
+    ? (ELEMENT_LABEL[block.oldElementType] || block.oldElementType)
+    : null;
+  return oldLabel && oldLabel !== label ? `${oldLabel} → ${label}` : label;
+};
+
+const movedTitle = (block: DiffBlock): string | undefined => {
+  if (block.type !== 'moved') return undefined;
+  if (!block.oldSceneHeading || block.oldSceneHeading === block.sceneHeading) return 'Moved';
+  return `Moved from ${block.oldSceneHeading} to ${block.sceneHeading || 'the end'}`;
+};
+
+const ScriptDiffView: React.FC<Props> = ({ docA, docB, labelA, labelB, onClose }) => {  const [mode, setMode] = useState<ViewMode>('side-by-side');
   const [showSummary, setShowSummary] = useState(true);
 
   const diff = useMemo(() => computeScriptDiff(docA, docB), [docA, docB]);
@@ -106,6 +119,10 @@ const ScriptDiffView: React.FC<Props> = ({ docA, docB, labelA, labelB, onClose }
               <span className="script-diff-chip-modified">~{diff.summary.totalModified}</span>
               modified
             </div>
+            <div className="script-diff-summary-row">
+              <span className="script-diff-chip-moved">{diff.summary.totalMoved}</span>
+              moved
+            </div>
             {diff.summary.scenesChanged.length > 0 && (
               <>
                 <h5>Scenes changed ({diff.summary.scenesChanged.length})</h5>
@@ -160,6 +177,7 @@ const SideBySideDiff: React.FC<{ blocks: DiffBlock[] }> = ({ blocks }) => (
 const BlockView: React.FC<{ side: 'a' | 'b'; block: DiffBlock }> = ({ side, block }) => {
   const showHere =
     block.type === 'unchanged' ||
+    block.type === 'moved' ||
     (side === 'a' && (block.type === 'deleted' || block.type === 'modified')) ||
     (side === 'b' && (block.type === 'added' || block.type === 'modified'));
 
@@ -168,11 +186,17 @@ const BlockView: React.FC<{ side: 'a' | 'b'; block: DiffBlock }> = ({ side, bloc
   }
 
   const text = side === 'a' ? block.oldText : block.newText;
-  const typeLabel = ELEMENT_LABEL[block.elementType] || block.elementType;
+  const typeLabel = elementLabel(block);
 
   return (
-    <div className={`diff-block diff-${block.type} diff-el-${block.elementType}`}>
-      <div className="diff-block-label">{typeLabel}</div>
+    <div
+      className={`diff-block diff-${block.type} diff-el-${block.elementType}`}
+      title={movedTitle(block)}
+    >
+      <div className="diff-block-label">
+        {typeLabel}
+        {block.type === 'moved' ? ' · moved' : ''}
+      </div>
       <div className="diff-block-content">
         {block.type === 'modified' && block.wordDiffs ? (
           <WordDiffView diffs={block.wordDiffs} side={side} />
@@ -204,12 +228,24 @@ const WordDiffView: React.FC<{ diffs: WordDiff[]; side: 'a' | 'b' }> = ({ diffs,
 const UnifiedDiff: React.FC<{ blocks: DiffBlock[] }> = ({ blocks }) => (
   <div className="diff-unified">
     {blocks.map((b, i) => {
-      const typeLabel = ELEMENT_LABEL[b.elementType] || b.elementType;
+      const typeLabel = elementLabel(b);
       if (b.type === 'unchanged') {
         return (
           <div key={i} className={`diff-block diff-unchanged diff-el-${b.elementType}`}>
             <div className="diff-block-label">{typeLabel}</div>
             <div className="diff-block-content">{b.oldText}</div>
+          </div>
+        );
+      }
+      if (b.type === 'moved') {
+        return (
+          <div
+            key={i}
+            className={`diff-block diff-moved diff-el-${b.elementType}`}
+            title={movedTitle(b)}
+          >
+            <div className="diff-block-label">{typeLabel} (moved)</div>
+            <div className="diff-block-content">{b.newText}</div>
           </div>
         );
       }

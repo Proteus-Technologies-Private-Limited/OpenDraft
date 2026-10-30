@@ -999,6 +999,12 @@ body {
   font-weight: 700; font-size: 11px;
   min-width: 32px; text-align: center;
 }
+.script-diff-chip-moved {
+  background: #3b82f6; color: white;
+  padding: 1px 8px; border-radius: 3px;
+  font-weight: 700; font-size: 11px;
+  min-width: 32px; text-align: center;
+}
 .script-diff-scenes, .script-diff-dialogue-delta {
   list-style: none; padding: 0; margin: 0;
 }
@@ -1038,6 +1044,10 @@ body {
 .diff-modified {
   background: rgba(245, 158, 11, 0.08);
   border-left-color: #f59e0b;
+}
+.diff-moved {
+  background: rgba(59, 130, 246, 0.08);
+  border-left-color: #3b82f6;
 }
 .diff-unchanged { opacity: 0.55; }
 .diff-empty { background: rgba(0, 0, 0, 0.02); }

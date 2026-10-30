@@ -38,7 +38,7 @@ A complete list of features in OpenDraft.
 ## Version Control
 
 - **Built-in Version History** -- Check in drafts at any point
-- **Visual Diff** -- Compare any two versions side-by-side to see exactly what changed
+- **Visual Diff** -- Compare any two versions side-by-side to see exactly what changed, with word-level marks for rewritten lines and moved lines and scenes detected
 - **Restore** -- Roll back to any previous draft instantly
 
 ## Backups
