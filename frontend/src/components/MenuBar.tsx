@@ -237,6 +237,7 @@ import {
   FaMoon,
   FaRegFileAlt,
   FaStepForward,
+  FaBolt,
   FaEraser,
   FaUnlock,
   FaSlidersH,
@@ -3544,6 +3545,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           children: [
             { icon: <FaRegFileAlt />, ...check(viewLayout === 'page', t('menu:view.page'), true), action: () => setViewLayout('page') },
             { icon: <FaMobileAlt />, ...check(viewLayout === 'phone', t('menu:view.phone'), true), action: () => setViewLayout('phone') },
+            { icon: <FaBolt />, ...check(viewLayout === 'speed', t('menu:view.speed'), true), action: () => setViewLayout('speed') },
             { separator: true, label: '' },
             // Where the panels go (Layout › Panels): the built-in layouts and the writer's own.
             ...WORKSPACE_PRESET_IDS.map((id) => ({
