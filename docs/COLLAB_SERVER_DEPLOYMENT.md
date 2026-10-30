@@ -35,6 +35,11 @@ under the same name cannot withdraw each other's suggestions), and lets a
 suggester link a Beat Board beat to a scene. An old app against the new
 server keeps working: suggestions without an id go by name, as before.
 
+The id is worked out from the invite token, so it belongs to the invite, not
+the person: everyone who joins with one shared link signs as one suggester,
+and someone invited again with a new link cannot withdraw the suggestions
+they made with the old one (the writer can still reject them).
+
 While a suggester is connected, the server keeps a second copy of that
 document in memory to try their changes on before applying them — budget
 about twice the document's size for each document with a suggester in it.

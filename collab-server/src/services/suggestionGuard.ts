@@ -24,7 +24,7 @@
  * They may also give a scene heading that has none its `sceneUid` — what
  * linking a Beat Board beat to the scene does (frontend/src/utils/beatScenes).
  * It is an id, not part of the script, and one already given is not theirs
- * to change.
+ * to change. Nor is one another heading has: that would take its links.
  *
  * "Their own" means signed with their session name and, when the stamp has
  * one, their id (`uid`, worked out from their invite token; see server.ts).
@@ -290,11 +290,31 @@ function align(a: Unit[], b: Unit[]): Array<[number, number]> {
  */
 export const MAX_ALIGN_CELLS = 4_000_000;
 
+/** The id a unit gives a scene heading, if it is one and has one. */
+const sceneIdOf = (u: Unit): string | null => {
+  if (u.kind !== 'open' || u.name !== 'sceneHeading') return null;
+  const id = u.attrs[SCENE_UID];
+  return typeof id === 'string' && id ? id : null;
+};
+
+/** How many scene headings carry each id. */
+export function sceneIdCounts(units: Iterable<Unit>): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const u of units) {
+    const id = sceneIdOf(u);
+    if (id) out.set(id, (out.get(id) ?? 0) + 1);
+  }
+  return out;
+}
+
 /**
  * Why the script `after` is not one `by` could reach by suggesting from
- * `before`, or null when it is.
+ * `before`, or null when it is. `sceneIds` counts the scene ids in the whole
+ * script after the change, when `after` is only the part of it that changed.
  */
-export function suggestionViolation(before: Unit[], after: Unit[], me: SuggesterIdentity): string | null {
+export function suggestionViolation(
+  before: Unit[], after: Unit[], me: SuggesterIdentity, sceneIds?: ReadonlyMap<string, number>,
+): string | null {
   let p = 0;
   while (p < before.length && p < after.length && fullKey(before[p]) === fullKey(after[p])) p++;
   let s = 0;
@@ -310,9 +330,22 @@ export function suggestionViolation(before: Unit[], after: Unit[], me: Suggester
     pairs = a.map((_, i) => [i, i]);
   } else {
     const quick = greedyPairs(a, b, me);
-    if (quick) return null;
-    if (a.length * b.length > MAX_ALIGN_CELLS) return 'changed too much of the script in one go to check';
-    pairs = align(a, b);
+    if (quick) {
+      pairs = quick;
+    } else {
+      if (a.length * b.length > MAX_ALIGN_CELLS) return 'changed too much of the script in one go to check';
+      pairs = align(a, b);
+    }
+  }
+
+  // A scene id this change brings in must be the only one of its kind: a
+  // second heading with an existing scene's id would take its beat links
+  // (utils/beatScenes: the first heading with an id has it).
+  const counts = sceneIds ?? sceneIdCounts(after);
+  const duplicate = (id: string | null) => !!id && (counts.get(id) ?? 0) > 1;
+  for (const [i, j] of pairs) {
+    const id = sceneIdOf(b[j]);
+    if (id !== sceneIdOf(a[i]) && duplicate(id)) return 'gave a scene heading the id of another scene';
   }
 
   const matchedA = new Set(pairs.map(([i]) => i));
@@ -330,6 +363,7 @@ export function suggestionViolation(before: Unit[], after: Unit[], me: Suggester
     if (matchedB.has(j)) continue;
     const why = insertedUnit(b[j], me);
     if (why) return why;
+    if (duplicate(sceneIdOf(b[j]))) return 'gave a scene heading the id of another scene';
   }
   return null;
 }
@@ -434,7 +468,9 @@ class ShadowScript {
     const before = beforeUnits.slice(p, beforeNodes.length - s).flat();
     const after = afterNodes.slice(p, afterNodes.length - s).flatMap((n) => this.unitsOf(n));
 
-    const why = suggestionViolation(before, after, me);
+    // Scene headings are top-level, so each node's first unit says its id.
+    const sceneIds = sceneIdCounts(afterNodes.map((n) => this.unitsOf(n)[0]).filter((u): u is Unit => !!u));
+    const why = suggestionViolation(before, after, me, sceneIds);
     if (why) this.rebuild();
     return why;
   }
