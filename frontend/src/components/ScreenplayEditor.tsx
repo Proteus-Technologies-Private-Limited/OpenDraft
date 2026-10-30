@@ -30,7 +30,7 @@ import {
   FormatOverride, CustomElement, DualDialogue, DualDialogueColumn,
   TitlePage,
   AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
-  StartsNewPage, Bookmark, Alternates, Suggestions,
+  StartsNewPage, Bookmark, Alternates, Suggestions, AutoUppercase,
 } from '../editor/extensions';
 import { ElementNumbers, ELEMENT_NUMBERS_REFRESH } from '../editor/extensions/ElementNumbers';
 import { FocusMode, FOCUS_MODE_REFRESH, FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
@@ -2126,7 +2126,12 @@ const ScreenplayEditor: React.FC = () => {
       ContdCaseExtension,
       SearchExtension,
       TrackChangesExtension,
-      ...(isHistoryMode ? [] : [EnforceGuardExtension, EnterHandlerExtension, TabHandlerExtension, ElementShortcutExtension, PasteFountainExtension]),
+      ...(isHistoryMode ? [] : [
+        EnforceGuardExtension, EnterHandlerExtension, TabHandlerExtension, ElementShortcutExtension, PasteFountainExtension,
+        // A viewer in a collaboration session must not write, and that
+        // includes normalising a line's case.
+        AutoUppercase.configure({ canNormalise: () => !(collabMode && collabRole === 'viewer') }),
+      ]),
       SpellCheck,
       Grammar,
       ...pluginRegistry.getEditorExtensions(),

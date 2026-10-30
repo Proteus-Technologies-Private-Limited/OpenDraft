@@ -1463,7 +1463,7 @@ body {
 .scene-info { flex: 1; min-width: 0; }
 .scene-heading-row { display: flex; align-items: center; gap: 8px; }
 .scene-heading-text { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; font-size: 14px; font-family: var(--screenplay-font); color: var(--fd-text); line-height: 1.3; font-weight: 600; }
-.scene-heading-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.scene-heading-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; text-transform: uppercase; }
 .scene-plotline-dots { display: inline-flex; gap: 2px; flex-shrink: 0; }
 .scene-plotline-dot { width: 7px; height: 7px; border-radius: 50%; }
 .scene-number-badge {
@@ -1904,6 +1904,10 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
+  /* Headings are stored in capitals (editor/extensions/AutoUppercase), but a
+     script written or imported before that may not be: draw it as the page
+     does either way. */
+  text-transform: uppercase;
 }
 .structure-chevron {
   color: var(--fd-text-muted);

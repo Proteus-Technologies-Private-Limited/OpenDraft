@@ -7,6 +7,7 @@ A complete list of features in OpenDraft.
 - **Industry-standard formatting** -- Scene headings, action, character, dialogue, parenthetical, transition, and shot elements with proper Courier Prime formatting
 - **Character Autocomplete** -- Smart suggestions as you type character names
 - **SmartType** -- Complete scene-heading prefixes, locations already used in the script, times of day, character extensions such as (V.O.) and (CONT'D), and transitions, from the script and a standard list. Tab or Enter accepts, arrows move, Escape dismisses
+- **Automatic Capitals** -- Scene headings, character cues, transitions and the other capitals elements are stored in capitals too, so the scene navigator, Word and Final Draft exports agree with the page
 - **Macros** -- Insert text you type often (CONTINUOUS, a recurring location, a character with an extension) with a shortcut or from Edit → Insert Macro, optionally as a given element; export and import them as JSON
 - **Scene Navigator** -- Jump between scenes instantly from the sidebar
 - **Bookmarks** -- Name any line and jump back to it from the Navigator or Go to Page; saved with the script and shared with collaborators
