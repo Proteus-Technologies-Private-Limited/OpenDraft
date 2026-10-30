@@ -12,6 +12,7 @@ export const APP_COMMAND_EVENT = 'opendraft:app-command';
 export type AppCommand =
   | 'new-script'
   | 'open-script'
+  | 'import-script'
   | 'save-script'
   | 'export-pdf'
   | 'reports';

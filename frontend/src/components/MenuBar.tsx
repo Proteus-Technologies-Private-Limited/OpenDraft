@@ -2134,6 +2134,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       switch (command) {
         case 'new-script': handleNewScreenplay(); break;
         case 'open-script': confirmOrRun(() => setOpenFileOpen(true)); break;
+        case 'import-script': confirmOrRun(handleImport); break;
         case 'save-script': void handleSave(); break;
         case 'export-pdf': void handleExportPDF(); break;
         case 'reports': setReportsOpen(true); break;
@@ -2142,7 +2143,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     };
     window.addEventListener(APP_COMMAND_EVENT, onCommand);
     return () => window.removeEventListener(APP_COMMAND_EVENT, onCommand);
-  }, [handleNewScreenplay, confirmOrRun, setOpenFileOpen, handleSave, handleExportPDF]);
+  }, [handleNewScreenplay, confirmOrRun, setOpenFileOpen, handleSave, handleExportPDF, handleImport]);
 
   /**
    * File → Print (and ⌘P).

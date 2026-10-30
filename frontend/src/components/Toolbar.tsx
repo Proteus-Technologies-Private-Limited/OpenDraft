@@ -37,6 +37,7 @@ import {
   FaTable,
   FaListUl,
   FaStream,
+  FaListOl,
 } from 'react-icons/fa';
 import { useEditorStore } from '../stores/editorStore';
 import { useAiStore } from '../stores/aiStore';
@@ -869,8 +870,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       </button>
       <button
         className="toolbar-btn"
-        title="Open Script"
-        onClick={() => { requestAppCommand('open-script'); if (inOverflow) setOverflowOpen(false); }}
+        title="Import Script"
+        onClick={() => { requestAppCommand('import-script'); if (inOverflow) setOverflowOpen(false); }}
       >
         <FaFolderOpen />
       </button>
@@ -892,25 +893,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   ), [navigatorOpen, toggleNavigator]);
 
   const renderViewTools = useCallback((inOverflow = false) => {
-    const dual = editor?.isActive('dualDialogue') ?? false;
     return (
       <div className="toolbar-group" key="view-tools">
-        <button
-          className={`toolbar-btn${dual ? ' active' : ''}`}
-          title="Dual Dialogue"
-          onClick={() => {
-            (editor as any)?.chain().focus().toggleDualDialogue().run();
-            if (inOverflow) setOverflowOpen(false);
-          }}
-        >
-          <FaColumns />
-        </button>
         <button
           className={`toolbar-btn${sceneNumbersVisible ? ' active' : ''}`}
           title="Scene Numbers"
           onClick={() => { setSceneNumbersVisible(!sceneNumbersVisible); if (inOverflow) setOverflowOpen(false); }}
         >
-          <FaHashtag />
+          <FaListOl />
         </button>
         <button
           className="toolbar-btn"
@@ -957,7 +947,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       </div>
     );
   }, [
-    editor, sceneNumbersVisible, setSceneNumbersVisible, setTitlePageEditorOpen,
+    sceneNumbersVisible, setSceneNumbersVisible, setTitlePageEditorOpen,
     viewLayout, setViewLayout, indexCardsOpen, toggleIndexCards, openNavigatorTab,
     beatBoardOpen, toggleBeatBoard,
   ]);
@@ -1173,6 +1163,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             </option>
           ))}
         </Select>
+        <button
+          className={`toolbar-btn${editor?.isActive('dualDialogue') ? ' active' : ''}`}
+          title="Dual Dialogue"
+          onClick={() => (editor as any)?.chain().focus().toggleDualDialogue().run()}
+        >
+          <FaColumns />
+        </button>
       </div>
 
       {/* AV row controls — the only route to a new row without a hardware
