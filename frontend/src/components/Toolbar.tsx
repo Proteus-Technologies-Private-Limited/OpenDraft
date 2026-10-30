@@ -117,6 +117,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     toggleBeatBoard,
     splitScreenOpen,
     toggleSplitScreen,
+    outlineOpen,
+    toggleOutline,
     setTitlePageEditorOpen,
     openNavigatorTab,
   } = useEditorStore();
@@ -941,9 +943,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           <FaTable />
         </button>
         <button
-          className="toolbar-btn"
+          className={`toolbar-btn${outlineOpen ? ' active' : ''}`}
           title="Outline"
-          onClick={() => { openNavigatorTab('structure'); if (inOverflow) setOverflowOpen(false); }}
+          onClick={() => { toggleOutline(); if (inOverflow) setOverflowOpen(false); }}
         >
           <FaListUl />
         </button>
@@ -960,6 +962,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     sceneNumbersVisible, setSceneNumbersVisible, setTitlePageEditorOpen,
     viewLayout, setViewLayout, indexCardsOpen, toggleIndexCards, openNavigatorTab,
     beatBoardOpen, toggleBeatBoard, splitScreenOpen, toggleSplitScreen,
+    outlineOpen, toggleOutline,
   ]);
 
   const renderNotesTags = useCallback((inOverflow = false) => (

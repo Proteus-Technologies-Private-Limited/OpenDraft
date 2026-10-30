@@ -805,6 +805,9 @@ interface EditorState {
   /** Editor and index cards side by side. */
   splitScreenOpen: boolean;
   toggleSplitScreen: () => void;
+  /** Dedicated outline editor (acts, sequences, sections, scenes). */
+  outlineOpen: boolean;
+  toggleOutline: () => void;
   statisticsOpen: boolean;
   setStatisticsOpen: (open: boolean) => void;
   statisticsScrollTo: string | null;
@@ -1265,8 +1268,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Split screen is the editor plus cards; the full-width planning views
     // would leave no editor to split.
     return open
-      ? { splitScreenOpen: true, statisticsOpen: false, beatBoardOpen: false }
+      ? { splitScreenOpen: true, statisticsOpen: false, beatBoardOpen: false, outlineOpen: false }
       : { splitScreenOpen: false };
+  }),
+  outlineOpen: false,
+  toggleOutline: () => set((s) => {
+    const open = !s.outlineOpen;
+    return open
+      ? { outlineOpen: true, statisticsOpen: false, beatBoardOpen: false, splitScreenOpen: false }
+      : { outlineOpen: false };
   }),
   statisticsOpen: false,
   setStatisticsOpen: (open) => set({ statisticsOpen: open }),
