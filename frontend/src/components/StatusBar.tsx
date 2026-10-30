@@ -7,6 +7,8 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { isTitlePageRuleId, titlePageRuleId, TITLE_PAGE_ELEMENTS } from '../stores/formattingTypes';
 import { activeTimingOptions, computeSceneTiming, formatRuntime } from '../utils/scriptTiming';
 import { computeScriptStructure } from '../utils/scriptStructure';
+import { countWords } from '../utils/writingGoals';
+import { jsonBlockText } from '../utils/nodeText';
 import { DEFAULT_PACING, pacingOption } from '../utils/scriptProfile';
 import WritingProgress from './WritingProgress';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
@@ -112,6 +114,17 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
     }
   }, [editorDoc]);
 
+  /** Every word in the script, not just today's, which the goal ring counts. */
+  const totalWords = useMemo(() => {
+    const doc = editorDoc as JSONContent | null;
+    if (!doc) return 0;
+    let words = 0;
+    for (const block of doc.content ?? []) {
+      words += countWords(jsonBlockText(block));
+    }
+    return words;
+  }, [editorDoc]);
+
   return (
     <div className="status-bar">
       <div className="status-left">
@@ -181,6 +194,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ editorDoc = null }) => {
               <span className="status-timing-pacing"> · {pacingOption(scriptProfile.pacing).label.toLowerCase()}</span>
             )}
           </button>
+        )}
+        {totalWords > 0 && (
+          <span className="status-item status-words" title="Words in the script">
+            {totalWords.toLocaleString()} words
+          </span>
         )}
         {revisionMode && (
           <span className="status-item status-revision">
