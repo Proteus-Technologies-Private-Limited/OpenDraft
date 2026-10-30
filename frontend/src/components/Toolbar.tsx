@@ -560,13 +560,19 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   const handleNotesClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
     e.preventDefault();
     if (!editor) { toggleScriptNotes(); return; }
+    // With the panel open the button closes it; otherwise it adds a note at
+    // the selection, which is what opened the panel in the first place.
+    if (scriptNotesOpen) { toggleScriptNotes(); return; }
     addScriptNoteAtSelection(editor);
-  }, [editor, toggleScriptNotes]);
+  }, [editor, scriptNotesOpen, toggleScriptNotes]);
 
   // ── Tags handler (shared between inline and overflow) ──
   const handleTagsClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
     e.preventDefault();
     if (!editor) { toggleTagsPanel(); return; }
+    // A second click closes the panel rather than opening it on a selection
+    // the writer may have left behind.
+    if (tagsPanelOpen) { toggleTagsPanel(); return; }
 
     const markType = editor.schema.marks.productionTag;
     if (markType) {
