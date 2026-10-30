@@ -74,6 +74,7 @@ import VoiceProviderDialog from './VoiceProviderDialog';
 import { TableReadHighlight } from '../editor/extensions/TableReadHighlight';
 import { useTableReadStore } from '../stores/tableReadStore';
 import ScriptNotes from './ScriptNotes';
+import AiAssistantPanel from './AiAssistantPanel';
 import CharacterProfiles from './CharacterProfiles';
 import TagsPanel from './TagsPanel';
 import { PluginPanelTabs } from './PluginPanelTabs';
@@ -159,6 +160,7 @@ import { scriptApi } from '../services/scriptApi';
 import { getApiBase, getCollabWsUrl } from '../config';
 import { showToast } from './Toast';
 import { useSuggestModeStore, suggestionAuthor } from '../stores/suggestModeStore';
+import { useAiStore } from '../stores/aiStore';
 import { suggesterIdOf } from '../utils/suggesterId';
 
 /**
@@ -625,7 +627,8 @@ const ScreenplayEditor: React.FC = () => {
   }, [navWidth, rightPanelWidth]);
 
   const suggestionsPanelOpen = useSuggestModeStore((s) => s.panelOpen);
-  const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen || locationDatabaseOpen || dialogueTunerOpen || suggestionsPanelOpen;
+  const aiPanelOpen = useAiStore((s) => s.panelOpen);
+  const rightPanelVisible = scriptNotesOpen || characterProfilesOpen || tagsPanelOpen || locationDatabaseOpen || dialogueTunerOpen || suggestionsPanelOpen || aiPanelOpen;
 
   // Yjs document & provider — stable across renders while collab is active
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -5804,6 +5807,7 @@ const ScreenplayEditor: React.FC = () => {
         {!isHistoryMode && <LocationDatabase editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && <DialogueTuner editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && <SuggestionsPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
+        {!isHistoryMode && <AiAssistantPanel editor={editor} style={{ width: rightPanelWidth, minWidth: rightPanelWidth }} />}
         {!isHistoryMode && (
           <PluginPanelTabs
             editor={editor}

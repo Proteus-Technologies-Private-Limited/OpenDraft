@@ -78,6 +78,7 @@ A complete list of features in OpenDraft.
 - **Spell Check** -- Built-in spell checker with custom dictionary support
 - **Production Tags** -- Tag elements for production planning
 - **Reports** -- Scene, character, location, cast, breakdown and notes reports, exported as CSV or PDF
+- **AI Assistant (local)** -- Ask in plain language and have the script changed through OpenDraft's own commands, so inserted dialogue and scenes arrive correctly formatted. Every change is shown as a preview to accept or discard, and a simple "X dice: ..." is written without the model. Works with Ollama or any OpenAI-compatible server (Unsloth Studio, LM Studio, llama.cpp); nothing leaves the machine unless you point it at a remote server
 
 ## Production Output
 

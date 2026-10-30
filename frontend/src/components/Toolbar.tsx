@@ -24,8 +24,10 @@ import {
   FaHashtag,
   FaPlus,
   FaTrashAlt,
+  FaRobot,
 } from 'react-icons/fa';
 import { useEditorStore } from '../stores/editorStore';
+import { useAiStore } from '../stores/aiStore';
 import type { ElementType } from '../stores/editorStore';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
@@ -91,6 +93,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   } = useEditorStore();
   // Focus Mode hides the toolbar like Hidden does, keeping the saved choice.
   const toolbarMode = focusMode ? 'hidden' : savedToolbarMode;
+
+  const aiPanelOpen = useAiStore((s) => s.panelOpen);
+  const toggleAiPanel = useAiStore((s) => s.togglePanel);
 
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
   const isEnforceMode = activeTemplate.mode === 'enforce';
@@ -835,8 +840,20 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       >
         <FaTags />
       </button>
+      <button
+        className={`toolbar-btn${aiPanelOpen ? ' active' : ''}`}
+        title="AI Assistant"
+        aria-label="AI Assistant"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          toggleAiPanel();
+          if (inOverflow) setOverflowOpen(false);
+        }}
+      >
+        <FaRobot />
+      </button>
     </div>
-  ), [scriptNotesOpen, tagsPanelOpen, handleNotesClick, handleTagsClick]);
+  ), [scriptNotesOpen, tagsPanelOpen, aiPanelOpen, handleNotesClick, handleTagsClick, toggleAiPanel]);
 
   const renderZoom = useCallback((_inOverflow = false) => (
     <div className="toolbar-group zoom-group" key="zoom">
