@@ -42,6 +42,8 @@ interface OptionItem {
   label: React.ReactNode;
   /** Plain text of the label, for type-ahead. */
   text: string;
+  /** Shortcut shown right-aligned, from the option's `data-shortcut`. */
+  shortcut?: string;
   disabled: boolean;
   hidden: boolean;
   title?: string;
@@ -81,6 +83,9 @@ function collectItems(children: React.ReactNode, out: Item[] = [], groupDisabled
         value: props.value === undefined || props.value === null ? text : String(props.value),
         label: props.children ?? text,
         text,
+        shortcut: typeof props['data-shortcut'] === 'string' && props['data-shortcut']
+          ? props['data-shortcut']
+          : undefined,
         disabled: groupDisabled || !!props.disabled,
         hidden: !!props.hidden,
         title: typeof props.title === 'string' ? props.title : undefined,
@@ -373,6 +378,7 @@ const Select: React.FC<SelectProps> = ({
               >
                 <span className="od-select-check" aria-hidden>{isSelected ? '✓' : ''}</span>
                 <span className="od-select-option-label">{it.label}</span>
+                {it.shortcut && <span className="od-select-shortcut">{it.shortcut}</span>}
               </div>
             );
           })}
