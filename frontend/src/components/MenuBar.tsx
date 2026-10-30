@@ -13,6 +13,7 @@ import { isInAvRow, isInAvCell, avCellSideAt, avRowContext, readColumnConfig, av
 import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 import { chooseAvFrameImage } from '../utils/avFrame';
 import { formatShortcut } from '../utils/shortcuts';
+import { normalizeCapitalsJSON } from '../utils/capitals';
 import { macroLabel } from '../utils/macros';
 import { insertMacro } from './macroActions';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
@@ -27,7 +28,11 @@ import type { Editor as TiptapEditor } from '@tiptap/react';
  * stands before any pending suggestion, so nothing nobody has accepted reaches
  * paper (editor/suggestions).
  */
-const exportJSON = (editor: TiptapEditor) => withoutSuggestionsJSON(editor.getJSON());
+const exportJSON = (editor: TiptapEditor) =>
+  // Capitals elements are stored in capitals (utils/capitals); a script written
+  // before that is normalised here too, so an export made before the next save
+  // is not the one output that still shows lower case.
+  normalizeCapitalsJSON(withoutSuggestionsJSON(editor.getJSON()));
 import { downloadFDX } from '../utils/fdxExporter';
 import { downloadFountain } from '../utils/fountainExporter';
 import { exportFadeIn } from '../utils/osfExporter';

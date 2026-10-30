@@ -14,15 +14,9 @@
  */
 import type { EditorState, Transaction } from '@tiptap/pm/state';
 import { applyCaseToRange } from './caseTransform';
+import { isUppercaseElement } from '../utils/capitals';
 
-/** The element types whose text is printed in capitals. */
-export const UPPERCASE_ELEMENT_TYPES: ReadonlySet<string> = new Set([
-  'sceneHeading', 'character', 'transition', 'shot', 'newAct', 'endOfAct', 'castList',
-]);
-
-export function isUppercaseElement(type: string): boolean {
-  return UPPERCASE_ELEMENT_TYPES.has(type);
-}
+export { UPPERCASE_ELEMENT_TYPES, isUppercaseElement } from '../utils/capitals';
 
 /** The position of the text block the selection is in, or null. */
 export function blockPosition(state: EditorState): number | null {
