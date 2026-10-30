@@ -178,6 +178,7 @@ import {
   FaAlignJustify,
   FaColumns,
   FaClone,
+  FaMap,
   FaFileAlt,
   FaCommentDots,
   FaHeading,
@@ -350,6 +351,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setSplitScreenMode,
     splitScreenPane,
     setSplitScreenPane,
+    storyMapOpen,
+    toggleStoryMap,
     outlineOpen,
     toggleOutline,
     scriptNotesOpen,
@@ -3126,6 +3129,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
               { icon: <FaStream />, label: splitScreenPane === 'beat-board' && splitScreenOpen ? '\u2713 Beat Board' : 'Beat Board', action: () => setSplitScreenPane('beat-board') },
             ] },
           ] },
+        {
+          icon: <FaMap />, label: storyMapOpen ? '\u2713 Story Map' : 'Story Map', action: toggleStoryMap },
         {
           icon: <FaHighlighter />, label: 'Highlights',
           children: [

@@ -39,6 +39,7 @@ import {
   FaStream,
   FaListOl,
   FaClone,
+  FaMap,
 } from 'react-icons/fa';
 import { useEditorStore } from '../stores/editorStore';
 import { useAiStore } from '../stores/aiStore';
@@ -119,6 +120,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     toggleSplitScreen,
     outlineOpen,
     toggleOutline,
+    storyMapOpen,
+    toggleStoryMap,
     setTitlePageEditorOpen,
     openNavigatorTab,
   } = useEditorStore();
@@ -950,6 +953,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           <FaListUl />
         </button>
         <button
+          className={`toolbar-btn${storyMapOpen ? ' active' : ''}`}
+          title="Story Map"
+          onClick={() => { toggleStoryMap(); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaMap />
+        </button>
+        <button
           className={`toolbar-btn${beatBoardOpen ? ' active' : ''}`}
           title="Beat Board"
           onClick={() => { toggleBeatBoard(); if (inOverflow) setOverflowOpen(false); }}
@@ -963,6 +973,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     viewLayout, setViewLayout, indexCardsOpen, toggleIndexCards, openNavigatorTab,
     beatBoardOpen, toggleBeatBoard, splitScreenOpen, toggleSplitScreen,
     outlineOpen, toggleOutline,
+    storyMapOpen, toggleStoryMap,
   ]);
 
   const renderNotesTags = useCallback((inOverflow = false) => (

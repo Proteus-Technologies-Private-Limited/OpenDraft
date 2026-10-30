@@ -22,6 +22,7 @@ interface ViewState {
   navigatorOpen?: boolean;
   indexCardsOpen?: boolean;
   beatBoardOpen?: boolean;
+  storyMapOpen?: boolean;
   scriptNotesOpen?: boolean;
   characterProfilesOpen?: boolean;
   tagsPanelOpen?: boolean;
@@ -815,6 +816,9 @@ interface EditorState {
   setSplitScreenMode: (mode: SplitScreenMode) => void;
   splitScreenPane: SplitScreenPane;
   setSplitScreenPane: (pane: SplitScreenPane) => void;
+  /** The scenes as one strip under the editor, sized by page length. */
+  storyMapOpen: boolean;
+  toggleStoryMap: () => void;
   /** Dedicated outline editor (acts, sequences, sections, scenes). */
   outlineOpen: boolean;
   toggleOutline: () => void;
@@ -1295,6 +1299,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       splitScreenPane: pane, splitScreenOpen: true,
       statisticsOpen: false, beatBoardOpen: false, outlineOpen: false,
     })),
+  storyMapOpen: _vs.storyMapOpen ?? false,
+  toggleStoryMap: () => set((s) => {
+    const v = !s.storyMapOpen;
+    saveViewState({ storyMapOpen: v });
+    return { storyMapOpen: v };
+  }),
   outlineOpen: false,
   toggleOutline: () => set((s) => {
     const open = !s.outlineOpen;

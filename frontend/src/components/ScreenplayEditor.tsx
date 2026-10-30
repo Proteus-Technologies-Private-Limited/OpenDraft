@@ -71,6 +71,7 @@ import BeatBoard from './BeatBoard';
 import OutlineView from './OutlineView';
 import PagePreviewPane from './PagePreviewPane';
 import ReportsDialog from './ReportsDialog';
+import StoryMap from './StoryMap';
 import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
 import VoiceProviderDialog from './VoiceProviderDialog';
@@ -549,6 +550,7 @@ const ScreenplayEditor: React.FC = () => {
     viewLayout,
     beatBoardOpen, statisticsOpen, splitScreenOpen, toggleSplitScreen,
     splitScreenMode, splitScreenPane,
+    storyMapOpen, toggleStoryMap,
     outlineOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, dialogueTunerOpen,
@@ -5849,6 +5851,9 @@ const ScreenplayEditor: React.FC = () => {
             </div>
           )}
           </div>
+          {!isHistoryMode && storyMapOpen && editor && !outlineOpen && !statisticsOpen && !beatBoardOpen && (
+            <StoryMap editor={editor} onRequestClose={toggleStoryMap} />
+          )}
           {/* Table Read docks over the bottom of the script it is reading. */}
           {storyTimelineOpen && editor && (
             <StoryTimeline editor={editor} onClose={() => useEditorStore.getState().setStoryTimelineOpen(false)} />

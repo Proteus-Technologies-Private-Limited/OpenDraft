@@ -4474,6 +4474,111 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   border: none;
 }
 
+/* Story Map: one strip under the editor, each scene as wide as it is long. */
+.story-map {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--fd-border);
+  background: var(--fd-navigator-bg);
+}
+.story-map-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--fd-border);
+}
+.story-map-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--fd-text-muted);
+}
+.story-map-count {
+  font-size: 11px;
+  color: var(--fd-text-muted);
+  opacity: 0.8;
+  margin-right: auto;
+}
+.story-map-empty {
+  margin: 0;
+  padding: 14px 14px 18px;
+  font-size: 12px;
+  color: var(--fd-text-muted);
+  font-style: italic;
+}
+.story-map-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 10px 14px 4px;
+}
+.story-map-track {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  min-height: 76px;
+}
+.story-map-block {
+  flex-basis: 0;
+  flex-grow: 1;
+  min-width: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  background: var(--fd-overlay-subtle);
+  border: 1px solid var(--fd-border);
+  border-radius: 5px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s, background 0.15s;
+}
+.story-map-block:hover { border-color: var(--fd-accent); }
+.story-map-block.active {
+  border-color: var(--fd-accent);
+  background: rgba(74, 158, 255, 0.16);
+}
+.story-map-num {
+  font-size: 10px;
+  color: var(--fd-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.story-map-heading {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fd-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.story-map-synopsis {
+  font-size: 10px;
+  color: var(--fd-text-muted);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.story-map-ruler {
+  position: relative;
+  height: 18px;
+  margin: 2px 0 4px;
+  border-bottom: 1px solid var(--fd-border);
+}
+.story-map-tick {
+  position: absolute;
+  bottom: 0;
+  padding-left: 3px;
+  border-left: 1px solid var(--fd-border);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--fd-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ============ INDEX CARDS ============ */
 .index-cards {
   background: var(--fd-navigator-bg);
