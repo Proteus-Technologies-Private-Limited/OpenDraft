@@ -4451,23 +4451,6 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   font-size: 10px;
   color: #555;
 }
-/* The Reports dialog, drawn in a pane rather than over the page. */
-.dialog-embedded {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-}
-.reports-dialog-embedded {
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  max-height: none;
-  border-radius: 0;
-  box-shadow: none;
-  border: none;
-}
-
 /* Story Map: one strip under the editor, each scene as wide as it is long. */
 .story-map {
   flex-shrink: 0;

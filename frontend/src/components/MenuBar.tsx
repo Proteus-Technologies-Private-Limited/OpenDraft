@@ -3124,7 +3124,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { label: 'Second Pane', children: [
               { icon: <FaFileAlt />, label: splitScreenPane === 'page-view' && splitScreenOpen ? '\u2713 Page View' : 'Page View', action: () => setSplitScreenPane('page-view') },
               { icon: <FaTh />, label: splitScreenPane === 'index-cards' && splitScreenOpen ? '\u2713 Index Cards' : 'Index Cards', action: () => setSplitScreenPane('index-cards') },
-              { icon: <FaTable />, label: splitScreenPane === 'reports' && splitScreenOpen ? '\u2713 Reports' : 'Reports', action: () => setSplitScreenPane('reports') },
               { icon: <FaListUl />, label: splitScreenPane === 'outline' && splitScreenOpen ? '\u2713 Outline' : 'Outline', action: () => setSplitScreenPane('outline') },
               { icon: <FaStream />, label: splitScreenPane === 'beat-board' && splitScreenOpen ? '\u2713 Beat Board' : 'Beat Board', action: () => setSplitScreenPane('beat-board') },
             ] },

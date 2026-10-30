@@ -17,8 +17,6 @@ import { showToast } from './Toast';
 interface Props {
   editor: Editor | null;
   onClose: () => void;
-  /** Draw the report in a pane instead of over the page. */
-  embedded?: boolean;
 }
 
 interface ReportChoice {
@@ -31,7 +29,7 @@ interface ReportChoice {
 /** Rows drawn in the preview. The export always carries every row. */
 const PREVIEW_ROWS = 300;
 
-const ReportsDialog: React.FC<Props> = ({ editor, onClose, embedded = false }) => {
+const ReportsDialog: React.FC<Props> = ({ editor, onClose }) => {
   const documentTitle = useEditorStore((s) => s.documentTitle);
   const [selected, setSelected] = useState('builtin:scenes');
   const [table, setTable] = useState<ReportTable | null>(null);
@@ -104,12 +102,12 @@ const ReportsDialog: React.FC<Props> = ({ editor, onClose, embedded = false }) =
   };
 
   return (
-    <div className={embedded ? 'dialog-embedded' : 'dialog-overlay'} onClick={embedded ? undefined : onClose}>
+    <div className="dialog-overlay" onClick={onClose}>
       <div
-        className={`dialog-box reports-dialog${embedded ? ' reports-dialog-embedded' : ''}`}
+        className="dialog-box reports-dialog"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-modal={!embedded}
+        aria-modal="true"
         aria-labelledby="reports-dialog-title"
       >
         <div className="dialog-header" id="reports-dialog-title">Reports</div>

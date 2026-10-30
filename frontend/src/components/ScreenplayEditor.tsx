@@ -70,7 +70,6 @@ import IndexCards from './IndexCards';
 import BeatBoard from './BeatBoard';
 import OutlineView from './OutlineView';
 import PagePreviewPane from './PagePreviewPane';
-import ReportsDialog from './ReportsDialog';
 import StoryMap from './StoryMap';
 import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
@@ -5838,9 +5837,6 @@ const ScreenplayEditor: React.FC = () => {
               )}
               {splitScreenPane === 'outline' && (
                 <OutlineView editor={editor} onRequestClose={toggleSplitScreen} />
-              )}
-              {splitScreenPane === 'reports' && (
-                <ReportsDialog editor={editor} embedded onClose={toggleSplitScreen} />
               )}
               {splitScreenPane === 'beat-board' && (
                 <BeatBoard editor={editor} embedded onRequestClose={toggleSplitScreen} />

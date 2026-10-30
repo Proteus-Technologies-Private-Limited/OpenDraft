@@ -764,7 +764,10 @@ export type BeatArrangeMode = 'auto' | 'custom';
 export type SplitScreenMode = 'side-by-side' | 'stacked';
 
 /** What the split screen shows beside the script. */
-export type SplitScreenPane = 'page-view' | 'index-cards' | 'reports' | 'outline' | 'beat-board';
+export type SplitScreenPane = 'page-view' | 'index-cards' | 'outline' | 'beat-board';
+
+/** Whether the Story Map sizes scenes by pages or by screen time. */
+export type StoryMapUnits = 'pages' | 'time';
 
 interface EditorState {
   // Current element type
