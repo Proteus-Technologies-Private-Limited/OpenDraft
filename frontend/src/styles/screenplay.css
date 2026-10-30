@@ -1427,6 +1427,17 @@ body {
   padding: 3px 14px; border-bottom: 1px solid var(--fd-border); flex-shrink: 0;
   gap: 8px;
 }
+/* The panel's name, above the tabs, as in the reference navigator. */
+.navigator-topbar {
+  display: flex; align-items: center;
+  padding: 10px 12px 6px; flex-shrink: 0;
+}
+.navigator-eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--fd-text-muted); margin-right: auto;
+}
+.navigator-scenes-bar { padding: 2px 12px 5px; border-bottom: none; }
+.navigator-subtitle { font-size: 12px; color: var(--fd-text-muted); }
 .navigator-title { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--fd-text); }
 .scene-count { font-size: 12px; color: var(--fd-text-secondary, var(--fd-text)); opacity: 0.7; }
 /* Search bar — inside scroll area; scrolls away on scroll-down, pins on scroll-up */
@@ -1460,30 +1471,35 @@ body {
 .navigator-list { flex: 1; overflow-y: auto; padding: 0 0 4px; }
 .navigator-empty { padding: 24px 16px; color: var(--fd-text-secondary, var(--fd-text)); opacity: 0.7; font-size: 13px; font-style: italic; text-align: center; }
 .navigator-scene {
-  display: flex; align-items: flex-start; padding: 10px 14px;
-  cursor: pointer; border-left: 3px solid transparent;
+  display: flex; align-items: flex-start; padding: 8px 10px;
+  cursor: pointer; border-radius: 6px; margin: 1px 8px;
   min-height: 40px;
 }
-.navigator-scene:hover { background: var(--fd-overlay-subtle); border-left-color: var(--fd-accent); }
+.navigator-scene:hover { background: var(--fd-overlay-subtle); }
 .navigator-scene:active { background: rgba(74, 158, 255, 0.12); }
-.navigator-scene.expanded { background: var(--fd-overlay-subtle); border-left-color: var(--fd-accent); }
+.navigator-scene.expanded { background: rgba(74, 158, 255, 0.14); }
 .scene-info { flex: 1; min-width: 0; }
 .scene-heading-row { display: flex; align-items: center; gap: 8px; }
-.scene-heading-text { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; font-size: 14px; font-family: var(--screenplay-font); color: var(--fd-text); line-height: 1.3; font-weight: 600; }
-.scene-heading-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; text-transform: uppercase; }
+.scene-heading-text { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; font-family: var(--screenplay-font); color: var(--fd-text); line-height: 1.3; font-weight: 600; }
+.scene-heading-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .scene-plotline-dots { display: inline-flex; gap: 2px; flex-shrink: 0; }
 .scene-plotline-dot { width: 7px; height: 7px; border-radius: 50%; }
 .scene-number-badge {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
-  font-size: 12px; font-weight: 700; font-family: inherit;
-  background: var(--fd-text-muted); color: var(--fd-bg, #fff);
+  width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0;
+  font-size: 11px; font-weight: 600; font-family: inherit;
+  background: var(--fd-overlay-medium); color: var(--fd-text);
   border: none;
+}
+.scene-page-ref {
+  flex-shrink: 0; min-width: 14px; text-align: right;
+  font-size: 11px; color: var(--fd-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 /* Synopsis preview (collapsed) — first line below heading */
 .scene-synopsis-preview {
-  font-size: 11px; color: var(--fd-text); opacity: 0.5; line-height: 1.3;
-  margin-top: 3px;
+  font-size: 11px; color: var(--fd-text); opacity: 0.55; line-height: 1.35;
+  margin-top: 2px; padding-left: 26px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 /* Expanded synopsis area */
@@ -1559,36 +1575,34 @@ body {
   font-size: 12px; color: var(--fd-text-muted); font-weight: 500;
 }
 
-/* Navigator tabs — horizontally scrollable when the panel is narrow,
-   with the close button pinned to the right so it's always clickable. */
+/* Navigator tabs — pill-shaped, left-aligned, scrolling when the panel is
+   too narrow to hold them all. */
 .navigator-tabs {
   display: flex;
-  align-items: stretch;
-  border-bottom: 1px solid var(--fd-border);
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px 8px;
   flex-shrink: 0;
   min-width: 0;
 }
 .navigator-tab {
-  flex: 1 1 auto;
-  flex-shrink: 0;
+  flex: 0 0 auto;
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-radius: 5px;
   color: var(--fd-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  padding: 10px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 8px;
   cursor: pointer;
-  transition: all 0.15s;
-  min-height: 40px;
+  transition: background 0.15s, color 0.15s;
+  min-height: 26px;
   white-space: nowrap;
 }
-.navigator-tab:hover { color: var(--fd-text); }
+.navigator-tab:hover { color: var(--fd-text); background: var(--fd-overlay-subtle); }
 .navigator-tab.active {
-  color: var(--fd-accent);
-  border-bottom-color: var(--fd-accent);
+  color: var(--fd-text);
+  background: var(--fd-overlay-medium);
 }
 /* When the tabs collectively overflow the panel width, scroll them
    horizontally while keeping the close button visible (it lives outside
@@ -1596,6 +1610,7 @@ body {
 .navigator-tabs-scroll {
   flex: 1 1 auto;
   display: flex;
+  gap: 2px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
@@ -1610,17 +1625,17 @@ body {
   background: none;
   border: none;
   color: var(--fd-text-muted);
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
-  padding: 0 12px;
+  padding: 0;
   line-height: 1;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  min-height: 40px;
-  border-left: 1px solid var(--fd-border);
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
 }
 .navigator-close:hover { color: var(--fd-text); background: var(--fd-overlay-subtle); }
 

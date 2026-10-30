@@ -138,46 +138,6 @@ function formatPageLength(pages: number): string {
   return `${n} ${n <= 1 ? 'page' : 'pages'}`;
 }
 
-// ── Scene Length Icon ────────────────────────────────────────────────────
-
-function getPageFillStyle(pages: number): { color: string; opacity: number } {
-  if (pages <= 1) return { color: 'var(--fd-accent)', opacity: 0.6 };
-  const t = Math.min((pages - 1) / 4, 1); // 0 at 1 page, 1 at 5+ pages
-  const hue = Math.round(120 * (1 - t)); // green(120) → red(0)
-  const sat = 65 + Math.round(t * 25);   // 65% → 90%
-  const lit = 50 - Math.round(t * 10);   // 50% → 40%
-  const opacity = 0.65 + t * 0.3;        // 0.65 → 0.95
-  return { color: `hsl(${hue}, ${sat}%, ${lit}%)`, opacity };
-}
-
-const SceneLengthIcon: React.FC<{ pages: number }> = React.memo(({ pages }) => {
-  const wholePgs = Math.floor(pages);
-  const fraction = pages - wholePgs;
-  const FILL_TOP = 2.5;
-  const FILL_BOT = 14;
-  const FILL_H = FILL_BOT - FILL_TOP; // 11.5 — full interior height
-  const fillH = (fraction > 0 ? fraction : 1) * FILL_H;
-  const { color: fillColor, opacity: fillOpacity } = getPageFillStyle(pages);
-  // For multi-page scenes, fill the remaining top portion with the previous page's color
-  const showBg = pages > 1 && fraction > 0;
-  const bgStyle = showBg ? getPageFillStyle(wholePgs) : null;
-  return (
-    <svg width="14" height="16" viewBox="0 0 14 16" style={{ flexShrink: 0 }}>
-      {wholePgs >= 2 && (
-        <rect x="3.5" y="0" width="9.5" height="13.5" rx="1" fill="none" stroke="currentColor" strokeWidth="0.6" opacity="0.2" />
-      )}
-      {wholePgs >= 1 && pages > 1 && (
-        <rect x="2.5" y="0.5" width="9.5" height="13.5" rx="1" fill="none" stroke="currentColor" strokeWidth="0.6" opacity="0.3" />
-      )}
-      <rect x="1" y="1.5" width="9.5" height="13" rx="1" fill="none" stroke="currentColor" strokeWidth="0.7" opacity="0.5" />
-      {bgStyle && (
-        <rect x="2" y={FILL_TOP} width="7.5" height={FILL_H} fill={bgStyle.color} opacity={bgStyle.opacity} rx="0.5" />
-      )}
-      <rect x="2" y={FILL_BOT - fillH} width="7.5" height={fillH} fill={fillColor} opacity={fillOpacity} rx="0.5" className="scene-length-fill" />
-    </svg>
-  );
-});
-
 // ── Page thumbnail: exact-match layout constants (same as pagination.ts) ─
 
 const FD_INDENTS: Record<string, [number, number]> = {
@@ -486,6 +446,20 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       activeTemplateHints(),
     );
   }, [editor, scenes, pageLayout]);
+
+  /**
+   * The page each scene starts on, in scene order. The Scenes tab shows it on
+   * the right of a row, the way a printed script locates a scene.
+   */
+  const sceneStartPages = useMemo(() => {
+    const pages: number[] = [];
+    for (const page of pageContent) {
+      for (const block of page.blocks) {
+        if (block.typeName === 'sceneHeading') pages.push(page.pageNumber);
+      }
+    }
+    return pages;
+  }, [pageContent]);
 
   // ── Exact-match page layout for thumbnails ──
 
@@ -809,7 +783,13 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   return (
     <>
     <div ref={navPanelRef} className={`scene-navigator ${panelClass}`} style={style}>
-      {/* Tab bar — horizontally scrollable tab strip + pinned close button */}
+      {/* Top bar — the panel's name, with the close button pinned right. */}
+      <div className="navigator-topbar">
+        <span className="navigator-eyebrow">Navigator</span>
+        <button className="navigator-close" onClick={toggleNavigator} title="Close Navigator">×</button>
+      </div>
+
+      {/* Tab bar — horizontally scrollable tab strip */}
       <div className="navigator-tabs">
         <div className="navigator-tabs-scroll">
           <button className={`navigator-tab${activeTab === 'scenes' ? ' active' : ''}`} onClick={() => setActiveTab('scenes')}>Scenes</button>
@@ -818,16 +798,14 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
           <button className={`navigator-tab${activeTab === 'structure' ? ' active' : ''}`} onClick={() => setActiveTab('structure')}>Structure</button>
           <button className={`navigator-tab${activeTab === 'bookmarks' ? ' active' : ''}`} onClick={() => setActiveTab('bookmarks')}>Bookmarks</button>
         </div>
-        <button className="navigator-close" onClick={toggleNavigator} title="Close Navigator">×</button>
       </div>
 
       {/* ── Scenes tab ───────────────────────────────────────────────── */}
       {activeTab === 'scenes' && (
         <>
-          <div className="navigator-header">
-            <span className="navigator-title">Scenes</span>
-            <span className="scene-count">
-              {(hasActiveFilter || searchQuery) ? `${filteredIndices.length}/` : ''}{scenes.length}
+          <div className="navigator-header navigator-scenes-bar">
+            <span className="navigator-subtitle">
+              {(hasActiveFilter || searchQuery) ? `${filteredIndices.length} of ` : ''}{scenes.length} scene{scenes.length === 1 ? '' : 's'}
             </span>
             <button
               className={`scene-filter-btn${hasActiveFilter ? ' active' : ''}`}
@@ -969,12 +947,15 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                             </span>
                           )}
                         </div>
-                        {detail && detail.pageLength > 0 && (
-                          <div className="scene-length" data-tooltip={
-                            formatPageLength(detail.pageLength) +
+                        {(sceneStartPages[sceneIdx] || (detail && detail.pageLength > 0)) && (
+                          <div className="scene-page-ref" data-tooltip={
+                            (sceneStartPages[sceneIdx] ? `Page ${sceneStartPages[sceneIdx]}` : '') +
+                            (detail && detail.pageLength > 0
+                              ? `${sceneStartPages[sceneIdx] ? ' \u00b7 ' : ''}${formatPageLength(detail.pageLength)}`
+                              : '') +
                             (sceneTimings[sceneIdx]?.finalSeconds ? ` \u00b7 ${formatSceneDuration(sceneTimings[sceneIdx].finalSeconds)}` : '')
                           }>
-                            <SceneLengthIcon pages={detail.pageLength} />
+                            {sceneStartPages[sceneIdx] ?? (detail ? formatPageLength(detail.pageLength) : '')}
                           </div>
                         )}
                       </div>
