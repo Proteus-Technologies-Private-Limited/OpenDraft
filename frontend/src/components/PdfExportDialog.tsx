@@ -41,6 +41,7 @@ const PdfExportDialog: React.FC<Props> = ({ onClose, onExport }) => {
   const [fromIndex, setFromIndex] = useState(0);
   const [toIndex, setToIndex] = useState(lastIndex);
   const [picked, setPicked] = useState<Set<number>>(() => new Set(scenes.map((_, index) => index)));
+  const [pickQuery, setPickQuery] = useState('');
   const [includeTitlePage, setIncludeTitlePage] = useState(includeTitlePageInOutput);
   const [pageNumbers, setPageNumbers] = useState(true);
   const [sceneNumbers, setSceneNumbers] = useState(sceneNumbersVisible);
@@ -52,6 +53,30 @@ const PdfExportDialog: React.FC<Props> = ({ onClose, onExport }) => {
     value: String(index),
     label: `${scene.sceneNumber ?? index + 1}. ${scene.heading}`,
   })), [scenes]);
+
+  /** The pick list narrowed by the search field. All / None act on what is
+   *  shown, so "None" after searching clears only the matches. */
+  const visibleOptions = useMemo(() => {
+    const query = pickQuery.trim().toLowerCase();
+    if (!query) return options;
+    return options.filter((option) => option.label.toLowerCase().includes(query));
+  }, [options, pickQuery]);
+  const visibleIndices = useMemo(
+    () => visibleOptions.map((option) => Number(option.value)),
+    [visibleOptions],
+  );
+
+  const selectVisible = () => {
+    setPicked((current) => new Set([...current, ...visibleIndices]));
+  };
+
+  const clearVisible = () => {
+    setPicked((current) => {
+      const next = new Set(current);
+      for (const index of visibleIndices) next.delete(index);
+      return next;
+    });
+  };
 
   const changeFrom = (value: string) => {
     const next = Number(value);
@@ -137,22 +162,38 @@ const PdfExportDialog: React.FC<Props> = ({ onClose, onExport }) => {
                 </div>
               ) : (
                 <div className="pdf-export-picks">
+                  <input
+                    className="pdf-export-search"
+                    type="text"
+                    placeholder="Search scenes…"
+                    value={pickQuery}
+                    onChange={(e) => setPickQuery(e.target.value)}
+                    aria-label="Search scenes"
+                  />
                   <div className="pdf-export-pick-actions">
-                    <span>{picked.size} of {scenes.length} selected</span>
-                    <button type="button" onClick={() => setPicked(new Set(scenes.map((_, index) => index)))}>All</button>
-                    <button type="button" onClick={() => setPicked(new Set())}>None</button>
+                    <span>
+                      {picked.size} of {scenes.length} selected
+                      {visibleOptions.length !== scenes.length ? ` \u00b7 ${visibleOptions.length} shown` : ''}
+                    </span>
+                    <button type="button" onClick={selectVisible} title="Select all shown">All</button>
+                    <button type="button" onClick={clearVisible} title="Clear all shown">None</button>
                   </div>
                   <div className="pdf-export-pick-list">
-                    {scenes.map((scene, index) => (
-                      <label key={scene.id} className="pdf-export-check">
-                        <input
-                          type="checkbox"
-                          checked={picked.has(index)}
-                          onChange={() => togglePick(index)}
-                        />
-                        <span>{scene.sceneNumber ?? index + 1}. {scene.heading}</span>
-                      </label>
-                    ))}
+                    {visibleOptions.length === 0 ? (
+                      <p className="pdf-export-no-match">No scenes match &ldquo;{pickQuery}&rdquo;.</p>
+                    ) : visibleOptions.map((option) => {
+                      const index = Number(option.value);
+                      return (
+                        <label key={option.value} className="pdf-export-check">
+                          <input
+                            type="checkbox"
+                            checked={picked.has(index)}
+                            onChange={() => togglePick(index)}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               )}

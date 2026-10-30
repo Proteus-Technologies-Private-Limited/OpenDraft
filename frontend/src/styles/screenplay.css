@@ -3327,6 +3327,18 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   background: var(--fd-overlay-medium); color: var(--fd-text);
 }
 .pdf-export-picks { display: flex; flex-direction: column; gap: 6px; }
+.pdf-export-search {
+  width: 100%; box-sizing: border-box; height: 30px; padding: 0 9px;
+  background: var(--fd-input-bg); color: var(--fd-text);
+  border: 1px solid var(--fd-border); border-radius: 4px;
+  font-size: 13px; outline: none;
+}
+.pdf-export-search:focus { border-color: var(--fd-accent); }
+.pdf-export-search::placeholder { color: var(--fd-text-muted); opacity: 0.7; }
+.pdf-export-no-match {
+  margin: 0; padding: 12px 6px; text-align: center;
+  font-size: 12px; color: var(--fd-text-muted); font-style: italic;
+}
 .pdf-export-pick-actions {
   display: flex; align-items: center; gap: 8px;
   font-size: 12px; color: var(--fd-text-muted);
