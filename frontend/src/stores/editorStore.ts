@@ -759,6 +759,12 @@ export interface BeatInfo {
 
 export type BeatArrangeMode = 'auto' | 'custom';
 
+/** How the split screen arranges its two panes. */
+export type SplitScreenMode = 'side-by-side' | 'stacked';
+
+/** What the split screen shows beside the script. */
+export type SplitScreenPane = 'page-view' | 'index-cards' | 'reports' | 'outline' | 'beat-board';
+
 interface EditorState {
   // Current element type
   activeElement: ElementType;
@@ -802,9 +808,13 @@ interface EditorState {
   toggleIndexCards: () => void;
   beatBoardOpen: boolean;
   toggleBeatBoard: () => void;
-  /** Editor and index cards side by side. */
+  /** Editor and a second pane beside or below it. */
   splitScreenOpen: boolean;
   toggleSplitScreen: () => void;
+  splitScreenMode: SplitScreenMode;
+  setSplitScreenMode: (mode: SplitScreenMode) => void;
+  splitScreenPane: SplitScreenPane;
+  setSplitScreenPane: (pane: SplitScreenPane) => void;
   /** Dedicated outline editor (acts, sequences, sections, scenes). */
   outlineOpen: boolean;
   toggleOutline: () => void;
@@ -1265,12 +1275,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   splitScreenOpen: false,
   toggleSplitScreen: () => set((s) => {
     const open = !s.splitScreenOpen;
-    // Split screen is the editor plus cards; the full-width planning views
-    // would leave no editor to split.
+    // Split screen is the editor plus a second pane; the full-width planning
+    // views would leave no editor to split.
     return open
       ? { splitScreenOpen: true, statisticsOpen: false, beatBoardOpen: false, outlineOpen: false }
       : { splitScreenOpen: false };
   }),
+  splitScreenMode: 'side-by-side',
+  setSplitScreenMode: (mode) => set((s) => (s.splitScreenOpen && s.splitScreenMode === mode
+    ? {}
+    : {
+      splitScreenMode: mode, splitScreenOpen: true,
+      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false,
+    })),
+  splitScreenPane: 'index-cards',
+  setSplitScreenPane: (pane) => set((s) => (s.splitScreenOpen && s.splitScreenPane === pane
+    ? {}
+    : {
+      splitScreenPane: pane, splitScreenOpen: true,
+      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false,
+    })),
   outlineOpen: false,
   toggleOutline: () => set((s) => {
     const open = !s.outlineOpen;

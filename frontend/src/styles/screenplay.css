@@ -4343,25 +4343,135 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   min-width: 0;
 }
 
-/* Split screen: the script on the left, its index cards on the right. */
-.editor-center.split-screen { flex-direction: row; align-items: stretch; }
-.editor-center.split-screen .index-cards.index-cards-split {
+/* Split screen: the script in one pane, a second view in the other. */
+.editor-main-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.editor-main-area.split-screen.split-side-by-side { flex-direction: row; align-items: stretch; }
+.editor-main-area.split-screen.split-stacked { flex-direction: column; }
+.editor-main-area .split-pane {
   order: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--fd-navigator-bg);
+}
+.split-side-by-side .split-pane {
   width: 380px;
   min-width: 280px;
   max-width: 46vw;
-  max-height: none;
-  height: 100%;
-  border-bottom: none;
-  border-left: 1px solid var(--fd-border);
-  overflow-y: auto;
   flex-shrink: 0;
+  border-left: 1px solid var(--fd-border);
 }
-.editor-center.split-screen .editor-main { order: 1; flex: 1; min-width: 0; }
-.editor-center.split-screen .index-cards-grid {
+.split-stacked .split-pane {
+  height: 42%;
+  min-height: 200px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--fd-border);
+}
+.editor-main-area.split-screen .editor-main { order: 1; flex: 1; min-width: 0; min-height: 0; }
+.split-pane .index-cards.index-cards-split {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  flex: 1 1 auto;
+  border: none;
+}
+.split-pane .index-cards-grid {
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   padding: 12px 14px;
   gap: 10px;
+}
+.split-pane .outline-view { flex: 1 1 auto; }
+.split-pane .beat-board { flex: 1 1 auto; min-height: 0; }
+
+/* Page View: the read-only pages in the split screen. */
+.page-preview-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.page-preview-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--fd-border);
+  flex-shrink: 0;
+}
+.page-preview-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--fd-text-muted);
+  margin-right: auto;
+}
+.page-preview-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.page-preview-empty {
+  font-size: 12px;
+  color: var(--fd-text-muted);
+  font-style: italic;
+  padding: 12px 4px;
+}
+.page-preview-sheet {
+  position: relative;
+  background: #fff;
+  color: #111;
+  border-radius: 2px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+  padding: 40px 34px 22px;
+  font-family: var(--screenplay-font, 'Courier Prime', monospace);
+  font-size: 10px;
+  line-height: 1.35;
+  flex-shrink: 0;
+}
+.page-preview-body { max-width: 100%; }
+.page-preview-line { white-space: pre-wrap; overflow-wrap: anywhere; }
+.page-preview-scene-heading { font-weight: 700; text-transform: uppercase; margin-top: 1.2em; }
+.page-preview-character { padding-left: 33%; margin-top: 0.9em; text-transform: uppercase; }
+.page-preview-parenthetical { padding-left: 27%; padding-right: 25%; }
+.page-preview-dialogue { padding-left: 20%; padding-right: 18%; }
+.page-preview-transition { text-align: right; text-transform: uppercase; }
+.page-preview-shot { text-transform: uppercase; }
+.page-preview-new-act { font-weight: 700; text-transform: uppercase; margin-top: 1.2em; }
+.page-preview-number {
+  position: absolute;
+  right: 10px;
+  bottom: 6px;
+  font-size: 10px;
+  color: #555;
+}
+/* The Reports dialog, drawn in a pane rather than over the page. */
+.dialog-embedded {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.reports-dialog-embedded {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
 }
 
 /* ============ INDEX CARDS ============ */

@@ -69,6 +69,8 @@ import SceneNavigator from './SceneNavigator';
 import IndexCards from './IndexCards';
 import BeatBoard from './BeatBoard';
 import OutlineView from './OutlineView';
+import PagePreviewPane from './PagePreviewPane';
+import ReportsDialog from './ReportsDialog';
 import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
 import VoiceProviderDialog from './VoiceProviderDialog';
@@ -546,6 +548,7 @@ const ScreenplayEditor: React.FC = () => {
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     viewLayout,
     beatBoardOpen, statisticsOpen, splitScreenOpen, toggleSplitScreen,
+    splitScreenMode, splitScreenPane,
     outlineOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, dialogueTunerOpen,
@@ -5582,13 +5585,13 @@ const ScreenplayEditor: React.FC = () => {
         {!isHistoryMode && navigatorOpen && (
           <div className="panel-resize-handle" onPointerDown={(e) => handleResizePointerDown('left', e)} style={{ touchAction: 'none' }} />
         )}
-        <div className={`editor-center${splitScreenOpen ? ' split-screen' : ''}`}>
-          {!isHistoryMode && !outlineOpen && (
+        <div className="editor-center">
+          <div className={`editor-main-area${splitScreenOpen && !outlineOpen && !statisticsOpen && !beatBoardOpen && !isHistoryMode ? ` split-screen split-${splitScreenMode}` : ''}`}>
+          {!isHistoryMode && !outlineOpen && !splitScreenOpen && (
             <IndexCards
               editor={editor}
               scrollContainer={editorMainRef.current}
-              variant={splitScreenOpen ? 'split' : 'panel'}
-              onRequestClose={splitScreenOpen ? toggleSplitScreen : undefined}
+              variant="panel"
             />
           )}
           {!isHistoryMode && outlineOpen && editor ? (
@@ -5821,6 +5824,31 @@ const ScreenplayEditor: React.FC = () => {
               </div>
             </div>
           )}
+          {splitScreenOpen && !outlineOpen && !statisticsOpen && !beatBoardOpen && !isHistoryMode && editor && (
+            <div className={`split-pane split-pane-${splitScreenPane}`}>
+              {splitScreenPane === 'index-cards' && (
+                <IndexCards
+                  editor={editor}
+                  scrollContainer={editorMainRef.current}
+                  variant="split"
+                  onRequestClose={toggleSplitScreen}
+                />
+              )}
+              {splitScreenPane === 'outline' && (
+                <OutlineView editor={editor} onRequestClose={toggleSplitScreen} />
+              )}
+              {splitScreenPane === 'reports' && (
+                <ReportsDialog editor={editor} embedded onClose={toggleSplitScreen} />
+              )}
+              {splitScreenPane === 'beat-board' && (
+                <BeatBoard editor={editor} embedded onRequestClose={toggleSplitScreen} />
+              )}
+              {splitScreenPane === 'page-view' && (
+                <PagePreviewPane editor={editor} onRequestClose={toggleSplitScreen} />
+              )}
+            </div>
+          )}
+          </div>
           {/* Table Read docks over the bottom of the script it is reading. */}
           {storyTimelineOpen && editor && (
             <StoryTimeline editor={editor} onClose={() => useEditorStore.getState().setStoryTimelineOpen(false)} />

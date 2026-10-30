@@ -20,6 +20,8 @@ import { reorderScene } from '../editor/sceneReorder';
 
 interface Props {
   editor: Editor | null;
+  /** Closes the pane that hosts the outline; defaults to the outline view. */
+  onRequestClose?: () => void;
 }
 
 /** Absolute ProseMirror position of the nth scene heading. */
@@ -56,8 +58,8 @@ function currentSceneIndex(editor: Editor): number | null {
   return current >= 0 ? current : (last >= 0 ? 0 : null);
 }
 
-const OutlineView: React.FC<Props> = ({ editor }) => {
-  const setOutlineOpen = useEditorStore((s) => s.toggleOutline);
+const OutlineView: React.FC<Props> = ({ editor, onRequestClose }) => {
+  const toggleOutline = useEditorStore((s) => s.toggleOutline);
   const pageLayout = useEditorStore((s) => s.pageLayout);
   const scenes = useEditorStore((s) => s.scenes);
   const [version, setVersion] = useState(0);
@@ -92,7 +94,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
     }
   }, [editor, pageLayout, version, scenes]);
 
-  const close = useCallback(() => setOutlineOpen(), [setOutlineOpen]);
+  const close = useCallback(() => (onRequestClose ?? toggleOutline)(), [onRequestClose, toggleOutline]);
 
   const goToScene = useCallback((sceneIndex: number) => {
     if (!editor) return;
