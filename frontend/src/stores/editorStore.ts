@@ -106,11 +106,12 @@ function defaultToolbarMode(): 'compact' | 'comfortable' | 'hidden' {
  *
  * `page` draws real 8.5" sheets — what prints. `phone` reflows the same script
  * to the width of a phone at full-size text, with the page breaks drawn as
- * dividers. Pagination, page count and every export are the same in both; only
- * the drawing differs. Phones start in the phone view, because a whole page
- * fitted to one is 8px text (Play Store review, Oct 2026).
+ * dividers. `speed` is the page's sheet without page breaks: one continuous
+ * scroll for drafting. Pagination, page count and every export are the same in
+ * all three; only the drawing differs. Phones start in the phone view, because
+ * a whole page fitted to one is 8px text (Play Store review, Oct 2026).
  */
-export type ViewLayout = 'page' | 'phone';
+export type ViewLayout = 'page' | 'phone' | 'speed';
 
 function defaultViewLayout(): ViewLayout {
   return isPhoneDevice() ? 'phone' : 'page';

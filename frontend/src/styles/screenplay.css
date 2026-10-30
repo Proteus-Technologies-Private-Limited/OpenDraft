@@ -2210,6 +2210,13 @@ body {
   position: relative;
 }
 
+/* Speed view (View → Layout → Speed): the page's sheet without page breaks.
+   Pagination still runs — the status bar, page count and exports need it — but
+   the whitespace that stands in for the foot of each page is taken back out,
+   so the script scrolls as one continuous sheet. */
+.page.speed-view { min-height: 0; }
+.page.speed-view .sp-page-start { margin-top: 0 !important; }
+
 /* ============ TIPTAP EDITOR CONTENT ============ */
 .screenplay-content {
   font-family: var(--screenplay-font);

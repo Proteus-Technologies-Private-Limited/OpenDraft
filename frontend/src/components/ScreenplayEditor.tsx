@@ -985,8 +985,14 @@ const ScreenplayEditor: React.FC = () => {
   pageLayoutRef.current = pageLayout;
   // Phone view: the same pages, reflowed to the screen (see ViewLayout).
   const phoneView = viewLayout === 'phone';
+  // Speed view: the page's sheet with the page breaks taken out, for drafting.
+  const speedView = viewLayout === 'speed';
   const phoneViewRef = useRef(phoneView);
   phoneViewRef.current = phoneView;
+  // Speed view draws no gap between pages, so the overlay must not subtract
+  // one: measureOverlays reads both refs while computing the page anchors.
+  const speedViewRef = useRef(speedView);
+  speedViewRef.current = speedView;
 
   // ── Touch gestures (must be after editorMainRef) ──
   const isTouch = useIsTouchDevice();
@@ -1595,7 +1601,10 @@ const ScreenplayEditor: React.FC = () => {
       // first element of the page.
       const overlayTop = phoneViewRef.current
         ? (elRect.top - pageRect.top) / scale - PHONE_PAGE_GAP_PX
-        : (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
+        : speedViewRef.current
+          // No page gap to step over in the one continuous sheet.
+          ? (elRect.top - pageRect.top) / scale
+          : (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
       newOverlays.push({
         top: overlayTop,
         pageNumber: brk.pageNumber,
@@ -4080,13 +4089,20 @@ const ScreenplayEditor: React.FC = () => {
       const pageRect = pageRef.current.getBoundingClientRect();
       const containerRect = editorMainRef.current.getBoundingClientRect();
       const scale = (zoomLevelRef.current || 100) / 100;
+      // Speed view has no page gap to step over: the break's element is
+      // already a point in the one continuous sheet.
+      if (speedView) {
+        const scrollTo = editorMainRef.current.scrollTop + (pageRect.top + ov.top * scale - containerRect.top);
+        editorMainRef.current.scrollTo({ top: Math.max(0, scrollTo), behavior: 'auto' });
+        return;
+      }
       const layout = pageLayoutRef.current;
       const bottomMarginPx = (layout.bottomMargin / 72) * 96;
       const pageTopOffset = ov.top + bottomMarginPx + 40; // 40 = page-sep-gap
       const scrollTo = editorMainRef.current.scrollTop + (pageRect.top + pageTopOffset * scale - containerRect.top);
       editorMainRef.current.scrollTo({ top: scrollTo, behavior: 'auto' });
     }
-  }, [overlays]);
+  }, [overlays, speedView]);
 
   // Wire up the picker trigger
   showPickerRef.current = useCallback((defaultType: ElementType, availableTypes?: ElementType[]) => {
@@ -5553,7 +5569,7 @@ const ScreenplayEditor: React.FC = () => {
               >
                 {resolvedNoteCss && <style>{resolvedNoteCss}</style>}
                 <div
-                  className={`page${phoneView ? ' phone-view' : ''}${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
+                  className={`page${phoneView ? ' phone-view' : ''}${speedView ? ' speed-view' : ''}${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
                   ref={pageRef}
                   style={{
                     fontFamily: fontStack(fontFamily),
@@ -5564,7 +5580,10 @@ const ScreenplayEditor: React.FC = () => {
                     // measured from them.
                     ...(phoneView ? {} : {
                       width: `${pageLayout.pageWidth}in`,
-                      minHeight: `${lastPageEnd + endnoteExtraHeight + (pageLayout.bottomMargin / 72) * 96}px`,
+                      // Speed view is one continuous sheet: its height is the
+                      // script's, not a page's, or it would end in a blank
+                      // page-sized tail below the last line.
+                      minHeight: speedView ? 0 : `${lastPageEnd + endnoteExtraHeight + (pageLayout.bottomMargin / 72) * 96}px`,
                       paddingTop: `${pageLayout.topMargin}pt`,
                       paddingBottom: `${pageLayout.bottomMargin}pt`,
                       paddingLeft: `${pageLayout.leftMargin}in`,
@@ -5603,7 +5622,7 @@ const ScreenplayEditor: React.FC = () => {
                   ))}
 
                   {/* Page break separators — absolutely positioned, full page width */}
-                  {!phoneView && overlays.map((ov) => {
+                  {!phoneView && !speedView && overlays.map((ov) => {
                     // `ov.pageNumber` counts script pages, ignoring the title page;
                     // the band shows the PRINTED number, which the starting-number
                     // offset can shift.
@@ -5649,7 +5668,7 @@ const ScreenplayEditor: React.FC = () => {
                       title page precedes it, so without this the very first header
                       would have nowhere to render — invisible on screen even though
                       it printed. */}
-                  {!phoneView && (() => {
+                  {!phoneView && !speedView && (() => {
                     if (overlays.some((o) => o.isTitlePage)) return null; // the title-page break carries it
                     const printed = printedPageNumber(1, headerFooter.startingPageNumber);
                     if (printed < headerFooter.headerStartPage) return null;
@@ -5663,7 +5682,7 @@ const ScreenplayEditor: React.FC = () => {
                   })()}
 
                   {/* Last page footer — no page break follows the last page, so render its footer separately */}
-                  {!phoneView && (() => {
+                  {!phoneView && !speedView && (() => {
                     const lastPage = overlays.length > 0
                       ? overlays[overlays.length - 1].pageNumber
                       : 1;
@@ -5687,7 +5706,7 @@ const ScreenplayEditor: React.FC = () => {
                     );
                   })()}
 
-                  {!phoneView && footnotePlan && endnotePages.length > 0 && (
+                  {!phoneView && !speedView && footnotePlan && endnotePages.length > 0 && (
                     <EndnotePages
                       plan={footnotePlan}
                       pages={endnotePages}

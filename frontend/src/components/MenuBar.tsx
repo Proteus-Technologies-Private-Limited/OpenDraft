@@ -213,6 +213,7 @@ import {
   FaMoon,
   FaRegFileAlt,
   FaStepForward,
+  FaBolt,
   FaEraser,
   FaUnlock,
   FaSlidersH,
@@ -3086,6 +3087,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           children: [
             { icon: <FaRegFileAlt />, label: viewLayout === 'page' ? '\u2713 Page' : 'Page', action: () => setViewLayout('page') },
             { icon: <FaMobileAlt />, label: viewLayout === 'phone' ? '\u2713 Phone' : 'Phone', action: () => setViewLayout('phone') },
+            { icon: <FaBolt />, label: viewLayout === 'speed' ? '\u2713 Speed' : 'Speed', action: () => setViewLayout('speed') },
           ],
         },
         { separator: true, label: '' },
