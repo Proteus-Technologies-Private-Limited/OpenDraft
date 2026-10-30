@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
-import { sceneRangeDocument } from './pdfSceneExport';
+import { sceneRangeDocument, sceneSelectionDocument } from './pdfSceneExport';
 
 interface DrawCall { text: string; page: number }
 
@@ -87,6 +87,31 @@ describe('PDF scene range', () => {
   it('clamps a range that runs past the script', () => {
     const out = sceneRangeDocument(script(), { from: 0, to: 99, oneScenePerPage: false });
     expect(textsOf(out)).toEqual(textsOf(script()));
+  });
+});
+
+describe('PDF hand-picked scenes', () => {
+  it('keeps the title page and only the ticked scenes, in script order', () => {
+    const out = sceneSelectionDocument(script(), { scenes: [2, 0], oneScenePerPage: false });
+    expect(textsOf(out)).toEqual([
+      'THE SCRIPT',
+      'INT. HOUSE - DAY',
+      'She waits.',
+      'INT. CAR - CONTINUOUS',
+      'She drives away.',
+    ]);
+  });
+
+  it('leaves the middle scene out', () => {
+    const out = sceneSelectionDocument(script(), { scenes: [0, 2], oneScenePerPage: false });
+    expect(textsOf(out).join('\n')).not.toContain('EXT. STREET - NIGHT');
+  });
+
+  it('starts every ticked scene on its own page', () => {
+    const out = sceneSelectionDocument(script(), { scenes: [0, 2], oneScenePerPage: true });
+    const headings = (out.content ?? []).filter((node) => node.type === 'sceneHeading');
+    expect(headings).toHaveLength(2);
+    for (const heading of headings) expect(heading.attrs?.startsNewPage).toBe(true);
   });
 });
 
