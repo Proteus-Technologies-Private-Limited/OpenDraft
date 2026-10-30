@@ -4479,6 +4479,31 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   opacity: 0.8;
   margin-right: auto;
 }
+/* Pages / Time: the two ways to measure the strip. */
+.story-map-units {
+  display: flex;
+  gap: 1px;
+  padding: 1px;
+  background: var(--fd-overlay-subtle);
+  border: 1px solid var(--fd-border);
+  border-radius: 4px;
+}
+.story-map-units button {
+  background: none;
+  border: none;
+  border-radius: 3px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--fd-text-muted);
+  cursor: pointer;
+}
+.story-map-units button:hover { color: var(--fd-text); }
+.story-map-units button.active {
+  background: var(--fd-overlay-medium);
+  color: var(--fd-text);
+}
+.story-map-embedded { border-top: none; }
 .story-map-empty {
   margin: 0;
   padding: 14px 14px 18px;
@@ -4516,6 +4541,17 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 .story-map-block.active {
   border-color: var(--fd-accent);
   background: rgba(74, 158, 255, 0.16);
+}
+.story-map-block-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.story-map-meta {
+  font-size: 10px;
+  color: var(--fd-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 .story-map-num {
   font-size: 10px;

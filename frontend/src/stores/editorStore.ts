@@ -23,6 +23,7 @@ interface ViewState {
   indexCardsOpen?: boolean;
   beatBoardOpen?: boolean;
   storyMapOpen?: boolean;
+  storyMapUnits?: 'pages' | 'time';
   scriptNotesOpen?: boolean;
   characterProfilesOpen?: boolean;
   tagsPanelOpen?: boolean;
@@ -822,6 +823,8 @@ interface EditorState {
   /** The scenes as one strip under the editor, sized by page length. */
   storyMapOpen: boolean;
   toggleStoryMap: () => void;
+  storyMapUnits: StoryMapUnits;
+  setStoryMapUnits: (units: StoryMapUnits) => void;
   /** Dedicated outline editor (acts, sequences, sections, scenes). */
   outlineOpen: boolean;
   toggleOutline: () => void;
@@ -1307,6 +1310,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const v = !s.storyMapOpen;
     saveViewState({ storyMapOpen: v });
     return { storyMapOpen: v };
+  }),
+  storyMapUnits: _vs.storyMapUnits ?? 'pages',
+  setStoryMapUnits: (units) => set(() => {
+    saveViewState({ storyMapUnits: units });
+    return { storyMapUnits: units };
   }),
   outlineOpen: false,
   toggleOutline: () => set((s) => {

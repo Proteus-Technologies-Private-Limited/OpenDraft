@@ -549,6 +549,7 @@ const ScreenplayEditor: React.FC = () => {
     viewLayout,
     beatBoardOpen, statisticsOpen, splitScreenOpen, toggleSplitScreen,
     splitScreenMode, splitScreenPane,
+    indexCardsOpen,
     storyMapOpen, toggleStoryMap,
     outlineOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
@@ -5847,8 +5848,8 @@ const ScreenplayEditor: React.FC = () => {
             </div>
           )}
           </div>
-          {!isHistoryMode && storyMapOpen && editor && !outlineOpen && !statisticsOpen && !beatBoardOpen && (
-            <StoryMap editor={editor} onRequestClose={toggleStoryMap} />
+          {!isHistoryMode && storyMapOpen && editor && !outlineOpen && !statisticsOpen && !beatBoardOpen && !indexCardsOpen && (
+            <StoryMap editor={editor} onRequestClose={toggleStoryMap} scrollContainer={editorMainRef.current} />
           )}
           {/* Table Read docks over the bottom of the script it is reading. */}
           {storyTimelineOpen && editor && (

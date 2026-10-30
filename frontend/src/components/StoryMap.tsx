@@ -3,18 +3,30 @@
  *
  * It sits under the editor and answers the structural question a page count
  * cannot — where the scenes sit in the whole, and how much room each takes.
- * Clicking a scene goes to it. The ruler below marks the pages the scenes
- * cross, so the map doubles as a one-line page map.
+ * The strip can be measured in pages or in screen time, and the ruler below
+ * marks the pages or the minutes the scenes cross.
+ *
+ * Clicking a block goes to the scene. Under the editor that means moving the
+ * page, exactly as the Navigator does; inside the Index Cards view it means
+ * selecting the matching card instead (through `onSelectScene`).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import { FaTimes } from 'react-icons/fa';
-import { useEditorStore } from '../stores/editorStore';
+import { useEditorStore, type StoryMapUnits } from '../stores/editorStore';
 import { activeTemplateHints, computeSceneLengths } from '../editor/pagination';
+import { computeSceneTiming, formatSceneDuration } from '../utils/scriptTiming';
 
 interface Props {
   editor: Editor | null;
-  onRequestClose: () => void;
+  onRequestClose?: () => void;
+  /** The editor's scroll container, so a click moves the page to the scene. */
+  scrollContainer?: HTMLElement | null;
+  /** When set, a click selects the scene here instead of scrolling the editor. */
+  onSelectScene?: (sceneIndex: number) => void;
+  title?: string;
+  /** Drawn inside another view (the Index Cards), not as its own panel. */
+  embedded?: boolean;
 }
 
 /** Absolute ProseMirror position of the nth scene heading. */
@@ -49,9 +61,27 @@ function currentSceneIndex(editor: Editor): number | null {
   return current;
 }
 
-const StoryMap: React.FC<Props> = ({ editor, onRequestClose }) => {
+/** How far apart the time ruler's labels sit, chosen for the script's length. */
+function timeStep(totalSeconds: number): number {
+  if (totalSeconds <= 120) return 15;
+  if (totalSeconds <= 300) return 30;
+  if (totalSeconds <= 900) return 60;
+  if (totalSeconds <= 1800) return 120;
+  return 300;
+}
+
+const StoryMap: React.FC<Props> = ({
+  editor,
+  onRequestClose,
+  scrollContainer,
+  onSelectScene,
+  title = 'Story Map',
+  embedded = false,
+}) => {
   const scenes = useEditorStore((s) => s.scenes);
   const pageLayout = useEditorStore((s) => s.pageLayout);
+  const units = useEditorStore((s) => s.storyMapUnits);
+  const setUnits = useEditorStore((s) => s.setStoryMapUnits);
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
@@ -74,29 +104,80 @@ const StoryMap: React.FC<Props> = ({ editor, onRequestClose }) => {
     }
   }, [editor, pageLayout, version, scenes]);
 
+  const timings = useMemo(() => {
+    if (!editor) return [];
+    try {
+      return computeSceneTiming(editor.getJSON()).scenes;
+    } catch {
+      return [];
+    }
+  }, [editor, version, scenes]);
+
   const activeScene = useMemo(() => (editor ? currentSceneIndex(editor) : null), [editor, version]);
 
-  const totalPages = useMemo(
-    () => lengths.reduce((sum, len) => sum + len, 0),
-    [lengths],
+  const byTime = units === 'time';
+  const weights = useMemo(
+    () => scenes.map((_, i) => Math.max(byTime ? (timings[i]?.finalSeconds ?? 0) : (lengths[i] ?? 0), 0)),
+    [scenes, timings, lengths, byTime],
+  );
+  const total = useMemo(() => weights.reduce((sum, w) => sum + w, 0), [weights]);
+  const totalPages = useMemo(() => lengths.reduce((sum, len) => sum + len, 0), [lengths]);
+  const totalSeconds = useMemo(
+    () => timings.reduce((sum, timing) => sum + (timing.finalSeconds || 0), 0),
+    [timings],
   );
 
   const goToScene = useCallback((sceneIndex: number) => {
+    if (onSelectScene) {
+      onSelectScene(sceneIndex);
+      return;
+    }
     if (!editor) return;
     const pos = sceneHeadingPos(editor, sceneIndex);
     if (pos === null) return;
-    editor.chain().focus().setTextSelection(pos + 1).scrollIntoView().run();
-  }, [editor]);
+    editor.chain().focus().setTextSelection(pos + 1).run();
+    // scrollIntoView alone moves the nearest scrollable ancestor just enough
+    // to show the line; the Navigator puts the heading near the top instead,
+    // and that is what writers expect from a scene jump.
+    setTimeout(() => {
+      const coords = editor.view.coordsAtPos(pos + 1);
+      const container = scrollContainer
+        ?? (editor.view.dom.closest('.editor-main') as HTMLElement | null);
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const top = container.scrollTop + (coords.top - rect.top) - 60;
+        container.scrollTo({ top, behavior: 'auto' });
+      } else {
+        window.scrollTo({ top: window.scrollY + coords.top - 60 });
+      }
+    }, 0);
+  }, [editor, scrollContainer, onSelectScene]);
 
-  const pageTicks = useMemo(() => {
-    if (totalPages <= 0) return [];
-    const ticks: { page: number; left: number }[] = [];
-    const last = Math.ceil(totalPages);
-    for (let page = 1; page <= last; page++) {
-      ticks.push({ page, left: totalPages > 0 ? ((page - 1) / totalPages) * 100 : 0 });
+  const ticks = useMemo(() => {
+    if (total <= 0) return [] as { key: string; label: string; left: number }[];
+    if (byTime) {
+      const step = timeStep(total);
+      const out: { key: string; label: string; left: number }[] = [];
+      for (let seconds = 0; seconds < total; seconds += step) {
+        out.push({
+          key: `t-${seconds}`,
+          label: formatSceneDuration(seconds),
+          left: (seconds / total) * 100,
+        });
+      }
+      return out;
     }
-    return ticks;
-  }, [totalPages]);
+    const out: { key: string; label: string; left: number }[] = [];
+    const last = Math.ceil(total);
+    for (let page = 1; page <= last; page++) {
+      out.push({
+        key: `p-${page}`,
+        label: String(page),
+        left: ((page - 1) / total) * 100,
+      });
+    }
+    return out;
+  }, [total, byTime]);
 
   // The strip can be wider than the pane; the ruler below has to be as wide as
   // the scenes it measures, not as wide as the pane, or its ticks drift.
@@ -115,23 +196,48 @@ const StoryMap: React.FC<Props> = ({ editor, onRequestClose }) => {
     observer.observe(track);
     Array.from(track.children).forEach((child) => observer.observe(child));
     return () => observer.disconnect();
-  }, [scenes.length, totalPages, lengths]);
+  }, [scenes.length, total, lengths, timings]);
+
+  const setMode = (mode: StoryMapUnits) => {
+    if (mode !== units) setUnits(mode);
+  };
 
   return (
-    <div className="story-map">
+    <div className={`story-map${embedded ? ' story-map-embedded' : ''}`}>
       <div className="story-map-header">
-        <span className="story-map-title">Story Map</span>
+        <span className="story-map-title">{title}</span>
+        <div className="story-map-units" role="group" aria-label="Measure the map in">
+          <button
+            className={!byTime ? 'active' : ''}
+            onClick={() => setMode('pages')}
+            title="Size the scenes by page length"
+          >
+            Pages
+          </button>
+          <button
+            className={byTime ? 'active' : ''}
+            onClick={() => setMode('time')}
+            title="Size the scenes by estimated screen time"
+          >
+            Time
+          </button>
+        </div>
         <span className="story-map-count">
-          {scenes.length} scene{scenes.length === 1 ? '' : 's'} {'\u00b7'} {totalPages > 0 ? totalPages.toFixed(1) : '0'} pages
+          {scenes.length} scene{scenes.length === 1 ? '' : 's'} {'\u00b7'}{' '}
+          {byTime
+            ? formatSceneDuration(totalSeconds)
+            : `${totalPages > 0 ? totalPages.toFixed(1) : '0'} pages`}
         </span>
-        <button
-          className="panel-close-btn"
-          onClick={onRequestClose}
-          title="Close Story Map"
-          aria-label="Close Story Map"
-        >
-          <FaTimes />
-        </button>
+        {onRequestClose && (
+          <button
+            className="panel-close-btn"
+            onClick={onRequestClose}
+            title={`Close ${title}`}
+            aria-label={`Close ${title}`}
+          >
+            <FaTimes />
+          </button>
+        )}
       </div>
       {scenes.length === 0 ? (
         <p className="story-map-empty">No scenes yet. Write a scene heading (INT. or EXT.) and it appears here.</p>
@@ -139,16 +245,26 @@ const StoryMap: React.FC<Props> = ({ editor, onRequestClose }) => {
         <div className="story-map-scroll">
           <div className="story-map-track" ref={trackRef}>
             {scenes.map((scene, index) => {
-              const length = lengths[index] ?? 0;
+              const seconds = timings[index]?.finalSeconds ?? 0;
+              const pages = lengths[index] ?? 0;
+              const weight = Math.max(weights[index] ?? 0, byTime ? 2 : 0.15);
               return (
                 <div
                   key={scene.id}
                   className={`story-map-block${activeScene === index ? ' active' : ''}`}
-                  style={{ flexGrow: Math.max(length, 0.15) }}
-                  title={`${scene.heading}${scene.synopsis ? `\n${scene.synopsis}` : ''}\n${length > 0 ? `${length.toFixed(2)} pages` : 'No length yet'}`}
+                  style={{ flexGrow: weight }}
+                  title={
+                    `${scene.heading}${scene.synopsis ? `\n${scene.synopsis}` : ''}\n` +
+                    `${pages > 0 ? `${pages.toFixed(2)} pages` : 'No length yet'} \u00b7 ${formatSceneDuration(seconds)}`
+                  }
                   onClick={() => goToScene(index)}
                 >
-                  <span className="story-map-num">{scene.sceneNumber ?? index + 1}</span>
+                  <div className="story-map-block-top">
+                    <span className="story-map-num">{scene.sceneNumber ?? index + 1}</span>
+                    <span className="story-map-meta">
+                      {byTime ? formatSceneDuration(seconds) : `${pages.toFixed(1)}p`}
+                    </span>
+                  </div>
                   <span className="story-map-heading">{scene.heading}</span>
                   {scene.synopsis && <span className="story-map-synopsis">{scene.synopsis}</span>}
                 </div>
@@ -156,9 +272,9 @@ const StoryMap: React.FC<Props> = ({ editor, onRequestClose }) => {
             })}
           </div>
           <div className="story-map-ruler" style={{ width: trackWidth > 0 ? `${trackWidth}px` : '100%' }}>
-            {pageTicks.map((tick) => (
-              <span key={tick.page} className="story-map-tick" style={{ left: `${tick.left}%` }}>
-                {tick.page}
+            {ticks.map((tick) => (
+              <span key={tick.key} className="story-map-tick" style={{ left: `${tick.left}%` }}>
+                {tick.label}
               </span>
             ))}
           </div>
