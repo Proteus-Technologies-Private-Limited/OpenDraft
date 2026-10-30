@@ -798,6 +798,9 @@ interface EditorState {
   toggleIndexCards: () => void;
   beatBoardOpen: boolean;
   toggleBeatBoard: () => void;
+  /** Dedicated outline editor (acts, sequences, sections, scenes). */
+  outlineOpen: boolean;
+  toggleOutline: () => void;
   statisticsOpen: boolean;
   setStatisticsOpen: (open: boolean) => void;
   statisticsScrollTo: string | null;
@@ -1247,6 +1250,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const v = !s.beatBoardOpen;
     saveViewState({ beatBoardOpen: v });
     return { beatBoardOpen: v };
+  }),
+  outlineOpen: false,
+  toggleOutline: () => set((s) => {
+    const open = !s.outlineOpen;
+    return open
+      ? { outlineOpen: true, statisticsOpen: false, beatBoardOpen: false }
+      : { outlineOpen: false };
   }),
   statisticsOpen: false,
   setStatisticsOpen: (open) => set({ statisticsOpen: open }),
