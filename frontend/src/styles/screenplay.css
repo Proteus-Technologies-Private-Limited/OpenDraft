@@ -1575,10 +1575,11 @@ body {
   font-size: 12px; color: var(--fd-text-muted); font-weight: 500;
 }
 
-/* Navigator tabs — pill-shaped, left-aligned, scrolling when the panel is
-   too narrow to hold them all. */
+/* Navigator tabs — pill-shaped, wrapping to a second row when the panel is
+   too narrow, so the strip never grows a scrollbar. */
 .navigator-tabs {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
   padding: 0 8px 8px;
@@ -1604,22 +1605,15 @@ body {
   color: var(--fd-text);
   background: var(--fd-overlay-medium);
 }
-/* When the tabs collectively overflow the panel width, scroll them
-   horizontally while keeping the close button visible (it lives outside
-   the scroll container, pinned at the right). */
+/* The tabs share one wrapping row; no horizontal scrollbar, however few
+   pixels the panel has. */
 .navigator-tabs-scroll {
   flex: 1 1 auto;
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
+  overflow: visible;
   min-width: 0;
-}
-.navigator-tabs-scroll::-webkit-scrollbar { height: 4px; }
-.navigator-tabs-scroll::-webkit-scrollbar-thumb {
-  background: var(--fd-border);
-  border-radius: 2px;
 }
 .navigator-close {
   background: none;
