@@ -47,10 +47,18 @@ import { isInAvCell, isInAvRow, avCellSideAt } from '../editor/extensions/AvBloc
 import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 import Select from './Select';
 import { PHONE_DEVICE_CHANGE_EVENT } from '../utils/phoneDevice';
+import { formatShortcut } from '../utils/shortcuts';
+import { elementShortcutSpec } from '../utils/elementShortcuts';
 
 interface ToolbarProps {
   editor: Editor | null;
 }
+
+/** "Scene Heading (Ctrl+1)": the label with the shortcut that reaches it. */
+const withShortcut = (id: string, label: string): string => {
+  const spec = elementShortcutSpec(id);
+  return spec ? `${label} (${formatShortcut(spec)})` : label;
+};
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 
@@ -998,7 +1006,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             : scriptBodyElementRules(activeTemplate, isTitlePageRuleId)
           ).map((r) => (
             <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]}>
-              {r.label}
+              {withShortcut(r.id, r.label)}
             </option>
           ))}
         </Select>

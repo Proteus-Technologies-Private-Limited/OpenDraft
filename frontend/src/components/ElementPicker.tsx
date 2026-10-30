@@ -3,6 +3,8 @@ import { ELEMENT_LABELS, type ElementType } from '../stores/editorStore';
 import { ELEMENT_DESCRIPTIONS, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { AV_SCRIPT_TEMPLATE } from '../stores/templates/avScriptTemplate';
+import { formatShortcut } from '../utils/shortcuts';
+import { elementShortcutSpec } from '../utils/elementShortcuts';
 
 // Context-aware element ordering: most likely choices first per current type
 // The two non-printing elements sit at the end of every list: they are
@@ -191,8 +193,10 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
         // The menu only opens on a blank line, so the row the line is already
         // on cannot mean "convert" — it means one more line of this element.
         // Say so, rather than leaving it to be discovered (issue #100).
+        const shortcut = elementShortcutSpec(type);
         const hint = [
           type === defaultType && onInsertBlankLine ? 'blank line' : '',
+          shortcut ? formatShortcut(shortcut) : '',
           hasNavigated && i === selectedIndex ? '\u23CE' : '',
         ].filter(Boolean).join(' ');
         return (

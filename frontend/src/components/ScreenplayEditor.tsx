@@ -129,6 +129,7 @@ import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile } from '../utils/scriptP
 import { restoreRevisionState } from '../utils/revisionState';
 import { characterKey } from '../utils/nodeText';
 import { buildScriptIndex, emptyScriptIndex, suggestSmartType, type BlockLike, type ScriptIndex } from '../editor/smartType';
+import { ELEMENT_SHORTCUT_TYPES } from '../utils/elementShortcuts';
 import { computeContdChanges, type ContdBlock } from '../editor/contdAuto';
 import { useBackupScheduler } from '../hooks/useBackupScheduler';
 import { useRecoverySnapshot } from '../hooks/useRecoverySnapshot';
@@ -1921,7 +1922,7 @@ const ScreenplayEditor: React.FC = () => {
       name: 'elementShortcuts',
       priority: 999,
       addKeyboardShortcuts() {
-        const types = ['sceneHeading', 'action', 'character', 'dialogue', 'parenthetical', 'transition', 'general', 'shot'];
+        const types = ELEMENT_SHORTCUT_TYPES;
         const shortcuts: Record<string, any> = {};
         types.forEach((type, i) => {
           shortcuts[`Mod-${i + 1}`] = ({ editor }: { editor: any }) => {
@@ -2151,6 +2152,13 @@ const ScreenplayEditor: React.FC = () => {
       transformPastedHTML: (html) => stripNoteBackgrounds(html),
     },
     onSelectionUpdate: ({ editor: ed }) => {
+      const type = resolveActiveElement(ed);
+      if (type) setActiveElement(type);
+    },
+    // A shortcut that changes the element type (Ctrl/⌘+1 … 8) moves no caret,
+    // so `onSelectionUpdate` never fires and the toolbar's element picker kept
+    // showing the previous type. Every transaction can change it.
+    onTransaction: ({ editor: ed }) => {
       const type = resolveActiveElement(ed);
       if (type) setActiveElement(type);
     },
