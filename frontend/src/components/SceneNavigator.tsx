@@ -275,6 +275,19 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   const fontFamily = useEditorStore((s) => s.fontFamily);
   const fontSize = useEditorStore((s) => s.fontSize);
   const [activeTab, setActiveTab] = useState<NavTab>('scenes');
+  const pendingNavigatorTab = useEditorStore((s) => s.pendingNavigatorTab);
+  const clearPendingNavigatorTab = useEditorStore((s) => s.clearPendingNavigatorTab);
+
+  // A toolbar button can ask for a specific tab (Outline -> Structure) before
+  // the panel is mounted, so the request waits in the store.
+  useEffect(() => {
+    if (!pendingNavigatorTab) return;
+    const tabs: NavTab[] = ['scenes', 'pages', 'locations', 'structure', 'bookmarks'];
+    if (tabs.includes(pendingNavigatorTab as NavTab)) {
+      setActiveTab(pendingNavigatorTab as NavTab);
+    }
+    clearPendingNavigatorTab();
+  }, [pendingNavigatorTab, clearPendingNavigatorTab]);
   const [expandedLocation, setExpandedLocation] = useState<string | null>(null);
   const [renamingLocation, setRenamingLocation] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');

@@ -792,6 +792,10 @@ interface EditorState {
   setScenes: (scenes: SceneInfo[]) => void;
   navigatorOpen: boolean;
   toggleNavigator: () => void;
+  /** Ask the navigator to switch tab the next time it is shown. */
+  pendingNavigatorTab: string | null;
+  openNavigatorTab: (tab: string) => void;
+  clearPendingNavigatorTab: () => void;
 
   // Panels
   indexCardsOpen: boolean;
@@ -1233,6 +1237,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     saveViewState({ navigatorOpen: v });
     return { navigatorOpen: v };
   }),
+  pendingNavigatorTab: null,
+  openNavigatorTab: (tab) => set((s) => {
+    if (!s.navigatorOpen) saveViewState({ navigatorOpen: true });
+    return { navigatorOpen: true, pendingNavigatorTab: tab };
+  }),
+  clearPendingNavigatorTab: () => set({ pendingNavigatorTab: null }),
 
   indexCardsOpen: _vs.indexCardsOpen ?? false,
   toggleIndexCards: () => set((s) => {

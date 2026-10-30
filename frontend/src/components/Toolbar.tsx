@@ -25,9 +25,22 @@ import {
   FaPlus,
   FaTrashAlt,
   FaRobot,
+  FaCompass,
+  FaFile,
+  FaFolderOpen,
+  FaSave,
+  FaFilePdf,
+  FaColumns,
+  FaFileAlt,
+  FaRegFileAlt,
+  FaTh,
+  FaTable,
+  FaListUl,
+  FaStream,
 } from 'react-icons/fa';
 import { useEditorStore } from '../stores/editorStore';
 import { useAiStore } from '../stores/aiStore';
+import { requestAppCommand } from '../utils/appCommands';
 import type { ElementType } from '../stores/editorStore';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
@@ -90,6 +103,18 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     setEditingTagId,
     toolbarMode: savedToolbarMode,
     focusMode,
+    navigatorOpen,
+    toggleNavigator,
+    viewLayout,
+    setViewLayout,
+    sceneNumbersVisible,
+    setSceneNumbersVisible,
+    indexCardsOpen,
+    toggleIndexCards,
+    beatBoardOpen,
+    toggleBeatBoard,
+    setTitlePageEditorOpen,
+    openNavigatorTab,
   } = useEditorStore();
   // Focus Mode hides the toolbar like Hidden does, keeping the saved choice.
   const toolbarMode = focusMode ? 'hidden' : savedToolbarMode;
@@ -824,6 +849,119 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     </div>
   ), [setSearchOpen, setGoToPageOpen]);
 
+  // File actions live in MenuBar (unsaved-changes guard, file origin, library);
+  // these buttons send it the same named request the menu items use.
+  const renderDocumentActions = useCallback((inOverflow = false) => (
+    <div className="toolbar-group" key="document-actions">
+      <button
+        className={`toolbar-btn${navigatorOpen ? ' active' : ''}`}
+        title="Navigator"
+        onClick={() => { toggleNavigator(); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaCompass />
+      </button>
+      <button
+        className="toolbar-btn"
+        title="New Script"
+        onClick={() => { requestAppCommand('new-script'); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaFile />
+      </button>
+      <button
+        className="toolbar-btn"
+        title="Open Script"
+        onClick={() => { requestAppCommand('open-script'); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaFolderOpen />
+      </button>
+      <button
+        className="toolbar-btn"
+        title="Save Script"
+        onClick={() => { requestAppCommand('save-script'); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaSave />
+      </button>
+      <button
+        className="toolbar-btn"
+        title="Export PDF"
+        onClick={() => { requestAppCommand('export-pdf'); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaFilePdf />
+      </button>
+    </div>
+  ), [navigatorOpen, toggleNavigator]);
+
+  const renderViewTools = useCallback((inOverflow = false) => {
+    const dual = editor?.isActive('dualDialogue') ?? false;
+    return (
+      <div className="toolbar-group" key="view-tools">
+        <button
+          className={`toolbar-btn${dual ? ' active' : ''}`}
+          title="Dual Dialogue"
+          onClick={() => {
+            (editor as any)?.chain().focus().toggleDualDialogue().run();
+            if (inOverflow) setOverflowOpen(false);
+          }}
+        >
+          <FaColumns />
+        </button>
+        <button
+          className={`toolbar-btn${sceneNumbersVisible ? ' active' : ''}`}
+          title="Scene Numbers"
+          onClick={() => { setSceneNumbersVisible(!sceneNumbersVisible); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaHashtag />
+        </button>
+        <button
+          className="toolbar-btn"
+          title="Title Page"
+          onClick={() => { setTitlePageEditorOpen(true); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaFileAlt />
+        </button>
+        <button
+          className={`toolbar-btn${viewLayout === 'page' ? ' active' : ''}`}
+          title="Page View"
+          onClick={() => { setViewLayout('page'); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaRegFileAlt />
+        </button>
+        <button
+          className={`toolbar-btn${indexCardsOpen ? ' active' : ''}`}
+          title="Index Cards"
+          onClick={() => { toggleIndexCards(); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaTh />
+        </button>
+        <button
+          className="toolbar-btn"
+          title="Reports"
+          onClick={() => { requestAppCommand('reports'); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaTable />
+        </button>
+        <button
+          className="toolbar-btn"
+          title="Outline"
+          onClick={() => { openNavigatorTab('structure'); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaListUl />
+        </button>
+        <button
+          className={`toolbar-btn${beatBoardOpen ? ' active' : ''}`}
+          title="Beat Board"
+          onClick={() => { toggleBeatBoard(); if (inOverflow) setOverflowOpen(false); }}
+        >
+          <FaStream />
+        </button>
+      </div>
+    );
+  }, [
+    editor, sceneNumbersVisible, setSceneNumbersVisible, setTitlePageEditorOpen,
+    viewLayout, setViewLayout, indexCardsOpen, toggleIndexCards, openNavigatorTab,
+    beatBoardOpen, toggleBeatBoard,
+  ]);
+
   const renderNotesTags = useCallback((inOverflow = false) => (
     <div className="toolbar-group" key="notes-tags">
       <button
@@ -942,6 +1080,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     if (isHiddenExact('4')) { addSep(); items.push(renderFontStyleColors(true)); }
     if (isHiddenExact('3')) { addSep(); items.push(renderAlignment(true)); }
     if (isHiddenExact('2')) { addSep(); items.push(renderSearchGoto(true)); }
+    if (isHiddenExact('2c')) { addSep(); items.push(renderDocumentActions(true)); }
+    if (isHiddenExact('2d')) { addSep(); items.push(renderViewTools(true)); }
     if (isHiddenExact('6')) { addSep(); items.push(renderNotesTags(true)); }
 
     // Zoom: skip entirely when the narrow layout's own zoom button is on screen.
@@ -951,7 +1091,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     }
 
     return items.length > 0 ? items : null;
-  }, [hiddenPriorities, isHiddenExact, mobileZoomVisible, renderZoomMin, renderZoom, renderSearchGoto, renderNotesTags, renderAlignment, renderFontStyleColors, renderFontFaceSize]);
+  }, [hiddenPriorities, isHiddenExact, mobileZoomVisible, renderZoomMin, renderZoom, renderSearchGoto, renderNotesTags, renderAlignment, renderFontStyleColors, renderFontFaceSize, renderDocumentActions, renderViewTools]);
 
   // Derived from the menu's contents, not from the hidden set: a group can be
   // hidden and still have nothing to offer here (zoom, when the narrow layout
@@ -984,6 +1124,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         >
           <FaRedo />
         </button>
+      </div>
+
+      <div className="toolbar-separator" />
+
+      <div className="toolbar-priority-block" data-priority="2c">
+        {renderDocumentActions()}
       </div>
 
       <div className="toolbar-separator" />
@@ -1082,6 +1228,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       {/* Priority 2: Search & Go to — collapsible on desktop */}
       <div className="toolbar-priority-block" data-priority="2">
         {renderSearchGoto()}
+      </div>
+
+      <div className="toolbar-priority-block" data-priority="2d">
+        {renderViewTools()}
       </div>
 
       <div className="toolbar-separator" />

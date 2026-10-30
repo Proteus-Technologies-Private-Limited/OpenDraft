@@ -14,6 +14,7 @@ import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellEleme
 import { chooseAvFrameImage } from '../utils/avFrame';
 import { formatShortcut } from '../utils/shortcuts';
 import { normalizeCapitalsJSON } from '../utils/capitals';
+import { APP_COMMAND_EVENT, type AppCommand } from '../utils/appCommands';
 import { macroLabel } from '../utils/macros';
 import { insertMacro } from './macroActions';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
@@ -2123,6 +2124,25 @@ const MenuBar: React.FC<MenuBarProps> = ({
       showToast(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
     }
   }, [editor, documentTitle, pageLayout, pdfOptions]);
+
+  // The toolbar's file and report buttons run the menu handlers, so those
+  // actions still go through the unsaved-changes guard, the file origin and
+  // the library. One implementation, two entry points.
+  useEffect(() => {
+    const onCommand = (event: Event) => {
+      const command = (event as CustomEvent<AppCommand>).detail;
+      switch (command) {
+        case 'new-script': handleNewScreenplay(); break;
+        case 'open-script': confirmOrRun(() => setOpenFileOpen(true)); break;
+        case 'save-script': void handleSave(); break;
+        case 'export-pdf': void handleExportPDF(); break;
+        case 'reports': setReportsOpen(true); break;
+        default: break;
+      }
+    };
+    window.addEventListener(APP_COMMAND_EVENT, onCommand);
+    return () => window.removeEventListener(APP_COMMAND_EVENT, onCommand);
+  }, [handleNewScreenplay, confirmOrRun, setOpenFileOpen, handleSave, handleExportPDF]);
 
   /**
    * File → Print (and ⌘P).
