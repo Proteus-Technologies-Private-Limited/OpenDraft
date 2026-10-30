@@ -3312,6 +3312,39 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   font-size: 12px; color: var(--fd-text-muted);
 }
 .pdf-export-range .od-select { width: 100%; }
+.pdf-export-mode {
+  display: flex; gap: 2px; padding: 2px; align-self: flex-start;
+  background: var(--fd-overlay-subtle); border: 1px solid var(--fd-border);
+  border-radius: 5px;
+}
+.pdf-export-mode button {
+  background: none; border: none; border-radius: 4px;
+  padding: 4px 10px; font-size: 12px; font-weight: 500;
+  color: var(--fd-text-muted); cursor: pointer;
+}
+.pdf-export-mode button:hover { color: var(--fd-text); }
+.pdf-export-mode button.active {
+  background: var(--fd-overlay-medium); color: var(--fd-text);
+}
+.pdf-export-picks { display: flex; flex-direction: column; gap: 6px; }
+.pdf-export-pick-actions {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--fd-text-muted);
+}
+.pdf-export-pick-actions button {
+  background: none; border: 1px solid var(--fd-border); border-radius: 4px;
+  padding: 2px 8px; font-size: 11px; color: var(--fd-text-muted); cursor: pointer;
+}
+.pdf-export-pick-actions button:hover { color: var(--fd-text); border-color: var(--fd-accent); }
+.pdf-export-pick-list {
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 220px; overflow-y: auto; padding: 4px;
+  border: 1px solid var(--fd-border); border-radius: 4px;
+}
+.pdf-export-pick-list .pdf-export-check { font-size: 13px; padding: 2px 4px; }
+.pdf-export-pick-list .pdf-export-check span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .pdf-export-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
 .pdf-export-check {
   display: flex; align-items: center; gap: 8px;

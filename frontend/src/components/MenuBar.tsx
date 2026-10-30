@@ -240,7 +240,7 @@ import ReportsDialog from './ReportsDialog';
 import SidesDialog, { type SidesIntent } from './SidesDialog';
 import PdfSecurityDialog, { type PdfSecurityRequest } from './PdfSecurityDialog';
 import PdfExportDialog, { type PdfExportChoice } from './PdfExportDialog';
-import { sceneRangeDocument } from '../utils/pdfSceneExport';
+import { sceneRangeDocument, sceneSelectionDocument } from '../utils/pdfSceneExport';
 import { sanitizeExportFilename } from '../utils/exportFilename';
 import type { PluginExporter } from '../plugins/registry';
 import ScriptProfileDialog from './ScriptProfileDialog';
@@ -2136,20 +2136,29 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setPdfExportOpen(false);
     try {
       const json = exportJSON(editor);
-      const doc = sceneRangeDocument(json, {
-        from: choice.fromIndex,
-        to: choice.toIndex,
-        oneScenePerPage: choice.oneScenePerPage,
-      });
+      const doc = choice.mode === 'pick'
+        ? sceneSelectionDocument(json, {
+          scenes: choice.selectedScenes,
+          oneScenePerPage: choice.oneScenePerPage,
+        })
+        : sceneRangeDocument(json, {
+          from: choice.fromIndex,
+          to: choice.toIndex,
+          oneScenePerPage: choice.oneScenePerPage,
+        });
       const base = pdfOptions(doc);
       const sceneCount = useEditorStore.getState().scenes.length;
-      const fullRange = choice.fromIndex === 0 && choice.toIndex >= sceneCount - 1;
+      const fullRange = choice.mode === 'pick'
+        ? choice.selectedScenes.length >= sceneCount
+        : choice.fromIndex === 0 && choice.toIndex >= sceneCount - 1;
       // A range's pages are its own, so the labels of the full script would be
       // wrong on it; the same goes for one-scene-per-page, which re-paginates.
       const keepsPageLabels = fullRange && !choice.oneScenePerPage;
       const name = keepsPageLabels
         ? documentTitle
-        : `${documentTitle || 'Untitled'} - Scenes ${choice.fromIndex + 1}-${choice.toIndex + 1}`;
+        : choice.mode === 'pick'
+          ? `${documentTitle || 'Untitled'} - Selected Scenes`
+          : `${documentTitle || 'Untitled'} - Scenes ${choice.fromIndex + 1}-${choice.toIndex + 1}`;
       // A font that would not load leaves the script it was for blank on the
       // page — the writer has to hear that now, not from whoever they send it
       // to. See RenderedPDF.warning.

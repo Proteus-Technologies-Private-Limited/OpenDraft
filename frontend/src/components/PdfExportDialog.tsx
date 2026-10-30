@@ -11,9 +11,13 @@ import { useEditorStore } from '../stores/editorStore';
 import Select from './Select';
 
 export interface PdfExportChoice {
-  /** 0-based scene indices; inclusive. */
+  /** "range" exports from → to; "pick" exports exactly `selectedScenes`. */
+  mode: 'range' | 'pick';
+  /** 0-based scene indices; inclusive. Used in range mode. */
   fromIndex: number;
   toIndex: number;
+  /** 0-based scene indices in pick mode. */
+  selectedScenes: number[];
   includeTitlePage: boolean;
   pageNumbers: boolean;
   sceneNumbers: boolean;
@@ -33,8 +37,10 @@ const PdfExportDialog: React.FC<Props> = ({ onClose, onExport }) => {
   const sceneNumbersVisible = useEditorStore((s) => s.sceneNumbersVisible);
 
   const lastIndex = Math.max(0, scenes.length - 1);
+  const [mode, setMode] = useState<'range' | 'pick'>('range');
   const [fromIndex, setFromIndex] = useState(0);
   const [toIndex, setToIndex] = useState(lastIndex);
+  const [picked, setPicked] = useState<Set<number>>(() => new Set(scenes.map((_, index) => index)));
   const [includeTitlePage, setIncludeTitlePage] = useState(includeTitlePageInOutput);
   const [pageNumbers, setPageNumbers] = useState(true);
   const [sceneNumbers, setSceneNumbers] = useState(sceneNumbersVisible);
@@ -59,10 +65,22 @@ const PdfExportDialog: React.FC<Props> = ({ onClose, onExport }) => {
     if (next < fromIndex) setFromIndex(next);
   };
 
+  const togglePick = (index: number) => {
+    setPicked((current) => {
+      const next = new Set(current);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
+  };
+
+  const nothingPicked = mode === 'pick' && picked.size === 0;
+
   const exportNow = () => {
     onExport({
+      mode,
       fromIndex,
       toIndex,
+      selectedScenes: [...picked].sort((a, b) => a - b),
       includeTitlePage,
       pageNumbers,
       sceneNumbers,
@@ -85,21 +103,59 @@ const PdfExportDialog: React.FC<Props> = ({ onClose, onExport }) => {
         <div className="dialog-body pdf-export-body">
           {scenes.length > 0 ? (
             <div className="pdf-export-section">
-              <div className="pdf-export-label">Scenes</div>
-              <div className="pdf-export-range">
-                <label>
-                  <span>From</span>
-                  <Select value={String(fromIndex)} onChange={(e) => changeFrom(e.target.value)}>
-                    {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </Select>
-                </label>
-                <label>
-                  <span>To</span>
-                  <Select value={String(toIndex)} onChange={(e) => changeTo(e.target.value)}>
-                    {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </Select>
-                </label>
+              <div className="pdf-export-mode" role="group" aria-label="Which scenes to export">
+                <button
+                  type="button"
+                  className={mode === 'range' ? 'active' : ''}
+                  onClick={() => setMode('range')}
+                >
+                  Range
+                </button>
+                <button
+                  type="button"
+                  className={mode === 'pick' ? 'active' : ''}
+                  onClick={() => setMode('pick')}
+                >
+                  Pick scenes
+                </button>
               </div>
+
+              {mode === 'range' ? (
+                <div className="pdf-export-range">
+                  <label>
+                    <span>From</span>
+                    <Select value={String(fromIndex)} onChange={(e) => changeFrom(e.target.value)}>
+                      {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </Select>
+                  </label>
+                  <label>
+                    <span>To</span>
+                    <Select value={String(toIndex)} onChange={(e) => changeTo(e.target.value)}>
+                      {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </Select>
+                  </label>
+                </div>
+              ) : (
+                <div className="pdf-export-picks">
+                  <div className="pdf-export-pick-actions">
+                    <span>{picked.size} of {scenes.length} selected</span>
+                    <button type="button" onClick={() => setPicked(new Set(scenes.map((_, index) => index)))}>All</button>
+                    <button type="button" onClick={() => setPicked(new Set())}>None</button>
+                  </div>
+                  <div className="pdf-export-pick-list">
+                    {scenes.map((scene, index) => (
+                      <label key={scene.id} className="pdf-export-check">
+                        <input
+                          type="checkbox"
+                          checked={picked.has(index)}
+                          onChange={() => togglePick(index)}
+                        />
+                        <span>{scene.sceneNumber ?? index + 1}. {scene.heading}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <p className="pdf-export-empty">No scenes yet. The whole script will be exported.</p>
@@ -142,13 +198,14 @@ const PdfExportDialog: React.FC<Props> = ({ onClose, onExport }) => {
           )}
 
           <p className="pdf-export-hint">
-            A range exports only those scenes, and its pages start again at 1.
-            One scene per page starts every scene on a fresh sheet.
+            A range exports those scenes; Pick scenes exports any combination.
+            Either way the pages start again at 1, and One scene per page starts
+            every scene on a fresh sheet.
           </p>
         </div>
         <div className="dialog-actions">
           <button onClick={onClose}>Cancel</button>
-          <button className="dialog-primary" onClick={exportNow} disabled={watermark && !watermarkText.trim()}>
+          <button className="dialog-primary" onClick={exportNow} disabled={nothingPicked || (watermark && !watermarkText.trim())}>
             Export PDF
           </button>
         </div>
