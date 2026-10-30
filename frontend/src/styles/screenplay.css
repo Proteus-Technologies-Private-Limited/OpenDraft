@@ -4262,7 +4262,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 }
 
 /* ============ CHARACTER AUTOCOMPLETE ============ */
-.character-autocomplete {
+.smarttype-popup {
   position: fixed;
   z-index: 2500;
   min-width: 180px;
@@ -4275,7 +4275,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   padding: 4px 0;
   font-size: 13px;
 }
-.character-autocomplete-item {
+.smarttype-popup-item {
   padding: 5px 12px;
   cursor: pointer;
   color: var(--fd-text);
@@ -4285,8 +4285,8 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
-.character-autocomplete-item:hover,
-.character-autocomplete-item.selected {
+.smarttype-popup-item:hover,
+.smarttype-popup-item.selected {
   background: var(--fd-accent);
   color: #fff;
 }

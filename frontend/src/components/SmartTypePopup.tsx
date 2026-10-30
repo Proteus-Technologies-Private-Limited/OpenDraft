@@ -1,13 +1,21 @@
+/**
+ * The SmartType popup: the list of completions offered for the block being
+ * typed (editor/smartType decides what goes in it).
+ *
+ * It only draws and handles keys; it does not know whether the items are
+ * character names, locations or transitions. Arrow keys move, Enter or Tab
+ * accepts, Escape dismisses, and a click outside dismisses too.
+ */
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 
-interface CharacterAutocompleteProps {
+interface SmartTypePopupProps {
   position: { top: number; left: number };
   suggestions: string[];
-  onSelect: (name: string) => void;
+  onSelect: (item: string) => void;
   onDismiss: () => void;
 }
 
-const CharacterAutocomplete: React.FC<CharacterAutocompleteProps> = ({
+const SmartTypePopup: React.FC<SmartTypePopupProps> = ({
   position, suggestions, onSelect, onDismiss,
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -92,23 +100,23 @@ const CharacterAutocomplete: React.FC<CharacterAutocompleteProps> = ({
 
   return (
     <div
-      className="character-autocomplete"
+      className="smarttype-popup"
       ref={menuRef}
       style={{ top: adjustedPos.top, left: adjustedPos.left }}
     >
-      {suggestions.map((name, i) => (
+      {suggestions.map((item, i) => (
         <div
-          key={name}
+          key={item}
           ref={el => { itemRefs.current[i] = el; }}
-          className={`character-autocomplete-item${i === selectedIndex ? ' selected' : ''}`}
-          onMouseDown={(e) => { e.preventDefault(); onSelect(name); }}
+          className={`smarttype-popup-item${i === selectedIndex ? ' selected' : ''}`}
+          onMouseDown={(e) => { e.preventDefault(); onSelect(item); }}
           onMouseEnter={() => setSelectedIndex(i)}
         >
-          {name}
+          {item}
         </div>
       ))}
     </div>
   );
 };
 
-export default CharacterAutocomplete;
+export default SmartTypePopup;

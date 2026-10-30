@@ -88,7 +88,7 @@ import StatusBar from './StatusBar';
 import SearchReplace, { createSearchPlugin } from './SearchReplace';
 import GoToPage from './GoToPage';
 import ElementPicker from './ElementPicker';
-import CharacterAutocomplete from './CharacterAutocomplete';
+import SmartTypePopup from './SmartTypePopup';
 import SpellCheckModal from './SpellCheckModal';
 import WritingSuggestionsModal from './WritingSuggestionsModal';
 import GrammarRulesPanel from './GrammarRulesPanel';
@@ -109,7 +109,7 @@ import FootnoteDialog from './FootnoteDialog';
 import EndnotePages from './EndnotePages';
 
 /** Things on screen that close on Esc, and so keep Esc from leaving Focus Mode. */
-const ESC_OWNERS = '.dialog-overlay, .menu-dropdown, .menu-bar--floating, .character-autocomplete, '
+const ESC_OWNERS = '.dialog-overlay, .menu-dropdown, .menu-bar--floating, .smarttype-popup, '
   + '.element-picker, .spell-context-menu, .script-context-menu, .search-replace-panel';
 
 /** Shared empty list, so "nothing prints" never re-renders the overlays. */
@@ -128,6 +128,7 @@ import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
 import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile } from '../utils/scriptProfile';
 import { restoreRevisionState } from '../utils/revisionState';
 import { characterKey } from '../utils/nodeText';
+import { buildScriptIndex, emptyScriptIndex, suggestSmartType, type BlockLike, type ScriptIndex } from '../editor/smartType';
 import { computeContdChanges, type ContdBlock } from '../editor/contdAuto';
 import { useBackupScheduler } from '../hooks/useBackupScheduler';
 import { useRecoverySnapshot } from '../hooks/useRecoverySnapshot';
@@ -1504,14 +1505,17 @@ const ScreenplayEditor: React.FC = () => {
    */
   const pickerDismissedAtRef = useRef<number | null>(null);
 
-  // Character autocomplete state
-  const [knownCharacters, setKnownCharacters] = useState<string[]>([]);
-  const [charAutoState, setCharAutoState] = useState<{
+  // SmartType state: the completion popup for character cues, scene headings
+  // and transitions. `from` is the character offset in the block that the
+  // chosen item replaces (see editor/smartType).
+  const smartTypeIndexRef = useRef<ScriptIndex>(emptyScriptIndex());
+  const [smartTypeState, setSmartTypeState] = useState<{
     visible: boolean;
     position: { top: number; left: number };
     suggestions: string[];
-  }>({ visible: false, position: { top: 0, left: 0 }, suggestions: [] });
-  const charAutoDismissedRef = useRef(false);
+    from: number;
+  }>({ visible: false, position: { top: 0, left: 0 }, suggestions: [], from: 0 });
+  const smartTypeDismissedRef = useRef(false);
 
   const [formatPanelOpen, setFormatPanelOpen] = useState(false);
   const renamingCharacter = useEditorStore((s) => s.renamingCharacter);
@@ -2512,7 +2516,6 @@ const ScreenplayEditor: React.FC = () => {
       return true;
     });
     const sorted = Array.from(names).sort();
-    setKnownCharacters(sorted);
     setCharacters(sorted);
   }, [editor, setCharacters]);
 
@@ -2606,48 +2609,72 @@ const ScreenplayEditor: React.FC = () => {
     };
   }, [editor, characterContd, contdText]);
 
-  // --- Character autocomplete: show/update on each editor update while in character block ---
+  // --- SmartType: what the script already uses ---
+  // Rebuilt on a short debounce, so typing never waits on a walk of the whole
+  // document. Until the first rebuild the popup still has the built-in lists,
+  // and a location only has to exist in an earlier block to be offered here.
   useEffect(() => {
     if (!editor) return;
+    const rebuild = () => {
+      const blocks: BlockLike[] = [];
+      editor.state.doc.forEach((node) => {
+        blocks.push({ type: node.type.name, text: node.textContent });
+      });
+      smartTypeIndexRef.current = buildScriptIndex(blocks);
+    };
+    rebuild();
+    let timeout: ReturnType<typeof setTimeout> | null = null;
     const onUpdate = () => {
-      if (!editor.isActive('character')) {
-        setCharAutoState(s => s.visible ? { ...s, visible: false } : s);
-        charAutoDismissedRef.current = false;
-        return;
-      }
-      if (charAutoDismissedRef.current) return;
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(rebuild, 250);
+    };
+    editor.on('update', onUpdate);
+    return () => {
+      editor.off('update', onUpdate);
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [editor]);
 
+  // --- SmartType: show/update on each editor update ---
+  useEffect(() => {
+    if (!editor) return;
+    const hide = () => setSmartTypeState(s => (s.visible ? { ...s, visible: false } : s));
+    const onUpdate = () => {
       const { $from } = editor.state.selection;
-      const text = characterKey($from.parent.textContent);
-      if (!text) {
-        setCharAutoState(s => s.visible ? { ...s, visible: false } : s);
-        charAutoDismissedRef.current = false;
+      const element = $from.parent.type.name;
+      if (element !== 'character' && element !== 'sceneHeading' && element !== 'transition') {
+        hide();
+        smartTypeDismissedRef.current = false;
+        return;
+      }
+      if (smartTypeDismissedRef.current) return;
+
+      const text = $from.parent.textContent;
+      // A hard break is a leaf node with no text, so the offset would no
+      // longer map to a document position; those blocks have no completions.
+      if ($from.parent.content.size !== text.length) {
+        hide();
         return;
       }
 
-      // Filter known characters that start with typed text (exclude exact match)
-      // Only match against base names (without extensions)
-      const matches = knownCharacters.filter(
-        n => n.startsWith(text) && n !== text,
-      );
-
-      if (matches.length === 0) {
-        setCharAutoState(s => s.visible ? { ...s, visible: false } : s);
+      const result = suggestSmartType(element, text, $from.parentOffset, smartTypeIndexRef.current);
+      if (!result) {
+        hide();
         return;
       }
 
-      const { from } = editor.state.selection;
-      const coords = editor.view.coordsAtPos(from);
-      setCharAutoState({
+      const coords = editor.view.coordsAtPos($from.pos);
+      setSmartTypeState({
         visible: true,
         position: { top: coords.bottom + 4, left: coords.left },
-        suggestions: matches,
+        suggestions: result.items,
+        from: result.from,
       });
     };
     editor.on('update', onUpdate);
     editor.on('selectionUpdate', onUpdate);
     return () => { editor.off('update', onUpdate); editor.off('selectionUpdate', onUpdate); };
-  }, [editor, knownCharacters]);
+  }, [editor]);
 
   // Re-measure overlays after editor updates (decorations settle)
   useEffect(() => {
@@ -5056,24 +5083,26 @@ const ScreenplayEditor: React.FC = () => {
     [editor, currentProject, currentScriptId, setCompareVersionOpen, setTrackChangesEnabled, setTrackChangesLabel],
   );
 
-  const handleCharAutoSelect = useCallback((name: string) => {
+  const handleSmartTypeSelect = useCallback((item: string) => {
     if (!editor) return;
-    // Replace the current character block text with the selected name
+    // Replace from the offset SmartType decided on (a character's extension,
+    // the location after the prefix, the time after the dash) to the end of
+    // the block. Character names start at 0, which is the whole cue.
     const { $from } = editor.state.selection;
-    const start = $from.start();
+    const start = $from.start() + smartTypeState.from;
     const end = $from.end();
     editor.chain().focus()
       .command(({ tr }) => {
-        tr.insertText(name, start, end);
+        tr.insertText(item, start, end);
         return true;
       })
       .run();
-    setCharAutoState(s => ({ ...s, visible: false }));
-  }, [editor]);
+    setSmartTypeState(s => ({ ...s, visible: false }));
+  }, [editor, smartTypeState.from]);
 
-  const handleCharAutoDismiss = useCallback(() => {
-    setCharAutoState(s => ({ ...s, visible: false }));
-    charAutoDismissedRef.current = true;
+  const handleSmartTypeDismiss = useCallback(() => {
+    setSmartTypeState(s => ({ ...s, visible: false }));
+    smartTypeDismissedRef.current = true;
   }, []);
 
   // --- Click on script note highlight → auto-filter notes panel ---
@@ -5750,12 +5779,12 @@ const ScreenplayEditor: React.FC = () => {
           onDismiss={handlePickerDismiss}
         />
       )}
-      {!isHistoryMode && charAutoState.visible && !pickerState.visible && (
-        <CharacterAutocomplete
-          position={charAutoState.position}
-          suggestions={charAutoState.suggestions}
-          onSelect={handleCharAutoSelect}
-          onDismiss={handleCharAutoDismiss}
+      {!isHistoryMode && smartTypeState.visible && !pickerState.visible && (
+        <SmartTypePopup
+          position={smartTypeState.position}
+          suggestions={smartTypeState.suggestions}
+          onSelect={handleSmartTypeSelect}
+          onDismiss={handleSmartTypeDismiss}
         />
       )}
       {/* Handwriting input (Apple Pencil). Mounted here rather than on a

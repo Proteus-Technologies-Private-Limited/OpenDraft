@@ -2400,7 +2400,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
    * caret comes back somewhere other than where the writer left it. A menu
    * that does not take focus leaves the selection exactly as it was.
    *
-   * Same treatment as ElementPicker and CharacterAutocomplete: mousedown
+   * Same treatment as ElementPicker and SmartTypePopup: mousedown
    * rather than pointerdown, because preventing the pointer event suppresses
    * the click that follows it and the menu would stop responding at all.
    * Nothing inside a menu wants focus of its own.
