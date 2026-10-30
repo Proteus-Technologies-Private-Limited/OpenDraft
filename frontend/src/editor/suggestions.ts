@@ -39,7 +39,7 @@ import {
 } from '@tiptap/pm/transform';
 import type { JSONContent } from '@tiptap/core';
 import { uuid } from '../utils/uuid';
-import { SCENE_UID_ATTR, sceneUidOf } from '../utils/beatScenes';
+import { SCENE_UID_ATTR, dropTakenSceneUids, sceneUidOf } from '../utils/beatScenes';
 import { REVISION_SKIP_META } from './revisionMarks';
 
 export const SUGGEST_INSERT = 'suggestionInsert';
@@ -345,6 +345,23 @@ function withoutLineBreaks(slice: Slice, ctx: Ctx): Slice {
   return new Slice(content, slice.openStart, slice.openEnd);
 }
 
+/**
+ * A slice without the scene ids `doc` still has. A heading dragged elsewhere
+ * while suggesting stays where it was, struck, so its copy cannot keep the id:
+ * the beat links stay with the original, and the collab server refuses a
+ * second heading with one.
+ */
+function withoutTakenSceneUids(slice: Slice, doc: PmNode): Slice {
+  const taken = new Set<string>();
+  doc.forEach((node) => {
+    const uid = node.type.name === 'sceneHeading' ? sceneUidOf(node.attrs) : null;
+    if (uid) taken.add(uid);
+  });
+  if (taken.size === 0) return slice;
+  const content = dropTakenSceneUids(slice.content, taken);
+  return content === slice.content ? slice : new Slice(content, slice.openStart, slice.openEnd);
+}
+
 /** Map positions of the original transaction's documents into the output's. */
 type PosMap = (pos: number, assoc?: number) => number;
 
@@ -369,7 +386,7 @@ function suggestReplace(ctx: Ctx, step: ReplaceStep, toOut: PosMap): { insertedA
 
   let insertedAt = deletedTo;
   let insertedSize = 0;
-  const slice = withoutLineBreaks(step.slice, ctx);
+  const slice = withoutTakenSceneUids(withoutLineBreaks(step.slice, ctx), out.doc);
   if (slice.size > 0) {
     const before = out.steps.length;
     out.replace(insertedAt, insertedAt, slice);

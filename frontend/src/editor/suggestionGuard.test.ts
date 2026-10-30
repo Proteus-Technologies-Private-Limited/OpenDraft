@@ -242,11 +242,30 @@ describe('scene ids a suggester brings in', () => {
     const c = synced(heading('INT. ROOM - DAY', 'taken'), block('action', 'She waits.'));
     const end = c.state.doc.content.size;
     const copy = testSchema.nodeFromJSON(heading('INT. ROOM - DAY', 'taken'));
-    expect(c.send(suggesting(c.state, (tr) => tr.insert(end, copy)))).toMatch(/id of another scene/);
+    // The app drops a taken id from what it inserts; a modified client puts it back.
+    const tr = suggesting(c.state, (t) => t.insert(end, copy));
+    expect(tr.doc.lastChild!.attrs.sceneUid).toBeNull();
+    tr.setNodeAttribute(tr.doc.content.size - tr.doc.lastChild!.nodeSize, 'sceneUid', 'taken');
+    expect(c.send(tr)).toMatch(/id of another scene/);
     // Without the id, the same new heading is an ordinary suggestion.
     const d = synced(heading('INT. ROOM - DAY', 'taken'), block('action', 'She waits.'));
     const plain = testSchema.nodeFromJSON(heading('INT. ROOM - DAY'));
     expect(d.send(suggesting(d.state, (tr) => tr.insert(d.state.doc.content.size, plain)))).toBeNull();
+  });
+
+  it('a heading dragged elsewhere leaves its id with the struck original', () => {
+    const c = synced(heading('INT. ROOM - DAY', 'linked'), block('action', 'She waits.'), heading('EXT. YARD - NIGHT'));
+    const s = c.state;
+    const size = s.doc.child(0).nodeSize;
+    const end = s.doc.content.size;
+    const tr = suggesting(s, (t) => {
+      t.delete(0, size);
+      return t.replaceRange(t.mapping.map(end), t.mapping.map(end), s.doc.slice(0, size));
+    });
+    const ids: unknown[] = [];
+    tr.doc.forEach((n) => { if (n.type.name === 'sceneHeading') ids.push(n.attrs.sceneUid ?? null); });
+    expect(ids).toEqual(['linked', null, null]);
+    expect(c.send(tr)).toBeNull();
   });
 
   it('a fresh id is still fine, and so is editing a script that already has copies', () => {
