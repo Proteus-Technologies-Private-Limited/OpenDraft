@@ -48,6 +48,32 @@ describe('viewLayout', () => {
     expect(saved()).toMatchObject({ viewLayout: 'page' });
   });
 
+  it('remembers the speed view', async () => {
+    localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ viewLayout: 'speed' }));
+    const store = await freshStore(false);
+    expect(store.getState().viewLayout).toBe('speed');
+  });
+
+  it('writes the speed choice to the view state', async () => {
+    const store = await freshStore(false);
+    store.getState().setViewLayout('speed');
+    expect(saved()).toMatchObject({ viewLayout: 'speed' });
+  });
+
+  it('opens the speed view at the page zoom, not the phone zoom', async () => {
+    localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ zoomLevel: 75, phoneZoomLevel: 130 }));
+    const store = await freshStore(false);
+    store.getState().setViewLayout('speed');
+    expect(store.getState().zoomLevel).toBe(75);
+  });
+
+  it('keeps a saved speed view when the device changes', async () => {
+    localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ viewLayout: 'speed' }));
+    const store = await freshStore(true);
+    store.getState().followDevice(true);
+    expect(store.getState().viewLayout).toBe('speed');
+  });
+
   it('opens the phone view at full-size text, whatever the page view was fitted to', async () => {
     // The page view on a phone is fitted to the screen, so its stored zoom is ~50.
     localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ zoomLevel: 50 }));
