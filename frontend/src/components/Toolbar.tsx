@@ -15,6 +15,8 @@ import {
   FaRedo,
   FaSearchPlus,
   FaSearchMinus,
+  FaSun,
+  FaMoon,
   FaSearch,
   FaStickyNote,
   FaTags,
@@ -122,6 +124,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     toggleOutline,
     storyMapOpen,
     toggleStoryMap,
+    appearance,
+    setAppearance,
     setTitlePageEditorOpen,
     openNavigatorTab,
   } = useEditorStore();
@@ -1343,6 +1347,17 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           onClick={() => setZoomPanelOpen(!zoomPanelOpen)}
         >
           <FaSearchPlus />
+        </button>
+      </div>
+      {/* Light / dark, next to the zoom controls it belongs with. */}
+      <div className="toolbar-group theme-toggle-group">
+        <button
+          className="toolbar-btn"
+          title={appearance === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          aria-label={appearance === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          onClick={() => setAppearance(appearance === 'light' ? 'dark' : 'light')}
+        >
+          {appearance === 'light' ? <FaMoon /> : <FaSun />}
         </button>
       </div>
     </div>
