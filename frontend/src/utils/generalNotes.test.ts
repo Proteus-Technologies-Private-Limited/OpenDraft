@@ -184,7 +184,7 @@ describe('the off contract still holds', () => {
     const state = computeBreaks(pmDoc(SCRIPT), DEFAULT_PAGE_LAYOUT);
     expect(state.endnotePages).toBeUndefined();
     expect(state.footnotePages).toBeUndefined();
-    expect(linesPerPage).toBe(58);
+    expect(linesPerPage).toBe(54);
   });
 });
 

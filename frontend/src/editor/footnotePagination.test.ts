@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeBreaks, getPageMetrics } from './pagination';
 import {
-  DEFAULT_PAGE_LAYOUT,
+  DEFAULT_PAGE_LAYOUT as CURRENT_DEFAULT_PAGE_LAYOUT,
   type NoteInfo,
   type PageLayout,
   type FootnoteSettings,
@@ -9,6 +9,9 @@ import {
 import { buildFootnotePlan, FOOTNOTE_SEPARATOR_LINES, footnoteCap } from '../utils/footnotes';
 import { block, doc, marked, pmDoc } from '../test/screenplaySchema';
 import type { JSONContent } from '@tiptap/react';
+
+// Fixed A4 fixture: these boundary cases cover existing documents, independently of new-document defaults.
+const DEFAULT_PAGE_LAYOUT = { ...CURRENT_DEFAULT_PAGE_LAYOUT, pageWidth: 8.26, pageHeight: 11.69, rightMargin: 0.76 };
 
 const CTX = { assets: [], assetUrl: () => null };
 const { linesPerPage } = getPageMetrics(DEFAULT_PAGE_LAYOUT);

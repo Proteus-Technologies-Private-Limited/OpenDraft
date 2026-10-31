@@ -1,3 +1,4 @@
+mod safe_file;
 use std::sync::Mutex;
 
 /// Platform text-to-speech for Table Read (issue #131).
@@ -286,24 +287,27 @@ fn android_read_content_uri_bytes(uri_str: &str) -> Result<ContentUriBytes, Stri
 /// bookmark: both survive a relaunch and both name the user's real file rather
 /// than a copy in the sandbox.
 #[tauri::command]
-fn write_content_uri(uri: String, contents: String) -> Result<(), String> {
-    #[cfg(target_os = "android")]
-    {
-        android_write_content_uri(&uri, contents.as_bytes())
-    }
-    #[cfg(not(target_os = "android"))]
-    {
-        let _ = (uri, contents);
-        Err("Content URI writing is only supported on Android".to_string())
-    }
+fn write_content_uri(app: tauri::AppHandle, uri: String, contents: String) -> Result<(), String> {
+    write_content_uri_bytes(app, uri, contents.into_bytes())
 }
 
 /// Write raw bytes to a content URI — the archive formats, which cannot go
 /// through the text path without being destroyed by the UTF-8 round trip.
 #[tauri::command]
-fn write_content_uri_bytes(uri: String, contents: Vec<u8>) -> Result<(), String> {
+fn write_content_uri_bytes(
+    app: tauri::AppHandle,
+    uri: String,
+    contents: Vec<u8>,
+) -> Result<(), String> {
     #[cfg(target_os = "android")]
     {
+        let original = read_content_uri_bytes(uri.clone())?;
+        let folder = app
+            .path()
+            .app_data_dir()
+            .map_err(|e| e.to_string())?
+            .join("source-backups");
+        safe_file::backup(&folder, &original.filename, &original.bytes)?;
         android_write_content_uri(&uri, &contents)
     }
     #[cfg(not(target_os = "android"))]
@@ -1167,9 +1171,25 @@ fn ios_read_in_place_bytes(bookmark: String) -> Result<Vec<u8>, String> {
 
 /// Write raw bytes back to a bookmarked document, replacing its contents.
 #[tauri::command]
-fn ios_write_in_place_bytes(bookmark: String, contents: Vec<u8>) -> Result<(), String> {
+fn ios_write_in_place_bytes(
+    app: tauri::AppHandle,
+    bookmark: String,
+    contents: Vec<u8>,
+    source_name: Option<String>,
+) -> Result<(), String> {
     #[cfg(target_os = "ios")]
     {
+        let original = ios_read_in_place_bytes(bookmark.clone())?;
+        let folder = app
+            .path()
+            .app_data_dir()
+            .map_err(|e| e.to_string())?
+            .join("source-backups");
+        safe_file::backup(
+            &folder,
+            source_name.as_deref().unwrap_or("ios-source.original"),
+            &original,
+        )?;
         let c_bookmark = std::ffi::CString::new(bookmark.as_bytes())
             .map_err(|_| "Invalid bookmark".to_string())?;
         let ok = unsafe {
@@ -1191,29 +1211,13 @@ fn ios_write_in_place_bytes(bookmark: String, contents: Vec<u8>) -> Result<(), S
 
 /// Write text back to a bookmarked document, replacing its contents.
 #[tauri::command]
-fn ios_write_in_place(bookmark: String, contents: String) -> Result<(), String> {
-    #[cfg(target_os = "ios")]
-    {
-        let c_bookmark = std::ffi::CString::new(bookmark.as_bytes())
-            .map_err(|_| "Invalid bookmark".to_string())?;
-        // A screenplay can legitimately contain no interior NULs, but reject
-        // rather than truncate if one ever appears.
-        let c_contents = std::ffi::CString::new(contents.as_bytes())
-            .map_err(|_| "Document contains a null byte and cannot be written".to_string())?;
-        let ok = unsafe { ios_write_bookmarked_file(c_bookmark.as_ptr(), c_contents.as_ptr()) };
-        if ok == 1 {
-            Ok(())
-        } else {
-            Err("Could not save to the original file. It may have been moved, renamed, \
-                 or deleted, or its provider (such as Dropbox) may be offline."
-                .to_string())
-        }
-    }
-    #[cfg(not(target_os = "ios"))]
-    {
-        let _ = (bookmark, contents);
-        Err("This command is only available on iOS".to_string())
-    }
+fn ios_write_in_place(
+    app: tauri::AppHandle,
+    bookmark: String,
+    contents: String,
+    source_name: Option<String>,
+) -> Result<(), String> {
+    ios_write_in_place_bytes(app, bookmark, contents.into_bytes(), source_name)
 }
 
 // ── iOS export commands ──────────────────────────────────────────────────
@@ -1760,18 +1764,84 @@ fn get_opened_file(state: tauri::State<PendingFile>) -> Option<String> {
     state.0.lock().unwrap().take()
 }
 
+// Mobile originals are kept outside the working database, and can be exported
+// through File > Recover Original File without overwriting the provider's copy.
+#[derive(serde::Serialize)]
+struct SourceBackupEntry {
+    name: String,
+    size: u64,
+}
+
+#[tauri::command]
+fn list_source_backups(app: tauri::AppHandle) -> Result<Vec<SourceBackupEntry>, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("source-backups");
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+    let mut result = Vec::new();
+    for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let metadata = entry.metadata().map_err(|e| e.to_string())?;
+        if metadata.is_file() {
+            result.push(SourceBackupEntry {
+                name: entry.file_name().to_string_lossy().into_owned(),
+                size: metadata.len(),
+            });
+        }
+    }
+    result.sort_by(|a, b| b.name.cmp(&a.name));
+    Ok(result)
+}
+
+#[tauri::command]
+fn read_source_backup(app: tauri::AppHandle, name: String) -> Result<Vec<u8>, String> {
+    let path = std::path::Path::new(&name);
+    if path.components().count() != 1
+        || !matches!(
+            path.components().next(),
+            Some(std::path::Component::Normal(_))
+        )
+    {
+        return Err("Invalid backup name".into());
+    }
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("source-backups");
+    std::fs::read(dir.join(path)).map_err(|e| e.to_string())
+}
+
 // ── File I/O commands ──────────────────────────────────────────────────────
 // These bypass the fs plugin scope so the user can save/open files anywhere
 // via the native dialog.
 
 #[tauri::command]
+fn same_file_path(first: String, second: String) -> Result<bool, String> {
+    let original = match std::fs::canonicalize(first) {
+        Ok(path) => path,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(e.to_string()),
+    };
+    match std::fs::canonicalize(second) {
+        Ok(destination) => Ok(original == destination),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
 fn save_text_to_path(path: String, contents: String) -> Result<(), String> {
-    std::fs::write(&path, contents).map_err(|e| format!("Failed to write {}: {}", path, e))
+    safe_file::replace(std::path::Path::new(&path), contents.as_ref())
 }
 
 #[tauri::command]
 fn save_binary_to_path(path: String, contents: Vec<u8>) -> Result<(), String> {
-    std::fs::write(&path, contents).map_err(|e| format!("Failed to write {}: {}", path, e))
+    safe_file::replace(std::path::Path::new(&path), contents.as_ref())
 }
 
 #[tauri::command]
@@ -1929,35 +1999,7 @@ fn delete_file(path: String) -> Result<(), String> {
 /// rename stays within one filesystem.
 #[tauri::command(async)]
 fn save_text_atomic(path: String, contents: String) -> Result<(), String> {
-    use std::io::Write;
-
-    let target = std::path::Path::new(&path);
-    let dir = target
-        .parent()
-        .ok_or_else(|| format!("Invalid path: {}", path))?;
-    let tmp = target.with_extension(format!(
-        "{}.tmp",
-        target.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default()
-    ));
-
-    std::fs::create_dir_all(dir).map_err(|e| format!("Failed to create {}: {}", dir.display(), e))?;
-
-    let write_result = (|| -> std::io::Result<()> {
-        let mut f = std::fs::File::create(&tmp)?;
-        f.write_all(contents.as_bytes())?;
-        f.sync_all()
-    })();
-
-    if let Err(e) = write_result {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(format!("Failed to write {}: {}", tmp.display(), e));
-    }
-
-    if let Err(e) = std::fs::rename(&tmp, target) {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(format!("Failed to finalize {}: {}", path, e));
-    }
-    Ok(())
+    safe_file::replace(std::path::Path::new(&path), contents.as_bytes())
 }
 
 /// Read a text file off the main thread, for files in a linked project folder.
@@ -2879,6 +2921,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            same_file_path,
             save_text_to_path,
             save_binary_to_path,
             read_text_file,
@@ -2898,6 +2941,8 @@ pub fn run() {
             read_content_uri,
             read_content_uri_bytes,
             read_clipboard_html,
+            list_source_backups,
+            read_source_backup,
             write_content_uri,
             write_content_uri_bytes,
             ios_save_and_share,

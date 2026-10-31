@@ -357,6 +357,7 @@ export function resolveFootnotes(layout: PageLayout | undefined): FootnoteSettin
 }
 
 export interface PageLayout {
+  osfSource?: import('../utils/osfLayout').OsfSourceSettings;
   pageWidth: number;     // inches
   pageHeight: number;    // inches
   topMargin: number;     // points
@@ -388,14 +389,14 @@ export interface PageLayout {
 }
 
 export const DEFAULT_PAGE_LAYOUT: PageLayout = {
-  pageWidth: 8.26,
-  pageHeight: 11.69,
+  pageWidth: 8.5,
+  pageHeight: 11,
   topMargin: 72,
   bottomMargin: 72,
   headerMargin: 36,
   footerMargin: 36,
   leftMargin: 1.50,       // Final Draft default LeftIndent for Action
-  rightMargin: 0.76,      // 8.26 - 7.50 (default RightIndent)
+  rightMargin: 1.0,       // US Letter screenplay standard
   headerContent: { ...DEFAULT_HEADER_CONTENT },
   footerContent: { ...DEFAULT_FOOTER_CONTENT },
   headerStartPage: 2,
@@ -1155,6 +1156,7 @@ interface EditorState {
    *  (.fdx, .fountain, .docx, etc.), tracks the source filename. Used by
    *  SaveAsDialog to clarify that saves go to OpenDraft's library rather than
    *  writing back to the source file. Cleared on successful save. */
+  sourceFidelity: { format: string; warnings: string[]; uncertain: boolean } | null;
   importedSource: { name: string; format: string } | null;
   setImportedSource: (src: { name: string; format: string } | null) => void;
   /**
@@ -1172,6 +1174,7 @@ interface EditorState {
 }
 
 export interface DocumentOrigin {
+  warnings?: string[];
   /** Opaque security-scoped bookmark identifying the file. */
   bookmark: string;
   /** File name, shown in the status bar and used to pick the exporter. */
@@ -1958,6 +1961,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setForeignFormatNotice: (v) => set({ foreignFormatNotice: v }),
   postSaveAction: null,
   setPostSaveAction: (action) => set({ postSaveAction: action }),
+  sourceFidelity: null,
   importedSource: null,
   // Also drops documentOrigin. The two are mutually exclusive answers to
   // "where did this document come from" — an in-place file, an imported copy,

@@ -1,3 +1,5 @@
+import { externalScreenplay } from './externalSave';
+import { saveDocumentInPlace } from '../utils/fileOps';
 /**
  * Scripts saved to files the writer keeps on disk (issue #135).
  *
@@ -80,8 +82,10 @@ async function readText(path: string): Promise<string> {
   return withTimeout(invoke<string>('read_text_path', { path }), `Reading ${basenameOf(path)}`);
 }
 
-async function writeTextAtomic(path: string, contents: string): Promise<void> {
-  await withTimeout(invoke('save_text_atomic', { path, contents }), `Saving ${basenameOf(path)}`);
+async function writeTextAtomic(path: string, contents: string, warnings?: string[]): Promise<void> {
+  const exists = externalScreenplay(path) && (await statPath(path)).exists;
+  if (exists) await saveDocumentInPlace(path, contents, { name: basenameOf(path), warnings });
+  else await withTimeout(invoke('save_text_atomic', { path, contents }), `Saving ${basenameOf(path)}`);
 }
 
 async function listDir(path: string): Promise<DirEntry[]> {
@@ -317,7 +321,7 @@ async function writeLinkedFile(
   link: ScriptFileLink,
   title: string,
   content: Record<string, unknown>,
-  options: { force?: boolean; meta?: Partial<ScriptMeta> } = {},
+  options: { force?: boolean; reviewExternal?: boolean; meta?: Partial<ScriptMeta> } = {},
 ): Promise<WriteOutcome> {
   try {
     if (!options.force && link.syncedHash) {
@@ -344,7 +348,16 @@ async function writeLinkedFile(
       publish(link);
       return 'written';
     }
-    await writeTextAtomic(link.path, text);
+    // Background library saves must never overwrite a converted source or open
+    // repeated consent dialogs. Explicit linked-file sync reviews the write.
+    if (!options.force && !options.reviewExternal && externalScreenplay(link.path) && (await statPath(link.path)).exists) {
+      link.pending = true;
+      link.lastError = 'External format: use linked-file sync to review the overwrite, or save an .odraft working copy.';
+      await saveLink(link);
+      publish(link);
+      return 'pending';
+    }
+    await writeTextAtomic(link.path, text, (content._sourceFidelity as { warnings?: string[] } | undefined)?.warnings);
     const stat = await statPath(link.path);
     link.syncedHash = await hashText(text);
     link.syncedMtime = stat.modified_ms;
@@ -397,11 +410,21 @@ async function fileAlreadySays(
 }
 
 /** Write the script's current library copy to its file. */
-async function writeFromLibrary(link: ScriptFileLink, options: { force?: boolean } = {}): Promise<WriteOutcome> {
+async function writeFromLibrary(link: ScriptFileLink, options: { force?: boolean; reviewExternal?: boolean } = {}): Promise<WriteOutcome> {
   const script = await api.getScript(link.projectId, link.scriptId);
   return writeLinkedFile(link, script.meta.title, (script.content ?? {}) as Record<string, unknown>, {
     force: options.force,
+    reviewExternal: options.reviewExternal,
     meta: script.meta,
+  });
+}
+
+/** Explicit Save can review a pending external source; background retries cannot. */
+export async function saveLinkedFileWithReview(projectId: string, scriptId: string): Promise<WriteOutcome> {
+  return withScriptLock(scriptId, async () => {
+    const link = await getLink(scriptId);
+    if (!link || link.projectId !== projectId) return 'pending' as const;
+    return writeFromLibrary(link, { reviewExternal: true });
   });
 }
 

@@ -1,3 +1,4 @@
+import { readSourceFidelity } from '../utils/sourceFidelity';
 import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import Document from '@tiptap/extension-document';
@@ -45,6 +46,7 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { PastedHighlight } from '../editor/extensions/PastedHighlight';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { restoreImportedFormat } from '../utils/importedFormat';
 import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
@@ -953,6 +955,8 @@ const ScreenplayEditor: React.FC = () => {
       collabInitialContent.current = collabSeedFrom(content);
 
       // Restore per-document template
+      restoreImportedFormat((content as any)?._templateSnapshot);
+      useEditorStore.setState({ sourceFidelity: readSourceFidelity((content as any)?._sourceFidelity) });
       const tplId = (content as any)?._templateId;
       useFormattingTemplateStore.getState().setActiveTemplateId(typeof tplId === 'string' ? tplId : null);
 
@@ -3845,6 +3849,8 @@ const ScreenplayEditor: React.FC = () => {
             }
             store.setElementNumbersVisible(c._elementNumbersVisible !== false);
             // Restore per-document formatting template
+            restoreImportedFormat(c._templateSnapshot);
+            useEditorStore.setState({ sourceFidelity: readSourceFidelity(c._sourceFidelity) });
             if (c._templateId && typeof c._templateId === 'string') {
               useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
             } else {
@@ -4374,6 +4380,8 @@ const ScreenplayEditor: React.FC = () => {
           store.setBeatColumns(beatCols2 as import('../stores/editorStore').BeatColumn[]);
           store.setPlotlines(parseAttr2(c._plotlines) as import('../utils/plotlines').Plotline[]);
           // Restore per-document template
+          restoreImportedFormat(c._templateSnapshot);
+          useEditorStore.setState({ sourceFidelity: readSourceFidelity(c._sourceFidelity) });
           if (c._templateId && typeof c._templateId === 'string') {
             useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
           } else {

@@ -19,9 +19,10 @@
 import { describe, it, expect } from 'vitest';
 import { buildTitlePageBlocks, deriveTitlePageLines, hasTitlePageContent } from './titlePageBlocks';
 import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
-import { DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
+import { DEFAULT_PAGE_LAYOUT as LETTER_DEFAULT } from '../stores/editorStore';
 
-/** US Letter, against the A4 default. 54 lines a page rather than 58. */
+/** Compare explicit A4 and Letter geometry, independent of the new-document default. */
+const DEFAULT_PAGE_LAYOUT = { ...LETTER_DEFAULT, pageWidth: 8.26, pageHeight: 11.69, rightMargin: 0.76 };
 const LETTER = { ...DEFAULT_PAGE_LAYOUT, pageWidth: 8.5, pageHeight: 11 };
 
 const FULL = {
