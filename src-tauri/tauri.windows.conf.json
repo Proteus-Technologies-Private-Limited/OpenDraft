@@ -1,0 +1,30 @@
+{
+  "bundle": {
+    "fileAssociations": [
+      {
+        "ext": [
+          "odraft"
+        ],
+        "mimeType": "application/json",
+        "description": "OpenDraft Screenplay",
+        "rank": "Owner"
+      }
+    ],
+    "windows": {
+      "wix": {
+        "fragmentPaths": [
+          "open-with.wxs"
+        ],
+        "componentRefs": [
+          "OpenDraftAlternative_fdx",
+          "OpenDraftAlternative_fadein",
+          "OpenDraftAlternative_fountain",
+          "OpenDraftAlternative_osf",
+          "OpenDraftAlternative_highland",
+          "OpenDraftAlternative_wdz",
+          "OpenDraftAlternative_celtx"
+        ]
+      }
+    }
+  }
+}

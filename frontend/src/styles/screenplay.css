@@ -14730,3 +14730,20 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
   font-size: 9px;
   color: var(--fd-text-muted);
 }
+
+/* #178: keep the document's own draggable scrollbar, including beside panels. */
+.editor-main { min-height: 0; min-width: 0; overflow-y: scroll; scrollbar-gutter: stable; scrollbar-width: auto; scrollbar-color: var(--fd-text-muted) var(--fd-bg); }
+.editor-main::-webkit-scrollbar { display: block; width: 14px; height: 14px; }
+.editor-main::-webkit-scrollbar-thumb { background: var(--fd-text-muted); border: 3px solid var(--fd-bg); border-radius: 7px; }
+.editor-main::-webkit-scrollbar-thumb:hover { background: var(--fd-text); }
+
+.external-save-review { box-sizing: border-box; max-width: min(36rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; background: var(--fd-dialog-bg); color: var(--fd-text); border: 1px solid var(--fd-border); border-radius: 8px; padding: 24px; font: inherit; }
+.external-save-review::backdrop { background: rgba(0,0,0,.6); }
+.external-save-review button, .external-save-review label { min-height: 44px; }
+.external-save-review .dialog-actions { flex-wrap: wrap; gap: 8px; }
+.external-save-review { position: fixed; inset: 0; margin: auto; height: fit-content; }
+.external-save-review h2 { margin-bottom: .75rem; font-size: 1.25rem; }
+.external-save-review p { margin: .75rem 0; line-height: 1.5; }
+.external-save-review ul { padding-inline-start: 1.25rem; margin: .75rem 0; }
+.external-save-review label { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; }
+.external-save-review button:disabled { opacity: .5; cursor: not-allowed; }

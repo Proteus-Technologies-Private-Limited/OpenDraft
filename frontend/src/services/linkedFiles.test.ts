@@ -1,3 +1,4 @@
+import { useExternalSaveReview } from './externalSave';
 /**
  * Scripts saved to files on disk (issue #135) — the behaviour that protects the
  * writer's work.
@@ -302,11 +303,25 @@ describe('a project kept in a folder', () => {
     await save(pid, cave.id, { content: structuredClone(lib.scripts.get(cave.id)!.content!) });
     expect(fs.files.get(`${FOLDER}/Cave.fountain`)?.text).toBe(original);
 
-    // A real edit is written.
+    // An external source stays untouched after background edits until explicit review.
     const edited = structuredClone(lib.scripts.get(cave.id)!.content) as { content: Array<Record<string, unknown>> };
     edited.content.push({ type: 'action', content: [{ type: 'text', text: 'Water drips.' }] });
     await save(pid, cave.id, { content: edited });
-    expect(fs.files.get(`${FOLDER}/Cave.fountain`)?.text).toContain('Water drips.');
+    expect(fs.files.get(`${FOLDER}/Cave.fountain`)?.text).toBe(original);
+    expect((await lf.getLink(cave.id))?.pending).toBe(true);
+    expect((await lf.getLink(cave.id))?.lastError).toContain('review');
+  });
+
+  it('reviews an explicit linked-source save and keeps the source unchanged when cancelled', async () => {
+    const pid = await folderProject('fountain');
+    const id = await newScript(pid, 'Pilot', doc('original'));
+    const original = fs.files.get(`${FOLDER}/Pilot.fountain`)!.text;
+    await save(pid, id, { content: doc('edited in OpenDraft') });
+    const pending = lf.saveLinkedFileWithReview(pid, id);
+    await vi.waitFor(() => expect(useExternalSaveReview.getState().queue).toHaveLength(1));
+    useExternalSaveReview.getState().answer('cancel');
+    expect(await pending).toBe('pending');
+    expect(fs.files.get(`${FOLDER}/Pilot.fountain`)!.text).toBe(original);
   });
 
   it('adds files dropped into the folder, but not one the writer removed from the project', async () => {

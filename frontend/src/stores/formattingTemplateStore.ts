@@ -231,7 +231,16 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
   loadTemplates: async () => {
     try {
       const templates = await (api as any).listFormattingTemplates();
-      set({ templates: (templates as FormattingTemplate[]).map(withMissingRules), loaded: true });
+      // Imported templates belong to the open document's saved snapshot.
+      // A delayed library load must not discard them after an import.
+      set(state => ({
+        templates: [
+          ...(templates as FormattingTemplate[]).map(withMissingRules),
+          ...state.templates.filter(t => t.id.startsWith('osf-import:') &&
+            !(templates as FormattingTemplate[]).some(saved => saved.id === t.id)),
+        ],
+        loaded: true,
+      }));
     } catch {
       // Storage not available yet or no templates
       set({ loaded: true });

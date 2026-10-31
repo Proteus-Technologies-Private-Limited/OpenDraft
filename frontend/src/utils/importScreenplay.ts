@@ -12,6 +12,9 @@
  * between entry points.
  */
 import type { JSONContent } from '@tiptap/react';
+import { importedFormat, restoreImportedFormat } from './importedFormat';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { DEFAULT_PAGE_LAYOUT, type PageLayout } from '../stores/editorStore';
 import { parseFountain } from './fountainParser';
 import { DEFAULT_SCRIPT_PROFILE } from './scriptProfile';
 import { parseFDXFull } from './fdxParser';
@@ -207,6 +210,7 @@ export function importedSceneNumbering(doc: { content?: Array<{ type?: string; a
  */
 export function fdxMetadata(parsed: ReturnType<typeof parseFDXFull>): Record<string, unknown> {
   const meta: Record<string, unknown> = {};
+  if (parsed.pageLayout) meta._pageLayout = { ...DEFAULT_PAGE_LAYOUT, ...parsed.pageLayout };
   const r = parsed.revisions;
   if (r) {
     meta._revisionMode = r.mode;
@@ -227,6 +231,10 @@ export function fdxMetadata(parsed: ReturnType<typeof parseFDXFull>): Record<str
   return meta;
 }
 
+export function applyImportedLayout(layout?: Partial<PageLayout>): void {
+  if (layout) useEditorStore.getState().setPageLayout({ ...DEFAULT_PAGE_LAYOUT, ...layout });
+}
+
 /** Apply the page layout, beats and cast an .fdx carries alongside its text. */
 function applyFdxSideEffects(parsed: ReturnType<typeof parseFDXFull>): void {
   const store = useEditorStore.getState();
@@ -238,9 +246,7 @@ function applyFdxSideEffects(parsed: ReturnType<typeof parseFDXFull>): void {
   if (typeof meta._sceneNumbersVisible === 'boolean') store.setSceneNumbersVisible(meta._sceneNumbersVisible);
   if (typeof meta._sceneNumbersLocked === 'boolean') store.setSceneNumbersLocked(meta._sceneNumbersLocked);
 
-  if (parsed.pageLayout) {
-    store.setPageLayout({ ...store.pageLayout, ...parsed.pageLayout });
-  }
+  applyImportedLayout(parsed.pageLayout ?? undefined);
 
   if (parsed.beats.length > 0) {
     store.setBeats(parsed.beats);
@@ -310,7 +316,7 @@ export interface ParseScreenplayOptions {
  *
  * Throws with a user-facing message when the file cannot be read.
  */
-export async function parseScreenplayImport(
+async function parseScreenplayImportInternal(
   filename: string,
   data: string | ArrayBuffer,
   options: ParseScreenplayOptions = {},
@@ -371,13 +377,19 @@ export async function parseScreenplayImport(
     };
   }
 
-  if (ext === 'fadein') {
-    const parsed = await parseFadeIn(data as ArrayBuffer);
+  if (ext === 'fadein' || ext === 'osf') {
+    const parsed = ext === 'fadein' ? await parseFadeIn(data as ArrayBuffer) : parseOSF(data as string);
+    const template = parsed.elementRules && Object.keys(parsed.elementRules).length ? importedFormat(parsed.elementRules) : null;
+    const metadata: Record<string, unknown> = { _pageLayout: { ...DEFAULT_PAGE_LAYOUT, ...parsed.pageLayout }, _sceneHeadingSpaceBefore: null };
+    if (template) { metadata._templateSnapshot = template; metadata._templateId = template.id; }
     if (hydrateStores) {
       resetStoresForImport();
       applyDocumentFont(parsed.documentFont);
+      applyImportedLayout(parsed.pageLayout ?? undefined);
+      if (template) restoreImportedFormat(template);
+      useFormattingTemplateStore.getState().setActiveTemplateId(template?.id ?? null);
     }
-    return { doc: parsed.doc, title: parsed.scriptTitle, formatLabel, warnings: parsed.warnings };
+    return { doc: parsed.doc, title: parsed.scriptTitle, formatLabel, warnings: parsed.warnings, metadata };
   }
 
   // Other screenwriting apps' archives: Highland's zipped Fountain, WriterDuet's
@@ -408,14 +420,7 @@ export async function parseScreenplayImport(
 
   const text = data as string;
 
-  if (ext === 'osf') {
-    const parsed = parseOSF(text);
-    if (hydrateStores) {
-      resetStoresForImport();
-      applyDocumentFont(parsed.documentFont);
-    }
-    return { doc: parsed.doc, title: parsed.scriptTitle, formatLabel, warnings: parsed.warnings };
-  }
+
 
   if (ext === 'fdx') {
     const parsed = parseFDXFull(text);
@@ -464,4 +469,16 @@ export async function parseScreenplayImport(
   const doc = parseFountain(text);
   if (hydrateStores) resetStoresForImport();
   return { doc, title: '', formatLabel, warnings: [] };
+}
+
+/** A successful conversion is not a promise that an external format is lossless. */
+export async function parseScreenplayImport(filename: string, data: string | ArrayBuffer, options: ParseScreenplayOptions = {}): Promise<ImportedScreenplay> {
+  const result = await parseScreenplayImportInternal(filename, data, options);
+  const format = extensionOf(filename);
+  if (format !== 'odraft') {
+    const fidelity = { format, warnings: [...result.warnings], uncertain: true };
+    result.metadata = { ...result.metadata, _sourceFidelity: fidelity };
+    if (options.hydrateStores !== false) useEditorStore.setState({ sourceFidelity: fidelity });
+  }
+  return result;
 }

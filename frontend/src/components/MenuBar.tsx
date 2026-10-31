@@ -1,3 +1,6 @@
+import SourceBackupRecovery from './SourceBackupRecovery';
+import { isTauri as isNativeApp, getOS as nativeOS } from '../services/platform';
+import { ExternalSaveCancelled, externalScreenplay } from '../services/externalSave';
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
@@ -257,6 +260,8 @@ import { omitSceneTransaction, sceneOmittedAt } from '../editor/omitScene';
  *  and how scenes are numbered. */
 function osfExtras(s: ReturnType<typeof useEditorStore.getState>) {
   return {
+    pageLayout: s.pageLayout,
+    elementRules: useFormattingTemplateStore.getState().getActiveTemplate().rules,
     revisions: { color: s.revisionMode ? s.revisionColor : '', settings: s.revisionSettings },
     sceneNumbers: { visible: s.sceneNumbersVisible, locked: s.sceneNumbersLocked },
   };
@@ -466,10 +471,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
     // means the writer kept typing while the file was written — and those
     // edits are not in it. Edits made during 'saving' do not mark the document
     // unsaved on their own, so this is the only thing that would notice.
+    if (auto && externalScreenplay(origin.name)) return false;
     const docBefore = editor?.state.doc;
     setSaveStatus('saving');
     try {
-      await saveDocumentInPlace(origin.bookmark, await serializeForOrigin(origin.format));
+      await saveDocumentInPlace(origin.bookmark, await serializeForOrigin(origin.format), { name: origin.name, warnings: origin.warnings });
       // The writer may have opened something else while the write was in
       // flight; the status now belongs to that document, not this one.
       if (useEditorStore.getState().documentOrigin?.bookmark !== origin.bookmark) return true;
@@ -485,6 +491,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       clearRecoverySnapshot();
       return true;
     } catch (err) {
+      if (err instanceof ExternalSaveCancelled) { setSaveStatus('unsaved'); return false; }
       console.error(auto ? 'Auto-save in place failed:' : 'Save in place failed:', err);
       const msg = err instanceof Error ? err.message : String(err);
       // Left in the error state on purpose: the file did NOT receive this
@@ -525,10 +532,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
       setSaveStatus('saved');
       // A script linked to a file on disk is safe in the library either way,
       // but the writer pressed Save expecting their file to have it too.
-      const fileStatus = useLinkedFileStore.getState().byScript[currentScriptId];
+      let fileStatus = useLinkedFileStore.getState().byScript[currentScriptId];
+      if (fileStatus?.state === 'pending' && externalScreenplay(fileStatus.path)) {
+        const { saveLinkedFileWithReview } = await import('../services/linkedFiles');
+        await saveLinkedFileWithReview(currentProject.id, currentScriptId);
+        fileStatus = useLinkedFileStore.getState().byScript[currentScriptId];
+      }
       if (fileStatus?.state === 'pending' && fileStatus.error) {
         const name = fileStatus.path.split(/[/\\]/).pop() || fileStatus.path;
-        showToast(`Saved in OpenDraft, but not to ${name}: ${fileStatus.error}. OpenDraft will keep trying.`, 'error');
+        showToast(`Saved in OpenDraft, but not to ${name}: ${fileStatus.error}. ${externalScreenplay(fileStatus.path) ? 'Use Save to review the external file again.' : 'OpenDraft will keep trying.'}`, 'error');
       }
       // The user's real copy now holds this text, so there is nothing left to
       // recover. Done here as well as in the snapshot hook because an explicit
@@ -1041,6 +1053,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   // ── About / What's New ──
   const [recoverBackupOpen, setRecoverBackupOpen] = useState(false);
+  const [sourceBackupOpen, setSourceBackupOpen] = useState(false);
   // Backups asked for before a folder was chosen: ask for one here, then go on.
   const [backupFolderPrompt, setBackupFolderPrompt] = useState<'backup' | 'open' | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -1424,7 +1437,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       setScripts([]);
       // Not setImportedSource: this is not a copy. Save writes back here.
       store.setImportedSource(null);
-      store.setDocumentOrigin({ bookmark: opened.bookmark, name: opened.name, format: ext });
+      store.setDocumentOrigin({ bookmark: opened.bookmark, name: opened.name, format: ext, warnings: imported.warnings });
       useBackupStatusStore.getState().noteDocumentOpened();
 
       for (const w of imported.warnings) console.warn('[Open in place]', w);
@@ -1681,6 +1694,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     store.setCharacterProfiles([]);
     store.setScenes([]);
     store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
+    useEditorStore.setState({ sourceFidelity: null });
     store.resetRevisionState();
     // A new screenplay starts at Standard pacing with no genres.
     store.setScriptProfile(DEFAULT_SCRIPT_PROFILE);
@@ -2739,6 +2753,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // App builds only: a browser tab has nothing that can hold on to a
         // folder across a reload. Omitted rather than disabled — a permanently
         // greyed submenu just invites bug reports.
+        ...(isNativeApp() && ['ios', 'android'].includes(nativeOS()) ? [{ icon: <FaHistory />, label: 'Recover Original File…', action: () => setSourceBackupOpen(true) }] : []),
         ...(backupsSupported() ? [
           { separator: true, label: '' },
           {
@@ -3823,6 +3838,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         }}
       />
     )}
+    {sourceBackupOpen && <SourceBackupRecovery onClose={() => setSourceBackupOpen(false)} />}
     <RecoverBackupDialog
       open={recoverBackupOpen}
       onClose={() => setRecoverBackupOpen(false)}
@@ -4437,7 +4453,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <div className="dialog-header">Editing a .{foreignFormatNotice.extension} file</div>
           <div className="dialog-body">
             <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
-              Save now writes straight back to <strong>{foreignFormatNotice.name}</strong>.
+              Save will ask before overwriting <strong>{foreignFormatNotice.name}</strong>. Save As creates a working copy and keeps the source untouched.
             </p>
             <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
               That file is in another application&apos;s format, and it can only hold

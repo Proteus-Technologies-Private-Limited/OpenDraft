@@ -1,3 +1,4 @@
+import ExternalSaveReview from './components/ExternalSaveReview';
 import { Routes, Route } from 'react-router-dom';
 import ScreenplayEditor from './components/ScreenplayEditor';
 import TreatmentEditor from './components/TreatmentEditor';
@@ -53,6 +54,7 @@ function App() {
           <Route key={r.path} path={r.path} element={<r.component />} />
         ))}
       </Routes>
+      <ExternalSaveReview />
       <Toast />
       <AuthGate />
       <AuthBootstrap />

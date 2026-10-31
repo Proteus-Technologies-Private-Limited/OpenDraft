@@ -13,6 +13,7 @@
  * On web / mobile browser: falls back to standard browser APIs
  * (anchor download for save, <input type="file"> for open).
  */
+import { guardedExternalSave, externalScreenplay, ExternalSaveCancelled } from '../services/externalSave';
 import { isTauri, getOS } from '../services/platform';
 
 interface FileFilter {
@@ -49,6 +50,7 @@ export async function saveFile(
   data: Uint8Array | string,
   defaultFilename: string,
   filters?: FileFilter[],
+  options: { preserveOriginal?: string } = {},
 ): Promise<boolean> {
   if (isIOSTauri()) {
     return saveFileIOS(data, defaultFilename);
@@ -57,7 +59,7 @@ export async function saveFile(
     return saveFileAndroid(data, defaultFilename);
   }
   if (isTauri()) {
-    return saveFileTauri(data, defaultFilename, filters);
+    return saveFileTauri(data, defaultFilename, filters, options);
   }
   return saveFileBrowser(data, defaultFilename);
 }
@@ -66,14 +68,22 @@ async function saveFileTauri(
   data: Uint8Array | string,
   defaultFilename: string,
   filters?: FileFilter[],
+  options: { preserveOriginal?: string } = {},
 ): Promise<boolean> {
   const { save } = await import('@tauri-apps/plugin-dialog');
   const { invoke } = await import('@tauri-apps/api/core');
 
   const path = await save({ defaultPath: defaultFilename, filters });
   if (!path) return false;
+  if (options.preserveOriginal && await invoke<boolean>('same_file_path', { first: options.preserveOriginal, second: path })) {
+    throw new Error('Choose a different destination for Save a Copy. The original was left unchanged.');
+  }
 
-  if (typeof data === 'string') {
+  const stat = externalScreenplay(path) ? await invoke<{ exists: boolean }>('stat_path', { path }) : { exists: false };
+  if (stat.exists) {
+    try { await saveDocumentInPlace(path, data, { name: path }); }
+    catch (error) { if (error instanceof ExternalSaveCancelled) return error.copySaved; throw error; }
+  } else if (typeof data === 'string') {
     await invoke('save_text_to_path', { path, contents: data });
   } else {
     await invoke('save_binary_to_path', { path, contents: Array.from(data) });
@@ -717,8 +727,16 @@ function pollForPick(
 export async function saveDocumentInPlace(
   bookmark: string,
   contents: string | Uint8Array,
+  options: { name?: string; warnings?: string[]; approved?: boolean } = {},
 ): Promise<void> {
   const { invoke } = await import('@tauri-apps/api/core');
+  const name = options.name ?? bookmark;
+  if (!options.approved && externalScreenplay(name)) {
+    return guardedExternalSave({ name, warnings: options.warnings, contents,
+      write: () => saveDocumentInPlace(bookmark, contents, { ...options, approved: true }),
+      saveCopy: () => saveFile(contents, name.split(/[\\/]/).pop()!.replace(/(\.[^.]+)$/, '-copy$1'), undefined, { preserveOriginal: bookmark }),
+    });
+  }
   // Tauri's IPC carries a byte array as a plain number array.
   const bytes = typeof contents === 'string' ? null : Array.from(contents);
 
@@ -733,9 +751,9 @@ export async function saveDocumentInPlace(
   }
   if (isIOSTauri()) {
     if (bytes) {
-      await invoke('ios_write_in_place_bytes', { bookmark, contents: bytes });
+      await invoke('ios_write_in_place_bytes', { bookmark, contents: bytes, sourceName: name });
     } else {
-      await invoke('ios_write_in_place', { bookmark, contents });
+      await invoke('ios_write_in_place', { bookmark, contents, sourceName: name });
     }
     return;
   }
