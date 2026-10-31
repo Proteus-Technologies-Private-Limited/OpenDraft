@@ -7,11 +7,9 @@
  * names the elements that start a count again (utils/formattingTypes
  * `ElementNumbering`).
  *
- * The numbers are worked out from the order of the script and never stored in
- * it. Nothing is added to the document, its history or what collaborators are
- * sent, and a script whose format numbers nothing is exactly what it was — the
- * editor draws them as decorations (editor/extensions/ElementNumbers) and the
- * exporters read them off a copy of the document (`withElementNumbers`).
+ * Automatic numbers follow document order. Locked and manually edited labels
+ * are retained on document nodes; exporters resolve both onto a document copy.
+ * The editor displays the resolved labels as decorations.
  *
  * Scene headings are not numbered here: theirs are kept, locked and lettered by
  * utils/sceneNumbers. A scene heading can still restart a count.
@@ -21,6 +19,7 @@ import type { ElementNumbering, FormattingElementRule } from '../stores/formatti
 import { AV_BLOCK_RULE_ID, isTitlePageRuleId } from '../stores/formattingTypes';
 import { useFormattingTemplateStore, findTemplate } from '../stores/formattingTemplateStore';
 import { elementIdOf } from './pageBreaks';
+import { rulesWithStoredNumbers, retainElementNumbers, storedElementNumber } from './lockedElementNumbers';
 import { NON_PRINTING_TYPES } from './nonPrinting';
 
 /** The attribute a numbered node carries in the copy the exporters are given. */
@@ -125,6 +124,9 @@ export interface NumberingItem {
   empty: boolean;
   /** A scene heading's number, for the 12.3 style. */
   sceneNumber?: string | null;
+  number?: string | null;
+  numberLocked?: boolean;
+  numberAutomatic?: boolean;
 }
 
 export interface ElementNumberOptions {
@@ -158,7 +160,7 @@ export function numberInWords(n: number): string {
  * The label each element should carry, in document order — null where it
  * carries none.
  */
-export function assignElementNumbers(
+function assignAutomaticElementNumbers(
   items: NumberingItem[],
   rules: NumberingRules,
   opts: ElementNumberOptions,
@@ -215,6 +217,13 @@ export function assignElementNumbers(
   return out;
 }
 
+/** Explicit labels are anchors; unlocked unlabelled scripts retain their old output. */
+export function assignElementNumbers(items: NumberingItem[], rules: NumberingRules, opts: ElementNumberOptions): Array<string | null> {
+  const effective = rulesWithStoredNumbers(items, rules);
+  const automatic = assignAutomaticElementNumbers(items, effective, opts);
+  return retainElementNumbers(items, effective, automatic);
+}
+
 // ── Walking a document ───────────────────────────────────────────────────
 
 /** Containers whose children are numbered in reading order: left column, then right. */
@@ -241,6 +250,9 @@ export function collectJSON(doc: JSONContent): Array<{ node: JSONContent; item: 
         item: {
           elementId: elementIdOf({ type, attrs: node.attrs }),
           empty: !jsonHasText(node),
+          number: isNumberableElementId(elementIdOf({type,attrs:node.attrs})) ? storedElementNumber(node.attrs?.elementNumber) : null,
+          numberLocked: node.attrs?.elementNumberLocked === true,
+          numberAutomatic: node.attrs?.elementNumberAutomatic === true,
           sceneNumber: type === 'sceneHeading' ? (node.attrs?.sceneNumber as string | null | undefined) ?? null : undefined,
         },
       });
@@ -255,6 +267,7 @@ export function collectJSON(doc: JSONContent): Array<{ node: JSONContent; item: 
  * heading prints: PANEL 3, or PAGE ONE (SPLASH) when the writer added to it.
  */
 function withLeadingLabel(node: JSONContent, label: string): JSONContent {
+  if (node.attrs?.elementNumber) node = {...node,attrs:{...node.attrs,elementNumber:null}};
   const [first, ...rest] = node.content ?? [];
   const text = jsonHasText(node) ? `${label} ` : label;
   // Joined to plain text that follows it, so Word and Final Draft get one run
@@ -277,17 +290,23 @@ function withLeadingLabel(node: JSONContent, label: string): JSONContent {
  * into a panel the template numbers again.
  *
  * Returns `doc` itself — not a copy — when nothing is numbered or numbers are
- * hidden, so every script that does not use numbering exports exactly as it
- * did. Only the nodes on the path to a numbered element are copied.
+ * hidden and no stored references need suppressing. Stored references are
+ * cleared only in the export copy; native saves retain the original attributes.
  */
 export function withElementNumbers(
   doc: JSONContent,
   opts: ElementNumberOptions & { visible: boolean; rules?: NumberingRules; inlineAsText?: boolean },
 ): JSONContent {
-  if (!opts.visible || !doc?.content) return doc;
+  if (!doc?.content) return doc;
+  if (!opts.visible) {
+    if (!collectJSON(doc).some(f=>f.item.number)) return doc;
+    const hide = (node: JSONContent): JSONContent => {
+      if (DESCEND.has(node.type ?? '') && node.content) return {...node,content:node.content.map(hide)};
+      return node.attrs?.elementNumber ? {...node,attrs:{...node.attrs,elementNumber:null}} : node;
+    };
+    return {...doc,content:doc.content.map(hide)};
+  }
   const rules = opts.rules ?? getElementNumberingRules();
-  if (!hasNumbering(rules)) return doc;
-
   const found = collectJSON(doc);
   const labels = assignElementNumbers(found.map((f) => f.item), rules, opts);
   const byNode = new Map<JSONContent, { label: string; inline: boolean }>();

@@ -136,6 +136,7 @@ export function lockedPageLabels(pageCount: number, anchors: PageAnchor[]): stri
 /** A break as the editor's paginator reports it — the fields this needs. */
 export interface LockBreak {
   nodeIndex: number;
+  contentOffset?: number;
   pageNumber: number;
   isDialogueSplit: boolean;
   isTitlePage: boolean;
@@ -153,8 +154,9 @@ export function startPages(nodeCount: number, breaks: LockBreak[]): number[] {
   let page = 1;
   for (let k = 0; k < nodeCount; k++) {
     if (k < titleEnd) { out[k] = 0; continue; }
-    while (bi < body.length && body[bi].nodeIndex <= k) { page = body[bi].pageNumber; bi++; }
+    while (bi < body.length && (body[bi].nodeIndex < k || (body[bi].nodeIndex===k && body[bi].contentOffset===undefined))) { page = body[bi].pageNumber; bi++; }
     out[k] = page;
+    while (bi < body.length && body[bi].nodeIndex===k) { page=body[bi].pageNumber;bi++; }
   }
   return out;
 }
@@ -164,14 +166,14 @@ export function lockPlan(
   nodeCount: number,
   breaks: LockBreak[],
   label: (page: number) => string,
-): Array<{ nodeIndex: number; label: string; mid: boolean }> {
+): Array<{ nodeIndex: number; label: string; mid: boolean; contentOffset?: number }> {
   if (nodeCount === 0) return [];
   const titleEnd = breaks.find((b) => b.isTitlePage)?.nodeIndex ?? 0;
   if (titleEnd >= nodeCount) return [];
-  const plan = [{ nodeIndex: titleEnd, label: label(1), mid: false }];
+  const plan: Array<{nodeIndex:number;label:string;mid:boolean;contentOffset?:number}> = [{ nodeIndex: titleEnd, label: label(1), mid: false }];
   for (const b of breaks) {
     if (b.isTitlePage || b.nodeIndex >= nodeCount) continue;
-    plan.push({ nodeIndex: b.nodeIndex, label: label(b.pageNumber), mid: b.isDialogueSplit });
+    plan.push({ nodeIndex: b.nodeIndex, label: label(b.pageNumber), mid: b.isDialogueSplit, ...(b.contentOffset!==undefined?{contentOffset:b.contentOffset}:{}) });
   }
   return plan;
 }

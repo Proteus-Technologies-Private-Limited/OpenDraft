@@ -42,6 +42,7 @@ import {
   type NoteSlice,
 } from './footnotes';
 import { noteEntryLabel } from './noteNumbering';
+import { SPLIT_PARAGRAPH_TYPES, paragraphLines, originalTextOffset, sliceParagraphRuns } from './paragraphPagination';
 import { withElementNumbers, elementNumberOf } from './elementNumbers';
 import { noteBlockText } from './noteContent';
 import { composeTwoUp } from './pdfTwoUp';
@@ -111,6 +112,9 @@ interface NodeInfo {
   /** Index in the ORIGINAL document content. `nodes` drops the title page and
    *  the non-printing blocks, and the footnote plan is keyed on the original. */
   srcIndex: number;
+  continuation?: boolean;
+  fragmentFrom?: number;
+  fragmentTo?: number;
 }
 
 // --- Helpers ---
@@ -794,13 +798,15 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     const runs = refs && refs.length > 0
       ? applyFootnoteMarkers(styled, refs, plan!.settings.markerStyle, plan!.markerWidth)
       : styled;
-    nodes.push({
-      typeName,
-      runs,
-      plainText: getPlainText(rawRuns),
-      attrs: node.attrs as Record<string, unknown> | undefined,
-      srcIndex: index,
-    });
+    const text=getPlainText(runs);
+    const fragments=SPLIT_PARAGRAPH_TYPES.has(typeName)?paragraphLines(text,CHARS_PER_LINE[typeName]||62):[];
+    if(fragments.length>2){
+      fragments.forEach((fragment,part)=>{
+        const attrs=part>0?{...node.attrs,startsNewPage:false,lockedPage:null,lockedPageMid:false,elementNumber:null}:node.attrs;
+        nodes.push({typeName,runs:sliceParagraphRuns(runs,fragment.from,fragment.to),plainText:fragment.text,attrs,srcIndex:index,
+          continuation:part>0,fragmentFrom:originalTextOffset(plan,index,fragment.from),fragmentTo:originalTextOffset(plan,index,fragment.to)});
+      });
+    }else nodes.push({typeName,runs,plainText:getPlainText(rawRuns),attrs:node.attrs as Record<string,unknown>|undefined,srcIndex:index});
   });
 
   // Header and footer text, resolved once the page count is known but written
@@ -1108,11 +1114,11 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
    * paginated differently in the file (issue #123).
    */
   const spaceBeforePtOf = (n: NodeInfo): number =>
-    (spaceBeforeLines[elementIdOf({ type: n.typeName, attrs: n.attrs })] ?? 0) * LINE_HEIGHT_PT;
+    (n.continuation ? 0 : spaceBeforeLines[elementIdOf({ type: n.typeName, attrs: n.attrs })] ?? 0) * LINE_HEIGHT_PT;
 
   /** True when this node must open a fresh page (template rule or manual flag). */
   function mustStartNewPage(node: NodeInfo): boolean {
-    if (isFirstElement || currentY <= topMarginPt) return false;
+    if (isFirstElement || currentY <= topMarginPt || node.continuation) return false;
     return startsOwnPage({ type: node.typeName, attrs: node.attrs }, forceBreakIds, { lockedPages: true });
   }
 
@@ -1132,6 +1138,16 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   }
 
   // Process each node
+  const refsForNode=(node:NodeInfo)=> (plan?.refsByNode.get(node.srcIndex)??[]).filter(ref=>node.fragmentFrom===undefined || ((ref.charOffset>node.fragmentFrom || !node.continuation) && ref.charOffset<=node.fragmentTo!));
+  const claimNotes=(node:NodeInfo):FootnoteEntry[]=>{
+    const added:FootnoteEntry[]=[];
+    if(drawFootnotes)for(const ref of refsForNode(node)){
+      if(!plan!.footnoteIds.has(ref.noteId))continue;
+      const entry=plan!.entryById.get(ref.noteId);
+      if(entry&&!pageEntries.includes(entry)){pageEntries.push(entry);added.push(entry);}
+    }
+    return added;
+  };
   let i = 0;
   while (i < nodes.length) {
     const node = nodes[i];
@@ -1141,16 +1157,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     // Decided jointly with the block, exactly as the paginator decides it: if
     // the block plus its own notes will not fit, both move to the next page and
     // the reservation returns to what it was.
-    const claimed: FootnoteEntry[] = [];
-    if (drawFootnotes) {
-      for (const ref of plan!.refsByNode.get(node.srcIndex) ?? []) {
-        // A note anchored here but sent to the end of the script still gets its
-        // reference number in the text; it just costs this page nothing.
-        if (!plan!.footnoteIds.has(ref.noteId)) continue;
-        const entry = plan!.entryById.get(ref.noteId);
-        if (entry && !pageEntries.includes(entry)) { pageEntries.push(entry); claimed.push(entry); }
-      }
-    }
+    const claimed = claimNotes(node);
     /**
      * Break the page for this block. The block's own notes travel with it
      * rather than being drawn on the page it has just left — which is exactly
@@ -1341,7 +1348,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     // text, so a block holding it would measure it as nothing and draw it as
     // nothing. See laysItselfOut.
     const absorbable = (at: number) => at < nodes.length
-      && !startsOwnPage({ type: nodes[at].typeName, attrs: nodes[at].attrs }, forceBreakIds, { lockedPages: true })
+      && (nodes[at].continuation || !startsOwnPage({ type: nodes[at].typeName, attrs: nodes[at].attrs }, forceBreakIds, { lockedPages: true }))
       && !laysItselfOut(nodes[at].typeName);
 
     if (typeName === 'character' && i + 1 < nodes.length) {
@@ -1366,6 +1373,15 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     /** Draw one measured part of the block at the cursor. */
     const drawPart = (part: BlockPart, withSpaceBefore = true): void => {
       const dNode = nodes[part.nodeIndex];
+      const own=claimNotes(dNode);
+      if(currentY+(withSpaceBefore?part.sbPt:0)+part.lines*LINE_HEIGHT_PT>bottomPt() && currentY>topMarginPt){
+        for(const entry of own)pageEntries=pageEntries.filter(e=>e!==entry);
+        if(speechAt>=0 && mc.dialogueBreakContd)drawPlain(pdf,mc.moreText,(FD_INDENTS.character[0])*PTS_PER_INCH,Math.min(currentY+LINE_HEIGHT_PT,pageHeightPt-bottomMarginPt+LINE_HEIGHT_PT),fonts);
+        newPage();
+        pageEntries.push(...own);
+        if(speechAt>=0 && mc.dialogueBreakContd){drawPlain(pdf,`${nodes[parts[speechAt].nodeIndex].plainText.trim().toUpperCase()} ${mc.contdText}`,FD_INDENTS.character[0]*PTS_PER_INCH,currentY+LINE_HEIGHT_PT,fonts);currentY+=LINE_HEIGHT_PT;}
+        withSpaceBefore=false;
+      }
       const dIndents = FD_INDENTS[dNode.typeName] || FD_INDENTS.general;
       if (withSpaceBefore) currentY += part.sbPt;
       renderElement(
@@ -1394,7 +1410,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
      */
     const chooseDialogueSplit = (): number => {
       const MIN_DIALOGUE_LINES = 2;
-      const remaining = bottomPt() - currentY;
+      const remaining = bottomPt() - currentY - (mc.dialogueBreakContd ? LINE_HEIGHT_PT : 0);
       // The name, and the scene heading above it when one introduces the
       // speech: nothing down to there can be divided.
       let headPt = 0;
@@ -1423,7 +1439,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     if (forcedBreak) {
       // Template rule or manual "start on new page" flag — unconditional break.
       breakForBlock();
-    } else if (currentY + blockHeightPt > bottomPt() && currentY > topMarginPt) {
+    } else if (currentY + blockHeightPt > bottomPt() && (currentY > topMarginPt || speechAt >= 0)) {
       const splitAfter = speechAt >= 0 ? chooseDialogueSplit() : -1;
 
       if (splitAfter > 0) {
@@ -1455,7 +1471,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
           // paragraph, as `computeBreaks` turns it. The editor used to lay the
           // whole remainder out in one run instead, so a monologue ran off the
           // foot of the page on screen and the file put the rest elsewhere.
-          if (drawnHere && currentY + parts[p].heightPt > bottomPt()) {
+          if (drawnHere && currentY + parts[p].heightPt + (mc.dialogueBreakContd && p < parts.length - 1 ? LINE_HEIGHT_PT : 0) > bottomPt()) {
             if (mc.dialogueBreakContd && currentY + LINE_HEIGHT_PT <= bottomPt()) {
               drawPlain(pdf, mc.moreText, charLeftPt, currentY + LINE_HEIGHT_PT, fonts);
             }

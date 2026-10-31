@@ -541,7 +541,7 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
     // would repeat the attribute and break the XML.
     const elementNumber = elementNumberOf(node);
     if (elementNumber) paraAttrs.push(`Number="${esc(elementNumber)}"`);
-    else if (node.attrs?.sceneNumber && options.sceneNumbersVisible !== false) paraAttrs.push(`Number="${node.attrs.sceneNumber}"`);
+    else if (node.type === 'sceneHeading' && node.attrs?.sceneNumber && options.sceneNumbersVisible !== false) paraAttrs.push(`Number="${node.attrs.sceneNumber}"`);
     if (node.attrs?.textAlign) {
       const a = ALIGNMENT_TO_FDX[node.attrs.textAlign as string];
       if (a) paraAttrs.push(`Alignment="${a}"`);

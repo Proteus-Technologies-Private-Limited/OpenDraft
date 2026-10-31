@@ -1,3 +1,5 @@
+import ElementNumberDialog from './ElementNumberDialog';
+import { collectNumberedElements, elementNumbersAreLocked, elementNumberAt } from '../editor/extensions/ElementNumbers';
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
@@ -56,7 +58,7 @@ import TemplateSelectDialog from './TemplateSelectDialog';
 import ScriptFormatPreferencesDialog from './ScriptFormatPreferencesDialog';
 import ScriptFormatPickerDialog from './ScriptFormatPickerDialog';
 import { useFormattingTemplateStore, ensureTemplatesLoaded } from '../stores/formattingTemplateStore';
-import { hasNumbering, numberingRulesOf } from '../utils/elementNumbers';
+import { hasNumbering, numberingRulesOf, assignElementNumbers } from '../utils/elementNumbers';
 import { applyScriptFormat } from '../utils/applyScriptFormat';
 import { isTitlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
 import { INDUSTRY_STANDARD_ID, ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
@@ -907,7 +909,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   // ── Per-attribute locking from active template ──
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
-  const formatNumbersElements = hasNumbering(numberingRulesOf(activeTemplate.rules));
+  const numberTargets = editor ? collectNumberedElements(editor.state.doc) : [];
+  const formatNumbersElements = hasNumbering(numberingRulesOf(activeTemplate.rules))
+    || numberTargets.some(f => f.item.number);
+  const elementReferencesLocked = editor ? elementNumbersAreLocked(editor.state.doc) : false;
+  const [numberDialog, setNumberDialog] = useState<{position: number; node: unknown; value: string} | null>(null);
+  const editElementNumber = () => {
+    if (!editor) return;
+    const target = elementNumberAt(editor.state.doc, editor.state.selection.from);
+    if (!target) return;
+    const labels = assignElementNumbers(numberTargets.map(f => f.item), numberingRulesOf(activeTemplate.rules), {sceneNumbersVisible});
+    setNumberDialog({position: target.from, node: target.node, value: labels[numberTargets.findIndex(f => f.from === target.from)] ?? ''});
+  };
   const isEnforceMode = activeTemplate.mode === 'enforce';
   const editorRule = editor ? getCurrentElementRule(editor, activeTemplate) : null;
   const locked = getLockedFormatting(editorRule, isEnforceMode);
@@ -3273,6 +3286,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
               disabled: !formatNumbersElements,
             },
             {
+              icon: <FaLock />,
+              label: elementReferencesLocked ? '\u2713 Lock Element Numbers' : 'Lock Element Numbers',
+              disabled: !editor || !formatNumbersElements || isCollabGuest,
+              action: () => {
+                if (!editor) return;
+                const ok = elementReferencesLocked ? editor.commands.unlockElementNumbers() : editor.commands.lockElementNumbers();
+                if (ok) showToast(elementReferencesLocked ? 'Element numbers flow automatically again' : 'Element references locked; inserted lines get suffixes', 'success');
+              },
+            },
+            {
+              icon: <FaPencilAlt />, label: 'Edit Element Number\u2026', action: editElementNumber,
+              disabled: !editor || !elementNumberAt(editor.state.doc, editor.state.selection.from) || isCollabGuest,
+            },
+            {
               icon: <FaSlidersH />, label: 'Element Numbering\u2026',
               title: 'Choose which elements are numbered and what restarts each count, in the formatting template',
               action: () => setTemplateSelectOpen(true),
@@ -3823,6 +3850,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
         }}
       />
     )}
+    {numberDialog && <ElementNumberDialog
+      initialValue={numberDialog.value}
+      onClose={() => setNumberDialog(null)}
+      onSave={value => !!editor && editor.state.doc.nodeAt(numberDialog.position) === numberDialog.node
+        && editor.commands.setElementNumber(value, numberDialog.position)}
+    />}
     <RecoverBackupDialog
       open={recoverBackupOpen}
       onClose={() => setRecoverBackupOpen(false)}

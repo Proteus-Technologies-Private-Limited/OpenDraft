@@ -80,8 +80,9 @@ function editorPages(json: JSONContent, layout: Layout): number[] {
   let page = 1;
   let b = 0;
   for (let i = 0; i < nodes.length; i++) {
-    while (b < breaks.length && breaks[b].nodeIndex === i) { page = breaks[b].pageNumber; b++; }
+    while (b < breaks.length && breaks[b].nodeIndex === i && !breaks[b].contentOffset) { page = breaks[b].pageNumber; b++; }
     pages[i] = page;
+    while (b < breaks.length && breaks[b].nodeIndex === i) { page = breaks[b].pageNumber; b++; }
   }
   return pages;
 }
@@ -189,8 +190,8 @@ describe('a page break lands on the same element in both', () => {
     );
     const { editor, disagree } = await bothWays(json);
     expect(disagree).toEqual([]);
-    // Split after the first paragraph, not the second.
-    expect(editor.slice(fill, fill + 4)).toEqual([1, 1, 2, 2]);
+    // The three-line paragraph can now begin here and continue on page two.
+    expect(editor.slice(fill, fill + 4)).toEqual([1, 1, 1, 2]);
   });
 
   it('turns the page again inside a speech longer than a sheet', async () => {
@@ -417,8 +418,24 @@ function lockedEditorPages(json: JSONContent): number[] {
   let page = 1;
   let b = 0;
   for (let i = 0; i < nodes.length; i++) {
-    while (b < breaks.length && breaks[b].nodeIndex === i) { page = breaks[b].pageNumber; b++; }
+    while (b < breaks.length && breaks[b].nodeIndex === i && !breaks[b].contentOffset) { page = breaks[b].pageNumber; b++; }
     pages[i] = page;
+    while (b < breaks.length && breaks[b].nodeIndex === i) { page = breaks[b].pageNumber; b++; }
   }
   return pages;
 }
+
+
+describe('single paragraphs spanning several sheets', () => {
+  for (const type of ['action','dialogue']) it(`preserves every word of a long ${type} exactly once`, async () => {
+    const text = Array.from({length:1800},(_,i)=>`word${i}`).join(' ');
+    const json = type==='dialogue' ? doc(block('character','SARAH'),block(type,text)) : doc(block(type,text));
+    await exportPDF(json,'Long paragraph',DEFAULT_PAGE_LAYOUT);
+    const words = draws.flatMap(d=>d.text.match(/word\d+/g)??[]);
+    expect(words).toEqual(text.split(' '));
+    const pagination = computeBreaks(pmDoc(json),DEFAULT_PAGE_LAYOUT,activeTemplateHints());
+    expect(pageCount).toBe(pagination.pageCount);
+    expect(pageCount).toBeGreaterThan(2);
+    expect(draws.filter(d=>/word\d+/.test(d.text)).every(d=>d.y<=DEFAULT_PAGE_LAYOUT.pageHeight*72-DEFAULT_PAGE_LAYOUT.bottomMargin)).toBe(true);
+  });
+});

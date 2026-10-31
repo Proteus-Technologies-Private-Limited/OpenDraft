@@ -32,7 +32,7 @@ declare module '@tiptap/core' {
 export function pagesLocked(doc: PMNode): boolean {
   let found = false;
   doc.forEach((node) => {
-    if (!found && lockedPageOf(node.attrs)) found = true;
+    if (!found && (lockedPageOf(node.attrs) || node.attrs.lockedPageContinuations?.length)) found = true;
   });
   return found;
 }
@@ -68,12 +68,12 @@ export function sceneNumbersIn(doc: PMNode): Set<string> {
 function stripAnchors(fragment: Fragment, existingNumbers: ReadonlySet<string>): Fragment {
   const out: PMNode[] = [];
   fragment.forEach((node) => {
-    const anchored = !!lockedPageOf(node.attrs);
+    const anchored = !!lockedPageOf(node.attrs) || !!node.attrs.lockedPageContinuations?.length;
     const num = node.type.name === 'sceneHeading' ? node.attrs.sceneNumber : null;
     const takenNumber = num != null && num !== '' && existingNumbers.has(String(num));
     if (anchored || takenNumber) {
       const attrs: Record<string, unknown> = { ...node.attrs };
-      if (anchored) { attrs[LOCKED_PAGE_ATTR] = null; attrs[LOCKED_PAGE_MID_ATTR] = false; }
+      if (anchored) { attrs[LOCKED_PAGE_ATTR] = null; attrs[LOCKED_PAGE_MID_ATTR] = false; attrs.lockedPageContinuations = null; }
       if (takenNumber) attrs.sceneNumber = null;
       out.push(node.type.create(attrs, node.content, node.marks));
     } else {
@@ -90,6 +90,11 @@ export const LockedPages = Extension.create({
     return [{
       types: LOCKABLE_BLOCK_TYPES,
       attributes: {
+        lockedPageContinuations: {
+          default:null,keepOnSplit:false,
+          parseHTML:(el:HTMLElement)=>{try {const value=JSON.parse(el.getAttribute('data-locked-page-continuations')??'null');return Array.isArray(value)&&value.every(s=>typeof s==='string')?value:null;}catch{return null;}},
+          renderHTML:(attrs:Record<string,unknown>)=>Array.isArray(attrs.lockedPageContinuations)?{'data-locked-page-continuations':JSON.stringify(attrs.lockedPageContinuations)}:{},
+        },
         [LOCKED_PAGE_ATTR]: {
           default: null,
           // Enter at the end of a page's first line must not anchor the new
@@ -120,7 +125,8 @@ export const LockedPages = Extension.create({
         if (dispatch) {
           // Clear any stale anchor first, so a relock starts clean.
           state.doc.forEach((node, offset) => {
-            if (lockedPageOf(node.attrs)) {
+            if (lockedPageOf(node.attrs) || node.attrs.lockedPageContinuations?.length) {
+              tr.setNodeAttribute(offset, 'lockedPageContinuations', null);
               tr.setNodeAttribute(offset, LOCKED_PAGE_ATTR, null);
               tr.setNodeAttribute(offset, LOCKED_PAGE_MID_ATTR, false);
             }
@@ -131,6 +137,11 @@ export const LockedPages = Extension.create({
             const node = state.doc.child(p.nodeIndex);
             if (!node.type.spec.attrs || !(LOCKED_PAGE_ATTR in node.type.spec.attrs)) {
               console.warn(`[lockedPages] a ${node.type.name} cannot carry a page anchor; page ${p.label} is not locked`);
+              continue;
+            }
+            if(p.contentOffset!==undefined){
+              const list=tr.doc.nodeAt(offsets[p.nodeIndex])?.attrs.lockedPageContinuations??[];
+              tr.setNodeAttribute(offsets[p.nodeIndex],'lockedPageContinuations',[...list,p.label]);
               continue;
             }
             tr.setNodeAttribute(offsets[p.nodeIndex], LOCKED_PAGE_ATTR, p.label);
@@ -145,7 +156,8 @@ export const LockedPages = Extension.create({
         if (!pagesLocked(state.doc)) return false;
         if (dispatch) {
           state.doc.forEach((node, offset) => {
-            if (!lockedPageOf(node.attrs)) return;
+            if (!lockedPageOf(node.attrs) && !node.attrs.lockedPageContinuations?.length) return;
+            tr.setNodeAttribute(offset, 'lockedPageContinuations', null);
             tr.setNodeAttribute(offset, LOCKED_PAGE_ATTR, null);
             tr.setNodeAttribute(offset, LOCKED_PAGE_MID_ATTR, false);
           });
@@ -182,6 +194,18 @@ export const LockedPages = Extension.create({
           }
         }
         state.doc.forEach((node, offset) => {
+          const continuations = node.attrs.lockedPageContinuations as string[] | null;
+          if (continuations?.length) {
+            const kept = continuations.filter(label => {
+              if (seen.has(label)) return false;
+              seen.add(label);
+              return true;
+            });
+            if (kept.length !== continuations.length) {
+              tr = tr ?? state.tr;
+              tr.setNodeAttribute(offset, 'lockedPageContinuations', kept.length ? kept : null);
+            }
+          }
           const a = lockedPageOf(node.attrs);
           if (!a) return;
           if (!seen.has(a.label)) { seen.add(a.label); return; }
