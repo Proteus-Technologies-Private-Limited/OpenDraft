@@ -8,6 +8,7 @@
 
   // Search index: each entry has page, title, section, text, url
   const searchIndex = [
+    { page: 'Writing', title: 'Dictation and Voice Commands', section: 'Dictation', text: 'Tools Dictation microphone speech to text local Whisper browser device speech recognition iOS Android new scene character Sarah literal commands review transcript insert', url: 'writing-screenplay.html#dictation' },
     // Index / Home
     { page: 'Home', title: 'Welcome to OpenDraft', section: '', text: 'Free open-source screenwriting application. Professional screenplay editing with real-time collaboration. No subscription required.', url: 'index.html' },
     { page: 'Home', title: 'Quick Start', section: 'Quick Start', text: 'Install OpenDraft download desktop app. Create a project. Start writing new script. Save your work Cmd S check in version checkpoint.', url: 'index.html#quick-start' },

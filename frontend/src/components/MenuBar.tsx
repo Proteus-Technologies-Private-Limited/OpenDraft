@@ -71,6 +71,7 @@ import { useNavigate } from 'react-router-dom';
 import { flushPendingSave, setLeaveGuard, leaveEditor as leaveEditorScreen } from '../services/pendingSave';
 import { scriptApi } from '../services/scriptApi';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useDictationStore } from '../stores/dictationStore';
 import { useWritingGoalsStore } from '../stores/writingGoalsStore';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { clearSessionDoc } from '../utils/sessionDoc';
@@ -3143,6 +3144,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {
       label: 'Tools',
       items: [
+        { icon: <FaMicrophoneAlt />, label: 'Dictation…', action: () => useDictationStore.getState().setOpen(true), disabled: !editor || !editor.isEditable },
         {
           icon: <FaUserFriends />, label: 'Collaboration',
           children: [
@@ -3856,6 +3858,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 <li><strong>Plotlines and the Story Timeline</strong> &mdash; Give scenes to your A story, B story or a character&rsquo;s arc and see them as coloured rows sized by screen time (<em>View &rarr; Panels &rarr; Story Timeline</em>). Beat Board beats can link to the scenes that carry them, and jump straight there.</li>
                 <li><strong>Comic Book Scripts</strong> &mdash; A new <em>Comic Book</em> format: pages spelled out (PAGE ONE), panels numbered on each page, captions and balloons lettered in order. Turn it on in <em>Format &rarr; Script Format Preferences</em>.</li>
                 <li><strong>Notes You Can Discuss</strong> &mdash; Reply to a note, resolve it, assign it to a collaborator, and @mention people. Replies posted at the same moment by two collaborators no longer lose one. A Notes Report lists them all.</li>
+                <li><strong>Dictation</strong> &mdash; Tools &rarr; Dictation records a phrase for review before insertion. Choose local Whisper or a browser/device speech service, and optionally interpret English commands such as &ldquo;new scene&rdquo; and &ldquo;character Sarah&rdquo;.</li>
                 <li><strong>Writing Tools</strong> &mdash; Rename a character everywhere in one step (right-click a cue &rarr; <em>Character</em>); the <em>Dialogue Tuner</em> lists every line one character speaks; bookmarks; macros for text you type often; <em>Focus Mode</em> with typewriter scrolling (<kbd>&#8679;&#8984;F</kbd>); and daily goals, sprints and a words-written calendar.</li>
                 <li><strong>Your Work Travels</strong> &mdash; Bookmarks and line alternates are kept in Final Draft, Fade In and Fountain files and come back when OpenDraft opens them. Update OpenDraft on every device you use: an older version opens these scripts but drops bookmarks, alternates and plotlines if it saves them.</li>
                 <li><strong>Also Fixed</strong> &mdash; <kbd>&#8679;&#8984;N</kbd> adds a script note, as the menu says, instead of starting a new script, and <kbd>&#8679;&#8984;F</kbd> no longer opens Find as well. Script notes showed the scene before their own. In PDFs, the scene after an OMITTED heading lost its scene number. A damaged file you import now says so instead of replacing your script with a blank one.</li>

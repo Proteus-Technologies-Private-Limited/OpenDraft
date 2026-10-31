@@ -108,3 +108,11 @@ A complete list of features in OpenDraft.
 
 - **Plugin Architecture** -- Extend OpenDraft with custom plugins: menu items, panels, routes, editor extensions, and importers, exporters and reports that join the built-in File and Analytics menus
 - **Open API** -- FastAPI backend with documented endpoints
+
+### Dictation and screenplay commands
+
+Tools → Dictation offers local Whisper on web/desktop, browser speech recognition,
+and device speech services on iOS/Android. Review the transcript before inserting.
+Opt-in English commands start scenes and named character cues. Local audio stays
+on-device; platform/browser providers may process it remotely. See
+[Dictation](DICTATION.md) for usage, limits and the remaining native-device checks.
