@@ -4,6 +4,8 @@ A complete list of features in OpenDraft.
 
 ## Screenplay Editor
 
+- **Portable custom formats** -- Native scripts and backups include the full custom template, including custom elements, numbering and flow rules. Other devices and collaborators use the document copy without replacing their own templates; edit it per document or save a reusable copy.
+
 - **Industry-standard formatting** -- Scene headings, action, character, dialogue, parenthetical, transition, and shot elements with proper Courier Prime formatting
 - **Character Autocomplete** -- Smart suggestions as you type character names
 - **Macros** -- Insert text you type often (CONTINUOUS, a recurring location, a character with an extension) with a shortcut or from Edit → Insert Macro, optionally as a given element; export and import them as JSON
@@ -58,6 +60,8 @@ A complete list of features in OpenDraft.
 - **Self-hosted** -- Run your own collaboration server for full privacy
 
 ## Import & Export
+
+- **Dual dialogue in Word** -- Both speeches export in side-by-side columns with inline formatting and return as dual dialogue when imported. Long exchanges use Word's pagination.
 
 - **Final Draft (.fdx)** -- Import and export
 - **Fountain (.fountain)** -- Import and export

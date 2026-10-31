@@ -16,7 +16,7 @@
  */
 import type { Editor } from '@tiptap/react';
 import { useEditorStore } from '../stores/editorStore';
-import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { useFormattingTemplateStore, activeTemplateSnapshot } from '../stores/formattingTemplateStore';
 import { spellChecker } from '../editor/spellchecker';
 import { grammarIgnore } from '../editor/grammar/grammarIgnore';
 
@@ -37,6 +37,7 @@ export const SAVE_METADATA_KEYS = [
   '_beatArrangeMode',
   '_plotlines',
   '_templateId',
+  '_templateSnapshot',
   '_ignoredWords',
   '_ignoredOnce',
   '_customDictWords',
@@ -71,6 +72,7 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
   const store = useEditorStore.getState();
   const tplStore = useFormattingTemplateStore.getState();
   const doc = editor.getJSON();
+  const template = activeTemplateSnapshot();
   return {
     ...doc,
     _notes: store.notes,
@@ -86,6 +88,7 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
     // saves exactly as before. Absent reads as none.
     ...(store.plotlines.length ? { _plotlines: store.plotlines } : {}),
     _templateId: tplStore.activeTemplateId,
+    ...(template ? { _templateSnapshot: template } : {}),
     _ignoredWords: spellChecker.getIgnoredWords(),
     _ignoredOnce: spellChecker.getIgnoredOnce(),
     // Project dictionary lives on the Project entity now; keep the script

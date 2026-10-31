@@ -44,7 +44,7 @@ import Strike from '@tiptap/extension-strike';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { PastedHighlight } from '../editor/extensions/PastedHighlight';
-import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { useFormattingTemplateStore, subscribeActiveTemplate } from '../stores/formattingTemplateStore';
 import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
@@ -953,8 +953,7 @@ const ScreenplayEditor: React.FC = () => {
       collabInitialContent.current = collabSeedFrom(content);
 
       // Restore per-document template
-      const tplId = (content as any)?._templateId;
-      useFormattingTemplateStore.getState().setActiveTemplateId(typeof tplId === 'string' ? tplId : null);
+      useFormattingTemplateStore.getState().restoreDocumentTemplate((content as any)?._templateId, (content as any)?._templateSnapshot);
 
       const docName = `${projectId}/${scriptId}${nonce ? `/${nonce}` : ''}`;
       setupCollab(docName, sharedToken, collabUserName, false, collabWs);
@@ -2168,6 +2167,7 @@ const ScreenplayEditor: React.FC = () => {
   const activeTemplateId = useFormattingTemplateStore((s) => s.activeTemplateId);
   const templatesLoaded = useFormattingTemplateStore((s) => s.loaded);
   const templates = useFormattingTemplateStore((s) => s.templates);
+  const documentTemplate = useFormattingTemplateStore((s) => s.documentTemplate);
   const sceneHeadingSpaceBefore = useEditorStore((s) => s.sceneHeadingSpaceBefore);
 
   useEffect(() => {
@@ -2201,7 +2201,7 @@ const ScreenplayEditor: React.FC = () => {
     injectTemplateCss(overrideCss ? `${css}\n${overrideCss}` : css);
 
     return () => { injectTemplateCss(null); };
-  }, [activeTemplateId, templatesLoaded, templates, pageLayout, sceneHeadingSpaceBefore]);
+  }, [activeTemplateId, templatesLoaded, templates, documentTemplate, pageLayout, sceneHeadingSpaceBefore]);
 
   // Element numbers follow the format and the scene numbers, neither of which
   // is in the document — so a change to either has to ask for a recount.
@@ -2213,7 +2213,7 @@ const ScreenplayEditor: React.FC = () => {
     } catch (err) {
       console.warn('[elementNumbers] could not refresh element numbers', err);
     }
-  }, [editor, activeTemplateId, templatesLoaded, templates, sceneNumbersVisible]);
+  }, [editor, activeTemplateId, templatesLoaded, templates, documentTemplate, sceneNumbersVisible]);
 
   // ── Focus Mode (View → Focus Mode) ──
   const focusMode = useEditorStore((s) => s.focusMode);
@@ -2700,7 +2700,7 @@ const ScreenplayEditor: React.FC = () => {
       editor.view.dispatch(tr);
     }, 300);
     return () => clearTimeout(t);
-  }, [editor, pageLayout, activeTemplateId, templates, templatesLoaded, sceneHeadingSpaceBefore, footnoteSig]);
+  }, [editor, pageLayout, activeTemplateId, templates, documentTemplate, templatesLoaded, sceneHeadingSpaceBefore, footnoteSig]);
 
   // --- Initialize spell checker on mount ---
   useEffect(() => {
@@ -3325,27 +3325,13 @@ const ScreenplayEditor: React.FC = () => {
   // With auto-save off — or for a file opened in place, whose own auto-save
   // runs from the menu bar — it only marks the document unsaved.
   useEffect(() => {
-    if (!editor || !hasSaveTarget || isCollabGuest) return;
+    if (!editor || !hasSaveTarget || isCollabGuest || isHistoryMode) return;
     const pid = currentProject?.id ?? null;
     const sid = currentScriptId;
     const saveToLibrary = Boolean(pid && sid) && autoSaveLibrary;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
-    const unsub = useEditorStore.subscribe((state, prev) => {
-      // Only react to metadata field changes
-      if (
-        state.characterRelationships === prev.characterRelationships &&
-        state.characterProfiles === prev.characterProfiles &&
-        state.notes === prev.notes &&
-        state.generalNotes === prev.generalNotes &&
-        state.tags === prev.tags &&
-        state.beats === prev.beats &&
-        state.beatColumns === prev.beatColumns &&
-        state.plotlines === prev.plotlines &&
-        state.scriptProfile === prev.scriptProfile &&
-        state.spellCheckEnabled === prev.spellCheckEnabled &&
-        state.grammarCheckEnabled === prev.grammarCheckEnabled
-      ) return;
+    const persistMetadataChange = () => {
       if (scriptSwitchingRef.current) return;
       // Mark unsaved immediately
       const { saveStatus, setSaveStatus } = useEditorStore.getState();
@@ -3378,10 +3364,29 @@ const ScreenplayEditor: React.FC = () => {
           });
         }
       }, 2000);
-    });
+    };
 
-    return () => { unsub(); if (timer) clearTimeout(timer); };
-  }, [editor, hasSaveTarget, currentProject, currentScriptId, buildSaveContent, isCollabGuest, autoSaveLibrary]);
+    const unsub = useEditorStore.subscribe((state, prev) => {
+      // Only react to metadata field changes
+      if (
+        state.characterRelationships === prev.characterRelationships &&
+        state.characterProfiles === prev.characterProfiles &&
+        state.notes === prev.notes &&
+        state.generalNotes === prev.generalNotes &&
+        state.tags === prev.tags &&
+        state.beats === prev.beats &&
+        state.beatColumns === prev.beatColumns &&
+        state.plotlines === prev.plotlines &&
+        state.scriptProfile === prev.scriptProfile &&
+        state.spellCheckEnabled === prev.spellCheckEnabled &&
+        state.grammarCheckEnabled === prev.grammarCheckEnabled
+      ) return;
+      persistMetadataChange();
+    });
+    const unsubTemplate = subscribeActiveTemplate(persistMetadataChange);
+
+    return () => { unsub(); unsubTemplate(); if (timer) clearTimeout(timer); };
+  }, [editor, hasSaveTarget, currentProject, currentScriptId, buildSaveContent, isCollabGuest, isHistoryMode, autoSaveLibrary]);
 
   // --- Persist project dictionary words when they change ---
   // Words live on the Project entity (shared by every script in the project).
@@ -3845,11 +3850,7 @@ const ScreenplayEditor: React.FC = () => {
             }
             store.setElementNumbersVisible(c._elementNumbersVisible !== false);
             // Restore per-document formatting template
-            if (c._templateId && typeof c._templateId === 'string') {
-              useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
-            } else {
-              useFormattingTemplateStore.getState().setActiveTemplateId(null);
-            }
+            useFormattingTemplateStore.getState().restoreDocumentTemplate(c._templateId, c._templateSnapshot);
             // Restore per-document ignored words for spell check
             const ignoredArr = parseAttr(c._ignoredWords);
             spellChecker.setIgnoredWords(ignoredArr as string[]);
@@ -4374,11 +4375,7 @@ const ScreenplayEditor: React.FC = () => {
           store.setBeatColumns(beatCols2 as import('../stores/editorStore').BeatColumn[]);
           store.setPlotlines(parseAttr2(c._plotlines) as import('../utils/plotlines').Plotline[]);
           // Restore per-document template
-          if (c._templateId && typeof c._templateId === 'string') {
-            useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
-          } else {
-            useFormattingTemplateStore.getState().setActiveTemplateId(null);
-          }
+          useFormattingTemplateStore.getState().restoreDocumentTemplate(c._templateId, c._templateSnapshot);
           // Restore per-document page layout (header/footer, margins)
           if (c._pageLayout && typeof c._pageLayout === 'object') {
             store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT, ...(c._pageLayout as Record<string, unknown>) });

@@ -19,7 +19,7 @@
 import type { JSONContent } from '@tiptap/react';
 import type { ElementNumbering, FormattingElementRule } from '../stores/formattingTypes';
 import { AV_BLOCK_RULE_ID, isTitlePageRuleId } from '../stores/formattingTypes';
-import { useFormattingTemplateStore, findTemplate } from '../stores/formattingTemplateStore';
+import { useFormattingTemplateStore, templateForSavedContent } from '../stores/formattingTemplateStore';
 import { elementIdOf } from './pageBreaks';
 import { NON_PRINTING_TYPES } from './nonPrinting';
 
@@ -92,8 +92,7 @@ export function getElementNumberingRules(): NumberingRules {
  */
 export function numberingRulesForSaved(content: Record<string, unknown> | null | undefined): NumberingRules {
   try {
-    const id = content?._templateId;
-    return numberingRulesOf(findTemplate(typeof id === 'string' ? id : null)?.rules);
+    return numberingRulesOf(templateForSavedContent(content)?.rules);
   } catch (err) {
     console.warn('[elementNumbers] could not read the saved script\'s numbering rules', err);
     return {};

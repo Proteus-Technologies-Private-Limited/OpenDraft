@@ -14730,3 +14730,8 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
   font-size: 9px;
   color: var(--fd-text-muted);
 }
+
+/* Document-carried formats stay usable on narrow screens. */
+.document-template-card .template-select-item-info { flex-wrap: wrap; }
+.document-template-card .template-select-item-actions { flex-wrap: wrap; }
+.document-template-card .template-select-hint { flex-basis: 100%; margin: 4px 0; }

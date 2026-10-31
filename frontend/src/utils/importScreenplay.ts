@@ -23,6 +23,7 @@ import { parseWriterDuet } from './writerDuetParser';
 import { parseCeltx } from './celtxParser';
 import { hydrateEditorStoresFromContent } from './hydrateStores';
 import { restoreRevisionState } from './revisionState';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { useEditorStore, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
 import { pluginRegistry, type PluginImporter } from '../plugins/registry';
 import { reviewPdfImport } from './pdfImportReview';
@@ -438,7 +439,7 @@ export async function parseScreenplayImport(
     // imported .odraft comes back as bare text with all of that dropped.
     if (hydrateStores) {
       resetStoresForImport();
-      hydrateEditorStoresFromContent(parsed.content);
+      if (!hydrateEditorStoresFromContent(parsed.content)) useFormattingTemplateStore.getState().restoreDocumentTemplate(null);
     }
     // Images travel in the envelope's `assets` array. They were ignored here
     // entirely, so even a backup that had carefully packed them came back with

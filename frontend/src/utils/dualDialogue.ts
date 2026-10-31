@@ -21,6 +21,9 @@
 
 import { getTextLines } from './wrapText';
 
+/** Layout-only Word paragraph separating adjacent tables; never screenplay text. */
+export const DOCX_DUAL_SEPARATOR_STYLE = 'OpenDraftDualDialogueSeparator';
+
 /** One element inside a column. */
 export interface DualChild {
   /** `character`, `dialogue` or `parenthetical`. */

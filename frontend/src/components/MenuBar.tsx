@@ -3845,6 +3845,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
+              <div className="about-section-title">Upcoming Changes</div>
+              <ul>
+                <li><strong>Dual Dialogue in Word</strong> — DOCX exports retain both speeches side by side, and importing restores their columns.</li>
+                <li><strong>Custom Formats Travel with Scripts</strong> — Native files and backups carry custom elements, numbering and formatting. Other devices and collaborators use the document's format without replacing their own template library. Edit the document copy or save a reusable copy in Formatting Template.</li>
+              </ul>
               <div className="about-section-title">What's New in 2.8.0</div>
               <div className="about-changelog">
               <div className="about-subsection-title">v2.8.0</div>

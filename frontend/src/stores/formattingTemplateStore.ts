@@ -6,6 +6,7 @@
  */
 
 import { create } from 'zustand';
+import { parseTemplateSnapshot } from '../utils/templateSnapshot';
 import type { FormattingTemplate } from './formattingTypes';
 import { INDUSTRY_STANDARD_ID } from './formattingTypes';
 import { INDUSTRY_STANDARD_TEMPLATE } from './industryStandardTemplate';
@@ -32,6 +33,11 @@ export const SYSTEM_TEMPLATES: Record<string, FormattingTemplate> = {
   [AV_SCRIPT_ID]: AV_SCRIPT_TEMPLATE,
 };
 
+/** Works in older WebViews as well as current browsers. */
+export function isSystemTemplateId(id: string): boolean {
+  return Object.prototype.hasOwnProperty.call(SYSTEM_TEMPLATES, id);
+}
+
 /** Ordered list of system templates for the format picker. */
 export const SYSTEM_TEMPLATE_LIST: FormattingTemplate[] = [
   INDUSTRY_STANDARD_TEMPLATE,
@@ -49,6 +55,9 @@ interface FormattingTemplateState {
   templates: FormattingTemplate[];
   /** Active template id for the currently open document */
   activeTemplateId: string | null;
+  /** The open script's format, separate from this device's reusable library. */
+  documentTemplate: FormattingTemplate | null;
+  restoreDocumentTemplate: (id: unknown, snapshot?: unknown) => void;
   /** Whether templates have been loaded from storage */
   loaded: boolean;
 
@@ -138,6 +147,8 @@ function optionalFormatFields(source: Partial<FormattingTemplate>): Partial<Form
   if (source.titlePageFields?.length) out.titlePageFields = source.titlePageFields;
   if (source.forceBreakBefore?.length) out.forceBreakBefore = source.forceBreakBefore;
   if (source.lineHeightMultiplier) out.lineHeightMultiplier = source.lineHeightMultiplier;
+  if (source.scriptTypeGroup) out.scriptTypeGroup = source.scriptTypeGroup;
+  if (source.scriptTypeTagline) out.scriptTypeTagline = source.scriptTypeTagline;
   return out;
 }
 
@@ -170,7 +181,7 @@ function resolveTemplate(
   templates: FormattingTemplate[],
 ): FormattingTemplate | null {
   if (!id) return null;
-  const sys = SYSTEM_TEMPLATES[id];
+  const sys = isSystemTemplateId(id) ? SYSTEM_TEMPLATES[id] : null;
   if (sys) return sys;
   const found = templates.find((t) => t.id === id);
   return found ? withMissingRulesOnce(found) : null;
@@ -184,6 +195,37 @@ function resolveTemplate(
  */
 export function findTemplate(id: string | null | undefined): FormattingTemplate | null {
   return resolveTemplate(id, useFormattingTemplateStore.getState().templates);
+}
+
+/** Resolve a saved script independently of whichever document is open here. */
+export function templateForSavedContent(content: Record<string, unknown> | null | undefined): FormattingTemplate | null {
+  const id = content?._templateId;
+  if (typeof id !== 'string') return null;
+  if (isSystemTemplateId(id)) return SYSTEM_TEMPLATES[id];
+  const snapshot = parseTemplateSnapshot(content?._templateSnapshot, id);
+  return snapshot ? withMissingRulesOnce(snapshot) : findTemplate(id);
+}
+
+/** A detached copy of the active custom format, or no snapshot for built-ins. */
+export function activeTemplateSnapshot(): FormattingTemplate | null {
+  const store = useFormattingTemplateStore.getState();
+  const active = store.getActiveTemplate();
+  return active.id === store.activeTemplateId && !isSystemTemplateId(active.id)
+    ? JSON.parse(JSON.stringify(active)) as FormattingTemplate : null;
+}
+
+/** Metadata saves must notice format-only edits, without reacting to unrelated library changes. */
+export function subscribeActiveTemplate(listener: () => void): () => void {
+  let previous = useFormattingTemplateStore.getState().getActiveTemplate();
+  let previousId = useFormattingTemplateStore.getState().activeTemplateId;
+  return useFormattingTemplateStore.subscribe(state => {
+    const current = state.getActiveTemplate();
+    if (current !== previous || state.activeTemplateId !== previousId) {
+      previous = current;
+      previousId = state.activeTemplateId;
+      listener();
+    }
+  });
 }
 
 /** In-flight load, so callers arriving together share one round-trip. */
@@ -210,10 +252,17 @@ export async function ensureTemplatesLoaded(): Promise<void> {
 export const useFormattingTemplateStore = create<FormattingTemplateState>((set, get) => ({
   templates: [],
   activeTemplateId: null,
+  documentTemplate: null,
+  restoreDocumentTemplate: (value, snapshot) => {
+    const id = typeof value === 'string' && value ? value : null;
+    const parsed = id && !isSystemTemplateId(id) ? parseTemplateSnapshot(snapshot, id) : null;
+    set({ activeTemplateId: id, documentTemplate: parsed ? withMissingRulesOnce(parsed) : null });
+  },
   loaded: false,
 
   getActiveTemplate: () => {
-    const { activeTemplateId, templates } = get();
+    const { activeTemplateId, templates, documentTemplate } = get();
+    if (documentTemplate?.id === activeTemplateId) return documentTemplate;
     return resolveTemplate(activeTemplateId, templates) || INDUSTRY_STANDARD_TEMPLATE;
   },
 
@@ -279,7 +328,7 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
   deleteTemplate: async (id) => {
     set((s) => ({
       templates: s.templates.filter((t) => t.id !== id),
-      activeTemplateId: s.activeTemplateId === id ? null : s.activeTemplateId,
+      activeTemplateId: s.activeTemplateId === id && !s.documentTemplate ? null : s.activeTemplateId,
     }));
     // A deleted template must also stop being a format new scripts can be
     // started in — otherwise the preference outlives the template it names and
@@ -314,6 +363,6 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
   },
 
   setActiveTemplateId: (id) => {
-    set({ activeTemplateId: id });
+    set({ activeTemplateId: id, documentTemplate: null });
   },
 }));

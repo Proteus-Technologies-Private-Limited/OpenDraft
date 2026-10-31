@@ -26,6 +26,12 @@ import {
   FootnoteReferenceRun,
   EndnoteReferenceRun,
   Table,
+  TableRow,
+  TableCell,
+  TableLayoutType,
+  WidthType,
+  BorderStyle,
+  VerticalAlign,
   Tab,
 } from 'docx';
 import type { ISectionOptions } from 'docx';
@@ -49,6 +55,7 @@ import { avRowNodes, avFrameKey } from './avPdfTable';
 import { readColumnConfig } from '../editor/extensions/AvBlock';
 import { isNonPrintingType } from './nonPrinting';
 import { runFont } from './docxScriptFonts';
+import { DUAL_PADDING, DOCX_DUAL_SEPARATOR_STYLE } from './dualDialogue';
 import { withElementNumbers, elementNumberOf } from './elementNumbers';
 
 // --- Layout constants (mirror pdfExporter.ts) ---
@@ -382,11 +389,14 @@ function buildElementParagraph(
   isEndnote: (noteId: string) => boolean = () => false,
   /** How revised paragraphs are marked; null writes no marks. */
   revisionMarks: RevisionSettings | null = null,
+  dualColumn?: { width: number; first: boolean },
 ): Paragraph {
   const typeName = node.type || 'general';
-  const indent = indentForType(typeName, layout);
+  const padding = DUAL_PADDING[typeName] ?? [0.3, 0.1];
+  const scale = dualColumn ? Math.min(1, dualColumn.width / (3 * TWIPS_PER_INCH)) : 1;
+  const indent = dualColumn ? { left: Math.round(padding[0] * TWIPS_PER_INCH * scale), right: Math.round(padding[1] * TWIPS_PER_INCH * scale) } : indentForType(typeName, layout);
   let alignment = alignmentForType(typeName);
-  const sb = isFirst ? 0 : (spaceBeforeLines[typeName] ?? 0) * LINE_HEIGHT_PT;
+  const sb = dualColumn ? (dualColumn.first && typeName === 'character' ? LINE_HEIGHT_PT : 0) : isFirst ? 0 : (spaceBeforeLines[typeName] ?? 0) * LINE_HEIGHT_PT;
   const styledRuns = applyTypeStyles(extractRuns(node), typeName);
   let children: (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] = buildTextRuns(styledRuns, docFont, refs, isEndnote);
 
@@ -399,10 +409,10 @@ function buildElementParagraph(
   const revision = revisionMarks ? blockRevision(node) : null;
   let tabStops: { type: (typeof TabStopType)[keyof typeof TabStopType]; position: number }[] | undefined;
   if (revision !== null) {
-    const markX = Math.round((revisionMarkXPt(layout.pageWidth * 72) / 72 - layout.leftMargin) * TWIPS_PER_INCH);
+    const markX = dualColumn ? dualColumn.width - 60 : Math.round((revisionMarkXPt(layout.pageWidth * 72) / 72 - layout.leftMargin) * TWIPS_PER_INCH);
     tabStops = [{ type: TabStopType.LEFT, position: markX }];
     const singleLine = !styledRuns.some((r) => r.isBreak);
-    const textRight = Math.round((layout.pageWidth - layout.leftMargin - layout.rightMargin) * TWIPS_PER_INCH) - indent.right;
+    const textRight = (dualColumn?.width ?? Math.round((layout.pageWidth - layout.leftMargin - layout.rightMargin) * TWIPS_PER_INCH)) - indent.right;
     if (singleLine && alignment !== AlignmentType.LEFT) {
       const lead = alignment === AlignmentType.RIGHT
         ? { type: TabStopType.RIGHT, position: textRight }
@@ -435,9 +445,9 @@ function buildElementParagraph(
       bold: false, italics: false, allCaps: false,
     });
     if (alignmentForType(typeName) === AlignmentType.LEFT && alignment === AlignmentType.LEFT) {
-      hanging = TWIPS_PER_INCH;
+      hanging = dualColumn ? Math.min(TWIPS_PER_INCH / 4, indent.left) : TWIPS_PER_INCH;
       tabStops = [
-        { type: TabStopType.RIGHT, position: indent.left - Math.round(0.15 * TWIPS_PER_INCH) },
+        { type: TabStopType.RIGHT, position: dualColumn ? Math.max(0, indent.left - Math.round(0.15 * TWIPS_PER_INCH)) : indent.left - Math.round(0.15 * TWIPS_PER_INCH) },
         { type: TabStopType.LEFT, position: indent.left },
         ...(tabStops ?? []),
       ];
@@ -458,6 +468,7 @@ function buildElementParagraph(
       ...(hanging !== undefined ? { hanging } : {}),
     },
     pageBreakBefore: pageBreakBefore || undefined,
+    ...(dualColumn ? { keepNext: ['character', 'parenthetical'].includes(typeName) } : {}),
     spacing: {
       before: sb * TWIPS_PER_POINT,
       line: LINE_HEIGHT_PT * TWIPS_PER_POINT,
@@ -773,6 +784,35 @@ export async function exportDocx(
     // The template's forced-break elements and the per-element "start on new
     // page" flag still each open a page of their own.
     const forcePageBreak = i > 0 && jsonStartsOwnPage(bodyNodes[i], forceBreakIds);
+    if (bodyNodes[i].type === 'dualDialogue') {
+      if (forcePageBreak) bodyParagraphs.push(new Paragraph({ pageBreakBefore: true, children: [] }));
+      const widths = [Math.floor(contentWidthTw / 2), contentWidthTw - Math.floor(contentWidthTw / 2)];
+      const noBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' } as const;
+      const borders = { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder };
+      const columns = bodyNodes[i].content ?? [];
+      bodyParagraphs.push(new Table({
+        width: { size: contentWidthTw, type: WidthType.DXA },
+        layout: TableLayoutType.FIXED,
+        columnWidths: widths,
+        borders: { ...borders, insideHorizontal: noBorder, insideVertical: noBorder },
+        rows: [new TableRow({
+          // Let Word paginate long speeches; keeping the entire row together
+          // would move or overflow a multi-page exchange.
+          cantSplit: false,
+          children: widths.map((width, col) => new TableCell({
+            width: { size: width, type: WidthType.DXA },
+            borders, margins: { top: 0, bottom: 0, left: 0, right: 0 },
+            verticalAlign: VerticalAlign.TOP,
+            children: columns[col]?.content?.length ? columns[col].content!.map((child, index) =>
+              buildElementParagraph(child, layout, false, jsonStartsOwnPage(child, forceBreakIds), docFont, spaceBeforeLines,
+                [], undefined, revisionMarks, { width, first: index === 0 })) : [new Paragraph({ children: [] })],
+          })),
+        })],
+      }));
+      // Adjacent Word tables otherwise merge, including a following AV body.
+      bodyParagraphs.push(new Paragraph({ style: DOCX_DUAL_SEPARATOR_STYLE, spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT }, children: [] }));
+      continue;
+    }
     if (bodyNodes[i].type === 'avBlock') {
       const node = bodyNodes[i];
       const body = extractAvBodies({ type: 'doc', content: [node] })[0];
@@ -966,13 +1006,13 @@ export async function exportDocx(
       // Named styles carry the element type through the file. The per-paragraph
       // indent/spacing/run properties are still written directly, so a reader
       // that ignores styles sees exactly what it saw before.
-      paragraphStyles: Object.entries(STYLE_NAMES).map(([id, name]) => ({
+      paragraphStyles: [...Object.entries(STYLE_NAMES).map(([id, name]) => ({
         id,
         name,
         basedOn: 'Normal',
         next: 'Normal',
         quickFormat: true,
-      })),
+      })), ...(bodyNodes.some(node => node.type === 'dualDialogue') ? [{ id: DOCX_DUAL_SEPARATOR_STYLE, name: 'Dual Dialogue Separator', basedOn: 'Normal', next: 'Normal' }] : [])],
     },
     sections,
   });

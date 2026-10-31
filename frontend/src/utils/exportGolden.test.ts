@@ -402,8 +402,8 @@ describe('golden export: podcast, numbering on', () => {
     const off = paras(offXml);
     expect(on).toHaveLength(off.length);
     const numbered = on.filter((p) => p.includes('w:hanging='));
-    // Dual dialogue is not written to Word at all yet, so its two lines are absent here.
-    expect(numbered).toHaveLength(podcastLabels().length - 2);
+    // Dialogue numbering includes both speeches in the side-by-side table.
+    expect(numbered).toHaveLength(podcastLabels().length);
     on.forEach((p, k) => { if (!p.includes('w:hanging=')) expect(p).toBe(off[k]); });
     await expect(onXml).toMatchFileSnapshot(SNAP('podcast-numbered', 'docx.xml'));
   });
