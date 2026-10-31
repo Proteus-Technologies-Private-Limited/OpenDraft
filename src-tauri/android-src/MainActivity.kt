@@ -85,6 +85,74 @@ class MainActivity : TauriActivity() {
     }
 
     companion object {
+        private const val DICTATION_REQUEST = 4021
+        @Volatile private var dictationId: String? = null
+        private val dictationEvents = java.util.concurrent.ConcurrentLinkedQueue<JSONObject>()
+
+        private fun dictationEvent(id: String, kind: String, text: String = "", message: String = "") {
+            while (dictationEvents.size > 50) dictationEvents.poll()
+            dictationEvents.add(JSONObject().put("id", id).put("kind", kind).put("text", text).put("message", message))
+        }
+
+        @JvmStatic
+        fun dictationStart(context: Context, id: String, language: String): String? {
+            val activity = context as? android.app.Activity ?: return "No speech activity is available."
+            activity.runOnUiThread {
+                // One system dialog at a time; a cancelled result must not reach a later session.
+                if (dictationId != null) {
+                    dictationEvent(id, "error", message = "Close the previous device speech dialog first.")
+                } else {
+                    dictationId = id
+                    try {
+                        val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                        intent.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        intent.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, language)
+                        intent.putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Dictate a screenplay phrase")
+                        activity.startActivityForResult(intent, DICTATION_REQUEST)
+                    } catch (e: Exception) {
+                        dictationId = null
+                        dictationEvent(id, "error", message = "Device speech recognition is unavailable. Install or enable a speech provider.")
+                    }
+                }
+            }
+            return null
+        }
+
+        @JvmStatic
+        fun dictationStop(context: Context, id: String): String? {
+            val activity = context as? android.app.Activity ?: return null
+            activity.runOnUiThread {
+                if (dictationId == id) {
+                    activity.finishActivity(DICTATION_REQUEST)
+                    // Keep ownership until onActivityResult drains the cancelled dialog.
+                }
+            }
+            return null
+        }
+
+        fun handleDictationResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+            if (requestCode != DICTATION_REQUEST) return false
+            val id = dictationId
+            dictationId = null
+            if (id != null) {
+                if (resultCode == android.app.Activity.RESULT_OK) {
+                    val text = data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+                    if (!text.isNullOrBlank()) dictationEvent(id, "result", text)
+                }
+                dictationEvent(id, "end")
+            }
+            return true
+        }
+
+        @JvmStatic
+        fun dictationPoll(context: Context, id: String): String? {
+            val events = org.json.JSONArray()
+            for (event in dictationEvents) {
+                if (event.optString("id") == id && dictationEvents.remove(event)) events.put(event)
+            }
+            return events.toString()
+        }
+
         /** URI from a file picker (ACTION_OPEN_DOCUMENT) result. */
         @JvmStatic
         var pickedFileUri: String? = null
@@ -700,6 +768,7 @@ class MainActivity : TauriActivity() {
     @Suppress("DEPRECATION")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (handleDictationResult(requestCode, resultCode, data)) return;
         when (requestCode) {
             PICK_FILE_REQUEST -> {
                 if (resultCode == RESULT_OK) {

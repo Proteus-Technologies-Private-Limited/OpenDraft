@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D1C7A7100000000000000001 /* Speech.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1C7A7100000000000000002 /* Speech.framework */; };
+		D1C7A7100000000000000003 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1C7A7100000000000000004 /* AVFoundation.framework */; };
 		0254065F3755EF453A6A26A6 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = FC8D9AD0011D77CD0AA37DC5 /* LaunchScreen.storyboard */; };
 		18B956BB4F3BAAC829B400FD /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3DDE3F366A006C6188CA5089 /* UIKit.framework */; };
 		1AAE50FCACBF20E02FF90000 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3E00B9A1B643D5F946FC393B /* Assets.xcassets */; };
@@ -23,6 +25,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		D1C7A7100000000000000002 /* Speech.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Speech.framework; path = System/Library/Frameworks/Speech.framework; sourceTree = SDKROOT; };
+		D1C7A7100000000000000004 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		0364694D9B8DB91B112265FD /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		0854948C3ABFAA90D73DFE6D /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		166CC57D995CBD78BEDB8606 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
@@ -57,6 +61,8 @@
 				3CE62A7856D8E58C03E251D5 /* QuartzCore.framework in Frameworks */,
 				A1C9122B1F65788BDD929F26 /* Security.framework in Frameworks */,
 				18B956BB4F3BAAC829B400FD /* UIKit.framework in Frameworks */,
+				D1C7A7100000000000000001 /* Speech.framework in Frameworks */,
+				D1C7A7100000000000000003 /* AVFoundation.framework in Frameworks */,
 				36294E6DAC908F250E85DD42 /* WebKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -123,6 +129,8 @@
 				EFF9E32714B0BEEB54BFB31D /* QuartzCore.framework */,
 				0364694D9B8DB91B112265FD /* Security.framework */,
 				3DDE3F366A006C6188CA5089 /* UIKit.framework */,
+				D1C7A7100000000000000002 /* Speech.framework */,
+				D1C7A7100000000000000004 /* AVFoundation.framework */,
 				166CC57D995CBD78BEDB8606 /* WebKit.framework */,
 			);
 			name = Frameworks;

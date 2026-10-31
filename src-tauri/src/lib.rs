@@ -2,6 +2,7 @@ use std::sync::Mutex;
 
 /// Platform text-to-speech for Table Read (issue #131).
 mod tts;
+mod dictation;
 use percent_encoding::percent_decode_str;
 use tauri::{Emitter, Manager};
 #[cfg(desktop)]
@@ -2932,6 +2933,9 @@ pub fn run() {
             focus_window,
             set_window_title,
             open_url,
+            dictation::dictation_native_start,
+            dictation::dictation_native_stop,
+            dictation::dictation_native_poll,
             tts::tts_native_voices,
             tts::tts_native_speak,
             tts::tts_native_poll,

@@ -55,7 +55,7 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 12 | **Threaded comments** (replies, resolve, assign to collaborator) | WD, AS, CX | ✅ Done — replies, resolve, assignee, @mentions, Notes report, replies merged by id in collaboration | M | Core |
 | 13 | **Story timeline / plotlines** (assign scenes to story threads, colour-coded timeline) | FD (Story Map, Structure Points), AS (Plot Board) | ✅ Done — `utils/plotlines.ts`, `StoryTimeline`, beats linked to scenes (`utils/beatScenes.ts`) | M | Core |
 | 14 | **Suggest mode for collaborators** (proposed edits accepted/rejected by the owner) | WD, AS | ✅ Done — `editor/suggestions.ts`, Suggest invite role, enforced by `collab-server/src/services/suggestionGuard.ts` | L | Core |
-| 15 | **Dictation / speech to script** | FD (mobile), WD | Missing | M | Core |
+| 15 | **Dictation / speech to script** | FD (mobile), WD | Implemented — Tools → Dictation, local Whisper and browser service; native iOS/Android adapters await native build/device validation (`docs/DICTATION.md`) | M | Core |
 | 16 | **Graphic novel / comic template** | FD, FI | ✅ Done — `stores/templates/comicTemplate.ts` | S | Core |
 | 17 | **Breakdown → schedule** (stripboard, shooting schedule, call sheets, DOOD) | CX, WD Pro, StudioBinder | Missing (tags exist) | L | **Pro** |
 | 18 | **AI writing assistant** (bring-your-own-key, local model option) | AS, WD, CX | Missing | L | **Pro** |
@@ -273,8 +273,7 @@ suggestions have their own model (`editor/suggestions.ts`):
 
 ### Phase 4 — Reach (as capacity allows)
 
-- **15. Dictation** — Web Speech API on web/desktop, platform speech on iOS/Android;
-  voice commands for element changes ("new scene", "character Sarah").
+- **15. Dictation** — implemented with review-before-insert, local Whisper on web/desktop, browser recognition and native iOS/Android adapters. English commands include "new scene" and "character Sarah". Native builds, real audio inference and device checks remain release gates; see `docs/DICTATION.md`.
 - **16. Graphic novel template** — ✅ done: the *Comic Book* format
   (`stores/templates/comicTemplate.ts`) — pages in words, panels restarting per
   page, captions and balloons lettered across the page.
@@ -327,9 +326,9 @@ suggestions have their own model (`editor/suggestions.ts`):
 |---------|----------|
 | 2.8 | Everything in phases 0–3 except Suggest mode, plus the graphic novel template and competitor imports — all on `main`, unreleased as of 29 Oct 2026 |
 | 2.9 | Suggest mode (item 14) |
-| later | Dictation (item 15) |
+| later | Dictation (item 15), after native build/device and real-audio validation |
 
-What is still open, besides items 14 and 15:
+Other follow-ups (dictation implementation awaits release validation):
 - Note threads are not exported to FDX/Fade In/Fountain. Script notes only
   travel when they are set to print, so exporting threads would put private
   notes into files people send on — a product decision, not a format gap.

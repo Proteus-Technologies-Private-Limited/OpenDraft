@@ -80,6 +80,8 @@ import { PluginPanelTabs } from './PluginPanelTabs';
 import LocationDatabase from './LocationDatabase';
 import DialogueTuner from './DialogueTuner';
 import SuggestionsPanel from './SuggestionsPanel';
+import DictationDialog from './DictationDialog';
+import { useDictationStore } from '../stores/dictationStore';
 import WritingGoalsDialog from './WritingGoalsDialog';
 import { useWritingGoalsStore } from '../stores/writingGoalsStore';
 import { useWritingTracker } from '../hooks/useWritingTracker';
@@ -2264,6 +2266,7 @@ const ScreenplayEditor: React.FC = () => {
   }, [isHistoryMode]);
   // Writing goals: count words written, run sprints (Tools → Writing Goals & Sprints).
   useWritingTracker(editor, currentScriptId || 'unsaved', !isHistoryMode);
+  const dictationOpen = useDictationStore((s) => s.open);
   const writingGoalsOpen = useWritingGoalsStore((s) => s.dialogOpen);
 
   // ── Owner starts collaboration — save current content, create own token, switch to collab mode ──
@@ -5790,6 +5793,7 @@ const ScreenplayEditor: React.FC = () => {
           overrideSelection={ctxMenuState.savedSelection}
         />
       )}
+      {!isHistoryMode && dictationOpen && editor && <DictationDialog key={`${editorKey}:${currentProject?.id}:${currentScriptId}:${scriptReloadKey}`} editor={editor} />}
       {!isHistoryMode && writingGoalsOpen && <WritingGoalsDialog />}
       {!isHistoryMode && formatPanelOpen && editor && (
         <FormatPanel editor={editor} onClose={() => setFormatPanelOpen(false)} />

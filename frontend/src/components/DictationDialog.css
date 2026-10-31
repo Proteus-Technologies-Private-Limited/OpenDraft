@@ -1,0 +1,15 @@
+.dictation-dialog, .dictation-dialog * { box-sizing: border-box; }
+.dictation-dialog { width: min(34rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; border: 1px solid var(--fd-border, #888); border-radius: 8px; padding: 1.25rem; background: var(--fd-dialog-bg, #fff); color: var(--fd-text, #222); }
+.dictation-dialog::backdrop { background: #0008; }
+.dictation-dialog label { display: block; margin: .75rem 0; }
+.dictation-dialog select, .dictation-dialog textarea { display: block; width: 100%; color: inherit; background: var(--fd-input-bg, #eee); padding: .5rem; }
+.dictation-dialog input { margin-right: .5rem; }
+.dictation-controls { display: flex; flex-wrap: wrap; gap: .5rem; }
+.dictation-controls button { min-height: 44px; padding: .4rem .8rem; }
+.dictation-dialog [role="alert"] { color: var(--error-color, #b00020); }
+
+.dictation-dialog { font: inherit; }
+.dictation-dialog button, .dictation-dialog select, .dictation-dialog textarea { font: inherit; }
+.dictation-dialog button { background: var(--fd-menu-bg, #eee); color: inherit; border: 1px solid var(--fd-border, #888); border-radius: 4px; }
+.dictation-dialog button:disabled { opacity: .5; }
+.dictation-dialog :focus-visible { outline: 2px solid var(--fd-accent, #1268b3); outline-offset: 2px; }
