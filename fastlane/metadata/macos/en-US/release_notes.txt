@@ -23,3 +23,6 @@ Reply to notes, resolve them, assign them to a collaborator and @mention people.
 
 KEEP WRITING
 Daily goals, timed sprints and a calendar of what you wrote. Focus Mode with typewriter scrolling. Bookmarks, and macros for text you type often.
+
+KEEP YOUR WORK COMPATIBLE
+Update OpenDraft on every device before editing these scripts. Older versions can open them, but saving from an older version drops bookmarks, alternates, plotlines and beat-scene links. Keep an OpenDraft (.odraft) backup before using an older version.
