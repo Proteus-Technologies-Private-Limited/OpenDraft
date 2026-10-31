@@ -108,3 +108,7 @@ A complete list of features in OpenDraft.
 
 - **Plugin Architecture** -- Extend OpenDraft with custom plugins: menu items, panels, routes, editor extensions, and importers, exporters and reports that join the built-in File and Analytics menus
 - **Open API** -- FastAPI backend with documented endpoints
+
+### Alternate versions in live sessions
+
+The shown version remains editable during collaboration. Adding, switching or deleting line or scene versions requires ending the session first, to prevent concurrent replacements from duplicating text. All participants should update; older clients lack this guard.

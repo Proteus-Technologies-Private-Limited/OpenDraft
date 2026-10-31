@@ -17,6 +17,7 @@ import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import {
   ALTERNATE_TYPES,
+  ALTERNATES_META,
   alternatesOf,
   cycleAlternateTransaction,
   versionCount,
@@ -200,8 +201,28 @@ export function dedupeSceneAlternates(trs: readonly Transaction[], state: Editor
   return tr.setMeta(REVISION_SKIP_META, true);
 }
 
-export const Alternates = Extension.create({
+/** Replacing shared text concurrently is not an atomic version selection in Yjs. */
+export function alternateSessionGuard(isCollaborating: () => boolean, onBlocked: () => void): Plugin {
+  return new Plugin({
+    filterTransaction(tr) {
+      if (tr.getMeta(ALTERNATES_META) && isCollaborating()) {
+        onBlocked();
+        return false;
+      }
+      return true;
+    },
+  });
+}
+
+export const Alternates = Extension.create<{
+  isCollaborating: () => boolean;
+  onBlocked: () => void;
+}>({
   name: 'alternates',
+
+  addOptions() {
+    return { isCollaborating: () => false, onBlocked: () => {} };
+  },
 
   addGlobalAttributes() {
     return [
@@ -212,6 +233,7 @@ export const Alternates = Extension.create({
 
   addProseMirrorPlugins() {
     return [
+      alternateSessionGuard(this.options.isCollaborating, this.options.onBlocked),
       new Plugin<DecorationSet>({
         key: alternatesPluginKey,
         state: {

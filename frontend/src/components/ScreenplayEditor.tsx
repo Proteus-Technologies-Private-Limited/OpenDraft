@@ -558,6 +558,8 @@ const ScreenplayEditor: React.FC = () => {
 
   // ── Collaboration state ──
   const [collabMode, setCollabMode] = useState(false);
+  const alternatesCollabRef = useRef(collabMode);
+  alternatesCollabRef.current = collabMode;
   const [collabUserName, setCollabUserName] = useState('Owner');
   const [isCollabHost, setIsCollabHost] = useState(false);
   const [collabRole, setCollabRole] = useState<CollabRole>('editor');
@@ -2095,7 +2097,10 @@ const ScreenplayEditor: React.FC = () => {
             : null;
         },
       }),
-      Alternates,
+      Alternates.configure({
+        isCollaborating: () => alternatesCollabRef.current,
+        onBlocked: () => showToast('End the collaboration session before adding, switching or deleting alternate versions. You can still edit the version shown.', 'info'),
+      }),
       // While suggesting, edits become suggestions (editor/suggestions).
       Suggestions.configure({
         suggester: () => (useSuggestModeStore.getState().suggesting ? suggestionAuthor() : null),

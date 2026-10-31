@@ -329,12 +329,22 @@ suggestions have their own model (`editor/suggestions.ts`):
 | 2.9 | Suggest mode (item 14) |
 | later | Dictation (item 15) |
 
-What is still open, besides items 14 and 15:
-- Note threads are not exported to FDX/Fade In/Fountain. Script notes only
-  travel when they are set to print, so exporting threads would put private
-  notes into files people send on — a product decision, not a format gap.
-- Older app versions drop bookmarks, alternates, plotlines and beat-scene links
-  when they save a script that has them. Worth saying in release notes.
-- WriterDuet `.wdz` import needs testing against a real file.
-- Concurrent switching of the same alternate (line or scene) by two
-  collaborators can double the text until undone — a y-prosemirror limit.
+Follow-ups (Suggest mode is merged; dictation remains open):
+- **Privacy policy:** note authors, replies, resolution and assignments stay out of
+  FDX/Fade In/Fountain exports. Printing a note shares only its body in supported
+  exports, not its discussion. Keep `.odraft` for the full thread. Regression
+  coverage: `utils/exportFootnotes.test.ts`.
+- **Compatibility warning added:** the in-app, manual and iOS/macOS store release
+  notes warn that saving in an older version drops bookmarks, alternates,
+  plotlines and beat-scene links. Keep an `.odraft` backup before doing so.
+- **WriterDuet validation still blocked:** `.wdz` tests use reconstructed
+  fixtures. A genuine non-confidential WriterDuet export and an FDX export of
+  the same script are needed to compare text, element order, title page and
+  formatting. Do not treat the synthetic tests as real-file validation.
+- **Concurrent alternates workaround:** adding, switching or deleting line and
+  scene versions is blocked during live collaboration, before the transaction
+  changes either active text or stored versions. The shown version remains
+  editable. End the session to change versions. This prevents simultaneous
+  switches from duplicating text; it does not redesign y-prosemirror's
+  replacement semantics. Older clients do not have the guard, so all session
+  participants should update. A shared active-version model remains future work.
