@@ -24,10 +24,8 @@
   font-style: italic;
 }
 
-/* ============================================
-   OpenDraft — Final Draft Exact Layout
-   ============================================
-   All measurements match Final Draft defaults:
+/* =====================================   OpenDraft — Final Draft Exact Layout
+   =====================================   All measurements match Final Draft defaults:
    - Page: 8.5" x 11" US Letter
    - Top margin: 1.25" (90pt)
    - Bottom margin: 0.861" (62pt)
@@ -2720,10 +2718,8 @@ div[data-type="show-episode"].is-empty::before { content: 'SHOW TITLE'; color: v
 div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--page-ink-placeholder); pointer-events: none; float: left; height: 0; }
 
 
-/* ====================================================================
-   PAGE BREAK SEPARATOR — Final Draft Page View
-   ====================================================================
-   Rendered as React elements, absolutely positioned inside .page.
+/* =============================================================   PAGE BREAK SEPARATOR — Final Draft Page View
+   =============================================================   Rendered as React elements, absolutely positioned inside .page.
    This guarantees full page width since .page has position: relative
    and the overlays use left:0/right:0. No negative-margin tricks.
    Break nodes in the editor are marked via Decoration.node and get
@@ -12189,8 +12185,7 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   color: #2e7d32;
 }
 
-/* ============ SUGGEST MODE (editor/suggestions) ============
-   Suggested words in green, underlined; suggested deletions struck through in
+/* ============ SUGGEST MODE (editor/suggestions) =====   Suggested words in green, underlined; suggested deletions struck through in
    red and kept readable. On the page, so the colours are fixed rather than
    themed — the page is white in every theme. Never printed: exports leave
    suggestions out (withoutSuggestionsJSON). */
@@ -14035,8 +14030,7 @@ del.suggestion-delete {
 .scribble-ink.is-on { border-color: var(--fd-accent, #3b82f6); }
 .scribble-close.is-on { color: var(--fd-accent, #3b82f6); }
 
-/* ============ PHONE VIEW (View → Layout → Phone) ============
-   The same script and the same page breaks, reflowed to the width of a phone
+/* ============ PHONE VIEW (View → Layout → Phone) =====   The same script and the same page breaks, reflowed to the width of a phone
    at full-size text. A whole 8.5" sheet fitted to a phone is 8px type
    (Play Store review, Oct 2026); this view draws no sheet at all. Pagination,
    page count and every export are untouched — computeBreaks counts characters
@@ -14126,8 +14120,7 @@ del.suggestion-delete {
   }
 }
 
-/* ============ PHONE CHROME ============
-   html.phone (main.tsx, utils/phoneDevice) — a touch screen whose short side
+/* ============ PHONE CHROME =====   html.phone (main.tsx, utils/phoneDevice) — a touch screen whose short side
    is under 600px, in either view. The comfortable toolbar was sized for a
    tablet beside a mouse-sized compact one; on a phone its 28px buttons are
    well under the ~44px a finger needs. Search and Go To fold into the "⋯"
@@ -14278,8 +14271,7 @@ html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }
 .writing-heatmap-legend { display: flex; align-items: center; gap: 3px; margin-top: 6px; font-size: 11px; color: var(--fd-text-muted); flex-wrap: wrap; }
 .writing-heatmap-legend .writing-heatmap-cell { width: 10px; height: 10px; }
 .writing-heatmap-private { margin-left: auto; font-style: italic; }
-/* ============ STORY TIMELINE (View → Story Timeline) ============
-   Plotlines as rows across the scenes, each scene as wide as its screen
+/* ============ STORY TIMELINE (View → Story Timeline) =====   Plotlines as rows across the scenes, each scene as wide as its screen
    time. The label column and the tracks share one row height, so a
    plotline's name sits level with its row. */
 .story-timeline {
@@ -14496,8 +14488,7 @@ html.phone .menu-bar.chrome-comfortable .menu-item { min-height: 46px; }
   margin-left: 4px;
   top: 0;
 }
-/* ============ PDF IMPORT PREVIEW (components/PdfImportPreview.tsx) ============
-   Shown between reading a PDF and replacing the open script with it. The
+/* ============ PDF IMPORT PREVIEW (components/PdfImportPreview.tsx) =====   Shown between reading a PDF and replacing the open script with it. The
    list scrolls on its own and is windowed: rows are absolutely placed inside
    a spacer as tall as the whole list, at the height the component uses
    (28px, or 44px on html.phone — keep the two in step). */
@@ -14569,8 +14560,7 @@ html.phone .pdf-review-row { font-size: 14px; gap: 10px; }
 html.phone .pdf-review-row input[type="checkbox"] { width: 20px; height: 20px; }
 html.phone .pdf-review-toolbar .dialog-btn, html.phone .pdf-review-apply .dialog-btn,
 html.phone .pdf-review-filter .od-select, html.phone .pdf-review-settype .od-select { height: 40px; font-size: 15px; }
-/* ============ INLINE ELEMENT NUMBERS ============
-   An element a format numbers inline — a comic script's PAGE ONE and PANEL 3
+/* ============ INLINE ELEMENT NUMBERS =====   An element a format numbers inline — a comic script's PAGE ONE and PANEL 3
    (stores/templates/comicTemplate.ts) — shows its number as the start of the
    line, not in the margin. The attribute is a decoration
    (editor/extensions/ElementNumbers), never in the document, so the number is
@@ -14738,3 +14728,13 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
 .suggestions-navigation button, .suggestions-bulk button, .suggestion-card-actions button { min-height: 36px; }
 .suggestion-card--current { box-shadow: inset 3px 0 var(--fd-accent, #4387cf); background: rgba(80, 140, 200, .08); }
 @media (pointer: coarse) { .suggestions-navigation button, .suggestions-bulk button, .suggestion-card-actions button { min-height: 44px; } }
+/* A page turn inside one unchanged paragraph. It is layout, never script text. */
+.sp-paragraph-page-break { display: block; width: 100%; clear: both; pointer-events: none; user-select: none; }
+.phone-view .sp-paragraph-page-break { height: var(--phone-page-gap, 36px) !important; }
+@media print { .screenplay-element:has(.sp-paragraph-page-break) { break-inside: auto; page-break-inside: auto; } .sp-paragraph-page-break { height: 0 !important; break-before: page; page-break-before: always; } }
+.element-number-dialog { position: fixed; inset: 0; margin: auto; height: fit-content; width: min(32rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; padding: 24px; border: 1px solid var(--fd-border); border-radius: 8px; background: var(--fd-bg); color: var(--fd-text); }
+.element-number-dialog::backdrop { background: rgba(0,0,0,.55); }
+.element-number-dialog p { margin: 12px 0; line-height: 1.5; }
+.element-number-dialog input { display: block; width: 100%; min-height: 44px; margin: 8px 0 16px; }
+.element-number-dialog button { min-height: 44px; }
+.element-number-dialog .dialog-actions { display: flex; gap: 8px; flex-wrap: wrap; }

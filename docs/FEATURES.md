@@ -11,6 +11,8 @@ A complete list of features in OpenDraft.
 - **Scene Navigator** -- Jump between scenes instantly from the sidebar
 - **Bookmarks** -- Name any line and jump back to it from the Navigator or Go to Page; saved with the script and shared with collaborators
 - **Element Numbering** -- Number any element, not only scene headings: every line of dialogue, every sound effect or shot. The format chooses which elements are numbered, what restarts each count (a scene heading, a new act, any element) and an optional prefix such as FX 1. Shown in the margin on screen, in print, PDF, Word and Final Draft
+- **Production element references** -- Lock and edit element numbers, preserve imported FDX paragraph references, and give inserted elements suffixes without renumbering existing references
+- **Paragraph page turns** -- Long action and speech paragraphs continue across pages without splitting the underlying text; editor previews and PDF exports share the line boundaries
 - **Podcast format** -- Scripted podcast and audio fiction, with every line of dialogue numbered for the recording session and FX and music cues numbered on their own
 - **Comic Book format** -- Full comic and graphic novel scripts: pages spelled out (PAGE ONE), panels numbered on each page, captions and balloons lettered across the page
 - **Alternates** -- Keep other versions of a line of dialogue or action, or of a whole scene, beside it and switch between them; only the version showing prints and exports

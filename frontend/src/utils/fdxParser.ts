@@ -1,4 +1,5 @@
 // Final Draft XML (.fdx) parser — full formatting & layout support
+import { isNumberableElementId } from './elementNumbers';
 import { uuid } from './uuid';
 import { isDocumentFont, isDocumentSize } from './fonts';
 import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
@@ -462,7 +463,8 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     }
 
     const sceneNumber = para.getAttribute('Number');
-    if (sceneNumber) attrs.sceneNumber = sceneNumber;
+    if (sceneNumber && nodeType === 'sceneHeading') attrs.sceneNumber = sceneNumber;
+    else if (sceneNumber && isNumberableElementId(nodeType)) { attrs.elementNumber = sceneNumber; attrs.elementNumberLocked = true; attrs.elementNumberId = uuid(); }
 
     // Scene heading synopsis from SceneProperties/Summary
     if (nodeType === 'sceneHeading') {

@@ -453,3 +453,24 @@ writes both versions). Worth its own fix.
 **Still to do by hand:** check that Final Draft displays `Number` on a Dialogue
 paragraph. Final Draft isn't installed on the dev machine.
 
+
+## Follow-up: persistent production references
+
+Tools → Production → **Lock Element Numbers** stores the displayed references
+on their elements. Insertions receive unused letter suffixes (for example,
+12A between 12 and 13); existing references survive reflow and native saves.
+**Edit Element Number…** changes the selected element's reference. Duplicate
+stored labels in the same numbering sequence are rejected. Scene numbers
+continue to use their separate scene-numbering controls.
+
+Unlocking returns the sequence to automatic counting. An individually edited
+reference remains an override until **Use Automatic Number** is selected.
+FDX non-scene `Paragraph Number` values import as locked element references;
+exports write the resolved reference once. Hiding element numbers suppresses
+them in exports without deleting the stored references from the working file.
+
+Long action and speech paragraphs now turn pages within the paragraph. These
+breaks are layout decorations, not edits to the screenplay text. PDF export
+uses the same line boundaries; continued speeches reserve MORE/CONT'D space.
+Page previews include each fragment. Native files retain the original paragraph
+and its marks. Exact page counts still depend on fonts and renderer metrics.
