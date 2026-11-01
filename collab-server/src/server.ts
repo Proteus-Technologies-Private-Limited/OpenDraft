@@ -21,6 +21,7 @@ import { WebSocketServer } from 'ws';
 
 import { config } from './config';
 import { requireReviewClient, REVIEW_PROTOCOL } from './services/reviewProtocol';
+import { reviewDataDirectory, findReviewStateFile, deleteReviewStateFiles } from './services/reviewStorage';
 import { initDB, getDB } from './db';
 import { seedDemoUser } from './bootstrap/seedDemoUser';
 import { verifyAccessToken } from './services/tokenService';
@@ -31,7 +32,7 @@ import collabRoutes from './routes/collab';
 import { standardLimiter } from './middleware/rateLimit';
 
 // ── Data directory for Yjs documents ──
-const DATA_DIR = config.dataDir;
+const DATA_DIR = reviewDataDirectory(config.dataDir);
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
@@ -255,9 +256,9 @@ const hocuspocus = new Hocuspocus({
   },
 
   async onLoadDocument(data: onLoadDocumentPayload) {
-    const filePath = docPath(data.documentName);
+    const filePath = findReviewStateFile(config.dataDir, path.basename(docPath(data.documentName)));
 
-    if (fs.existsSync(filePath)) {
+    if (filePath) {
       try {
         const binary = fs.readFileSync(filePath);
         const update = new Uint8Array(binary);
@@ -406,11 +407,8 @@ app.post('/api/reset-document', async (req, res) => {
   }
 
   // Delete the persisted .yjs file so the next connection starts fresh
-  const filePath = docPath(documentName);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-    console.log(`Document reset (file deleted): ${documentName}`);
-  }
+  deleteReviewStateFiles(config.dataDir, path.basename(docPath(documentName)));
+  console.log(`Document reset (persisted versions deleted): ${documentName}`);
 
   docLastActivity.delete(documentName);
   res.json({ status: 'ok' });
@@ -431,11 +429,8 @@ app.post('/api/close-document', async (req, res) => {
   console.log(`Document closed (all connections kicked): ${documentName}`);
 
   // Also clean up the persisted Yjs file
-  const filePath = docPath(documentName);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-    console.log(`Document file deleted: ${documentName}`);
-  }
+  deleteReviewStateFiles(config.dataDir, path.basename(docPath(documentName)));
+  console.log(`Persisted document versions deleted: ${documentName}`);
 
   docLastActivity.delete(documentName);
   res.json({ status: 'ok' });

@@ -30,6 +30,13 @@ avoids an older editor joining just before a new proposal is made. The rejection
 happens before shared text can reach an unsupported schema. Do not remove the
 authentication guard while keeping the new review schema.
 
+Persisted Yjs state is written under `DATA_DIR/review-v<protocol>/`, so a
+previous server cannot load newer schema marks after a rollback. Upgrades may
+read older protocol directories (and the original legacy directory), but never
+write newer updates back there. Preserve these directories when backing up the
+server. Previously unprotected experimental state should be backed up and the
+session restarted on updated apps before any rollback.
+
 ## Library, native files and recovery
 
 When a document contains formatting proposals, persisted screenplay content is
