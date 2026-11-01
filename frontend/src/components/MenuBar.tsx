@@ -1,3 +1,4 @@
+import ParagraphLayoutDialog from './ParagraphLayoutDialog';
 import ElementNumberDialog from './ElementNumberDialog';
 import { collectNumberedElements, elementNumbersAreLocked, elementNumberAt } from '../editor/extensions/ElementNumbers';
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -21,7 +22,7 @@ import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
-import { listSuggestions, withoutSuggestionsJSON } from '../editor/suggestions';
+import { hasSuggestions, withoutSuggestionsJSON } from '../editor/suggestions';
 import type { Editor as TiptapEditor } from '@tiptap/react';
 
 /**
@@ -897,6 +898,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   }, [hasFileOrigin, autoSaveFiles, autoSaveIntervalSeconds, isCollabGuest, saveInPlace]);
 
   // ── Page Setup ──
+  const [paragraphLayoutOpen,setParagraphLayoutOpen]=useState(false);
   const [pageSetupOpen, setPageSetupOpen] = useState(false);
   const [templateSelectOpen, setTemplateSelectOpen] = useState(false);
 
@@ -1057,6 +1059,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // Backups asked for before a folder was chosen: ask for one here, then go on.
   const [backupFolderPrompt, setBackupFolderPrompt] = useState<'backup' | 'open' | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const reviewDisplay=useSuggestModeStore(st=>st.display);
   const suggesting = useSuggestModeStore((st) => st.suggesting);
   const suggestLocked = useSuggestModeStore((st) => st.locked);
   const suggestionsPanelOpen = useSuggestModeStore((st) => st.panelOpen);
@@ -2148,9 +2151,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
     // Where there is a print dialog, the writer chooses what goes into it: the
     // PDF the exporter lays out, or the page as the web view paginates it.
     // Everywhere else there is no choice to make — see printRoute().
-    const pendingFormatting = editor && listSuggestions(editor.state.doc).some(s=>s.kinds.includes('format'));
-    // Native DOM printing would expose the proposed styling; print the accepted copy.
-    if (route === 'dialog' && (printViaPdf || pendingFormatting) && editor) {
+    const pendingReview = editor && hasSuggestions(editor.state.doc);
+    // Native DOM printing would expose proposed styling and breaks; print the accepted copy.
+    if (route === 'dialog' && (printViaPdf || pendingReview) && editor) {
       try {
         showToast('Preparing your script for printing…');
         const json = exportJSON(editor);
@@ -3178,6 +3181,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           },
           disabled: suggestLocked,
         },
+        {icon:<FaSlidersH/>,label:'Paragraph Layout…',action:()=>setParagraphLayoutOpen(true),disabled:!editor||!editor.isEditable||reviewDisplay!=='markup'||locked.textAlign},
         { icon: <FaUserEdit />, label: 'Review Suggestions…', action: () => useSuggestModeStore.getState().setPanelOpen(true) },
         { separator: true, label: '' },
         { icon: <FaProjectDiagram />, label: 'Manage Projects…', action: goToProjects, disabled: isCollabGuest },
@@ -3858,6 +3862,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       onSave={value => !!editor && editor.state.doc.nodeAt(numberDialog.position) === numberDialog.node
         && editor.commands.setElementNumber(value, numberDialog.position)}
     />}
+    {paragraphLayoutOpen&&editor&&<ParagraphLayoutDialog editor={editor} onClose={()=>setParagraphLayoutOpen(false)}/>}
     <RecoverBackupDialog
       open={recoverBackupOpen}
       onClose={() => setRecoverBackupOpen(false)}
@@ -3883,6 +3888,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <div className="about-section-title">What's New in 2.8.0</div>
               <div className="about-changelog">
               <div className="about-subsection-title">Upcoming</div>
+              <ul className="about-list"><li><strong>Complete Review Views</strong> &mdash; Preview Original or Proposed without changing the shared script. Suggest fonts, colours, paragraph layout and inline breaks. Long dual dialogue now continues across editor and PDF pages.</li></ul>
               <ul className="about-list"><li><strong>Formatting Suggestions and Review</strong> &mdash; Suggest character styles without committing them. Filter changes by author and type, step through them, and accept or reject and move to the next. Pending styles stay out of exports and print.</li></ul>
               <div className="about-subsection-title">v2.8.0</div>
               <ul className="about-list">

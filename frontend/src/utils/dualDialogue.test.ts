@@ -84,10 +84,10 @@ describe('the geometry follows the stylesheet', () => {
   });
 
   it('gives each element the column width its padding leaves', () => {
-    // 3in less the CSS padding, at Final Draft's 10.33 characters to the inch.
-    expect(dualCharsPerLine('dialogue')).toBe(27);
-    expect(dualCharsPerLine('parenthetical')).toBe(25);
-    expect(dualCharsPerLine('character')).toBe(23);
+    // Use complete cells after CSS padding; rounding up drifts the two columns.
+    expect(dualCharsPerLine('dialogue')).toBe(26);
+    expect(dualCharsPerLine('parenthetical')).toBe(24);
+    expect(dualCharsPerLine('character')).toBe(22);
   });
 
   it('puts the second column beside the first, not below it', () => {

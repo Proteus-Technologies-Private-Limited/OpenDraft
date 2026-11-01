@@ -16,10 +16,11 @@ import { Extension, Mark, mergeAttributes } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { Node as PmNode } from '@tiptap/pm/model';
+import {useSuggestModeStore} from '../../stores/suggestModeStore';
 import { BOOKMARKABLE_TYPES } from '../../utils/bookmarks';
 import { ALTERNATES_META } from '../alternates';
 import {
-  SUGGEST_FORMAT, isFormatStamp, SUGGEST_DELETE, SUGGEST_INSERT, SUGGESTED_JOIN, SUGGESTED_SPLIT, SUGGESTED_TYPE,
+  SUGGESTED_PARAGRAPH, SUGGESTED_BREAK, SUGGEST_FORMAT, isFormatStamp, SUGGEST_DELETE, SUGGEST_INSERT, SUGGESTED_JOIN, SUGGESTED_SPLIT, SUGGESTED_TYPE,
   isHousekeeping, isLocalEdit, onlyGivesSceneIds, suggestTransaction, type Blocked, type Suggester, type SuggestionStamp, type TypeStamp,
 } from '../suggestions';
 
@@ -99,7 +100,7 @@ export const SuggestionFormat = Mark.create({
           parseHTML: (el: HTMLElement) => {
             try {
               const stamp = JSON.parse(el.getAttribute('data-suggestion-format') ?? 'null');
-              return isFormatStamp(stamp) ? (stamp[name as keyof typeof stamp] ?? value) : value;
+              return isFormatStamp(stamp) && name in stamp ? stamp[name as keyof typeof stamp] : value;
             } catch {
               return value;
             }
@@ -174,7 +175,10 @@ const typeName = (t: string) => TYPE_NAMES[t] ?? t;
 export function buildSuggestionDecorations(doc: PmNode): DecorationSet {
   const decorations: Decoration[] = [];
   doc.descendants((node, pos) => {
+    const br=node.attrs[SUGGESTED_BREAK];
+    if(br){decorations.push(Decoration.widget(pos,()=>label(br.op==='insert'?'↵ add break':'↵ remove break',`${br.by} suggested ${br.op==='insert'?'adding':'removing'} a line break`,'break'),{side:-1,key:`break-${br.id}-${pos}`}));return false;}
     if (!node.isTextblock) return true;
+    const paragraph=node.attrs[SUGGESTED_PARAGRAPH];if(paragraph)decorations.push(Decoration.widget(pos+1,()=>label('¶ format',`${paragraph.by} suggested paragraph formatting`,'paragraph'),{side:-1,key:`paragraph-${paragraph.id}-${pos}`}));
     const join = node.attrs[SUGGESTED_JOIN] as SuggestionStamp | null;
     if (join && typeof join === 'object') {
       decorations.push(Decoration.widget(pos + 1, () => label('⤒ join', `${join.by || 'Someone'} suggested joining this line to the one before`, 'join'), {
@@ -187,7 +191,7 @@ export function buildSuggestionDecorations(doc: PmNode): DecorationSet {
         side: -1, ignoreSelection: true, key: `type-${type.id}-${type.from}-${node.type.name}`,
       }));
     }
-    return false;
+    return true;
   });
   return decorations.length ? DecorationSet.create(doc, decorations) : DecorationSet.empty;
 }
@@ -213,9 +217,10 @@ export const Suggestions = Extension.create<SuggestionsOptions>({
   },
 
   addGlobalAttributes() {
-    return [{
+    return [{types:['hardBreak'],attributes:{[SUGGESTED_BREAK]:stampAttribute(SUGGESTED_BREAK,'data-suggested-break')}},{
       types: [...BOOKMARKABLE_TYPES],
       attributes: {
+        [SUGGESTED_PARAGRAPH]:stampAttribute(SUGGESTED_PARAGRAPH,'data-suggested-paragraph'),
         [SUGGESTED_SPLIT]: stampAttribute(SUGGESTED_SPLIT, 'data-suggested-split'),
         [SUGGESTED_JOIN]: stampAttribute(SUGGESTED_JOIN, 'data-suggested-join'),
         [SUGGESTED_TYPE]: stampAttribute(SUGGESTED_TYPE, 'data-suggested-type'),
@@ -251,6 +256,7 @@ export const Suggestions = Extension.create<SuggestionsOptions>({
     return [
       new Plugin<DecorationSet>({
         key: suggestionsPluginKey,
+        filterTransaction:tr=>useSuggestModeStore.getState().display==='markup'||(!tr.docChanged&&!tr.storedMarksSet)||!!tr.getMeta('y-sync$')||tr.getMeta('preventUpdate')!==undefined||tr.getMeta('addToHistory')===false,
         state: {
           init: (_c, state) => buildSuggestionDecorations(state.doc),
           apply: (tr, old) => (tr.docChanged ? buildSuggestionDecorations(tr.doc) : old),

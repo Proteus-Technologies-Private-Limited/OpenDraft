@@ -268,8 +268,7 @@ suggestions have their own model (`editor/suggestions.ts`):
 - Character-style suggestions and review workflow follow-up: bold, italic,
   underline, strikethrough, subscript and superscript retain their accepted
   baseline; author/type filters, previous/next and accept/reject-and-next.
-  Font/colour and paragraph formatting remain unsupported, as does an inline line break (y-prosemirror does
-  not store marks on inline nodes). Panels other than the script — notes,
+  The combined follow-up adds Original/Proposed read-only projections, font/size/colour and paragraph-layout proposals, and inline break suggestions stored as node attributes. Panels other than the script — notes,
   beats, characters — sync as they do for any collaborator.
 - Exports, print, sides and linked files leave pending suggestions out
   (`withoutSuggestionsJSON`); `.odraft` keeps them.

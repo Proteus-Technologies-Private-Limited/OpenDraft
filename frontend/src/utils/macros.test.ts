@@ -54,7 +54,7 @@ describe('inserting a macro', () => {
     const s = state([{ type: 'action' }], 1);
     const next = apply(s, createMacro({ text: 'One\nTwo', elementType: 'action' }))!;
     expect(next.doc.child(0).toJSON().content).toEqual(
-      doc(block('action', 'One', BR, 'Two')).content![0].content,
+      testSchema.nodeFromJSON(doc(block('action', 'One', BR, 'Two'))).child(0).toJSON().content,
     );
   });
 

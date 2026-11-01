@@ -176,13 +176,14 @@ const SCENE_UID = 'sceneUid';
 
 const FORMAT_MARK = 'suggestionFormat';
 const FORMATS = new Set(['bold', 'italic', 'underline', 'strike', 'subscript', 'superscript']);
+const VALUE_FORMATS = new Set(['fontFamily', 'fontSize', 'color']);
 interface FormatProposal {
   id: string;
   by: string;
   uid?: string;
   format: string;
-  before: boolean;
-  after: boolean;
+  before: boolean | string | null;
+  after: boolean | string | null;
 }
 function formatProposals(marks: Attrs): FormatProposal[] {
   return Object.entries(marks)
@@ -196,14 +197,23 @@ function validFormat(p: FormatProposal): boolean {
     typeof p.id === 'string' &&
     !!p.id &&
     typeof p.by === 'string' &&
-    FORMATS.has(p.format) &&
-    typeof p.before === 'boolean' &&
-    typeof p.after === 'boolean' &&
+    (FORMATS.has(p.format)
+      ? typeof p.before === 'boolean' && typeof p.after === 'boolean'
+      : VALUE_FORMATS.has(p.format) &&
+        [p.before, p.after].every(
+          (v) => v === null || (typeof v === 'string' && v.length <= 200),
+        )) &&
     p.before !== p.after
   );
 }
-const styleOn = (marks: Attrs, format: string) =>
-  Object.entries(marks).some(([key, value]) => markName(key) === format && !isEmpty(value));
+const styleOn = (marks: Attrs, format: string): boolean | string | null =>
+  VALUE_FORMATS.has(format)
+    ? (((
+        Object.entries(marks).find(([key]) => markName(key) === 'textStyle')?.[1] as
+          | Attrs
+          | undefined
+      )?.[format] as string) ?? null)
+    : Object.entries(marks).some(([key, value]) => markName(key) === format && !isEmpty(value));
 /** The only permitted changes to accepted styling are paired with an owned, reversible proposal. */
 function formatChange(a: Attrs, b: Attrs, me: SuggesterIdentity): string | null {
   const before = formatProposals(a),
@@ -223,7 +233,7 @@ function formatChange(a: Attrs, b: Attrs, me: SuggesterIdentity): string | null 
     if (!before.some((q) => same(p, q)) && !owns(p, me))
       return 'suggested formatting as someone else';
   const ownInsert = owns(a.suggestionInsert, me) && owns(b.suggestionInsert, me);
-  for (const format of FORMATS) {
+  for (const format of [...FORMATS, ...VALUE_FORMATS]) {
     const old = before.find((p) => p.format === format),
       next = after.find((p) => p.format === format);
     const was = styleOn(a, format),
@@ -252,6 +262,10 @@ function charChange(a: Attrs, b: Attrs, me: SuggesterIdentity): string | null {
     if (same(before, after)) continue;
     const name = markName(key);
     if (name === 'scriptNote' || name === FORMAT_MARK) continue;
+    if(name==='textStyle'){
+      const keep=(value:unknown)=>Object.fromEntries(Object.entries((value??{}) as Attrs).filter(([key])=>!VALUE_FORMATS.has(key)));
+      if(!same(keep(before),keep(after)))return 'changed untracked textStyle attributes';continue;
+    }
     if (FORMATS.has(name)) {
       if (
         (!isEmpty(before) && Object.keys(meaningful(before) as object).length) ||
@@ -271,8 +285,92 @@ function charChange(a: Attrs, b: Attrs, me: SuggesterIdentity): string | null {
   return null;
 }
 
+function paragraphValue(key: string, value: unknown): boolean {
+  if (key === 'textAlign')
+    return value === null || ['left', 'right', 'center', 'justify'].includes(String(value));
+  if (key !== 'paragraphLayout') return false;
+  const limits: Record<string, number> = {
+    leftIndentPt: 360,
+    rightIndentPt: 360,
+    spaceBeforePt: 360,
+    spaceAfterPt: 360,
+    lineSpacing: 3,
+  };
+  return (
+    value === null ||
+    (!!value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      Object.entries(value).every(
+        ([k, v]) =>
+          k in limits &&
+          (v === null ||
+            (typeof v === 'number' &&
+              Number.isFinite(v) &&
+              v >= 0 &&
+              v <= limits[k] &&
+              (k !== 'lineSpacing' || v >= 0.5))),
+      ))
+  );
+}
+function paragraphChange(a: Attrs, b: Attrs, me: SuggesterIdentity): string | null {
+  const old = a.suggestedParagraphFormat as { before: Attrs; after: Attrs } | undefined,
+    next = b.suggestedParagraphFormat as { before: Attrs; after: Attrs } | undefined;
+  if (same(old, next)) {
+    return ['textAlign', 'paragraphLayout'].some((key) => !same(a[key], b[key]))
+      ? 'changed paragraph formatting without suggesting it'
+      : null;
+  }
+  if ((!isEmpty(old) && !owns(old, me)) || (!isEmpty(next) && !owns(next, me)))
+    return 'changed another paragraph proposal';
+  if (next) {
+    if (
+      !next.before ||
+      !next.after ||
+      typeof next.before !== 'object' ||
+      typeof next.after !== 'object' ||
+      !Object.keys(next.after).length
+    )
+      return 'invalid paragraph proposal';
+    const keys = new Set([
+      ...Object.keys(next.before),
+      ...Object.keys(next.after),
+      ...Object.keys(old?.before ?? {}),
+    ]);
+    for (const key of keys) {
+      if (
+        !paragraphValue(key, next.before[key] ?? null) ||
+        !paragraphValue(key, next.after[key] ?? null)
+      )
+        return 'invalid paragraph formatting';
+      const baseline = old && key in old.before ? old.before[key] : a[key];
+      if (key in next.after) {
+        if (!same(next.before[key], baseline) || !same(b[key], next.after[key]))
+          return 'changed paragraph baseline';
+      } else if (!same(b[key], baseline)) return 'invalid paragraph withdrawal';
+    }
+  } else if (old) {
+    for (const key of Object.keys(old.before))
+      if (!same(b[key], old.before[key])) return 'accepted paragraph suggestion';
+  }
+  for (const key of ['textAlign', 'paragraphLayout'])
+    if (!same(a[key], b[key]) && !(next && key in next.after) && !(old && key in old.before))
+      return 'untracked paragraph formatting';
+  return null;
+}
+
 /** Why a change to an element's type or attributes is not the author's to make, or null. */
 function elementChange(a: Unit & { kind: 'open' }, b: Unit & { kind: 'open' }, me: SuggesterIdentity): string | null {
+  if(a.name==='hardBreak' && b.name==='hardBreak'){
+    const old=a.attrs.suggestedBreak as {op?:string}|undefined,next=b.attrs.suggestedBreak as {op?:string}|undefined;
+    const baseA={...a.attrs},baseB={...b.attrs};delete baseA.suggestedBreak;delete baseB.suggestedBreak;
+    if(!same(baseA,baseB))return 'changed hard break attributes';
+    if(same(old,next))return null;
+    if(!isEmpty(next))return !old && next?.op==='delete' && owns(next,me)?null:'invalid suggested break';
+    return old?.op==='delete' && owns(old,me)?null:'accepted or changed another suggested break';
+  }
+
+  const paragraphError=paragraphChange(a.attrs,b.attrs,me);if(paragraphError)return paragraphError;
   // A line the author suggested is theirs: its type and settings are part of
   // the suggestion (the editor makes a new line, then sets what it is).
   if (owns(a.attrs.suggestedSplit, me) && owns(b.attrs.suggestedSplit, me)) return null;
@@ -281,6 +379,7 @@ function elementChange(a: Unit & { kind: 'open' }, b: Unit & { kind: 'open' }, m
     const before = a.attrs[key];
     const after = b.attrs[key];
     if (same(before, after)) continue;
+    if(['suggestedParagraphFormat','paragraphLayout','textAlign'].includes(key))continue;
     if (!SUGGESTION_ATTRS.has(key)) {
       // A type change replaces the element, and its attributes go back to
       // their defaults: tolerated only alongside the author's suggestedType.
@@ -304,13 +403,19 @@ function insertedUnit(u: Unit, me: SuggesterIdentity): string | null {
     if(formatProposals(u.marks).some(p=>!validFormat(p)||!owns(p,me)))return 'added invalid formatting suggestions';
     return owns(u.marks.suggestionInsert, me) ? null : 'added text that is not a suggestion';
   }
-  if (u.kind === 'open') return owns(u.attrs.suggestedSplit, me) ? null : `added a ${u.name} that is not a suggested new line`;
+  if (u.kind === 'open') {
+    if(u.name==='hardBreak')return (u.attrs.suggestedBreak as {op?:string})?.op==='insert' && owns(u.attrs.suggestedBreak,me)?null:'added an unsuggested break';
+    return owns(u.attrs.suggestedSplit, me) ? null : `added a ${u.name} that is not a suggested new line`;
+  }
   return null;
 }
 
 function removedUnit(u: Unit, me: SuggesterIdentity): string | null {
   if (u.kind === 'char') return owns(u.marks.suggestionInsert, me) ? null : 'deleted text instead of suggesting the deletion';
-  if (u.kind === 'open') return owns(u.attrs.suggestedSplit, me) ? null : `removed a ${u.name}`;
+  if (u.kind === 'open') {
+    if(u.name==='hardBreak')return (u.attrs.suggestedBreak as {op?:string})?.op==='insert' && owns(u.attrs.suggestedBreak,me)?null:'removed an existing break';
+    return owns(u.attrs.suggestedSplit, me) ? null : `removed a ${u.name}`;
+  }
   return null;
 }
 

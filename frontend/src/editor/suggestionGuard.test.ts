@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import * as Y from 'yjs';
 import { updateYFragment } from 'y-prosemirror';
 import { EditorState, type Transaction } from '@tiptap/pm/state';
-import type { Node as PmNode } from '@tiptap/pm/model';
+import type { Schema, Node as PmNode } from '@tiptap/pm/model';
 import type { JSONContent } from '@tiptap/core';
 import { testSchema, block, doc } from '../test/screenplaySchema';
 import { createHash } from 'node:crypto';
@@ -23,8 +23,8 @@ import {
 const Yjs = Y as unknown as YjsLike;
 
 /** A script kept in step with a Y.Doc, as the Collaboration extension keeps it. */
-function synced(...blocks: JSONContent[]) {
-  let state = EditorState.create({ schema: testSchema, doc: testSchema.nodeFromJSON(doc(...blocks)) });
+function syncedWithSchema(schema:Schema,...blocks:JSONContent[]) {
+  let state = EditorState.create({schema,doc:schema.nodeFromJSON(doc(...blocks))});
   const ydoc = new Y.Doc();
   const fragment = ydoc.getXmlFragment(SCRIPT_FIELD);
   const meta = { mapping: new Map(), isOMark: new Map() };
@@ -53,6 +53,8 @@ function synced(...blocks: JSONContent[]) {
     },
   };
 }
+
+const synced=(...blocks:JSONContent[])=>syncedWithSchema(testSchema,...blocks);
 
 const at = (s: EditorState, index: number, offset = 0) => {
   let pos = 0;
@@ -421,4 +423,37 @@ it('lets a reviewer type inside another reviewer’s proposed formatting without
  expect(inserted.by).toBe('Ann');expect(inserted.inserted).toBe('X');
  const original=listSuggestions(c.state.doc).find(s=>s.kinds.includes('format'))!;
  expect(original.by).toBe('Bob');expect(original.formatted).toBe('One');
+});
+
+describe('suggested inline breaks stored as Yjs elements',()=>{
+ it('allows an inserted break and withdrawal, but refuses self-acceptance',()=>{
+  const c=synced(block('action','One two.'));
+  expect(c.send(suggesting(c.state,tr=>tr.insert(4,testSchema.nodes.hardBreak.create())))).toBeNull();
+  const id=listSuggestions(c.state.doc)[0].id;
+  expect(c.send(resolveSuggestionTransaction(c.state,id,true)!)).not.toBeNull();
+ });
+ it('allows deletion proposals on existing breaks and withdrawing them',()=>{
+  const c=synced({type:'action',content:[{type:'text',text:'One'},{type:'hardBreak'},{type:'text',text:'two'}]});
+  expect(c.send(suggesting(c.state,tr=>tr.delete(4,5)))).toBeNull();
+  expect(c.send(resolveSuggestionTransaction(c.state,listSuggestions(c.state.doc)[0].id,false)!)).toBeNull();
+ });
+});
+
+it('enforces reversible font and paragraph proposals on actual Yjs updates',async()=>{
+ const {getSchema}=await import('@tiptap/core');const {testExtensions}=await import('../test/screenplaySchema');
+ const {default:TextStyle}=await import('@tiptap/extension-text-style');const {default:FontFamily}=await import('@tiptap/extension-font-family');const {default:TextAlign}=await import('@tiptap/extension-text-align');
+ const {FontSize}=await import('./extensions/FontSize');const {InkAwareColor}=await import('./extensions/InkAwareColor');const {ParagraphLayout}=await import('./extensions/ParagraphLayout');
+ const schema=getSchema([...testExtensions,TextStyle,FontFamily,FontSize,InkAwareColor,TextAlign.configure({types:['action']}),ParagraphLayout]);
+ for(const [field,value]of [['fontFamily','Arial'],['fontSize','18pt'],['color','#ff0000']]){
+  const c=syncedWithSchema(schema,block('action','One two.'));
+  expect(c.send(suggesting(c.state,tr=>tr.addMark(1,4,schema.marks.textStyle.create({[field]:value}))))).toBeNull();
+  expect(c.send(resolveSuggestionTransaction(c.state,listSuggestions(c.state.doc)[0].id,false)!)).toBeNull();
+ }
+ for(const [field,value]of [['textAlign','center'],['paragraphLayout',{leftIndentPt:24,spaceAfterPt:12}]] as const){
+  const c=syncedWithSchema(schema,block('action','One two.'));
+  expect(c.send(suggesting(c.state,tr=>tr.setNodeAttribute(0,field,value)))).toBeNull();
+  expect(c.send(resolveSuggestionTransaction(c.state,listSuggestions(c.state.doc)[0].id,false)!)).toBeNull();
+ }
+ const c=syncedWithSchema(schema,block('action','One two.'));
+ expect(c.send(c.state.tr.setNodeAttribute(0,'textAlign','center'))).not.toBeNull();
 });

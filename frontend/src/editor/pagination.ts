@@ -1,3 +1,4 @@
+import {paragraphLineScale,paragraphLayoutOf,paragraphColumns} from './paragraphLayout';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { EditorView } from '@tiptap/pm/view';
@@ -15,7 +16,7 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { isNonPrintingType } from '../utils/nonPrinting';
 import { laysItselfOut } from '../utils/pageBreaks';
 import { lockedPageLabels, lockedPageOf, startPages, startsLockedPage, type PageAnchor } from '../utils/lockedPages';
-import { dualDialogueLineCount, type DualColumns } from '../utils/dualDialogue';
+import { dualDialogueLineCount, dualRows, dualSpeaker, dualCellPosition, type DualColumns } from '../utils/dualDialogue';
 import {
   buildEndnotePages,
   packFootnotePage,
@@ -160,6 +161,7 @@ export interface BreakInfo {
   nodeSize: number;
   /** UTF-16 offset inside the unchanged paragraph, for a layout-only page turn. */
   contentOffset?: number;
+  dualLine?:number;
   pageNumber: number;
   linesOnPage: number;
   isDialogueSplit: boolean;
@@ -203,7 +205,7 @@ export interface PaginationState {
 function breaksDiffer(a: PaginationState, b: PaginationState): boolean {
   if (a.breaks.length !== b.breaks.length) return true;
   for (let i = 0; i < a.breaks.length; i++) {
-    if (a.breaks[i].offset !== b.breaks[i].offset || a.breaks[i].contentOffset !== b.breaks[i].contentOffset) return true;
+    if (a.breaks[i].offset !== b.breaks[i].offset || a.breaks[i].contentOffset !== b.breaks[i].contentOffset || a.breaks[i].dualLine!==b.breaks[i].dualLine) return true;
     if (a.breaks[i].linesOnPage !== b.breaks[i].linesOnPage) return true;
   }
   return false;
@@ -297,8 +299,19 @@ export function createPaginationPlugin(
         for (const brk of ps.breaks) {
           const whitespacePx = Math.max(0, linesPerPage - brk.linesOnPage) * lineHeightPx;
           // Dialogue splits need extra space for the CONT'D label on the next page
-          const contdPx = brk.isDialogueSplit && showDialogueBreakContd ? lineHeightPx : 0;
+          const contdPx = (brk.isDialogueSplit || brk.dualLine!==undefined) && showDialogueBreakContd ? lineHeightPx : 0;
           const marginTop = Math.round(whitespacePx + sepHeightPx + contdPx);
+          if(brk.dualLine!==undefined){
+            const node=state.doc.nodeAt(brk.offset);if(!node)continue;
+            const columns=pmDualColumns(node),cells=dualRows(columns)[brk.dualLine]??[];
+            for(const cell of cells){const pos=dualCellPosition(node,brk.offset,cell);
+              decos.push(Decoration.widget(pos,()=>{
+                const el=document.createElement('span');el.className='sp-dual-page-break sp-paragraph-page-break';el.dataset.pageNumber=String(brk.pageNumber);el.contentEditable='false';el.setAttribute('aria-hidden','true');el.style.height=`${marginTop}px`;
+                if(showDialogueBreakContd){const speaker=dualSpeaker(columns,cell.column,cell.child);const more=document.createElement('span');more.className='sp-dual-more';more.textContent=resolveMoresContds(layout).moreText;const continued=document.createElement('span');continued.className='sp-dual-continued';continued.textContent=`${speaker} ${resolveMoresContds(layout).contdText}`;el.append(more,continued);}return el;
+              },{side:-1,key:`dual-${brk.pageNumber}-${cell.column}-${marginTop}`,ignoreSelection:true}));
+            }
+            continue;
+          }
           if (brk.contentOffset !== undefined) {
             decos.push(Decoration.widget(brk.offset + 1 + brk.contentOffset, () => {
               const spacer=document.createElement('span');
@@ -363,7 +376,7 @@ function lockedLabelsFor(doc: PmNode, result: PaginationState): string[] | null 
   doc.forEach((node,_offset,index)=>{
     const labels=node.attrs.lockedPageContinuations;
     if(!Array.isArray(labels))return;
-    const continuations=result.breaks.filter(brk=>brk.nodeIndex===index && brk.contentOffset!==undefined);
+    const continuations=result.breaks.filter(brk=>brk.nodeIndex===index && (brk.contentOffset!==undefined||brk.dualLine!==undefined));
     labels.forEach((label,part)=>{if(typeof label==='string' && continuations[part])anchors.push({page:continuations[part].pageNumber,label,mid:false});});
   });
   if(anchors.length===0)return null;
@@ -383,6 +396,7 @@ function computeBreaksUnlabelled(
     typeName: string; elementId: string; spaceBefore: number; text: string;
     offset: number; nodeSize: number; lineMul: number; fixedLines?: number;
     startsNewPage: boolean; hasTitleData: boolean;
+    dualLine?:number; dualMore?:boolean;
     sourceIndex: number; contentOffset: number; continuation: boolean; noteIds: string[];
   }
   const nodes: NodeInfo[] = [];
@@ -390,14 +404,29 @@ function computeBreaksUnlabelled(
   doc.forEach((node, offset, index) => {
     const typeName = node.type.name;
     const elementId = getElementId(node);
-    const sb = isFirst ? 0 : (hints.spaceBefore[elementId] ?? 0);
-    const lineMul = hints.lineHeightMultiplier[elementId] ?? 1;
+    const paragraph=paragraphLayoutOf(node);
+    const sb = isFirst ? 0 : paragraph.spaceBeforePt!=null?paragraph.spaceBeforePt/12:(hints.spaceBefore[elementId]??0);
+    const lineMul = paragraphLineScale(node,paragraph.lineSpacing??hints.lineHeightMultiplier[elementId]??1);
+    const columns=paragraphColumns(node,layout,FD_INDENTS[typeName]??FD_INDENTS.general);
+    const after=(paragraph.spaceAfterPt??0)/12;
     // Images occupy a fixed estimated number of lines (no text to wrap).
     // Sections and Notes are structure, not script — they never reach the page,
     // so they occupy no lines and claim no space before them. Counted like any
     // other block they would push the page break somewhere the printed script
     // has no element at all, and the page count on screen would stop matching
     // the PDF.
+    if(typeName==='dualDialogue'){
+      const rows=dualRows(pmDualColumns(node));
+      if(rows.length>linesPerPage){
+        for(let line=0;line<rows.length;){const height=line===0?Math.min(4,rows.length):1;
+          const refs=plan?.refsByNode.get(index)??[];
+          const cells=rows.slice(line,line+height).flat();
+          const noteIds=refs.filter(ref=>cells.some(c=>(ref.charOffset>c.sourceFrom||c.sourceFrom===0)&&ref.charOffset<=c.sourceTo)&&plan!.footnoteIds.has(ref.noteId)).map(ref=>ref.noteId);
+          nodes.push({typeName,elementId,spaceBefore:line?0:sb,text:'',offset,nodeSize:node.nodeSize,lineMul:1,fixedLines:height,startsNewPage:line===0&&(node.attrs?.startsNewPage===true||startsLockedPage(node.attrs)),hasTitleData:false,sourceIndex:index,contentOffset:0,continuation:line>0,noteIds,dualLine:line,dualMore:line+height<rows.length});line+=height;
+        }
+        isFirst=false;return;
+      }
+    }
     const nonPrinting = isNonPrintingType(typeName);
     const fixedLines = nonPrinting
       ? 0
@@ -416,7 +445,7 @@ function computeBreaksUnlabelled(
     const rawText = node.textContent || '';
     const markedText = plan ? plan.textWithMarkers(index, rawText) : rawText;
     const fragments = fixedLines === undefined && SPLIT_PARAGRAPH_TYPES.has(typeName)
-      ? paragraphLines(markedText, CHARS_PER_LINE[typeName] || 62) : [];
+      ? paragraphLines(markedText, columns) : [];
     const split = fragments.length > 2;
     const parts = split ? fragments : [{from:0,to:markedText.length,text:markedText}];
     for (let part = 0; part < parts.length; part++) {
@@ -428,7 +457,7 @@ function computeBreaksUnlabelled(
       sourceIndex:index, contentOffset:from, continuation:part>0, noteIds,
       typeName, elementId, spaceBefore: nonPrinting || part>0 ? 0 : sb,
       text: fragment.text,
-      offset, nodeSize: node.nodeSize, lineMul, fixedLines: split ? lineMul : fixedLines,
+      offset, nodeSize: node.nodeSize, lineMul, fixedLines: split ? lineMul+(part===parts.length-1?after:0) : fixedLines??(getTextLines(markedText,columns)*lineMul+after),
       // A locked page's first block opens its page — see utils/lockedPages.
       startsNewPage: part===0 && (node.attrs?.startsNewPage === true || startsLockedPage(node.attrs)),
       hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
@@ -628,7 +657,7 @@ function computeBreaksUnlabelled(
     // else than on screen (issue #123).
     const printsNothing = isNonPrintingType(node.typeName);
 
-    if (!printsNothing && (forceBreak || lineCount + blockLines > capacity) && (lineCount > 0 || speechAt >= 0)) {
+    if (!printsNothing && (forceBreak || lineCount + blockLines + (node.dualMore ? contdLine : 0) > capacity) && (lineCount > 0 || speechAt >= 0)) {
 
       // Try to split character+dialogue blocks. A forced break is never split —
       // the whole point is that the element opens a page of its own.
@@ -780,7 +809,7 @@ function computeBreaksUnlabelled(
         pageNotes = blockNotes;
       }
       pageNumber++;
-      lineCount = blockLines - node.spaceBefore;
+      lineCount = blockLines - node.spaceBefore + (node.dualLine ? contdLine : 0);
     } else {
       lineCount += blockLines;
       if (plan && blockNotes.length > 0) pageNotes = pageNotes.concat(blockNotes);
@@ -791,7 +820,7 @@ function computeBreaksUnlabelled(
 
   const mappedBreaks = breaks.map(brk=>{
     const node=nodes[brk.nodeIndex];
-    return {...brk,nodeIndex:node.sourceIndex,offset:node.offset,nodeSize:node.nodeSize,...(node.contentOffset>0?{contentOffset:node.contentOffset}:{})};
+    return {...brk,nodeIndex:node.sourceIndex,offset:node.offset,nodeSize:node.nodeSize,...(node.contentOffset>0?{contentOffset:node.contentOffset}:{}),...(node.dualLine?{dualLine:node.dualLine}:{})};
   });
   if (!plan) return { pageCount: pageNumber - 1, breaks: mappedBreaks };
 
@@ -894,27 +923,35 @@ export function computePageBlocks(
   const { breaks } = computeBreaks(doc, layout, hints, plan);
 
   // Collect top-level nodes
-  const nodes: { typeName: string; text: string; offset: number }[] = [];
+  const nodes: { typeName: string; text: string; offset: number; source:PmNode }[] = [];
   doc.forEach((node, offset) => {
-    nodes.push({ typeName: node.type.name, text: node.textContent || '', offset });
+    nodes.push({ typeName: node.type.name, text: node.textContent || '', offset,source:node });
   });
 
   if (nodes.length === 0) return [];
 
-  const starts=[{pageNumber:1,nodeIndex:0,contentOffset:0,isDialogueSplit:false},...breaks.map(brk=>({...brk,contentOffset:brk.contentOffset??0}))];
+  const starts=[{pageNumber:1,nodeIndex:0,contentOffset:0,isDialogueSplit:false,dualLine:undefined as number|undefined},...breaks.map(brk=>({...brk,contentOffset:brk.contentOffset??0}))];
   const pages: PageContentInfo[]=[];
   for(let page=0;page<starts.length;page++){
     const start=starts[page],end=starts[page+1];
-    const blocks:PageBlockInfo[]=[];let lineOnPage=start.isDialogueSplit&&resolveMoresContds(layout).dialogueBreakContd?1:0;
+    const blocks:PageBlockInfo[]=[];let lineOnPage=(start.isDialogueSplit||start.dualLine!==undefined)&&resolveMoresContds(layout).dialogueBreakContd?1:0;
     for(let index=start.nodeIndex;index<nodes.length;index++){
-      if(end && (index>end.nodeIndex || (index===end.nodeIndex&&end.contentOffset===0)))break;
-      const node=nodes[index];const from=index===start.nodeIndex?start.contentOffset:0;
+      if(end && (index>end.nodeIndex || (index===end.nodeIndex&&end.contentOffset===0&&end.dualLine===undefined)))break;
+      const node=nodes[index];
+      if(node.typeName==='dualDialogue'){
+        const source=doc.child(index),rows=dualRows(pmDualColumns(source));const from=index===start.nodeIndex?start.dualLine??0:0,to=end&&index===end.nodeIndex?end.dualLine??rows.length:rows.length;
+        const fragment=rows.slice(from,to),cell=fragment.flat()[0];
+        const sb=blocks.length===0||start.dualLine!==undefined?0:(hints.spaceBefore[node.typeName]??0);lineOnPage+=sb;
+        blocks.push({typeName:node.typeName,lineStart:lineOnPage,lineCount:fragment.length,docPos:cell?dualCellPosition(source,node.offset,cell):node.offset,text:fragment.map(row=>row.map(c=>c.text.trimEnd()).join(' | ')).join('\n')});lineOnPage+=fragment.length;continue;
+      }
+      const from=index===start.nodeIndex?start.contentOffset:0;
       const to=end&&index===end.nodeIndex?end.contentOffset:node.text.length;
       const text=node.text.slice(from,to);
       const displayed=text.endsWith('\n')&&to<node.text.length?text.slice(0,-1):text;
       const nonPrinting=isNonPrintingType(node.typeName);
-      const lines=nonPrinting?0:getTextLines(displayed,CHARS_PER_LINE[node.typeName]||62);
-      const sb=blocks.length===0||nonPrinting?0:(hints.spaceBefore[node.typeName]??0);
+      const p=paragraphLayoutOf(node.source);
+      const lines=nonPrinting?0:getTextLines(displayed,paragraphColumns(node.source,layout,FD_INDENTS[node.typeName]??FD_INDENTS.general))*paragraphLineScale(node.source,p.lineSpacing??hints.lineHeightMultiplier[node.typeName]??1)+(to===node.text.length?(p.spaceAfterPt??0)/12:0);
+      const sb=blocks.length===0||nonPrinting?0:p.spaceBeforePt!=null?p.spaceBeforePt/12:(hints.spaceBefore[node.typeName]??0);
       blocks.push({typeName:node.typeName,lineStart:lineOnPage+sb,lineCount:lines,docPos:from?node.offset+1+from:node.offset,text});
       lineOnPage+=sb+lines;
     }

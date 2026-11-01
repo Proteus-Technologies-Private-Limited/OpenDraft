@@ -1,6 +1,8 @@
+import {parseCssColor} from './inkColor';
 // PDF exporter using jsPDF — renders screenplay with Final Draft formatting
 // All constants match pagination.ts and screenplay.css for exact visual parity
 import jsPDF from 'jspdf';
+import {paragraphLineScale,fontScaleOf,paragraphLayoutOf,paragraphBounds,paragraphColumns} from '../editor/paragraphLayout';
 import type { JSONContent } from '@tiptap/react';
 import { resolveMoresContds, resolveHeaderFooter, printedPageNumber, resolveHFFields } from '../stores/editorStore';
 import type { PageLayout, HeaderFooterContent } from '../stores/editorStore';
@@ -28,7 +30,7 @@ import { embedCustomFonts, type EmbeddedFace } from './pdfCustomFonts';
 import { genericFor } from './fonts';
 import { isNonPrintingType } from './nonPrinting';
 import {
-  dualChildBounds, dualCharsPerLine, dualColumnLeadLines, dualDialogueLineCount,
+  dualRows,dualSpeaker,dualChildBounds, dualCharsPerLine, dualColumnLeadLines, dualDialogueLineCount,
   type DualColumns,
 } from './dualDialogue';
 import {
@@ -112,6 +114,8 @@ interface NodeInfo {
   /** Index in the ORIGINAL document content. `nodes` drops the title page and
    *  the non-printing blocks, and the footnote plan is keyed on the original. */
   srcIndex: number;
+  fontScale?:number;
+  paragraphContinues?:boolean;
   continuation?: boolean;
   fragmentFrom?: number;
   fragmentTo?: number;
@@ -128,7 +132,7 @@ export function extractRuns(node: JSONContent): TextRun[] {
     italic: r.italic,
     underline: r.underline,
     isBreak: r.isBreak,
-    fontFamily: r.fontFamily,
+    fontFamily: r.fontFamily,...(r.fontSize?{fontSize:r.fontSize}:{}),...(r.color?{color:r.color}:{}),
     ...(r.revision ? { revised: true, revision: r.revision } : {}),
   }));
   // A block Revision Mode flagged for an edit that left no text to mark (a
@@ -425,7 +429,9 @@ function renderLine(
   let cursorX = x;
   for (const run of lineRuns) {
     if (run.text.length === 0) continue;
-    const pieces = drawnPieces(run.text, run.fontFamily, fonts);
+    if(run.fontSize)pdf.setFontSize(run.fontSize);
+    if(run.color){const rgb=parseCssColor(run.color);if(rgb)pdf.setTextColor?.(...rgb);}
+    const pieces = drawnPieces(run.text, run.fontFamily, fonts).map(p=>run.fontSize&&run.fontSize!==12?{...p,fdCell:false,charSpace:0}:p);
     const nextX = drawPieces(pdf, pieces, cursorX, y, run.bold, run.italic);
     if (run.underline) {
       const ulY = y + 1.5;
@@ -433,6 +439,8 @@ function renderLine(
       pdf.line(cursorX, ulY, nextX, ulY);
     }
     cursorX = nextX;
+    if(run.fontSize)pdf.setFontSize(12);
+    if(run.color)pdf.setTextColor?.(0,0,0);
     if (run.marker) {
       // Raised, small, and advancing nothing: it overhangs into the space that
       // follows, which is what the editor's marker decoration does and what
@@ -449,7 +457,10 @@ function measureLine(pdf: jsPDF, lineRuns: TextRun[], fonts: FontContext): numbe
   let total = 0;
   for (const run of lineRuns) {
     if (run.text.length === 0) continue;
-    total += measurePieces(pdf, drawnPieces(run.text, run.fontFamily, fonts), run.bold, run.italic);
+    if(run.fontSize)pdf.setFontSize(run.fontSize);
+    const pieces=drawnPieces(run.text,run.fontFamily,fonts).map(p=>run.fontSize&&run.fontSize!==12?{...p,fdCell:false,charSpace:0}:p);
+    total += measurePieces(pdf,pieces,run.bold,run.italic);
+    if(run.fontSize)pdf.setFontSize(12);
   }
   return total;
 }
@@ -799,14 +810,14 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       ? applyFootnoteMarkers(styled, refs, plan!.settings.markerStyle, plan!.markerWidth)
       : styled;
     const text=getPlainText(runs);
-    const fragments=SPLIT_PARAGRAPH_TYPES.has(typeName)?paragraphLines(text,CHARS_PER_LINE[typeName]||62):[];
+    const fragments=SPLIT_PARAGRAPH_TYPES.has(typeName)?paragraphLines(text,paragraphColumns(node,layout,FD_INDENTS[typeName]??FD_INDENTS.general)):[];
     if(fragments.length>2){
       fragments.forEach((fragment,part)=>{
-        const attrs=part>0?{...node.attrs,startsNewPage:false,lockedPage:null,lockedPageMid:false,elementNumber:null}:node.attrs;
-        nodes.push({typeName,runs:sliceParagraphRuns(runs,fragment.from,fragment.to),plainText:fragment.text,attrs,srcIndex:index,
+        const attrs={...node.attrs,paragraphLayout:node.attrs?.paragraphLayout?{...paragraphLayoutOf(node),spaceBeforePt:part?0:paragraphLayoutOf(node).spaceBeforePt,spaceAfterPt:part===fragments.length-1?paragraphLayoutOf(node).spaceAfterPt:0}:null,...(part>0?{startsNewPage:false,lockedPage:null,lockedPageMid:false,elementNumber:null}:{})};
+        nodes.push({typeName,runs:sliceParagraphRuns(runs,fragment.from,fragment.to),plainText:fragment.text,attrs,srcIndex:index,fontScale:fontScaleOf(node),paragraphContinues:part<fragments.length-1,
           continuation:part>0,fragmentFrom:originalTextOffset(plan,index,fragment.from),fragmentTo:originalTextOffset(plan,index,fragment.to)});
       });
-    }else nodes.push({typeName,runs,plainText:getPlainText(rawRuns),attrs:node.attrs as Record<string,unknown>|undefined,srcIndex:index});
+    }else nodes.push({typeName,runs,plainText:getPlainText(rawRuns),attrs:node.attrs as Record<string,unknown>|undefined,srcIndex:index,fontScale:fontScaleOf(node)});
   });
 
   // Header and footer text, resolved once the page count is known but written
@@ -1114,7 +1125,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
    * paginated differently in the file (issue #123).
    */
   const spaceBeforePtOf = (n: NodeInfo): number =>
-    (n.continuation ? 0 : spaceBeforeLines[elementIdOf({ type: n.typeName, attrs: n.attrs })] ?? 0) * LINE_HEIGHT_PT;
+    (n.continuation ? 0 : paragraphLayoutOf(n).spaceBeforePt!=null?paragraphLayoutOf(n).spaceBeforePt!/12:spaceBeforeLines[elementIdOf({ type: n.typeName, attrs: n.attrs })] ?? 0) * LINE_HEIGHT_PT;
 
   /** True when this node must open a fresh page (template rule or manual flag). */
   function mustStartNewPage(node: NodeInfo): boolean {
@@ -1187,6 +1198,40 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
             number: elementNumberOf(child),
           };
         }));
+      const rows=dualRows(columns as DualColumns);
+      if(rows.length>linesPerPage){
+        for(const entry of claimed)pageEntries=pageEntries.filter(e=>e!==entry);
+        const seen=new Set<string>();
+        const cues=(line:number,continued:boolean)=>{
+          for(const cell of rows[line]??[]){const [left,right]=dualChildBounds(cell.column,'character');const speaker=dualSpeaker(columns,cell.column,cell.child);
+            drawPlain(pdf,continued?`${speaker} ${mc.contdText}`:mc.moreText,(left+right)*36,currentY+LINE_HEIGHT_PT,fonts);}
+        };
+        for(let row=0;row<rows.length;){const count=row===0?Math.min(4,rows.length):1,cells=rows.slice(row,row+count).flat();
+          const added:FootnoteEntry[]=[];
+          if(drawFootnotes)for(const ref of plan!.refsByNode.get(node.srcIndex)??[]){if(seen.has(ref.noteId)||!cells.some(c=>(ref.charOffset>c.sourceFrom||c.sourceFrom===0)&&ref.charOffset<=c.sourceTo))continue;const entry=plan!.entryById.get(ref.noteId);if(entry&&plan!.footnoteIds.has(ref.noteId)){pageEntries.push(entry);added.push(entry);seen.add(ref.noteId);}}
+          const before=row===0&&!isFirstElement?spaceBeforePtOf(node):0;
+          const reserve=row+count<rows.length&&mc.dialogueBreakContd?LINE_HEIGHT_PT:0;
+          if((row===0&&forcedBreak||currentY+before+count*LINE_HEIGHT_PT+reserve>bottomPt())&&currentY>topMarginPt){
+            for(const entry of added)pageEntries=pageEntries.filter(e=>e!==entry);
+            if(row>0&&mc.dialogueBreakContd)cues(row,false);
+            newPage();pageEntries.push(...added);
+            if(row>0&&mc.dialogueBreakContd){cues(row,true);currentY+=LINE_HEIGHT_PT;}
+          }else currentY+=before;
+          const top=currentY;
+          for(let at=row;at<row+count;at++){
+            for(const cell of rows[at]){
+              const child=columns[cell.column][cell.child];const [left,right]=dualChildBounds(cell.column,cell.type);
+              const runs=sliceParagraphRuns(child.runs,cell.from,cell.to);
+              const wrapped=wrapForDrawing(runs,dualCharsPerLine(cell.type),UPPERCASE_TYPES.has(cell.type));
+              renderElement(pdf,wrapped,left*72,right*72,currentY,cell.type,fonts,revisionMarkX);
+              if(cell.from===0&&child.number)drawElementNumber(pdf,child.number,left*72,currentY,fonts);
+            }
+            currentY+=LINE_HEIGHT_PT;
+          }
+          place(node.srcIndex,top,currentY);row+=count;isFirstElement=false;
+        }
+        i++;continue;
+      }
       const heightPt = dualDialogueLineCount(columns as DualColumns) * LINE_HEIGHT_PT;
       const sbPt = isFirstElement ? 0 : spaceBeforePtOf(node);
 
@@ -1300,15 +1345,14 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       continue;
     }
     const indents = FD_INDENTS[typeName] || FD_INDENTS.general;
-    const leftPt = indents[0] * PTS_PER_INCH;
-    const rightPt = indents[1] * PTS_PER_INCH;
-    const maxChars = CHARS_PER_LINE[typeName] || 62;
+    const [leftPt,rightPt]=paragraphBounds(node,layout,indents);
+    const maxChars=paragraphColumns(node,layout,indents);
     const forceUpper = UPPERCASE_TYPES.has(typeName);
 
     const spaceBeforePt = isFirstElement ? 0 : spaceBeforePtOf(node);
 
     const wrappedLines = wrapForDrawing(node.runs, maxChars, forceUpper);
-    const elementHeightPt = wrappedLines.length * LINE_HEIGHT_PT;
+    const elementHeightPt = wrappedLines.length * LINE_HEIGHT_PT*paragraphLineScale(node,paragraphLayoutOf(node).lineSpacing??1)+(paragraphLayoutOf(node).spaceAfterPt??0);
     const totalHeightPt = spaceBeforePt + elementHeightPt;
 
     /**
@@ -1327,17 +1371,17 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     const measure = (at: number): BlockPart => {
       const n = nodes[at];
       const w = wrapForDrawing(
-        n.runs, CHARS_PER_LINE[n.typeName] || 62, UPPERCASE_TYPES.has(n.typeName),
+        n.runs, paragraphColumns(n,layout,FD_INDENTS[n.typeName]??FD_INDENTS.general), UPPERCASE_TYPES.has(n.typeName),
       );
       const sb = spaceBeforePtOf(n);
       return {
-        nodeIndex: at, sbPt: sb, wrapped: w, lines: w.length,
-        heightPt: sb + w.length * LINE_HEIGHT_PT,
+        nodeIndex: at, sbPt: sb, wrapped: w, lines: w.length*paragraphLineScale(n,paragraphLayoutOf(n).lineSpacing??1)+(paragraphLayoutOf(n).spaceAfterPt??0)/12,
+        heightPt: sb + w.length * LINE_HEIGHT_PT*paragraphLineScale(n,paragraphLayoutOf(n).lineSpacing??1)+(paragraphLayoutOf(n).spaceAfterPt??0),
       };
     };
     const parts: BlockPart[] = [{
       nodeIndex: i, sbPt: spaceBeforePt, wrapped: wrappedLines,
-      lines: wrappedLines.length, heightPt: totalHeightPt,
+      lines: elementHeightPt/12, heightPt: totalHeightPt,
     }];
     /** Index in `parts` of the character name, when this block is a speech. */
     let speechAt = -1;
@@ -1382,11 +1426,12 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
         if(speechAt>=0 && mc.dialogueBreakContd){drawPlain(pdf,`${nodes[parts[speechAt].nodeIndex].plainText.trim().toUpperCase()} ${mc.contdText}`,FD_INDENTS.character[0]*PTS_PER_INCH,currentY+LINE_HEIGHT_PT,fonts);currentY+=LINE_HEIGHT_PT;}
         withSpaceBefore=false;
       }
-      const dIndents = FD_INDENTS[dNode.typeName] || FD_INDENTS.general;
+      const rawIndents = FD_INDENTS[dNode.typeName] || FD_INDENTS.general;
+      const dIndents=paragraphBounds(dNode,layout,rawIndents).map(n=>n/72);
       if (withSpaceBefore) currentY += part.sbPt;
       renderElement(
         pdf, part.wrapped, dIndents[0] * PTS_PER_INCH, dIndents[1] * PTS_PER_INCH,
-        currentY, dNode.typeName, fonts, revisionMarkX,
+        currentY, dNode.typeName, fonts, revisionMarkX,{align:dNode.attrs?.textAlign,lineHeight:12*paragraphLineScale(dNode,paragraphLayoutOf(dNode).lineSpacing??1),justifyLast:dNode.paragraphContinues},
       );
       const partNumber = elementNumberOf(dNode);
       if (partNumber) drawElementNumber(pdf, partNumber, dIndents[0] * PTS_PER_INCH, currentY, fonts);
@@ -1506,7 +1551,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     }
 
     // Render the element
-    renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, fonts, revisionMarkX);
+    renderElement(pdf, wrappedLines, leftPt, rightPt, currentY, typeName, fonts, revisionMarkX,{align:node.attrs?.textAlign,lineHeight:12*paragraphLineScale(node,paragraphLayoutOf(node).lineSpacing??1),justifyLast:node.paragraphContinues});
     const number = elementNumberOf(node);
     if (number) drawElementNumber(pdf, number, leftPt, currentY, fonts);
 
@@ -1727,14 +1772,15 @@ function renderElement(
   fonts: FontContext,
   /** Where to draw a revised line's margin mark; null draws none. */
   revisionMarkX: RevisionMarker | null = null,
+  options?:{align?:unknown;lineHeight?:number;justifyLast?:boolean},
 ): void {
-  const isCentered = CENTERED_TYPES.has(typeName);
-  const isRightAligned = RIGHT_ALIGNED_TYPES.has(typeName);
+  const isCentered = options?.align?options.align==='center':CENTERED_TYPES.has(typeName);
+  const isRightAligned = options?.align?options.align==='right':RIGHT_ALIGNED_TYPES.has(typeName);
   const maxWidthPt = rightPt - leftPt;
 
   for (let lineIdx = 0; lineIdx < wrappedLines.length; lineIdx++) {
     const lineRuns = wrappedLines[lineIdx];
-    const y = startY + (lineIdx + 1) * LINE_HEIGHT_PT; // +1 because jsPDF text baseline
+    const y = startY + (lineIdx + 1) * (options?.lineHeight??LINE_HEIGHT_PT); // +1 because jsPDF text baseline
 
     if (isCentered) {
       const totalWidth = measureLine(pdf, lineRuns, fonts);
@@ -1744,6 +1790,11 @@ function renderElement(
       const totalWidth = measureLine(pdf, lineRuns, fonts);
       const rightX = rightPt - totalWidth;
       renderLine(pdf, lineRuns, rightX, y, fonts);
+    } else if(options?.align==='justify'&&(lineIdx<wrappedLines.length-1||options.justifyLast)){
+      const spaces=lineRuns.reduce((n,r)=>n+(r.text.match(/ /g)?.length??0),0);
+      const extra=spaces?Math.max(0,(maxWidthPt-measureLine(pdf,lineRuns,fonts))/spaces):0;
+      let x=leftPt;
+      for(const run of lineRuns){const tokens=run.text.match(/[^ ]+| +/g)??[];tokens.forEach((text,index)=>{const piece={...run,text,marker:index===tokens.length-1?run.marker:undefined};renderLine(pdf,[piece],x,y,fonts);x+=measureLine(pdf,[piece],fonts)+(text.match(/ /g)?.length??0)*extra;});}
     } else {
       renderLine(pdf, lineRuns, leftPt, y, fonts);
     }

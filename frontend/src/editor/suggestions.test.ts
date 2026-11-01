@@ -277,12 +277,13 @@ describe('what a suggestion cannot carry', () => {
     expect(blocked).toBe(0);
   });
 
-  it('turns a line break inside an element into a space, and says so', () => {
+  it('keeps a suggested inline line break as a real break', () => {
     let s = stateOf(block('action', 'One two.'));
     let blocked = 0;
     s = suggest(s, (tr) => tr.insert(at(s, 0, 4), testSchema.nodes.hardBreak.create()), 'Ann', () => { blocked++; });
-    expect(show(s)).toBe('action:One {+ +}two.');
-    expect(blocked).toBe(1);
+    expect(s.doc.textContent).toBe('One \ntwo.');
+    expect(blocked).toBe(0);
+    expect(listSuggestions(s.doc)[0].kinds).toContain('break');
   });
 
   it('still lets a reviewer add a script note', () => {

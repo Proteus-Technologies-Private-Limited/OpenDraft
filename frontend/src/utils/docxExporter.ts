@@ -1,3 +1,5 @@
+import {parseCssColor} from './inkColor';
+import {paragraphLineScale,paragraphLayoutOf} from '../editor/paragraphLayout';
 // Word (.docx) exporter — produces a Microsoft Word document that mirrors the
 // on-screen screenplay layout (Final Draft style: Courier 12pt, exact element
 // indents, single line spacing, type-level bold/italic/underline/uppercase).
@@ -167,7 +169,8 @@ export function buildTextRuns(
             // Hindi in the run is not drawn in a Latin one — see
             // utils/docxScriptFonts.
             font: runFont(r.text, r.fontFamily || docFont),
-            size: FONT_SIZE_HALFPT,
+            size: r.fontSize?Math.round(r.fontSize*2):FONT_SIZE_HALFPT,
+            ...(r.color&&parseCssColor(r.color)?{color:parseCssColor(r.color)!.map(v=>v.toString(16).padStart(2,'0')).join('')}:{}),
             bold: r.bold || undefined,
             italics: r.italic || undefined,
             underline: r.underline ? {} : undefined,
@@ -385,8 +388,9 @@ function buildElementParagraph(
 ): Paragraph {
   const typeName = node.type || 'general';
   const indent = indentForType(typeName, layout);
-  let alignment = alignmentForType(typeName);
-  const sb = isFirst ? 0 : (spaceBeforeLines[typeName] ?? 0) * LINE_HEIGHT_PT;
+  const paragraph=paragraphLayoutOf(node);
+  let alignment = ({left:AlignmentType.LEFT,right:AlignmentType.RIGHT,center:AlignmentType.CENTER,justify:AlignmentType.JUSTIFIED} as Record<string,(typeof AlignmentType)[keyof typeof AlignmentType]>)[String(node.attrs?.textAlign)]??alignmentForType(typeName);
+  const sb = isFirst ? 0 : paragraph.spaceBeforePt??(spaceBeforeLines[typeName] ?? 0) * LINE_HEIGHT_PT;
   const styledRuns = applyTypeStyles(extractRuns(node), typeName);
   let children: (TextRun | FootnoteReferenceRun | EndnoteReferenceRun)[] = buildTextRuns(styledRuns, docFont, refs, isEndnote);
 
@@ -453,14 +457,15 @@ function buildElementParagraph(
     ...(tabStops ? { tabStops } : {}),
     style: STYLE_NAMES[typeName] ? typeName : undefined,
     indent: {
-      left: indent.left,
-      right: indent.right,
+      left: paragraph.leftIndentPt!=null?paragraph.leftIndentPt*TWIPS_PER_POINT:indent.left,
+      right: paragraph.rightIndentPt!=null?paragraph.rightIndentPt*TWIPS_PER_POINT:indent.right,
       ...(hanging !== undefined ? { hanging } : {}),
     },
     pageBreakBefore: pageBreakBefore || undefined,
     spacing: {
       before: sb * TWIPS_PER_POINT,
-      line: LINE_HEIGHT_PT * TWIPS_PER_POINT,
+      after:paragraph.spaceAfterPt!=null?paragraph.spaceAfterPt*TWIPS_PER_POINT:undefined,
+      line: LINE_HEIGHT_PT * TWIPS_PER_POINT*paragraphLineScale(node,paragraph.lineSpacing??1),
       lineRule: LineRuleType.EXACT,
     },
     children,
@@ -491,7 +496,8 @@ function buildRunsWithReferences(
   const styled = (r: RunStyle, text: string) => new TextRun({
     text,
     font: runFont(text, r.fontFamily || docFont),
-    size: FONT_SIZE_HALFPT,
+    size: r.fontSize?Math.round(r.fontSize*2):FONT_SIZE_HALFPT,
+    ...(r.color&&parseCssColor(r.color)?{color:parseCssColor(r.color)!.map(v=>v.toString(16).padStart(2,'0')).join('')}:{}),
     bold: r.bold || undefined,
     italics: r.italic || undefined,
     underline: r.underline ? {} : undefined,

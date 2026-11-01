@@ -139,7 +139,7 @@ export const LockedPages = Extension.create({
               console.warn(`[lockedPages] a ${node.type.name} cannot carry a page anchor; page ${p.label} is not locked`);
               continue;
             }
-            if(p.contentOffset!==undefined){
+            if(p.contentOffset!==undefined||p.dualLine!==undefined){
               const list=tr.doc.nodeAt(offsets[p.nodeIndex])?.attrs.lockedPageContinuations??[];
               tr.setNodeAttribute(offsets[p.nodeIndex],'lockedPageContinuations',[...list,p.label]);
               continue;

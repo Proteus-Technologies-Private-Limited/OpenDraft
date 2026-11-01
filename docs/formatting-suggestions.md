@@ -34,5 +34,4 @@ style as part of that insertion.
 
 Update both clients and the collaboration server before using the feature.
 Older clients do not understand the new review mark, and older servers reject
-formatting proposals. Font/colour changes, paragraph alignment and spacing, and
-Shift+Enter suggestions remain outside this implementation.
+formatting proposals. The follow-up in [complete-review-and-dual-pagination.md](complete-review-and-dual-pagination.md) adds font/colour and paragraph proposals, suggested Shift+Enter breaks, and read-only review projections.

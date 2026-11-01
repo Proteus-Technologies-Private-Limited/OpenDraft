@@ -32,6 +32,8 @@ export interface WrapRun {
    * on, so a font change must not move a page break.
    */
   fontFamily?: string;
+  fontSize?:number;
+  color?:string;
   /**
    * Revision Mode marked this text. Carried so the PDF can put an asterisk in
    * the margin of every line holding revised words; like the typeface it never
@@ -143,7 +145,7 @@ export function sliceColumns(text: string, max: number): string {
 /** Would merging these two runs change how either is drawn? */
 function drawsAlike(a: WrapRun, b: WrapRun): boolean {
   return a.bold === b.bold && a.italic === b.italic
-    && a.underline === b.underline && a.fontFamily === b.fontFamily;
+    && a.underline === b.underline && a.fontFamily === b.fontFamily && a.fontSize===b.fontSize && a.color===b.color;
 }
 
 /**
@@ -305,7 +307,7 @@ export function wordWrapRuns(
           bold: run.bold,
           italic: run.italic,
           underline: run.underline,
-          fontFamily: run.fontFamily,
+          fontFamily: run.fontFamily,...(run.fontSize?{fontSize:run.fontSize}:{}),...(run.color?{color:run.color}:{}),
           ...(run.revised ? { revised: true } : {}),
           ...(run.revised && run.revision ? { revision: run.revision } : {}),
         });
@@ -380,7 +382,7 @@ export function wordWrapRuns(
 
     const asRun = (text: string): WrapRun => ({
       text, bold: word.bold, italic: word.italic, underline: word.underline,
-      fontFamily: word.fontFamily, ...(word.marker ? { marker: word.marker } : {}),
+      fontFamily: word.fontFamily,...(word.fontSize?{fontSize:word.fontSize}:{}),...(word.color?{color:word.color}:{}), ...(word.marker ? { marker: word.marker } : {}),
       ...(word.revised ? { revised: true } : {}),
       ...(word.revised && word.revision ? { revision: word.revision } : {}),
     });

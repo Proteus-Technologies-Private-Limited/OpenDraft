@@ -19,6 +19,7 @@
  * testable in the node environment.
  */
 
+import { paragraphLines } from './paragraphPagination';
 import { getTextLines } from './wrapText';
 
 /** One element inside a column. */
@@ -35,7 +36,7 @@ export type DualColumns = DualChild[][];
 const FD_CPI = 10.33;
 
 /** The band a dual block occupies — Action's span, which is the text column. */
-export const DUAL_BAND: readonly [number, number] = [1.50, 7.50];
+export const DUAL_BAND: readonly [number, number] = [1.5, 7.5];
 
 /** Half the band, per column. */
 export const DUAL_COLUMN_WIDTH_IN = (DUAL_BAND[1] - DUAL_BAND[0]) / 2;
@@ -61,10 +62,10 @@ export function dualChildBounds(col: number, type: string): [number, number] {
   return [colLeft + padLeft, colLeft + DUAL_COLUMN_WIDTH_IN - padRight];
 }
 
-/** How many characters fit on one line of an element inside a column. */
+/** Complete cells after padding. Rounding up makes browser pre-wrap and PDF diverge. */
 export function dualCharsPerLine(type: string): number {
   const [left, right] = dualChildBounds(0, type);
-  return Math.max(1, Math.round((right - left) * FD_CPI));
+  return Math.max(1, Math.floor((right - left) * FD_CPI));
 }
 
 /**
@@ -108,4 +109,59 @@ export function dualColumnsOf(
       text: textOf(child),
     })),
   );
+}
+
+/** Visual rows shared by editor and PDF; offsets always refer to the original child text. */
+export interface DualCell {
+  column: number;
+  child: number;
+  type: string;
+  from: number;
+  to: number;
+  text: string;
+  sourceFrom: number;
+  sourceTo: number;
+}
+export function dualRows(columns: DualColumns): DualCell[][] {
+  const rows: DualCell[][] = [];
+  let source = 0;
+  columns.forEach((children, column) => {
+    let row = dualColumnLeadLines(children);
+    children.forEach((child, index) => {
+      const lines = paragraphLines(child.text, dualCharsPerLine(child.type));
+      for (const line of lines) {
+        (rows[row] ??= []).push({
+          column,
+          child: index,
+          type: child.type,
+          from: line.from,
+          to: line.to,
+          text: line.text,
+          sourceFrom: source + line.from,
+          sourceTo: source + line.to,
+        });
+        row++;
+      }
+      source += child.text.length;
+    });
+  });
+  return Array.from({ length: Math.max(1, rows.length) }, (_, i) => rows[i] ?? []);
+}
+export function dualSpeaker(columns: DualColumns, column: number, child: number): string {
+  for (let i = child; i >= 0; i--)
+    if (columns[column]?.[i]?.type === 'character')
+      return columns[column][i].text.trim().toUpperCase();
+  return '';
+}
+
+export function dualCellPosition(
+  node: import('@tiptap/pm/model').Node,
+  offset: number,
+  cell: DualCell,
+): number {
+  let pos = offset + 3;
+  for (let c = 0; c < cell.column; c++) pos += node.child(c).nodeSize;
+  for (let child = 0; child < cell.child; child++)
+    pos += node.child(cell.column).child(child).nodeSize;
+  return pos + cell.from;
 }

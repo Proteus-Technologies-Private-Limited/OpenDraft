@@ -44,9 +44,11 @@ function describe(s: Suggestion): string {
   else if (del) parts.push(`Delete “${del}”`);
   if (s.kinds.includes('split') && !ins) parts.push('Start a new line');
   else if (s.kinds.includes('split')) parts.push('on a new line');
+  if(s.kinds.includes('break'))parts.push(s.inserted.includes('\n')?'Insert inline line break':'Remove inline line break');
   if (s.kinds.includes('join')) parts.push('Join to the line before');
   if (s.kinds.includes('type'))
     parts.push(`Change ${typeLabel(s.fromType)} to ${typeLabel(s.toType)}`);
+  if(s.kinds.includes('paragraphFormat'))parts.push(`Paragraph: ${Object.keys(s.paragraphChanges??{}).map(key=>key==='textAlign'?`alignment ${s.paragraphChanges?.[key]??'default'}`:'indents and spacing').join(', ')}`);
   const formatting = formattingDescription(s);
   if (formatting) parts.push(formatting);
   return parts.join(' · ') || 'Change';
@@ -79,6 +81,8 @@ function goTo(editor: Editor, pos: number, focus = true) {
 }
 
 const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
+  const display=useSuggestModeStore(s=>s.display);
+  const setDisplay=useSuggestModeStore(s=>s.setDisplay);
   const open = useSuggestModeStore((s) => s.panelOpen);
   const setOpen = useSuggestModeStore((s) => s.setPanelOpen);
   const locked = useSuggestModeStore((s) => s.locked);
@@ -153,12 +157,12 @@ const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
     }
   };
   const resolveShown = (accept: boolean) => {
-    if (!editor || locked) return;
+    if (!editor || locked || display!=='markup') return;
     const ids = new Set(shown.map((s) => s.id));
     run(resolveSuggestionsTransaction(editor.state, (st) => ids.has(st.id), accept));
   };
   /** A suggester may only take back their own. */
-  const canResolve = (s: Suggestion) => !locked || isOwn(s, me);
+  const canResolve = (s: Suggestion) => display==='markup' && (!locked || isOwn(s, me));
 
   return (
     <div
@@ -183,11 +187,14 @@ const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
       </div>
 
       <div className="suggestions-controls">
+        <Select value={display} onChange={e=>setDisplay(e.target.value as 'markup'|'original'|'proposed')} aria-label="Review display">
+          <option value="markup">Show Markup</option><option value="original">Original</option><option value="proposed">Proposed</option>
+        </Select>
         <label className="suggestions-mode">
           <input
             type="checkbox"
             checked={suggesting}
-            disabled={locked}
+            disabled={locked || display!=='markup'}
             onChange={(e) => setSuggesting(e.target.checked)}
           />
           <span>
@@ -227,7 +234,7 @@ const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
         <div className="suggestions-navigation" aria-label="Review navigation">
           <button
             className="dialog-btn"
-            disabled={!shown.length}
+            disabled={!shown.length||display!=='markup'}
             onClick={() => navigate(-1)}
             aria-label="Previous suggestion"
           >
@@ -240,7 +247,7 @@ const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
           </span>
           <button
             className="dialog-btn"
-            disabled={!shown.length}
+            disabled={!shown.length||display!=='markup'}
             onClick={() => navigate(1)}
             aria-label="Next suggestion"
           >
@@ -259,7 +266,7 @@ const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
             </button>
           </div>
         )}
-        {!locked && shown.length > 0 && (
+        {display==='markup' && !locked && shown.length > 0 && (
           <div className="suggestions-bulk">
             <button className="dialog-btn" onClick={() => resolveShown(true)}>
               Accept shown ({shown.length})
@@ -285,6 +292,7 @@ const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
             className={`suggestion-card${s.id === currentId ? ' suggestion-card--current' : ''}`}
           >
             <button
+              disabled={display!=='markup'}
               className="suggestion-card-main"
               onClick={() => visit(s)}
               aria-current={s.id === currentId ? 'true' : undefined}

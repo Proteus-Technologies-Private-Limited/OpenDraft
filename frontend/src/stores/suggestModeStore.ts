@@ -17,6 +17,8 @@ interface SuggestModeState {
   locked: boolean;
   /** The Suggestions panel. */
   panelOpen: boolean;
+  display: 'markup' | 'original' | 'proposed';
+  setDisplay: (display: 'markup' | 'original' | 'proposed') => void;
   /** This window's stable id in the collaboration session it is in (utils/suggesterId). */
   uid: string | null;
   setSuggesting: (on: boolean) => void;
@@ -30,6 +32,8 @@ export const useSuggestModeStore = create<SuggestModeState>((set) => ({
   suggesting: false,
   locked: false,
   panelOpen: false,
+  display: 'markup',
+  setDisplay: (display) => set({ display }),
   uid: null,
   setSuggesting: (on) => set((s) => ({ suggesting: s.locked ? true : on })),
   setLocked: (locked) => set({ locked, suggesting: locked }),

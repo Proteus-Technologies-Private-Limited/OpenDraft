@@ -1,6 +1,9 @@
 import type { Suggestion, SuggestedFormat } from './suggestions';
 export type ReviewFilter = 'all' | 'text' | 'format' | 'structure';
 export const FORMAT_LABELS: Record<SuggestedFormat, string> = {
+  fontFamily: 'font',
+  fontSize: 'font size',
+  color: 'colour',
   bold: 'bold',
   italic: 'italic',
   underline: 'underline',
@@ -19,9 +22,9 @@ export function filterSuggestions(
       (kind === 'all' ||
         s.kinds.some((k) =>
           kind === 'text'
-            ? k === 'insert' || k === 'delete'
+            ? k === 'insert' || k === 'delete' || k === 'break'
             : kind === 'format'
-              ? k === 'format'
+              ? k === 'format' || k === 'paragraphFormat'
               : k === 'split' || k === 'join' || k === 'type',
         )),
   );
@@ -46,7 +49,8 @@ export function adjacentSuggestion(
 export function formattingDescription(s: Suggestion): string {
   if (!s.kinds.includes('format')) return '';
   const changes = (s.formats ?? []).map(
-    (f) => `${f.after ? 'Add' : 'Remove'} ${FORMAT_LABELS[f.format]}`,
+    (f) =>
+      `${typeof f.after === 'boolean' ? (f.after ? 'Add' : 'Remove') : 'Change'} ${FORMAT_LABELS[f.format]}${typeof f.after === 'boolean' ? '' : ` to ${f.after ?? 'default'}`}`,
   );
   return `${changes.join(', ')}${s.formatted ? ` on “${s.formatted.replace(/\n/g, ' ').trim()}”` : ''}`;
 }

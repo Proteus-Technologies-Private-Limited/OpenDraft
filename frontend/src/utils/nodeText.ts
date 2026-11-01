@@ -81,6 +81,8 @@ export interface Run {
    * which is what every exporter should fall back to.
    */
   fontFamily?: string;
+  fontSize?:number;
+  color?:string;
   /**
    * The revision colour this run was written in (Revision Mode's `revision`
    * attribute on textStyle), for exporters that show revisions — the PDF's margin asterisks,
@@ -98,6 +100,7 @@ export function jsonBlockRuns(node: JSONContent | null | undefined): Run[] {
   return node.content.map((child): Run => {
     if (child.type === BREAK_TYPE) return { ...EMPTY_RUN, isBreak: true };
     let bold = false, italic = false, underline = false, strike = false;
+    let fontSize:number|undefined,color:string|undefined;
     let fontFamily: string | undefined;
     let revision: string | undefined;
     if (child.marks) {
@@ -109,6 +112,7 @@ export function jsonBlockRuns(node: JSONContent | null | undefined): Run[] {
         if (mark.type === 'textStyle' && typeof mark.attrs?.fontFamily === 'string') {
           fontFamily = mark.attrs.fontFamily;
         }
+        if(mark.type==='textStyle'){const raw=String(mark.attrs?.fontSize??'');const size=parseFloat(raw)*(raw.endsWith('px')?.75:1);if(Number.isFinite(size)&&size>0)fontSize=size;if(typeof mark.attrs?.color==='string'&&mark.attrs.color)color=mark.attrs.color;}
         // Revision Mode keeps the revision on textStyle (see editor/revisionMarks).
         if (mark.type === 'textStyle' && typeof mark.attrs?.revision === 'string' && mark.attrs.revision) {
           revision = mark.attrs.revision;
@@ -117,6 +121,7 @@ export function jsonBlockRuns(node: JSONContent | null | undefined): Run[] {
     }
     return {
       text: child.text || '', bold, italic, underline, strike, isBreak: false, fontFamily,
+      ...(fontSize?{fontSize}:{}),...(color?{color}:{}),
       ...(revision ? { revision } : {}),
     };
   });
@@ -145,7 +150,7 @@ export function mergeRuns(runs: Run[]): Run[] {
       prev.italic === run.italic &&
       prev.underline === run.underline &&
       prev.strike === run.strike &&
-      prev.fontFamily === run.fontFamily
+      prev.fontFamily === run.fontFamily && prev.fontSize===run.fontSize && prev.color===run.color
     ) {
       merged[merged.length - 1] = { ...prev, text: prev.text + run.text };
       continue;

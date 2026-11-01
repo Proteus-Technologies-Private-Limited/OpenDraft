@@ -439,3 +439,26 @@ describe('single paragraphs spanning several sheets', () => {
     expect(draws.filter(d=>/word\d+/.test(d.text)).every(d=>d.y<=DEFAULT_PAGE_LAYOUT.pageHeight*72-DEFAULT_PAGE_LAYOUT.bottomMargin)).toBe(true);
   });
 });
+
+describe('dual dialogue spanning pages',()=>{
+ for(const rightLength of [40,1400])it(`keeps both columns and every word when the right column has ${rightLength} words`,async()=>{
+  const left=Array.from({length:1800},(_,i)=>`left${i}`).join(' '),right=Array.from({length:rightLength},(_,i)=>`right${i}`).join(' ');
+  const json=doc(block('sceneHeading','INT. ROOM - DAY'),{type:'dualDialogue',content:[{type:'dualDialogueColumn',content:[block('character','SARAH'),block('dialogue',left)]},{type:'dualDialogueColumn',content:[block('character','JOHN'),block('dialogue',right)]}]},block('action','After the speeches.'));
+  const before=JSON.stringify(json);await exportPDF(json,'Dual',DEFAULT_PAGE_LAYOUT);
+  const result=computeBreaks(pmDoc(json),DEFAULT_PAGE_LAYOUT,activeTemplateHints());
+  expect(pageCount).toBe(result.pageCount);expect(pageCount).toBeGreaterThan(3);expect(result.breaks.some(b=>b.dualLine!>0)).toBe(true);
+  expect(draws.flatMap(d=>d.text.match(/left\d+/g)??[])).toEqual(left.split(' '));
+  expect(draws.flatMap(d=>d.text.match(/right\d+/g)??[])).toEqual(right.split(' '));
+  expect(draws.filter(d=>/left\d+|right\d+/.test(d.text)).every(d=>d.y<=DEFAULT_PAGE_LAYOUT.pageHeight*72-DEFAULT_PAGE_LAYOUT.bottomMargin)).toBe(true);
+  expect(draws.some(d=>d.text.includes("SARAH (CONT'D)"))).toBe(true);expect(JSON.stringify(json)).toBe(before);
+ });
+});
+
+it('keeps custom paragraph indents and spacing in the PDF and editor line budget',async()=>{
+ const {ParagraphLayout}=await import('../editor/extensions/ParagraphLayout');
+ const schema=getSchema([...testExtensions,ParagraphLayout]);
+ const json=doc(block('action','custom paragraph words '.repeat(180),{paragraphLayout:{leftIndentPt:36,rightIndentPt:24,spaceBeforePt:6,spaceAfterPt:12,lineSpacing:1.5}}));
+ await exportPDF(json,'Custom',DEFAULT_PAGE_LAYOUT);
+ const result=computeBreaks(schema.nodeFromJSON(json),DEFAULT_PAGE_LAYOUT,activeTemplateHints());
+ expect(pageCount).toBe(result.pageCount);expect(draws.filter(d=>d.text.includes('custom')).every(d=>d.y<=DEFAULT_PAGE_LAYOUT.pageHeight*72-DEFAULT_PAGE_LAYOUT.bottomMargin)).toBe(true);
+});

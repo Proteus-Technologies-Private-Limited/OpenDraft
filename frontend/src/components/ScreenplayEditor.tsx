@@ -1,3 +1,5 @@
+import {ParagraphLayout} from '../editor/extensions/ParagraphLayout';
+import ReviewDocument from './ReviewDocument';
 import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import Document from '@tiptap/extension-document';
@@ -180,12 +182,12 @@ function sayCannotBeSuggested(what: 'formatting' | 'lineBreak' | 'alternates' | 
   if (what !== 'alternates' && now - blockedToastAt < 8000) return;
   blockedToastAt = now;
   showToast(what === 'lineBreak'
-    ? 'A line break inside an element can’t be suggested — press Enter for a new line instead.'
+    ? 'Review the existing inline-break proposal before changing this break.'
     : what === 'alternates'
       ? 'Versions of a line or scene can’t be added or switched while suggesting. Turn off Tools → Suggest Changes to do that.'
       : what === 'formatConflict'
         ? 'This selection already has a formatting suggestion from someone else. Review it before changing the same style.'
-        : 'This formatting cannot be suggested yet. Bold, italic, underline, strikethrough, subscript and superscript are supported.', 'info');
+        : 'This setting cannot be suggested. Character styles, fonts, colours, alignment and Paragraph Layout are supported.', 'info');
 }
 import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';
@@ -1586,9 +1588,9 @@ const ScreenplayEditor: React.FC = () => {
     for (const brk of breaks) {
       const el = children[brk.nodeIndex];
       if (!el) continue;
-      const internal = brk.contentOffset !== undefined ? el.querySelector<HTMLElement>(`.sp-paragraph-page-break[data-page-number="${brk.pageNumber}"]`) : null;
+      const internal = (brk.contentOffset !== undefined || brk.dualLine!==undefined) ? el.querySelector<HTMLElement>(`.sp-paragraph-page-break[data-page-number="${brk.pageNumber}"]`) : null;
       const elRect = internal ? internal.getBoundingClientRect() : el.getBoundingClientRect();
-      const contdHeight = brk.isDialogueSplit && showContd ? lineHeightPx : 0;
+      const contdHeight = (brk.isDialogueSplit || brk.dualLine!==undefined) && showContd ? lineHeightPx : 0;
       // The phone view replaces the gap between sheets with a divider of its
       // own height (--phone-page-gap in screenplay.css) directly above the
       // first element of the page.
@@ -2039,7 +2041,7 @@ const ScreenplayEditor: React.FC = () => {
       // HardBreakLeafText must travel with ScreenplayHardBreak — see that module.
       Text, ScreenplayHardBreak, HardBreakLeafText,
       Bold, Italic, Underline, Strike, Dropcursor, Gapcursor,
-      Subscript, Superscript,
+      Subscript, Superscript, ParagraphLayout,
       PastedHighlight.configure({ multicolor: true }),
       RevisionTextStyle, InkAwareColor, FontFamily, FontSize, PasteFormatting,
       FormatOverride, CustomElement, ScreenplayImage,
@@ -2210,6 +2212,7 @@ const ScreenplayEditor: React.FC = () => {
 
   // Element numbers follow the format and the scene numbers, neither of which
   // is in the document — so a change to either has to ask for a recount.
+  const reviewDisplay=useSuggestModeStore(s=>s.display);
   const elementNumbersVisible = useEditorStore((s) => s.elementNumbersVisible);
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
@@ -5529,7 +5532,7 @@ const ScreenplayEditor: React.FC = () => {
               >
                 {resolvedNoteCss && <style>{resolvedNoteCss}</style>}
                 <div
-                  className={`page${phoneView ? ' phone-view' : ''}${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
+                  className={`page${reviewDisplay!=='markup'?' review-readonly':''}${phoneView ? ' phone-view' : ''}${!tagsVisible ? ' tags-hidden' : ''}${!notesVisible ? ' notes-hidden' : ''}${isHistoryMode ? ' history-readonly' : ''}${sceneNumbersVisible ? ' show-scene-numbers' : ''}${elementNumbersVisible ? ' show-element-numbers' : ''}${includeTitlePageInOutput ? '' : ' print-skip-title-page'}${showRevisionColors ? ' show-revision-colors' : ''}`}
                   ref={pageRef}
                   style={{
                     fontFamily: fontStack(fontFamily),
@@ -5549,7 +5552,7 @@ const ScreenplayEditor: React.FC = () => {
                     // CSS variables for element padding calculations
                     ...{ '--pl': `${pageLayout.leftMargin}in` } as React.CSSProperties,
                     ...{ '--pr': `${pageLayout.rightMargin}in` } as React.CSSProperties,
-                    ...{ '--pw': `${pageLayout.pageWidth}in` } as React.CSSProperties,
+                    ...{ '--pw': `${pageLayout.pageWidth}in`, '--review-page-height':`${pageLayout.pageHeight}in` } as React.CSSProperties,
                     // The document's typeface.  .screenplay-content sets its own
                     // font-family from --screenplay-font, so the inline
                     // fontFamily above never reaches the script text; the
@@ -5682,7 +5685,8 @@ const ScreenplayEditor: React.FC = () => {
                     />
                   )}
 
-                  <EditorContent editor={editor} />
+                  <div style={reviewDisplay!=='markup'?{display:'none'}:undefined}><EditorContent editor={editor} /></div>
+                  {editor && reviewDisplay!=='markup' && <ReviewDocument editor={editor} mode={reviewDisplay} layout={pageLayout} phoneView={phoneView}/>}
                   {/* iPadOS paints no caret in a web view while the soft
                       keyboard is down, which is how the Pencil is used, so the
                       app draws one. A sibling of the editor, never inside it —
