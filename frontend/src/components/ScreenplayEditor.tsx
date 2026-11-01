@@ -174,7 +174,7 @@ function collabRoleOf(role: unknown): CollabRole {
 
 /** Said once in a while, not on every keystroke, when a suggester tries what a suggestion cannot carry. */
 let blockedToastAt = 0;
-function sayCannotBeSuggested(what: 'formatting' | 'lineBreak' | 'alternates') {
+function sayCannotBeSuggested(what: 'formatting' | 'lineBreak' | 'alternates' | 'formatConflict') {
   const now = Date.now();
   // Alternates are a deliberate click, not a keystroke: always say why it did nothing.
   if (what !== 'alternates' && now - blockedToastAt < 8000) return;
@@ -183,7 +183,9 @@ function sayCannotBeSuggested(what: 'formatting' | 'lineBreak' | 'alternates') {
     ? 'A line break inside an element can’t be suggested — press Enter for a new line instead.'
     : what === 'alternates'
       ? 'Versions of a line or scene can’t be added or switched while suggesting. Turn off Tools → Suggest Changes to do that.'
-      : 'Formatting can’t be suggested — only words, new lines and element types. Script notes still work.', 'info');
+      : what === 'formatConflict'
+        ? 'This selection already has a formatting suggestion from someone else. Review it before changing the same style.'
+        : 'This formatting cannot be suggested yet. Bold, italic, underline, strikethrough, subscript and superscript are supported.', 'info');
 }
 import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';

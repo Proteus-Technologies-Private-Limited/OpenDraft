@@ -19,7 +19,7 @@ import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
-import { withoutSuggestionsJSON } from '../editor/suggestions';
+import { listSuggestions, withoutSuggestionsJSON } from '../editor/suggestions';
 import type { Editor as TiptapEditor } from '@tiptap/react';
 
 /**
@@ -2135,7 +2135,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
     // Where there is a print dialog, the writer chooses what goes into it: the
     // PDF the exporter lays out, or the page as the web view paginates it.
     // Everywhere else there is no choice to make — see printRoute().
-    if (route === 'dialog' && printViaPdf && editor) {
+    const pendingFormatting = editor && listSuggestions(editor.state.doc).some(s=>s.kinds.includes('format'));
+    // Native DOM printing would expose the proposed styling; print the accepted copy.
+    if (route === 'dialog' && (printViaPdf || pendingFormatting) && editor) {
       try {
         showToast('Preparing your script for printing…');
         const json = exportJSON(editor);
@@ -3847,6 +3849,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <div className="about-whats-new">
               <div className="about-section-title">What's New in 2.8.0</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">Upcoming</div>
+              <ul className="about-list"><li><strong>Formatting Suggestions and Review</strong> &mdash; Suggest character styles without committing them. Filter changes by author and type, step through them, and accept or reject and move to the next. Pending styles stay out of exports and print.</li></ul>
               <div className="about-subsection-title">v2.8.0</div>
               <ul className="about-list">
                 <li><strong>Bring Your Scripts From Anywhere</strong> &mdash; Import a screenplay PDF, a Highland <code>.highland</code>, a WriterDuet <code>.wdz</code> or a Celtx <code>.celtx</code> file. A PDF opens in an <em>Import Preview</em> first, where you can fix any misread lines in bulk &mdash; select every line read as Action and make them General in one step &mdash; before anything replaces the open script.</li>

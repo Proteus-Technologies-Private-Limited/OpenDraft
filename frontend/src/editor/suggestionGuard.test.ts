@@ -376,3 +376,49 @@ describe('reading a client’s message', () => {
     expect(() => updateInMessage(new Uint8Array([5, 65]))).toThrow();
   });
 });
+
+describe('reversible formatting suggestions over Yjs',()=>{
+ it('permits a proposed style and its withdrawal, never self-acceptance',()=>{
+  const c=synced(block('action','One two.'));
+  expect(c.send(suggesting(c.state,tr=>tr.addMark(1,4,testSchema.marks.bold.create())))).toBeNull();
+  const id=listSuggestions(c.state.doc)[0].id;
+  expect(c.send(resolveSuggestionTransaction(c.state,id,true)!)).toMatch(/accepted suggested bold/);
+ });
+ it('permits withdrawal and independently proposed overlapping styles',()=>{
+  const c=synced(block('action','One two.'));
+  expect(c.send(suggesting(c.state,tr=>tr.addMark(1,4,testSchema.marks.bold.create())))).toBeNull();
+  expect(c.send(suggesting(c.state,tr=>tr.addMark(1,4,testSchema.marks.italic.create()),'Bob'),'Bob')).toBeNull();
+  const bob=listSuggestions(c.state.doc).find(x=>x.by==='Bob')!;
+  expect(c.send(resolveSuggestionTransaction(c.state,bob.id,false)!,'Bob')).toBeNull();
+  const ann=listSuggestions(c.state.doc)[0];expect(c.send(resolveSuggestionTransaction(c.state,ann.id,false)!)).toBeNull();
+ });
+ it('permits a toggle back and styling your own suggested insertion',()=>{
+  const c=synced(block('action','One two.'));
+  expect(c.send(suggesting(c.state,tr=>tr.addMark(1,4,testSchema.marks.bold.create())))).toBeNull();
+  expect(c.send(suggesting(c.state,tr=>tr.removeMark(1,4,testSchema.marks.bold)))).toBeNull();
+  expect(c.send(suggesting(c.state,tr=>tr.insertText('New ',1)))).toBeNull();
+  expect(c.send(suggesting(c.state,tr=>tr.addMark(1,5,testSchema.marks.underline.create())))).toBeNull();
+ });
+ it('rejects spoofed authors and false original-style metadata',()=>{
+  for(const attrs of [{id:'fake',by:'Bob',format:'bold',before:false,after:true},{id:'fake',by:'Ann',format:'bold',before:true,after:false}]){
+   const c=synced(block('action','One two.'));
+   const tr=c.state.tr.addMark(1,4,testSchema.marks.bold.create()).addMark(1,4,testSchema.marks.suggestionFormat.create(attrs));
+   expect(c.send(tr)).not.toBeNull();
+  }
+ });
+ it('rejects accepting or withdrawing another reviewer’s formatting',()=>{
+  const c=synced(block('action','One two.'));
+  expect(c.send(suggesting(c.state,tr=>tr.addMark(1,4,testSchema.marks.bold.create()),'Bob'),'Bob')).toBeNull();
+  expect(c.send(resolveSuggestionTransaction(c.state,listSuggestions(c.state.doc)[0].id,false)!)).toMatch(/someone else's formatting/);
+ });
+});
+
+it('lets a reviewer type inside another reviewer’s proposed formatting without inheriting their signature',()=>{
+ const c=synced(block('action','One two.'));
+ expect(c.send(suggesting(c.state,tr=>tr.addMark(1,4,testSchema.marks.bold.create()),'Bob'),'Bob')).toBeNull();
+ expect(c.send(suggesting(c.state,tr=>tr.insertText('X',2)))).toBeNull();
+ const inserted=listSuggestions(c.state.doc).find(s=>s.kinds.includes('insert'))!;
+ expect(inserted.by).toBe('Ann');expect(inserted.inserted).toBe('X');
+ const original=listSuggestions(c.state.doc).find(s=>s.kinds.includes('format'))!;
+ expect(original.by).toBe('Bob');expect(original.formatted).toBe('One');
+});

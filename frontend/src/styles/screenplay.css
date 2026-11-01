@@ -14730,3 +14730,11 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
   font-size: 9px;
   color: var(--fd-text-muted);
 }
+
+/* Proposed character styling remains distinguishable from accepted styling. */
+.suggestion-format { background: rgba(180, 130, 30, .14); border-bottom: 1px dotted #a27312; }
+.suggestions-navigation { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+.suggestions-navigation [role="status"] { font-size: 12px; color: var(--fd-text-muted); }
+.suggestions-navigation button, .suggestions-bulk button, .suggestion-card-actions button { min-height: 36px; }
+.suggestion-card--current { box-shadow: inset 3px 0 var(--fd-accent, #4387cf); background: rgba(80, 140, 200, .08); }
+@media (pointer: coarse) { .suggestions-navigation button, .suggestions-bulk button, .suggestion-card-actions button { min-height: 44px; } }
