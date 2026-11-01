@@ -14826,3 +14826,8 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
 .suggestions-navigation button, .suggestions-bulk button, .suggestion-card-actions button { min-height: 36px; }
 .suggestion-card--current { box-shadow: inset 3px 0 var(--fd-accent, #4387cf); background: rgba(80, 140, 200, .08); }
 @media (pointer: coarse) { .suggestions-navigation button, .suggestions-bulk button, .suggestion-card-actions button { min-height: 44px; } }
+
+/* Give both navigation directions the same styling, including on touch screens. */
+.suggestions-navigation .dialog-btn { flex: 1; padding: 4px 8px; font-size: 12px; background: var(--fd-toolbar-bg); color: var(--fd-text); border: 1px solid var(--fd-border); }
+.suggestions-navigation .dialog-btn:hover:not(:disabled) { background: var(--fd-toolbar-hover); }
+.suggestions-navigation .dialog-btn:disabled { opacity: .5; cursor: default; }

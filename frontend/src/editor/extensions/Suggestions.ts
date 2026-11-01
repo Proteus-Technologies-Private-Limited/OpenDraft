@@ -20,7 +20,7 @@ import { BOOKMARKABLE_TYPES } from '../../utils/bookmarks';
 import { ALTERNATES_META } from '../alternates';
 import {
   SUGGEST_FORMAT, isFormatStamp, SUGGEST_DELETE, SUGGEST_INSERT, SUGGESTED_JOIN, SUGGESTED_SPLIT, SUGGESTED_TYPE,
-  isHousekeeping, isLocalEdit, onlyGivesSceneIds, suggestTransaction, type Blocked, type Suggester, type SuggestionStamp, type TypeStamp,
+  discardOverriddenFormats, isHousekeeping, isLocalEdit, onlyGivesSceneIds, suggestTransaction, type Blocked, type Suggester, type SuggestionStamp, type TypeStamp,
 } from '../suggestions';
 
 const when = (at: unknown) => {
@@ -241,7 +241,7 @@ export const Suggestions = Extension.create<SuggestionsOptions>({
         }
         const next = me && isLocalEdit(tr)
           ? suggestTransaction(view.state, tr, { ...me, onBlocked: options.onBlocked })
-          : tr;
+          : discardOverriddenFormats(tr);
         original.call(view, next);
       },
     });

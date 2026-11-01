@@ -3,10 +3,11 @@ import { getSchema, type JSONContent } from '@tiptap/core';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { EditorState, type Transaction } from '@tiptap/pm/state';
-import { history, undo, redo } from '@tiptap/pm/history';
+import { history, undo, redo, closeHistory } from '@tiptap/pm/history';
 import { testExtensions, block, doc } from '../test/screenplaySchema';
 import {
   hasSuggestions,
+  discardOverriddenFormats,
   listSuggestions,
   resolveSuggestionsTransaction,
   resolveSuggestionTransaction,
@@ -251,4 +252,50 @@ it('writes only accepted formatting into a Final Draft export', async () => {
   expect(exportFDX(withoutSuggestionsJSON(resolve(pending, false).doc.toJSON()))).not.toMatch(
     pattern,
   );
+});
+
+describe('review follow-ups', () => {
+  it('direct editor styling settles only that style in the edited range, in one undo step', () => {
+    const original = stateOf();
+    const pending = suggest(original, original.tr.addMark(1, 4, schema.marks.bold.create()).addMark(1, 4, schema.marks.italic.create()));
+    const direct = pending.apply(discardOverriddenFormats(pending.tr.removeMark(1, 2, schema.marks.bold)));
+    expect(direct.doc.nodeAt(1)?.marks.some(mark => mark.type.name === 'bold')).toBe(false);
+    expect(direct.doc.nodeAt(1)?.marks.filter(mark => mark.type.name === SUGGEST_FORMAT).map(mark => mark.attrs.format)).toEqual(['italic']);
+    const accepted = resolve(direct, true);
+    expect(accepted.doc.nodeAt(1)?.marks.map(mark => mark.type.name)).toEqual(['italic']);
+    expect(accepted.doc.nodeAt(2)?.marks.map(mark => mark.type.name)).toEqual(['bold', 'italic']);
+  });
+  it('does not restore an overridden style when accepting or rejecting a stale legacy proposal', () => {
+    const original = stateOf();
+    const pending = suggest(original, original.tr.addMark(1, 4, schema.marks.bold.create()));
+    const legacyEdit = pending.apply(pending.tr.removeMark(1, 4, schema.marks.bold));
+    expect(markNames(resolve(legacyEdit, true))).not.toContain('bold');
+    expect(markNames(resolve(legacyEdit, false))).not.toContain('bold');
+  });
+  it('direct styling creates one undoable edit including settlement of the proposal', () => {
+    const original = stateOf();
+    const pending = suggest(original, original.tr.addMark(1, 4, schema.marks.bold.create()));
+    let state = pending.apply(closeHistory(discardOverriddenFormats(pending.tr.removeMark(1, 4, schema.marks.bold))));
+    expect(listSuggestions(state.doc)).toHaveLength(0);
+    expect(undo(state, transaction => { state = state.apply(transaction); })).toBe(true);
+    expect(state.doc.toJSON()).toEqual(pending.doc.toJSON());
+  });
+  it('Clear Formatting on only a pending remove proposal stays pending without a blocked edit', () => {
+    const original = stateOf(doc({ type: 'action', content: [{ type: 'text', text: 'One', marks: [{ type: 'bold' }] }] }));
+    const pending = suggest(original, original.tr.removeMark(1, 4, schema.marks.bold));
+    const blocked: string[] = [];
+    const cleared = suggest(pending, pending.tr.removeMark(1, 4), 'Ann', why => blocked.push(why));
+    expect(cleared.doc.toJSON()).toEqual(pending.doc.toJSON());
+    expect(blocked).toEqual([]);
+    expect(listSuggestions(cleared.doc)[0].formats).toEqual([{ format: 'bold', before: true, after: false }]);
+  });
+  it('Clear Formatting withdraws your own pending addition but cannot withdraw another reviewer’s', () => {
+    const original = stateOf();
+    const pending = suggest(original, original.tr.addMark(1, 4, schema.marks.bold.create()));
+    expect(suggest(pending, pending.tr.removeMark(1, 4)).doc.toJSON()).toEqual(original.doc.toJSON());
+    const blocked: string[] = [];
+    const other = suggest(pending, pending.tr.removeMark(1, 4), 'Bob', why => blocked.push(why));
+    expect(other.doc.toJSON()).toEqual(pending.doc.toJSON());
+    expect(blocked).toEqual(['formatConflict']);
+  });
 });

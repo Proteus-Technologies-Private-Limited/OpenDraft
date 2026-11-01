@@ -39,3 +39,19 @@ Older clients and servers cannot join these sessions. Saved native/library bodie
 contain accepted content, with review data in versioned metadata for compatible
 apps. Saving in an older app drops that review data; keep the original backup. Font/colour changes, paragraph alignment and spacing, and
 Shift+Enter suggestions remain outside this implementation.
+
+Review follow-ups: type filters appear only with multiple pending suggestions,
+and navigation only with multiple shown changes. Accept/Reject on a card advances
+to the next shown card and keeps keyboard focus in its controls. There is no
+separate Accept/Reject & Next toolbar. Direct editor styling settles proposals for
+that style only in the edited range, preserving unrelated styles and ordinary
+undo/redo. A legacy stale stamp cannot reapply a style an editor already changed.
+Clear Formatting with only a pending removal keeps the removal pending without
+reporting an unsupported operation; clearing one's own pending addition withdraws
+it, while another reviewer's proposal stays protected.
+
+File → Print treats pending text and character-style suggestions alike. It says
+when it is using an accepted-only PDF even if browser printing was preferred.
+If PDF generation or handoff fails, it explains the failure and leaves the review
+intact, without falling back to printing marked-up text. Disabling the PDF
+preference is not offered as a workaround while suggestions remain pending.
