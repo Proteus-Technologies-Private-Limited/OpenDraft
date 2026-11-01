@@ -22,7 +22,7 @@ import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
-import { withoutSuggestionsJSON } from '../editor/suggestions';
+import { listSuggestions, withoutSuggestionsJSON } from '../editor/suggestions';
 import type { Editor as TiptapEditor } from '@tiptap/react';
 
 /**
@@ -2239,7 +2239,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
     // Where there is a print dialog, the writer chooses what goes into it: the
     // PDF the exporter lays out, or the page as the web view paginates it.
     // Everywhere else there is no choice to make — see printRoute().
-    if (route === 'dialog' && printViaPdf && editor) {
+    const pendingFormatting = editor && listSuggestions(editor.state.doc).some(s=>s.kinds.includes('format'));
+    // Native DOM printing would expose the proposed styling; print the accepted copy.
+    if (route === 'dialog' && (printViaPdf || pendingFormatting) && editor) {
       try {
         showToast('Preparing your script for printing…');
         const json = exportJSON(editor);
