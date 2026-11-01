@@ -20,10 +20,11 @@
  * and in OpenDraft-Pro (which reuses core's App) alike.
  */
 import { pluginRegistry, type OpenDraftPlugin } from '../plugins/registry';
+import aiAssistant from './ai-assistant';
 
 /** Every add-on that ships with the core. */
 export const CORE_ADDONS: readonly OpenDraftPlugin[] = [
-  // e.g. aiAssistant, imported from './ai-assistant'
+  aiAssistant,
 ];
 
 /** Why an add-on cannot be registered, or null when it can. */
