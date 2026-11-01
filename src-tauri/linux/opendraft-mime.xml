@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  File types OpenDraft opens on Linux (#179).
+
+  Installed to /usr/share/mime/packages by the .deb and .rpm (and carried in
+  the AppImage for integrators that read it); shared-mime-info's package
+  triggers rebuild the database. Each screenplay format gets a type of its
+  own, a subclass of the generic one it is built on, so the desktop entry can
+  name exactly these formats instead of claiming every text, XML, ZIP or JSON
+  file on the system.
+-->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-opendraft">
+    <comment>OpenDraft screenplay</comment>
+    <sub-class-of type="application/json"/>
+    <glob pattern="*.odraft"/>
+  </mime-type>
+  <mime-type type="text/x-fountain">
+    <comment>Fountain screenplay</comment>
+    <sub-class-of type="text/plain"/>
+    <glob pattern="*.fountain"/>
+  </mime-type>
+  <mime-type type="application/x-fdx">
+    <comment>Final Draft screenplay</comment>
+    <sub-class-of type="application/xml"/>
+    <glob pattern="*.fdx"/>
+  </mime-type>
+  <mime-type type="application/x-fadein">
+    <comment>Fade In screenplay</comment>
+    <sub-class-of type="application/zip"/>
+    <glob pattern="*.fadein"/>
+  </mime-type>
+  <mime-type type="application/x-open-screenplay-format">
+    <comment>Open Screenplay Format document</comment>
+    <sub-class-of type="application/xml"/>
+    <glob pattern="*.osf"/>
+  </mime-type>
+  <mime-type type="application/x-highland">
+    <comment>Highland screenplay</comment>
+    <sub-class-of type="application/zip"/>
+    <glob pattern="*.highland"/>
+  </mime-type>
+  <mime-type type="application/x-writerduet">
+    <comment>WriterDuet screenplay</comment>
+    <sub-class-of type="application/zip"/>
+    <glob pattern="*.wdz"/>
+  </mime-type>
+  <mime-type type="application/x-celtx">
+    <comment>Celtx project</comment>
+    <sub-class-of type="application/zip"/>
+    <glob pattern="*.celtx"/>
+  </mime-type>
+</mime-info>

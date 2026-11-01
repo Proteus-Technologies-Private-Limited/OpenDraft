@@ -1,3 +1,5 @@
+import { externalScreenplay } from './externalSave';
+import { saveDocumentInPlace } from '../utils/fileOps';
 /**
  * Scripts saved to files the writer keeps on disk (issue #135).
  *
@@ -80,8 +82,64 @@ async function readText(path: string): Promise<string> {
   return withTimeout(invoke<string>('read_text_path', { path }), `Reading ${basenameOf(path)}`);
 }
 
-async function writeTextAtomic(path: string, contents: string): Promise<void> {
-  await withTimeout(invoke('save_text_atomic', { path, contents }), `Saving ${basenameOf(path)}`);
+/**
+ * Write a linked file. Another application's file that OpenDraft has not yet
+ * written goes through the overwrite review (and is backed up); a new file, or
+ * one that holds OpenDraft's own last save, is written straight away with no
+ * backup — copying OpenDraft's own output on every save only fills the folder.
+ */
+async function writeTextAtomic(
+  path: string,
+  contents: string,
+  warnings: string[] | undefined,
+  state: { existingExternal: boolean; ownWrite: boolean },
+): Promise<void> {
+  if (state.existingExternal && !state.ownWrite) {
+    await saveDocumentInPlace(path, contents, { name: basenameOf(path), warnings });
+  } else {
+    await withTimeout(
+      invoke('save_text_atomic', { path, contents, backup: !state.ownWrite }),
+      `Saving ${basenameOf(path)}`,
+    );
+  }
+}
+
+// ── What OpenDraft itself last wrote ────────────────────────────────────────
+//
+// A link's synced hash is also set when OpenDraft only *reads* a file (a folder
+// scan, or taking the file's version), so it cannot say whether the file on
+// disk is OpenDraft's own output or a writer's original from another
+// application. This per-device record of the hash of the text OpenDraft last
+// wrote to each path can.
+
+const OWN_WRITES_KEY = 'opendraft:linkedOwnWrites';
+
+function readOwnWrites(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(OWN_WRITES_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : {};
+  } catch (err) {
+    console.warn('[linked-files] could not read the record of OpenDraft\'s own writes', err);
+    return {};
+  }
+}
+
+function rememberOwnWrite(path: string, hash: string): void {
+  try {
+    localStorage.setItem(OWN_WRITES_KEY, JSON.stringify({ ...readOwnWrites(), [path]: hash }));
+  } catch (err) {
+    // Only costs a question on the next save of this file.
+    console.warn('[linked-files] could not record OpenDraft\'s own write', err);
+  }
+}
+
+/** The file on disk still holds exactly what OpenDraft last wrote to it. */
+async function holdsOwnWrite(link: ScriptFileLink, stat: PathStat): Promise<boolean> {
+  const own = readOwnWrites()[link.path];
+  if (!own || own !== link.syncedHash || !stat.exists) return false;
+  if (stat.modified_ms === link.syncedMtime) return true;
+  return (await hashText(await readText(link.path))) === own;
 }
 
 async function listDir(path: string): Promise<DirEntry[]> {
@@ -317,7 +375,7 @@ async function writeLinkedFile(
   link: ScriptFileLink,
   title: string,
   content: Record<string, unknown>,
-  options: { force?: boolean; meta?: Partial<ScriptMeta> } = {},
+  options: { force?: boolean; reviewExternal?: boolean; meta?: Partial<ScriptMeta> } = {},
 ): Promise<WriteOutcome> {
   try {
     if (!options.force && link.syncedHash) {
@@ -344,9 +402,29 @@ async function writeLinkedFile(
       publish(link);
       return 'written';
     }
-    await writeTextAtomic(link.path, text);
+    // Another application's file that OpenDraft has never written is not
+    // overwritten by a background save, which may not ask: the writer's Save
+    // reviews it once. After that the file holds OpenDraft's own output and
+    // saves go straight through.
+    const before = externalScreenplay(link.path) ? await statPath(link.path) : null;
+    const existingExternal = !!before?.exists;
+    const ownWrite = existingExternal && await holdsOwnWrite(link, before!);
+    if (existingExternal && !ownWrite && !options.force && !options.reviewExternal) {
+      link.pending = true;
+      link.lastError = 'External format: use linked-file sync to review the overwrite, or save an .odraft working copy.';
+      await saveLink(link);
+      publish(link);
+      return 'pending';
+    }
+    await writeTextAtomic(
+      link.path,
+      text,
+      (content._sourceFidelity as { warnings?: string[] } | undefined)?.warnings,
+      { existingExternal, ownWrite },
+    );
     const stat = await statPath(link.path);
     link.syncedHash = await hashText(text);
+    rememberOwnWrite(link.path, link.syncedHash);
     link.syncedMtime = stat.modified_ms;
     link.pending = false;
     link.lastError = '';
@@ -397,11 +475,21 @@ async function fileAlreadySays(
 }
 
 /** Write the script's current library copy to its file. */
-async function writeFromLibrary(link: ScriptFileLink, options: { force?: boolean } = {}): Promise<WriteOutcome> {
+async function writeFromLibrary(link: ScriptFileLink, options: { force?: boolean; reviewExternal?: boolean } = {}): Promise<WriteOutcome> {
   const script = await api.getScript(link.projectId, link.scriptId);
   return writeLinkedFile(link, script.meta.title, (script.content ?? {}) as Record<string, unknown>, {
     force: options.force,
+    reviewExternal: options.reviewExternal,
     meta: script.meta,
+  });
+}
+
+/** Explicit Save can review a pending external source; background retries cannot. */
+export async function saveLinkedFileWithReview(projectId: string, scriptId: string): Promise<WriteOutcome> {
+  return withScriptLock(scriptId, async () => {
+    const link = await getLink(scriptId);
+    if (!link || link.projectId !== projectId) return 'pending' as const;
+    return writeFromLibrary(link, { reviewExternal: true });
   });
 }
 
@@ -658,7 +746,8 @@ async function preserveFileVersion(link: ScriptFileLink, text: string): Promise<
     const names = new Set((await listDir(dir)).map((e) => e.name.toLowerCase()));
     const name = uniqueFileName(`${stem} (changed outside OpenDraft ${stamp()})${ext}`, (c) => names.has(c.toLowerCase()));
     const path = joinPath(dir, name);
-    await writeTextAtomic(path, text);
+    // A name no file has yet: nothing to review or back up.
+    await writeTextAtomic(path, text, undefined, { existingExternal: false, ownWrite: false });
     return path;
   } catch (err) {
     console.error('[linked-files] could not keep a copy of the file before overwriting it', err);

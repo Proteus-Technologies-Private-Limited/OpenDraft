@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useEditorStore, DEFAULT_PAGE_LAYOUT, resolveHeaderFooter } from '../stores/editorStore';
 import type { PageLayout } from '../stores/editorStore';
 import Select from './Select';
+import { pointsToInches, inchesToPoints } from '../utils/layoutUnits';
 
 interface PageSetupDialogProps {
   onClose: () => void;
@@ -14,11 +15,11 @@ const PAGE_SIZES: Array<{ label: string; width: number; height: number }> = [
 ];
 
 function ptToIn(pt: number): number {
-  return +(pt / 72).toFixed(3);
+  return +(pointsToInches(pt)).toFixed(3);
 }
 
 function inToPt(inches: number): number {
-  return Math.round(inches * 72);
+  return Math.round(inchesToPoints(inches));
 }
 
 /**
@@ -37,7 +38,7 @@ const LANDSCAPE_MARGINS = { leftMargin: 1, rightMargin: 1, topMargin: 54, bottom
  * restated here.
  *
  * Written out by hand it said `rightMargin: 1`, while every new screenplay is
- * created with DEFAULT_PAGE_LAYOUT's 0.76. So the "has the writer touched their
+ * created with DEFAULT_PAGE_LAYOUT. So the "has the writer touched their
  * margins?" test below failed for the one document that most obviously has not
  * — an untouched one — and rotating it to landscape kept the portrait margins.
  */
