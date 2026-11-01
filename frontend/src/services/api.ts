@@ -1,3 +1,4 @@
+import { prepareScriptWrite } from '../utils/reviewSave';
 import { getApiBase, getCollabWsUrl } from '../config';
 import { useSettingsStore } from '../stores/settingsStore';
 import { authedFetch, sessionSurvivesUnauthorized } from './authedFetch';
@@ -295,7 +296,7 @@ export const api = {
   createScript: (projectId: string, data: { title: string; content?: any; format?: string; skipFileSync?: boolean }) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/`, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(prepareScriptWrite(data)),
     }),
 
   getScript: (projectId: string, scriptId: string) =>
@@ -304,7 +305,7 @@ export const api = {
   saveScript: (projectId: string, scriptId: string, data: { title?: string; content?: Record<string, unknown>; color?: string; pinned?: boolean; sort_order?: number; allowEmptyBody?: boolean; skipFileSync?: boolean }) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/${scriptId}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify(prepareScriptWrite(data)),
     }),
 
   reorderScripts: (projectId: string, items: Array<{ id: string; sort_order: number }>) =>

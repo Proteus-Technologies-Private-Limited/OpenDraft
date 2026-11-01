@@ -1,3 +1,4 @@
+import { prepareReviewSave } from '../utils/reviewSave';
 /**
  * Local storage implementation for Tauri (desktop + mobile).
  *
@@ -269,7 +270,7 @@ export async function createLocalStorage() {
     ): Promise<ScriptResponse> {
       const id = uuid();
       const ts = now();
-      const contentStr = data.content ? JSON.stringify(data.content) : null;
+      const contentStr = data.content ? JSON.stringify(prepareReviewSave(data.content)) : null;
       const sizeBytes = contentStr ? new Blob([contentStr]).size : 0;
       const format = normalizeFormat(data.format);
       await db.execute(
@@ -321,7 +322,7 @@ export async function createLocalStorage() {
     ): Promise<ScriptResponse> {
       const existing = await storage.getScript(projectId, scriptId);
       const title = data.title ?? existing.meta.title;
-      const content = data.content ?? existing.content;
+      const content = prepareReviewSave(data.content ?? existing.content);
 
       // Data-loss guard: refuse to overwrite a script that has real (textful)
       // content with an empty/textless body. This is the last line of defence

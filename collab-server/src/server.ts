@@ -20,6 +20,7 @@ import cors from 'cors';
 import { WebSocketServer } from 'ws';
 
 import { config } from './config';
+import { requireReviewClient, REVIEW_PROTOCOL } from './services/reviewProtocol';
 import { initDB, getDB } from './db';
 import { seedDemoUser } from './bootstrap/seedDemoUser';
 import { verifyAccessToken } from './services/tokenService';
@@ -111,10 +112,12 @@ const hocuspocus = new Hocuspocus({
   name: 'OpenDraft Collaboration Server',
 
   async onAuthenticate(data: onAuthenticatePayload) {
-    const rawToken = data.token;
-    if (!rawToken) {
+    const wireToken = data.token;
+    if (!wireToken) {
       throw new Error('No authentication token provided');
     }
+
+    const rawToken = requireReviewClient(wireToken);
 
     let userId: string | null = null;
     let userEmail: string | null = null;
@@ -357,6 +360,7 @@ app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     service: 'opendraft-collab',
+    reviewProtocol: REVIEW_PROTOCOL,
     uptime: Math.round(process.uptime()),
     database: config.dbType,
     memory: {

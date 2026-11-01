@@ -1,3 +1,4 @@
+import { prepareReviewSave } from '../utils/reviewSave';
 /**
  * File-backed fallback storage for Tauri when the SQLite plugin is unavailable.
  *
@@ -383,7 +384,7 @@ export async function createFileFallbackStorage() {
       const idx = loadIndex();
       const id = uuid();
       const ts = now();
-      const content = scriptData.content ?? null;
+      const content = prepareReviewSave(scriptData.content ?? null);
       const sizeBytes = content == null ? 0 : await writeScriptContent(id, content);
       const meta: ScriptMeta = {
         id, title: scriptData.title, author: '', format: normalizeFormat(scriptData.format),
@@ -416,9 +417,9 @@ export async function createFileFallbackStorage() {
       if (updates.content !== undefined) {
         // Persist content first so a failed write does NOT also corrupt the
         // in-memory metadata (size_bytes, updated_at) before the file is good.
-        const sizeBytes = await writeScriptContent(scriptId, updates.content);
+        const sizeBytes = await writeScriptContent(scriptId, prepareReviewSave(updates.content));
         s.meta.size_bytes = sizeBytes;
-        content = updates.content;
+        content = prepareReviewSave(updates.content);
       }
       if (updates.title !== undefined) s.meta.title = updates.title;
       if (updates.color !== undefined) s.meta.color = updates.color;

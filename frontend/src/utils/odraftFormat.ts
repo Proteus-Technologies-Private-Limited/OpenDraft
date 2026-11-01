@@ -19,6 +19,7 @@
  */
 
 import type { ScriptMeta } from '../services/api';
+import { prepareReviewSave, restoreReviewContent } from './reviewSave';
 
 export const ODRAFT_VERSION = 2;
 
@@ -110,7 +111,7 @@ export function serializeOdraft(
       ...(options.backupKind ? { backup_kind: options.backupKind } : {}),
       ...(options.assetsOmitted ? { assets_omitted: true } : {}),
     },
-    content,
+    content: prepareReviewSave(content),
     ...(options.assets && options.assets.length > 0 ? { assets: options.assets } : {}),
   };
   return JSON.stringify(data, null, 2);
@@ -163,7 +164,7 @@ export function parseOdraft(jsonText: string): ParsedOdraft {
       backup_kind: data.meta?.backup_kind,
       assets_omitted: data.meta?.assets_omitted === true,
     },
-    content: data.content || {},
+    content: restoreReviewContent(data.content || {}),
     assets: Array.isArray(data.assets) ? data.assets : [],
   };
 }
@@ -191,7 +192,7 @@ export function parseOdraftLoose(jsonText: string): ParsedOdraft {
     return {
       version: 0,
       meta: { title: 'Untitled', author: '', color: '', page_count: 0, project_id: null, script_id: null },
-      content: data,
+      content: restoreReviewContent(data),
       assets: [],
     };
   }

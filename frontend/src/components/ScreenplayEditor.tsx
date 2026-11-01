@@ -222,6 +222,7 @@ import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
 import CompareVersionPicker from './CompareVersionPicker';
+import { requireReviewServer, reviewAuthToken } from '../services/reviewProtocol';
 import ZoomPanel from './ZoomPanel';
 import { captureZoomAnchor, restoreZoomAnchor, type ZoomAnchor } from '../utils/zoomAnchor';
 import { isNoteResolved } from '../utils/noteThreads';
@@ -386,8 +387,7 @@ function collabSeedFrom(content: unknown): Record<string, unknown> | null {
   if (!content || typeof content !== 'object') return null;
   const doc = content as Record<string, unknown>;
   if (doc.type === 'doc') {
-    const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _characterRelationships, _templateId, _pageLayout, ...pmDoc } = doc;
-    return pmDoc;
+    return stripSaveMetadata(doc).pmDoc;
   }
   return Object.keys(doc).length > 0 ? doc : null;
 }
@@ -653,8 +653,12 @@ const ScreenplayEditor: React.FC = () => {
   // back on screen after the reset had cleared it.
   const signingOutRef = useRef(false);
 
+  const collabSetupEpoch = useRef(0);
+  const rejectedCollabDocRef = useRef<Record<string, unknown> | null>(null);
+
   // Cleanup collab provider
   const destroyCollab = useCallback(() => {
+    collabSetupEpoch.current++;
     stopCollabSync();
     collabDocNameRef.current = null;
     if (providerRef.current) {
@@ -703,12 +707,22 @@ const ScreenplayEditor: React.FC = () => {
   // Ref for document-switch handler (defined after setupCollab to avoid circular dependency)
   const handleDocumentSwitchRef = useRef<(projectId: string, scriptId: string, token: string, title?: string) => void>(() => {});
 
-  const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string, isHost = false, overrideWsUrl?: string) => {
+  const setupCollab = useCallback(async (docName: string, inviteToken: string, _userName: string, isHost = false, overrideWsUrl?: string) => {
     // Skip if already setting up the same document (prevents React StrictMode
     // double-invoke from destroying a provider that's still connecting)
     if (collabDocNameRef.current === docName && providerRef.current) {
-      return;
+      return true;
     }
+    // Do not attach an editor/Y.Doc to an unverified server, or replace the
+    // current session while a compatibility request is still pending.
+    const setupEpoch = ++collabSetupEpoch.current;
+    const wsUrl = overrideWsUrl || getCollabWsUrl();
+    try { await requireReviewServer(wsUrl); }
+    catch (err) {
+      if (setupEpoch === collabSetupEpoch.current) showToast(err instanceof Error ? err.message : 'Could not verify collaboration compatibility.', 'error');
+      return false;
+    }
+    if (setupEpoch !== collabSetupEpoch.current) return false;
     destroyCollab();
     collabDocNameRef.current = docName;
     collabExitingRef.current = false;
@@ -740,7 +754,6 @@ const ScreenplayEditor: React.FC = () => {
 
     // Use the collab server URL extracted from the invite link if provided,
     // otherwise fall back to the local setting.
-    const wsUrl = overrideWsUrl || getCollabWsUrl();
     collabWsUrlRef.current = wsUrl;
     console.log(`[Collab] setupCollab: docName="${docName}", wsUrl="${wsUrl}", isHost=${isHost}, tokenPrefix="${inviteToken.slice(0, 8)}..."`);
 
@@ -748,7 +761,16 @@ const ScreenplayEditor: React.FC = () => {
       url: wsUrl,
       name: docName,
       document: ydoc,
-      token,
+      token: async () => {
+        try { await requireReviewServer(wsUrl); }
+        catch (err) {
+          // provider.disconnect() is a no-op in provider 3.x. Close the actual
+          // socket before its onOpen can send sync after a rejected token.
+          provider.configuration.websocketProvider.disconnect();
+          throw err;
+        }
+        return reviewAuthToken(token);
+      },
       onConnect: () => {
         console.log(`[Collab] Connected to room "${docName}" (${isHost ? 'host' : 'guest'})`);
         setCollabConnectionState('connected');
@@ -845,21 +867,30 @@ const ScreenplayEditor: React.FC = () => {
             : `Unable to join collaboration: ${reason}`,
           isSessionEnded ? 'info' : 'error',
         );
-        // Prevent reconnection loop — disconnect provider immediately, then clean up
-        provider.disconnect();
+        // Preserve any local text/proposals made while connecting. An auth
+        // refusal must not turn the pending Y.Doc into a discarded document.
+        const localEditor = collabEditorRef.current;
+        if (localEditor && !localEditor.isDestroyed) {
+          const localDoc = localEditor.getJSON();
+          if (docHasAnyText(localDoc)) {
+            rejectedCollabDocRef.current = localDoc;
+            stashSessionDoc({ doc: localDoc, projectId: null, scriptId: null });
+          }
+        }
+        // Stop the actual socket: provider.disconnect() is a no-op in 3.x.
+        provider.configuration.websocketProvider.disconnect();
         setTimeout(() => {
           destroyCollab();
           setCollabMode(false);
           setCollabRole('editor');
-          if (!isHost) {
-            // Clear project context so sample content can't overwrite the real file
-            setCurrentProject(null);
-            setCurrentScriptId(null);
-            setDocumentTitle('Untitled Screenplay');
-          }
+          // Keep the rejected room as an unsaved copy, never autosave it over
+          // a project-backed script or reload that script over local edits.
+          setCurrentProject(null);
+          setCurrentScriptId(null);
+          setDocumentTitle('Untitled Screenplay');
+          useEditorStore.getState().setSaveStatus('unsaved');
           setEditorKey((k) => k + 1);
-          // replace: the collab route no longer leads anywhere (see above).
-          if (!isHost) navigate('/', { replace: true });
+          navigate('/', { replace: true });
         }, 0);
       },
       onAwarenessUpdate: ({ states }) => {
@@ -913,6 +944,7 @@ const ScreenplayEditor: React.FC = () => {
 
     // Start syncing metadata (characters, notes, tags, beats) via Yjs
     startCollabSync(ydoc, isHost);
+    return true;
   }, [destroyCollab]);
 
   // Called when host broadcasts document-switch — guest auto-follows
@@ -965,7 +997,7 @@ const ScreenplayEditor: React.FC = () => {
       useFormattingTemplateStore.getState().setActiveTemplateId(typeof tplId === 'string' ? tplId : null);
 
       const docName = `${projectId}/${scriptId}${nonce ? `/${nonce}` : ''}`;
-      setupCollab(docName, sharedToken, collabUserName, false, collabWs);
+      if (!await setupCollab(docName, sharedToken, collabUserName, false, collabWs)) return;
 
       const docTitle = scriptResp?.meta?.title || title || 'Untitled';
       setCurrentProject(project || { id: projectId, name: 'Collaboration' });
@@ -1194,7 +1226,10 @@ const ScreenplayEditor: React.FC = () => {
         // Include session_nonce so guest joins the exact same Yjs room as the host
         const nonce = session.session_nonce || '';
         const docName = `${session.project_id}/${session.script_id}${nonce ? `/${nonce}` : ''}`;
-        setupCollab(docName, urlCollabToken, session.collaborator_name);
+        if (!await setupCollab(docName, urlCollabToken, session.collaborator_name)) {
+          setCollabLoading(false);
+          return;
+        }
 
         setCollabUserName(session.collaborator_name);
         setCollabRole(collabRoleOf(session.role));
@@ -1365,7 +1400,7 @@ const ScreenplayEditor: React.FC = () => {
       }
 
       const docName = `${newProjectId}/${newScriptId}${sharedNonce ? `/${sharedNonce}` : ''}`;
-      setupCollab(docName, hostToken, collabUserName, true);
+      if (!await setupCollab(docName, hostToken, collabUserName, true)) return;
       collabSessionDocsRef.current.push({ projectId: newProjectId, scriptId: newScriptId, docName });
 
       setCurrentProject(project);
@@ -1389,7 +1424,7 @@ const ScreenplayEditor: React.FC = () => {
       // Do NOT wait for backend content loading (which may hang on unreachable ports).
       const nonce = session.session_nonce || '';
       const docName = `${session.project_id}/${session.script_id}${nonce ? `/${nonce}` : ''}`;
-      setupCollab(docName, token, session.collaborator_name, false, collabWs);
+      if (!await setupCollab(docName, token, session.collaborator_name, false, collabWs)) return;
 
       setCollabUserName(session.collaborator_name);
       setCollabRole(collabRoleOf(session.role));
@@ -2133,7 +2168,7 @@ const ScreenplayEditor: React.FC = () => {
     // For normal editing from URL, content is loaded later via useEffect.
     content: collabMode
       ? (collabInitialContent.current || { type: 'doc', content: [{ type: 'action', content: [] }] })
-      : (urlScriptId || urlCommitHash) ? undefined : { type: 'doc', content: [{ type: 'action', content: [] }] },
+      : rejectedCollabDocRef.current || ((urlScriptId || urlCommitHash) ? undefined : { type: 'doc', content: [{ type: 'action', content: [] }] }),
     editable: !isHistoryMode && !(collabMode && collabRole === 'viewer'),
     editorProps: {
       attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: 'false' },
@@ -2142,6 +2177,9 @@ const ScreenplayEditor: React.FC = () => {
       // passage back used to lay a second highlight over it. See
       // editor/stripNoteBackgrounds.
       transformPastedHTML: (html) => stripNoteBackgrounds(html),
+    },
+    onCreate: () => {
+      if (!collabMode) rejectedCollabDocRef.current = null;
     },
     onSelectionUpdate: ({ editor: ed }) => {
       const type = resolveActiveElement(ed);
@@ -2307,7 +2345,7 @@ const ScreenplayEditor: React.FC = () => {
     const docName = `${currentProject.id}/${currentScriptId}/${nonce}`;
     // Use the logged-in user's display name so remote users see the real name
     const hostDisplayName = useSettingsStore.getState().collabAuth.user?.displayName || 'Host';
-    setupCollab(docName, ownerToken, hostDisplayName, true);
+    if (!await setupCollab(docName, ownerToken, hostDisplayName, true)) return;
     collabSessionDocsRef.current = [{ projectId: currentProject.id, scriptId: currentScriptId, docName }];
 
     setCollabUserName(hostDisplayName);

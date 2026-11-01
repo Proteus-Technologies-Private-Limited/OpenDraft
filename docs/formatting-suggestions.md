@@ -32,7 +32,10 @@ agreeing proposals on that text. Independent styles can overlap. New words typed
 inside a formatting proposal are a separately signed insertion and retain their
 style as part of that insertion.
 
+Compatibility is enforced before collaboration sync; see [Review compatibility](review-compatibility.md).
+
 Update both clients and the collaboration server before using the feature.
-Older clients do not understand the new review mark, and older servers reject
-formatting proposals. Font/colour changes, paragraph alignment and spacing, and
+Older clients and servers cannot join these sessions. Saved native/library bodies
+contain accepted content, with review data in versioned metadata for compatible
+apps. Saving in an older app drops that review data; keep the original backup. Font/colour changes, paragraph alignment and spacing, and
 Shift+Enter suggestions remain outside this implementation.

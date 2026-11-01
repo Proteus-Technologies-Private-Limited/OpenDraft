@@ -1,5 +1,13 @@
 # Collab Server Deployment
 
+Review-format clients and servers must be deployed together. The server now
+requires the matching review protocol in WebSocket authentication for **all**
+roles, before sending document data. Older apps cannot join. New apps check the
+server before connecting and on reconnect; old servers cannot authenticate the
+new credential envelope. Restart sessions after upgrading. See
+[Review compatibility](review-compatibility.md) for the saved-file fallback and
+mixed-version regression checks.
+
 ## Current Production
 
 The public collab server runs on a self-hosted VM behind Caddy as part of the
