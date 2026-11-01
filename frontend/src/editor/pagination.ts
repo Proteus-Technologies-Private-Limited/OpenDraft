@@ -7,6 +7,7 @@ import { resolveMoresContds } from '../stores/editorStore';
 import { singleLine } from '../utils/nodeText';
 // Line counting lives with the PDF exporter's word wrapper — the two must
 // agree exactly or the editor paginates differently from the exported file.
+import { SPLIT_PARAGRAPH_TYPES, paragraphFragments, paragraphLines, originalTextOffset } from '../utils/paragraphPagination';
 import { getTextLines } from '../utils/wrapText';
 import { DEFAULT_SPACE_BEFORE, buildSpaceBefore, getSpaceBefore, type SpaceBeforeSource } from '../utils/elementSpacing';
 import { findTitlePageRegion, titlePageAttrsCarryData } from '../utils/titlePageRegion';
@@ -157,6 +158,8 @@ export interface BreakInfo {
   nodeIndex: number;
   offset: number;
   nodeSize: number;
+  /** UTF-16 offset inside the unchanged paragraph, for a layout-only page turn. */
+  contentOffset?: number;
   pageNumber: number;
   linesOnPage: number;
   isDialogueSplit: boolean;
@@ -201,6 +204,7 @@ function breaksDiffer(a: PaginationState, b: PaginationState): boolean {
   if (a.breaks.length !== b.breaks.length) return true;
   for (let i = 0; i < a.breaks.length; i++) {
     if (a.breaks[i].offset !== b.breaks[i].offset) return true;
+    if (a.breaks[i].contentOffset !== b.breaks[i].contentOffset) return true;
     if (a.breaks[i].linesOnPage !== b.breaks[i].linesOnPage) return true;
   }
   return false;
@@ -291,11 +295,56 @@ export function createPaginationPlugin(
         // Only reserve room for the CONT'D label when the marker is actually shown.
         const showDialogueBreakContd = resolveMoresContds(layout).dialogueBreakContd;
         const decos: Decoration[] = [];
+        const internalBlocks = new Map(
+          ps.breaks.filter((b) => b.contentOffset !== undefined).map((b) => [b.nodeIndex, b.offset]),
+        );
+        for (const [index, offset] of internalBlocks) {
+          const node = state.doc.child(index);
+          decos.push(Decoration.node(offset, offset + node.nodeSize, { class: 'sp-paragraph-grid' }));
+          const plan = getFootnotes();
+          const text = plan ? plan.textWithMarkers(index, node.textContent) : node.textContent;
+          const turns = new Set(
+            ps.breaks.filter((b) => b.nodeIndex === index).map((b) => b.contentOffset),
+          );
+          for (const line of paragraphLines(text, CHARS_PER_LINE[node.type.name] || 62).slice(1)) {
+            const from = originalTextOffset(plan, index, line.from);
+            if (turns.has(from) || node.textContent[from - 1] === '\n') continue;
+            decos.push(
+              Decoration.widget(
+                offset + 1 + from,
+                () => {
+                  const br = document.createElement('br');
+                  br.setAttribute('aria-hidden', 'true');
+                  return br;
+                },
+                { side: -1 },
+              ),
+            );
+          }
+        }
         for (const brk of ps.breaks) {
           const whitespacePx = Math.max(0, linesPerPage - brk.linesOnPage) * lineHeightPx;
           // Dialogue splits need extra space for the CONT'D label on the next page
           const contdPx = brk.isDialogueSplit && showDialogueBreakContd ? lineHeightPx : 0;
           const marginTop = Math.round(whitespacePx + sepHeightPx + contdPx);
+          if (brk.contentOffset !== undefined) {
+            decos.push(
+              Decoration.widget(
+                brk.offset + 1 + brk.contentOffset,
+                () => {
+                  const spacer = document.createElement('span');
+                  spacer.className = 'sp-paragraph-page-break';
+                  spacer.dataset.pageNumber = String(brk.pageNumber);
+                  spacer.setAttribute('aria-hidden', 'true');
+                  spacer.contentEditable = 'false';
+                  spacer.style.height = `${marginTop}px`;
+                  return spacer;
+                },
+                { side: -1, key: `paragraph-page-${brk.pageNumber}-${marginTop}`, ignoreSelection: true },
+              ),
+            );
+            continue;
+          }
           decos.push(
             Decoration.node(brk.offset, brk.offset + brk.nodeSize, {
               // No `!important`: an inline declaration already beats every
@@ -350,6 +399,17 @@ function lockedLabelsFor(doc: PmNode, result: PaginationState): string[] | null 
   return lockedPageLabels(result.pageCount, anchors);
 }
 
+// ProseMirror reuses unchanged paragraph nodes across edits. Cache only their
+// grid measurement; text, marker width or column changes invalidate the entry.
+const paragraphMeasures = new WeakMap<PmNode, { text: string; cpl: number; lines: number }>();
+function measuredParagraphLines(node: PmNode, text: string, cpl: number): number {
+  const cached = paragraphMeasures.get(node);
+  if (cached?.text === text && cached.cpl === cpl) return cached.lines;
+  const lines = getTextLines(text,cpl);
+  paragraphMeasures.set(node,{text,cpl,lines});
+  return lines;
+}
+
 function computeBreaksUnlabelled(
   doc: PmNode,
   layout: PageLayout,
@@ -362,9 +422,12 @@ function computeBreaksUnlabelled(
     typeName: string; elementId: string; spaceBefore: number; text: string;
     offset: number; nodeSize: number; lineMul: number; fixedLines?: number;
     startsNewPage: boolean; hasTitleData: boolean;
+    sourceIndex: number; contentOffset?: number; continuation?: boolean; noteIds?: string[];
   }
   const nodes: NodeInfo[] = [];
+  const titleNodes: Array<{type:string;hasText:boolean;hasTitleData:boolean}> = [];
   let isFirst = true;
+  let hasFragments = false;
   doc.forEach((node, offset, index) => {
     const typeName = node.type.name;
     const elementId = getElementId(node);
@@ -392,14 +455,60 @@ function computeBreaksUnlabelled(
     // the placeholder count matches exactly what the PDF will wrap, which is
     // what keeps the page count on screen equal to the page count in the file.
     const rawText = node.textContent || '';
-    nodes.push({
-      typeName, elementId, spaceBefore: nonPrinting ? 0 : sb,
-      text: plan ? plan.textWithMarkers(index, rawText) : rawText,
-      offset, nodeSize: node.nodeSize, lineMul, fixedLines,
-      // A locked page's first block opens its page — see utils/lockedPages.
+    const markedText = plan ? plan.textWithMarkers(index, rawText) : rawText;
+    // Detailed offsets are allocated only for a paragraph taller than a page.
+    const measuredLines =
+      fixedLines ??
+      measuredParagraphLines(node, markedText, CHARS_PER_LINE[typeName] || 62) * lineMul;
+    const split =
+      fixedLines === undefined && SPLIT_PARAGRAPH_TYPES.has(typeName) && measuredLines > linesPerPage;
+    const base = {
+      typeName,
+      elementId,
+      spaceBefore: nonPrinting ? 0 : sb,
+      text: markedText,
+      offset,
+      nodeSize: node.nodeSize,
+      lineMul,
+      fixedLines: fixedLines ?? measuredLines,
       startsNewPage: node.attrs?.startsNewPage === true || startsLockedPage(node.attrs),
-      hasTitleData: titlePageAttrsCarryData(node.attrs as Record<string, unknown> | undefined),
+      hasTitleData: titlePageAttrsCarryData(node.attrs),
+      sourceIndex: index,
+    };
+    titleNodes.push({
+      type: typeName,
+      hasText: rawText.trim().length > 0,
+      hasTitleData: base.hasTitleData,
     });
+    if (!split) nodes.push(base);
+    else {
+      hasFragments = true;
+      const parts = paragraphFragments(markedText, CHARS_PER_LINE[typeName] || 62);
+      parts.forEach((fragment, part) => {
+        const from = originalTextOffset(plan, index, fragment.from);
+        const to = originalTextOffset(plan, index, fragment.to);
+        const noteIds = plan
+          ? (plan.refsByNode.get(index) ?? [])
+              .filter(
+                (ref) =>
+                  (ref.charOffset > from || part === 0) &&
+                  ref.charOffset <= to &&
+                  plan.footnoteIds.has(ref.noteId),
+              )
+              .map((ref) => ref.noteId)
+          : EMPTY_IDS;
+        nodes.push({
+          ...base,
+          contentOffset: from,
+          continuation: part > 0,
+          noteIds,
+          spaceBefore: part > 0 ? 0 : base.spaceBefore,
+          text: fragment.text,
+          fixedLines: fragment.lines.length * lineMul,
+          startsNewPage: part === 0 && base.startsNewPage,
+        });
+      });
+    }
     // A Note or Section above the first element of the script does not make
     // that element the second thing on the page — nothing was printed before
     // it, so it still gets no space above it, exactly as the exporters lay it
@@ -454,14 +563,9 @@ function computeBreaksUnlabelled(
   // The region is resolved by the same helper the PDF and DOCX exporters use, so
   // the break the writer sees on screen is the break they get in the file — the
   // two used to part company as soon as anything sat above the title (#52).
-  const titleRegion = findTitlePageRegion(
-    nodes.map((n) => ({
-      type: n.typeName,
-      hasText: n.text.trim().length > 0,
-      hasTitleData: n.hasTitleData,
-    })),
-  );
-  const titleRegionLength = titleRegion.isReal ? titleRegion.length : 0;
+  const titleRegion = findTitlePageRegion(titleNodes);
+  const bodyStart = nodes.findIndex(node=>node.sourceIndex>=titleRegion.length);
+  const titleRegionLength = titleRegion.isReal ? (bodyStart < 0 ? nodes.length : bodyStart) : 0;
   let titleBroken = false;
 
   while (i < nodes.length) {
@@ -500,7 +604,7 @@ function computeBreaksUnlabelled(
     // block above it — doing so would skip past it and its break would never be
     // evaluated (e.g. a scene heading swallowing the act that follows it).
     const opensOwnPage = (n: NodeInfo) =>
-      n.startsNewPage || hints.forceBreakBefore.has(n.elementId);
+      !n.continuation && (n.startsNewPage || hints.forceBreakBefore.has(n.elementId));
 
     // Build character+dialogue block
     let blockLines = totalLines;
@@ -512,6 +616,7 @@ function computeBreaksUnlabelled(
      * name.
      */
     let speechAt = -1;
+    let oversizedSpeech = false;
 
     const partner = nextPrinting(i + 1);
     if (node.typeName === 'character' && partner < nodes.length) {
@@ -532,6 +637,7 @@ function computeBreaksUnlabelled(
     if (speechAt >= 0) {
       let j = nextPrinting(speechAt + 1);
       while (j < nodes.length && DIALOGUE_BLOCK_TYPES.has(nodes[j].typeName) && !opensOwnPage(nodes[j])) {
+        oversizedSpeech ||= nodes[j].continuation === true;
         blockLines += nodes[j].spaceBefore + linesOf(nodes[j]);
         blockEnd = j;
         j = nextPrinting(j + 1);
@@ -544,7 +650,7 @@ function computeBreaksUnlabelled(
     // (e.g. sitcom sceneHeading, TV newAct), or the writer can flag a single
     // element manually via Format → Start On New Page.
     const forceBreak = lineCount > 0
-      && (node.startsNewPage || hints.forceBreakBefore.has(node.elementId));
+      && !node.continuation && (node.startsNewPage || hints.forceBreakBefore.has(node.elementId));
 
     // Lines this page still has for script, once room is held back for the
     // footnotes it would then be carrying.
@@ -557,7 +663,8 @@ function computeBreaksUnlabelled(
     // and no iteration to cap.
     const inTitleRegion = i < titleRegionLength;
     const notesFor = (from: number, to: number): string[] =>
-      plan && !inTitleRegion ? plan.notesForNodes(from, to) : EMPTY_IDS;
+      plan && !inTitleRegion ? !hasFragments ? plan.notesForNodes(from,to)
+        : [...new Set(nodes.slice(from,to+1).flatMap(n=>n.noteIds ?? plan.notesForNodes(n.sourceIndex,n.sourceIndex)))] : EMPTY_IDS;
     const capacityWith = (extra: readonly string[]): number => {
       if (!plan) return linesPerPage;
       const all = extra.length > 0 ? pageNotes.concat(extra) : pageNotes;
@@ -594,7 +701,7 @@ function computeBreaksUnlabelled(
     // else than on screen (issue #123).
     const printsNothing = isNonPrintingType(node.typeName);
 
-    if (!printsNothing && (forceBreak || lineCount + blockLines > capacity) && lineCount > 0) {
+    if (!printsNothing && (forceBreak || lineCount + blockLines > capacity) && (lineCount > 0 || oversizedSpeech)) {
 
       // Try to split character+dialogue blocks. A forced break is never split —
       // the whole point is that the element opens a page of its own.
@@ -637,7 +744,7 @@ function computeBreaksUnlabelled(
             const dnNotes = notesFor(j, j);
             const candNotes = dnNotes.length > 0 ? fittedNotes.concat(dnNotes) : fittedNotes;
             const room = dnNotes.length > 0 ? capacityWith(candNotes) - lineCount : remaining;
-            if (fittedLines + dnTotal <= room) {
+            if (fittedLines + dnTotal + (oversizedSpeech ? contdLine : 0) <= room) {
               fittedLines += dnTotal;
               fittedDL += dl;
               fittedNotes = candNotes;
@@ -707,7 +814,7 @@ function computeBreaksUnlabelled(
               const dn = nodes[j];
               const ownNotes = notesFor(j, j);
               const add = j === pageFirst ? linesOf(dn) : dn.spaceBefore + linesOf(dn);
-              if (lineCount + add > capacityWith(ownNotes) && j > pageFirst) {
+              if (lineCount + add + (oversizedSpeech && j < blockEnd ? contdLine : 0) > capacityWith(ownNotes) && j > pageFirst) {
                 breaks.push({
                   nodeIndex: j,
                   offset: dn.offset, nodeSize: dn.nodeSize,
@@ -755,7 +862,11 @@ function computeBreaksUnlabelled(
     i = blockEnd + 1;
   }
 
-  if (!plan) return { pageCount: pageNumber - 1, breaks };
+  const mappedBreaks = !hasFragments ? breaks : breaks.map(brk=>{
+    const node=nodes[brk.nodeIndex];
+    return {...brk,nodeIndex:node.sourceIndex,offset:node.offset,nodeSize:node.nodeSize,...((node.contentOffset ?? 0)>0?{contentOffset:node.contentOffset}:{})};
+  });
+  if (!plan) return { pageCount: pageNumber - 1, breaks: mappedBreaks };
 
   // The last page has no break of its own to close it.
   {
@@ -779,12 +890,12 @@ function computeBreaksUnlabelled(
     const endnotePages = buildEndnotePages(plan.endnoteEntries, linesPerPage, tailSlices);
     return {
       pageCount: pageNumber - 1 + endnotePages.length,
-      breaks,
+      breaks: mappedBreaks,
       footnotePages,
       endnotePages,
     };
   }
-  return { pageCount: pageNumber - 1, breaks, footnotePages };
+  return { pageCount: pageNumber - 1, breaks: mappedBreaks, footnotePages };
 }
 
 // ── Scene length computation ────────────────────────────────────────────
@@ -863,58 +974,37 @@ export function computePageBlocks(
 
   if (nodes.length === 0) return [];
 
-  // Determine page boundaries from breaks
-  const pageBounds: { pageNumber: number; startNode: number; endNode: number; dialogueSplit: boolean }[] = [];
-
-  if (breaks.length === 0) {
-    pageBounds.push({ pageNumber: 1, startNode: 0, endNode: nodes.length - 1, dialogueSplit: false });
-  } else {
-    // Page 1
-    if (breaks[0].nodeIndex > 0) {
-      pageBounds.push({ pageNumber: 1, startNode: 0, endNode: breaks[0].nodeIndex - 1, dialogueSplit: false });
-    }
-    // Pages from breaks
-    for (let i = 0; i < breaks.length; i++) {
-      const endNode = i + 1 < breaks.length ? breaks[i + 1].nodeIndex - 1 : nodes.length - 1;
-      pageBounds.push({
-        pageNumber: breaks[i].pageNumber,
-        startNode: breaks[i].nodeIndex,
-        endNode,
-        dialogueSplit: breaks[i].isDialogueSplit,
-      });
-    }
-  }
-
-  // Build page content
+  const starts = [
+    { pageNumber: 1, nodeIndex: 0, contentOffset: 0, isDialogueSplit: false },
+    ...breaks.map((brk) => ({ ...brk, contentOffset: brk.contentOffset ?? 0 })),
+  ];
   const pages: PageContentInfo[] = [];
-
-  for (const pb of pageBounds) {
-    if (pb.startNode > pb.endNode || pb.startNode >= nodes.length) continue;
+  for (let page = 0; page < starts.length; page++) {
+    const start = starts[page],
+      end = starts[page + 1];
     const blocks: PageBlockInfo[] = [];
-    let lineOnPage = pb.dialogueSplit ? 1 : 0; // 1 for CONT'D overhead
-    let firstOnPage = true;
-
-    for (let i = pb.startNode; i <= Math.min(pb.endNode, nodes.length - 1); i++) {
-      const node = nodes[i];
-      const cpl = CHARS_PER_LINE[node.typeName] || 62;
+    let lineOnPage = start.isDialogueSplit && resolveMoresContds(layout).dialogueBreakContd ? 1 : 0;
+    for (let index = start.nodeIndex; index < nodes.length; index++) {
+      if (end && (index > end.nodeIndex || (index === end.nodeIndex && end.contentOffset === 0)))
+        break;
+      const node = nodes[index];
+      const from = index === start.nodeIndex ? start.contentOffset : 0;
+      const to = end && index === end.nodeIndex ? end.contentOffset : node.text.length;
+      const text = node.text.slice(from, to);
+      const displayed = text.endsWith('\n') && to < node.text.length ? text.slice(0, -1) : text;
       const nonPrinting = isNonPrintingType(node.typeName);
-      const textLines = nonPrinting ? 0 : getTextLines(node.text, cpl);
-      const sb = firstOnPage || nonPrinting ? 0 : (hints.spaceBefore[node.typeName] ?? 0);
-      // A non-printing block does not count as the first thing on the page —
-      // the element after it still gets its space before.
-      if (!nonPrinting) firstOnPage = false;
-
+      const lines = nonPrinting ? 0 : getTextLines(displayed, CHARS_PER_LINE[node.typeName] || 62);
+      const sb = blocks.length === 0 || nonPrinting ? 0 : (hints.spaceBefore[node.typeName] ?? 0);
       blocks.push({
         typeName: node.typeName,
         lineStart: lineOnPage + sb,
-        lineCount: textLines,
-        docPos: node.offset,
-        text: node.text,
+        lineCount: lines,
+        docPos: from ? node.offset + 1 + from : node.offset,
+        text,
       });
-      lineOnPage += sb + textLines;
+      lineOnPage += sb + lines;
     }
-
-    pages.push({ pageNumber: pb.pageNumber, blocks, linesPerPage });
+    if (blocks.length) pages.push({ pageNumber: start.pageNumber, blocks, linesPerPage });
   }
 
   return pages;

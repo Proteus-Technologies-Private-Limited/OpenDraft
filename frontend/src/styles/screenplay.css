@@ -14819,3 +14819,22 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
 .external-save-review ul { padding-inline-start: 1.25rem; margin: .75rem 0; }
 .external-save-review label { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; }
 .external-save-review button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Layout-only turns within oversized paragraphs never enter the screenplay. */
+.sp-paragraph-page-break {
+  display: block;
+  width: 100%;
+  clear: both;
+  pointer-events: none;
+  user-select: none;
+}
+.phone-view .sp-paragraph-page-break { height: var(--phone-page-gap, 36px) !important; }
+@media print {
+  .screenplay-element:has(.sp-paragraph-page-break) { break-inside: auto; page-break-inside: auto; }
+  .sp-paragraph-page-break { height: 0 !important; break-before: page; }
+}
+
+.screenplay-element.sp-paragraph-grid { white-space: pre; overflow-wrap: normal; word-break: normal; }
+@media screen {
+  .phone-view .screenplay-element.sp-paragraph-grid { white-space: pre-wrap; overflow-wrap: break-word; }
+}

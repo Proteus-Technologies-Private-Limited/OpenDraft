@@ -422,3 +422,26 @@ function lockedEditorPages(json: JSONContent): number[] {
   }
   return pages;
 }
+
+it.each(['action','dialogue'])('matches every line of an oversized %s without orphans', async (type) => {
+  const count=LINES_PER_PAGE*3+1;
+  const paragraph:JSONContent={type,content:Array.from({length:count},(_,i)=>[
+    ...(i?[{type:'hardBreak'}]:[]),{type:'text',text:`P${String(i).padStart(4,'0')} words`},
+  ]).flat()};
+  const json=type==='dialogue'?doc(block('character','SARAH'),paragraph):doc(paragraph);
+  const source=pmDoc(json);
+  const state=computeBreaks(source,DEFAULT_PAGE_LAYOUT,activeTemplateHints());
+  await exportPDF(json,'Oversized',DEFAULT_PAGE_LAYOUT);
+  expect(pageCount).toBe(state.pageCount);
+  const {textLineOffsets}=await import('./wrapText');
+  const offsets=textLineOffsets(source.child(type==='dialogue'?1:0).textContent,type==='dialogue'?36:62);
+  for(let i=0;i<count;i++){
+    const tag=`P${String(i).padStart(4,'0')}`;
+    const found=draws.filter(d=>d.text.includes(tag));
+    expect(found,tag).toHaveLength(1);
+    const expected=state.breaks.filter(b=>b.contentOffset!==undefined&&b.contentOffset<=offsets[i]).at(-1)?.pageNumber??1;
+    expect(found[0].page,tag).toBe(expected);
+    expect(found[0].y).toBeLessThanOrEqual(DEFAULT_PAGE_LAYOUT.pageHeight*72-DEFAULT_PAGE_LAYOUT.bottomMargin);
+  }
+  for(let page=1;page<=pageCount;page++)expect(draws.filter(d=>d.page===page&&/^P\d/.test(d.text)).length).toBeGreaterThanOrEqual(2);
+});
