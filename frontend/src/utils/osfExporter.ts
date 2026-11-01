@@ -20,6 +20,11 @@
  * copy, and the exporter does not pretend otherwise.
  */
 import JSZip from 'jszip';
+import { DEFAULT_PAGE_LAYOUT, type PageLayout } from '../stores/editorStore';
+import { INDUSTRY_STANDARD_TEMPLATE } from '../stores/industryStandardTemplate';
+import type { FormattingElementRule } from '../stores/formattingTypes';
+import { OSF_BUILTIN_TYPES, canonicalOsfStyle } from './osfLayout';
+import { inchesToOsf, pointsToOsf } from './layoutUnits';
 import type { JSONContent } from '@tiptap/react';
 import { sanitizeExportFilename } from './exportFilename';
 import { titlePageAttrsCarryData } from './titlePageRegion';
@@ -52,15 +57,15 @@ const NODE_TO_OSF_STYLE: Record<string, string> = {
 };
 
 /** The eight built-in styles, in the order the format fixes them. */
-const BUILTIN_STYLES: { name: string; index: number; extra?: string }[] = [
+const BUILTIN_STYLES: { name: string; index: number }[] = [
   { name: 'Normal Text', index: 0 },
-  { name: 'Scene Heading', index: 1, extra: ' spacebefore="2.0" keepwithnext="1" allcaps="1"' },
-  { name: 'Action', index: 2, extra: ' spacebefore="1.0"' },
-  { name: 'Character', index: 3, extra: ' spacebefore="1.0" keepwithnext="1" leftindent="635" allcaps="1"' },
-  { name: 'Parenthetical', index: 4, extra: ' keepwithnext="1" leftindent="508" rightindent="508"' },
-  { name: 'Dialogue', index: 5, extra: ' leftindent="254" rightindent="254"' },
-  { name: 'Transition', index: 6, extra: ' spacebefore="1.0" align="right" allcaps="1"' },
-  { name: 'Shot', index: 7, extra: ' spacebefore="1.0" allcaps="1"' },
+  { name: 'Scene Heading', index: 1 },
+  { name: 'Action', index: 2 },
+  { name: 'Character', index: 3 },
+  { name: 'Parenthetical', index: 4 },
+  { name: 'Dialogue', index: 5 },
+  { name: 'Transition', index: 6 },
+  { name: 'Shot', index: 7 },
 ];
 
 /** Title-page field → the bookmark the parser reads it back from.
@@ -82,6 +87,8 @@ const TP_ATTR_TO_BOOKMARK: [string, string][] = [
 ];
 
 export interface OSFExportOptions {
+  pageLayout?: PageLayout;
+  elementRules?: Record<string, FormattingElementRule>;
   /** Typeface the document is written in; goes on the styles, as OSF wants. */
   font?: { family?: string; size?: string };
   /** Revision Mode's state: the active colour and the marks. Revised
@@ -326,16 +333,55 @@ export function exportOSF(doc: JSONContent, options: OSFExportOptions = {}): str
   const size = options.font?.size?.trim() || '12';
   const fontAttrs = ` font="${esc(family)}" size="${esc(size)}"`;
 
-  const styles = BUILTIN_STYLES.map((style) => {
-    const base = style.index === 0 ? '' : ' basestylename="Normal Text"';
-    return (
-      `    <style name="${style.name}" builtin="1" builtin_index="${style.index}"` +
-      ` label="${style.name}"${base}${fontAttrs}${style.extra ?? ''}/>`
-    );
+  const layout = options.pageLayout ?? DEFAULT_PAGE_LAYOUT;
+  const rules = options.elementRules ?? INDUSTRY_STANDARD_TEMPLATE.rules;
+  const source = layout.osfSource;
+  const settings: Record<string, string> = { normal_linesperinch: '6.0', element_spacing: '1.00', ...source?.settings,
+    page_width: String(inchesToOsf(layout.pageWidth)), page_height: String(inchesToOsf(layout.pageHeight)),
+    margin_top: String(pointsToOsf(layout.topMargin)), margin_bottom: String(pointsToOsf(layout.bottomMargin)),
+    margin_left: String(inchesToOsf(layout.leftMargin)), margin_right: String(inchesToOsf(layout.rightMargin)),
+  };
+  const xmlAttrs = (attrs: Record<string, string>) => Object.entries(attrs).filter(([k]) => /^[A-Za-z_][A-Za-z0-9_.:-]*$/.test(k)).map(([k, v]) => ` ${k}="${esc(v)}"`).join('');
+  const styles = BUILTIN_STYLES.map(style => {
+    const retained = Object.values(source?.styles ?? {}).find(s => Number(s.builtin_index ?? s.builtInIndex ?? -1) === style.index) ?? {};
+    const r = rules[OSF_BUILTIN_TYPES[style.index]];
+    const attrs: Record<string, string> = { ...canonicalOsfStyle(retained), name: style.name, builtin: '1', builtin_index: String(style.index), label: style.name,
+      font: options.elementRules ? (r?.fontFamily || family) : family, size: String(options.elementRules ? (r?.fontSize || size) : size) };
+    delete attrs.baseStyleName; delete attrs.basestyle; delete attrs.baseStyle;
+    if (style.index !== 0) attrs.basestylename = 'Normal Text';
+    else delete attrs.basestylename;
+    if ([1, 3, 4].includes(style.index) && !('keepwithnext' in attrs)) attrs.keepwithnext = '1';
+    // An indent reaching into the margin is written only when the source file
+    // asked for one. Otherwise it is a template's absolute indent on a page it
+    // was not drawn for — the standard 7.5" right edge on A4 — and the editor
+    // already clamps it to the margin, so the file is clamped the same way.
+    const sourceIndents = canonicalOsfStyle(retained);
+    const indent = (osf: number, key: 'leftindent' | 'rightindent') =>
+      String(osf < 0 && !(Number(sourceIndents[key]) < 0) ? 0 : osf);
+    if (r) Object.assign(attrs, {
+      leftindent: indent(inchesToOsf(r.leftIndent - layout.leftMargin), 'leftindent'),
+      rightindent: indent(inchesToOsf(layout.pageWidth - layout.rightMargin - r.rightIndent), 'rightindent'),
+      spacebefore: String(r.marginTop / 12), align: r.textAlign,
+      bold: r.bold ? '1' : '0', italic: r.italic ? '1' : '0', underline: r.underline ? '1' : '0',
+      strikethrough: r.strikethrough ? '1' : '0', allcaps: r.textTransform === 'uppercase' ? '1' : '0',
+    });
+    return `    <style${xmlAttrs(attrs)}/>`;
   });
+  const sourceNames = new Map(Object.values(source?.styles ?? {}).flatMap(attrs => {
+    const index = Number(attrs.builtin_index ?? attrs.builtInIndex ?? -1);
+    return BUILTIN_STYLES[index] && attrs.name ? [[attrs.name.toLowerCase(), BUILTIN_STYLES[index].name] as const] : [];
+  }));
+  for (const retained of Object.values(source?.styles ?? {})) {
+    if (OSF_BUILTIN_TYPES[Number(retained.builtin_index ?? retained.builtInIndex ?? -1)]) continue;
+    const attrs = canonicalOsfStyle(retained);
+    for (const key of ['basestylename', 'baseStyleName', 'basestyle', 'baseStyle']) {
+      if (attrs[key]) attrs[key] = sourceNames.get(attrs[key].toLowerCase()) ?? attrs[key];
+    }
+    styles.push(`    <style${xmlAttrs(attrs)}/>`);
+  }
   // Not a built-in, but OpenDraft has the element and the parser reads the
   // name back, so writing it keeps lyrics from arriving as action.
-  styles.push(
+  if (!Object.values(source?.styles ?? {}).some(s => s.name?.toLowerCase() === 'lyrics')) styles.push(
     `    <style name="Lyrics" label="Lyrics" basestylename="Normal Text"${fontAttrs} italic="1"/>`,
   );
 
@@ -390,6 +436,8 @@ export function exportOSF(doc: JSONContent, options: OSFExportOptions = {}): str
   const sceneSettings = options.sceneNumbers
     ? ` scene_numbering="${options.sceneNumbers.visible}" scenes_locked="${options.sceneNumbers.locked}"`
     : '';
+  if (sceneSettings) { delete settings.scene_numbering; delete settings.scenes_locked; }
+  if (revisionSettings) { delete settings.revision; delete settings.show_revisions; }
   const lists = used.size > 0
     ? ['  <lists>', ...osfRevisionColors(used, options.revisions?.settings), '  </lists>']
     : [];
@@ -403,9 +451,7 @@ export function exportOSF(doc: JSONContent, options: OSFExportOptions = {}): str
     // twice, and a file edited over several sessions accumulates a copy per
     // save. The title page is the title page.
     '  <info/>',
-    '  <settings page_width="2159" page_height="2794" margin_top="317" margin_bottom="220"' +
-      ' margin_left="317" margin_right="317" normal_linesperinch="6.0" element_spacing="1.00"' +
-      `${sceneSettings}${revisionSettings}/>`,
+    `  <settings${xmlAttrs(settings)}${sceneSettings}${revisionSettings}/>`,
     '  <styles>',
     ...styles,
     '  </styles>',
