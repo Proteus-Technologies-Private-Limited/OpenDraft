@@ -88,14 +88,8 @@ export function hydrateEditorStoresFromContent(
   const templates = useFormattingTemplateStore.getState();
   if (c._templateId !== undefined || c._templateSnapshot !== undefined || templates.documentTemplate) {
     templates.restoreDocumentTemplate(c._templateId, c._templateSnapshot);
-  restoreImportedFormat(c._templateSnapshot);
-  if (typeof c._templateId === 'string' && c._templateId) {
-    try {
-      useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
-    } catch (err) {
-      console.warn('[import] could not apply template', c._templateId, err);
-    }
   }
+  restoreImportedFormat(c._templateSnapshot);
 
   return true;
 }

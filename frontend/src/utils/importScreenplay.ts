@@ -13,7 +13,6 @@
  */
 import type { JSONContent } from '@tiptap/react';
 import { importedFormat, restoreImportedFormat } from './importedFormat';
-import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { DEFAULT_PAGE_LAYOUT, type PageLayout } from '../stores/editorStore';
 import { parseFountain } from './fountainParser';
 import { DEFAULT_SCRIPT_PROFILE } from './scriptProfile';

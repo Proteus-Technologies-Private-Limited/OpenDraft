@@ -46,7 +46,6 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { PastedHighlight } from '../editor/extensions/PastedHighlight';
 import { useFormattingTemplateStore, subscribeActiveTemplate } from '../stores/formattingTemplateStore';
-import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { restoreImportedFormat } from '../utils/importedFormat';
 import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
@@ -959,8 +958,6 @@ const ScreenplayEditor: React.FC = () => {
       useFormattingTemplateStore.getState().restoreDocumentTemplate((content as any)?._templateId, (content as any)?._templateSnapshot);
       restoreImportedFormat((content as any)?._templateSnapshot);
       useEditorStore.setState({ sourceFidelity: readSourceFidelity((content as any)?._sourceFidelity) });
-      const tplId = (content as any)?._templateId;
-      useFormattingTemplateStore.getState().setActiveTemplateId(typeof tplId === 'string' ? tplId : null);
 
       const docName = `${projectId}/${scriptId}${nonce ? `/${nonce}` : ''}`;
       setupCollab(docName, sharedToken, collabUserName, false, collabWs);
@@ -3860,11 +3857,6 @@ const ScreenplayEditor: React.FC = () => {
             useFormattingTemplateStore.getState().restoreDocumentTemplate(c._templateId, c._templateSnapshot);
             restoreImportedFormat(c._templateSnapshot);
             useEditorStore.setState({ sourceFidelity: readSourceFidelity(c._sourceFidelity) });
-            if (c._templateId && typeof c._templateId === 'string') {
-              useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
-            } else {
-              useFormattingTemplateStore.getState().setActiveTemplateId(null);
-            }
             // Restore per-document ignored words for spell check
             const ignoredArr = parseAttr(c._ignoredWords);
             spellChecker.setIgnoredWords(ignoredArr as string[]);
@@ -4392,11 +4384,6 @@ const ScreenplayEditor: React.FC = () => {
           useFormattingTemplateStore.getState().restoreDocumentTemplate(c._templateId, c._templateSnapshot);
           restoreImportedFormat(c._templateSnapshot);
           useEditorStore.setState({ sourceFidelity: readSourceFidelity(c._sourceFidelity) });
-          if (c._templateId && typeof c._templateId === 'string') {
-            useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
-          } else {
-            useFormattingTemplateStore.getState().setActiveTemplateId(null);
-          }
           // Restore per-document page layout (header/footer, margins)
           if (c._pageLayout && typeof c._pageLayout === 'object') {
             store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT, ...(c._pageLayout as Record<string, unknown>) });

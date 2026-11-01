@@ -133,6 +133,28 @@ describe('portable document templates', () => {
     const fdx = serializeContentForFormat('fdx', saved, 'Audio');
     expect(fdx).toContain('SFX 3');
   });
+  it('hydrates a saved snapshot over a same-id library format without losing fidelity warnings', () => {
+    const local = customFormat();
+    local.rules['sound-cue'].fontFamily = 'Georgia';
+    useFormattingTemplateStore.setState({ templates: [local] });
+    const incoming = customFormat();
+    const fidelity = {
+      format: 'osf',
+      warnings: ['Unsupported source setting retained for save review'],
+      uncertain: true,
+    };
+    expect(hydrateEditorStoresFromContent({
+      _templateId: incoming.id,
+      _templateSnapshot: JSON.stringify(incoming),
+      _sourceFidelity: fidelity,
+    })).toBe(true);
+    const store = useFormattingTemplateStore.getState();
+    expect(store.getActiveTemplate().rules['sound-cue'].fontFamily).toBe('Arial');
+    expect(store.documentTemplate?.id).toBe(incoming.id);
+    expect(store.templates[0].rules['sound-cue'].fontFamily).toBe('Georgia');
+    expect(useEditorStore.getState().sourceFidelity).toEqual(fidelity);
+    expect(buildSaveContent(editor)?._templateSnapshot).toEqual(incoming);
+  });
   it('keeps a same-id local template and another document independent', async () => {
     const own = customFormat();
     own.name = 'My local copy';
