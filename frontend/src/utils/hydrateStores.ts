@@ -1,3 +1,4 @@
+import { readSourceFidelity } from './sourceFidelity';
 /**
  * Restore the `_`-prefixed app metadata from an imported `.odraft` payload.
  *
@@ -16,6 +17,7 @@
  */
 import { useEditorStore, DEFAULT_TAG_CATEGORIES, DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { restoreImportedFormat } from './importedFormat';
 import { hasSaveMetadata } from './saveContent';
 import { resolveSceneHeadingSpaceBefore } from './elementSpacing';
 import { restoreRevisionState } from './revisionState';
@@ -51,6 +53,7 @@ export function hydrateEditorStoresFromContent(
 
   const store = useEditorStore.getState();
   const c = content as Record<string, any>;
+  useEditorStore.setState({ sourceFidelity: readSourceFidelity(c._sourceFidelity) });
 
   store.setNotes(parseAttr(c._notes, []));
   store.setGeneralNotes(parseAttr(c._generalNotes, []));
@@ -82,6 +85,7 @@ export function hydrateEditorStoresFromContent(
   // no genres, not with whatever the previous script had.
   store.setScriptProfile(normalizeScriptProfile(c._scriptProfile));
 
+  restoreImportedFormat(c._templateSnapshot);
   if (typeof c._templateId === 'string' && c._templateId) {
     try {
       useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);

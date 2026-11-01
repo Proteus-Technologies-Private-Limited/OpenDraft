@@ -13,6 +13,8 @@
  * In's .fadein is a zip archive, written in one non-atomic pass, so it is left
  * to Open File from Disk, where every save is one the writer asked for.
  */
+import { findTemplate } from '../stores/formattingTemplateStore';
+import type { FormattingTemplate } from '../stores/formattingTypes';
 import { withoutSuggestionsJSON } from '../editor/suggestions';
 import type { JSONContent } from '@tiptap/core';
 import type { ScriptMeta } from '../services/api';
@@ -164,6 +166,8 @@ export function serializeContentForFormat(
       return exportFountain(doc, { revisionSettings: revision.revisionSettings, sceneNumbersVisible });
     case 'osf':
       return exportOSF(doc, {
+        pageLayout: m._pageLayout as PageLayout | undefined,
+        elementRules: (m._templateSnapshot as FormattingTemplate | undefined)?.rules ?? findTemplate(m._templateId as string)?.rules,
         font: { family: font.family, size: String(font.size) },
         revisions: { color: revision.revisionMode ? revision.revisionColor : '', settings: revision.revisionSettings },
         sceneNumbers: { visible: sceneNumbersVisible, locked: m._sceneNumbersLocked === true },

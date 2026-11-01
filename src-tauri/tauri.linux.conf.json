@@ -1,0 +1,27 @@
+{
+  "bundle": {
+    "fileAssociations": [
+      { "ext": ["odraft"], "mimeType": "application/x-opendraft", "description": "OpenDraft Screenplay", "rank": "Owner" },
+      { "ext": ["fdx"], "mimeType": "application/x-fdx", "description": "Final Draft Screenplay", "rank": "Alternate" },
+      { "ext": ["fountain"], "mimeType": "text/x-fountain", "description": "Fountain Screenplay", "rank": "Alternate" },
+      { "ext": ["fadein"], "mimeType": "application/x-fadein", "description": "Fade In Screenplay", "rank": "Alternate" },
+      { "ext": ["osf"], "mimeType": "application/x-open-screenplay-format", "description": "Open Screenplay Format", "rank": "Alternate" },
+      { "ext": ["highland"], "mimeType": "application/x-highland", "description": "Highland Screenplay", "rank": "Alternate" },
+      { "ext": ["wdz"], "mimeType": "application/x-writerduet", "description": "WriterDuet Screenplay", "rank": "Alternate" },
+      { "ext": ["celtx"], "mimeType": "application/x-celtx", "description": "Celtx Project", "rank": "Alternate" }
+    ],
+    "linux": {
+      "deb": {
+        "desktopTemplate": "linux/opendraft.desktop",
+        "files": { "/usr/share/mime/packages/opendraft.xml": "linux/opendraft-mime.xml" }
+      },
+      "rpm": {
+        "desktopTemplate": "linux/opendraft.desktop",
+        "files": { "/usr/share/mime/packages/opendraft.xml": "linux/opendraft-mime.xml" }
+      },
+      "appimage": {
+        "files": { "/usr/share/mime/packages/opendraft.xml": "linux/opendraft-mime.xml" }
+      }
+    }
+  }
+}

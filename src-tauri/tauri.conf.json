@@ -67,52 +67,68 @@
     "category": "public.app-category.productivity",
     "fileAssociations": [
       {
-        "ext": ["fdx"],
+        "ext": [
+          "fdx"
+        ],
         "mimeType": "application/xml",
-        "description": "Final Draft Screenplay"
+        "description": "Final Draft Screenplay",
+        "rank": "Alternate"
       },
       {
-        "ext": ["fountain"],
+        "ext": [
+          "fountain"
+        ],
         "mimeType": "text/plain",
-        "description": "Fountain Screenplay"
+        "description": "Fountain Screenplay",
+        "rank": "Alternate"
       },
       {
-        "ext": ["fadein"],
+        "ext": [
+          "fadein"
+        ],
         "mimeType": "application/zip",
-        "description": "Fade In Screenplay"
+        "description": "Fade In Screenplay",
+        "rank": "Alternate"
       },
       {
-        "ext": ["highland"],
+        "ext": [
+          "highland"
+        ],
         "mimeType": "application/zip",
         "description": "Highland Screenplay",
         "rank": "Alternate"
       },
       {
-        "ext": ["wdz"],
+        "ext": [
+          "wdz"
+        ],
         "mimeType": "application/zip",
         "description": "WriterDuet Screenplay",
         "rank": "Alternate"
       },
       {
-        "ext": ["celtx"],
+        "ext": [
+          "celtx"
+        ],
         "mimeType": "application/zip",
         "description": "Celtx Project",
         "rank": "Alternate"
       },
       {
-        "ext": ["osf"],
+        "ext": [
+          "osf"
+        ],
         "mimeType": "application/xml",
-        "description": "Open Screenplay Format"
+        "description": "Open Screenplay Format",
+        "rank": "Alternate"
       },
       {
-        "ext": ["odraft"],
+        "ext": [
+          "odraft"
+        ],
         "mimeType": "application/json",
-        "description": "OpenDraft Screenplay"
-      },
-      {
-        "ext": ["txt"],
-        "mimeType": "text/plain",
-        "description": "Text File"
+        "description": "OpenDraft Screenplay",
+        "rank": "Owner"
       }
     ]
   },
