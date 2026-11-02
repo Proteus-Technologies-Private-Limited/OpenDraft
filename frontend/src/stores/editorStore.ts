@@ -1264,9 +1264,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return { outlineOpen: true, statisticsOpen: false, beatBoardOpen: false, storyTimelineOpen: false };
   }),
   statisticsOpen: false,
-  setStatisticsOpen: (open) => set(open
-    ? { statisticsOpen: true, outlineOpen: false, beatBoardOpen: false }
-    : { statisticsOpen: false }),
+  setStatisticsOpen: (open) => set((s) => {
+    if (!open) return { statisticsOpen: false };
+    // Statistics takes the screen like the Outline does, so the Beat Board
+    // choice is saved as closed instead of opening again on the next reload.
+    if (s.beatBoardOpen) saveViewState({ beatBoardOpen: false });
+    return { statisticsOpen: true, outlineOpen: false, beatBoardOpen: false };
+  }),
   statisticsScrollTo: null,
   setStatisticsScrollTo: (id) => set({ statisticsScrollTo: id }),
   scriptNotesOpen: _vs.scriptNotesOpen ?? false,

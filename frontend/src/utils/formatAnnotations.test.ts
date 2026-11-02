@@ -115,8 +115,21 @@ describe('Final Draft (.fdx)', () => {
     expect(read[1]).toEqual({ alternates: DIALOGUE_VERSIONS, alternateIndex: 1 });
   });
 
-  it('ignores damaged or misplaced versions without failing the import', () => {
-    const [bad, misplaced] = Array.from(xml(
+  it('carries the Outline sequence label, with its colour', () => {
+    const out = exportFDX(doc(
+      el(
+        'sceneHeading',
+        { sequenceId: 'seq-1', sequenceName: 'The Heist', sequenceColor: '#123456' },
+        txt('INT. HOUSE - DAY'),
+      ),
+    ));
+    const [heading] = fdxParagraphs(out);
+    expect(fdxParagraphAnnotations(heading, 'sceneHeading')).toEqual({
+      sequenceId: 'seq-1', sequenceName: 'The Heist', sequenceColor: '#123456',
+    });
+  });
+
+  it('ignores damaged or misplaced versions without failing the import', () => {    const [bad, misplaced] = Array.from(xml(
       '<FinalDraft><Content>'
       + '<Paragraph Type="Dialogue" data-od-alternates="{not json"><Text>Hi.</Text></Paragraph>'
       + '<Paragraph Type="Character" data-od-alternates="[{&quot;id&quot;:&quot;a&quot;,&quot;content&quot;:[]}]"><Text>ANNA</Text></Paragraph>'
@@ -221,6 +234,27 @@ describe('Fountain', () => {
     ]);
     expect(read[0].attrs?.synopsis).toBe('Where it starts.');
     expect(read[0].attrs?.sceneNumber).toBe('1');
+  });
+
+  it('carries the Outline sequence label in a note and reads it back', () => {
+    const source = doc(
+      el(
+        'sceneHeading',
+        { sequenceId: 'seq-1', sequenceName: 'The Heist', sequenceColor: '#123456' },
+        txt('INT. HOUSE - DAY'),
+      ),
+      el('action', null, txt('A door slams.')),
+    );
+    const out = exportFountain(source);
+    expect(out).toContain('[[Sequence: ');
+    const read = blocks(parseFountain(out));
+    // Still a scene heading, still the same words.
+    expect(read.map((n) => [n.type, flat(n)])).toEqual([
+      ['sceneHeading', 'INT. HOUSE - DAY'], ['action', 'A door slams.'],
+    ]);
+    expect(read[0].attrs?.sequenceId).toBe('seq-1');
+    expect(read[0].attrs?.sequenceName).toBe('The Heist');
+    expect(read[0].attrs?.sequenceColor).toBe('#123456');
   });
 
   it('writes each other version as a note and puts them back in order', () => {

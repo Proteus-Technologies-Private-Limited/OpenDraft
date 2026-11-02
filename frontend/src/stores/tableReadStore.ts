@@ -4,6 +4,7 @@
  * services/tts/player.ts drives it; the panel and the editor highlight read it.
  */
 import { create } from 'zustand';
+import { useEditorStore } from './editorStore';
 import type { ReadLine } from '../services/tts/script';
 import type { EngineKind, VoiceInfo } from '../services/tts/types';
 
@@ -27,8 +28,10 @@ interface TableReadState {
   casting: Record<string, string | null>;
 
   setOpen: (open: boolean) => void;
+  /** Open the panel with the script on screen: the Outline would cover it. */
+  openTableRead: () => void;
   setNeedsProvider: (v: boolean) => void;
-  patch: (p: Partial<Omit<TableReadState, 'setOpen' | 'setNeedsProvider' | 'patch'>>) => void;
+  patch: (p: Partial<Omit<TableReadState, 'setOpen' | 'openTableRead' | 'setNeedsProvider' | 'patch'>>) => void;
 }
 
 export const useTableReadStore = create<TableReadState>((set) => ({
@@ -45,6 +48,11 @@ export const useTableReadStore = create<TableReadState>((set) => ({
   casting: {},
 
   setOpen: (open) => set({ open }),
+  openTableRead: () => {
+    const editors = useEditorStore.getState();
+    if (editors.outlineOpen) editors.toggleOutline();
+    set({ open: true });
+  },
   setNeedsProvider: (v) => set({ needsProvider: v }),
   patch: (p) => set(p),
 }));

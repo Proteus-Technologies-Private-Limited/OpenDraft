@@ -15,7 +15,8 @@ import {
 } from '../editor/revisionColors';
 import { withElementNumbers, elementNumberOf } from './elementNumbers';
 import {
-  bookmarkOf, encodeAlternates, FDX_ALTERNATES_ATTR, FDX_ALTERNATE_INDEX_ATTR,
+  bookmarkOf, encodeAlternates, encodeSequence, FDX_ALTERNATES_ATTR, FDX_ALTERNATE_INDEX_ATTR,
+  FDX_SEQUENCE_ATTR,
 } from './formatAnnotations';
 
 const NODE_TO_FDX: Record<string, string> = {
@@ -555,6 +556,9 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
     if (alternates) {
       paraAttrs.push(`${FDX_ALTERNATES_ATTR}="${esc(alternates.json)}"`, `${FDX_ALTERNATE_INDEX_ATTR}="${alternates.index}"`);
     }
+    // The Outline's sequence label, in an attribute only OpenDraft reads.
+    const sequence = encodeSequence(node);
+    if (sequence) paraAttrs.push(`${FDX_SEQUENCE_ATTR}="${esc(sequence)}"`);
 
     const attrStr = paraAttrs.join(' ');
 
