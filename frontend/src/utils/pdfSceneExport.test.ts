@@ -1,0 +1,200 @@
+/**
+ * PDF export choices: which scenes, and whether page numbers are drawn.
+ *
+ * @vitest-environment node
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { JSONContent } from '@tiptap/react';
+import { sceneRangeDocument, sceneSelectionDocument, sceneHeadings } from './pdfSceneExport';
+
+interface DrawCall { text: string; page: number }
+
+const draws: DrawCall[] = [];
+let currentPage = 1;
+
+vi.mock('jspdf', () => {
+  class FakeJsPDF {
+    private font = 'courier';
+    setFont(font: string) { this.font = font; }
+    getFont() { return { fontName: this.font, fontStyle: 'normal' }; }
+    addFileToVFS() {}
+    addFont() {}
+    setFontSize() {}
+    setLineWidth() {}
+    line() {}
+    addPage() { currentPage++; }
+    setPage(n: number) { currentPage = n; }
+    addImage() {}
+    getTextWidth(text: string) { return 7.2 * text.length; }
+    text(text: string) { draws.push({ text, page: currentPage }); }
+    output() { return new ArrayBuffer(0); }
+  }
+  return { default: FakeJsPDF };
+});
+
+vi.mock('./fileOps', () => ({ saveFile: vi.fn(async () => {}) }));
+
+const { exportPDF } = await import('./pdfExporter');
+const { DEFAULT_PAGE_LAYOUT } = await import('../stores/editorStore');
+
+const block = (type: string, text: string): JSONContent => ({
+  type, content: [{ type: 'text', text }],
+});
+
+const script = (): JSONContent => ({
+  type: 'doc',
+  content: [
+    { type: 'titlePage', attrs: { field: 'title', tpTitle: 'THE SCRIPT' }, content: [{ type: 'text', text: 'THE SCRIPT' }] },
+    block('sceneHeading', 'INT. HOUSE - DAY'),
+    block('action', 'She waits.'),
+    block('sceneHeading', 'EXT. STREET - NIGHT'),
+    block('action', 'A car passes.'),
+    block('sceneHeading', 'INT. CAR - CONTINUOUS'),
+    block('action', 'She drives away.'),
+  ],
+});
+
+/** Opening matter before scene 1, and an act break before scene 2. */
+const scriptWithOpening = (): JSONContent => ({
+  type: 'doc',
+  content: [
+    { type: 'titlePage', attrs: { field: 'title', tpTitle: 'THE SCRIPT' }, content: [{ type: 'text', text: 'THE SCRIPT' }] },
+    block('action', 'FADE IN:'),
+    block('action', 'A dark room.'),
+    block('sceneHeading', 'INT. HOUSE - DAY'),
+    block('action', 'She waits.'),
+    block('newAct', 'ACT TWO'),
+    block('sceneHeading', 'EXT. STREET - NIGHT'),
+    block('action', 'A car passes.'),
+  ],
+});
+
+const textsOf = (doc: JSONContent): string[] => (doc.content ?? []).map(
+  (node) => (node.content ?? []).map((child) => child.text ?? '').join(''),
+);
+
+beforeEach(() => { draws.length = 0; currentPage = 1; });
+
+describe('PDF scene range', () => {
+  it('keeps the title page and only the chosen scenes', () => {
+    const out = sceneRangeDocument(script(), { from: 1, to: 2, oneScenePerPage: false });
+    expect(textsOf(out)).toEqual([
+      'THE SCRIPT',
+      'EXT. STREET - NIGHT',
+      'A car passes.',
+      'INT. CAR - CONTINUOUS',
+      'She drives away.',
+    ]);
+  });
+
+  it('leaves a full export untouched when no scene break is asked for', () => {
+    const doc = script();
+    expect(sceneRangeDocument(doc, { from: 0, to: 2, oneScenePerPage: false })).toBe(doc);
+  });
+
+  it('marks every scene to start its own page', () => {
+    const out = sceneRangeDocument(script(), { from: 0, to: 2, oneScenePerPage: true });
+    const headings = (out.content ?? []).filter((node) => node.type === 'sceneHeading');
+    expect(headings).toHaveLength(3);
+    for (const heading of headings) expect(heading.attrs?.startsNewPage).toBe(true);
+  });
+
+  it('clamps a range that runs past the script', () => {
+    const out = sceneRangeDocument(script(), { from: 0, to: 99, oneScenePerPage: false });
+    expect(textsOf(out)).toEqual(textsOf(script()));
+  });
+});
+
+describe('PDF hand-picked scenes', () => {
+  it('keeps the title page and only the ticked scenes, in script order', () => {
+    const out = sceneSelectionDocument(script(), { scenes: [2, 0], oneScenePerPage: false });
+    expect(textsOf(out)).toEqual([
+      'THE SCRIPT',
+      'INT. HOUSE - DAY',
+      'She waits.',
+      'INT. CAR - CONTINUOUS',
+      'She drives away.',
+    ]);
+  });
+
+  it('leaves the middle scene out', () => {
+    const out = sceneSelectionDocument(script(), { scenes: [0, 2], oneScenePerPage: false });
+    expect(textsOf(out).join('\n')).not.toContain('EXT. STREET - NIGHT');
+  });
+
+  it('starts every ticked scene on its own page', () => {
+    const out = sceneSelectionDocument(script(), { scenes: [0, 2], oneScenePerPage: true });
+    const headings = (out.content ?? []).filter((node) => node.type === 'sceneHeading');
+    expect(headings).toHaveLength(2);
+    for (const heading of headings) expect(heading.attrs?.startsNewPage).toBe(true);
+  });
+});
+
+describe('PDF page numbers', () => {
+  const layout = {
+    ...DEFAULT_PAGE_LAYOUT,
+    headerStartPage: 1,
+    headerContent: { left: '', center: '', right: '{page}.' },
+  };
+
+  it('draws them by default', async () => {
+    await exportPDF(script(), 'Test', layout, { includeTitlePage: false });
+    expect(draws.map((d) => d.text)).toContain('1.');
+  });
+
+  it('leaves them out when the writer turns them off', async () => {
+    await exportPDF(script(), 'Test', layout, { includeTitlePage: false, pageNumbers: false });
+    expect(draws.map((d) => d.text)).not.toContain('1.');
+  });
+});
+
+describe('PDF scene boundaries', () => {
+  it('keeps the opening matter when the export starts at scene 1', () => {
+    const out = sceneRangeDocument(scriptWithOpening(), { from: 0, to: 1, oneScenePerPage: true });
+    const texts = textsOf(out);
+    expect(texts).toContain('FADE IN:');
+    expect(texts).toContain('A dark room.');
+    expect(texts.indexOf('FADE IN:')).toBeLessThan(texts.indexOf('INT. HOUSE - DAY'));
+  });
+
+  it('moves an act break to the scene it opens', () => {
+    const second = sceneRangeDocument(scriptWithOpening(), { from: 1, to: 1, oneScenePerPage: false });
+    const texts = textsOf(second);
+    expect(texts).toContain('ACT TWO');
+    expect(texts.indexOf('ACT TWO')).toBeLessThan(texts.indexOf('EXT. STREET - NIGHT'));
+
+    const first = sceneRangeDocument(scriptWithOpening(), { from: 0, to: 0, oneScenePerPage: false });
+    expect(textsOf(first)).not.toContain('ACT TWO');
+  });
+
+  it('numbers the scenes from the document that is exported', () => {
+    const doc = scriptWithOpening();
+    const headings = sceneHeadings(doc);
+    expect(headings).toEqual(['INT. HOUSE - DAY', 'EXT. STREET - NIGHT']);
+    const out = sceneSelectionDocument(doc, {
+      scenes: [headings.length - 1],
+      oneScenePerPage: false,
+    });
+    expect(textsOf(out)).toContain('EXT. STREET - NIGHT');
+    expect(textsOf(out)).not.toContain('INT. HOUSE - DAY');
+  });
+
+  it('never falls back to the whole script for indices from another document', () => {
+    const out = sceneSelectionDocument(script(), { scenes: [99], oneScenePerPage: false });
+    expect(textsOf(out)).toEqual(['THE SCRIPT']);
+  });
+});
+describe('PDF one scene per page with act breaks', () => {
+  it('opens the page at the act break, not at the heading after it', () => {
+    const out = sceneRangeDocument(scriptWithOpening(), { from: 0, to: 1, oneScenePerPage: true });
+    const blocks = out.content ?? [];
+    const act = blocks.find((node) => node.type === 'newAct');
+    const street = blocks.find(
+      (node) => node.type === 'sceneHeading' && JSON.stringify(node).includes('EXT. STREET'),
+    );
+    expect(act?.attrs?.startsNewPage).toBe(true);
+    expect(street?.attrs?.startsNewPage).toBeFalsy();
+    const first = blocks.find((node) => node.type === 'sceneHeading');
+    expect(first?.attrs?.startsNewPage).toBe(true);
+  });
+});

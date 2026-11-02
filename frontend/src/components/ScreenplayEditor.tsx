@@ -70,6 +70,7 @@ import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
 import IndexCards from './IndexCards';
 import BeatBoard from './BeatBoard';
+import OutlineView from './OutlineView';
 import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
 import VoiceProviderDialog from './VoiceProviderDialog';
@@ -543,6 +544,7 @@ const ScreenplayEditor: React.FC = () => {
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     viewLayout,
     beatBoardOpen, statisticsOpen,
+    outlineOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, dialogueTunerOpen,
     spellCheckEnabled, spellModalOpen, setSpellModalOpen,
@@ -1111,7 +1113,13 @@ const ScreenplayEditor: React.FC = () => {
       container.removeEventListener('wheel', release);
       container.removeEventListener('touchstart', release);
     };
-  }, [statisticsOpen, beatBoardOpen, isHistoryMode]);
+  }, [statisticsOpen, beatBoardOpen, outlineOpen, isHistoryMode]);
+  // The Outline takes over the editor area; a Table Read docked under it would
+  // have no script to read.
+  useEffect(() => {
+    if (!outlineOpen) return;
+    if (useTableReadStore.getState().open) useTableReadStore.getState().setOpen(false);
+  }, [outlineOpen]);
   zoomLevelRef.current = zoomLevel;
 
   const [overlays, setOverlays] = useState<OverlayInfo[]>([]);
@@ -1590,12 +1598,18 @@ const ScreenplayEditor: React.FC = () => {
     for (const brk of breaks) {
       const el = children[brk.nodeIndex];
       if (!el) continue;
-      const elRect = el.getBoundingClientRect();
+      const dualGap = brk.dualRow === undefined ? null
+        : el.querySelector<HTMLElement>(`[data-dual-row="${brk.dualRow}"]`);
+      const elRect = dualGap ? dualGap.getBoundingClientRect() : el.getBoundingClientRect();
       const contdHeight = brk.isDialogueSplit && showContd ? lineHeightPx : 0;
       // The phone view replaces the gap between sheets with a divider of its
       // own height (--phone-page-gap in screenplay.css) directly above the
       // first element of the page.
-      const overlayTop = phoneViewRef.current
+      const separatorHeight = phoneViewRef.current ? PHONE_PAGE_GAP_PX : m.sepHeightPx;
+      const dualContdHeight = dualGap?.dataset.contd === 'true' ? lineHeightPx : 0;
+      const overlayTop = dualGap
+        ? (elRect.bottom - pageRect.top) / scale - separatorHeight - dualContdHeight
+        : phoneViewRef.current
         ? (elRect.top - pageRect.top) / scale - PHONE_PAGE_GAP_PX
         : (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
       newOverlays.push({
@@ -2036,6 +2050,26 @@ const ScreenplayEditor: React.FC = () => {
     extensions: [
       Document.extend({
         content: 'block+',
+        // Sequence labels live on the document (and on each scene heading's
+        // sequenceId), so the Outline can group scenes without inserting
+        // structure nodes into the script.
+        addAttributes() {
+          return {
+            sequences: {
+              default: null,
+              parseHTML: (element: HTMLElement) => {
+                const raw = element.getAttribute('data-sequences');
+                if (!raw) return null;
+                try { return JSON.parse(raw); } catch { return null; }
+              },
+              renderHTML: (attributes: Record<string, unknown>) => (
+                attributes.sequences
+                  ? { 'data-sequences': JSON.stringify(attributes.sequences) }
+                  : {}
+              ),
+            },
+          };
+        },
       }),
       // HardBreakLeafText must travel with ScreenplayHardBreak — see that module.
       Text, ScreenplayHardBreak, HardBreakLeafText,
@@ -5514,7 +5548,9 @@ const ScreenplayEditor: React.FC = () => {
         )}
         <div className="editor-center">
           {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainRef.current} />}
-          {!isHistoryMode && statisticsOpen && editor ? (
+          {!isHistoryMode && outlineOpen && editor ? (
+            <OutlineView editor={editor} />
+          ) : !isHistoryMode && statisticsOpen && editor ? (
             <ScriptStatistics editor={editor} />
           ) : !isHistoryMode && beatBoardOpen ? (
             <BeatBoard editor={editor} />

@@ -57,6 +57,12 @@ function insertion(previous: string | null, following: string | null, used: Set<
   if (previous) {
     const p = split(previous);
     const next = following ? split(following) : null;
+    if (p && next && p[1] === next[1] && next[2].toUpperCase() === p[2].toUpperCase() + 'A') {
+      // There is no free suffix between a parent and its first child (1/1A).
+      // Prefix the following reference, as for inserts before the first number:
+      // A1A is before 1A, rather than allocating 1B after it.
+      return insertion(null, following, used);
+    }
     if (p && next && p[1] === next[1]) base = previous;
     else if (p) {
       base = p[1];

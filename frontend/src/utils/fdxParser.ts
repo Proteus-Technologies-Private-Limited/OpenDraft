@@ -466,7 +466,8 @@ export function parseFDXFull(xmlString: string): FDXParseResult {
     if (sceneNumber && nodeType === 'sceneHeading') attrs.sceneNumber = sceneNumber;
     else if (sceneNumber && isNumberableElementId(nodeType)) {
       attrs.elementNumber = sceneNumber;
-      attrs.elementNumberLocked = true;
+      // A stored FDX reference is not a request to lock this entire type.
+      attrs.elementNumberLocked = false;
       attrs.elementNumberId = uuid();
     }
 

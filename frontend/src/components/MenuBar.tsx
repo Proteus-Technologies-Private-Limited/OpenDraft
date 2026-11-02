@@ -238,6 +238,8 @@ import SidesDialog, { type SidesIntent } from './SidesDialog';
 import PdfSecurityDialog, { type PdfSecurityRequest } from './PdfSecurityDialog';
 import DeleteScriptDialog from './DeleteScriptDialog';
 import { confirmTargetName } from '../utils/deleteConfirm';
+import PdfExportDialog, { type PdfExportChoice } from './PdfExportDialog';
+import { sceneHeadings, sceneRangeDocument, sceneSelectionDocument } from '../utils/pdfSceneExport';
 import { sanitizeExportFilename } from '../utils/exportFilename';
 import type { PluginExporter } from '../plugins/registry';
 import ScriptProfileDialog from './ScriptProfileDialog';
@@ -346,6 +348,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     toggleIndexCards,
     beatBoardOpen,
     toggleBeatBoard,
+    outlineOpen,
+    toggleOutline,
     scriptNotesOpen,
     toggleScriptNotes,
     characterProfilesOpen,
@@ -933,21 +937,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const formatHasNumbering = hasNumbering(numberingRules);
   const numberingDoc = editor?.state.doc ?? null;
   const selectionPosition = editor?.state.selection.from ?? 0;
-  const numberTargets = useMemo(
-    () => (numberingDoc && formatHasNumbering ? collectNumberedElements(numberingDoc) : []),
-    [numberingDoc, formatHasNumbering],
-  );
   const formatNumbersElements =
     formatHasNumbering ||
     !!(editor && elementNumbersPluginKey.getState(editor.state)?.find().length);
+  const numberTargets = useMemo(
+    () => (numberingDoc && formatNumbersElements ? collectNumberedElements(numberingDoc) : []),
+    [numberingDoc, formatNumbersElements],
+  );
   const elementReferencesLocked = useMemo(
-    () => numberTargets.some((f) => f.item.numberLocked && numberingRules[f.item.elementId]),
-    [numberTargets, numberingRules],
+    () => numberTargets.some((f) => f.item.numberLocked && (!formatHasNumbering || numberingRules[f.item.elementId])),
+    [numberTargets, numberingRules, formatHasNumbering],
   );
   const selectedNumberTarget = useMemo(
-    () =>
-      numberingDoc && formatHasNumbering ? elementNumberAt(numberingDoc, selectionPosition) : null,
-    [numberingDoc, selectionPosition, formatHasNumbering],
+    () => numberingDoc && formatNumbersElements ? elementNumberAt(numberingDoc, selectionPosition) : null,
+    [numberingDoc, selectionPosition, formatNumbersElements],
   );
   const [numberDialog, setNumberDialog] = useState<{
     position: number;
@@ -1164,6 +1167,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const [revisionSettingsOpen, setRevisionSettingsOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
   const [pdfSecurityOpen, setPdfSecurityOpen] = useState(false);
+  const [pdfExportOpen, setPdfExportOpen] = useState(false);
+  /**
+   * The headings of the document about to be exported, captured when the dialog
+   * opens. The dialog must number the same scenes the exporter will see (the
+   * live store still holds a pending suggested heading, `exportJSON` does not).
+   */
+  const [pdfExportScenes, setPdfExportScenes] = useState<string[]>([]);
   // File › Delete Script…: what the dialog shows, captured when it opens so a
   // later change to the editor cannot retarget the delete.
   const [deleteScriptInfo, setDeleteScriptInfo] = useState<{
@@ -2251,14 +2261,56 @@ const MenuBar: React.FC<MenuBarProps> = ({
     }
   }, [editor]);
 
-  const handleExportPDF = useCallback(async () => {
+  /** File → Export → PDF opens the choices; the export itself is below. */
+  const handleExportPDF = useCallback(() => {
     if (!editor) return;
+    // Number the scenes from the same document the export will use, so a
+    // pending suggestion cannot shift the list against the file.
+    setPdfExportScenes(sceneHeadings(exportJSON(editor)));
+    setPdfExportOpen(true);
+  }, [editor]);
+
+  const handleExportPDFWithChoice = useCallback(async (choice: PdfExportChoice) => {
+    if (!editor) return;
+    setPdfExportOpen(false);
     try {
       const json = exportJSON(editor);
+      const doc = choice.mode === 'pick'
+        ? sceneSelectionDocument(json, {
+          scenes: choice.selectedScenes,
+          oneScenePerPage: choice.oneScenePerPage,
+        })
+        : sceneRangeDocument(json, {
+          from: choice.fromIndex,
+          to: choice.toIndex,
+          oneScenePerPage: choice.oneScenePerPage,
+        });
+      const base = pdfOptions(doc);
+      const sceneCount = sceneHeadings(json).length;
+      const fullRange = choice.mode === 'pick'
+        ? choice.selectedScenes.length >= sceneCount
+        : choice.fromIndex === 0 && choice.toIndex >= sceneCount - 1;
+      // A range's pages are its own, so the labels of the full script would be
+      // wrong on it; the same goes for one-scene-per-page, which re-paginates.
+      const keepsPageLabels = fullRange && !choice.oneScenePerPage;
+      const name = keepsPageLabels
+        ? documentTitle
+        : choice.mode === 'pick'
+          ? `${documentTitle || 'Untitled'} - Selected Scenes`
+          : `${documentTitle || 'Untitled'} - Scenes ${choice.fromIndex + 1}-${choice.toIndex + 1}`;
       // A font that would not load leaves the script it was for blank on the
       // page — the writer has to hear that now, not from whoever they send it
       // to. See RenderedPDF.warning.
-      const warning = await exportPDF(json, documentTitle, pageLayout, pdfOptions(json));
+      const warning = await exportPDF(doc, name, pageLayout, {
+        ...base,
+        includeTitlePage: choice.includeTitlePage,
+        sceneNumbersVisible: choice.sceneNumbers,
+        pageNumbers: choice.pageNumbers,
+        pageLabels: keepsPageLabels ? base.pageLabels : null,
+        watermark: choice.watermark
+          ? { text: choice.watermarkText.trim(), opacity: 0.15, style: 'diagonal' }
+          : null,
+      });
       if (warning) showToast(warning, 'error');
     } catch (err) {
       console.error('PDF export failed:', err);
@@ -2838,7 +2890,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaFileCode />, label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
             { icon: <FaFileAlt />, label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
             { icon: <FaFileCode />, label: 'Fade In (.fadein)', action: handleExportFadeIn, disabled: isCollabGuest },
-            { icon: <FaFilePdf />, label: 'PDF', action: handleExportPDF },
+            { icon: <FaFilePdf />, label: 'PDF…', action: handleExportPDF },
             {
               icon: <FaFilePdf />, label: 'PDF (Revised Pages Only)', action: handleExportRevisedPDF,
               title: 'Only the pages that carry a revision mark',
@@ -3218,6 +3270,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaCompass />, label: navigatorOpen ? '\u2713 Navigator' : 'Navigator', action: toggleNavigator },
             { icon: <FaTh />, label: indexCardsOpen ? '\u2713 Index Cards' : 'Index Cards', action: toggleIndexCards },
             { icon: <FaStream />, label: beatBoardOpen ? '\u2713 Beat Board' : 'Beat Board', action: toggleBeatBoard },
+            { icon: <FaListUl />, label: outlineOpen ? '\u2713 Outline' : 'Outline', action: toggleOutline },
             { icon: <FaProjectDiagram />, label: 'Story Timeline…', title: 'Plotlines across the scenes, by screen time', action: () => {
               // The timeline edits scene headings, so the script has to be on
               // screen under it, not the Beat Board or Statistics.
@@ -3339,6 +3392,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
           action: () => {
             const tr = useTableReadStore.getState();
             if (tr.open) { tr.setOpen(false); return; }
+            // Table Read docks under the script; close the Outline so the
+            // script it reads is actually on screen.
+            if (useEditorStore.getState().outlineOpen) useEditorStore.getState().toggleOutline();
             tr.setOpen(true);
             // A browser asks where the voices come from before the first
             // read, rather than at the first Play; so does a choice of AI
@@ -3436,7 +3492,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
               action: () => setElementNumbersVisible(!elementNumbersVisible),
               disabled: !formatNumbersElements,
             },
-            ...(formatHasNumbering
+            ...(formatNumbersElements
               ? [
                   {
                     icon: <FaLock />,
@@ -4040,11 +4096,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 2.8.1</div>
+            <div className="about-version">Version 2.8.2</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 2.8.1</div>
+              <div className="about-section-title">What's New in 2.8.2</div>
               <div className="about-changelog">
               <div className="about-subsection-title">v2.8.2</div>
               <ul className="about-list">
@@ -4575,6 +4631,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
         onOpenProject={handleDeleteScriptOpenProject}
         onCancel={() => setDeleteScriptInfo(null)}
         onConfirm={handleConfirmDeleteScript}
+      />
+    )}
+    {pdfExportOpen && (
+      <PdfExportDialog
+        scenes={pdfExportScenes}
+        onExport={handleExportPDFWithChoice}
+        onClose={() => setPdfExportOpen(false)}
       />
     )}
     {sidesDoc && (

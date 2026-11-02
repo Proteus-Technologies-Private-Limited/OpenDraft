@@ -259,12 +259,15 @@ export const ElementNumbers = Extension.create<ElementNumbersOptions>({
             rules,
             { sceneNumbersVisible: this.options.getSceneNumbersVisible() },
           );
-          if (!labels.some((label, i) => label && rules[found[i].item.elementId])) return false;
+          const formatNumbers = hasNumbering(rules);
+          const inScope = (i: number) =>
+            !!rules[found[i].item.elementId] || (!formatNumbers && !!found[i].item.number);
+          if (!labels.some((label, i) => label && inScope(i))) return false;
           if (dispatch) {
             found.forEach((f, i) => {
               if (
                 labels[i] &&
-                rules[f.item.elementId] &&
+                inScope(i) &&
                 NUMBERABLE_BLOCK_TYPES.includes(f.node.type.name)
               ) {
                 tr.setNodeAttribute(f.from, 'elementNumber', labels[i]);
@@ -286,11 +289,14 @@ export const ElementNumbers = Extension.create<ElementNumbersOptions>({
         ({ state, tr, dispatch }) => {
           const found = collectNumberedElements(state.doc);
           const rules = this.options.getRules();
-          if (!found.some((f) => f.item.numberLocked && rules[f.item.elementId])) return false;
+          const formatNumbers = hasNumbering(rules);
+          const inScope = (f: typeof found[number]) =>
+            !!rules[f.item.elementId] || (!formatNumbers && !!f.item.number);
+          if (!found.some((f) => f.item.numberLocked && inScope(f))) return false;
           if (dispatch) {
             for (const f of found)
-              if (f.item.numberLocked && rules[f.item.elementId]) {
-                tr.setNodeAttribute(f.from, 'elementNumberAutomatic', true);
+              if (f.item.numberLocked && inScope(f)) {
+                tr.setNodeAttribute(f.from, 'elementNumberAutomatic', !!rules[f.item.elementId]);
                 tr.setNodeAttribute(f.from, 'elementNumberLocked', false);
               }
             dispatch(tr.setMeta(NUMBER_REPAIR, true).setMeta(REVISION_SKIP_META, true));

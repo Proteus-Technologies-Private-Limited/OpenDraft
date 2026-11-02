@@ -164,9 +164,17 @@ export interface ImportedScreenplay {
 
 /**
  * Clear the per-document collections so an import does not inherit beats,
- * notes, tags or character profiles from the document it replaces.
+ * notes, tags, character profiles or script format from the document it
+ * replaces.
  */
 export function resetStoresForImport(): void {
+  // The script format belongs to the script being replaced, too. A Final Draft,
+  // PDF or Fountain file imported while a Stage Play was open came in laid out
+  // as a stage play: centred, underlined scene headings and full-width
+  // dialogue. Those files name no format, so they start on the standard
+  // screenplay one (null). Formats that do carry one — Fade In and OSF element
+  // settings, an .odraft's _templateId — set it after this reset.
+  useFormattingTemplateStore.getState().setActiveTemplateId(null);
   const store = useEditorStore.getState();
   store.setBeats([]);
   store.setBeatColumns([]);

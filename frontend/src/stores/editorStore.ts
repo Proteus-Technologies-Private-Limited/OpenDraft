@@ -798,6 +798,9 @@ interface EditorState {
   toggleIndexCards: () => void;
   beatBoardOpen: boolean;
   toggleBeatBoard: () => void;
+  /** Dedicated outline editor (acts, sequences, sections, scenes). */
+  outlineOpen: boolean;
+  toggleOutline: () => void;
   statisticsOpen: boolean;
   setStatisticsOpen: (open: boolean) => void;
   statisticsScrollTo: string | null;
@@ -1246,10 +1249,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   toggleBeatBoard: () => set((s) => {
     const v = !s.beatBoardOpen;
     saveViewState({ beatBoardOpen: v });
-    return { beatBoardOpen: v };
+    // The full-width planning views replace one another; opening this one
+    // closes the Outline and Statistics instead of hiding them.
+    return v
+      ? { beatBoardOpen: true, outlineOpen: false, statisticsOpen: false }
+      : { beatBoardOpen: false };
+  }),
+  outlineOpen: false,
+  toggleOutline: () => set((s) => {
+    const open = !s.outlineOpen;
+    if (!open) return { outlineOpen: false };
+    // Keep the saved Beat Board choice in step: the Outline takes the screen.
+    saveViewState({ beatBoardOpen: false });
+    return { outlineOpen: true, statisticsOpen: false, beatBoardOpen: false, storyTimelineOpen: false };
   }),
   statisticsOpen: false,
-  setStatisticsOpen: (open) => set({ statisticsOpen: open }),
+  setStatisticsOpen: (open) => set(open
+    ? { statisticsOpen: true, outlineOpen: false, beatBoardOpen: false }
+    : { statisticsOpen: false }),
   statisticsScrollTo: null,
   setStatisticsScrollTo: (id) => set({ statisticsScrollTo: id }),
   scriptNotesOpen: _vs.scriptNotesOpen ?? false,
@@ -1407,7 +1424,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         : s.beats,
     })),
   storyTimelineOpen: false,
-  setStoryTimelineOpen: (open) => set({ storyTimelineOpen: open }),
+  setStoryTimelineOpen: (open) => set(open
+    ? { storyTimelineOpen: true, outlineOpen: false }
+    : { storyTimelineOpen: false }),
 
   beatArrangeMode: 'auto',
   setBeatArrangeMode: (mode) => set({ beatArrangeMode: mode }),

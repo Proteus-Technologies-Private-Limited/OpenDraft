@@ -104,3 +104,14 @@ it('exports a stored inline reference as text without also leaving a margin numb
   expect(exported.content![0].attrs?.elementNumber).toBeNull();
   expect(exported.content![0].content![0].text).toBe('12B Words');
 });
+
+it('prefixes the following reference when inserting between a parent and its first suffix', () => {
+  expect(assignElementNumbers(items('1', null, '1A'), rules, { sceneNumbersVisible: true })).toEqual(['1', 'A1A', '1A']);
+  expect(assignElementNumbers(items('1', null, null, '1A'), rules, { sceneNumbersVisible: true })).toEqual(['1', 'A1A', 'A1B', '1A']);
+  expect(assignElementNumbers(items('1A', null, '1AA'), rules, { sceneNumbersVisible: true })).toEqual(['1A', 'A1AA', '1AA']);
+});
+
+it('keeps suffix rollover and existing intermediate suffixes intact', () => {
+  expect(assignElementNumbers(items('1Z', null, '2'), rules, { sceneNumbersVisible: true })).toEqual(['1Z', '1AA', '2']);
+  expect(assignElementNumbers(items('2A', null, '2B'), rules, { sceneNumbersVisible: true })).toEqual(['2A', '2AA', '2B']);
+});

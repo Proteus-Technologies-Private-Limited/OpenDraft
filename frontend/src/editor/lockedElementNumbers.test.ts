@@ -234,3 +234,66 @@ it('locks and unlocks the active format without changing unrelated imported refe
   expect(state.doc.child(0).attrs).toEqual(sourceAttrs);
   expect(state.doc.child(1).attrs.elementNumberLocked).toBe(false);
 });
+
+function sparseEditor() {
+  const options = { getRules: () => ({}), getSceneNumbersVisible: () => false };
+  const json = doc(block('action', 'before'), block('action', 'source'), block('action', 'after'));
+  json.content![1].attrs = { elementNumber: '12', elementNumberLocked: false, elementNumberId: 'imported' };
+  const plugins = (ElementNumbers.config.addProseMirrorPlugins as () => Plugin[]).call({ options } as never);
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(json), plugins });
+  const commands = ElementNumbers.config.addCommands!.call({ options } as never) as Record<string, (...args: unknown[]) => (props: unknown) => boolean>;
+  return {
+    get state() { return state; },
+    run(name: string, ...args: unknown[]) {
+      return commands[name](...args)({ state, tr: state.tr, dispatch: (tr: Transaction) => { state = state.applyTransaction(tr).state; } });
+    },
+  };
+}
+
+it('locks, edits and unlocks sparse imported references without enabling a sequence', () => {
+  const e = sparseEditor();
+  expect(e.run('lockElementNumbers')).toBe(true);
+  expect(refs(e.state)).toEqual([null, '12', null]);
+  expect(e.state.doc.child(1).attrs.elementNumberLocked).toBe(true);
+  expect(e.run('setElementNumber', '12A', 8)).toBe(true);
+  expect(refs(e.state)).toEqual([null, '12A', null]);
+  expect(e.run('unlockElementNumbers')).toBe(true);
+  expect(e.state.doc.child(1).attrs.elementNumberLocked).toBe(false);
+  expect(elementNumbersPluginKey.getState(e.state)!.find()).toHaveLength(1);
+  expect(e.state.doc.child(0).attrs.elementNumberId).toBeNull();
+  expect(e.state.doc.child(2).attrs.elementNumberId).toBeNull();
+});
+
+it('confirms concurrent local suffix allocation needs explicit resolution after Yjs merging', async () => {
+  const Y = await import('yjs');
+  const { prosemirrorJSONToYDoc, yDocToProsemirrorJSON, updateYFragment } = await import('y-prosemirror');
+  const base = setup();
+  base.run('lockElementNumbers');
+  const shared = prosemirrorJSONToYDoc(schema, base.state.doc.toJSON(), 'default');
+  const peers = ['Ann', 'Ben'].map((name) => {
+    const plugins = (ElementNumbers.config.addProseMirrorPlugins as () => Plugin[]).call({ options: opts } as never);
+    const state = EditorState.create({ schema, doc: base.state.doc, plugins });
+    const local = state.applyTransaction(state.tr.insert(7, schema.nodes.dialogue.create(null, schema.text(name)))).state;
+    expect(refs(local)).toEqual(['1', '1A', '2']);
+    const peer = new Y.Doc();
+    Y.applyUpdate(peer, Y.encodeStateAsUpdate(shared));
+    updateYFragment(peer, peer.getXmlFragment('default'), local.doc, { mapping: new Map(), isOMark: new Map() });
+    return peer;
+  });
+  for (const peer of peers) Y.applyUpdate(shared, Y.encodeStateAsUpdate(peer));
+  const merged = schema.nodeFromJSON(yDocToProsemirrorJSON(shared, 'default'));
+  const labels = collectNumberedElements(merged).map(f => f.item.number);
+  expect(labels).toEqual(['1', '1A', '1A', '2']);
+  expect(new Set(collectNumberedElements(merged).map(f => f.node.attrs.elementNumberId)).size).toBe(4);
+  expect(merged.textContent).toContain('Ann');
+  expect(merged.textContent).toContain('Ben');
+  const plugins = (ElementNumbers.config.addProseMirrorPlugins as () => Plugin[]).call({ options: opts } as never);
+  const state = EditorState.create({ schema, doc: base.state.doc, plugins });
+  const remote = state.applyTransaction(state.tr.replaceWith(0, state.doc.content.size, merged.content).setMeta('y-sync$', { isChangeOrigin: true }));
+  expect(remote.transactions).toHaveLength(1);
+  expect(refs(remote.state)).toEqual(labels);
+  const subsequent = remote.state.applyTransaction(remote.state.tr.insertText('!', 1));
+  expect(refs(subsequent.state)).toEqual(labels);
+  for (const peer of peers) peer.destroy();
+  shared.destroy();
+});
