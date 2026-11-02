@@ -5,10 +5,22 @@
  */
 import type { Editor } from '@tiptap/react';
 import { Fragment } from '@tiptap/pm/model';
-import { TextSelection } from '@tiptap/pm/state';
+import { TextSelection, type Transaction } from '@tiptap/pm/state';
 import type { BlockSpec, CommandElement, EditorAdapter, ScriptContext } from './types';
+import { insertPlainText } from './plainText';
 
 const EXTENSION_RE = /\s*\([^)]*\)\s*/g;
+
+/** Put the caret at `pos`, clamped to the document, when it can hold one. */
+function placeCaret(tr: Transaction, pos: number): void {
+  try {
+    const at = Math.max(1, Math.min(pos, tr.doc.content.size));
+    tr.setSelection(TextSelection.near(tr.doc.resolve(at)));
+  } catch {
+    // An empty block can leave no text position to land on; an insertion
+    // without moving the caret is still better than no insertion.
+  }
+}
 
 /** "MARGO (V.O.)" -> "MARGO". */
 function cueName(text: string): string {
@@ -97,15 +109,20 @@ export function createTiptapAdapter(editor: Editor): EditorAdapter {
     replaceSelection: (text: string, element?: CommandElement) => {
       // Plain text: insertContent(string) would parse the reply as HTML, which
       // is not what the preview showed and could create nodes or load images.
+      // One transaction, so the replacement and any element change undo together.
       const { state, view } = editor;
-      const { from, to } = state.selection;
-      view.dispatch(state.tr.insertText(text, from, to));
+      const tr = state.tr;
+      const end = insertPlainText(tr, state.selection.from, state.selection.to, text, element);
+      placeCaret(tr, end);
+      view.dispatch(tr.scrollIntoView());
       view.focus();
-      if (element) editor.chain().focus().setNode(element).run();
     },
     insertText: (text: string) => {
       const { state, view } = editor;
-      view.dispatch(state.tr.insertText(text, state.selection.from, state.selection.to));
+      const tr = state.tr;
+      const end = insertPlainText(tr, state.selection.from, state.selection.to, text);
+      placeCaret(tr, end);
+      view.dispatch(tr.scrollIntoView());
       view.focus();
     },
     undo: () => {
