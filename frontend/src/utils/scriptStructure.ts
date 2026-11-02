@@ -1,8 +1,10 @@
 /**
  * Script Structure — parses act and sequence hierarchy from a TipTap document.
- * Acts are delimited by `newAct` / `endOfAct` nodes. Sequences are optional
- * labels stored on scene-heading nodes (`sequenceId` attr) plus a `sequences`
- * array in the document's top-level attrs.
+ * Acts are delimited by `newAct` / `endOfAct` nodes. Sequences are labels
+ * stored on scene-heading nodes (`sequenceId`, `sequenceName`,
+ * `sequenceColor`), so they travel with the scenes and sync through
+ * collaboration. Older documents that kept the list in a document attribute
+ * (`sequences`) are still read as a fallback for names and colours.
  */
 import type { JSONContent } from '@tiptap/react';
 import { jsonBlockText, singleLine } from './nodeText';
@@ -12,6 +14,9 @@ export interface StructureScene {
   heading: string;
   docPos: number;              // document position of the sceneHeading node
   sequenceId: string | null;
+  /** The label stored on the scene, so it syncs with the text. */
+  sequenceName: string | null;
+  sequenceColor: string | null;
 }
 
 export interface StructureSequence {
@@ -87,18 +92,19 @@ const getText = jsonBlockText;
  * Linear scan; O(n) in number of top-level blocks.
  */
 export function computeScriptStructure(doc: JSONContent): ScriptStructure {
-  const sequencesMeta: StructureSequence[] = (
-    (doc.attrs as { sequences?: Array<{ id: string; name: string; color?: string }> } | undefined)
-      ?.sequences || []
-  ).map((s) => ({
-    id: s.id,
-    name: s.name || 'Untitled Sequence',
-    color: s.color || '#64748b',
-    scenes: [],
-  }));
-
-  const sequencesById = new Map<string, StructureSequence>();
-  sequencesMeta.forEach((seq) => sequencesById.set(seq.id, seq));
+  // Older scripts (and the first cut of the Outline) kept the label list in a
+  // document attribute. Read it as a fallback for names and colours; new
+  // labels are written on the scenes, which collaboration syncs.
+  const legacyById = new Map<string, { name: string; color: string }>();
+  const legacySequences = (doc.attrs as {
+    sequences?: Array<{ id: string; name: string; color?: string }>;
+  } | undefined)?.sequences;
+  for (const sequence of legacySequences ?? []) {
+    legacyById.set(sequence.id, {
+      name: sequence.name || 'Untitled Sequence',
+      color: sequence.color || '#64748b',
+    });
+  }
 
   // Track position in the linear document (approximate — we track block index,
   // since TipTap node positions are not directly available from JSON traversal).
@@ -186,11 +192,14 @@ export function computeScriptStructure(doc: JSONContent): ScriptStructure {
       // Displayed as a single-line label in the structure panel and navigator.
       const heading = singleLine(getText(node));
       const sequenceId = (node.attrs?.sequenceId as string | undefined) || null;
+      const legacy = sequenceId ? legacyById.get(sequenceId) : undefined;
       const scene: StructureScene = {
         sceneIndex,
         heading,
         docPos: blockPos,
         sequenceId,
+        sequenceName: (node.attrs?.sequenceName as string | undefined) || legacy?.name || null,
+        sequenceColor: (node.attrs?.sequenceColor as string | undefined) || legacy?.color || null,
       };
 
       // Target act: current act, or create an implicit Prologue if no acts yet
@@ -208,18 +217,18 @@ export function computeScriptStructure(doc: JSONContent): ScriptStructure {
 
       // Attach to sequence if applicable
       if (sequenceId) {
-        const sourceSeq = sequencesById.get(sequenceId);
-        if (sourceSeq) {
-          // Find or create a per-act copy of this sequence so scenes list stays local
-          let actSeq = targetAct.sequences.find((s) => s.id === sequenceId);
-          if (!actSeq) {
-            actSeq = { id: sourceSeq.id, name: sourceSeq.name, color: sourceSeq.color, scenes: [] };
-            targetAct.sequences.push(actSeq);
-          }
-          actSeq.scenes.push(scene);
-        } else {
-          targetAct.orphanScenes.push(scene);
+        // Find or create a per-act copy of this sequence so scenes list stays local
+        let actSeq = targetAct.sequences.find((s) => s.id === sequenceId);
+        if (!actSeq) {
+          actSeq = {
+            id: sequenceId,
+            name: scene.sequenceName || 'Untitled Sequence',
+            color: scene.sequenceColor || '#64748b',
+            scenes: [],
+          };
+          targetAct.sequences.push(actSeq);
         }
+        actSeq.scenes.push(scene);
       } else {
         targetAct.orphanScenes.push(scene);
       }

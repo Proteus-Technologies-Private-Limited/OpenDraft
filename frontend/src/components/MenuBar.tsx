@@ -3298,6 +3298,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
           action: () => {
             const tr = useTableReadStore.getState();
             if (tr.open) { tr.setOpen(false); return; }
+            // Table Read docks under the script; close the Outline so the
+            // script it reads is actually on screen.
+            if (useEditorStore.getState().outlineOpen) useEditorStore.getState().toggleOutline();
             tr.setOpen(true);
             // A browser asks where the voices come from before the first
             // read, rather than at the first Play; so does a choice of AI

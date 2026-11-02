@@ -1113,7 +1113,13 @@ const ScreenplayEditor: React.FC = () => {
       container.removeEventListener('wheel', release);
       container.removeEventListener('touchstart', release);
     };
-  }, [statisticsOpen, beatBoardOpen, isHistoryMode]);
+  }, [statisticsOpen, beatBoardOpen, outlineOpen, isHistoryMode]);
+  // The Outline takes over the editor area; a Table Read docked under it would
+  // have no script to read.
+  useEffect(() => {
+    if (!outlineOpen) return;
+    if (useTableReadStore.getState().open) useTableReadStore.getState().setOpen(false);
+  }, [outlineOpen]);
   zoomLevelRef.current = zoomLevel;
 
   const [overlays, setOverlays] = useState<OverlayInfo[]>([]);
