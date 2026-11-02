@@ -167,7 +167,10 @@ function drawsAlike(a: WrapRun, b: WrapRun): boolean {
  * to break at. Emphasis normally spans whole words, and an extra break
  * opportunity can only ever save a line, never cost one.
  */
-export function getTextLines(text: string, cpl: number): number {
+export function getTextLines(
+  text: string, cpl: number, onStart?: (offset: number) => void,
+): number {
+  onStart?.(0);
   let lines = 0;
   /** Spaces with no word yet to hang them on — a deliberate indent. */
   let pendingIndent = 0;
@@ -184,20 +187,22 @@ export function getTextLines(text: string, cpl: number): number {
    * cut exactly where the wrapper cuts it, and with a double-width character
    * straddling the margin that is not something a width alone can say.
    */
-  const place = (token: string, indent: number) => {
+  const place = (token: string, indent: number, source: number) => {
     sawToken = true;
     wordsInSegment++;
     const len = textColumns(token);
     if (len > cpl) {
       // An unbroken token wider than the line is cut at the margin, exactly as
       // the wrapper cuts it; whatever is left over opens the next line.
-      if (open) { lines++; chars = 0; open = false; }
+      if (open) { lines++; chars = 0; open = false; onStart?.(source); }
       let rest = token;
       let left = len;
       while (left > cpl) {
         const head = sliceColumns(rest, cpl);
         lines++;
         rest = rest.slice(head.length);
+        source += head.length;
+        onStart?.(source);
         left -= textColumns(head);
       }
       if (left > 0) { chars = left; open = true; }
@@ -210,14 +215,17 @@ export function getTextLines(text: string, cpl: number): number {
       // Wrapped: the word starts the next line, and its leading indent — which
       // belonged to the gap it has just left — is trimmed off.
       lines++;
+      onStart?.(source + indent);
       chars = len - indent;
       open = true;
     }
   };
 
   const segments = text.split('\n');
+  let segmentOffset = 0;
   for (let s = 0; s < segments.length; s++) {
     if (s > 0) {
+      onStart?.(segmentOffset);
       // A hard break closes the line whether or not anything is on it.
       lines++;
       chars = 0;
@@ -240,9 +248,10 @@ export function getTextLines(text: string, cpl: number): number {
       while (k < seg.length && seg[k] === ' ') k++;
       const indent = pendingIndent;
       pendingIndent = 0;
-      place(' '.repeat(indent) + seg.slice(i, k), indent);
+      place(' '.repeat(indent) + seg.slice(i, k), indent, Math.max(segmentOffset, segmentOffset + i - indent));
       i = k;
     }
+    segmentOffset += seg.length + 1;
   }
 
   if (open) lines++;

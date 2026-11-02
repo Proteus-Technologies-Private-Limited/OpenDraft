@@ -30,6 +30,7 @@ import { genericFor } from './fonts';
 import { isNonPrintingType } from './nonPrinting';
 import {
   dualChildBounds, dualCharsPerLine, dualColumnLeadLines, dualDialogueLineCount,
+  dualRows, dualContinuations, fitDualRows, dualRowRuns, dualRefsInRows,
   type DualColumns,
 } from './dualDialogue';
 import {
@@ -1218,6 +1219,127 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
         }));
       const heightPt = dualDialogueLineCount(columns as DualColumns) * LINE_HEIGHT_PT;
       const sbPt = isFirstElement ? 0 : spaceBeforePtOf(node);
+
+      if (heightPt > linesPerPage * LINE_HEIGHT_PT) {
+        // Undo the whole-block claim: each fragment brings only the notes
+        // anchored in its own rows, leaving later notes on their proper sheet.
+        for (const entry of claimed) pageEntries.splice(pageEntries.indexOf(entry), 1);
+        const refsForBlock = plan?.refsByNode.get(node.srcIndex) ?? [];
+        const rows = dualRows(columns, refsForBlock, plan?.markerCells);
+        let childOffset = 0;
+        const markedRuns = columns.map((column) =>
+          column.map((child) => {
+            const local = refsForBlock
+              .filter(
+                (ref) =>
+                  ref.charOffset > childOffset && ref.charOffset <= childOffset + child.text.length,
+              )
+              .map((ref) => ({ ...ref, charOffset: ref.charOffset - childOffset }));
+            childOffset += child.text.length;
+            return plan
+              ? applyFootnoteMarkers(child.runs, local, plan.settings.markerStyle, plan.markerWidth)
+              : child.runs;
+          }),
+        );
+        const refs = plan?.refsByNode.get(node.srcIndex) ?? [];
+        const notesForRows = (from: number, to: number) =>
+          dualRefsInRows(refs, rows, from, to)
+            .filter((ref) => plan!.footnoteIds.has(ref.noteId))
+            .map((ref) => plan!.entryById.get(ref.noteId))
+            .filter((entry): entry is FootnoteEntry => !!entry);
+        const roomWith = (from: number, to: number) => {
+          const saved = pageEntries.slice();
+          if (drawFootnotes)
+            for (const entry of notesForRows(from, to))
+              if (!pageEntries.includes(entry)) pageEntries.push(entry);
+          const room = Math.floor((bottomPt() - currentY) / LINE_HEIGHT_PT + 1e-7);
+          pageEntries.splice(0, pageEntries.length, ...saved);
+          return room;
+        };
+        if (forcedBreak) newPage();
+        if (!isFirstElement && currentY > topMarginPt) currentY += sbPt;
+        let from = 0;
+        while (from < rows.length) {
+          let to = fitDualRows(
+            columns,
+            rows,
+            from,
+            roomWith(from, from),
+            mc.dialogueBreakContd,
+            (end) => roomWith(from, end),
+          );
+          if (to === from) {
+            if (
+              currentY >
+              topMarginPt +
+                (from > 0 && mc.dialogueBreakContd && dualContinuations(columns, rows, from).size > 0
+                  ? LINE_HEIGHT_PT
+                  : 0)
+            ) {
+              newPage();
+              continue;
+            }
+            to = Math.min(
+              rows.length,
+              from + Math.max(1, roomWith(from, from + 1) - (mc.dialogueBreakContd ? 1 : 0)),
+            );
+          }
+          if (drawFootnotes)
+            for (const entry of notesForRows(from, to))
+              if (!pageEntries.includes(entry)) pageEntries.push(entry);
+          const top = currentY;
+          for (let r = from; r < to; r++) {
+            for (const cell of rows[r]) {
+              const child = columns[cell.column][cell.child];
+              const [left, right] = dualChildBounds(cell.column, cell.type);
+              const runs = dualRowRuns(markedRuns[cell.column][cell.child], cell.drawFrom, cell.drawTo);
+              renderElement(
+                pdf,
+                wrapForDrawing(runs, Infinity, UPPERCASE_TYPES.has(cell.type)),
+                left * PTS_PER_INCH,
+                right * PTS_PER_INCH,
+                currentY,
+                cell.type,
+                fonts,
+                revisionMarkX,
+              );
+              if (child.number && cell.from === 0)
+                drawElementNumber(pdf, child.number, left * PTS_PER_INCH, currentY, fonts);
+            }
+            currentY += LINE_HEIGHT_PT;
+          }
+          place(node.srcIndex, top, currentY);
+          if (to < rows.length) {
+            const speakers = dualContinuations(columns, rows, to);
+            if (mc.dialogueBreakContd && speakers.size > 0) {
+              for (const col of speakers.keys())
+                drawPlain(
+                  pdf,
+                  mc.moreText,
+                  dualChildBounds(col, 'character')[0] * PTS_PER_INCH,
+                  currentY + LINE_HEIGHT_PT,
+                  fonts,
+                );
+            }
+            newPage();
+            if (mc.dialogueBreakContd && speakers.size > 0) {
+              for (const [col, speaker] of speakers)
+                drawPlain(
+                  pdf,
+                  `${speaker} ${mc.contdText}`,
+                  dualChildBounds(col, 'character')[0] * PTS_PER_INCH,
+                  currentY + LINE_HEIGHT_PT,
+                  fonts,
+                );
+              currentY += LINE_HEIGHT_PT;
+            }
+          }
+          from = to;
+        }
+        isFirstElement = false;
+        i++;
+        continue;
+      }
 
       if (forcedBreak || (currentY + sbPt + heightPt > bottomPt() && currentY > topMarginPt)) {
         breakForBlock();

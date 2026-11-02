@@ -14819,3 +14819,44 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
 .external-save-review ul { padding-inline-start: 1.25rem; margin: .75rem 0; }
 .external-save-review label { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; }
 .external-save-review button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Oversized dual dialogue alone uses the shared character grid. These are
+   decorations, never hard breaks or text in the saved screenplay. */
+.dual-dialogue .sp-dual-grid {
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.sp-dual-page-break {
+  display: block;
+  position: relative;
+  pointer-events: none;
+  user-select: none;
+}
+.sp-dual-more, .sp-dual-contd {
+  position: absolute;
+  left: var(--dual-cue-offset, 0.5in);
+  white-space: pre;
+  font-weight: normal;
+  font-style: normal;
+  text-decoration: none;
+}
+.sp-dual-contd { bottom: 0; }
+@media print {
+  .sp-dual-page-break {
+    height: 0 !important;
+    break-before: page;
+  }
+  .sp-dual-more, .sp-dual-contd { display: none; }
+  .tiptap .dual-dialogue { break-inside: auto; page-break-inside: auto; }
+}
+
+@media screen {
+  .page.phone-view .sp-dual-grid {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
+  .page.phone-view .sp-dual-page-break {
+    height: calc(var(--phone-page-gap) + var(--dual-label-height)) !important;
+  }
+}

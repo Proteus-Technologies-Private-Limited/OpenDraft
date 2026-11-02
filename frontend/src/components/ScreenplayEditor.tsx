@@ -1590,12 +1590,18 @@ const ScreenplayEditor: React.FC = () => {
     for (const brk of breaks) {
       const el = children[brk.nodeIndex];
       if (!el) continue;
-      const elRect = el.getBoundingClientRect();
+      const dualGap = brk.dualRow === undefined ? null
+        : el.querySelector<HTMLElement>(`[data-dual-row="${brk.dualRow}"]`);
+      const elRect = dualGap ? dualGap.getBoundingClientRect() : el.getBoundingClientRect();
       const contdHeight = brk.isDialogueSplit && showContd ? lineHeightPx : 0;
       // The phone view replaces the gap between sheets with a divider of its
       // own height (--phone-page-gap in screenplay.css) directly above the
       // first element of the page.
-      const overlayTop = phoneViewRef.current
+      const separatorHeight = phoneViewRef.current ? PHONE_PAGE_GAP_PX : m.sepHeightPx;
+      const dualContdHeight = dualGap?.dataset.contd === 'true' ? lineHeightPx : 0;
+      const overlayTop = dualGap
+        ? (elRect.bottom - pageRect.top) / scale - separatorHeight - dualContdHeight
+        : phoneViewRef.current
         ? (elRect.top - pageRect.top) / scale - PHONE_PAGE_GAP_PX
         : (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
       newOverlays.push({

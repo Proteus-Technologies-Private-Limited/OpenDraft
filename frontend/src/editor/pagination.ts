@@ -14,7 +14,10 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { isNonPrintingType } from '../utils/nonPrinting';
 import { laysItselfOut } from '../utils/pageBreaks';
 import { lockedPageLabels, lockedPageOf, startPages, startsLockedPage, type PageAnchor } from '../utils/lockedPages';
-import { dualDialogueLineCount, type DualColumns } from '../utils/dualDialogue';
+import {
+  dualDialogueLineCount, dualRows, dualContinuations, fitDualRows,
+  dualCellPosition, dualRefsInRows, dualChildBounds, type DualColumns,
+} from '../utils/dualDialogue';
 import {
   buildEndnotePages,
   packFootnotePage,
@@ -155,6 +158,8 @@ export function getPageMetrics(layout: PageLayout) {
 
 export interface BreakInfo {
   nodeIndex: number;
+  /** Visual row inside an oversized dual block; never a source-document split. */
+  dualRow?: number;
   offset: number;
   nodeSize: number;
   pageNumber: number;
@@ -200,7 +205,7 @@ export interface PaginationState {
 function breaksDiffer(a: PaginationState, b: PaginationState): boolean {
   if (a.breaks.length !== b.breaks.length) return true;
   for (let i = 0; i < a.breaks.length; i++) {
-    if (a.breaks[i].offset !== b.breaks[i].offset) return true;
+    if (a.breaks[i].offset !== b.breaks[i].offset || a.breaks[i].dualRow !== b.breaks[i].dualRow) return true;
     if (a.breaks[i].linesOnPage !== b.breaks[i].linesOnPage) return true;
   }
   return false;
@@ -291,7 +296,9 @@ export function createPaginationPlugin(
         // Only reserve room for the CONT'D label when the marker is actually shown.
         const showDialogueBreakContd = resolveMoresContds(layout).dialogueBreakContd;
         const decos: Decoration[] = [];
+        decos.push(...dualDecorations(state.doc, ps.breaks, linesPerPage, sepHeightPx, layout, getFootnotes()));
         for (const brk of ps.breaks) {
+          if (brk.dualRow !== undefined) continue;
           const whitespacePx = Math.max(0, linesPerPage - brk.linesOnPage) * lineHeightPx;
           // Dialogue splits need extra space for the CONT'D label on the next page
           const contdPx = brk.isDialogueSplit && showDialogueBreakContd ? lineHeightPx : 0;
@@ -584,6 +591,81 @@ function computeBreaksUnlabelled(
       carryLines = fill.pending.reduce((n, q) => n + q.lines, 0);
     };
 
+    // Ordinary dual dialogue remains indivisible. Only a block taller than a
+    // complete sheet takes the row path; normal scripts keep their old breaks.
+    if (node.typeName === 'dualDialogue' && textLines > linesPerPage) {
+      const columns = pmDualColumns(doc.child(i));
+      const rows = dualRows(columns, plan?.refsByNode.get(i), plan?.markerCells);
+      const labels = resolveMoresContds(layout).dialogueBreakContd;
+      const refs = plan?.refsByNode.get(i) ?? [];
+      const rowNotes = (from: number, to: number): string[] => {
+        if (!plan || inTitleRegion) return EMPTY_IDS;
+        return dualRefsInRows(refs, rows, from, to)
+          .filter((ref) => plan.footnoteIds.has(ref.noteId))
+          .map((ref) => ref.noteId);
+      };
+      let pendingSpace = lineCount > 0 ? node.spaceBefore : 0;
+      const turn = (row: number) => {
+        breaks.push({
+          nodeIndex: i,
+          offset: node.offset,
+          nodeSize: node.nodeSize,
+          ...(row > 0 ? { dualRow: row } : {}),
+          pageNumber,
+          linesOnPage: lineCount,
+          isDialogueSplit: false,
+          characterName: '',
+          isTitlePage: false,
+        });
+        closePage(pageNotes);
+        pageNotes = EMPTY_IDS;
+        pendingSpace = 0;
+        pageNumber++;
+        lineCount = row > 0 && labels && dualContinuations(columns, rows, row).size > 0 ? 1 : 0;
+      };
+      if (forceBreak) turn(0);
+      let from = 0;
+      while (from < rows.length) {
+        let to = fitDualRows(
+          columns,
+          rows,
+          from,
+          capacityWith(EMPTY_IDS) - lineCount - pendingSpace,
+          labels,
+          (end) => capacityWith(rowNotes(from, end)) - lineCount - pendingSpace,
+        );
+        if (to === from) {
+          // Retry on a fresh page; even a pathological multi-line cue must
+          // make progress rather than create an unbounded series of sheets.
+          if (
+            lineCount >
+            (from > 0 && labels && dualContinuations(columns, rows, from).size > 0 ? 1 : 0)
+          ) {
+            turn(from);
+            continue;
+          }
+          to = Math.min(
+            rows.length,
+            from +
+              Math.max(
+                1,
+                Math.floor(capacityWith(rowNotes(from, from + 1)) - lineCount - (labels ? 1 : 0)),
+              ),
+          );
+        }
+        pageNotes = pageNotes.concat(rowNotes(from, to));
+        lineCount += pendingSpace + to - from;
+        pendingSpace = 0;
+        if (to < rows.length) {
+          if (labels && dualContinuations(columns, rows, to).size > 0) lineCount++;
+          turn(to);
+        }
+        from = to;
+      }
+      i++;
+      continue;
+    }
+
     const blockNotes = notesFor(i, blockEnd);
     const capacity = capacityWith(blockNotes);
 
@@ -864,23 +946,46 @@ export function computePageBlocks(
   if (nodes.length === 0) return [];
 
   // Determine page boundaries from breaks
-  const pageBounds: { pageNumber: number; startNode: number; endNode: number; dialogueSplit: boolean }[] = [];
+  const pageBounds: {
+    pageNumber: number;
+    startNode: number;
+    endNode: number;
+    dialogueSplit: boolean;
+    startDualRow?: number;
+    endDualRow?: number;
+  }[] = [];
 
   if (breaks.length === 0) {
-    pageBounds.push({ pageNumber: 1, startNode: 0, endNode: nodes.length - 1, dialogueSplit: false });
+    pageBounds.push({
+      pageNumber: 1,
+      startNode: 0,
+      endNode: nodes.length - 1,
+      dialogueSplit: false,
+    });
   } else {
     // Page 1
-    if (breaks[0].nodeIndex > 0) {
-      pageBounds.push({ pageNumber: 1, startNode: 0, endNode: breaks[0].nodeIndex - 1, dialogueSplit: false });
+    if (breaks[0].nodeIndex > 0 || breaks[0].dualRow !== undefined) {
+      pageBounds.push({
+        pageNumber: 1,
+        startNode: 0,
+        endNode: breaks[0].nodeIndex - (breaks[0].dualRow === undefined ? 1 : 0),
+        dialogueSplit: false,
+        endDualRow: breaks[0].dualRow,
+      });
     }
     // Pages from breaks
     for (let i = 0; i < breaks.length; i++) {
-      const endNode = i + 1 < breaks.length ? breaks[i + 1].nodeIndex - 1 : nodes.length - 1;
+      const next = breaks[i + 1];
+      const endNode = next
+        ? next.nodeIndex - (next.dualRow === undefined ? 1 : 0)
+        : nodes.length - 1;
       pageBounds.push({
         pageNumber: breaks[i].pageNumber,
         startNode: breaks[i].nodeIndex,
         endNode,
         dialogueSplit: breaks[i].isDialogueSplit,
+        startDualRow: breaks[i].dualRow,
+        endDualRow: next?.dualRow,
       });
     }
   }
@@ -891,14 +996,36 @@ export function computePageBlocks(
   for (const pb of pageBounds) {
     if (pb.startNode > pb.endNode || pb.startNode >= nodes.length) continue;
     const blocks: PageBlockInfo[] = [];
-    let lineOnPage = pb.dialogueSplit ? 1 : 0; // 1 for CONT'D overhead
+    const continuedColumns =
+      pb.startDualRow === undefined
+        ? false
+        : (() => {
+            const columns = pmDualColumns(doc.child(pb.startNode));
+            return (
+              dualContinuations(
+                columns,
+                dualRows(columns, plan?.refsByNode.get(pb.startNode), plan?.markerCells),
+                pb.startDualRow,
+              ).size > 0
+            );
+          })();
+    let lineOnPage =
+      (pb.dialogueSplit || continuedColumns) && resolveMoresContds(layout).dialogueBreakContd
+        ? 1
+        : 0; // 1 for CONT'D overhead
     let firstOnPage = true;
 
     for (let i = pb.startNode; i <= Math.min(pb.endNode, nodes.length - 1); i++) {
       const node = nodes[i];
       const cpl = CHARS_PER_LINE[node.typeName] || 62;
       const nonPrinting = isNonPrintingType(node.typeName);
-      const textLines = nonPrinting ? 0 : getTextLines(node.text, cpl);
+      const dual =
+        node.typeName === 'dualDialogue'
+          ? dualRows(pmDualColumns(doc.child(i)), plan?.refsByNode.get(i), plan?.markerCells)
+          : null;
+      const rowStart = i === pb.startNode ? (pb.startDualRow ?? 0) : 0;
+      const rowEnd = i === pb.endNode ? (pb.endDualRow ?? dual?.length ?? 0) : (dual?.length ?? 0);
+      const textLines = dual ? rowEnd - rowStart : nonPrinting ? 0 : getTextLines(node.text, cpl);
       const sb = firstOnPage || nonPrinting ? 0 : (hints.spaceBefore[node.typeName] ?? 0);
       // A non-printing block does not count as the first thing on the page —
       // the element after it still gets its space before.
@@ -908,8 +1035,15 @@ export function computePageBlocks(
         typeName: node.typeName,
         lineStart: lineOnPage + sb,
         lineCount: textLines,
-        docPos: node.offset,
-        text: node.text,
+        docPos: dual?.[rowStart]?.[0]
+          ? dualCellPosition(doc.child(i), node.offset, dual[rowStart][0])
+          : node.offset,
+        text: dual
+          ? dual
+              .slice(rowStart, rowEnd)
+              .map((row) => row.map((cell) => cell.text.trimEnd()).join(' | '))
+              .join('\n')
+          : node.text,
       });
       lineOnPage += sb + textLines;
     }
@@ -918,4 +1052,87 @@ export function computePageBlocks(
   }
 
   return pages;
+}
+
+/** Editor-only line grid and page gaps. Stored speeches and collaboration steps stay intact. */
+function dualDecorations(
+  doc: PmNode,
+  breaks: BreakInfo[],
+  linesPerPage: number,
+  sepHeightPx: number,
+  layout: PageLayout,
+  plan: FootnotePlan | null = null,
+): Decoration[] {
+  const decos: Decoration[] = [];
+  const linePx = 16;
+  const mc = resolveMoresContds(layout);
+  const blocks = new Map<number, BreakInfo[]>();
+  for (const brk of breaks) {
+    if (brk.dualRow === undefined) continue;
+    const group = blocks.get(brk.nodeIndex) ?? [];
+    group.push(brk);
+    blocks.set(brk.nodeIndex, group);
+  }
+  for (const [index, blockBreaks] of blocks) {
+    const node = doc.child(index);
+    const offset = blockBreaks[0].offset;
+    const columns = pmDualColumns(node);
+    const rows = dualRows(columns, plan?.refsByNode.get(index), plan?.markerCells);
+    const turns = new Map(blockBreaks.map((b) => [b.dualRow!, b]));
+    rows.forEach((row, r) =>
+      row.forEach((cell) => {
+        const pos = dualCellPosition(node, offset, cell);
+        if (cell.from === 0) {
+          const child = node.child(cell.column).child(cell.child);
+          decos.push(Decoration.node(pos - 1, pos - 1 + child.nodeSize, { class: 'sp-dual-grid' }));
+        }
+        const brk = turns.get(r);
+        const hardBreak =
+          cell.from > 0 && columns[cell.column][cell.child].text[cell.from - 1] === '\n';
+        if (!brk) {
+          if (cell.from > 0 && !hardBreak)
+            decos.push(Decoration.widget(pos, () => document.createElement('br'), { side: -1 }));
+          return;
+        }
+        const speakers = dualContinuations(columns, rows, r);
+        const hasLabels = mc.dialogueBreakContd && speakers.size > 0;
+        const speaker = speakers.get(cell.column);
+        decos.push(
+          Decoration.widget(
+            pos,
+            () => {
+              const el = document.createElement('span');
+              el.className = 'sp-dual-page-break';
+              el.dataset.dualRow = String(r);
+              el.setAttribute('aria-hidden', 'true');
+              el.contentEditable = 'false';
+              const filler = Math.max(0, linesPerPage - brk.linesOnPage) * linePx;
+              // MORE closes the old sheet; CONT'D opens the new one. A regular
+              // line advance already exists at inline and paragraph boundaries.
+              el.dataset.contd = String(hasLabels);
+              el.style.setProperty('--dual-label-height', `${hasLabels ? 2 * linePx : 0}px`);
+              el.style.setProperty(
+                '--dual-cue-offset',
+                `${dualChildBounds(cell.column, 'character')[0] - dualChildBounds(cell.column, cell.type)[0]}in`,
+              );
+              el.style.height = `${filler + sepHeightPx + (hasLabels ? 2 * linePx : 0)}px`;
+              if (mc.dialogueBreakContd && speaker !== undefined) {
+                const more = document.createElement('span');
+                more.className = 'sp-dual-more';
+                more.textContent = mc.moreText;
+                more.style.top = '0';
+                const contd = document.createElement('span');
+                contd.className = 'sp-dual-contd';
+                contd.textContent = `${speaker} ${mc.contdText}`;
+                el.append(more, contd);
+              }
+              return el;
+            },
+            { side: -1 },
+          ),
+        );
+      }),
+    );
+  }
+  return decos;
 }
