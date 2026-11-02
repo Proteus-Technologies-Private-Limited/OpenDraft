@@ -93,10 +93,12 @@ Before release, test on real supported devices:
 - Android: compile and test a minified release with the JNI keep rules; test a
   speech provider present/absent, system-dialog cancellation and a second window.
 
-The PR adds an iOS Simulator compile job that builds the tracked Xcode project
-without regeneration. A successful job establishes compilation, not microphone
-or signed-device behavior.
+The tracked iOS project compiled successfully in an unsigned Simulator build in
+[CI run 41510996738](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/actions/runs/41510996738)
+for commit `92db4fc154d7adcc7312b7734bc80c2c4c2a2cd8`, without project regeneration.
+The frontend and Android Rust checks also passed. This establishes compilation;
+it does not establish microphone, Kotlin packaging or signed-device behavior.
 
-Native SDKs and the Rust toolchain were unavailable in the implementation cloud
-instance. Native compilation, real microphone recognition, acoustic accuracy and
-physical-device behavior must not be treated as validated by the frontend tests.
+See [Native validation](dictation-native-validation.md) for the confirmed evidence,
+signature/notarization checks and physical-device test procedure. Signed macOS
+microphone testing and physical iOS Stop/Table Read checks remain **not run**.
