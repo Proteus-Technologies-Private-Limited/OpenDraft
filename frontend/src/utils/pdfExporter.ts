@@ -571,6 +571,12 @@ export interface PDFExportOptions {
    * script. Throws when nothing matches.
    */
   pageSelection?: PdfPageSelection | null;
+  /**
+   * Draw the numbers the header/footer template puts on the page. Absent or
+   * true prints them; false leaves the rest of the furniture (title, revision,
+   * date) in place and drops only `{page}` and `{pages}`.
+   */
+  pageNumbers?: boolean;
 }
 
 export interface PdfWatermark {
@@ -843,8 +849,8 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   // Header and footer text, resolved once the page count is known but written
   // from strings that are already fixed here.
   const hf = resolveHeaderFooter(layout);
-  const hContent = hf.headerContent;
-  const fContent = hf.footerContent;
+  const hContent = options?.pageNumbers === false ? withoutPageFields(hf.headerContent) : hf.headerContent;
+  const fContent = options?.pageNumbers === false ? withoutPageFields(hf.footerContent) : hf.footerContent;
   const docTitle = options?.documentTitle || title;
   const revColor = options?.revisionColor || '';
 
@@ -1818,6 +1824,33 @@ export async function exportPDF(
 }
 
 // --- Render helpers ---
+
+/**
+ * Remove the page-number fields from one header/footer line.
+ *
+ * The phrase, not just the number, goes: "Page {page} of {pages}" must not
+ * leave "Page of" behind. A line that also carries something else keeps it
+ * ("Draft - Page {page}" becomes "Draft").
+ */
+export function withoutPageFields(content: HeaderFooterContent): HeaderFooterContent {
+  const clean = (text: string): string => {
+    const stripped = text
+      // The whole phrase, in the forms the templates use. No trailing \b: the
+      // token ends with "}", which is not a word character.
+      .replace(/\b(?:page|pagina|p.gina|seite)\s*\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi, '')
+      .replace(/\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi, '')
+      .replace(/\b(?:page|pagina|p.gina|seite)\s*\{page\}/gi, '')
+      .replace(/\b(?:of|di|de|da|von|sur)\s*\{pages\}/gi, '')
+      // A token on its own, and anything left around it.
+      .replace(/\{(?:page|pages)\}/gi, '');
+    return stripped
+      .replace(/\s+/g, ' ')
+      .replace(/[\s.,:;|/\\-]+$/g, '')
+      .replace(/^[\s.,:;|/\\-]+/g, '')
+      .trim();
+  };
+  return { left: clean(content.left), center: clean(content.center), right: clean(content.right) };
+}
 
 /** Render a three-part header or footer line (left, center, right) */
 function renderHFLine(
