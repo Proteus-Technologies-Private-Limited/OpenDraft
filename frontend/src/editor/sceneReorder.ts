@@ -1,18 +1,99 @@
-import { Editor } from '@tiptap/core';
+import type { Editor } from '@tiptap/core';
+import type { EditorState, Transaction } from '@tiptap/pm/state';
 
 /**
  * Reorder scenes in the ProseMirror document.
  *
- * A "scene" is defined as a sceneHeading node followed by all subsequent
- * top-level nodes until the next sceneHeading (or end of document).
+ * A "scene" starts at its sceneHeading and runs to where the next scene starts.
+ * Everything before the first heading (title page, "FADE IN:", a first action)
+ * is opening matter, not scene 0, and never moves. An act break written just
+ * before a heading belongs to the scene it opens, so it moves with that scene
+ * and not with the one before it.
  *
- * This function cuts the source scene's nodes from the document and inserts
- * them at the target scene's position, using a single ProseMirror transaction
- * so it appears as one undo step.
+ * The work is done in a single transaction, so it is one undo step.
+ */
+
+/** Where each scene starts, as a top-level child index. */
+function sceneStarts(doc: EditorState['doc']): number[] {
+  const starts: number[] = [];
+  doc.forEach((node, _offset, index) => {
+    if (node.type.name !== 'sceneHeading') return;
+    let start = index;
+    while (start > 0 && doc.child(start - 1).type.name === 'newAct') start -= 1;
+    starts.push(start);
+  });
+  return starts;
+}
+
+/** Child-index boundaries of one scene: [start, end). */
+function sceneRange(starts: number[], index: number, childCount: number): { start: number; end: number } {
+  return {
+    start: starts[index],
+    end: index + 1 < starts.length ? starts[index + 1] : childCount,
+  };
+}
+
+/**
+ * The transaction that moves scene `fromIndex` to `toIndex`, or null when the
+ * indices do not name two different scenes.
+ */
+export function reorderSceneTransaction(
+  state: EditorState,
+  fromIndex: number,
+  toIndex: number,
+): Transaction | null {
+  if (fromIndex === toIndex) return null;
+
+  const { doc } = state;
+  const starts = sceneStarts(doc);
+  if (
+    fromIndex < 0 || fromIndex >= starts.length
+    || toIndex < 0 || toIndex >= starts.length
+  ) {
+    return null;
+  }
+
+  const childCount = doc.childCount;
+  const childPositions: { start: number; end: number }[] = [];
+  let offset = 0;
+  for (let i = 0; i < childCount; i++) {
+    const child = doc.child(i);
+    childPositions.push({ start: offset, end: offset + child.nodeSize });
+    offset += child.nodeSize;
+  }
+
+  const source = sceneRange(starts, fromIndex, childCount);
+  const target = sceneRange(starts, toIndex, childCount);
+  // Child offsets within doc.content are already absolute positions: the first
+  // top-level block starts at 0, and the end of the last block is content.size.
+  const sourceStart = childPositions[source.start].start;
+  const sourceEnd = childPositions[source.end - 1].end;
+  const targetStart = childPositions[target.start].start;
+  const targetEnd = childPositions[target.end - 1].end;
+
+  const slice = doc.slice(sourceStart, sourceEnd);
+  const tr = state.tr;
+
+  if (fromIndex < toIndex) {
+    // Moving down: insert after the target scene first; the source positions
+    // are before that insertion point, so they do not shift.
+    tr.insert(targetEnd, slice.content);
+    tr.delete(sourceStart, sourceEnd);
+  } else {
+    // Moving up: delete the source first, then insert where the target now is.
+    tr.delete(sourceStart, sourceEnd);
+    tr.insert(tr.mapping.map(targetStart), slice.content);
+  }
+
+  return tr;
+}
+
+/**
+ * Reorder scenes in a live TipTap editor.
  *
  * @param editor  TipTap editor instance
- * @param fromIndex  source scene index (0-based)
- * @param toIndex    target scene index (0-based)
+ * @param fromIndex  source scene index (0-based, among scene headings)
+ * @param toIndex    target scene index (0-based, among scene headings)
  * @returns true if the reorder was applied, false otherwise
  */
 export function reorderScene(
@@ -20,108 +101,8 @@ export function reorderScene(
   fromIndex: number,
   toIndex: number,
 ): boolean {
-  if (fromIndex === toIndex) return false;
-
-  const { state } = editor;
-  const { doc } = state;
-
-  // 1. Collect scene boundaries as arrays of child-node indices.
-  //    Each scene starts with a sceneHeading and includes every subsequent
-  //    child node until the next sceneHeading.
-  const scenes: number[][] = [];
-  let currentScene: number[] = [];
-
-  doc.forEach((_node, _offset, index) => {
-    if (_node.type.name === 'sceneHeading') {
-      if (currentScene.length > 0) {
-        scenes.push(currentScene);
-      }
-      currentScene = [index];
-    } else {
-      currentScene.push(index);
-    }
-  });
-  if (currentScene.length > 0) {
-    scenes.push(currentScene);
-  }
-
-  // Validate indices
-  if (
-    fromIndex < 0 ||
-    fromIndex >= scenes.length ||
-    toIndex < 0 ||
-    toIndex >= scenes.length
-  ) {
-    return false;
-  }
-
-  // 2. Convert child indices to absolute document positions.
-  //    In ProseMirror, the doc node itself occupies position 0 (its opening
-  //    token). Top-level children start at position 1. Each child node
-  //    occupies (node.nodeSize) positions. So child i starts at:
-  //      1 + sum(doc.child(j).nodeSize for j in 0..i-1)
-  //    and ends at start + node.nodeSize.
-
-  const childCount = doc.childCount;
-  const childPositions: { start: number; end: number }[] = [];
-  let pos = 0; // offset within doc.content (0-based, relative to doc open)
-  for (let i = 0; i < childCount; i++) {
-    const child = doc.child(i);
-    // Absolute position = offset + 1 (for the doc opening token)
-    // But for tr.delete / tr.insert we work with absolute positions.
-    // doc.content starts at position 1 (after doc open token).
-    // So child i absolute start = 1 + pos
-    childPositions.push({
-      start: pos,       // offset within doc.content
-      end: pos + child.nodeSize,
-    });
-    pos += child.nodeSize;
-  }
-
-  // Scene range in terms of doc.content offsets
-  const sourceIndices = scenes[fromIndex];
-  const firstSourceChild = sourceIndices[0];
-  const lastSourceChild = sourceIndices[sourceIndices.length - 1];
-  const sourceStart = childPositions[firstSourceChild].start; // content offset
-  const sourceEnd = childPositions[lastSourceChild].end;       // content offset
-
-  const targetIndices = scenes[toIndex];
-  const firstTargetChild = targetIndices[0];
-  const lastTargetChild = targetIndices[targetIndices.length - 1];
-  const targetStart = childPositions[firstTargetChild].start;
-  const targetEnd = childPositions[lastTargetChild].end;
-
-  // 3. Extract the source scene content as a Slice (using absolute positions).
-  //    Absolute position = content offset + 1 (for doc open token).
-  const absSourceStart = sourceStart + 1;
-  const absSourceEnd = sourceEnd + 1;
-
-  const slice = doc.slice(absSourceStart, absSourceEnd);
-
-  // 4. Build transaction: delete source, insert at target.
-  //    We must be careful about order of operations since positions shift
-  //    after delete. Work from high positions to low to avoid remapping,
-  //    OR use tr.mapping to remap.
-
-  const tr = state.tr;
-
-  if (fromIndex < toIndex) {
-    // Moving scene downward: insert after target scene, then delete source.
-    // Insert position = absolute position right after the target scene's last node.
-    const absTargetEnd = targetEnd + 1;
-    tr.insert(absTargetEnd, slice.content);
-    // Now delete the source (its positions haven't shifted because we inserted
-    // AFTER it, so positions before the insert point are unchanged).
-    tr.delete(absSourceStart, absSourceEnd);
-  } else {
-    // Moving scene upward: delete source first, then insert at target start.
-    tr.delete(absSourceStart, absSourceEnd);
-    // After deletion, the target position may have shifted. Use mapping.
-    const absTargetStart = targetStart + 1;
-    const mappedTargetStart = tr.mapping.map(absTargetStart);
-    tr.insert(mappedTargetStart, slice.content);
-  }
-
+  const tr = reorderSceneTransaction(editor.state, fromIndex, toIndex);
+  if (!tr) return false;
   editor.view.dispatch(tr);
   return true;
 }

@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Table Read - OpenDraft User Manual</title>
+  <meta name="description" content="Table Read in OpenDraft, the free screenwriting app: hear your script read aloud, with a different voice for each character.">
+  <link rel="canonical" href="https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/table-read.html">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="../images/OpenDraft.png">
 </head>
@@ -85,6 +87,10 @@
     <a href="page-setup.html" class="sidebar-link">Page Setup</a>
     <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
   </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Developers</div>
+    <a href="plugin-development.html" class="sidebar-link">Plugin &amp; Add-on Development</a>
+  </div>
 </nav>
 
 <main class="main">
@@ -160,7 +166,7 @@
         <tr><td><strong>OpenAI</strong></td><td>Paid</td><td>An OpenAI API key.</td></tr>
         <tr><td><strong>ElevenLabs</strong></td><td>Small free allowance</td><td>An ElevenLabs API key. The word highlight follows the audio exactly.</td></tr>
         <tr><td><strong>Microsoft Azure Speech</strong></td><td>500,000 characters a month free</td><td>A Speech resource key and its region (e.g. <code>eastus</code>) from the Azure portal.</td></tr>
-        <tr><td><strong>OpenAI-compatible server</strong></td><td>Whatever your server costs</td><td>The address of a server that offers OpenAI&rsquo;s speech API &mdash; for example Kokoro-FastAPI or LocalAI on your own machine.</td></tr>
+        <tr><td><strong>OpenAI-compatible server</strong></td><td>Whatever your server costs</td><td>The address of a server that offers OpenAI&rsquo;s speech API &mdash; for example Kokoro-FastAPI, LocalAI or VoiceStudio on your own machine. VoiceStudio can clone a voice from a few seconds of speech, so a character can be read in your own voice: see <a href="https://proteus-technologies-private-limited.github.io/OpenDraft/blog/table-read-in-your-own-voice-with-voicestudio.html" target="_blank" rel="noopener">Table Read in your own voice</a>. In the desktop and mobile apps, OpenDraft contacts the server itself, so it needs no CORS setup; in a browser, the server has to allow requests from the page&rsquo;s address.</td></tr>
       </tbody>
     </table>
     <p>Use <strong>Test voice</strong> to check the setup before a read. API keys are kept only in your browser or on your device, and are sent only to the provider you chose.</p>
@@ -185,7 +191,7 @@
 
   </div>
   <footer class="footer">
-    OpenDraft User Manual &middot; v2.8.0 &middot; Made by Proteus Technologies
+    OpenDraft User Manual &middot; v2.8.2 &middot; Made by Proteus Technologies
   </footer>
 </main>
 

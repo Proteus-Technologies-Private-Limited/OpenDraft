@@ -17,7 +17,7 @@ import { hydrateEditorStoresFromContent } from './hydrateStores';
 import { serializeContentForFormat } from './linkedFileFormat';
 import { parseOdraft } from './odraftFormat';
 import { numberingRulesForSaved } from './elementNumbers';
-import { parseTemplateSnapshot } from './templateSnapshot';
+import { parseTemplateSnapshot, sameTemplateDefinition } from './templateSnapshot';
 import { generateTemplateCss } from './templateCss';
 vi.mock('../services/api', () => ({
   api: {
@@ -133,7 +133,7 @@ describe('portable document templates', () => {
     const fdx = serializeContentForFormat('fdx', saved, 'Audio');
     expect(fdx).toContain('SFX 3');
   });
-  it('hydrates a saved snapshot over a same-id library format without losing fidelity warnings', () => {
+  it('prefers the same-id library format without losing fidelity warnings', () => {
     const local = customFormat();
     local.rules['sound-cue'].fontFamily = 'Georgia';
     useFormattingTemplateStore.setState({ templates: [local] });
@@ -149,11 +149,11 @@ describe('portable document templates', () => {
       _sourceFidelity: fidelity,
     })).toBe(true);
     const store = useFormattingTemplateStore.getState();
-    expect(store.getActiveTemplate().rules['sound-cue'].fontFamily).toBe('Arial');
+    expect(store.getActiveTemplate().rules['sound-cue'].fontFamily).toBe('Georgia');
     expect(store.documentTemplate?.id).toBe(incoming.id);
     expect(store.templates[0].rules['sound-cue'].fontFamily).toBe('Georgia');
     expect(useEditorStore.getState().sourceFidelity).toEqual(fidelity);
-    expect(buildSaveContent(editor)?._templateSnapshot).toEqual(incoming);
+    expect(buildSaveContent(editor)?._templateSnapshot).toEqual(local);
   });
   it('keeps a same-id local template and another document independent', async () => {
     const own = customFormat();
@@ -168,16 +168,17 @@ describe('portable document templates', () => {
       useFormattingTemplateStore.getState().getActiveTemplate().rules[
         'sound-cue'
       ].fontFamily,
-    ).toBe('Georgia');
+    ).toBe('Arial');
     await useFormattingTemplateStore
       .getState()
       .updateTemplate(own.id, { name: 'Local edit' });
     expect(useFormattingTemplateStore.getState().getActiveTemplate().name).toBe(
-      'Audio drama',
+      'Local edit',
     );
     expect(useFormattingTemplateStore.getState().templates[0].name).toBe(
       'Local edit',
     );
+    expect(templateForSavedContent({ _templateId: own.id, _templateSnapshot: incoming })?.name).toBe('Local edit');
     useFormattingTemplateStore.getState().restoreDocumentTemplate(own.id);
     expect(useFormattingTemplateStore.getState().documentTemplate).toBeNull();
     expect(useFormattingTemplateStore.getState().getActiveTemplate().name).toBe(
@@ -201,7 +202,7 @@ describe('portable document templates', () => {
   });
   it('edits a document format without changing earlier saves or the library', () => {
     const format = customFormat();
-    useFormattingTemplateStore.setState({ templates: [format] });
+    useFormattingTemplateStore.setState({ templates: [customFormat('library-format')] });
     useFormattingTemplateStore
       .getState()
       .restoreDocumentTemplate(format.id, format);
@@ -338,4 +339,69 @@ describe('portable document templates', () => {
     expect(css).toContain('font-family:');
     expect(css).toContain('24pt');
   });
+});
+
+it('does not autosave when the legacy template library arrives, then observes actual library edits', async () => {
+  const { api } = await import('../services/api');
+  const source = api as unknown as { listFormattingTemplates: () => Promise<FormattingTemplate[]> };
+  const f = customFormat();
+  vi.spyOn(source, 'listFormattingTemplates').mockResolvedValueOnce([f]);
+  useFormattingTemplateStore.getState().restoreDocumentTemplate(f.id);
+  const saved = vi.fn();
+  const stop = subscribeActiveTemplate(saved);
+  try {
+    await useFormattingTemplateStore.getState().loadTemplates();
+    expect(useFormattingTemplateStore.getState().getActiveTemplate().id).toBe(f.id);
+    expect(saved).not.toHaveBeenCalled();
+    await useFormattingTemplateStore.getState().updateTemplate(f.id, { name: 'Edited library format' });
+    expect(saved).toHaveBeenCalledTimes(1);
+    expect(useFormattingTemplateStore.getState().getActiveTemplate().name).toBe('Edited library format');
+    const same = structuredClone(useFormattingTemplateStore.getState().templates);
+    useFormattingTemplateStore.setState({ templates: same });
+    expect(saved).toHaveBeenCalledTimes(1);
+  } finally { stop(); }
+});
+
+it('recognizes identical definitions despite timestamps and key order', () => {
+  const a = customFormat();
+  const b = structuredClone(a);
+  b.createdAt = 'other'; b.updatedAt = 'new';
+  b.rules = Object.fromEntries(Object.entries(b.rules).reverse());
+  expect(sameTemplateDefinition(a, b)).toBe(true);
+  b.rules.action.bold = !b.rules.action.bold;
+  expect(sameTemplateDefinition(a, b)).toBe(false);
+});
+
+it('restores legacy OSF snapshots as one document format without inserting a library template', async () => {
+  const { importedFormat, restoreImportedFormat } = await import('./importedFormat');
+  const snapshot = importedFormat({ action: { bold: true } });
+  restoreImportedFormat(snapshot);
+  expect(useFormattingTemplateStore.getState().getActiveTemplate().rules.action.bold).toBe(true);
+  expect(useFormattingTemplateStore.getState().templates).toEqual([]);
+  hydrateEditorStoresFromContent({ _templateSnapshot: snapshot });
+  expect(useFormattingTemplateStore.getState().documentTemplate?.id).toBe(snapshot.id);
+  expect(useFormattingTemplateStore.getState().templates).toEqual([]);
+});
+
+it.each([
+  { starterDocument: [null] },
+  { starterDocument: [{ type: 'unknownNode' }] },
+  { starterDocument: [{ type: 'action', content: 'wrong' }] },
+  { starterDocument: [{ type: 'text', text: 'not a block' }] },
+  { starterDocument: [{ type: 'action', attrs: { size: Infinity } }] },
+  { pageLayout: { pageWidth: 'wide' } },
+  { pageLayout: { pageWidth: 0 } },
+  { pageLayout: { pageWidth: 2, leftMargin: 2, rightMargin: 1 } },
+  { pageLayout: { moresContds: { dialogueBreakContd: 'yes' } } },
+  { pageLayout: { footnotes: { startAt: -2 } } },
+])('rejects malformed starter content or layout: %j', patch => {
+  const f = { ...customFormat(), ...patch };
+  expect(parseTemplateSnapshot(f, f.id)).toBeNull();
+  expect(useFormattingTemplateStore.getState().restoreDocumentTemplate(f.id, f)).toBe(false);
+});
+
+it('rejects unknown rule properties instead of retaining them in snapshots', () => {
+  const f = customFormat();
+  Object.assign(f.rules.action, { arbitraryRuleProperty: true });
+  expect(parseTemplateSnapshot(f, f.id)).toBeNull();
 });

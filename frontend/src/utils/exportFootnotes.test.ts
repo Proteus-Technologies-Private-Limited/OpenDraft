@@ -24,6 +24,8 @@ import {
 } from '../stores/editorStore';
 import { buildFootnotePlan } from './footnotes';
 import { exportFDX } from './fdxExporter';
+import { exportOSF } from './osfExporter';
+import { exportFountain } from './fountainExporter';
 
 const saved: { buf: Uint8Array | null } = { buf: null };
 vi.mock('./fileOps', () => ({
@@ -81,6 +83,43 @@ async function docxParts(
 }
 
 beforeEach(() => { saved.buf = null; });
+
+describe('discussion privacy in shared script exports', () => {
+  const privateThread = {
+    author: 'Private author',
+    assignee: 'Private assignee',
+    resolved: true,
+    resolvedBy: 'Private resolver',
+    resolvedAt: '2026-10-30T12:00:00Z',
+    replies: [{ id: 'reply-1', author: 'Private replier', content: 'Private discussion', createdAt: '2026-10-30T11:00:00Z' }],
+  };
+
+  for (const printInScript of [false, true]) {
+    it(`keeps discussion metadata private when printing is ${printInScript ? 'on' : 'off'}`, async () => {
+      const notes = [note('n1', 'Selected note body', { ...privateThread, printInScript })];
+      const generals = [general('g1', 'Selected general body', { ...privateThread, printInScript })];
+      const savedDoc = { ...SCRIPT, _notes: notes, _generalNotes: generals };
+      const l = layout();
+      const plan = buildFootnotePlan(savedDoc, l, notes, CTX, generals);
+      const fdx = exportFDX(savedDoc, 'Test', undefined, undefined, undefined, undefined, undefined, l, undefined, plan);
+      const exports = [fdx, exportOSF(savedDoc), exportFountain(savedDoc)];
+      const word = await docxParts(savedDoc, notes, l, generals);
+      exports.push(word.document, word.footnotes, word.endnotes);
+      for (const output of exports) {
+        for (const secret of ['Private author', 'Private assignee', 'Private resolver', 'Private replier', 'Private discussion']) {
+          expect(output).not.toContain(secret);
+        }
+      }
+      expect(fdx.includes('Selected note body')).toBe(printInScript);
+      expect(fdx.includes('Selected general body')).toBe(printInScript);
+      // These formats do not export printing script notes at all.
+      for (const output of exports.slice(1, 3)) {
+        expect(output).not.toContain('Selected note body');
+        expect(output).not.toContain('Selected general body');
+      }
+    });
+  }
+});
 
 describe('Word gets real footnotes', () => {
   it('writes the note body into footnotes.xml', async () => {

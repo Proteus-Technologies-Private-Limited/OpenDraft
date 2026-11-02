@@ -17,7 +17,6 @@ import { readSourceFidelity } from './sourceFidelity';
  */
 import { useEditorStore, DEFAULT_TAG_CATEGORIES, DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
-import { restoreImportedFormat } from './importedFormat';
 import { hasSaveMetadata } from './saveContent';
 import { resolveSceneHeadingSpaceBefore } from './elementSpacing';
 import { restoreRevisionState } from './revisionState';
@@ -89,7 +88,6 @@ export function hydrateEditorStoresFromContent(
   if (c._templateId !== undefined || c._templateSnapshot !== undefined || templates.documentTemplate) {
     templates.restoreDocumentTemplate(c._templateId, c._templateSnapshot);
   }
-  restoreImportedFormat(c._templateSnapshot);
 
   return true;
 }

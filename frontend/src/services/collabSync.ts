@@ -18,7 +18,7 @@
 
 import * as Y from 'yjs';
 import { useFormattingTemplateStore, isSystemTemplateId } from '../stores/formattingTemplateStore';
-import { parseTemplateSnapshot } from '../utils/templateSnapshot';
+import { parseTemplateSnapshot, validTemplatePageLayout } from '../utils/templateSnapshot';
 import { useEditorStore, DEFAULT_PAGE_LAYOUT, type GeneralNote, type NoteInfo, type PageLayout } from '../stores/editorStore';
 import { normalizeRevisionSettings } from '../editor/revisionColors';
 import { normalizeScriptProfile } from '../utils/scriptProfile';
@@ -236,15 +236,7 @@ function applySharedFormat(raw: string): void {
   const id = packet._templateId;
   if (packet._templateSnapshot != null && typeof id === 'string' && !isSystemTemplateId(id) && !parseTemplateSnapshot(packet._templateSnapshot, id)) return;
   const layout = packet._pageLayout;
-  if (layout != null) {
-    if (typeof layout !== 'object' || Array.isArray(layout)) return;
-    const fields = layout as Record<string, unknown>;
-    for (const key of ['pageWidth', 'pageHeight', 'leftMargin', 'rightMargin', 'topMargin', 'bottomMargin', 'headerMargin', 'footerMargin']) {
-      if (key in fields && (typeof fields[key] !== 'number' || !Number.isFinite(fields[key]) || (fields[key] as number) < 0)) return;
-    }
-    const parsed = { ...DEFAULT_PAGE_LAYOUT, ...fields } as PageLayout;
-    if (parsed.pageWidth <= parsed.leftMargin + parsed.rightMargin || parsed.pageHeight * 72 <= parsed.topMargin + parsed.bottomMargin) return;
-  }
+  if (layout != null && !validTemplatePageLayout(layout)) return;
   mayPublishFormat = true;
   useFormattingTemplateStore.getState().restoreDocumentTemplate(id, packet._templateSnapshot);
   if (layout) useEditorStore.getState().setPageLayout({ ...DEFAULT_PAGE_LAYOUT, ...layout as Partial<PageLayout> });

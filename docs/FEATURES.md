@@ -4,7 +4,7 @@ A complete list of features in OpenDraft.
 
 ## Screenplay Editor
 
-- **Portable custom formats** -- Native scripts and backups include the full custom template, including custom elements, numbering and flow rules. Other devices and collaborators use the document copy without replacing their own templates; edit it per document or save a reusable copy.
+- **Portable custom formats** -- Native scripts and backups include the full custom template, including custom elements, numbering and flow rules. Devices without the template use the embedded definition; a matching library template remains authoritative. Edit a separate document format or save a reusable copy without overwriting the library.
 
 - **Industry-standard formatting** -- Scene headings, action, character, dialogue, parenthetical, transition, and shot elements with proper Courier Prime formatting
 - **Character Autocomplete** -- Smart suggestions as you type character names
@@ -14,7 +14,7 @@ A complete list of features in OpenDraft.
 - **Element Numbering** -- Number any element, not only scene headings: every line of dialogue, every sound effect or shot. The format chooses which elements are numbered, what restarts each count (a scene heading, a new act, any element) and an optional prefix such as FX 1. Shown in the margin on screen, in print, PDF, Word and Final Draft
 - **Podcast format** -- Scripted podcast and audio fiction, with every line of dialogue numbered for the recording session and FX and music cues numbered on their own
 - **Comic Book format** -- Full comic and graphic novel scripts: pages spelled out (PAGE ONE), panels numbered on each page, captions and balloons lettered across the page
-- **Alternates** -- Keep other versions of a line of dialogue or action, or of a whole scene, beside it and switch between them; only the version showing prints and exports
+- **Alternates** -- Keep other versions of a line of dialogue or action, or of a whole scene, beside it and switch between them; only the version showing prints and exports. During a live collaboration session the version shown stays editable, but adding, switching or deleting versions waits until the session ends (or you leave it), so two people switching at once cannot duplicate text
 - **Distraction-free writing** -- Clean, focused interface with minimal chrome
 - **Focus Mode** -- Full screen with panels and menus out of the way, typewriter scrolling, and optional dimming of all but the current element or scene
 - **Writing Goals & Sprints** -- Daily and session goals in words or pages with a status bar progress ring, timed sprints with an optional no-backspace mode, and a words-written-per-day calendar in Script Statistics, kept on your device only
@@ -62,7 +62,6 @@ A complete list of features in OpenDraft.
 ## Import & Export
 
 - **Dual dialogue in Word** -- Both speeches export in side-by-side columns with inline formatting and return as dual dialogue when imported. Long exchanges use Word's pagination.
-
 - **Final Draft (.fdx)** -- Import and export
 - **Fountain (.fountain)** -- Import and export
 - **Fade In (.fadein) / Open Screenplay Format (.osf)** -- Import and export, carrying elements, emphasis, colour, fonts, page breaks, scene numbers, synopses, dual dialogue and the title page
@@ -111,4 +110,5 @@ A complete list of features in OpenDraft.
 ## Extensibility
 
 - **Plugin Architecture** -- Extend OpenDraft with custom plugins: menu items, panels, routes, editor extensions, and importers, exporters and reports that join the built-in File and Analytics menus
+- **Add-ons** -- Optional plugins, off until you turn them on in Settings → Add-ons. Turning one on shows what it does, what (if anything) leaves your device, and its settings; turning it off removes everything it added and can delete what it stored. AI features are only ever offered this way
 - **Open API** -- FastAPI backend with documented endpoints

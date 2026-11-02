@@ -91,7 +91,6 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
     ...(store.sourceFidelity ? { _sourceFidelity: store.sourceFidelity } : {}),
     _templateId: tplStore.activeTemplateId,
     ...(template ? { _templateSnapshot: template } : {}),
-    ...(tplStore.activeTemplateId?.startsWith('osf-import:') ? { _templateSnapshot: tplStore.getActiveTemplate() } : {}),
     _ignoredWords: spellChecker.getIgnoredWords(),
     _ignoredOnce: spellChecker.getIgnoredOnce(),
     // Project dictionary lives on the Project entity now; keep the script

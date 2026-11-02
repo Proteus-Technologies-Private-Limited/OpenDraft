@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Format Compatibility - OpenDraft User Manual</title>
+  <meta name="description" content="How OpenDraft handles Final Draft, Fade In, Fountain, Highland, WriterDuet, Celtx and other screenplay formats: what round-trips, what is kept, and how your original is protected.">
+  <link rel="canonical" href="https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/format-compatibility.html">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="../images/OpenDraft.png">
 </head>
@@ -84,6 +86,10 @@
     <a href="themes.html" class="sidebar-link">Themes</a>
     <a href="page-setup.html" class="sidebar-link">Page Setup</a>
     <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Developers</div>
+    <a href="plugin-development.html" class="sidebar-link">Plugin &amp; Add-on Development</a>
   </div>
 </nav>
 
@@ -255,6 +261,13 @@
       that happened to.
     </p>
 
+    <div class="callout warning">
+      <p><strong>WriterDuet import is experimental.</strong> The importer has automated tests using
+        reconstructed files, but has not yet been checked against a genuine WriterDuet export.
+        Keep the original <code>.wdz</code> and compare the imported script before saving.
+        Export FDX from WriterDuet when you need dual dialogue or scene numbers.</p>
+    </div>
+
     <h2 id="bookmarks-alternates">Bookmarks, Alternates, Plotlines and Note Threads</h2>
 
     <p>
@@ -302,11 +315,18 @@
       <li><strong>Plotlines</strong> have no equivalent in any of these formats &mdash; Final Draft&rsquo;s
         Story Map lanes follow outline elements, not story threads &mdash; so they stay in
         <code>.odraft</code>, with the beats and tags.</li>
-      <li><strong>Note threads</strong> &mdash; who wrote a note, its replies, whether it is resolved and
-        who it is assigned to &mdash; belong to script notes, which these formats do not carry (see
-        below). Final Draft has an author on its own script notes, but nothing for replies, resolving
-        or assigning.</li>
+      <li><strong>Note threads stay private.</strong> Authors, replies, resolution and assignments are
+        not included in Final Draft, Fade In or Fountain exports. Marking a note to print does not
+        share its discussion. Final Draft can carry the selected note body as a ScriptNote when
+        printing notes and their inclusion in exports are enabled; Fade In and Fountain omit script
+        notes. Keep an <code>.odraft</code> copy to preserve the full discussion.</li>
     </ul>
+
+    <div class="callout warning">
+      <p><strong>Update every device before saving.</strong> Older OpenDraft versions can open these
+        scripts, but saving from an older version drops bookmarks, alternates, plotlines and
+        beat-scene links. Keep an <code>.odraft</code> backup before using an older version.</p>
+    </div>
 
     <h2 id="fountain-general">Why General comes back as Action</h2>
 
@@ -397,7 +417,7 @@
 
   </div>
   <footer class="footer">
-    OpenDraft User Manual &middot; v2.8.0 &middot; Made by Proteus Technologies
+    OpenDraft User Manual &middot; v2.8.2 &middot; Made by Proteus Technologies
   </footer>
 </main>
 

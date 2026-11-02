@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last updated: April 8, 2026**
+**Last updated: November 1, 2026**
 
 ## Overview
 
@@ -25,6 +25,12 @@ OpenDraft works fully offline. The only optional network feature is **real-time 
 - Only your screenplay content and a display name are transmitted to the collaboration server during an active session.
 - No data is retained on the collaboration server after the session ends.
 - Collaboration is entirely optional — all other features work without any network connection.
+
+### Optional add-ons
+
+Some features are **add-ons** that you can choose to turn on in Settings → Add-ons — for example an AI writing assistant. Every add-on is off until you turn it on, and while it is off it does nothing and connects to nothing. Before you turn one on, OpenDraft shows what it sends off your device and where. An add-on that uses a service you configure (such as an AI server) talks only to that service, and only after you have turned it on. Turning an add-on off stops it at once and can delete the settings it stored, such as an API key.
+
+OpenDraft never turns on an AI feature for you. Whether to use AI in your writing is your choice.
 
 ## Data Storage
 

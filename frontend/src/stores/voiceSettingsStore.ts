@@ -250,7 +250,10 @@ export const useVoiceSettingsStore = create<VoiceSettingsState>((set, get) => {
     setGeminiModel: (m) => update({ geminiModel: m }),
     // Accepts "East US" or "eastus"; Azure's endpoints use the bare form.
     setAzureRegion: (r) => update({ azureRegion: r.trim().toLowerCase().replace(/\s+/g, '') }),
-    setCompatibleBaseUrl: (url) => update({ compatibleBaseUrl: url.trim().replace(/\/+$/, '') }),
+    // Kept as typed: this runs on every keystroke, and dropping a trailing "/"
+    // here ate each slash of "http://…/v1" as it was typed. The engine drops
+    // the trailing slash where it builds a request.
+    setCompatibleBaseUrl: (url) => update({ compatibleBaseUrl: url.trim() }),
     setCompatibleModel: (m) => update({ compatibleModel: m.trim() }),
     setCompatibleVoices: (v) => update({ compatibleVoices: v }),
     setNarratorVoice: (slot, id) => {

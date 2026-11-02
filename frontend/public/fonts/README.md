@@ -34,7 +34,7 @@ Hinting is dropped because these glyphs are only ever embedded in a PDF, never
 rasterised on screen. The kept blocks are Latin (with Extended-A/B/Additional),
 IPA, Greek, Cyrillic, Armenian, Georgian, punctuation, currency and letterlike
 symbols. It has no Hebrew or CJK and its Arabic is unshaped, so those scripts
-are still beyond PDF export. Devanagari is covered by the face below.
+are handled by the faces below.
 
 The coverage ranges are repeated in `pdfUnicodeFont.ts`, which uses them to
 decide what this face is asked to draw; re-subsetting to a different set of
@@ -61,20 +61,11 @@ Final Draft cell the layout reserved for the same number of characters, so a
 line drawn in it finishes well inside the margins the script was paginated to,
 and no page break moves.
 
-These files are subsets of the `devanagari` cut Google Fonts serves, itself a
-subset of Noto Sans Devanagari; 16 kB per weight. Only Regular and Bold are
-bundled, because the family has no italic — `pdfUnicodeFont.ts` backs a style a
-family hasn't got with its regular weight. Regenerate with fontTools:
-
-```sh
-RANGES="U+0900-097F,U+200C-200D,U+20B9,U+25CC,U+0020,U+00A0"
-
-for pair in "NotoSansDevanagari-Regular:Regular" "NotoSansDevanagari-Bold:Bold"; do
-  python3 -m fontTools.subset "${pair%%:*}.ttf" \
-    --unicodes="$RANGES" --layout-features= --no-hinting \
-    --output-file="NotoSansDevanagari-${pair##*:}.ttf"
-done
-```
+These files are subsets of Noto Sans Devanagari cut to the script's block,
+**with their OpenType layout tables kept** — see *Shaping* below. Only Regular
+and Bold are bundled, because the family has no italic — `pdfUnicodeFont.ts`
+backs a style a family hasn't got with its regular weight. Regenerate with
+`./test-script/fetch-export-fonts.sh Devanagari`.
 
 Upstream: <https://github.com/notofonts/devanagari> — SIL Open Font License
 1.1, see `LICENSE-Noto.txt`, which covers every Noto face here.
@@ -82,23 +73,40 @@ Upstream: <https://github.com/notofonts/devanagari> — SIL Open Font License
 ## The other Indic scripts, and Thai
 
 Bengali, Gujarati, Gurmukhi, Kannada, Malayalam, Odia, Sinhala, Tamil, Telugu
-and Thai, on exactly the same terms as Devanagari above: a Noto Sans subset cut
-to the script's block, regular and bold, 12–28 kB a weight. Ten scripts for
-around 400 kB in total, which is what dropping the layout features buys.
+and Thai, on the same terms as Devanagari above: a Noto Sans subset cut to the
+script's block, regular and bold.
 
 Cut them with `./test-script/fetch-export-fonts.sh`, which holds the ranges and
 does every face in one pass. The same ranges are repeated in
 `src/utils/pdfUnicodeFont.ts` and have to agree with it.
 
-Nine of the ten need the vowel reordering in `src/utils/indic.ts` — the pre-base
-sign is a different code point in each, and Tamil, Bengali, Malayalam, Odia and
-Sinhala also have vowels written as one character and drawn as two, which are
-split before the left half is moved. Telugu and Kannada draw no sign to the
-left of its consonant and so pass through untouched. Thai needs no reordering
-at all: it stores its pre-base vowels before the consonant already.
-
 All ten are SIL Open Font License 1.1 — `LICENSE-Noto.txt`, which covers every
 Noto face here.
+
+### Shaping
+
+The ten Indic faces keep GSUB and GPOS, and are shaped with HarfBuzz (the
+`harfbuzzjs` WebAssembly build, loaded on the first export that needs it)
+before jsPDF draws them — `src/utils/textShaping.ts` and
+`src/utils/pdfShapedText.ts`. The tables are the point: a Tamil reader cannot
+read கு drawn as க with a loose ு beside it, and that glyph, like every
+conjunct and reph, exists only in GSUB. The Play Store report that prompted
+this was a Tamil script exported as gibberish.
+
+That costs size: the ten faces are about 2.1 MB together instead of 400 kB
+(Tamil 38 kB a weight, Sinhala 190 kB), plus 400 kB of WebAssembly. Fonts
+compress roughly in half inside the APK and the desktop bundles.
+
+If HarfBuzz cannot be loaded, the export still happens and falls back to the
+vowel reordering in `src/utils/indic.ts`: the pre-base sign is moved in front
+of its syllable — before the whole cluster in Hindi's स्थि, before the last
+consonant only in Tamil, whose pulli ends a syllable — and vowels written as one
+character and drawn as two are split first. Legible, not typeset: no conjuncts,
+no ligatures.
+
+Thai is not shaped. It stores its pre-base vowels before the consonant already
+and draws its tone marks at the font's default positions, so its subset still
+drops the layout tables.
 
 ## CJK — fetched, not bundled
 

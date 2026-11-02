@@ -14,7 +14,11 @@ export const SceneHeading = Node.create({
       synopsis: { default: '' },
       sceneColor: { default: '' },
       timingOverride: { default: null },  // seconds (null = auto-calculate)
-      sequenceId: { default: null },       // links scene to a sequence defined at document level
+      sequenceId: { default: null },       // groups the scene under a sequence
+      // The sequence's label travels on its scenes, because document-level
+      // attributes are not part of the Yjs fragment that collaboration syncs.
+      sequenceName: { default: null },
+      sequenceColor: { default: null },
       // A scene cut after its number was locked: the heading stays, reading
       // OMITTED, so the numbers around it never move (editor/omitScene.ts).
       omitted: { default: false },
@@ -55,6 +59,8 @@ export const SceneHeading = Node.create({
           synopsis: dom.getAttribute('data-synopsis') || '',
           sceneColor: dom.getAttribute('data-scene-color') || '',
           sequenceId: dom.getAttribute('data-sequence-id') || null,
+          sequenceName: dom.getAttribute('data-sequence-name') || null,
+          sequenceColor: dom.getAttribute('data-sequence-color') || null,
           omitted: dom.getAttribute('data-omitted') === 'true',
         };
       },

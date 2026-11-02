@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { JSONContent } from '@tiptap/react';
 import { withoutSuggestionsJSON } from '../editor/suggestions';
 import { DEFAULT_SCRIPT_PROFILE } from '../utils/scriptProfile';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FaCloud, FaDesktop, FaFolder, FaExclamationTriangle } from 'react-icons/fa';
 import {
   DndContext,
@@ -41,6 +41,7 @@ import { useProjectStore } from '../stores/projectStore';
 import AssetManager from './AssetManager';
 import ProjectPropertiesDialog from './ProjectPropertiesDialog';
 import ProjectStorageDialog from './ProjectStorageDialog';
+import DeleteEmptyProjectDialog from './DeleteEmptyProjectDialog';
 import { isDesktopTauri } from '../services/platform';
 import { useLinkedFileStore, type LinkedFileState } from '../stores/linkedFileStore';
 import Select from './Select';
@@ -562,6 +563,7 @@ const ScriptCard: React.FC<ScriptCardProps> = ({
 const ProjectView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   // Leaving this screen must not push a second copy of the projects list on
   // top of it — that is what trapped the two screens in a loop (issue #66).
   const backToProjects = useGoBackTo('/projects');
@@ -584,6 +586,14 @@ const ProjectView: React.FC = () => {
   const [showStorage, setShowStorage] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [deleteFileToo, setDeleteFileToo] = useState(false);
+  // Set once the project's last script is gone: offer to delete the project.
+  // `deletedTitle` is that script, for the dialog's first line.
+  const [emptyPrompt, setEmptyPrompt] = useState<{ deletedTitle: string | null } | null>(null);
+  // File › Delete Script… lands here with the deleted script's title; checked
+  // once the list has loaded, in case that was the project's last script.
+  const arrivedAfterDeleteRef = useRef<string | null>(
+    (location.state as { deletedScript?: string } | null)?.deletedScript ?? null,
+  );
   // Scripts saved to files on disk (issue #135): script id → file path.
   // Desktop and local projects only; a cloud project has no files here.
   const canLinkFiles = isDesktopTauri() && !isCloud;
@@ -617,13 +627,17 @@ const ProjectView: React.FC = () => {
     }
   }, [projectId, navigate]);
 
-  const fetchScripts = useCallback(async () => {
-    if (!projectId) return;
+  /** Reload the list. Returns it, or null when it could not be read, so a
+   *  caller never mistakes a failed read for an empty project. */
+  const fetchScripts = useCallback(async (): Promise<ScriptMeta[] | null> => {
+    if (!projectId) return null;
     try {
       const s = await projectApi.listScripts(projectId);
       setScripts(s);
-    } catch {
-      // silently fail
+      return s;
+    } catch (err) {
+      console.warn('[project] could not list scripts', err);
+      return null;
     }
   }, [projectId]);
 
@@ -650,10 +664,26 @@ const ProjectView: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchProject(), fetchScripts(), fetchVersions(), fetchFileLinks()]).finally(() =>
-      setLoading(false),
-    );
+    Promise.all([fetchProject(), fetchScripts(), fetchVersions(), fetchFileLinks()])
+      .then(([, list]) => {
+        const deleted = arrivedAfterDeleteRef.current;
+        if (!deleted) return;
+        arrivedAfterDeleteRef.current = null;
+        if (list && list.length === 0) setEmptyPrompt({ deletedTitle: deleted });
+        else showToast(`“${deleted}” deleted`, 'success');
+      })
+      .finally(() => setLoading(false));
   }, [fetchProject, fetchScripts, fetchVersions, fetchFileLinks]);
+
+  // The deleted script's title rode in on the navigation. Drop it, so Back or
+  // a reload never announces the same delete twice.
+  useEffect(() => {
+    const st = location.state as { deletedScript?: string; from?: string } | null;
+    if (!st?.deletedScript) return;
+    const { deletedScript: _done, ...rest } = st;
+    void _done;
+    navigate(location.pathname, { replace: true, state: rest });
+  }, [location.state, location.pathname, navigate]);
 
   // A project kept in a folder picks up files added to the folder since it
   // was last opened — copied in from another machine, exported from another
@@ -862,9 +892,12 @@ const ProjectView: React.FC = () => {
         const lf = await import('../services/linkedFiles');
         await lf.deleteLinkedFile(pendingDeleteId);
       }
+      const deletedTitle = scripts.find((s) => s.id === pendingDeleteId)?.title ?? null;
       await client.deleteScript(projectId, pendingDeleteId);
-      await fetchScripts();
+      if (isCloud) useProjectStore.getState().unmarkCloudScript(projectId, pendingDeleteId);
+      const remaining = await fetchScripts();
       await fetchFileLinks();
+      if (remaining && remaining.length === 0) setEmptyPrompt({ deletedTitle });
     } catch (err) {
       showToast(
         `Delete failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -872,6 +905,18 @@ const ProjectView: React.FC = () => {
       );
     }
     setPendingDeleteId(null);
+  };
+
+  /** The project's last script is gone and the writer chose to delete the
+   *  project too. Throws to the dialog, which shows the message. */
+  const handleDeleteEmptyProject = async () => {
+    if (!projectId) return;
+    await projectApi.deleteProject(projectId);
+    setEmptyPrompt(null);
+    // Back on the Projects list, show the tab this project was on.
+    try { localStorage.setItem('opendraft:projectSource', projectSource); } catch { /* private mode */ }
+    showToast('Project deleted', 'success');
+    backToProjects();
   };
 
   const handlePinScript = useCallback(
@@ -1503,6 +1548,18 @@ const ProjectView: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {emptyPrompt && project && (
+        <DeleteEmptyProjectDialog
+          projectName={project.name}
+          source={projectSource}
+          deletedScriptTitle={emptyPrompt.deletedTitle}
+          versionCount={versions.length}
+          folderPath={projectFolder}
+          onKeep={() => setEmptyPrompt(null)}
+          onDelete={handleDeleteEmptyProject}
+        />
       )}
 
       {/* Delete Confirmation Dialog */}

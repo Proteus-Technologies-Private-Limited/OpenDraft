@@ -72,6 +72,120 @@ pub fn tts_native_stop() -> Result<(), String> {
     platform::stop()
 }
 
+// ── A speech server of the writer's own ──────────────────────────────────────
+//
+// Table Read's "OpenAI-compatible server" — Kokoro-FastAPI, LocalAI,
+// VoiceStudio and the like — usually runs on the writer's own machine. From
+// the web view, every request to it carries the page's Origin, and on macOS
+// and iOS that is `tauri://localhost`. A local server is entitled to refuse
+// state-changing requests from an origin it does not recognise, and some do
+// whatever their CORS settings say: VoiceStudio answers every POST from a
+// non-http(s) origin with 403 "it came from another website", and offers no
+// setting that admits `tauri://`. The voice list (a GET) loaded, so the cast
+// looked fine, and then not one line could be spoken.
+//
+// The app is not a web page on another site, so it asks from here instead, the
+// way any local client would: no Origin, no CORS preflight. The body comes back
+// as raw bytes because it is audio, and the timeout is long because a server's
+// first request may have to load a multi-gigabyte model before it can answer.
+
+/// Generous enough for a local server loading its model for the first line.
+const SPEECH_SERVER_TIMEOUT_SECS: u64 = 600;
+const SPEECH_SERVER_CONNECT_TIMEOUT_SECS: u64 = 10;
+
+fn speech_server_client() -> Result<&'static reqwest::Client, String> {
+    static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+    if let Some(client) = CLIENT.get() {
+        return Ok(client);
+    }
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(SPEECH_SERVER_CONNECT_TIMEOUT_SECS))
+        .timeout(std::time::Duration::from_secs(SPEECH_SERVER_TIMEOUT_SECS))
+        .build()
+        .map_err(|e| format!("Could not set up the HTTP client: {}", e))?;
+    Ok(CLIENT.get_or_init(|| client))
+}
+
+/// A reqwest error with the cause that names the problem (refused, timed out …).
+fn describe_speech_server_error(err: &reqwest::Error) -> String {
+    let mut parts = vec![err.to_string()];
+    if err.is_timeout() {
+        parts.push(format!("no answer within {}s", SPEECH_SERVER_TIMEOUT_SECS));
+    }
+    let mut source = std::error::Error::source(err);
+    while let Some(cause) = source {
+        let text = cause.to_string();
+        if !parts.iter().any(|p| p == &text) {
+            parts.push(text);
+        }
+        source = cause.source();
+    }
+    parts.join(": ")
+}
+
+/// Frame a response for the web view: status (u16, big-endian), the length of
+/// the Content-Type (u16, big-endian), the Content-Type, then the body.
+fn frame_speech_server_response(status: u16, content_type: &str, body: &[u8]) -> Vec<u8> {
+    let ct = content_type.as_bytes();
+    let ct = &ct[..ct.len().min(u16::MAX as usize)];
+    let mut out = Vec::with_capacity(4 + ct.len() + body.len());
+    out.extend_from_slice(&status.to_be_bytes());
+    out.extend_from_slice(&(ct.len() as u16).to_be_bytes());
+    out.extend_from_slice(ct);
+    out.extend_from_slice(body);
+    out
+}
+
+/// One request to the writer's speech server, made by the app rather than its
+/// web view. Answers with `frame_speech_server_response`'s layout; a request
+/// that never got an answer is an `Err` naming why.
+#[tauri::command]
+pub async fn tts_speech_server_request(
+    url: String,
+    method: String,
+    headers: std::collections::HashMap<String, String>,
+    body: Option<String>,
+) -> Result<tauri::ipc::Response, String> {
+    let parsed = reqwest::Url::parse(&url).map_err(|e| format!("Not a valid server address ({}): {}", url, e))?;
+    if parsed.scheme() != "http" && parsed.scheme() != "https" {
+        return Err(format!("The server address must start with http:// or https:// ({})", url));
+    }
+    let method = method
+        .parse::<reqwest::Method>()
+        .map_err(|e| format!("Invalid method '{}': {}", method, e))?;
+    let mut req = speech_server_client()?.request(method.clone(), parsed);
+    for (name, value) in &headers {
+        // The web view's notion of where it is has no business here.
+        let lower = name.to_ascii_lowercase();
+        if lower == "origin" || lower == "referer" || lower == "host" {
+            continue;
+        }
+        req = req.header(name.as_str(), value.as_str());
+    }
+    if let Some(b) = body {
+        req = req.body(b);
+    }
+    let resp = req.send().await.map_err(|e| {
+        let detail = describe_speech_server_error(&e);
+        eprintln!("[tts_speech_server_request] {} {} → FAILED: {}", method, url, detail);
+        detail
+    })?;
+    let status = resp.status().as_u16();
+    let content_type = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    let bytes = resp.bytes().await.map_err(|e| {
+        let detail = describe_speech_server_error(&e);
+        eprintln!("[tts_speech_server_request] {} {} → body FAILED: {}", method, url, detail);
+        format!("The server's answer could not be read: {}", detail)
+    })?;
+    eprintln!("[tts_speech_server_request] {} {} → {} {} ({} bytes)", method, url, status, content_type, bytes.len());
+    Ok(tauri::ipc::Response::new(frame_speech_server_response(status, &content_type, &bytes)))
+}
+
 // ── Desktop: a command-line synthesiser ──────────────────────────────────────
 
 #[cfg(desktop)]
@@ -502,5 +616,27 @@ mod tests {
         assert_eq!(v[0].name, "Alex");
         assert_eq!(v[0].lang, "en-US");
         assert_eq!(v[1].name, "Eddy (English (US))");
+    }
+}
+
+#[cfg(test)]
+mod speech_server_tests {
+    use super::frame_speech_server_response;
+
+    #[test]
+    fn frames_status_content_type_and_body() {
+        let framed = frame_speech_server_response(200, "audio/mpeg", &[1, 2, 3]);
+        assert_eq!(&framed[..2], &200u16.to_be_bytes());
+        assert_eq!(&framed[2..4], &10u16.to_be_bytes());
+        assert_eq!(&framed[4..14], b"audio/mpeg");
+        assert_eq!(&framed[14..], &[1, 2, 3]);
+    }
+
+    #[test]
+    fn frames_an_error_with_no_content_type() {
+        let framed = frame_speech_server_response(403, "", b"{}");
+        assert_eq!(&framed[..2], &403u16.to_be_bytes());
+        assert_eq!(&framed[2..4], &0u16.to_be_bytes());
+        assert_eq!(&framed[4..], b"{}");
     }
 }

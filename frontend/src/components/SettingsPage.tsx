@@ -8,6 +8,7 @@ import { showToast } from './Toast';
 import { getApiBase } from '../config';
 import { getDeviceId } from '../services/deviceId';
 import BackupSettingsSection from './BackupSettingsSection';
+import AddOnsSettingsSection from './AddOnsSettingsSection';
 import SaveSettingsSection from './SaveSettingsSection';
 import VoiceProviderSettings from './VoiceProviderSettings';
 import { isMacPlatform } from '../utils/shortcuts';
@@ -623,6 +624,8 @@ const SettingsPage: React.FC = () => {
         <SaveSettingsSection />
 
         <BackupSettingsSection />
+
+        <AddOnsSettingsSection />
 
         {/* ── Collab Account ── */}
         <section className="settings-section">

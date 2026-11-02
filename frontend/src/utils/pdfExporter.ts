@@ -25,10 +25,12 @@ import {
   type ProgressHandler, type StyledText, type UnicodeFallbacks,
 } from './pdfUnicodeFont';
 import { embedCustomFonts, type EmbeddedFace } from './pdfCustomFonts';
+import { layoutShaped, drawShaped, shapedWidth, shapedAsString } from './pdfShapedText';
 import { genericFor } from './fonts';
 import { isNonPrintingType } from './nonPrinting';
 import {
   dualChildBounds, dualCharsPerLine, dualColumnLeadLines, dualDialogueLineCount,
+  dualRows, dualContinuations, fitDualRows, dualRowRuns, dualRefsInRows,
   type DualColumns,
 } from './dualDialogue';
 import {
@@ -222,12 +224,21 @@ interface FontContext {
  * spaced and measured there.
  */
 interface DrawnPiece {
-  /** The text as the face needs it ordered — see utils/devanagari. */
+  /**
+   * The text as the face needs it ordered — see utils/indic — or, for a face
+   * HarfBuzz shapes, as it was typed.
+   */
   text: string;
   face: string;
   charSpace: number;
   /** Whether its width is the character count on Final Draft's cell. */
   fdCell: boolean;
+  /**
+   * Set for a shaped face: the piece is shaped when it is drawn, in whichever
+   * weight is current then, and this reordering is what is drawn instead if
+   * it cannot be — see utils/pdfShapedText.
+   */
+  unshaped?: (text: string) => string;
 }
 
 /**
@@ -278,10 +289,11 @@ function drawnPieces(
     ? [asBase(text)]
     : segmentByFace(text, fonts.fallbacks).map((segment): DrawnPiece => (segment.fallback
       ? {
-        text: segment.fallback.shape(segment.text),
+        text: segment.fallback.shaped ? segment.text : segment.fallback.shape(segment.text),
         face: segment.fallback.id,
         charSpace: segment.fallback.charSpace,
         fdCell: segment.fallback.monospace,
+        ...(segment.fallback.shaped ? { unshaped: segment.fallback.shape } : {}),
       }
       : asBase(segment.text)));
 
@@ -360,10 +372,31 @@ function drawPieces(
     // painted order is asserted end to end in pdfExporter.rtl.test.ts, so a
     // jsPDF upgrade that changes this fails there rather than in a writer's
     // PDF.
+    if (piece.unshaped) {
+      const run = layoutShaped(pdf, piece.text);
+      if (run) {
+        cursorX += drawShaped(pdf, run, cursorX, y);
+        continue;
+      }
+      const text = piece.unshaped(piece.text);
+      pdf.text(text, cursorX, y, { charSpace: piece.charSpace, isInputVisual: false });
+      cursorX += pdf.getTextWidth(text);
+      continue;
+    }
     pdf.text(piece.text, cursorX, y, { charSpace: piece.charSpace, isInputVisual: false });
     cursorX += pieceWidth(pdf, piece);
   }
   return cursorX;
+}
+
+/**
+ * A piece as one string to hand jsPDF directly — for text jsPDF itself has to
+ * place, such as the rotated watermark. The current face must be the piece's.
+ */
+function pieceAsString(pdf: jsPDF, piece: DrawnPiece): string {
+  if (!piece.unshaped) return piece.text;
+  const run = layoutShaped(pdf, piece.text);
+  return (run && shapedAsString(run)) ?? piece.unshaped(piece.text);
 }
 
 function setFontStyle(pdf: jsPDF, bold: boolean, italic: boolean, face = 'courier'): void {
@@ -394,6 +427,10 @@ function setFontStyle(pdf: jsPDF, bold: boolean, italic: boolean, face = 'courie
  */
 function pieceWidth(pdf: jsPDF, piece: DrawnPiece): number {
   if (piece.fdCell) return piece.text.length * FD_CHAR_WIDTH_PT;
+  if (piece.unshaped) {
+    const run = layoutShaped(pdf, piece.text);
+    return run ? shapedWidth(pdf, run) : pdf.getTextWidth(piece.unshaped(piece.text));
+  }
   return pdf.getTextWidth(piece.text);
 }
 
@@ -534,6 +571,12 @@ export interface PDFExportOptions {
    * script. Throws when nothing matches.
    */
   pageSelection?: PdfPageSelection | null;
+  /**
+   * Draw the numbers the header/footer template puts on the page. Absent or
+   * true prints them; false leaves the rest of the furniture (title, revision,
+   * date) in place and drops only `{page}` and `{pages}`.
+   */
+  pageNumbers?: boolean;
 }
 
 export interface PdfWatermark {
@@ -806,8 +849,8 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   // Header and footer text, resolved once the page count is known but written
   // from strings that are already fixed here.
   const hf = resolveHeaderFooter(layout);
-  const hContent = hf.headerContent;
-  const fContent = hf.footerContent;
+  const hContent = options?.pageNumbers === false ? withoutPageFields(hf.headerContent) : hf.headerContent;
+  const fContent = options?.pageNumbers === false ? withoutPageFields(hf.footerContent) : hf.footerContent;
   const docTitle = options?.documentTitle || title;
   const revColor = options?.revisionColor || '';
 
@@ -1182,6 +1225,127 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
         }));
       const heightPt = dualDialogueLineCount(columns as DualColumns) * LINE_HEIGHT_PT;
       const sbPt = isFirstElement ? 0 : spaceBeforePtOf(node);
+
+      if (heightPt > linesPerPage * LINE_HEIGHT_PT) {
+        // Undo the whole-block claim: each fragment brings only the notes
+        // anchored in its own rows, leaving later notes on their proper sheet.
+        for (const entry of claimed) pageEntries.splice(pageEntries.indexOf(entry), 1);
+        const refsForBlock = plan?.refsByNode.get(node.srcIndex) ?? [];
+        const rows = dualRows(columns, refsForBlock, plan?.markerCells);
+        let childOffset = 0;
+        const markedRuns = columns.map((column) =>
+          column.map((child) => {
+            const local = refsForBlock
+              .filter(
+                (ref) =>
+                  ref.charOffset > childOffset && ref.charOffset <= childOffset + child.text.length,
+              )
+              .map((ref) => ({ ...ref, charOffset: ref.charOffset - childOffset }));
+            childOffset += child.text.length;
+            return plan
+              ? applyFootnoteMarkers(child.runs, local, plan.settings.markerStyle, plan.markerWidth)
+              : child.runs;
+          }),
+        );
+        const refs = plan?.refsByNode.get(node.srcIndex) ?? [];
+        const notesForRows = (from: number, to: number) =>
+          dualRefsInRows(refs, rows, from, to)
+            .filter((ref) => plan!.footnoteIds.has(ref.noteId))
+            .map((ref) => plan!.entryById.get(ref.noteId))
+            .filter((entry): entry is FootnoteEntry => !!entry);
+        const roomWith = (from: number, to: number) => {
+          const saved = pageEntries.slice();
+          if (drawFootnotes)
+            for (const entry of notesForRows(from, to))
+              if (!pageEntries.includes(entry)) pageEntries.push(entry);
+          const room = Math.floor((bottomPt() - currentY) / LINE_HEIGHT_PT + 1e-7);
+          pageEntries.splice(0, pageEntries.length, ...saved);
+          return room;
+        };
+        if (forcedBreak) newPage();
+        if (!isFirstElement && currentY > topMarginPt) currentY += sbPt;
+        let from = 0;
+        while (from < rows.length) {
+          let to = fitDualRows(
+            columns,
+            rows,
+            from,
+            roomWith(from, from),
+            mc.dialogueBreakContd,
+            (end) => roomWith(from, end),
+          );
+          if (to === from) {
+            if (
+              currentY >
+              topMarginPt +
+                (from > 0 && mc.dialogueBreakContd && dualContinuations(columns, rows, from).size > 0
+                  ? LINE_HEIGHT_PT
+                  : 0)
+            ) {
+              newPage();
+              continue;
+            }
+            to = Math.min(
+              rows.length,
+              from + Math.max(1, roomWith(from, from + 1) - (mc.dialogueBreakContd ? 1 : 0)),
+            );
+          }
+          if (drawFootnotes)
+            for (const entry of notesForRows(from, to))
+              if (!pageEntries.includes(entry)) pageEntries.push(entry);
+          const top = currentY;
+          for (let r = from; r < to; r++) {
+            for (const cell of rows[r]) {
+              const child = columns[cell.column][cell.child];
+              const [left, right] = dualChildBounds(cell.column, cell.type);
+              const runs = dualRowRuns(markedRuns[cell.column][cell.child], cell.drawFrom, cell.drawTo);
+              renderElement(
+                pdf,
+                wrapForDrawing(runs, Infinity, UPPERCASE_TYPES.has(cell.type)),
+                left * PTS_PER_INCH,
+                right * PTS_PER_INCH,
+                currentY,
+                cell.type,
+                fonts,
+                revisionMarkX,
+              );
+              if (child.number && cell.from === 0)
+                drawElementNumber(pdf, child.number, left * PTS_PER_INCH, currentY, fonts);
+            }
+            currentY += LINE_HEIGHT_PT;
+          }
+          place(node.srcIndex, top, currentY);
+          if (to < rows.length) {
+            const speakers = dualContinuations(columns, rows, to);
+            if (mc.dialogueBreakContd && speakers.size > 0) {
+              for (const col of speakers.keys())
+                drawPlain(
+                  pdf,
+                  mc.moreText,
+                  dualChildBounds(col, 'character')[0] * PTS_PER_INCH,
+                  currentY + LINE_HEIGHT_PT,
+                  fonts,
+                );
+            }
+            newPage();
+            if (mc.dialogueBreakContd && speakers.size > 0) {
+              for (const [col, speaker] of speakers)
+                drawPlain(
+                  pdf,
+                  `${speaker} ${mc.contdText}`,
+                  dualChildBounds(col, 'character')[0] * PTS_PER_INCH,
+                  currentY + LINE_HEIGHT_PT,
+                  fonts,
+                );
+              currentY += LINE_HEIGHT_PT;
+            }
+          }
+          from = to;
+        }
+        isFirstElement = false;
+        i++;
+        continue;
+      }
 
       if (forcedBreak || (currentY + sbPt + heightPt > bottomPt() && currentY > topMarginPt)) {
         breakForBlock();
@@ -1661,6 +1825,33 @@ export async function exportPDF(
 
 // --- Render helpers ---
 
+/**
+ * Remove the page-number fields from one header/footer line.
+ *
+ * The phrase, not just the number, goes: "Page {page} of {pages}" must not
+ * leave "Page of" behind. A line that also carries something else keeps it
+ * ("Draft - Page {page}" becomes "Draft").
+ */
+export function withoutPageFields(content: HeaderFooterContent): HeaderFooterContent {
+  const clean = (text: string): string => {
+    const stripped = text
+      // The whole phrase, in the forms the templates use. No trailing \b: the
+      // token ends with "}", which is not a word character.
+      .replace(/\b(?:page|pagina|p.gina|seite)\s*\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi, '')
+      .replace(/\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi, '')
+      .replace(/\b(?:page|pagina|p.gina|seite)\s*\{page\}/gi, '')
+      .replace(/\b(?:of|di|de|da|von|sur)\s*\{pages\}/gi, '')
+      // A token on its own, and anything left around it.
+      .replace(/\{(?:page|pages)\}/gi, '');
+    return stripped
+      .replace(/\s+/g, ' ')
+      .replace(/[\s.,:;|/\\-]+$/g, '')
+      .replace(/^[\s.,:;|/\\-]+/g, '')
+      .trim();
+  };
+  return { left: clean(content.left), center: clean(content.center), right: clean(content.right) };
+}
+
 /** Render a three-part header or footer line (left, center, right) */
 function renderHFLine(
   pdf: jsPDF,
@@ -1862,7 +2053,6 @@ function drawWatermark(
   // The face that can write it — a name in Cyrillic needs the fallback.
   const pieces = drawnPieces(text, 'Helvetica', fonts, { freeFlow: true });
   const face = pieces.length === 1 ? pieces[0].face : 'helvetica';
-  const drawText = pieces.length === 1 ? pieces[0].text : text;
 
   const api = pdf as unknown as {
     GState?: new (params: { opacity: number }) => unknown;
@@ -1874,6 +2064,8 @@ function drawWatermark(
   if (api.GState && api.setGState) api.setGState(new api.GState({ opacity }));
   pdf.setTextColor(110, 110, 110);
   setFontStyle(pdf, !footer, false, face);
+  // Read once the face is set: a shaped one is shaped in the weight it is drawn in.
+  const drawText = pieces.length === 1 ? pieceAsString(pdf, pieces[0]) : text;
 
   if (footer) {
     pdf.setFontSize(9);

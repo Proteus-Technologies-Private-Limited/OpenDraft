@@ -20,7 +20,7 @@ import {
   deleteShownSceneAlternateTransaction,
   keepOnlyShownSceneTransaction,
 } from './sceneAlternates';
-import { buildAlternateDecorations } from './extensions/Alternates';
+import { alternateSessionGuard, buildAlternateDecorations } from './extensions/Alternates';
 import { exportFountain } from '../utils/fountainExporter';
 import { exportFDX } from '../utils/fdxExporter';
 
@@ -240,4 +240,35 @@ describe('marking alternates transactions for suggest mode', () => {
     const s = stateOf(block('action', 'She waits.'));
     expect(s.tr.insertText('!', inside(s, 0) + 3).getMeta(ALTERNATES_META)).toBeUndefined();
   });
+});
+
+describe('alternate versions during live collaboration', () => {
+  for (const scene of [false, true]) {
+    it(`refuses every ${scene ? 'scene' : 'line'} version change without changing stored or active content`, () => {
+      let s = scene
+        ? stateOf(block('sceneHeading', 'INT. ROOM - DAY'), block('action', 'She waits.'))
+        : threeVersions();
+      if (scene) s = s.apply(addSceneAlternateTransaction(s, inside(s, 0))!);
+      let collaborating = true;
+      let blocked = 0;
+      s = s.reconfigure({ plugins: [alternateSessionGuard(() => collaborating, () => { blocked++; })] });
+      const pos = inside(s, scene ? 0 : 1);
+      const actions = scene
+        ? [addSceneAlternateTransaction, (state: EditorState, at: number) => cycleSceneAlternateTransaction(state, at, 1),
+          (state: EditorState, at: number) => cycleSceneAlternateTransaction(state, at, -1), deleteShownSceneAlternateTransaction, keepOnlyShownSceneTransaction]
+        : [addAlternateTransaction, (state: EditorState, at: number) => cycleAlternateTransaction(state, at, 1),
+          (state: EditorState, at: number) => cycleAlternateTransaction(state, at, -1), deleteShownAlternateTransaction, keepOnlyShownTransaction];
+      for (const action of actions) {
+        const result = s.applyTransaction(action(s, pos)!);
+        expect(result.transactions).toHaveLength(0);
+        expect(result.state.doc).toBe(s.doc);
+      }
+      expect(blocked).toBe(actions.length);
+      // Typing and incoming ordinary transactions still work.
+      expect(s.applyTransaction(s.tr.insertText('New ', pos)).transactions).toHaveLength(1);
+      // Ending the session immediately restores version operations.
+      collaborating = false;
+      expect(s.applyTransaction(actions[0](s, pos)!).transactions).toHaveLength(1);
+    });
+  }
 });

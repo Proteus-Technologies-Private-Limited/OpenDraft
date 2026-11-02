@@ -50,6 +50,16 @@ describe('installer association ownership', () => {
       } else
         expect(key).toMatch(/^Software\\Classes\\OpenDraft\.Alternative\./);
     }
+    // These components sit in Tauri's "External" feature, the exe in
+    // "MainProgram". A [#Path] reference across features is ICE69 error, which
+    // fails light.exe and the whole MSI (v2.8.1's first build). [!Path] is what
+    // Tauri's own template uses for the same command.
+    for (const entry of entries) {
+      const value = entry.getAttribute('Value') ?? '';
+      expect(value).not.toContain('[#Path]');
+      if (entry.getAttribute('Key')!.endsWith('\\shell\\open\\command'))
+        expect(value).toBe('"[!Path]" "%1"');
+    }
     const refs = windows.bundle.windows.wix.componentRefs;
     const components = Array.from(xml.getElementsByTagName('Component')).map(
       (e) => e.getAttribute('Id'),

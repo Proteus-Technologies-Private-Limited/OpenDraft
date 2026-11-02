@@ -13,6 +13,7 @@
  */
 import type { JSONContent } from '@tiptap/react';
 import { importedFormat, restoreImportedFormat } from './importedFormat';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { DEFAULT_PAGE_LAYOUT, type PageLayout } from '../stores/editorStore';
 import { parseFountain } from './fountainParser';
 import { DEFAULT_SCRIPT_PROFILE } from './scriptProfile';
@@ -25,7 +26,6 @@ import { parseWriterDuet } from './writerDuetParser';
 import { parseCeltx } from './celtxParser';
 import { hydrateEditorStoresFromContent } from './hydrateStores';
 import { restoreRevisionState } from './revisionState';
-import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { useEditorStore, DEFAULT_TAG_CATEGORIES } from '../stores/editorStore';
 import { pluginRegistry, type PluginImporter } from '../plugins/registry';
 import { reviewPdfImport } from './pdfImportReview';
@@ -164,9 +164,17 @@ export interface ImportedScreenplay {
 
 /**
  * Clear the per-document collections so an import does not inherit beats,
- * notes, tags or character profiles from the document it replaces.
+ * notes, tags, character profiles or script format from the document it
+ * replaces.
  */
 export function resetStoresForImport(): void {
+  // The script format belongs to the script being replaced, too. A Final Draft,
+  // PDF or Fountain file imported while a Stage Play was open came in laid out
+  // as a stage play: centred, underlined scene headings and full-width
+  // dialogue. Those files name no format, so they start on the standard
+  // screenplay one (null). Formats that do carry one — Fade In and OSF element
+  // settings, an .odraft's _templateId — set it after this reset.
+  useFormattingTemplateStore.getState().setActiveTemplateId(null);
   const store = useEditorStore.getState();
   store.setBeats([]);
   store.setBeatColumns([]);
@@ -387,7 +395,7 @@ async function parseScreenplayImportInternal(
       applyDocumentFont(parsed.documentFont);
       applyImportedLayout(parsed.pageLayout ?? undefined);
       if (template) restoreImportedFormat(template);
-      useFormattingTemplateStore.getState().setActiveTemplateId(template?.id ?? null);
+      else useFormattingTemplateStore.getState().restoreDocumentTemplate(null);
     }
     return { doc: parsed.doc, title: parsed.scriptTitle, formatLabel, warnings: parsed.warnings, metadata };
   }

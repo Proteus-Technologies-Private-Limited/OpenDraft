@@ -6,7 +6,7 @@
  */
 
 import { create } from 'zustand';
-import { parseTemplateSnapshot } from '../utils/templateSnapshot';
+import { parseTemplateSnapshot, sameTemplateDefinition } from '../utils/templateSnapshot';
 import type { FormattingTemplate } from './formattingTypes';
 import { INDUSTRY_STANDARD_ID } from './formattingTypes';
 import { INDUSTRY_STANDARD_TEMPLATE } from './industryStandardTemplate';
@@ -57,7 +57,7 @@ interface FormattingTemplateState {
   activeTemplateId: string | null;
   /** The open script's format, separate from this device's reusable library. */
   documentTemplate: FormattingTemplate | null;
-  restoreDocumentTemplate: (id: unknown, snapshot?: unknown) => void;
+  restoreDocumentTemplate: (id: unknown, snapshot?: unknown) => boolean;
   /** Whether templates have been loaded from storage */
   loaded: boolean;
 
@@ -203,7 +203,7 @@ export function templateForSavedContent(content: Record<string, unknown> | null 
   if (typeof id !== 'string') return null;
   if (isSystemTemplateId(id)) return SYSTEM_TEMPLATES[id];
   const snapshot = parseTemplateSnapshot(content?._templateSnapshot, id);
-  return snapshot ? withMissingRulesOnce(snapshot) : findTemplate(id);
+  return findTemplate(id) || (snapshot ? withMissingRulesOnce(snapshot) : null);
 }
 
 /** A detached copy of the active custom format, or no snapshot for built-ins. */
@@ -218,9 +218,13 @@ export function activeTemplateSnapshot(): FormattingTemplate | null {
 export function subscribeActiveTemplate(listener: () => void): () => void {
   let previous = useFormattingTemplateStore.getState().getActiveTemplate();
   let previousId = useFormattingTemplateStore.getState().activeTemplateId;
+  let wasLoaded = useFormattingTemplateStore.getState().loaded;
   return useFormattingTemplateStore.subscribe(state => {
     const current = state.getActiveTemplate();
-    if (current !== previous || state.activeTemplateId !== previousId) {
+    const libraryArrived = !wasLoaded && state.loaded;
+    wasLoaded = state.loaded;
+    if (libraryArrived) { previous = current; previousId = state.activeTemplateId; return; }
+    if ((current !== previous && !sameTemplateDefinition(current, previous)) || state.activeTemplateId !== previousId) {
       previous = current;
       previousId = state.activeTemplateId;
       listener();
@@ -254,16 +258,22 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
   activeTemplateId: null,
   documentTemplate: null,
   restoreDocumentTemplate: (value, snapshot) => {
-    const id = typeof value === 'string' && value ? value : null;
-    const parsed = id && !isSystemTemplateId(id) ? parseTemplateSnapshot(snapshot, id) : null;
+    let payload = snapshot;
+    if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch { payload = null; } }
+    const legacyId = value === undefined && payload && typeof payload === 'object' && 'id' in payload ? payload.id : null;
+    const selected = value ?? legacyId;
+    const id = typeof selected === 'string' && selected ? selected : null;
+    const parsed = id && !isSystemTemplateId(id) ? parseTemplateSnapshot(payload, id) : null;
     set({ activeTemplateId: id, documentTemplate: parsed ? withMissingRulesOnce(parsed) : null });
+    return snapshot == null || !!id && isSystemTemplateId(id) || !!parsed;
   },
   loaded: false,
 
   getActiveTemplate: () => {
     const { activeTemplateId, templates, documentTemplate } = get();
-    if (documentTemplate?.id === activeTemplateId) return documentTemplate;
-    return resolveTemplate(activeTemplateId, templates) || INDUSTRY_STANDARD_TEMPLATE;
+    return resolveTemplate(activeTemplateId, templates)
+      || (documentTemplate?.id === activeTemplateId ? documentTemplate : null)
+      || INDUSTRY_STANDARD_TEMPLATE;
   },
 
   getEnabledElements: () => {
@@ -280,16 +290,7 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
   loadTemplates: async () => {
     try {
       const templates = await (api as any).listFormattingTemplates();
-      // Imported templates belong to the open document's saved snapshot.
-      // A delayed library load must not discard them after an import.
-      set(state => ({
-        templates: [
-          ...(templates as FormattingTemplate[]).map(withMissingRules),
-          ...state.templates.filter(t => t.id.startsWith('osf-import:') &&
-            !(templates as FormattingTemplate[]).some(saved => saved.id === t.id)),
-        ],
-        loaded: true,
-      }));
+      set({ templates: (templates as FormattingTemplate[]).map(withMissingRules), loaded: true });
     } catch {
       // Storage not available yet or no templates
       set({ loaded: true });

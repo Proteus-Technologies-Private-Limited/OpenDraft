@@ -58,11 +58,19 @@ AS = Arc Studio, HL = Highland, CX = Celtx.
 | 15 | **Dictation / speech to script** | FD (mobile), WD | Missing | M | Core |
 | 16 | **Graphic novel / comic template** | FD, FI | ✅ Done — `stores/templates/comicTemplate.ts` | S | Core |
 | 17 | **Breakdown → schedule** (stripboard, shooting schedule, call sheets, DOOD) | CX, WD Pro, StudioBinder | Missing (tags exist) | L | **Pro** |
-| 18 | **AI writing assistant** (bring-your-own-key, local model option) | AS, WD, CX | Missing | L | **Pro** |
+| 18 | **AI writing assistant** (bring-your-own-key, local model option) | AS, WD, CX | In review — PR #180, to be repackaged as an opt-in add-on | L | Core add-on (advanced: Pro) |
 | 19 | **Import from WriterDuet / Highland / Celtx native files** | — (switching aid) | ✅ Done — `highlandParser.ts`, `writerDuetParser.ts`, `celtxParser.ts`; `.wdz` is reverse-engineered and untested against a real file | M | Core |
 
-Items 17 and 18 are commercial-grade features. Per the open-core rule they are
-built in OpenDraft-Pro; the core only gains the plugin hooks they need (§4, phase 0).
+Item 17 is a commercial-grade feature. Per the open-core rule it is built in
+OpenDraft-Pro; the core only gains the plugin hooks it needs (§4, phase 0).
+
+Item 18 was moved to the core on 2026-11-01, under one condition: **AI is an
+add-on the writer chooses, never a built-in.** A basic assistant may ship in the
+core, but only as an opt-in plugin (`optIn: true` in `plugins/registry.ts`). It
+is off until the writer turns it on in Settings → Add-ons, asks for its
+settings when turned on, says what leaves the device before it is turned on, and
+contributes nothing — no menu item, toolbar button, panel or network call —
+while off. Pro may offer a more advanced assistant on the same mechanism.
 
 ---
 
@@ -287,7 +295,8 @@ suggestions have their own model (`editor/suggestions.ts`):
 
 - **17. Production scheduling** — stripboard built from tags + timing, shooting
   schedule, Day-Out-of-Days, call sheets; reads the breakdown from item 4.
-- **18. AI assistant** — bring-your-own-key or local model, off by default,
+- **18. Advanced AI assistant** (the core gets a basic opt-in add-on; see §2) —
+  bring-your-own-key or local model, off by default,
   never sends text without an explicit action: rewrite/punch-up a selection,
   coverage notes, logline/synopsis from the script, character voice check
   (pairs with the Dialogue Tuner).
@@ -329,12 +338,22 @@ suggestions have their own model (`editor/suggestions.ts`):
 | 2.9 | Suggest mode (item 14) |
 | later | Dictation (item 15) |
 
-What is still open, besides items 14 and 15:
-- Note threads are not exported to FDX/Fade In/Fountain. Script notes only
-  travel when they are set to print, so exporting threads would put private
-  notes into files people send on — a product decision, not a format gap.
-- Older app versions drop bookmarks, alternates, plotlines and beat-scene links
-  when they save a script that has them. Worth saying in release notes.
-- WriterDuet `.wdz` import needs testing against a real file.
-- Concurrent switching of the same alternate (line or scene) by two
-  collaborators can double the text until undone — a y-prosemirror limit.
+Follow-ups (Suggest mode is merged; dictation remains open):
+- **Privacy policy:** note authors, replies, resolution and assignments stay out of
+  FDX/Fade In/Fountain exports. Printing a note shares only its body in supported
+  exports, not its discussion. Keep `.odraft` for the full thread. Regression
+  coverage: `utils/exportFootnotes.test.ts`.
+- **Compatibility warning added:** the in-app, manual and iOS/macOS store release
+  notes warn that saving in an older version drops bookmarks, alternates,
+  plotlines and beat-scene links. Keep an `.odraft` backup before doing so.
+- **WriterDuet validation still blocked:** `.wdz` tests use reconstructed
+  fixtures. A genuine non-confidential WriterDuet export and an FDX export of
+  the same script are needed to compare text, element order, title page and
+  formatting. Do not treat the synthetic tests as real-file validation.
+- **Concurrent alternates workaround:** adding, switching or deleting line and
+  scene versions is blocked during live collaboration, before the transaction
+  changes either active text or stored versions. The shown version remains
+  editable. End the session to change versions. This prevents simultaneous
+  switches from duplicating text; it does not redesign y-prosemirror's
+  replacement semantics. Older clients do not have the guard, so all session
+  participants should update. A shared active-version model remains future work.

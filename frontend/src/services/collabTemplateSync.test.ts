@@ -76,7 +76,8 @@ describe('collaboration document format', () => {
     exchange();
     startCollabSync(mine, false);
     const store = useFormattingTemplateStore.getState();
-    expect(store.getActiveTemplate().name).toBe('Incoming');
+    expect(store.getActiveTemplate().name).toBe('Local');
+    expect(store.documentTemplate?.name).toBe('Incoming');
     expect(store.templates[0]).toBe(own);
     expect(useEditorStore.getState().pageLayout.pageWidth).toBe(8.5);
     const active = store.getActiveTemplate();

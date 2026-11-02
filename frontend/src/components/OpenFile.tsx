@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { FaCloud, FaDesktop, FaSearch } from 'react-icons/fa';
+import { FaChevronRight, FaCloud, FaDesktop, FaSearch, FaThLarge } from 'react-icons/fa';
 import { api } from '../services/api';
 import { cloudApi } from '../services/cloudApi';
 import { isWeb } from '../services/platform';
@@ -41,6 +41,11 @@ interface OpenFileProps {
     source: OpenSource,
   ) => void;
   onClose: () => void;
+  /** Go to Manage Projects, on the tab for `source`. Renaming and deleting
+   *  happen there, not here, so the dialog says where. */
+  onManageProjects?: (source: OpenSource) => void;
+  /** Go straight to one project's page in Manage Projects. */
+  onManageProject?: (project: ProjectInfo, source: OpenSource) => void;
 }
 
 type SortKey =
@@ -77,7 +82,7 @@ function compareScripts(a: ScriptMeta, b: ScriptMeta, sort: SortKey): number {
 /** Web is always cloud. Desktop/mobile apps let the user pick. */
 const WEB_ONLY_CLOUD = isWeb();
 
-const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose }) => {
+const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose, onManageProjects, onManageProject }) => {
   // Only treat the user as signed in once the token has been verified against
   // the server this session. A stale localStorage token shouldn't let us hit
   // the cloud API — the request would fail anyway.
@@ -239,7 +244,19 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose }) => {
           ) : (
             visibleGroups.map((g) => (
               <div key={g.project.id} style={{ marginBottom: 12 }}>
-                <div className="open-project-group-header">{g.project.name}</div>
+                <div className="open-project-group-header open-project-group-header--manage">
+                  <span>{g.project.name}</span>
+                  {onManageProject && (
+                    <button
+                      type="button"
+                      className="open-project-manage"
+                      onClick={() => onManageProject(g.project, source)}
+                      title={`Open ${g.project.name} in Manage Projects to rename or delete its scripts`}
+                    >
+                      Manage <FaChevronRight aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
                 {g.scripts.map((s) => (
                   <div
                     key={s.id}
@@ -257,7 +274,19 @@ const OpenFile: React.FC<OpenFileProps> = ({ onOpen, onClose }) => {
           )}
         </div>
 
-        <div className="dialog-actions">
+        <div className={`dialog-actions${onManageProjects ? ' open-file-actions' : ''}`}>
+          {onManageProjects && (
+            <span className="open-file-manage-hint">
+              Rename or delete files:
+              <button
+                type="button"
+                className="open-file-manage-link"
+                onClick={() => onManageProjects(source)}
+              >
+                <FaThLarge aria-hidden="true" /> Manage Projects…
+              </button>
+            </span>
+          )}
           <button onClick={onClose}>Cancel</button>
         </div>
       </div>

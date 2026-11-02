@@ -11,12 +11,9 @@
 #
 # Every face here is a *subset*: cut to the blocks its script needs, with
 # hinting dropped (these glyphs are only ever embedded in a PDF, never
-# rasterised on screen) and — for the Indic faces — GSUB/GPOS dropped too.
-# That last one is what takes Devanagari from 159 kB a weight to 16 kB.  It is
-# not a saving so much as an acknowledgement: jsPDF addresses a font through
-# its `cmap`, one character to one glyph, so a conjunct glyph has no character
-# to be looked up by and could never be drawn however large the file was.  See
-# frontend/public/fonts/README.md for what closing that gap would take.
+# rasterised on screen).  The Indic faces keep their GSUB/GPOS tables, because
+# they are shaped with HarfBuzz before jsPDF draws them and a conjunct or a
+# Tamil கு exists only in those tables; see frontend/public/fonts/README.md.
 #
 # The ranges here are the source of truth for the ones repeated in
 # pdfUnicodeFont.ts.  Change one, change the other, or a face will be asked to
@@ -49,6 +46,7 @@ UA="Mozilla/5.0"
 # word spacing rather than dropping back to Courier's cell between words, and
 # U+25CC (dotted circle) so a matra with no consonant still shows something.
 FACES=(
+  "Noto Sans Devanagari|NotoSansDevanagari|U+0900-097F,U+200C-200D,U+20B9,U+0020,U+00A0,U+25CC"
   "Noto Sans Thai|NotoSansThai|U+0E00-0E7F,U+0020,U+00A0,U+25CC"
   "Noto Sans Tamil|NotoSansTamil|U+0B80-0BFF,U+200C-200D,U+0020,U+00A0,U+25CC"
   "Noto Sans Bengali|NotoSansBengali|U+0980-09FF,U+200C-200D,U+20B9,U+0020,U+00A0,U+25CC"
@@ -98,10 +96,17 @@ for face in "${FACES[@]}"; do
     raw="$work/$prefix-$name.raw.ttf"
     curl -sS --max-time 120 -o "$raw" "$url"
 
-    # Every face drops GSUB/GPOS.  Arabic can because its joined forms are
+    # The ten Indic faces keep GSUB/GPOS: they are shaped with HarfBuzz before
+    # they are drawn (src/utils/textShaping.ts), and the shaping *is* those
+    # tables — Tamil's கு, Hindi's क्ष and every reph live in GSUB and nowhere
+    # else.  The rest drop them.  Arabic can because its joined forms are
     # substituted as Presentation Forms-B, which are real characters the cmap
-    # reaches; Hebrew because unpointed Hebrew asks for no substitution at all.
-    features=""
+    # reaches; Hebrew because unpointed Hebrew asks for no substitution at all;
+    # Thai because it is drawn in storage order with the font's default marks.
+    case "$prefix" in
+      NotoSansHebrew|NotoSansArabic|NotoSansThai) features="" ;;
+      *) features="*" ;;
+    esac
 
     python3 -m fontTools.subset "$raw" \
       --unicodes="$ranges" \

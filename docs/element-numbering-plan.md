@@ -364,11 +364,11 @@ The question here is whether **Radio Play** should ship with numbering on.
   a stored `elementNumber` attribute on every node type that can be numbered.
 - **Keeping FDX numbers on import,** which depends on the stored attribute.
 - **Page-based resets** (D2).
-- **Carrying numbering to other devices — implemented.** Native script saves now
-  embed `_templateSnapshot` for custom formats, including their custom element
-  and numbering rules. Load, recovery and collaboration use a document-scoped
-  definition; a recipient's library is not overwritten. See
-  `docs/portable-formats-and-docx.md`.
+- **Carrying numbering to other devices.** A document saves only
+  `_templateId`. A custom format with numbering is local to the machine it was
+  made on, so it doesn't reach collaborators or other devices. Custom elements
+  already have this limitation; fixing it means embedding a snapshot of the
+  format in the document, which is a separate project.
 - **Numbering in the Scene Navigator, Index Cards and Table Read** (the TTS
   could announce "line 12").
 
@@ -408,10 +408,9 @@ elements), §10 (FX/MX prefixes). AV paragraph types (`avPara`, `avShot`,
 `avDirection`, `avGraphic`) can't be numbered or trigger a reset, because they
 exist only inside AV cells.
 
-**Found along the way, now fixed:** Word export writes both speeches in a
-borderless two-column table. The importer restores two `dualDialogueColumn`
-nodes. The `dual-dialogue` and `podcast-numbered` golden snapshots now include
-both speeches; see `docs/portable-formats-and-docx.md`.
+**Found along the way, not fixed here:** the Word export drops dual dialogue
+entirely. Neither speech of a side-by-side pair reaches `document.xml` (see the
+`dual-dialogue` golden snapshot). Existing behaviour, outside this change.
 
 **Fixed along the way (on `main` too):** applying a duplicate of any system
 format except Industry Standard crashed the app with a blank window (React

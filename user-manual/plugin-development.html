@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plugin &amp; Add-on Development - OpenDraft User Manual</title>
+  <meta name="description" content="Plugin &amp; Add-on Development in OpenDraft, the free screenwriting app: extend OpenDraft through its plugin architecture, and ship optional features — such as an AI assistant — as add-ons the writer chooses to turn on.">
+  <link rel="canonical" href="https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/plugin-development.html">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="../">Home</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="title-page.html" class="sidebar-link">Title Page</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Analysis</div>
+    <a href="script-statistics.html" class="sidebar-link">Script Statistics &amp; Timing</a>
+    <a href="table-read.html" class="sidebar-link">Table Read</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="backups.html" class="sidebar-link">Backups &amp; Recovery</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+    <a href="format-compatibility.html" class="sidebar-link">Format Compatibility</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Developers</div>
+    <a href="plugin-development.html" class="sidebar-link active">Plugin &amp; Add-on Development</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Plugin &amp; Add-on Development
+    </div>
+
+    <h1>Plugin &amp; Add-on Development</h1>
+    <p class="page-subtitle">Extend OpenDraft through its plugin architecture, and ship optional features &mdash; such as an AI assistant &mdash; as add-ons the writer chooses to turn on.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>For writers:</strong> add-ons are optional features you switch on in <strong>Tools &gt; System Settings &gt; Add-ons</strong>. Each one is off until you turn it on, tells you what (if anything) leaves your device before you do, and asks for its settings. Turning one off removes everything it added and can delete what it stored, such as an API key. The rest of this page is for developers.</p>
+      </div>
+    </div>
+
+    <h2 id="overview">Overview</h2>
+    <p>Every feature that is not part of the core editor reaches OpenDraft through one place: the plugin registry in <code>frontend/src/plugins/registry.ts</code>. A plugin is a plain object that lists what it adds &mdash; menu items, panels, editor extensions, file formats, reports, grammar checks. The app asks the registry for those contributions wherever it draws a menu, a sidebar or the editor.</p>
+    <ul>
+      <li><strong>Plugins</strong> are always on. OpenDraft-Pro's features are plugins.</li>
+      <li><strong>Add-ons</strong> are plugins marked <code>optIn: true</code>. The registry withholds everything an add-on registers until the writer turns it on.</li>
+    </ul>
+    <p>Never wire a feature into <code>ScreenplayEditor.tsx</code>, <code>Toolbar.tsx</code> or <code>MenuBar.tsx</code> directly. Anything wired in directly cannot be turned off, cannot be replaced by Pro, and becomes clutter for writers who do not use it.</p>
+
+    <div class="callout callout-warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>AI is always an add-on.</strong> Using AI in writing is the writer's choice. Any feature that sends the writer's words to a model &mdash; local or hosted &mdash; must be an opt-in add-on, off by default, with a clear privacy statement.</p>
+      </div>
+    </div>
+
+    <h2 id="where-code-lives">Where the Code Lives</h2>
+    <table>
+      <thead><tr><th>What</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td>Plugin registry and types</td><td><code>frontend/src/plugins/registry.ts</code></td></tr>
+        <tr><td>Core add-ons (one folder each)</td><td><code>frontend/src/addons/&lt;id&gt;/index.ts</code>, default-exporting the plugin</td></tr>
+        <tr><td>List of core add-ons</td><td><code>CORE_ADDONS</code> in <code>frontend/src/addons/index.ts</code> (imported once by <code>App.tsx</code>)</td></tr>
+        <tr><td>Rules every core add-on must pass</td><td><code>frontend/src/addons/boundary.test.ts</code></td></tr>
+        <tr><td>Settings &gt; Add-ons screen</td><td><code>frontend/src/components/AddOnsSettingsSection.tsx</code></td></tr>
+        <tr><td>Commercial plugins</td><td>The private OpenDraft-Pro repository, registered through the same registry</td></tr>
+      </tbody>
+    </table>
+    <p>The boundary test fails the build if any file outside <code>src/addons/</code> imports an add-on, or if a core add-on is not opt-in, has no description, or does not say what leaves the device.</p>
+
+    <h2 id="plugin-object">The Plugin Object</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code>, <code>name</code>, <code>version</code></td><td>Required. <code>id</code> is stable: the writer's on/off choice is remembered by it.</td></tr>
+        <tr><td><code>optIn</code></td><td><code>true</code> makes the plugin an add-on: off until the writer turns it on.</td></tr>
+        <tr><td><code>description</code></td><td>One or two sentences shown in Settings &gt; Add-ons.</td></tr>
+        <tr><td><code>privacy</code></td><td>What leaves the device and where it goes. Shown before the writer turns the add-on on.</td></tr>
+        <tr><td><code>settings</code></td><td>A React component shown when the add-on is turned on and from its <strong>Settings&hellip;</strong> button.</td></tr>
+        <tr><td><code>onActivate()</code></td><td>Runs when the writer turns the add-on on, and at start-up if it was already on.</td></tr>
+        <tr><td><code>onDeactivate({ forgetSettings })</code></td><td>Runs when the add-on is turned off. Delete stored settings and keys when <code>forgetSettings</code> is true.</td></tr>
+        <tr><td><code>menuItems</code></td><td>Entries in File, Edit, Format, View, Production, Tools or Help.</td></tr>
+        <tr><td><code>panels</code></td><td>Components for the <code>right-sidebar</code> or <code>status-bar</code> slot. Right-sidebar panels get a tab and receive the <code>editor</code>.</td></tr>
+        <tr><td><code>routes</code></td><td>Full pages at a new path, or (Pro) a replacement for a built-in page.</td></tr>
+        <tr><td><code>editorExtensions</code></td><td>Tiptap extensions. They take effect the next time a script is opened.</td></tr>
+        <tr><td><code>importers</code>, <code>exporters</code>, <code>reports</code></td><td>Join File &gt; Import, File &gt; Export and Tools &gt; Analytics &gt; Reports. A plugin can add a format but never take over a built-in one.</td></tr>
+        <tr><td><code>grammarProviders</code></td><td>Writing-suggestion checks, merged with the built-in ones.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="add-on-rules">Rules for Add-ons</h2>
+    <ol>
+      <li><strong>Off by default.</strong> Set <code>optIn: true</code>. Do no work, make no network call and show nothing until the writer turns the add-on on.</li>
+      <li><strong>Say what leaves the device.</strong> Write the <code>privacy</code> line in plain words.</li>
+      <li><strong>Ask for settings when turned on.</strong> Put addresses, models and keys in the <code>settings</code> component, not in a separate dialog.</li>
+      <li><strong>Forget on request.</strong> Delete stored settings and keys in <code>onDeactivate</code> when <code>forgetSettings</code> is true.</li>
+      <li><strong>Stay out of the way.</strong> Use a Tools menu item and a sidebar panel. Do not add toolbar buttons.</li>
+      <li><strong>Never change the script without the writer.</strong> Show a preview and insert only when the writer confirms, as a normal editor change that Undo reverts.</li>
+      <li><strong>Handle failure.</strong> Catch errors and show a message the writer can act on, e.g. &ldquo;Could not reach http://localhost:11434. Is the AI server running?&rdquo;</li>
+    </ol>
+
+    <h2 id="sample-ai-assistant">Sample: an AI Assistant Add-on</h2>
+    <p>A complete, working add-on that asks a model on an OpenAI-compatible server (Ollama, LM Studio, llama.cpp, or a hosted service the writer chooses) about the script, and inserts the answer as an Action line after the writer reviews it. Use it as the starting point for any AI add-on. It lives in <code>frontend/src/addons/ai-assistant/</code>:</p>
+    <pre><code>frontend/src/addons/ai-assistant/
+  index.ts                  the plugin definition
+  settingsStore.ts          settings kept on this device
+  client.ts                 the only code that talks to the AI server
+  AssistantSettingsForm.tsx shown when the add-on is turned on
+  AssistantPanel.tsx        the right-sidebar panel</code></pre>
+
+    <h3 id="sample-index">1. The plugin definition &mdash; <code>index.ts</code></h3>
+    <p>Everything the app sees of the add-on is declared here. The Tools menu item opens the panel by dispatching <code>plugin-panel:open</code>; it does not reach into the editor.</p>
+    <pre><code>/** AI Assistant: an opt-in add-on. Off until the writer turns it on. */
+import type { OpenDraftPlugin } from '../../plugins/registry';
+import { PLUGIN_PANEL_OPEN_EVENT } from '../../components/PluginPanelTabs';
+import AssistantPanel from './AssistantPanel';
+import AssistantSettingsForm from './AssistantSettingsForm';
+import { forgetSettings } from './settingsStore';
+
+const PANEL_ID = 'ai-assistant-panel';
+
+const aiAssistant: OpenDraftPlugin = {
+  id: 'ai-assistant',
+  name: 'AI Assistant',
+  version: '1.0.0',
+  optIn: true,
+  description: 'Ask an AI model about your script and insert its suggestions after you review them.',
+  privacy:
+    'Sends your question, and the text you select, to the AI server you choose. ' +
+    'With a local server such as Ollama or LM Studio, nothing leaves your computer.',
+  settings: AssistantSettingsForm,
+  onDeactivate: ({ forgetSettings: forget }) =&gt; {
+    if (forget) forgetSettings();
+  },
+  panels: [
+    { id: PANEL_ID, slot: 'right-sidebar', label: 'Assistant', component: AssistantPanel },
+  ],
+  menuItems: [
+    {
+      id: 'ai-assistant-open',
+      section: 'Tools',
+      label: 'AI Assistant',
+      action: () =&gt; document.dispatchEvent(
+        new CustomEvent(PLUGIN_PANEL_OPEN_EVENT, { detail: { panelId: PANEL_ID } }),
+      ),
+    },
+  ],
+};
+
+export default aiAssistant;</code></pre>
+
+    <h3 id="sample-settings-store">2. Settings on the device &mdash; <code>settingsStore.ts</code></h3>
+    <p>Settings are stored per device, never inside scripts, and deleted when the writer asks.</p>
+    <pre><code>/** The assistant's settings, kept on this device only. */
+const STORAGE_KEY = 'opendraft:addon:ai-assistant';
+
+export interface AssistantSettings {
+  /** An OpenAI-compatible server, e.g. Ollama's http://localhost:11434/v1 */
+  baseUrl: string;
+  model: string;
+  /** Only for servers that need one. Stored on this device, never in scripts. */
+  apiKey: string;
+}
+
+export const DEFAULT_SETTINGS: AssistantSettings = {
+  baseUrl: 'http://localhost:11434/v1',
+  model: 'llama3.1',
+  apiKey: '',
+};
+
+export function loadSettings(): AssistantSettings {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_SETTINGS };
+    const saved = JSON.parse(raw) as Partial&lt;AssistantSettings&gt;;
+    return {
+      baseUrl: typeof saved.baseUrl === 'string' ? saved.baseUrl : DEFAULT_SETTINGS.baseUrl,
+      model: typeof saved.model === 'string' ? saved.model : DEFAULT_SETTINGS.model,
+      apiKey: typeof saved.apiKey === 'string' ? saved.apiKey : '',
+    };
+  } catch (err) {
+    console.warn('[ai-assistant] could not read settings; using defaults', err);
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+/** Throws with a message the settings form can show. */
+export function saveSettings(settings: AssistantSettings): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  } catch (err) {
+    throw new Error(`Could not save the settings on this device: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/** Called when the writer turns the add-on off and asks for its settings to be deleted. */
+export function forgetSettings(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (err) {
+    console.warn('[ai-assistant] could not delete settings', err);
+  }
+}</code></pre>
+
+    <h3 id="sample-client">3. The server client &mdash; <code>client.ts</code></h3>
+    <p>The only code that sends anything off the device, and only when the writer presses Ask.</p>
+    <pre><code>/** Talks to the OpenAI-compatible server the writer chose. Nothing else. */
+import type { AssistantSettings } from './settingsStore';
+
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export async function askAssistant(
+  settings: AssistantSettings,
+  messages: ChatMessage[],
+  signal?: AbortSignal,
+): Promise&lt;string&gt; {
+  const url = `${settings.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+  const headers: Record&lt;string, string&gt; = { 'Content-Type': 'application/json' };
+  if (settings.apiKey.trim()) headers.Authorization = `Bearer ${settings.apiKey.trim()}`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ model: settings.model, messages, stream: false }),
+      signal,
+    });
+  } catch (err) {
+    if (signal?.aborted) throw err;
+    throw new Error(`Could not reach ${settings.baseUrl}. Is the AI server running?`);
+  }
+  if (!response.ok) {
+    const detail = await response.text().catch(() =&gt; '');
+    throw new Error(`The AI server answered ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`);
+  }
+  const data = await response.json().catch(() =&gt; null);
+  const text = data?.choices?.[0]?.message?.content;
+  if (typeof text !== 'string') throw new Error('The AI server sent an answer OpenDraft could not read.');
+  return text.trim();
+}</code></pre>
+
+    <h3 id="sample-settings-form">4. The settings form &mdash; <code>AssistantSettingsForm.tsx</code></h3>
+    <p>OpenDraft shows this inside its own <em>Turn on AI Assistant</em> dialog, under the description and the privacy statement, with its own <strong>Turn On</strong> and <strong>Cancel</strong> buttons. Hand OpenDraft your save function with <code>registerSave</code>; return <code>false</code> to keep the dialog open after showing your message.</p>
+    <pre><code>/** Shown when the writer turns the assistant on, and from Settings → Add-ons. */
+import React, { useEffect, useState } from 'react';
+import type { PluginSettingsProps } from '../../plugins/registry';
+import { loadSettings, saveSettings } from './settingsStore';
+
+const AssistantSettingsForm: React.FC&lt;PluginSettingsProps&gt; = ({ registerSave }) =&gt; {
+  const [settings, setSettings] = useState(loadSettings);
+  const [error, setError] = useState('');
+
+  // Core calls this when the writer presses Turn On or Save.
+  useEffect(() =&gt; {
+    registerSave(() =&gt; {
+      let url: URL;
+      try {
+        url = new URL(settings.baseUrl);
+      } catch {
+        setError('Enter the server address, e.g. http://localhost:11434/v1');
+        return false;
+      }
+      if (url.protocol !== 'http:' &amp;&amp; url.protocol !== 'https:') {
+        setError('The address must start with http:// or https://');
+        return false;
+      }
+      if (!settings.model.trim()) {
+        setError('Enter the name of the model to use.');
+        return false;
+      }
+      try {
+        saveSettings({ ...settings, model: settings.model.trim() });
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        return false;
+      }
+    });
+  }, [settings, registerSave]);
+
+  const field = (key: 'baseUrl' | 'model' | 'apiKey') =&gt;
+    (e: React.ChangeEvent&lt;HTMLInputElement&gt;) =&gt; {
+      setError('');
+      setSettings((s) =&gt; ({ ...s, [key]: e.target.value }));
+    };
+
+  return (
+    &lt;div&gt;
+      &lt;div className="settings-row"&gt;
+        &lt;label htmlFor="ai-base-url"&gt;AI server address&lt;/label&gt;
+        &lt;input id="ai-base-url" className="settings-input" value={settings.baseUrl} onChange={field('baseUrl')} /&gt;
+        &lt;div className="settings-hint"&gt;Ollama: http://localhost:11434/v1 · LM Studio: http://localhost:1234/v1&lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div className="settings-row"&gt;
+        &lt;label htmlFor="ai-model"&gt;Model&lt;/label&gt;
+        &lt;input id="ai-model" className="settings-input" value={settings.model} onChange={field('model')} /&gt;
+      &lt;/div&gt;
+      &lt;div className="settings-row"&gt;
+        &lt;label htmlFor="ai-key"&gt;API key (only if your server needs one)&lt;/label&gt;
+        &lt;input id="ai-key" className="settings-input" type="password" autoComplete="off" value={settings.apiKey} onChange={field('apiKey')} /&gt;
+      &lt;/div&gt;
+      {error &amp;&amp; &lt;p className="addon-error" role="alert"&gt;{error}&lt;/p&gt;}
+    &lt;/div&gt;
+  );
+};
+
+export default AssistantSettingsForm;</code></pre>
+
+    <h3 id="sample-panel">5. The panel &mdash; <code>AssistantPanel.tsx</code></h3>
+    <p>Right-sidebar panels receive the Tiptap <code>editor</code>. The answer is shown first; <strong>Insert into script</strong> adds it as a normal, undoable edit.</p>
+    <pre><code>/**
+ * The assistant's right-sidebar panel. The writer asks; the answer is shown
+ * first and only goes into the script when the writer presses Insert.
+ */
+import React, { useEffect, useRef, useState } from 'react';
+import type { Editor } from '@tiptap/react';
+import { askAssistant } from './client';
+import { loadSettings } from './settingsStore';
+
+const SYSTEM_PROMPT =
+  'You help a screenwriter. Answer in the language the writer uses. ' +
+  'When asked for script text, reply with that text only.';
+
+const AssistantPanel: React.FC&lt;{ editor: Editor | null }&gt; = ({ editor }) =&gt; {
+  const [question, setQuestion] = useState('');
+  const [includeSelection, setIncludeSelection] = useState(true);
+  const [answer, setAnswer] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const abortRef = useRef&lt;AbortController | null&gt;(null);
+
+  // Stop a request in flight when the panel closes or the add-on is turned off.
+  useEffect(() =&gt; () =&gt; abortRef.current?.abort(), []);
+
+  const ask = async () =&gt; {
+    if (!question.trim()) return;
+    const { from, to } = editor?.state.selection ?? { from: 0, to: 0 };
+    const selected = includeSelection &amp;&amp; editor ? editor.state.doc.textBetween(from, to, '\n') : '';
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setBusy(true);
+    setError('');
+    setAnswer('');
+    try {
+      const text = await askAssistant(loadSettings(), [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: selected ? `${question}\n\nSelected script text:\n${selected}` : question },
+      ], controller.signal);
+      setAnswer(text);
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      console.error('[ai-assistant] request failed', err);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      if (abortRef.current === controller) setBusy(false);
+    }
+  };
+
+  /** Insert the answer as a new Action paragraph after the current one. */
+  const insert = () =&gt; {
+    if (!editor || !answer) return;
+    try {
+      const { $to } = editor.state.selection;
+      const at = $to.depth &gt;= 1 ? $to.after(1) : editor.state.doc.content.size;
+      editor.chain().focus().insertContentAt(at, {
+        type: 'action',
+        content: [{ type: 'text', text: answer }],
+      }).run();
+      setAnswer('');
+    } catch (err) {
+      console.error('[ai-assistant] insert failed', err);
+      setError('Could not insert the answer into the script.');
+    }
+  };
+
+  return (
+    &lt;div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}&gt;
+      &lt;textarea
+        aria-label="Ask the assistant"
+        rows={4}
+        value={question}
+        onChange={(e) =&gt; setQuestion(e.target.value)}
+        placeholder="Ask about your script…"
+      /&gt;
+      &lt;label&gt;
+        &lt;input type="checkbox" checked={includeSelection} onChange={(e) =&gt; setIncludeSelection(e.target.checked)} /&gt;{' '}
+        Include the selected text
+      &lt;/label&gt;
+      &lt;button className="dialog-primary" onClick={ask} disabled={busy || !question.trim()}&gt;
+        {busy ? 'Asking…' : 'Ask'}
+      &lt;/button&gt;
+      {error &amp;&amp; &lt;p className="addon-error" role="alert"&gt;{error}&lt;/p&gt;}
+      {answer &amp;&amp; (
+        &lt;&gt;
+          &lt;div style={{ whiteSpace: 'pre-wrap', border: '1px solid var(--fd-border)', padding: 8 }}&gt;{answer}&lt;/div&gt;
+          &lt;button onClick={insert} disabled={!editor}&gt;Insert into script&lt;/button&gt;
+        &lt;/&gt;
+      )}
+    &lt;/div&gt;
+  );
+};
+
+export default AssistantPanel;</code></pre>
+
+    <h3 id="sample-register">6. Register it</h3>
+    <p>Add the add-on to <code>CORE_ADDONS</code> in <code>frontend/src/addons/index.ts</code>. Nothing else in the app changes.</p>
+    <pre><code>import aiAssistant from './ai-assistant';
+
+export const CORE_ADDONS: readonly OpenDraftPlugin[] = [
+  aiAssistant,
+];</code></pre>
+
+    <h2 id="testing">Testing Your Add-on</h2>
+    <ol>
+      <li>Run the checks from <code>frontend/</code>: <code>npx tsc -b</code>, <code>npx eslint src/addons</code> and <code>npx vitest run</code>. The boundary test runs with the rest.</li>
+      <li>Without a model installed, start the stand-in server: <code>venv/bin/python test-script/mock_ai_server.py</code>, then use <code>http://localhost:11435/v1</code> as the server address. It logs each request, so you can see exactly what the add-on sent.</li>
+      <li>In the app, check that:
+        <ul>
+          <li>with the add-on off, its menu item and panel tab are absent;</li>
+          <li>turning it on shows the description, the privacy statement and your settings form, and that an invalid setting keeps the dialog open;</li>
+          <li>the menu item opens the panel, and nothing reaches the script until the writer confirms;</li>
+          <li>turning it off with <em>Also delete its saved settings</em> ticked removes the menu item, the panel and the stored settings.</li>
+        </ul>
+      </li>
+    </ol>
+
+    <h2 id="submitting">Submitting a Pull Request</h2>
+    <ul>
+      <li>One add-on per pull request, with no changes outside <code>src/addons/&lt;id&gt;/</code> and the one line in <code>CORE_ADDONS</code>. If the add-on needs a new extension point, propose that in a separate pull request to <code>plugins/registry.ts</code>.</li>
+      <li>Include unit tests for the add-on's own logic, and screenshots of the turn-on dialog and the panel.</li>
+      <li>Describe what leaves the device in the pull request, matching the <code>privacy</code> line.</li>
+    </ul>
+
+    <div class="page-nav">
+      <a href="keyboard-shortcuts.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Keyboard Shortcuts</span>
+      </a>
+      <div></div>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v2.8.2 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>
