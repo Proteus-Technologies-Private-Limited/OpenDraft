@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Convert Final Draft and Other Screenplay Formats to PDF or Word Free - OpenDraft Blog</title>
+  <link rel="canonical" href="https://proteus-technologies-private-limited.github.io/OpenDraft/blog/convert-final-draft-to-pdf-or-word.html">
+  <meta name="description" content="Convert a Final Draft .fdx file, or a Fade In, Fountain, Highland, WriterDuet or Celtx script, to PDF or Word (.docx) for free, without installing Final Draft. Your browser converts it on your computer; it is never uploaded.">
+  <meta property="og:title" content="How to convert Final Draft (.fdx) and other screenplay formats to PDF or Word for free, without Final Draft">
+  <meta property="og:description" content="No Final Draft licence, no install, no sign-up. Open the .fdx in your browser at open-draft.com and export a PDF or Word file. The script never leaves your computer.">
+  <meta property="og:image" content="https://proteus-technologies-private-limited.github.io/OpenDraft/blog/images/convert-final-draft/3-export-to-pdf-or-word.jpg">
+  <meta property="og:type" content="article">
+  <meta property="article:published_time" content="2026-11-02">
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "How to convert Final Draft (.fdx) and other screenplay formats to PDF or Word for free, without Final Draft",
+    "description": "Convert a Final Draft .fdx file to PDF or Word (.docx) for free, without installing Final Draft, using OpenDraft in your browser. The file is converted on your computer and never uploaded.",
+    "image": "https://proteus-technologies-private-limited.github.io/OpenDraft/blog/images/convert-final-draft/3-export-to-pdf-or-word.jpg",
+    "datePublished": "2026-11-02",
+    "author": { "@type": "Organization", "name": "Proteus Technologies" },
+    "publisher": { "@type": "Organization", "name": "OpenDraft" },
+    "mainEntityOfPage": "https://proteus-technologies-private-limited.github.io/OpenDraft/blog/convert-final-draft-to-pdf-or-word.html"
+  }
+  </script>
+  <style>
+    :root {
+      --color-bg: #0e0e12;
+      --color-surface: #16161d;
+      --color-surface-2: #1c1c25;
+      --color-border: #2a2a35;
+      --color-text: #ececf0;
+      --color-text-secondary: #8a8a9a;
+      --color-accent: #c455ce;
+      --color-accent-hover: #d470dd;
+      --color-warn: #e0b04a;
+      --color-warn-bg: rgba(224,176,74,0.08);
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --max-width: 1100px;
+      --radius: 10px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 100;
+      background: rgba(14,14,18,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .nav-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--color-text);
+      font-weight: 600;
+      font-size: 17px;
+    }
+    .nav-brand img { width: 28px; height: 28px; border-radius: 6px; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a {
+      color: var(--color-text-secondary);
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--color-text); }
+    .nav-cta {
+      background: var(--color-accent) !important;
+      color: #fff !important;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    .nav-cta:hover { background: var(--color-accent-hover) !important; }
+    .nav-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--color-text);
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    /* ── ARTICLE ── */
+    .article-header {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 120px 24px 32px;
+    }
+    .breadcrumb {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+    .breadcrumb a { color: var(--color-accent); text-decoration: none; }
+    .breadcrumb a:hover { color: var(--color-accent-hover); }
+    .article-header h1 {
+      font-size: clamp(30px, 5vw, 44px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 16px;
+      text-wrap: balance;
+    }
+    .article-header .lede {
+      font-size: 18px;
+      color: var(--color-text-secondary);
+      line-height: 1.6;
+    }
+    .meta {
+      margin-top: 20px;
+      font-size: 14px;
+      color: var(--color-text-secondary);
+    }
+
+    .hero-figure {
+      max-width: 1000px;
+      margin: 8px auto 48px;
+      padding: 0 24px;
+    }
+
+    article {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+      font-size: 16.5px;
+    }
+    article h2 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 56px 0 14px;
+      scroll-margin-top: 80px;
+    }
+    article h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 32px 0 10px;
+    }
+    article p { margin-bottom: 16px; color: #d6d6de; }
+    article ul, article ol { margin: 0 0 16px 22px; color: #d6d6de; }
+    article li { margin-bottom: 8px; }
+    article a { color: var(--color-accent); text-decoration: none; }
+    article a:hover { color: var(--color-accent-hover); text-decoration: underline; }
+    article strong { color: var(--color-text); }
+    article code {
+      font-family: var(--font-mono);
+      background: rgba(255,255,255,0.07);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.88em;
+      overflow-wrap: anywhere;
+    }
+    article pre {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 0 0 18px;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    article pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+    article blockquote {
+      border-left: 3px solid var(--color-accent);
+      padding: 4px 0 4px 18px;
+      margin: 0 0 18px;
+      font-style: italic;
+      color: var(--color-text);
+    }
+
+    figure { margin: 24px 0 32px; }
+    figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+    figcaption {
+      margin-top: 10px;
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      text-align: center;
+    }
+
+    .step {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--color-accent);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      margin-right: 10px;
+      vertical-align: 3px;
+    }
+
+    .callout {
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin: 0 0 20px;
+      font-size: 15px;
+    }
+    .callout p:last-child, .callout ul:last-child { margin-bottom: 0; }
+    .callout-title { font-weight: 600; color: var(--color-text); margin-bottom: 6px; }
+    .callout.warn { border-color: rgba(224,176,74,0.35); background: var(--color-warn-bg); }
+    .callout.warn .callout-title { color: var(--color-warn); }
+
+    .settings {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 20px;
+      font-size: 15px;
+    }
+    .settings th, .settings td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--color-border);
+      vertical-align: top;
+    }
+    .settings th { color: var(--color-text-secondary); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .settings td:first-child { white-space: nowrap; color: var(--color-text); font-weight: 500; }
+
+    .toc {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin: 0 0 32px;
+      background: var(--color-surface);
+    }
+    .toc-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-secondary); margin-bottom: 8px; }
+    .toc ol { margin: 0 0 0 20px; }
+    .toc li { margin-bottom: 4px; }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 40px 24px;
+      border-top: 1px solid var(--color-border);
+      text-align: center;
+    }
+    footer p { font-size: 14px; color: var(--color-text-secondary); }
+    footer a { color: var(--color-text-secondary); text-decoration: none; }
+    footer a:hover { color: var(--color-text); }
+
+    /* ── MOBILE ── */
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .nav-links.open {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 56px;
+        left: 0;
+        right: 0;
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+        padding: 20px;
+        gap: 14px;
+      }
+      .nav-menu-btn { display: block; }
+      .article-header { padding: 96px 16px 24px; }
+      .article-header .lede { font-size: 16.5px; }
+      .hero-figure { padding: 0 16px; margin-bottom: 32px; }
+      article { padding: 0 16px 64px; font-size: 16px; }
+      article h2 { font-size: 21px; margin-top: 44px; }
+      .settings td:first-child { white-space: normal; }
+    }
+    .callout.answer { border-color: rgba(196,85,206,0.45); background: rgba(196,85,206,0.07); }
+    .callout.answer .callout-title { color: var(--color-accent); }
+    .callout.answer ol { margin-bottom: 0; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <nav>
+    <div class="nav-inner">
+      <a href="../" class="nav-brand">
+        <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png" alt="OpenDraft">
+        OpenDraft
+      </a>
+      <button class="nav-menu-btn" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../#features">Features</a>
+        <a href="../#download">Download</a>
+        <a href="../user-manual/">User Manual</a>
+        <a href="../faq.html">FAQ</a>
+        <a href="./" style="color:var(--color-text)">Blog</a>
+        <a href="https://open-draft.com" target="_blank" rel="noopener" class="nav-cta">Try Online</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="article-header">
+    <div class="breadcrumb"><a href="./">Blog</a> &middot; How-to</div>
+    <h1>How to convert Final Draft (.fdx) and other screenplay formats to PDF or Word for free, without Final Draft</h1>
+    <p class="lede">Someone sent you a script as a Final Draft file and you don&rsquo;t own Final Draft. Or you need a PDF for a contest, or a Word copy for notes. You can convert an <code>.fdx</code> file to PDF or Word in your browser, for free, with no account, and the file never leaves your computer.</p>
+    <p class="meta">2 November 2026 &middot; takes about a minute</p>
+  </header>
+
+  <article>
+
+    <div class="callout answer">
+      <p class="callout-title">The short answer</p>
+      <ol>
+        <li>Go to <a href="https://open-draft.com" target="_blank" rel="noopener">open-draft.com</a>. There&rsquo;s nothing to install and no sign-up.</li>
+        <li>Choose <strong>File &rarr; Import &rarr; Script File</strong> and pick your <code>.fdx</code> file.</li>
+        <li>Choose <strong>File &rarr; Export &rarr; PDF</strong> or <strong>File &rarr; Export &rarr; Microsoft Word (.docx)</strong>.</li>
+        <li>The converted file lands in your Downloads folder.</li>
+      </ol>
+    </div>
+
+    <p>That&rsquo;s it. The rest of this guide shows each step, explains why it&rsquo;s safe for an unproduced script, and covers what comes through the conversion and what doesn&rsquo;t.</p>
+
+    <h2 id="safe">Is it safe to convert a script online?</h2>
+    <p>Most &ldquo;free online converters&rdquo; work by uploading your file to their server, converting it there and sending the result back. For a script under NDA, or one you haven&rsquo;t registered yet, that&rsquo;s a real risk: you don&rsquo;t know who keeps a copy.</p>
+    <p>OpenDraft works differently. <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank" rel="noopener">OpenDraft</a> is a free, open-source screenwriting app, and open-draft.com runs the whole app inside your browser. When you import a Final Draft file, your browser reads it and converts it on your own computer. When you export a PDF or Word file, your browser builds that file and saves it straight to your Downloads folder.</p>
+    <p>We checked this by watching the browser&rsquo;s network traffic during a conversion. Importing the <code>.fdx</code> and exporting both a PDF and a Word file sent nothing to any server. The only requests were the browser downloading parts of the app itself and a font.</p>
+
+    <div class="callout">
+      <p class="callout-title">Two things to keep it that way</p>
+      <ul>
+        <li><strong>Don&rsquo;t sign in or choose Save Script.</strong> The badge in the top-right corner says <em>Local only</em> while you work. Signing in and saving is the one thing that stores a script on the server, and you don&rsquo;t need it to convert.</li>
+        <li><strong>On a shared computer, use a private window.</strong> OpenDraft keeps a crash-recovery copy of the open script in the browser&rsquo;s own storage, on that computer only. A private (incognito) window clears it when you close the window.</li>
+      </ul>
+    </div>
+
+    <p>Because OpenDraft is open source, anyone can read exactly what the import and export code does.</p>
+
+    <h2 id="step-1"><span class="step">1</span>Open open-draft.com</h2>
+    <p>Go to <a href="https://open-draft.com" target="_blank" rel="noopener">open-draft.com</a> on a computer. It opens straight into an empty screenplay. You don&rsquo;t need an account, a trial or Final Draft itself.</p>
+
+    <h2 id="step-2"><span class="step">2</span>Import the Final Draft file</h2>
+    <p>Choose <strong>File &rarr; Import &rarr; Script File</strong> and select your <code>.fdx</code> file.</p>
+
+    <figure>
+      <img src="images/convert-final-draft/1-open-draft-import-final-draft-file.jpg" width="1512" height="759" loading="lazy" alt="OpenDraft's File menu with Import open, showing Script File (Final Draft, Fountain, Fade In, PDF, Highland, WriterDuet, Celtx, OpenDraft) and Microsoft Word (.docx)">
+      <figcaption>File &rarr; Import &rarr; Script File opens Final Draft files and several other formats.</figcaption>
+    </figure>
+
+    <p>The script opens in the editor, formatted as a screenplay, with its scenes listed on the left. Scroll through it to check it came across the way you expect.</p>
+
+    <figure>
+      <img src="images/convert-final-draft/2-final-draft-script-opened-in-browser.jpg" width="1512" height="759" loading="lazy" alt="A screenplay imported from a Final Draft file, showing a scene heading, action, character names, dialogue and a parenthetical, with the Local only badge in the top-right corner">
+      <figcaption>The imported script. <em>Local only</em> in the corner means it isn&rsquo;t stored anywhere but your browser.</figcaption>
+    </figure>
+
+    <h2 id="step-3"><span class="step">3</span>Export to PDF or Word</h2>
+    <p>Choose <strong>File &rarr; Export</strong>, then the format you need:</p>
+    <ul>
+      <li><strong>PDF</strong> for anything you send out: contests, fellowships, producers, actors. It keeps the screenplay layout exactly, page for page.</li>
+      <li><strong>Microsoft Word (.docx)</strong> when someone needs to edit the text, track changes or add comments.</li>
+    </ul>
+
+    <figure>
+      <img src="images/convert-final-draft/3-export-to-pdf-or-word.jpg" width="1512" height="759" loading="lazy" alt="OpenDraft's File, Export menu listing Final Draft (.fdx), Fountain, Fade In, PDF, PDF (Revised Pages Only), PDF with Watermark or Password, Sides and Selected Pages, Microsoft Word (.docx) and OpenDraft (.odraft)">
+      <figcaption>The Export menu. PDF and Microsoft Word (.docx) are the ones you want here.</figcaption>
+    </figure>
+
+    <p>The file downloads immediately, named after the script: for example, <code>The First Read.pdf</code> or <code>The First Read.docx</code>.</p>
+
+    <figure>
+      <img src="images/convert-final-draft/4-exported-screenplay-pdf.jpg" width="1000" height="849" loading="lazy" alt="A page of the exported PDF: a correctly formatted screenplay in Courier, with scene heading, action, character cues, dialogue and a parenthetical at standard margins">
+      <figcaption>A page from the exported PDF, in standard screenplay format.</figcaption>
+    </figure>
+
+    <p>Need a PDF for something sensitive? The same menu has <strong>PDF with Watermark or Password&hellip;</strong>, which stamps every page with CONFIDENTIAL or the reader&rsquo;s name (one copy per reader, if you list several) and can lock the file with a password, and <strong>Sides &amp; Selected Pages&hellip;</strong> for exporting just the scenes an actor needs.</p>
+
+    <h2 id="what-converts">What comes through the conversion</h2>
+    <p>Everything that prints in a Final Draft script comes through, with its formatting:</p>
+    <ul>
+      <li>scene headings, action, character names, dialogue, parentheticals, transitions and shots</li>
+      <li>the title page, laid out as it was in Final Draft</li>
+      <li>dual dialogue, which stays side by side in the PDF</li>
+      <li>scene numbers</li>
+    </ul>
+    <p>A few things work differently in Word:</p>
+    <ul>
+      <li><strong>Page breaks.</strong> Word lays out pages itself, so page breaks, <em>(MORE)</em> and <em>(CONT&rsquo;D)</em> may not land exactly where they do in Final Draft. Use PDF when page count and layout matter.</li>
+      <li><strong>Dual dialogue</strong> becomes two speeches, one after the other, because Word has no side-by-side dialogue.</li>
+      <li><strong>The font.</strong> The Word file uses Courier Prime, a free screenplay font. If it isn&rsquo;t installed on the computer that opens the file, Word substitutes another font. Install Courier Prime from <a href="https://fonts.google.com/specimen/Courier+Prime" target="_blank" rel="noopener">Google Fonts</a> to see it as intended.</li>
+    </ul>
+    <p>Script notes, outline sections and scene synopses don&rsquo;t print, so they aren&rsquo;t written into the PDF or Word file. The full list is in the user manual&rsquo;s <a href="../user-manual/format-compatibility.html">format compatibility</a> page.</p>
+
+    <h2 id="other-formats">Other formats work the same way</h2>
+    <p>The same two steps convert other screenwriting formats too. <strong>Import</strong> opens Final Draft (<code>.fdx</code>), Fade In, Fountain, Highland, WriterDuet, Celtx and PDF. <strong>Export</strong> writes PDF, Word, Final Draft, Fountain and Fade In.</p>
+    <p>So you can also go the other way, for example turning a Fountain or Highland script <em>into</em> a Final Draft file for a producer who works in Final Draft.</p>
+
+    <h2 id="faq">Questions</h2>
+
+    <h3>Can I open an FDX file without Final Draft?</h3>
+    <p>Yes. An <code>.fdx</code> file is Final Draft&rsquo;s own format, but OpenDraft reads it. Open it at open-draft.com to read it, edit it, print it or convert it, with no Final Draft licence.</p>
+
+    <h3>Is it really free?</h3>
+    <p>Yes. OpenDraft is open source under the MIT licence. Converting costs nothing, and there&rsquo;s no watermark, page limit or account.</p>
+
+    <h3>Is my script uploaded anywhere?</h3>
+    <p>No, not when you import and export as described here. The conversion runs in your browser on your own computer, and nothing is sent to a server unless you sign in and save the script. See <a href="#safe">Is it safe to convert a script online?</a> above.</p>
+
+    <h3>Does it work on a Mac, Windows or Chromebook?</h3>
+    <p>Yes. It runs in a desktop web browser, so the operating system doesn&rsquo;t matter.</p>
+
+    <h3>I want to keep working on the script. Now what?</h3>
+    <p>Download the free <a href="../#download">OpenDraft app</a> for macOS, Windows, Linux, iPad or Android. It opens and saves Final Draft files directly, stores your scripts on your own device, and works offline.</p>
+
+  </article>
+
+  <footer>
+    <p>Made by <a href="https://github.com/Proteus-Technologies-Private-Limited">Proteus Technologies</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/LICENSE">MIT License</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft">GitHub</a></p>
+  </footer>
+
+</body>
+</html>
