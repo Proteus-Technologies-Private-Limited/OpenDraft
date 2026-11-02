@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Table Read in Your Own Voice with VoiceStudio - OpenDraft Blog</title>
+  <link rel="canonical" href="https://proteus-technologies-private-limited.github.io/OpenDraft/blog/table-read-in-your-own-voice-with-voicestudio.html">
+  <meta name="description" content="Clone your own voice with VoiceStudio, a free open-source voice studio that runs on your computer, and hear OpenDraft's Table Read speak a character's lines in it. Step by step, with screenshots.">
+  <meta property="og:title" content="Hear your script in your own voice: Table Read with VoiceStudio">
+  <meta property="og:description" content="Clone your voice from a few seconds of speech, entirely on your own computer, and give it to any character in OpenDraft's Table Read.">
+  <meta property="og:image" content="https://proteus-technologies-private-limited.github.io/OpenDraft/blog/images/voicestudio/8-table-read-in-my-voice.jpg">
+  <meta property="og:type" content="article">
+  <meta property="article:published_time" content="2026-11-02">
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png">
+  <style>
+    :root {
+      --color-bg: #0e0e12;
+      --color-surface: #16161d;
+      --color-surface-2: #1c1c25;
+      --color-border: #2a2a35;
+      --color-text: #ececf0;
+      --color-text-secondary: #8a8a9a;
+      --color-accent: #c455ce;
+      --color-accent-hover: #d470dd;
+      --color-warn: #e0b04a;
+      --color-warn-bg: rgba(224,176,74,0.08);
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --max-width: 1100px;
+      --radius: 10px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 100;
+      background: rgba(14,14,18,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .nav-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--color-text);
+      font-weight: 600;
+      font-size: 17px;
+    }
+    .nav-brand img { width: 28px; height: 28px; border-radius: 6px; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a {
+      color: var(--color-text-secondary);
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--color-text); }
+    .nav-cta {
+      background: var(--color-accent) !important;
+      color: #fff !important;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    .nav-cta:hover { background: var(--color-accent-hover) !important; }
+    .nav-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--color-text);
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    /* ── ARTICLE ── */
+    .article-header {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 120px 24px 32px;
+    }
+    .breadcrumb {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+    .breadcrumb a { color: var(--color-accent); text-decoration: none; }
+    .breadcrumb a:hover { color: var(--color-accent-hover); }
+    .article-header h1 {
+      font-size: clamp(30px, 5vw, 44px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 16px;
+      text-wrap: balance;
+    }
+    .article-header .lede {
+      font-size: 18px;
+      color: var(--color-text-secondary);
+      line-height: 1.6;
+    }
+    .meta {
+      margin-top: 20px;
+      font-size: 14px;
+      color: var(--color-text-secondary);
+    }
+
+    .hero-figure {
+      max-width: 1000px;
+      margin: 8px auto 48px;
+      padding: 0 24px;
+    }
+
+    article {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+      font-size: 16.5px;
+    }
+    article h2 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 56px 0 14px;
+      scroll-margin-top: 80px;
+    }
+    article h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 32px 0 10px;
+    }
+    article p { margin-bottom: 16px; color: #d6d6de; }
+    article ul, article ol { margin: 0 0 16px 22px; color: #d6d6de; }
+    article li { margin-bottom: 8px; }
+    article a { color: var(--color-accent); text-decoration: none; }
+    article a:hover { color: var(--color-accent-hover); text-decoration: underline; }
+    article strong { color: var(--color-text); }
+    article code {
+      font-family: var(--font-mono);
+      background: rgba(255,255,255,0.07);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.88em;
+      overflow-wrap: anywhere;
+    }
+    article pre {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 0 0 18px;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    article pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+    article blockquote {
+      border-left: 3px solid var(--color-accent);
+      padding: 4px 0 4px 18px;
+      margin: 0 0 18px;
+      font-style: italic;
+      color: var(--color-text);
+    }
+
+    figure { margin: 24px 0 32px; }
+    figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+    figcaption {
+      margin-top: 10px;
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      text-align: center;
+    }
+
+    .step {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--color-accent);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      margin-right: 10px;
+      vertical-align: 3px;
+    }
+
+    .callout {
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin: 0 0 20px;
+      font-size: 15px;
+    }
+    .callout p:last-child, .callout ul:last-child { margin-bottom: 0; }
+    .callout-title { font-weight: 600; color: var(--color-text); margin-bottom: 6px; }
+    .callout.warn { border-color: rgba(224,176,74,0.35); background: var(--color-warn-bg); }
+    .callout.warn .callout-title { color: var(--color-warn); }
+
+    .settings {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 20px;
+      font-size: 15px;
+    }
+    .settings th, .settings td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--color-border);
+      vertical-align: top;
+    }
+    .settings th { color: var(--color-text-secondary); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .settings td:first-child { white-space: nowrap; color: var(--color-text); font-weight: 500; }
+
+    .toc {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin: 0 0 32px;
+      background: var(--color-surface);
+    }
+    .toc-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-secondary); margin-bottom: 8px; }
+    .toc ol { margin: 0 0 0 20px; }
+    .toc li { margin-bottom: 4px; }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 40px 24px;
+      border-top: 1px solid var(--color-border);
+      text-align: center;
+    }
+    footer p { font-size: 14px; color: var(--color-text-secondary); }
+    footer a { color: var(--color-text-secondary); text-decoration: none; }
+    footer a:hover { color: var(--color-text); }
+
+    /* ── MOBILE ── */
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .nav-links.open {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 56px;
+        left: 0;
+        right: 0;
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+        padding: 20px;
+        gap: 14px;
+      }
+      .nav-menu-btn { display: block; }
+      .article-header { padding: 96px 16px 24px; }
+      .article-header .lede { font-size: 16.5px; }
+      .hero-figure { padding: 0 16px; margin-bottom: 32px; }
+      article { padding: 0 16px 64px; font-size: 16px; }
+      article h2 { font-size: 21px; margin-top: 44px; }
+      .settings td:first-child { white-space: normal; }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <nav>
+    <div class="nav-inner">
+      <a href="../" class="nav-brand">
+        <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png" alt="OpenDraft">
+        OpenDraft
+      </a>
+      <button class="nav-menu-btn" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../#features">Features</a>
+        <a href="../#download">Download</a>
+        <a href="../user-manual/">User Manual</a>
+        <a href="../faq.html">FAQ</a>
+        <a href="./" style="color:var(--color-text)">Blog</a>
+        <a href="https://open-draft.com" target="_blank" rel="noopener" class="nav-cta">Try Online</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="article-header">
+    <div class="breadcrumb"><a href="./">Blog</a> &middot; How-to</div>
+    <h1>Hear your script in your own voice: Table Read with VoiceStudio</h1>
+    <p class="lede">OpenDraft&rsquo;s Table Read reads your screenplay aloud with a voice for every character. With VoiceStudio, a free, open-source voice studio that runs on your own computer, one of those voices can be yours. It takes about fifteen seconds of you reading out loud, and nothing leaves your machine.</p>
+    <p class="meta">2 November 2026 &middot; about 20 minutes to set up, most of it downloading</p>
+  </header>
+
+  <figure class="hero-figure">
+    <img src="images/voicestudio/8-table-read-in-my-voice.jpg" width="1600" height="1000" alt="OpenDraft's Table Read panel reading Maya's line &quot;Twenty seconds of me reading out loud. That's all it needed.&quot; with the voice shown as My Voice, the same line highlighted in the script above">
+    <figcaption>Maya&rsquo;s lines, read in a voice cloned from the writer. Theo and the narrator use VoiceStudio&rsquo;s stock voices.</figcaption>
+  </figure>
+
+  <article>
+
+    <p>Hearing a scene is the fastest way to find the line that doesn&rsquo;t land. Table Read already gives each character a voice of its own. Some writers want more than that: to hear the protagonist sound like themselves, or like the actor they have in mind, while they rewrite.</p>
+    <p><a href="https://voicestudio.sh/" target="_blank" rel="noopener">VoiceStudio</a> makes that possible without sending a word of your script anywhere. It&rsquo;s an open-source app (AGPL-3.0) that clones a voice from a short recording and runs entirely on your computer. It also speaks the same speech API that OpenDraft&rsquo;s <em>OpenAI-compatible server</em> option talks to, so the two connect with three settings.</p>
+
+    <div class="toc">
+      <div class="toc-title">Steps</div>
+      <ol>
+        <li><a href="#install">Install VoiceStudio</a></li>
+        <li><a href="#models">Download a voice model</a></li>
+        <li><a href="#licence">Read and accept the model licence</a></li>
+        <li><a href="#clone">Clone your voice</a></li>
+        <li><a href="#connect">Connect OpenDraft to VoiceStudio</a></li>
+        <li><a href="#cast">Give a character your voice</a></li>
+        <li><a href="#play">Press play</a></li>
+      </ol>
+    </div>
+
+    <h2 id="before">Before you start</h2>
+    <ul>
+      <li><strong>OpenDraft 2.8.3 or later</strong>, the desktop app for macOS, Windows or Linux. Earlier versions couldn&rsquo;t send speech requests to VoiceStudio from the Mac app. Using OpenDraft in a browser instead? See <a href="#browser">the note for browsers</a>.</li>
+      <li><strong>About 10 GB of free disk space</strong>: roughly 4 GB for VoiceStudio&rsquo;s runtime and 3 GB for the voice models, plus room to spare. It doesn&rsquo;t have to be your system drive.</li>
+      <li><strong>A reasonably recent computer.</strong> An Apple Silicon Mac or a PC with an NVIDIA graphics card generates speech quickly. Without one, VoiceStudio still works on the processor, just more slowly.</li>
+      <li><strong>A microphone and a quiet room</strong> for the 15-second recording. A laptop&rsquo;s built-in mic is fine.</li>
+    </ul>
+
+    <h2 id="install"><span class="step">1</span>Install VoiceStudio</h2>
+    <p>Download the installer for your system from <a href="https://github.com/debpalash/VoiceStudio/releases/latest" target="_blank" rel="noopener">VoiceStudio&rsquo;s releases page</a>, or install it from a terminal on macOS or Linux:</p>
+    <pre><code>curl -fsSL https://voicestudio.sh/install | sh</code></pre>
+    <p>On Windows, in PowerShell:</p>
+    <pre><code>irm https://voicestudio.sh/install.ps1 | iex</code></pre>
+    <p>The first time it opens, VoiceStudio offers to install its local runtime: Python and the AI libraries, several gigabytes. This is where you choose where everything lives. To keep it off a full system drive, click <strong>Change&hellip;</strong> and pick a folder on another drive. VoiceStudio then keeps its runtime, models, your voices and its temporary files all in that one folder.</p>
+
+    <figure>
+      <img src="images/voicestudio/1-voicestudio-storage-on-external-drive.jpg" width="1600" height="1025" loading="lazy" alt="VoiceStudio's Install local runtime screen with the app environment set to a folder on an external drive, showing data, models and temp file paths inside it">
+      <figcaption>Everything VoiceStudio stores goes into the folder you choose, here a folder on an SD card.</figcaption>
+    </figure>
+
+    <div class="callout warn">
+      <p class="callout-title">Choose an empty folder</p>
+      <p>If the folder you pick already has anything in it, VoiceStudio leaves it alone and quietly installs to its default location in your home folder instead. Create a new, empty folder for it.</p>
+    </div>
+
+    <p>Click <strong>Install local runtime</strong>. It downloads about half a gigabyte and takes a few minutes. A system check follows, which confirms your memory, disk space and graphics chip.</p>
+
+    <h2 id="models"><span class="step">2</span>Download a voice model</h2>
+    <p>Next, VoiceStudio asks which <strong>model pack</strong> to install. For Table Read, <strong>Fast</strong> is all you need. It includes the speech model that clones voices (OmniVoice, 2.4 GB) and a small speech-recognition model that transcribes your recording. The larger packs add better transcription for VoiceStudio&rsquo;s other features, but they don&rsquo;t change how Table Read sounds.</p>
+
+    <figure>
+      <img src="images/voicestudio/2-voicestudio-fast-model-pack.jpg" width="1600" height="1025" loading="lazy" alt="VoiceStudio's Model packs screen with the Fast tier selected: VoiceStudio TTS OmniVoice 2.4 GB, Whisper base and Whisper Tiny, 2.7 GB in total">
+      <figcaption>The Fast pack, 2.7 GB in total, is plenty for Table Read.</figcaption>
+    </figure>
+
+    <p>Click <strong>Install Fast pack</strong> and wait for the download. On the <strong>Privacy</strong> step that follows, you can decline the anonymous usage statistics. Then click <strong>Enter studio</strong>.</p>
+
+    <h2 id="licence"><span class="step">3</span>Read and accept the model licence</h2>
+    <p>Before the speech model can be used, VoiceStudio shows its licence and asks you to accept it. Read this one properly:</p>
+
+    <figure>
+      <img src="images/voicestudio/3-voicestudio-model-licence.jpg" width="1600" height="1025" loading="lazy" alt="VoiceStudio's licence acceptance dialog for k2-fsa/OmniVoice: personal and research use only, CC-BY-NC; commercial use of the model and of generated audio not allowed; voice and recording consent is your responsibility">
+      <figcaption>The OmniVoice model is licensed for personal and research use only.</figcaption>
+    </figure>
+
+    <div class="callout warn">
+      <p class="callout-title">Personal and research use only</p>
+      <ul>
+        <li><strong>The model and the audio it makes can&rsquo;t be used commercially.</strong> Hearing your own draft while you write is fine. Using the generated audio in a pitch, a podcast or anything you&rsquo;re paid for is not, under this licence.</li>
+        <li><strong>Only clone a voice you have permission to use.</strong> Your own is fine. A friend&rsquo;s or an actor&rsquo;s needs their consent first.</li>
+      </ul>
+    </div>
+
+    <p>Tick the box for each model and click <strong>Accept</strong>.</p>
+
+    <h2 id="clone"><span class="step">4</span>Clone your voice</h2>
+    <p>In VoiceStudio, open <strong>Voice &rarr; Clone</strong> from the sidebar (the fingerprint icon). Under <strong>Add a new voice</strong>, you can drop in an existing recording or click <strong>Record</strong>. Either way, it needs 5&ndash;15 seconds of clean speech.</p>
+
+    <figure>
+      <img src="images/voicestudio/4-voicestudio-clone-a-voice.jpg" width="1600" height="1025" loading="lazy" alt="VoiceStudio's voice cloning screen: saved voices, and Add a new voice with a drop zone for an audio file and a Record button">
+      <figcaption>Upload a clip or record one directly. 5&ndash;15 seconds is enough.</figcaption>
+    </figure>
+
+    <p>Click <strong>Record</strong> (allow microphone access if your computer asks) and read something in your normal speaking voice, at your normal pace. Any paragraph will do. For example:</p>
+    <blockquote>Every script sounds different once you hear it out loud. A line that looked sharp on the page can land flat, and a quiet moment can suddenly carry the whole scene. That&rsquo;s why I read my drafts aloud.</blockquote>
+    <p>Stop the recording, give the voice a name you&rsquo;ll recognise, such as <strong>My Voice</strong>, and save it.</p>
+
+    <figure>
+      <img src="images/voicestudio/5-voicestudio-voice-saved.jpg" width="1600" height="1025" loading="lazy" alt="VoiceStudio with a new voice profile named My Voice selected and a confirmation that the voice profile was saved">
+      <figcaption>The new voice appears under Saved voices, ready for OpenDraft to use.</figcaption>
+    </figure>
+
+    <p>A quieter room and a steadier read give a better clone. If the result doesn&rsquo;t sound like you, record again: it only takes a few seconds.</p>
+
+    <h2 id="connect"><span class="step">5</span>Connect OpenDraft to VoiceStudio</h2>
+    <p>Leave VoiceStudio running and open your script in OpenDraft. Choose <strong>Tools &rarr; Table Read</strong>, then switch the panel from <strong>System voices</strong> to <strong>AI voices</strong>. The first time you do this, OpenDraft asks you to set up a provider. To change it later, click the gear icon on the panel, then <strong>Voice source&hellip;</strong>.</p>
+    <p>Choose <strong>OpenAI-compatible server</strong> as the provider and fill in:</p>
+
+    <table class="settings">
+      <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>API key</td><td>Leave empty. VoiceStudio on your own computer doesn&rsquo;t need one.</td></tr>
+        <tr><td>Server address</td><td><code>http://127.0.0.1:3900/v1</code></td></tr>
+        <tr><td>Model</td><td><code>tts-1</code>, which VoiceStudio maps to its active voice model</td></tr>
+        <tr><td>Voices</td><td>Leave empty. OpenDraft asks VoiceStudio for its list of voices.</td></tr>
+      </tbody>
+    </table>
+
+    <figure>
+      <img src="images/voicestudio/6-opendraft-voice-provider-settings.jpg" width="1600" height="1000" loading="lazy" alt="OpenDraft's Set Up Table Read Voices dialog with the provider set to OpenAI-compatible server, server address http://127.0.0.1:3900/v1 and model tts-1">
+      <figcaption>Three settings connect OpenDraft to VoiceStudio.</figcaption>
+    </figure>
+
+    <p>Click <strong>Done</strong>. OpenDraft shows its usual notice that AI voices send the script&rsquo;s text to the speech server. Here, that server is VoiceStudio on your own machine, at <code>127.0.0.1</code>, so the text never leaves your computer.</p>
+
+    <h2 id="cast"><span class="step">6</span>Give a character your voice</h2>
+    <p>Click the gear icon on the Table Read panel and scroll to <strong>Cast</strong>. Every character in the script is listed with a voice picker. Open the picker for the character you want and choose <strong>My Voice</strong>. Your cloned voices appear by name, below VoiceStudio&rsquo;s stock voices.</p>
+
+    <figure>
+      <img src="images/voicestudio/7-opendraft-pick-my-voice.jpg" width="1600" height="1000" loading="lazy" alt="OpenDraft's Table Read cast list with the voice picker for Maya open, listing VoiceStudio's stock voices followed by Demo Voice and My Voice">
+      <figcaption>Pick your cloned voice for any character. Use the play button beside it to preview.</figcaption>
+    </figure>
+
+    <p>Press the play button beside the picker to hear a sample. The choice is saved with the script. You can also set it on the character&rsquo;s profile, under <em>Table Read Voice</em>.</p>
+    <p>The narrator and the other characters can keep VoiceStudio&rsquo;s stock voices, or you can clone a few more voices and cast the whole scene.</p>
+
+    <h2 id="play"><span class="step">7</span>Press play</h2>
+    <p>Click the play button at the bottom of the panel. Table Read works through the scene line by line: scene headings and action in the narrator&rsquo;s voice, each character in theirs. The word being spoken is highlighted in the panel and in the script, which scrolls to keep up. Click any line to read from there, or change the speed with the slider.</p>
+
+    <div class="callout">
+      <p class="callout-title">The first line takes longest</p>
+      <p>The first time VoiceStudio speaks after it starts, it loads the voice model into memory. That can take up to a minute. After that, lines arrive in a few seconds. Table Read fetches the next line while the current one plays, so the read keeps flowing.</p>
+    </div>
+
+    <h2 id="troubleshooting">If something doesn&rsquo;t work</h2>
+    <h3>&ldquo;Could not reach the speech server&rdquo;</h3>
+    <p>VoiceStudio isn&rsquo;t running, or it&rsquo;s still starting up. Open it and wait until its main window appears. To check it&rsquo;s ready, open <code>http://127.0.0.1:3900/v1/audio/voices</code> in a browser. It should list your voices.</p>
+
+    <h3>My cloned voice isn&rsquo;t in the list</h3>
+    <p>OpenDraft asks VoiceStudio for its list of voices once, and keeps it until the voice settings change. If you cloned the voice after that, quit OpenDraft and open it again.</p>
+
+    <h3>Reading pauses between lines</h3>
+    <p>VoiceStudio makes one line at a time. When it&rsquo;s busy, OpenDraft waits a few seconds and asks again. On a computer without a supported graphics chip, each line simply takes longer to make. Reading at a slower speed gives it more time to keep ahead.</p>
+
+    <h3 id="browser">Using OpenDraft in a browser</h3>
+    <p>The desktop app talks to VoiceStudio directly, with nothing to configure. A web page is different: VoiceStudio refuses requests from websites it doesn&rsquo;t know, to stop any website you visit from using it. To let a browser copy of OpenDraft through, add the page&rsquo;s address to VoiceStudio&rsquo;s settings file, <code>~/.config/omnivoice/env</code> on macOS and Linux or <code>%USERPROFILE%\.config\omnivoice\env</code> on Windows:</p>
+    <pre><code>OMNIVOICE_ALLOWED_ORIGINS=http://localhost:5173</code></pre>
+    <p>Replace the address with the one you open OpenDraft at, then restart VoiceStudio. Some browsers also ask for your permission before a website can reach apps running on your computer.</p>
+
+    <h2 id="why">Why it stays private</h2>
+    <p>Most AI voice services work by sending your text to a company&rsquo;s servers. That can be a problem for an unproduced script under an NDA. With VoiceStudio, the cloning, the voice model and every line of speech stay on your own computer. OpenDraft sends each line to <code>127.0.0.1</code>, which is your machine, and plays back the audio it gets.</p>
+    <p>For a confidential script, that makes VoiceStudio one of three Table Read options that never send your text anywhere, alongside your device&rsquo;s installed voices and the built-in Kokoro voices. It&rsquo;s the only one of the three that can sound like you.</p>
+
+    <p>More about Table Read&rsquo;s options is in the <a href="../user-manual/table-read.html">user manual</a>. If you get stuck or have an idea, <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/discussions" target="_blank" rel="noopener">tell us in the community discussions</a>.</p>
+
+  </article>
+
+  <footer>
+    <p>Made by <a href="https://github.com/Proteus-Technologies-Private-Limited">Proteus Technologies</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/LICENSE">MIT License</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft">GitHub</a></p>
+  </footer>
+
+</body>
+</html>

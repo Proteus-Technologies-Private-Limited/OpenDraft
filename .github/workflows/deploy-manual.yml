@@ -49,7 +49,7 @@ jobs:
           {
             echo '<?xml version="1.0" encoding="UTF-8"?>'
             echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-            for src in landing/index.html landing/faq.html landing/report-issue.html user-manual/*.html; do
+            for src in landing/index.html landing/faq.html landing/report-issue.html landing/blog/*.html user-manual/*.html; do
               path="${src#landing/}"
               path="${path%index.html}"
               lastmod="$(git log -1 --format=%cs -- "$src")"
