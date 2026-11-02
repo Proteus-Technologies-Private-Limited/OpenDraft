@@ -127,6 +127,10 @@ jobs:
           workspaces: src-tauri -> target
       - name: Build frontend
         run: cd frontend && npm ci && npm run build
+      - name: Set up root package for the Tauri Xcode build
+        run: |
+          echo '{"private":true,"scripts":{"tauri":"tauri"}}' > package.json
+          ln -s frontend/node_modules node_modules
       # Compile the checked-in project, including FileHelpers.m and framework
       # links. Do not run `ios init`: that would hide errors in the tracked files.
       - name: Compile iOS Simulator app
