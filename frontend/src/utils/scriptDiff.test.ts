@@ -53,12 +53,15 @@ describe('scriptDiff: edits in place', () => {
     expect(result.summary.totalDeleted).toBe(0);
   });
 
-  it('pairs a same-length run of the same elements even when the words differ', () => {
+  it('does not pair same-length lines that share no content', () => {
     const a = doc(block('action', 'Totally different.'), block('action', 'Also old.'));
     const b = doc(block('action', 'Brand new line.'), block('action', 'Another new one.'));
     const result = computeScriptDiff(a, b);
-    expect(types(a, b)).toEqual(['modified', 'modified']);
-    expect(result.summary.totalModified).toBe(2);
+    // Same shape and position is not evidence of a rewrite: nothing is shared
+    // once structural words are ignored.
+    expect(result.summary.totalModified).toBe(0);
+    expect(result.summary.totalAdded).toBe(2);
+    expect(result.summary.totalDeleted).toBe(2);
   });
 
   it('records an element change on the modification', () => {
@@ -211,5 +214,118 @@ describe('scriptDiff: summary', () => {
     const result = computeScriptDiff(a, b);
     expect(result.summary.totalModified).toBe(1);
     expect(result.summary.dialogueDelta).toEqual([]);
+  });
+});
+
+describe('scriptDiff: large scripts', () => {
+  const bigScript = (opts: { early?: boolean; late?: boolean; insert?: boolean }) => {
+    const content: any[] = [];
+    for (let i = 0; i < 410; i++) {
+      content.push({ type: 'sceneHeading', content: [{ type: 'text', text: `INT. ROOM ${i} - DAY` }] });
+      for (let j = 0; j < 9; j++) {
+        content.push({ type: 'action', content: [{ type: 'text', text: `Room ${i} beat ${j}.` }] });
+      }
+    }
+    if (opts.early) content[1] = { type: 'action', content: [{ type: 'text', text: 'Room 0 beat 0 revised.' }] };
+    if (opts.insert) content.splice(5, 0, { type: 'action', content: [{ type: 'text', text: 'Inserted beat.' }] });
+    if (opts.late) content[content.length - 1] = { type: 'action', content: [{ type: 'text', text: 'Room 409 beat 8 revised.' }] };
+    return { type: 'doc', content };
+  };
+
+  it('aligns a 4,100-block script with two edits instead of reporting the middle as changed', () => {
+    const a = bigScript({});
+    const b = bigScript({ early: true, late: true });
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalModified).toBe(2);
+    expect(result.summary.totalAdded).toBe(0);
+    expect(result.summary.totalDeleted).toBe(0);
+    expect(result.summary.totalMoved).toBe(0);
+    expect(result.summary.scenesChanged).toHaveLength(2);
+    for (const block of result.blocks) {
+      if (block.type === 'modified') expect(block.oldText).not.toBe(block.newText);
+    }
+  }, 30_000);
+
+  it('does not report one inserted line plus one edit as thousands of moves', () => {
+    const a = bigScript({});
+    const b = bigScript({ early: true, insert: true });
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalAdded).toBe(1);
+    expect(result.summary.totalModified).toBe(1);
+    expect(result.summary.totalMoved).toBe(0);
+    expect(result.summary.totalDeleted).toBe(0);
+  }, 30_000);
+});
+
+describe('scriptDiff: unrelated lines', () => {
+  it('does not pair cues or headings that share only structure', () => {
+    const a = doc(
+      block('character', 'MARY (V.O.)'),
+      block('dialogue', 'Hi.'),
+      block('sceneHeading', 'INT. HOUSE - DAY'),
+      block('action', 'The cat sits.'),
+    );
+    const b = doc(
+      block('character', 'JOHN (V.O.)'),
+      block('dialogue', 'Hi.'),
+      block('sceneHeading', 'EXT. STREET - NIGHT'),
+      block('action', 'The cat sits.'),
+    );
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalModified).toBe(0);
+    expect(result.blocks.some((blk) => blk.type === 'modified' && blk.oldText === 'MARY (V.O.)')).toBe(false);
+  });
+
+  it('still pairs a scene heading whose time of day changed', () => {
+    const a = doc(block('sceneHeading', 'INT. HOUSE - DAY'));
+    const b = doc(block('sceneHeading', 'INT. HOUSE - NIGHT'));
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalModified).toBe(1);
+    expect(result.blocks[0].oldText).toBe('INT. HOUSE - DAY');
+  });
+
+  it('does not call a cue that comes back in another scene a move', () => {
+    const a = doc(
+      block('sceneHeading', 'INT. A - DAY'),
+      block('character', 'JOHN'),
+      block('dialogue', 'Line one.'),
+      block('sceneHeading', 'INT. B - DAY'),
+    );
+    const b = doc(
+      block('sceneHeading', 'INT. A - DAY'),
+      block('sceneHeading', 'INT. B - DAY'),
+      block('character', 'JOHN'),
+      block('dialogue', 'Line two.'),
+    );
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalMoved).toBe(0);
+    expect(result.blocks.some((blk) => blk.type === 'moved' && blk.oldText === 'JOHN')).toBe(false);
+  });
+});
+
+describe('scriptDiff: deletion order', () => {
+  it('keeps a deletion after the line it followed in a mixed run', () => {
+    const a = doc(block('action', 'Old one.'), block('action', 'Delete me.'));
+    const b = doc(block('action', 'New one.'));
+    const result = computeScriptDiff(a, b);
+    expect(result.blocks.map((blk) => blk.type)).toEqual(['modified', 'deleted']);
+    expect(result.blocks[0].newText).toBe('New one.');
+    expect(result.blocks[1].oldText).toBe('Delete me.');
+  });
+});
+describe('scriptDiff: cue extensions and transitions', () => {
+  it('does not pair cues that share only (CONT\'D)', () => {
+    const a = doc(block('character', "MARY (CONT'D)"), block('dialogue', 'Line.'));
+    const b = doc(block('character', "JOHN (CONT'D)"), block('dialogue', 'Line.'));
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalModified).toBe(0);
+    expect(result.blocks.some((blk) => blk.type === 'modified' && blk.oldText === "MARY (CONT'D)")).toBe(false);
+  });
+
+  it('does not pair transitions that share only structure', () => {
+    const a = doc(block('transition', 'CUT TO:'), block('action', 'One.'));
+    const b = doc(block('transition', 'DISSOLVE TO:'), block('action', 'One.'));
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalModified).toBe(0);
   });
 });

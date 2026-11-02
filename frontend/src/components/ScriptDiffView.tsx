@@ -47,7 +47,8 @@ const movedTitle = (block: DiffBlock): string | undefined => {
   return `Moved from ${block.oldSceneHeading} to ${block.sceneHeading || 'the end'}`;
 };
 
-const ScriptDiffView: React.FC<Props> = ({ docA, docB, labelA, labelB, onClose }) => {  const [mode, setMode] = useState<ViewMode>('side-by-side');
+const ScriptDiffView: React.FC<Props> = ({ docA, docB, labelA, labelB, onClose }) => {
+  const [mode, setMode] = useState<ViewMode>('side-by-side');
   const [showSummary, setShowSummary] = useState(true);
 
   const diff = useMemo(() => computeScriptDiff(docA, docB), [docA, docB]);

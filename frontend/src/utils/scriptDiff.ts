@@ -92,6 +92,95 @@ function flattenBlocks(doc: JSONContent): FlatBlock[] {
 
 const sameBlock = (a: FlatBlock, b: FlatBlock) => a.type === b.type && a.text === b.text;
 
+/**
+ * LCS lengths between a[a0..a1) and every prefix of b[b0..b1).
+ * One row at a time: memory is O(m), not O(nm).
+ */
+function lcsPrefixLengths(
+  a: FlatBlock[], a0: number, a1: number,
+  b: FlatBlock[], b0: number, b1: number,
+): Int32Array {
+  const m = b1 - b0;
+  let prev = new Int32Array(m + 1);
+  let cur = new Int32Array(m + 1);
+  for (let i = a0; i < a1; i++) {
+    for (let j = 0; j < m; j++) {
+      cur[j + 1] = sameBlock(a[i], b[b0 + j])
+        ? prev[j] + 1
+        : Math.max(prev[j + 1], cur[j]);
+    }
+    const swap = prev;
+    prev = cur;
+    cur = swap;
+    cur.fill(0);
+  }
+  return prev;
+}
+
+/**
+ * LCS lengths between a[a0..a1) and every suffix of b[b0..b1), indexed by the
+ * suffix start: result[j] is for b[b0 + j .. b1).
+ */
+function lcsSuffixLengths(
+  a: FlatBlock[], a0: number, a1: number,
+  b: FlatBlock[], b0: number, b1: number,
+): Int32Array {
+  const m = b1 - b0;
+  let prev = new Int32Array(m + 1);
+  let cur = new Int32Array(m + 1);
+  for (let i = a1 - 1; i >= a0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      cur[j] = sameBlock(a[i], b[b0 + j])
+        ? prev[j + 1] + 1
+        : Math.max(prev[j], cur[j + 1]);
+    }
+    const swap = prev;
+    prev = cur;
+    cur = swap;
+    cur.fill(0);
+  }
+  return prev;
+}
+
+/**
+ * Hirschberg's LCS: the exact alignment of the full table, with linear memory.
+ * Used above MAX_ALIGN_CELLS, where the n×m table would be too large. A large
+ * script with a few edits pays only for the common blocks it can match, and
+ * identical blocks are always aligned instead of being paired as rewrites.
+ */
+function alignBlocksLinear(
+  a: FlatBlock[], a0: number, a1: number,
+  b: FlatBlock[], b0: number, b1: number,
+  out: Array<[number, number]>,
+): void {
+  if (a0 >= a1 || b0 >= b1) return;
+  if (a1 - a0 === 1) {
+    for (let j = b0; j < b1; j++) {
+      if (sameBlock(a[a0], b[j])) { out.push([a0, j]); break; }
+    }
+    return;
+  }
+  if (b1 - b0 === 1) {
+    for (let i = a0; i < a1; i++) {
+      if (sameBlock(a[i], b[b0])) { out.push([i, b0]); break; }
+    }
+    return;
+  }
+
+  const mid = a0 + ((a1 - a0) >> 1);
+  const left = lcsPrefixLengths(a, a0, mid, b, b0, b1);
+  const right = lcsSuffixLengths(a, mid, a1, b, b0, b1);
+  const m = b1 - b0;
+  let best = -1;
+  let split = b0;
+  for (let j = 0; j <= m; j++) {
+    const value = left[j] + right[j];
+    if (value > best) { best = value; split = b0 + j; }
+  }
+  alignBlocksLinear(a, a0, mid, b, b0, split, out);
+  alignBlocksLinear(a, mid, a1, b, split, b1, out);
+}
+
 /** Longest-common-subsequence alignment, as ascending pairs of block indexes. */
 function alignBlocks(a: FlatBlock[], b: FlatBlock[]): Array<[number, number]> {
   // The common start and end are certain matches, and keeping them out of the
@@ -110,29 +199,40 @@ function alignBlocks(a: FlatBlock[], b: FlatBlock[]): Array<[number, number]> {
 
   const n = a.length - prefix - suffix;
   const m = b.length - prefix - suffix;
-  if (n > 0 && m > 0 && n * m <= MAX_ALIGN_CELLS) {
-    const dp: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
-    for (let i = 1; i <= n; i++) {
-      for (let j = 1; j <= m; j++) {
-        dp[i][j] = sameBlock(a[prefix + i - 1], b[prefix + j - 1])
-          ? dp[i - 1][j - 1] + 1
-          : Math.max(dp[i - 1][j], dp[i][j - 1]);
+  if (n > 0 && m > 0) {
+    if (n * m <= MAX_ALIGN_CELLS) {
+      const dp: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
+      for (let i = 1; i <= n; i++) {
+        for (let j = 1; j <= m; j++) {
+          dp[i][j] = sameBlock(a[prefix + i - 1], b[prefix + j - 1])
+            ? dp[i - 1][j - 1] + 1
+            : Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
       }
-    }
-    const middle: Array<[number, number]> = [];
-    let i = n, j = m;
-    while (i > 0 && j > 0) {
-      if (sameBlock(a[prefix + i - 1], b[prefix + j - 1])) {
-        middle.push([prefix + i - 1, prefix + j - 1]);
-        i--; j--;
-      } else if (dp[i - 1][j] >= dp[i][j - 1]) {
-        i--;
-      } else {
-        j--;
+      const middle: Array<[number, number]> = [];
+      let i = n, j = m;
+      while (i > 0 && j > 0) {
+        if (sameBlock(a[prefix + i - 1], b[prefix + j - 1])) {
+          middle.push([prefix + i - 1, prefix + j - 1]);
+          i--; j--;
+        } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+          i--;
+        } else {
+          j--;
+        }
       }
+      middle.reverse();
+      pairs.push(...middle);
+    } else {
+      // A large script: the same alignment, computed with linear memory.
+      const middle: Array<[number, number]> = [];
+      alignBlocksLinear(
+        a, prefix, a.length - suffix,
+        b, prefix, b.length - suffix,
+        middle,
+      );
+      pairs.push(...middle);
     }
-    middle.reverse();
-    pairs.push(...middle);
   }
 
   for (let k = 0; k < suffix; k++) {
@@ -173,12 +273,36 @@ function diffWords(a: string, b: string): WordDiff[] {
   return result;
 }
 
-/** Shared words over all words (0–1), counting repeated words only as often as
- *  both texts have them. */
+/**
+ * Words that describe structure rather than content: scene-heading
+ * environments and times, transition verbs, cue extensions. Ignoring them
+ * stops "MARY (V.O.)" pairing with "JOHN (V.O.)", or two scene headings that
+ * share only "INT." and "DAY".
+ */
+const STRUCTURAL_WORDS = new Set([
+  'int', 'ext', 'interior', 'exterior', 'i', 'e',
+  'day', 'night', 'morning', 'afternoon', 'evening', 'dawn', 'dusk',
+  'continuous', 'later', 'moment', 'moments', 'same', 'time',
+  'cut', 'to', 'fade', 'in', 'out', 'dissolve', 'smash', 'match', 'wipe',
+  'iris', 'intercut', 'split', 'push', 'stock', 'jump', 'flashback', 'flashforward',
+  'contd', "cont'd", 'continued', 'vo', 'os', 'oc',
+]);
+
+function contentWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    // Cue extensions and their punctuation, before punctuation becomes words.
+    .replace(/\b(?:v\.?o|o\.?s|o\.?c)\.?(?=\s|$|[)])/g, ' ')
+    .replace(/[^\p{L}\p{N}\s']/gu, ' ')
+    .split(/\s+/)
+    .filter((word) => word && !STRUCTURAL_WORDS.has(word));
+}
+
+/** Shared content words over all content words (0–1), counting repeated words
+ *  only as often as both texts have them. Structural words do not count. */
 function similarity(a: string, b: string): number {
-  const wa = a.toLowerCase().split(/\s+/).filter(Boolean);
-  const wb = b.toLowerCase().split(/\s+/).filter(Boolean);
-  if (wa.length === 0 && wb.length === 0) return 1;
+  const wa = contentWords(a);
+  const wb = contentWords(b);
   if (wa.length === 0 || wb.length === 0) return 0;
   const pool = [...wb];
   let shared = 0;
@@ -189,53 +313,109 @@ function similarity(a: string, b: string): number {
   return (2 * shared) / (wa.length + wb.length);
 }
 
-/** Pair a run of removed and added indexes into modifications, in order. */
+/** Pair a run of removed and added indexes into modifications, in order.
+ *  Identical blocks (same element and text) are returned separately as `same`,
+ *  never as a modification. */
 function pairRun(
   a: FlatBlock[],
   b: FlatBlock[],
   runA: number[],
   runB: number[],
-): { changed: Array<[number, number]>; removed: number[]; added: number[] } {
-  if (runA.length === 0) return { changed: [], removed: [], added: [...runB] };
-  if (runB.length === 0) return { changed: [], removed: [...runA], added: [] };
+): {
+  changed: Array<[number, number]>;
+  same: Array<[number, number]>;
+  removed: number[];
+  added: number[];
+} {
+  if (runA.length === 0) {
+    return { changed: [], same: [], removed: [], added: [...runB] };
+  }
+  if (runB.length === 0) {
+    return { changed: [], same: [], removed: [...runA], added: [] };
+  }
 
   // Edited in place: the run is the same length and every element lines up.
   if (
     runA.length === runB.length
     && runA.every((ai, k) => a[ai].type === b[runB[k]].type)
   ) {
-    return { changed: runA.map((ai, k) => [ai, runB[k]] as [number, number]), removed: [], added: [] };
-  }
-
-  // Pathological run (a whole script pasted over another): stay linear.
-  if (runA.length * runB.length > MAX_PAIR_CELLS) {
-    return { changed: [], removed: [...runA], added: [...runB] };
+    const changed: Array<[number, number]> = [];
+    const same: Array<[number, number]> = [];
+    const removed: number[] = [];
+    const added: number[] = [];
+    runA.forEach((ai, k) => {
+      const bi = runB[k];
+      if (sameBlock(a[ai], b[bi])) {
+        same.push([ai, bi]);
+      } else if (similarity(a[ai].text, b[bi].text) >= CHANGE_SIMILARITY) {
+        changed.push([ai, bi]);
+      } else {
+        // Same shape, nothing in common: a deletion and an addition, not a
+        // rewrite. Position alone is not evidence that the writer rewrote it.
+        removed.push(ai);
+        added.push(bi);
+      }
+    });
+    return { changed, same, removed, added };
   }
 
   const changed: Array<[number, number]> = [];
+  const same: Array<[number, number]> = [];
   const removed: number[] = [];
+  const usedB = new Array<boolean>(runB.length).fill(false);
   let nextB = 0;
-  for (const ai of runA) {
-    let bestK = -1;
-    let bestScore = -1;
-    for (let k = nextB; k < runB.length; k++) {
-      const bi = runB[k];
-      const exact = a[ai].text === b[bi].text;
-      const score = exact ? 1 : similarity(a[ai].text, b[bi].text);
-      if (score >= CHANGE_SIMILARITY && score > bestScore) {
-        bestK = k;
-        bestScore = score;
-        if (exact) break;
+
+  // Pathological run (a whole script pasted over another): stay linear, but
+  // still align the blocks that are exactly the same.
+  if (runA.length * runB.length > MAX_PAIR_CELLS) {
+    for (const ai of runA) {
+      let found = -1;
+      for (let k = nextB; k < runB.length; k++) {
+        if (!usedB[k] && sameBlock(a[ai], b[runB[k]])) { found = k; break; }
+      }
+      if (found >= 0) {
+        same.push([ai, runB[found]]);
+        usedB[found] = true;
+        nextB = found + 1;
+      } else {
+        removed.push(ai);
       }
     }
-    if (bestK >= 0) {
-      changed.push([ai, runB[bestK]]);
-      nextB = bestK + 1;
-    } else {
-      removed.push(ai);
+  } else {
+    for (const ai of runA) {
+      let bestK = -1;
+      let bestScore = -1;
+      let exactK = -1;
+      for (let k = nextB; k < runB.length; k++) {
+        if (usedB[k]) continue;
+        const bi = runB[k];
+        if (sameBlock(a[ai], b[bi])) { exactK = k; break; }
+        const score = similarity(a[ai].text, b[bi].text);
+        if (score >= CHANGE_SIMILARITY && score > bestScore) {
+          bestK = k;
+          bestScore = score;
+        }
+      }
+      if (exactK >= 0) {
+        same.push([ai, runB[exactK]]);
+        usedB[exactK] = true;
+        nextB = exactK + 1;
+      } else if (bestK >= 0) {
+        changed.push([ai, runB[bestK]]);
+        usedB[bestK] = true;
+        nextB = bestK + 1;
+      } else {
+        removed.push(ai);
+      }
     }
   }
-  return { changed, removed, added: runB.slice(nextB) };
+
+  return {
+    changed,
+    same,
+    removed,
+    added: runB.filter((_, k) => !usedB[k]),
+  };
 }
 
 /** The scene each block belongs to, in its own draft. */
@@ -275,6 +455,7 @@ export function computeScriptDiff(docA: JSONContent, docB: JSONContent): ScriptD
   const charactersB = precedingCharacters(b);
 
   const changed: Array<[number, number]> = [];
+  const same: Array<[number, number]> = [];
   const removed: number[] = [];
   const added: number[] = [];
 
@@ -288,22 +469,42 @@ export function computeScriptDiff(docA: JSONContent, docB: JSONContent): ScriptD
     for (let j = prevB; j < bi; j++) runB.push(j);
     const paired = pairRun(a, b, runA, runB);
     changed.push(...paired.changed);
+    same.push(...paired.same);
     removed.push(...paired.removed);
     added.push(...paired.added);
     prevA = ai + 1;
     prevB = bi + 1;
   }
 
-  // Moves: a deleted paragraph whose exact text comes back elsewhere. Each
-  // duplicate is used once, so two identical lines moved are two moves.
+  // Moves: a deleted paragraph whose exact text comes back elsewhere, and only
+  // when that block is unique in both drafts. Cues, CUT TO: and (beat) repeat
+  // constantly, and counting them as moves inflated the summary.
+  const keyOf = (block: FlatBlock) => `${block.type}\u0000${block.text}`;
+  const countA = new Map<string, number>();
+  const countB = new Map<string, number>();
+  for (const block of a) countA.set(keyOf(block), (countA.get(keyOf(block)) ?? 0) + 1);
+  for (const block of b) countB.set(keyOf(block), (countB.get(keyOf(block)) ?? 0) + 1);
+  const addedByKey = new Map<string, number>();
+  for (const bi of added) {
+    const key = keyOf(b[bi]);
+    if (!addedByKey.has(key)) addedByKey.set(key, bi);
+  }
+
   const moved: Array<[number, number]> = [];
+  // Cues, transition labels and parentheticals repeat and are short: a cue that
+  // comes back in another scene is a new line's cue, not a move of that label.
+  const MOVABLE_TYPES = new Set(['action', 'dialogue', 'general', 'lyrics', 'shot']);
   for (const ai of [...removed]) {
     if (!a[ai].text.trim()) continue;
-    const at = added.findIndex((bi) => sameBlock(a[ai], b[bi]));
-    if (at < 0) continue;
-    moved.push([ai, added[at]]);
+    if (!MOVABLE_TYPES.has(a[ai].type)) continue;
+    const key = keyOf(a[ai]);
+    if ((countA.get(key) ?? 0) !== 1 || (countB.get(key) ?? 0) !== 1) continue;
+    const bi = addedByKey.get(key);
+    if (bi === undefined) continue;
+    moved.push([ai, bi]);
     removed.splice(removed.indexOf(ai), 1);
-    added.splice(at, 1);
+    added.splice(added.indexOf(bi), 1);
+    addedByKey.delete(key);
   }
 
   const entries: Entry[] = [];
@@ -311,6 +512,24 @@ export function computeScriptDiff(docA: JSONContent, docB: JSONContent): ScriptD
   let totalModified = 0;
 
   for (const [ai, bi] of pairs) {
+    entries.push({
+      block: {
+        type: 'unchanged',
+        elementType: a[ai].type,
+        sceneHeading: scenesB[bi] || null,
+        oldText: a[ai].text,
+        newText: b[bi].text,
+        oldIndex: ai,
+        newIndex: bi,
+        wordDiffs: null,
+      },
+      key: bi,
+      rank: 0,
+    });
+  }
+
+  // Identical blocks found inside an unmatched run: unchanged, never a rewrite.
+  for (const [ai, bi] of same) {
     entries.push({
       block: {
         type: 'unchanged',
@@ -371,15 +590,20 @@ export function computeScriptDiff(docA: JSONContent, docB: JSONContent): ScriptD
     if (scenesA[ai]) scenesChanged.add(scenesA[ai]);
   }
 
+  // Every matched pair, in old-draft order, so a deletion can be placed after
+  // the block it followed even when that block was itself rewritten.
+  const matched = [...pairs, ...same, ...changed, ...moved]
+    .sort((x, y) => x[0] - y[0] || x[1] - y[1]);
+
   for (const ai of removed) {
-    // The deletion belongs just after the last aligned block before it.
-    let lo = 0, hi = pairs.length;
+    // The deletion belongs just after the last matched block before it.
+    let lo = 0, hi = matched.length;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
-      if (pairs[mid][0] < ai) lo = mid + 1;
+      if (matched[mid][0] < ai) lo = mid + 1;
       else hi = mid;
     }
-    const anchor = lo > 0 ? pairs[lo - 1][1] + 1 : 0;
+    const anchor = lo > 0 ? matched[lo - 1][1] + 1 : 0;
     entries.push({
       block: {
         type: 'deleted',
