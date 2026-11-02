@@ -13,7 +13,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  BENGALI, KANNADA, MALAYALAM, SINHALA, TAMIL, TELUGU,
+  BENGALI, DEVANAGARI, KANNADA, MALAYALAM, SINHALA, TAMIL, TELUGU,
   reorderIndic, hasScript,
 } from './indic';
 
@@ -45,6 +45,35 @@ describe('pre-base vowel signs move ahead of their consonant', () => {
     // of all of it rather than sitting between the two consonants.
     expect(points(reorderIndic('க்ஷெ', TAMIL)))
       .toEqual(['0bc6', '0b95', '0bcd', '0bb7']);
+  });
+});
+
+describe('Tamil, whose pulli ends a syllable rather than joining one', () => {
+  // The Play Store report: எப்போது exported as எபேபாது. Tamil writes its
+  // virama as a visible dot and forms no conjuncts, so in ப்போ the vowel sign
+  // belongs to the second ப alone.
+  it('moves the sign ahead of the last consonant only', () => {
+    // எ ப ் ப ே ா த ு — ொ/ோ split, ே before the second ப.
+    expect(points(reorderIndic('எப்போது', TAMIL)))
+      .toEqual(['0b8e', '0baa', '0bcd', '0bc7', '0baa', '0bbe', '0ba4', '0bc1']);
+  });
+
+  it('does the same for ை after a doubled consonant', () => {
+    // உன்னை: ை goes before the second ன, not before ன்ன.
+    expect(points(reorderIndic('உன்னை', TAMIL)))
+      .toEqual(['0b89', '0ba9', '0bcd', '0bc8', '0ba9']);
+  });
+
+  it('still keeps க்ஷ together, the one conjunct Tamil has', () => {
+    expect(points(reorderIndic('க்ஷொ', TAMIL)))
+      .toEqual(['0bc6', '0b95', '0bcd', '0bb7', '0bbe']);
+  });
+
+  it('leaves Devanagari clusters joined as they were', () => {
+    // स्थि: the ि belongs to the whole of स्थ, which is what makes Tamil the
+    // exception rather than the rule.
+    expect(points(reorderIndic('स्थि', DEVANAGARI)))
+      .toEqual(['093f', '0938', '094d', '0925']);
   });
 });
 

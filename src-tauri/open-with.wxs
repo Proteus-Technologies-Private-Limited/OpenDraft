@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?if $(sys.BUILDARCH) = x86 ?>
+  <?define OpenDraftWin64 = "no" ?>
+  <?else ?>
+  <?define OpenDraftWin64 = "yes" ?>
+  <?endif ?>
+  <Fragment>
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="OpenDraftAlternative_fdx" Guid="c49a304b-14e8-5e93-a994-bfe0381e9ba3" Win64="$(var.OpenDraftWin64)">
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.fdx" Type="string" Value="OpenDraft fdx document" KeyPath="yes"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.fdx\shell\open\command" Type="string" Value="&quot;[!Path]&quot; &quot;%1&quot;"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\.fdx\OpenWithProgids" Name="OpenDraft.Alternative.fdx" Type="string" Value=""/>
+      </Component>
+      <Component Id="OpenDraftAlternative_fadein" Guid="df8b0b9c-3fa4-5cd2-8257-635a02756093" Win64="$(var.OpenDraftWin64)">
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.fadein" Type="string" Value="OpenDraft fadein document" KeyPath="yes"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.fadein\shell\open\command" Type="string" Value="&quot;[!Path]&quot; &quot;%1&quot;"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\.fadein\OpenWithProgids" Name="OpenDraft.Alternative.fadein" Type="string" Value=""/>
+      </Component>
+      <Component Id="OpenDraftAlternative_fountain" Guid="9790f386-d2b0-55aa-ab2b-74cf414e8fba" Win64="$(var.OpenDraftWin64)">
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.fountain" Type="string" Value="OpenDraft fountain document" KeyPath="yes"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.fountain\shell\open\command" Type="string" Value="&quot;[!Path]&quot; &quot;%1&quot;"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\.fountain\OpenWithProgids" Name="OpenDraft.Alternative.fountain" Type="string" Value=""/>
+      </Component>
+      <Component Id="OpenDraftAlternative_osf" Guid="919c15b1-81c8-5cd5-81f9-c60081f5e0af" Win64="$(var.OpenDraftWin64)">
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.osf" Type="string" Value="OpenDraft osf document" KeyPath="yes"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.osf\shell\open\command" Type="string" Value="&quot;[!Path]&quot; &quot;%1&quot;"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\.osf\OpenWithProgids" Name="OpenDraft.Alternative.osf" Type="string" Value=""/>
+      </Component>
+      <Component Id="OpenDraftAlternative_highland" Guid="4b7addd9-7643-5194-b849-05cf903cd44b" Win64="$(var.OpenDraftWin64)">
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.highland" Type="string" Value="OpenDraft highland document" KeyPath="yes"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.highland\shell\open\command" Type="string" Value="&quot;[!Path]&quot; &quot;%1&quot;"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\.highland\OpenWithProgids" Name="OpenDraft.Alternative.highland" Type="string" Value=""/>
+      </Component>
+      <Component Id="OpenDraftAlternative_wdz" Guid="640b1415-baf8-5ba9-b91b-866bd9b1b21d" Win64="$(var.OpenDraftWin64)">
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.wdz" Type="string" Value="OpenDraft wdz document" KeyPath="yes"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.wdz\shell\open\command" Type="string" Value="&quot;[!Path]&quot; &quot;%1&quot;"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\.wdz\OpenWithProgids" Name="OpenDraft.Alternative.wdz" Type="string" Value=""/>
+      </Component>
+      <Component Id="OpenDraftAlternative_celtx" Guid="949e07be-9010-5b62-9084-b8e9e1f1813b" Win64="$(var.OpenDraftWin64)">
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.celtx" Type="string" Value="OpenDraft celtx document" KeyPath="yes"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenDraft.Alternative.celtx\shell\open\command" Type="string" Value="&quot;[!Path]&quot; &quot;%1&quot;"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\.celtx\OpenWithProgids" Name="OpenDraft.Alternative.celtx" Type="string" Value=""/>
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

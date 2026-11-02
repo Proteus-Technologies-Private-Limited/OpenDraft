@@ -35,11 +35,137 @@
 <w:t xml:space="preserve">Two people talk over each other.</w:t>
 </w:r>
 </w:p>
+<w:tbl>
+<w:tblPr>
+<w:tblW w:type="dxa" w:w="8640"/>
+<w:tblBorders>
+<w:top w:val="none" w:color="FFFFFF" w:sz="0"/>
+<w:left w:val="none" w:color="FFFFFF" w:sz="0"/>
+<w:bottom w:val="none" w:color="FFFFFF" w:sz="0"/>
+<w:right w:val="none" w:color="FFFFFF" w:sz="0"/>
+<w:insideH w:val="none" w:color="FFFFFF" w:sz="0"/>
+<w:insideV w:val="none" w:color="FFFFFF" w:sz="0"/>
+</w:tblBorders>
+<w:tblLayout w:type="fixed"/>
+</w:tblPr>
+<w:tblGrid>
+<w:gridCol w:w="4320"/>
+<w:gridCol w:w="4320"/>
+</w:tblGrid>
+<w:tr>
+<w:trPr>
+<w:cantSplit w:val="false"/>
+</w:trPr>
+<w:tc>
+<w:tcPr>
+<w:tcW w:type="dxa" w:w="4320"/>
+<w:tcBorders>
+<w:top w:val="none" w:color="FFFFFF" w:sz="0"/>
+<w:left w:val="none" w:color="FFFFFF" w:sz="0"/>
+<w:bottom w:val="none" w:color="FFFFFF" w:sz="0"/>
+<w:right w:val="none" w:color="FFFFFF" w:sz="0"/>
+</w:tcBorders>
+<w:tcMar>
+<w:top w:type="dxa" w:w="0"/>
+<w:left w:type="dxa" w:w="0"/>
+<w:bottom w:type="dxa" w:w="0"/>
+<w:right w:type="dxa" w:w="0"/>
+</w:tcMar>
+<w:vAlign w:val="top"/>
+</w:tcPr>
 <w:p>
 <w:pPr>
+<w:pStyle w:val="character"/>
+<w:keepNext/>
 <w:spacing w:before="240" w:line="240" w:lineRule="exact"/>
-<w:ind w:left="0" w:right="0"/>
+<w:ind w:left="1152" w:right="0"/>
 <w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">MARA</w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:keepNext w:val="false"/>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="432" w:right="144"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">We should go before it gets dark out there tonight.</w:t>
+</w:r>
+</w:p>
+</w:tc>
+<w:tc>
+<w:tcPr>
+<w:tcW w:type="dxa" w:w="4320"/>
+<w:tcBorders>
+<w:top w:val="none" w:color="FFFFFF" w:sz="0"/>
+<w:left w:val="none" w:color="FFFFFF" w:sz="0"/>
+<w:bottom w:val="none" w:color="FFFFFF" w:sz="0"/>
+<w:right w:val="none" w:color="FFFFFF" w:sz="0"/>
+</w:tcBorders>
+<w:tcMar>
+<w:top w:type="dxa" w:w="0"/>
+<w:left w:type="dxa" w:w="0"/>
+<w:bottom w:type="dxa" w:w="0"/>
+<w:right w:type="dxa" w:w="0"/>
+</w:tcMar>
+<w:vAlign w:val="top"/>
+</w:tcPr>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="character"/>
+<w:keepNext/>
+<w:spacing w:before="240" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="1152" w:right="0"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">JONAH</w:t>
+</w:r>
+</w:p>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="dialogue"/>
+<w:keepNext w:val="false"/>
+<w:spacing w:before="0" w:line="240" w:lineRule="exact"/>
+<w:ind w:left="432" w:right="144"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:rPr>
+<w:rFonts w:ascii="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime" w:hAnsi="Courier Prime"/>
+<w:sz w:val="24"/>
+<w:szCs w:val="24"/>
+</w:rPr>
+<w:t xml:space="preserve">Not until the others are back.</w:t>
+</w:r>
+</w:p>
+</w:tc>
+</w:tr>
+</w:tbl>
+<w:p>
+<w:pPr>
+<w:pStyle w:val="OpenDraftDualDialogueSeparator"/>
+<w:spacing w:after="0" w:before="0" w:line="1" w:lineRule="exact"/>
 </w:pPr>
 </w:p>
 <w:p>

@@ -12,7 +12,7 @@ A complete list of features in OpenDraft.
 - **Element Numbering** -- Number any element, not only scene headings: every line of dialogue, every sound effect or shot. The format chooses which elements are numbered, what restarts each count (a scene heading, a new act, any element) and an optional prefix such as FX 1. Shown in the margin on screen, in print, PDF, Word and Final Draft
 - **Podcast format** -- Scripted podcast and audio fiction, with every line of dialogue numbered for the recording session and FX and music cues numbered on their own
 - **Comic Book format** -- Full comic and graphic novel scripts: pages spelled out (PAGE ONE), panels numbered on each page, captions and balloons lettered across the page
-- **Alternates** -- Keep other versions of a line of dialogue or action, or of a whole scene, beside it and switch between them; only the version showing prints and exports
+- **Alternates** -- Keep other versions of a line of dialogue or action, or of a whole scene, beside it and switch between them; only the version showing prints and exports. During a live collaboration session the version shown stays editable, but adding, switching or deleting versions waits until the session ends (or you leave it), so two people switching at once cannot duplicate text
 - **Distraction-free writing** -- Clean, focused interface with minimal chrome
 - **Focus Mode** -- Full screen with panels and menus out of the way, typewriter scrolling, and optional dimming of all but the current element or scene
 - **Writing Goals & Sprints** -- Daily and session goals in words or pages with a status bar progress ring, timed sprints with an optional no-backspace mode, and a words-written-per-day calendar in Script Statistics, kept on your device only
@@ -59,6 +59,7 @@ A complete list of features in OpenDraft.
 
 ## Import & Export
 
+- **Dual dialogue in Word** -- Both speeches export in side-by-side columns with inline formatting and return as dual dialogue when imported. Long exchanges use Word's pagination.
 - **Final Draft (.fdx)** -- Import and export
 - **Fountain (.fountain)** -- Import and export
 - **Fade In (.fadein) / Open Screenplay Format (.osf)** -- Import and export, carrying elements, emphasis, colour, fonts, page breaks, scene numbers, synopses, dual dialogue and the title page
@@ -107,12 +108,15 @@ A complete list of features in OpenDraft.
 ## Extensibility
 
 - **Plugin Architecture** -- Extend OpenDraft with custom plugins: menu items, panels, routes, editor extensions, and importers, exporters and reports that join the built-in File and Analytics menus
+- **Add-ons** -- Optional plugins, off until you turn them on in Settings → Add-ons. Turning one on shows what it does, what (if anything) leaves your device, and its settings; turning it off removes everything it added and can delete what it stored. AI features are only ever offered this way
 - **Open API** -- FastAPI backend with documented endpoints
 
 ### Dictation and screenplay commands
 
-Tools → Dictation offers local Whisper on web/desktop, browser speech recognition,
-and device speech services on iOS/Android. Review the transcript before inserting.
+Enable Dictation in Settings → Add-ons to add Tools → Dictation. Choose Local
+Whisper where microphone capture is supported, browser speech recognition, or
+device speech services on iOS/Android. Native Android offers only its device
+engine; native Linux WebKit capture is unsupported. Review the transcript before inserting.
 Opt-in English commands start scenes and named character cues. Local audio stays
 on-device; platform/browser providers may process it remotely. See
 [Dictation](DICTATION.md) for usage, limits and the remaining native-device checks.

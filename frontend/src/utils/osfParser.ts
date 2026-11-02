@@ -21,6 +21,9 @@
  * reader).  That fallback now warns for exactly this reason.
  */
 import JSZip from 'jszip';
+import { parseOsfLayout } from './osfLayout';
+import { DEFAULT_PAGE_LAYOUT, type PageLayout } from '../stores/editorStore';
+import type { FormattingElementRule } from '../stores/formattingTypes';
 import { isDocumentFont, isDocumentSize } from './fonts';
 import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
 import { parseOsfRevisionColors } from './revisionExport';
@@ -54,6 +57,8 @@ export interface DocumentFont {
 }
 
 export interface OSFParseResult {
+  pageLayout?: Partial<PageLayout>;
+  elementRules?: Record<string, Partial<FormattingElementRule>>;
   doc: TipTapNode;
   /** Title recovered from the file, if it carries one. */
   scriptTitle: string;
@@ -218,7 +223,7 @@ function documentFontOf(styles: Map<string, StyleDef>, warnings: string[]): Docu
   if (others.size > 0) {
     warnings.push(
       `The file sets a different font on some elements (${Array.from(others).join(', ')}); ` +
-        `the whole script was imported in ${base.font}.`,
+        `built-in element fonts are preserved; custom paragraph styles may render in ${base.font}.`,
     );
   }
 
@@ -651,7 +656,7 @@ function isAnyFadeInPlaceholder(text: string): boolean {
  * that with a laid-out <titlepage> whose paragraphs are identified by
  * `bookmark`.  Both are handled, 1.2 first since a file can only use one.
  */
-function parseTitlePage(root: Element, legacyInline: boolean): { nodes: TipTapNode[]; title: string } {
+function parseTitlePage(root: Element, legacyInline: boolean, pageLayout: Partial<PageLayout>): { nodes: TipTapNode[]; title: string } {
   const tp: Record<string, string> = { ...TITLE_PAGE_ATTR_DEFAULTS };
   let found = false;
 
@@ -737,7 +742,7 @@ function parseTitlePage(root: Element, legacyInline: boolean): { nodes: TipTapNo
   // Expanded into the laid-out run the paginator and exporters measure, rather
   // than the single attrs-only node this used to return (issue #52).
   return {
-    nodes: buildTitlePageBlocks(tp as TitlePageFields) as TipTapNode[],
+    nodes: buildTitlePageBlocks(tp as TitlePageFields, { ...DEFAULT_PAGE_LAYOUT, ...pageLayout }) as TipTapNode[],
     title: tp.tpTitle,
   };
 }
@@ -793,9 +798,14 @@ export function parseOSF(xmlString: string): OSFParseResult {
   const version = parseInt(attr(root, 'version') || '', 10);
   const legacyInline = !Number.isFinite(version) || version < 20;
 
+  const supportedSections = new Set(['info', 'settings', 'styles', 'paragraphs', 'titlepage', 'lists']);
+  for (const section of Array.from(root.children)) {
+    if (!supportedSections.has(section.tagName.toLowerCase())) warnings.push(`OSF section <${section.tagName}> is not preserved by conversion.`);
+  }
+  const layout = parseOsfLayout(root, warnings);
   const styles = collectStyles(root);
   const documentFont = documentFontOf(styles, warnings);
-  const { nodes: titlePageNodes, title } = parseTitlePage(root, legacyInline);
+  const { nodes: titlePageNodes, title } = parseTitlePage(root, legacyInline, layout.pageLayout);
 
   // Fade In's revision table, which each paragraph's <mark revision> points
   // into (see utils/revisionExport).
@@ -834,6 +844,8 @@ export function parseOSF(xmlString: string): OSFParseResult {
     scriptTitle: title,
     warnings: summarizeWarnings(warnings),
     documentFont,
+    pageLayout: layout.pageLayout,
+    elementRules: layout.rules,
   };
 }
 

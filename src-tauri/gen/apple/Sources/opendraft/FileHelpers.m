@@ -1364,13 +1364,18 @@ static SFSpeechAudioBufferRecognitionRequest *gDictationRequest;
 static SFSpeechRecognitionTask *gDictationTask;
 static SFSpeechRecognizer *gDictationRecognizer;
 static BOOL gDictationTap;
+static BOOL gDictationStopping;
+static NSString *gDictationPreviousCategory;
+static NSString *gDictationPreviousMode;
+static AVAudioSessionCategoryOptions gDictationPreviousOptions;
+void ios_dictation_cancel(const char *session);
 void ios_dictation_stop(const char *session);
 @interface OpenDraftDictationLifecycle : NSObject
 @end
 @implementation OpenDraftDictationLifecycle
 + (void)load {
     [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
-        if (gDictationId) ios_dictation_stop(gDictationId.UTF8String);
+        if (gDictationId) ios_dictation_cancel(gDictationId.UTF8String);
     }];
 }
 @end
@@ -1388,14 +1393,42 @@ static void dictation_cleanup(void) {
     [gDictationRequest endAudio];
     [gDictationTask cancel];
     gDictationTask = nil; gDictationRequest = nil; gDictationEngine = nil; gDictationRecognizer = nil;
-    [[AVAudioSession sharedInstance] setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
+    if (gDictationPreviousCategory) {
+        AVAudioSession *audio = [AVAudioSession sharedInstance];
+        [audio setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
+        [audio setCategory:gDictationPreviousCategory mode:gDictationPreviousMode options:gDictationPreviousOptions error:nil];
+        gDictationPreviousCategory = nil; gDictationPreviousMode = nil;
+    }
+    gDictationStopping = NO;
 }
-void ios_dictation_stop(const char *session) {
+void ios_dictation_cancel(const char *session) {
     NSString *sid = session ? @(session) : @"";
     dispatch_async(dispatch_get_main_queue(), ^{
         if (![gDictationId isEqualToString:sid]) return;
         gDictationId = nil;
         dictation_cleanup();
+    });
+}
+// End audio without cancelling SFSpeechRecognitionTask: its final result arrives asynchronously.
+void ios_dictation_stop(const char *session) {
+    NSString *sid = session ? @(session) : @"";
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (![gDictationId isEqualToString:sid] || gDictationStopping) return;
+        gDictationStopping = YES;
+        [gDictationEngine stop];
+        if (gDictationTap) [gDictationEngine.inputNode removeTapOnBus:0];
+        gDictationTap = NO;
+        [gDictationRequest endAudio];
+        if (!gDictationTask) {
+            dictation_event(sid, @"end", nil, nil);
+            gDictationId = nil; dictation_cleanup(); return;
+        }
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+            if (![gDictationId isEqualToString:sid]) return;
+            dictation_event(sid, @"error", nil, @"Speech recognition did not return a final result.");
+            dictation_event(sid, @"end", nil, nil);
+            gDictationId = nil; dictation_cleanup();
+        });
     });
 }
 void ios_dictation_start(const char *session, const char *language) {
@@ -1418,12 +1451,21 @@ void ios_dictation_start(const char *session, const char *language) {
                         if (!gDictationRecognizer.available) { dictation_event(sid, @"error", nil, @"Speech recognition is unavailable for this language or connection."); gDictationId = nil; gDictationRecognizer = nil; return; }
                         NSError *error = nil;
                         AVAudioSession *audio = [AVAudioSession sharedInstance];
+                        gDictationPreviousCategory = audio.category;
+                        gDictationPreviousMode = audio.mode;
+                        gDictationPreviousOptions = audio.categoryOptions;
                         if (![audio setCategory:AVAudioSessionCategoryRecord mode:AVAudioSessionModeMeasurement options:AVAudioSessionCategoryOptionDuckOthers error:&error] || ![audio setActive:YES error:&error]) {
                             dictation_event(sid, @"error", nil, error.localizedDescription); gDictationId = nil; dictation_cleanup(); return;
                         }
                         gDictationEngine = [[AVAudioEngine alloc] init];
                         gDictationRequest = [[SFSpeechAudioBufferRecognitionRequest alloc] init];
                         gDictationRequest.shouldReportPartialResults = YES;
+                        if (gDictationRecognizer.supportsOnDeviceRecognition) {
+                            gDictationRequest.requiresOnDeviceRecognition = YES;
+                            dictation_event(sid, @"notice", nil, @"Using on-device Apple speech recognition.");
+                        } else {
+                            dictation_event(sid, @"notice", nil, @"On-device recognition is unavailable for this language; Apple may process audio remotely.");
+                        }
                         gDictationTask = [gDictationRecognizer recognitionTaskWithRequest:gDictationRequest resultHandler:^(SFSpeechRecognitionResult *result, NSError *failure) {
                             dispatch_async(dispatch_get_main_queue(), ^{
                                 if (![gDictationId isEqualToString:sid]) return;
@@ -1443,7 +1485,7 @@ void ios_dictation_start(const char *session, const char *language) {
                         [gDictationEngine prepare];
                         if (![gDictationEngine startAndReturnError:&error]) { dictation_event(sid, @"error", nil, error.localizedDescription); gDictationId = nil; dictation_cleanup(); return; }
                         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 30 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-                            if ([gDictationId isEqualToString:sid]) { [gDictationEngine stop]; [gDictationRequest endAudio]; }
+                            if ([gDictationId isEqualToString:sid]) ios_dictation_stop(sid.UTF8String);
                         });
                     });
                 }];

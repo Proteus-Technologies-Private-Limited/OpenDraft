@@ -15,6 +15,7 @@
 // paragraphs that fell back to 'action' so the caller can show a summary.
 
 import JSZip from 'jszip';
+import { DOCX_DUAL_SEPARATOR_STYLE } from './dualDialogue';
 import { singleLine } from './nodeText';
 import { buildTitlePageBlocks, type TitlePageFields } from './titlePageBlocks';
 
@@ -372,7 +373,10 @@ function flattenBody(body: Element, styleMap: StyleMap, warnings: string[]): {
     const el = child as Element;
     const local = el.localName;
     if (local === 'p') {
-      paragraphs.push(readParagraph(el, styleMap));
+      const paragraph = readParagraph(el, styleMap);
+      const style = firstChildNS(firstChildNS(el, 'pPr'), 'pStyle');
+      if (style && getAttrNS(style, 'val') === DOCX_DUAL_SEPARATOR_STYLE && !paragraph.plainText) continue;
+      paragraphs.push(paragraph);
     } else if (local === 'tbl') {
       // Inspect rows.  A 2-column row → potential dual-dialogue.
       const rows = childrenNS(el, 'tr');
@@ -802,23 +806,26 @@ export async function parseDocx(buf: ArrayBuffer): Promise<DocxParseResult> {
     const dual = dualByLeftStart.get(i);
     if (dual) {
       // Build inner nodes for each side; treat as their own mini-classifier pass
-      const innerNodes: TipTapNode[] = [];
+      const columns: TipTapNode[] = [];
       const sides: Array<[number, number]> = [
         [dual.leftStart, dual.leftEnd],
         [dual.rightStart, dual.rightEnd],
       ];
       for (const [s, e] of sides) {
+        const innerNodes: TipTapNode[] = [];
         for (let j = s; j <= e; j++) {
           const p = paragraphs[j];
           let t = types[j];
           // Inside a 2-col table, force the first non-empty para to character if all-caps
-          if (t === 'action' && looksLikeCharacter(p.plainText)) t = 'character';
-          else if (t === 'action' && p.plainText && j > s) t = 'dialogue';
+          if (!['character', 'dialogue', 'parenthetical'].includes(t)) {
+            t = looksLikeCharacter(p.plainText) ? 'character' : 'dialogue';
+          }
           innerNodes.push(buildNode(t, p.runs, p.plainText));
           skipUntil.add(j);
         }
+        columns.push({ type: 'dualDialogueColumn', content: innerNodes });
       }
-      content.push({ type: 'dualDialogue', content: innerNodes });
+      content.push({ type: 'dualDialogue', content: columns });
       continue;
     }
 

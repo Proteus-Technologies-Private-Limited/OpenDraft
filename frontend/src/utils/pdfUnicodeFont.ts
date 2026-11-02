@@ -34,14 +34,18 @@
  * substituted for its joined forms, which is why the coverage above carries
  * the presentation blocks.
  *
- * **Shaping.**  Conjuncts and reph are substitutions, and jsPDF addresses a
- * font only through its `cmap` — see `utils/indic.ts` and
- * `public/fonts/README.md`.
+ * **Shaping** is not done here either.  The Indic faces keep their OpenType
+ * tables and are shaped with HarfBuzz as they are drawn — `utils/textShaping`
+ * and `utils/pdfShapedText`; this module binds each embedded style to the font
+ * it was shaped from, and keeps `utils/indic`'s reordering for when HarfBuzz
+ * cannot be loaded.
  */
 import type jsPDF from 'jspdf';
 import {
   SCRIPTS, reorderFor, type IndicScript,
 } from './indic';
+import { shapingFont } from './textShaping';
+import { bindShapingFont } from './pdfShapedText';
 
 /**
  * The jsPDF font ids the fallbacks are registered under — and, because jsPDF
@@ -102,7 +106,15 @@ interface FallbackSpec {
    * to export a script almost none of them write.
    */
   remote?: boolean;
-  /** Reordering the script needs before it can be drawn — see utils/indic. */
+  /**
+   * The ISO 15924 script HarfBuzz shapes this face as, for a face whose file
+   * keeps its OpenType tables — see utils/textShaping.
+   */
+  shapeAs?: string;
+  /**
+   * Reordering the script needs before it can be drawn — see utils/indic. For
+   * a shaped face, this is what is drawn when HarfBuzz cannot be loaded.
+   */
   shape?: (text: string) => string;
   /** The families this face can be drawn from; the first is the default. */
   variants: readonly FaceVariant[];
@@ -114,6 +126,7 @@ function indicFace(script: IndicScript, prefix: string, coverage: readonly Range
     id: prefix,
     coverage,
     monospace: false,
+    shapeAs: script.iso15924,
     shape: reorderFor(script),
     variants: [{
       key: prefix,
@@ -538,6 +551,13 @@ function toBase64(bytes: Uint8Array): string {
  * A bundled font is a local read and reports nothing worth showing; a remote
  * CJK family takes long enough that saying nothing reads as a hang.
  */
+function fromBase64(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 async function readWithProgress(
   response: Response,
   label: string,
@@ -632,6 +652,11 @@ export interface UnicodeFont {
   covers(codePoint: number): boolean;
   /** The text as this face needs it ordered, which for Latin scripts is as it is. */
   shape(text: string): string;
+  /**
+   * Whether HarfBuzz shapes this face — utils/pdfShapedText then draws it, from
+   * the text as typed, and `shape` is only the fallback for a run it declines.
+   */
+  shaped: boolean;
 }
 
 /** The fallback faces a document ended up with. */
@@ -683,13 +708,23 @@ async function embedOne(
     : null;
   if (!regular) return null;
 
+  let shaped = !!spec.shapeAs;
   const register = async (style: FontStyle) => {
     const url = variant.files[style];
-    const data = (url && style !== 'normal' ? await fetchFont(url, variant.label, report) : null)
-      || regular;
+    const own = url && style !== 'normal' ? await fetchFont(url, variant.label, report) : null;
+    const data = own || regular;
     const vfsName = `${spec.id}-${style}.ttf`;
     pdf.addFileToVFS(vfsName, data);
     pdf.addFont(vfsName, spec.id, style);
+
+    if (spec.shapeAs) {
+      // Shaped from the very bytes jsPDF was given for this style: the glyph
+      // ids HarfBuzz returns are only meaningful in the file they came from.
+      const key = own ? url! : variant.files.normal!;
+      const shaping = await shapingFont(key, () => fromBase64(data));
+      if (shaping) bindShapingFont(pdf, spec.id, style, shaping, spec.shapeAs);
+      else shaped = false;
+    }
   };
 
   for (const style of styles) await register(style);
@@ -710,6 +745,7 @@ async function embedOne(
     monospace: spec.monospace,
     covers: (codePoint) => inRanges(codePoint, spec.coverage),
     shape: spec.shape ?? ((text) => text),
+    shaped,
   };
 }
 

@@ -1,3 +1,6 @@
+import SourceBackupRecovery from './SourceBackupRecovery';
+import { isTauri as isNativeApp, getOS as nativeOS } from '../services/platform';
+import { ExternalSaveCancelled, externalScreenplay } from '../services/externalSave';
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Editor } from '@tiptap/react';
@@ -71,7 +74,6 @@ import { useNavigate } from 'react-router-dom';
 import { flushPendingSave, setLeaveGuard, leaveEditor as leaveEditorScreen } from '../services/pendingSave';
 import { scriptApi } from '../services/scriptApi';
 import { useSettingsStore } from '../stores/settingsStore';
-import { useDictationStore } from '../stores/dictationStore';
 import { useWritingGoalsStore } from '../stores/writingGoalsStore';
 import { clearEditorHistory } from '../editor/clearHistory';
 import { clearSessionDoc } from '../utils/sessionDoc';
@@ -225,12 +227,17 @@ import {
   FaPuzzlePiece,
   FaLayerGroup,
   FaUserEdit,
+  FaTrashAlt,
 } from 'react-icons/fa';
 import { REVISION_COLORS, nextRevisionColor } from '../editor/revisionColors';
 import RevisionSettingsDialog from './RevisionSettingsDialog';
 import ReportsDialog from './ReportsDialog';
 import SidesDialog, { type SidesIntent } from './SidesDialog';
 import PdfSecurityDialog, { type PdfSecurityRequest } from './PdfSecurityDialog';
+import DeleteScriptDialog from './DeleteScriptDialog';
+import { confirmTargetName } from '../utils/deleteConfirm';
+import PdfExportDialog, { type PdfExportChoice } from './PdfExportDialog';
+import { sceneHeadings, sceneRangeDocument, sceneSelectionDocument } from '../utils/pdfSceneExport';
 import { sanitizeExportFilename } from '../utils/exportFilename';
 import type { PluginExporter } from '../plugins/registry';
 import ScriptProfileDialog from './ScriptProfileDialog';
@@ -258,6 +265,8 @@ import { omitSceneTransaction, sceneOmittedAt } from '../editor/omitScene';
  *  and how scenes are numbered. */
 function osfExtras(s: ReturnType<typeof useEditorStore.getState>) {
   return {
+    pageLayout: s.pageLayout,
+    elementRules: useFormattingTemplateStore.getState().getActiveTemplate().rules,
     revisions: { color: s.revisionMode ? s.revisionColor : '', settings: s.revisionSettings },
     sceneNumbers: { visible: s.sceneNumbersVisible, locked: s.sceneNumbersLocked },
   };
@@ -337,6 +346,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     toggleIndexCards,
     beatBoardOpen,
     toggleBeatBoard,
+    outlineOpen,
+    toggleOutline,
     scriptNotesOpen,
     toggleScriptNotes,
     characterProfilesOpen,
@@ -470,7 +481,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
     const docBefore = editor?.state.doc;
     setSaveStatus('saving');
     try {
-      await saveDocumentInPlace(origin.bookmark, await serializeForOrigin(origin.format));
+      // An automatic save never asks: until the writer has agreed to overwrite
+      // another application's file once, it is skipped and the document stays
+      // unsaved (ExternalSaveCancelled, below).
+      await saveDocumentInPlace(origin.bookmark, await serializeForOrigin(origin.format), { name: origin.name, warnings: origin.warnings, background: auto });
       // The writer may have opened something else while the write was in
       // flight; the status now belongs to that document, not this one.
       if (useEditorStore.getState().documentOrigin?.bookmark !== origin.bookmark) return true;
@@ -486,6 +500,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       clearRecoverySnapshot();
       return true;
     } catch (err) {
+      if (err instanceof ExternalSaveCancelled) { setSaveStatus('unsaved'); return false; }
       console.error(auto ? 'Auto-save in place failed:' : 'Save in place failed:', err);
       const msg = err instanceof Error ? err.message : String(err);
       // Left in the error state on purpose: the file did NOT receive this
@@ -526,10 +541,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
       setSaveStatus('saved');
       // A script linked to a file on disk is safe in the library either way,
       // but the writer pressed Save expecting their file to have it too.
-      const fileStatus = useLinkedFileStore.getState().byScript[currentScriptId];
+      let fileStatus = useLinkedFileStore.getState().byScript[currentScriptId];
+      if (fileStatus?.state === 'pending' && externalScreenplay(fileStatus.path)) {
+        const { saveLinkedFileWithReview } = await import('../services/linkedFiles');
+        await saveLinkedFileWithReview(currentProject.id, currentScriptId);
+        fileStatus = useLinkedFileStore.getState().byScript[currentScriptId];
+      }
       if (fileStatus?.state === 'pending' && fileStatus.error) {
         const name = fileStatus.path.split(/[/\\]/).pop() || fileStatus.path;
-        showToast(`Saved in OpenDraft, but not to ${name}: ${fileStatus.error}. OpenDraft will keep trying.`, 'error');
+        showToast(`Saved in OpenDraft, but not to ${name}: ${fileStatus.error}. ${externalScreenplay(fileStatus.path) ? 'Use Save to review the external file again.' : 'OpenDraft will keep trying.'}`, 'error');
       }
       // The user's real copy now holds this text, so there is nothing left to
       // recover. Done here as well as in the snapshot hook because an explicit
@@ -1042,6 +1062,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   // ── About / What's New ──
   const [recoverBackupOpen, setRecoverBackupOpen] = useState(false);
+  const [sourceBackupOpen, setSourceBackupOpen] = useState(false);
   // Backups asked for before a folder was chosen: ask for one here, then go on.
   const [backupFolderPrompt, setBackupFolderPrompt] = useState<'backup' | 'open' | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -1103,6 +1124,25 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const [revisionSettingsOpen, setRevisionSettingsOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
   const [pdfSecurityOpen, setPdfSecurityOpen] = useState(false);
+  const [pdfExportOpen, setPdfExportOpen] = useState(false);
+  /**
+   * The headings of the document about to be exported, captured when the dialog
+   * opens. The dialog must number the same scenes the exporter will see (the
+   * live store still holds a pending suggested heading, `exportJSON` does not).
+   */
+  const [pdfExportScenes, setPdfExportScenes] = useState<string[]>([]);
+  // File › Delete Script…: what the dialog shows, captured when it opens so a
+  // later change to the editor cannot retarget the delete.
+  const [deleteScriptInfo, setDeleteScriptInfo] = useState<{
+    projectId: string;
+    projectName: string;
+    scriptId: string;
+    title: string;
+    source: 'local' | 'cloud';
+    pageCount: number | null;
+    updatedAt: string | null;
+    linkedFilePath: string | null;
+  } | null>(null);
   /** The document Sides was opened on. Its scene indices are what the dialog
    *  selects by, so the export has to lay out this same document. */
   const [sidesDoc, setSidesDoc] = useState<JSONContent | null>(null);
@@ -1425,7 +1465,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       setScripts([]);
       // Not setImportedSource: this is not a copy. Save writes back here.
       store.setImportedSource(null);
-      store.setDocumentOrigin({ bookmark: opened.bookmark, name: opened.name, format: ext });
+      store.setDocumentOrigin({ bookmark: opened.bookmark, name: opened.name, format: ext, warnings: imported.warnings });
       useBackupStatusStore.getState().noteDocumentOpened();
 
       for (const w of imported.warnings) console.warn('[Open in place]', w);
@@ -1682,6 +1722,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     store.setCharacterProfiles([]);
     store.setScenes([]);
     store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT });
+    useEditorStore.setState({ sourceFidelity: null });
     store.resetRevisionState();
     // A new screenplay starts at Standard pacing with no genres.
     store.setScriptProfile(DEFAULT_SCRIPT_PROFILE);
@@ -1712,6 +1753,79 @@ const MenuBar: React.FC<MenuBarProps> = ({
       showToast('Document closed', 'success');
     });
   }, [confirmOrRun, editor, resetForNewScreenplay]);
+
+  // ── File › Delete Script… ──
+  // Only a script in the library: a file opened in place has nothing there to
+  // delete, and deleting the writer's own file from a menu is not this item.
+  const canDeleteScript = Boolean(currentProject && currentScriptId) && !hasFileOrigin && !isCollabGuest;
+
+  const handleOpenDeleteScript = useCallback(async () => {
+    const project = currentProject;
+    const scriptId = currentScriptId;
+    const ed = useEditorStore.getState();
+    if (!project || !scriptId || ed.documentOrigin) return;
+    const ps = useProjectStore.getState();
+    const source: 'local' | 'cloud' = ps.isCloudScript(project.id, scriptId) ? 'cloud' : 'local';
+    const meta = ps.scripts.find((s) => s.id === scriptId);
+    let linkedFilePath: string | null = null;
+    if (isDesktopTauri() && source === 'local') {
+      try {
+        const lf = await import('../services/linkedFiles');
+        linkedFilePath = (await lf.getLink(scriptId))?.path ?? null;
+      } catch (err) {
+        // Without the link the dialog just leaves out "also delete the file";
+        // the file is then kept, which is the safe way to be wrong.
+        console.warn('[delete-script] could not read the linked file', err);
+      }
+    }
+    setDeleteScriptInfo({
+      projectId: project.id,
+      projectName: project.name,
+      scriptId,
+      title: meta?.title || ed.documentTitle || '',
+      source,
+      pageCount: ed.pageCount || meta?.page_count || null,
+      updatedAt: meta?.updated_at ?? null,
+      linkedFilePath,
+    });
+  }, [currentProject, currentScriptId]);
+
+  /** Delete it, clear the editor, and show what is left of the project. Throws
+   *  to the dialog, which shows the message and keeps the script open. */
+  const handleConfirmDeleteScript = useCallback(async (deleteLinkedFile: boolean) => {
+    const info = deleteScriptInfo;
+    if (!info || !editor) return;
+    if (deleteLinkedFile && info.linkedFilePath) {
+      const lf = await import('../services/linkedFiles');
+      await lf.deleteLinkedFile(info.scriptId);
+    }
+    await scriptApi.deleteScript(info.projectId, info.scriptId);
+    // The same teardown as Close Script, minus the "save first?" question —
+    // there is nothing left to save to. Clearing the project and script ids
+    // is also what stops every auto-save aimed at the deleted script.
+    resetForNewScreenplay();
+    editor.commands.setContent({ type: 'doc', content: [{ type: 'action', content: [] }] }, true);
+    clearEditorHistory(editor);
+    clearRecoverySnapshot();
+    releaseOpenDocument();
+    setDeleteScriptInfo(null);
+    if (info.source === 'cloud') useProjectStore.getState().markCloudProject(info.projectId);
+    // Replace: Back must not lead into the editor route of a script that is
+    // gone. The project page says what was deleted, and offers to delete the
+    // project too if that was its last script.
+    navigate(`/project/${info.projectId}`, {
+      replace: true,
+      state: { deletedScript: confirmTargetName(info.title) },
+    });
+  }, [deleteScriptInfo, editor, resetForNewScreenplay, navigate]);
+
+  const handleDeleteScriptOpenProject = useCallback(() => {
+    const info = deleteScriptInfo;
+    if (!info) return;
+    setDeleteScriptInfo(null);
+    if (info.source === 'cloud') useProjectStore.getState().markCloudProject(info.projectId);
+    void leaveEditor(() => navigate(`/project/${info.projectId}`));
+  }, [deleteScriptInfo, leaveEditor, navigate]);
 
   /** Picker mode: 'reset' clears project context (top-level New Screenplay);
    *  'apply-only' just applies the template, leaving the current project intact
@@ -2104,14 +2218,56 @@ const MenuBar: React.FC<MenuBarProps> = ({
     }
   }, [editor]);
 
-  const handleExportPDF = useCallback(async () => {
+  /** File → Export → PDF opens the choices; the export itself is below. */
+  const handleExportPDF = useCallback(() => {
     if (!editor) return;
+    // Number the scenes from the same document the export will use, so a
+    // pending suggestion cannot shift the list against the file.
+    setPdfExportScenes(sceneHeadings(exportJSON(editor)));
+    setPdfExportOpen(true);
+  }, [editor]);
+
+  const handleExportPDFWithChoice = useCallback(async (choice: PdfExportChoice) => {
+    if (!editor) return;
+    setPdfExportOpen(false);
     try {
       const json = exportJSON(editor);
+      const doc = choice.mode === 'pick'
+        ? sceneSelectionDocument(json, {
+          scenes: choice.selectedScenes,
+          oneScenePerPage: choice.oneScenePerPage,
+        })
+        : sceneRangeDocument(json, {
+          from: choice.fromIndex,
+          to: choice.toIndex,
+          oneScenePerPage: choice.oneScenePerPage,
+        });
+      const base = pdfOptions(doc);
+      const sceneCount = sceneHeadings(json).length;
+      const fullRange = choice.mode === 'pick'
+        ? choice.selectedScenes.length >= sceneCount
+        : choice.fromIndex === 0 && choice.toIndex >= sceneCount - 1;
+      // A range's pages are its own, so the labels of the full script would be
+      // wrong on it; the same goes for one-scene-per-page, which re-paginates.
+      const keepsPageLabels = fullRange && !choice.oneScenePerPage;
+      const name = keepsPageLabels
+        ? documentTitle
+        : choice.mode === 'pick'
+          ? `${documentTitle || 'Untitled'} - Selected Scenes`
+          : `${documentTitle || 'Untitled'} - Scenes ${choice.fromIndex + 1}-${choice.toIndex + 1}`;
       // A font that would not load leaves the script it was for blank on the
       // page — the writer has to hear that now, not from whoever they send it
       // to. See RenderedPDF.warning.
-      const warning = await exportPDF(json, documentTitle, pageLayout, pdfOptions(json));
+      const warning = await exportPDF(doc, name, pageLayout, {
+        ...base,
+        includeTitlePage: choice.includeTitlePage,
+        sceneNumbersVisible: choice.sceneNumbers,
+        pageNumbers: choice.pageNumbers,
+        pageLabels: keepsPageLabels ? base.pageLabels : null,
+        watermark: choice.watermark
+          ? { text: choice.watermarkText.trim(), opacity: 0.15, style: 'diagonal' }
+          : null,
+      });
       if (warning) showToast(warning, 'error');
     } catch (err) {
       console.error('PDF export failed:', err);
@@ -2630,6 +2786,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
           action: () => { void handleOpenFolderAsProject(); },
           disabled: isCollabGuest,
         }] : []),
+        // Also under Tools, where it has always been — but File is where people
+        // look for their files, and a reviewer could not find delete at all.
+        { icon: <FaProjectDiagram />, label: 'Manage Projects…', action: goToProjects, disabled: isCollabGuest },
         {
           // "Close Script", not "Close": the menu bar lives inside the window on
           // touch platforms, with no window chrome around it to make plain
@@ -2670,13 +2829,25 @@ const MenuBar: React.FC<MenuBarProps> = ({
           disabled: isCollabGuest,
         }] : []),
         { separator: true, label: '' },
+        // On its own, away from Close and Save, and confirmed by typing the
+        // script's name.
+        {
+          icon: <FaTrashAlt />,
+          label: 'Delete Script…',
+          action: () => { void handleOpenDeleteScript(); },
+          disabled: !canDeleteScript,
+          title: canDeleteScript ? undefined : hasFileOrigin
+            ? 'This file was opened from disk, not from a project'
+            : 'Save the script to a project first',
+        },
+        { separator: true, label: '' },
         {
           icon: <FaFileExport />, label: 'Export',
           children: [
             { icon: <FaFileCode />, label: 'Final Draft (.fdx)', action: handleExportFDX, disabled: isCollabGuest },
             { icon: <FaFileAlt />, label: 'Fountain (.fountain)', action: handleExportFountain, disabled: isCollabGuest },
             { icon: <FaFileCode />, label: 'Fade In (.fadein)', action: handleExportFadeIn, disabled: isCollabGuest },
-            { icon: <FaFilePdf />, label: 'PDF', action: handleExportPDF },
+            { icon: <FaFilePdf />, label: 'PDF…', action: handleExportPDF },
             {
               icon: <FaFilePdf />, label: 'PDF (Revised Pages Only)', action: handleExportRevisedPDF,
               title: 'Only the pages that carry a revision mark',
@@ -2740,6 +2911,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // App builds only: a browser tab has nothing that can hold on to a
         // folder across a reload. Omitted rather than disabled — a permanently
         // greyed submenu just invites bug reports.
+        ...(isNativeApp() && ['ios', 'android'].includes(nativeOS()) ? [{ icon: <FaHistory />, label: 'Recover Original File…', action: () => setSourceBackupOpen(true) }] : []),
         ...(backupsSupported() ? [
           { separator: true, label: '' },
           {
@@ -3055,6 +3227,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaCompass />, label: navigatorOpen ? '\u2713 Navigator' : 'Navigator', action: toggleNavigator },
             { icon: <FaTh />, label: indexCardsOpen ? '\u2713 Index Cards' : 'Index Cards', action: toggleIndexCards },
             { icon: <FaStream />, label: beatBoardOpen ? '\u2713 Beat Board' : 'Beat Board', action: toggleBeatBoard },
+            { icon: <FaListUl />, label: outlineOpen ? '\u2713 Outline' : 'Outline', action: toggleOutline },
             { icon: <FaProjectDiagram />, label: 'Story Timeline…', title: 'Plotlines across the scenes, by screen time', action: () => {
               // The timeline edits scene headings, so the script has to be on
               // screen under it, not the Beat Board or Statistics.
@@ -3144,7 +3317,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {
       label: 'Tools',
       items: [
-        { icon: <FaMicrophoneAlt />, label: 'Dictation…', action: () => useDictationStore.getState().setOpen(true), disabled: !editor || !editor.isEditable },
         {
           icon: <FaUserFriends />, label: 'Collaboration',
           children: [
@@ -3177,6 +3349,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
           action: () => {
             const tr = useTableReadStore.getState();
             if (tr.open) { tr.setOpen(false); return; }
+            // Table Read docks under the script; close the Outline so the
+            // script it reads is actually on screen.
+            if (useEditorStore.getState().outlineOpen) useEditorStore.getState().toggleOutline();
             tr.setOpen(true);
             // A browser asks where the voices come from before the first
             // read, rather than at the first Play; so does a choice of AI
@@ -3825,6 +4000,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         }}
       />
     )}
+    {sourceBackupOpen && <SourceBackupRecovery onClose={() => setSourceBackupOpen(false)} />}
     <RecoverBackupDialog
       open={recoverBackupOpen}
       onClose={() => setRecoverBackupOpen(false)}
@@ -3843,12 +4019,29 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <div className="dialog-header">About Open Draft</div>
           <div className="dialog-body about-body">
             <div className="about-title">Open Draft</div>
-            <div className="about-version">Version 2.8.0</div>
+            <div className="about-version">Version 2.8.2</div>
             <div className="about-tagline">Free, open-source screenwriting software</div>
 
             <div className="about-whats-new">
-              <div className="about-section-title">What's New in 2.8.0</div>
+              <div className="about-section-title">What's New in 2.8.2</div>
               <div className="about-changelog">
+              <div className="about-subsection-title">v2.8.2</div>
+              <ul className="about-list">
+                <li><strong>Delete a Script From the File Menu</strong> &mdash; Deleting a draft meant finding Manage Projects under Tools and the &#8942; menu on the script&rsquo;s card, and writers could not find it. <em>File &rarr; Delete Script&hellip;</em> now deletes the script you have open, on this device or in OpenDraft Cloud. You type its name to confirm (capitals, spacing and curly dashes don&rsquo;t count against you), and land in its project with the scripts that are left. A script also saved to a file on disk asks whether to delete the file too, and keeps it unless you say so.</li>
+                <li><strong>Manage Projects, Where You Look for It</strong> &mdash; <em>Manage Projects&hellip;</em> is in the File menu as well as Tools. <em>File &rarr; Open Script&hellip;</em> links to it at the bottom, with a <em>Manage</em> link beside each project, and the delete dialog points there for clearing out several drafts at once. Deleting a project&rsquo;s last script, from either place, asks whether to delete the empty project too; keeping it is the default.</li>
+                <li><strong>Tamil PDFs Look the Way You Typed Them</strong> &mdash; Tamil looked right in the editor but came out of a PDF garbled: vowel signs landed on the wrong letter (எப்போது printed as எபேபாது), and letters such as கு, டு and ரு came out as the bare consonant with a loose hook beside it. PDF export now builds every letter from the font&rsquo;s own Tamil rules, the same way the editor does, so the PDF matches the screen &mdash; bold included &mdash; and text copied or searched in it reads as typed.</li>
+                <li><strong>Every Indian Script, Properly Joined</strong> &mdash; The same fix covers Hindi, Marathi, Bengali, Gujarati, Punjabi, Odia, Telugu, Kannada, Malayalam and Sinhala. Joined letters such as क्ष and श्र, and the reph in कर्म, now print joined instead of spelled out with a visible halant.</li>
+              </ul>
+              <div className="about-subsection-title">v2.8.1</div>
+              <ul className="about-list">
+                <li><strong>Fade In Scripts Keep Their Layout</strong> &mdash; A Fade In <code>.fadein</code> or Open Screenplay Format <code>.osf</code> file now opens with its own page size and margins, and each element keeps its indents, spacing, alignment and styles. The title page uses the same page. Saving or exporting writes the script&rsquo;s actual settings back, instead of a fixed US Letter layout, so a script that goes back and forth between Fade In and OpenDraft no longer drifts (#181).</li>
+                <li><strong>Your Original Files Are Safe</strong> &mdash; The first time you save over a Final Draft, Fade In or Fountain file you opened, OpenDraft asks first: <em>Save a Copy</em>, <em>Cancel</em>, or <em>Overwrite</em> once you confirm. The original is backed up before it is replaced (the newest five backups of each file are kept), and a save that fails leaves the original untouched. After that, saves go ahead without asking, unless another application changes the file. Auto-save never overwrites another app&rsquo;s file you haven&rsquo;t approved. On iPhone, iPad and Android, <em>File &rarr; Recover Original File&hellip;</em> gets a backed-up original back (#181).</li>
+                <li><strong>OpenDraft No Longer Takes Over Other Apps&rsquo; Files</strong> &mdash; OpenDraft opens <code>.odraft</code> files by default and is only <em>offered</em> for Final Draft, Fade In, Fountain, Highland, WriterDuet, Celtx and OSF files, so the app you already use for them stays the default. Plain <code>.txt</code> files are no longer claimed (you can still open and import them). Updating from 2.8.0 on Windows gives your previous defaults back, <code>.txt</code> included. On Linux, OpenDraft is no longer offered for every text, XML, ZIP and JSON file (#179).</li>
+                <li><strong>US Letter by Default</strong> &mdash; New scripts and <em>Page Setup &rarr; Reset Default</em> now use US Letter (8.5&Prime; &times; 11&Prime;) with 1.5&Prime; and 1&Prime; side margins, as the manual says. They had been A4. Scripts you already have keep their own page settings (#177).</li>
+                <li><strong>A Scrollbar You Can Grab</strong> &mdash; The script now always has a full-size scrollbar to drag, on Windows too, with or without the Navigator open (#178).</li>
+                <li><strong>Dual Dialogue in Word</strong> &mdash; Word export used to drop dual dialogue. Both speeches now appear side by side, with their cues, parentheticals and styling, and a Word file exported this way imports back as dual dialogue.</li>
+                <li><strong>Also Fixed</strong> &mdash; In Suggest mode, a typed word is one suggestion instead of one per letter; dragging a scene heading no longer disconnects the suggester; a Beat Board beat can be linked to a scene during a suggester&rsquo;s session; and two collaborators invited under the same name can no longer withdraw each other&rsquo;s suggestions. Versions of a line or scene can&rsquo;t be added or switched during a live collaboration session, where that could duplicate text; end the session (or leave it) first. Saving a script opened through a shortcut (symlink) now updates the real file. A Fade In file whose margins leave no room for text opens with standard margins instead of failing, and Fade In export on A4 no longer pushes lines into the right margin.</li>
+              </ul>
               <div className="about-subsection-title">v2.8.0</div>
               <ul className="about-list">
                 <li><strong>Bring Your Scripts From Anywhere</strong> &mdash; Import a screenplay PDF, a Highland <code>.highland</code>, a WriterDuet <code>.wdz</code> or a Celtx <code>.celtx</code> file. A PDF opens in an <em>Import Preview</em> first, where you can fix any misread lines in bulk &mdash; select every line read as Action and make them General in one step &mdash; before anything replaces the open script.</li>
@@ -3858,7 +4051,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 <li><strong>Plotlines and the Story Timeline</strong> &mdash; Give scenes to your A story, B story or a character&rsquo;s arc and see them as coloured rows sized by screen time (<em>View &rarr; Panels &rarr; Story Timeline</em>). Beat Board beats can link to the scenes that carry them, and jump straight there.</li>
                 <li><strong>Comic Book Scripts</strong> &mdash; A new <em>Comic Book</em> format: pages spelled out (PAGE ONE), panels numbered on each page, captions and balloons lettered in order. Turn it on in <em>Format &rarr; Script Format Preferences</em>.</li>
                 <li><strong>Notes You Can Discuss</strong> &mdash; Reply to a note, resolve it, assign it to a collaborator, and @mention people. Replies posted at the same moment by two collaborators no longer lose one. A Notes Report lists them all.</li>
-                <li><strong>Dictation</strong> &mdash; Tools &rarr; Dictation records a phrase for review before insertion. Choose local Whisper or a browser/device speech service, and optionally interpret English commands such as &ldquo;new scene&rdquo; and &ldquo;character Sarah&rdquo;.</li>
                 <li><strong>Writing Tools</strong> &mdash; Rename a character everywhere in one step (right-click a cue &rarr; <em>Character</em>); the <em>Dialogue Tuner</em> lists every line one character speaks; bookmarks; macros for text you type often; <em>Focus Mode</em> with typewriter scrolling (<kbd>&#8679;&#8984;F</kbd>); and daily goals, sprints and a words-written calendar.</li>
                 <li><strong>Your Work Travels</strong> &mdash; Bookmarks and line alternates are kept in Final Draft, Fade In and Fountain files and come back when OpenDraft opens them. Update OpenDraft on every device you use: an older version opens these scripts but drops bookmarks, alternates and plotlines if it saves them.</li>
                 <li><strong>Also Fixed</strong> &mdash; <kbd>&#8679;&#8984;N</kbd> adds a script note, as the menu says, instead of starting a new script, and <kbd>&#8679;&#8984;F</kbd> no longer opens Find as well. Script notes showed the scene before their own. In PDFs, the scene after an OMITTED heading lost its scene number. A damaged file you import now says so instead of replacing your script with a blank one.</li>
@@ -4351,6 +4543,26 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {pdfSecurityOpen && (
       <PdfSecurityDialog onExport={handleExportSecured} onClose={() => setPdfSecurityOpen(false)} />
     )}
+    {deleteScriptInfo && (
+      <DeleteScriptDialog
+        scriptTitle={deleteScriptInfo.title}
+        projectName={deleteScriptInfo.projectName}
+        source={deleteScriptInfo.source}
+        pageCount={deleteScriptInfo.pageCount}
+        updatedAt={deleteScriptInfo.updatedAt}
+        linkedFilePath={deleteScriptInfo.linkedFilePath}
+        onOpenProject={handleDeleteScriptOpenProject}
+        onCancel={() => setDeleteScriptInfo(null)}
+        onConfirm={handleConfirmDeleteScript}
+      />
+    )}
+    {pdfExportOpen && (
+      <PdfExportDialog
+        scenes={pdfExportScenes}
+        onExport={handleExportPDFWithChoice}
+        onClose={() => setPdfExportOpen(false)}
+      />
+    )}
     {sidesDoc && (
       <SidesDialog
         doc={sidesDoc}
@@ -4440,7 +4652,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <div className="dialog-header">Editing a .{foreignFormatNotice.extension} file</div>
           <div className="dialog-body">
             <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
-              Save now writes straight back to <strong>{foreignFormatNotice.name}</strong>.
+              Save will ask before overwriting <strong>{foreignFormatNotice.name}</strong>. Save As creates a working copy and keeps the source untouched.
             </p>
             <p style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--fd-text)' }}>
               That file is in another application&apos;s format, and it can only hold

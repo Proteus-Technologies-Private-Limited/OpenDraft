@@ -80,7 +80,9 @@ const { exportFDX } = await import('./fdxExporter');
 const { exportDocx } = await import('./docxExporter');
 const { exportFountain } = await import('./fountainExporter');
 const { exportOSF } = await import('./osfExporter');
-const { DEFAULT_PAGE_LAYOUT } = await import('../stores/editorStore');
+const { DEFAULT_PAGE_LAYOUT: CURRENT_DEFAULT_PAGE_LAYOUT } = await import('../stores/editorStore');
+// Existing A4 documents must keep their export geometry when new-document defaults change.
+const DEFAULT_PAGE_LAYOUT = { ...CURRENT_DEFAULT_PAGE_LAYOUT, pageWidth: 8.26, pageHeight: 11.69, rightMargin: 0.76 };
 const { useFormattingTemplateStore } = await import('../stores/formattingTemplateStore');
 const { INDUSTRY_STANDARD_ID } = await import('../stores/formattingTypes');
 const { RADIO_PLAY_ID } = await import('../stores/templates/radioPlayTemplate');
@@ -402,8 +404,8 @@ describe('golden export: podcast, numbering on', () => {
     const off = paras(offXml);
     expect(on).toHaveLength(off.length);
     const numbered = on.filter((p) => p.includes('w:hanging='));
-    // Dual dialogue is not written to Word at all yet, so its two lines are absent here.
-    expect(numbered).toHaveLength(podcastLabels().length - 2);
+    // Dialogue numbering includes both speeches in the side-by-side table.
+    expect(numbered).toHaveLength(podcastLabels().length);
     on.forEach((p, k) => { if (!p.includes('w:hanging=')) expect(p).toBe(off[k]); });
     await expect(onXml).toMatchFileSnapshot(SNAP('podcast-numbered', 'docx.xml'));
   });

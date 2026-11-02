@@ -37,6 +37,8 @@ export const SAVE_METADATA_KEYS = [
   '_beatArrangeMode',
   '_plotlines',
   '_templateId',
+  '_templateSnapshot',
+  '_sourceFidelity',
   '_ignoredWords',
   '_ignoredOnce',
   '_customDictWords',
@@ -85,7 +87,9 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
     // Written only when there are some, so a script that never uses plotlines
     // saves exactly as before. Absent reads as none.
     ...(store.plotlines.length ? { _plotlines: store.plotlines } : {}),
+    ...(store.sourceFidelity ? { _sourceFidelity: store.sourceFidelity } : {}),
     _templateId: tplStore.activeTemplateId,
+    ...(tplStore.activeTemplateId?.startsWith('osf-import:') ? { _templateSnapshot: tplStore.getActiveTemplate() } : {}),
     _ignoredWords: spellChecker.getIgnoredWords(),
     _ignoredOnce: spellChecker.getIgnoredOnce(),
     // Project dictionary lives on the Project entity now; keep the script

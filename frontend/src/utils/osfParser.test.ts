@@ -107,7 +107,7 @@ describe('parseOSF — element mapping', () => {
 
     const { doc, warnings } = parseOSF(xml);
     expect((doc.content as Node[])[0].type).toBe('action');
-    expect(warnings).toEqual([]);
+    expect(warnings).toContain('Custom OSF style "Sound Effect" is retained for export, but its paragraph-specific formatting cannot be guaranteed.');
   });
 
   it('falls back to Action and warns for a style it cannot resolve', () => {
@@ -164,7 +164,7 @@ describe('parseOSF — element mapping', () => {
 
     const { doc, warnings } = parseOSF(xml);
     expect((doc.content as Node[])[0].type).toBe('action');
-    expect(warnings).toEqual([]);
+    expect(warnings).toContain('Custom OSF style "Sound Effect" is retained for export, but its paragraph-specific formatting cannot be guaranteed.');
   });
 
   it('identifies a paragraph by its built-in index when it names no style', () => {

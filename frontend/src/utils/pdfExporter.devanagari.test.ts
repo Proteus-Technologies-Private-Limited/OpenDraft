@@ -76,42 +76,64 @@ async function exportBytes(doc: JSONContent, title = 'Test', options?: Record<st
   return Buffer.from(saved[0]).toString('latin1');
 }
 
-/** The code points a PDF says it can be copied back out as — see the Cyrillic suite. */
+/** A run of UTF-16BE hex, as a ToUnicode entry or an ActualText string holds it. */
+function utf16FromHex(hex: string): string {
+  const units: number[] = [];
+  for (let i = 0; i + 4 <= hex.length; i += 4) units.push(parseInt(hex.slice(i, i + 4), 16));
+  return String.fromCharCode(...units).replace(/^\uFEFF/, '');
+}
+
+/**
+ * The code points a PDF says it can be copied back out as — see the Cyrillic
+ * suite. A shaped glyph can stand for several characters (a conjunct's half
+ * form is स् , not स), and a cluster drawn out of reading order carries its
+ * typed text as ActualText; both are what a reader copies, so both count.
+ */
 function toUnicodeCodePoints(pdf: string): Set<number> {
   const points = new Set<number>();
+  const add = (hex: string) => {
+    for (const char of utf16FromHex(hex)) points.add(char.codePointAt(0)!);
+  };
   for (const section of pdf.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
-    for (const pair of section[1].matchAll(/<[0-9a-fA-F]+>\s*<([0-9a-fA-F]+)>/g)) {
-      points.add(parseInt(pair[1], 16));
-    }
+    for (const pair of section[1].matchAll(/<[0-9a-fA-F]+>\s*<([0-9a-fA-F]+)>/g)) add(pair[1]);
   }
+  for (const actual of pdf.matchAll(/\/ActualText\s*<([0-9a-fA-F]+)>/g)) add(actual[1]);
   return points;
 }
 
 /**
- * What the page actually paints, piece by piece, in the order it paints it.
+ * What the page actually paints, one text object at a time, in the order it
+ * paints it.
  *
- * jsPDF writes text in a Standard 14 face as a literal `(string) Tj` and text
- * in an embedded font as `<glyph codes> Tj`, so the embedded pieces are read
- * back through the document's own ToUnicode map. Only usable on a document
- * with a single embedded font — two of them have glyph codes that collide.
+ * jsPDF writes text in a Standard 14 face as a literal `(string) Tj`, and a
+ * shaped run is written as glyph ids in `[<…> -12 <…>] TJ` arrays, so the
+ * embedded pieces are read back through the document's own ToUnicode map —
+ * glyph by glyph, which is drawing order, not reading order. Only usable on a
+ * document with a single embedded font — two of them have glyph codes that
+ * collide.
  */
 function paintedPieces(pdf: string): string[] {
   const glyphs = new Map<number, string>();
   for (const section of pdf.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
     for (const pair of section[1].matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g)) {
-      glyphs.set(parseInt(pair[1], 16), String.fromCodePoint(parseInt(pair[2], 16)));
+      glyphs.set(parseInt(pair[1], 16), utf16FromHex(pair[2]));
     }
   }
-  const pieces: string[] = [];
-  for (const shown of pdf.matchAll(/(?:\(((?:\\.|[^()\\])*)\)|<([0-9a-fA-F]+)>)\s*Tj/g)) {
-    if (shown[1] !== undefined) {
-      pieces.push(shown[1].replace(/\\([()\\])/g, '$1'));
-      continue;
-    }
-    const hex = shown[2];
+  const fromGlyphs = (hex: string) => {
     let out = '';
-    for (let i = 0; i < hex.length; i += 4) out += glyphs.get(parseInt(hex.slice(i, i + 4), 16)) ?? '�';
-    pieces.push(out);
+    for (let i = 0; i < hex.length; i += 4) out += glyphs.get(parseInt(hex.slice(i, i + 4), 16)) ?? '\uFFFD';
+    return out;
+  };
+  const pieces: string[] = [];
+  for (const object of pdf.matchAll(/\nBT\n([\s\S]*?)\nET/g)) {
+    let piece = '';
+    const shown = /\(((?:\\.|[^()\\])*)\)\s*Tj|<([0-9a-fA-F]+)>\s*Tj|\[([^\]]*)\]\s*TJ/g;
+    for (const op of object[1].matchAll(shown)) {
+      if (op[1] !== undefined) piece += op[1].replace(/\\([()\\])/g, '$1');
+      else if (op[2] !== undefined) piece += fromGlyphs(op[2]);
+      else for (const hex of op[3].matchAll(/<([0-9a-fA-F]+)>/g)) piece += fromGlyphs(hex[1]);
+    }
+    if (piece) pieces.push(piece);
   }
   return pieces;
 }
@@ -150,8 +172,12 @@ describe('a Hindi screenplay', () => {
       content: [{ type: 'action', content: [text(HINDI_LINE)] }],
     });
     // Stored as ह ि …; painted as ि ह …, because nothing downstream of jsPDF
-    // will move it. See utils/devanagari.
-    expect(paintedPieces(pdf)).toContain(reorderDevanagari(HINDI_LINE));
+    // will move it. HarfBuzz does the moving now (utils/textShaping); the
+    // reordering in utils/indic is what it falls back on, and the two agree.
+    // Compared decomposed: the फ़ glyph is the font's precomposed U+095E,
+    // canonically the same as the फ + nukta typed here.
+    const nfd = (s: string) => s.normalize('NFD');
+    expect(paintedPieces(pdf).map(nfd)).toContain(nfd(reorderDevanagari(HINDI_LINE)));
     expect(reorderDevanagari(HINDI_LINE)).not.toBe(HINDI_LINE);
   });
 

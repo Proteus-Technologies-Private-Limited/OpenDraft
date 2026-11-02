@@ -134,10 +134,64 @@ export interface PluginReport {
   build: (ctx: PluginDocumentContext) => ReportTable | Promise<ReportTable>;
 }
 
+// ── Add-ons: plugins the writer chooses to turn on ──
+//
+// A plugin marked `optIn` is an add-on. It is registered like any other, but
+// it stays off until the writer turns it on in Settings → Add-ons, and while
+// it is off none of what it registers reaches the app: no menu items, panels,
+// editor extensions, importers, exporters or reports. Anything that sends the
+// writer's words off the device — an AI assistant above all — must be an
+// add-on: OpenDraft never makes that choice for the writer.
+
+/** What an add-on's settings screen is given. */
+export interface PluginSettingsProps {
+  /**
+   * `activate`: shown as the writer turns the add-on on; cancelling leaves it
+   * off. `edit`: opened later from Settings → Add-ons while it is on.
+   */
+  mode: 'activate' | 'edit';
+  /**
+   * Hand core the function that checks and stores the settings. Core calls it
+   * when the writer presses Turn On or Save. Return false — after showing your
+   * own message — to keep the dialog open. Call this again whenever the
+   * function changes (e.g. from an effect that depends on the form's values).
+   */
+  registerSave: (save: () => boolean | Promise<boolean>) => void;
+}
+
+export interface PluginDeactivateContext {
+  /** The writer asked for the add-on's stored settings (keys, addresses) to be deleted. */
+  forgetSettings: boolean;
+}
+
 export interface OpenDraftPlugin {
   id: string;
   name: string;
   version: string;
+  /** One or two sentences, shown in Settings → Add-ons. */
+  description?: string;
+  /**
+   * An add-on: off until the writer turns it on in Settings → Add-ons. Its
+   * menu items, panels, editor extensions, importers, exporters and reports
+   * are withheld while it is off. Editor extensions take effect the next time
+   * a script is opened.
+   */
+  optIn?: boolean;
+  /**
+   * Plain statement of what leaves the device and where it goes, shown before
+   * the writer turns the add-on on. Expected for any add-on that uses the
+   * network, e.g. "Sends the text you ask about to the AI server you choose."
+   */
+  privacy?: string;
+  /** Settings screen, shown when the add-on is turned on and from Settings → Add-ons. */
+  settings?: React.ComponentType<PluginSettingsProps>;
+  /**
+   * Called each time an add-on starts working: when the writer turns it on,
+   * and when it is registered while already turned on (e.g. at start-up).
+   */
+  onActivate?: () => void | Promise<void>;
+  /** Called when the writer turns the add-on off. */
+  onDeactivate?: (ctx: PluginDeactivateContext) => void | Promise<void>;
   menuItems?: PluginMenuEntry[];
   panels?: PluginPanelEntry[];
   routes?: PluginRouteEntry[];
@@ -145,6 +199,11 @@ export interface OpenDraftPlugin {
   importers?: PluginImporter[];
   exporters?: PluginExporter[];
   reports?: PluginReport[];
+  /**
+   * Grammar / writing-suggestion providers, by name. Merged with those added
+   * through `registerGrammarProvider`; an add-on's are withheld while it is off.
+   */
+  grammarProviders?: Record<string, GrammarProvider>;
   init?: (ctx: PluginContext) => Promise<void>;
   destroy?: () => void;
 }
@@ -187,12 +246,57 @@ export interface RegisteredGrammarProvider {
 
 // ── Registry implementation ──
 
-class PluginRegistry {
+/** Where the add-ons the writer turned on are remembered, per device. */
+export const ENABLED_ADDONS_KEY = 'opendraft:addons:enabled';
+
+function readEnabledAddOns(): Set<string> {
+  try {
+    const raw = globalThis.localStorage?.getItem(ENABLED_ADDONS_KEY);
+    if (!raw) return new Set();
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      console.warn('[add-ons] ignoring a malformed list of enabled add-ons');
+      return new Set();
+    }
+    return new Set(parsed.filter((id): id is string => typeof id === 'string'));
+  } catch (err) {
+    // Storage blocked (private window) or unreadable: every add-on starts off,
+    // which is the safe side.
+    console.warn('[add-ons] could not read the enabled add-ons; all start off', err);
+    return new Set();
+  }
+}
+
+function writeEnabledAddOns(ids: Set<string>): void {
+  try {
+    globalThis.localStorage?.setItem(ENABLED_ADDONS_KEY, JSON.stringify([...ids]));
+  } catch (err) {
+    console.warn('[add-ons] could not remember the enabled add-ons; the choice lasts until the app closes', err);
+  }
+}
+
+export class PluginRegistry {
   private _plugins: Map<string, OpenDraftPlugin> = new Map();
   private _listeners: Array<() => void> = [];
   private _upgradeHandler: (() => void) | null = null;
   private _grammarProviders: Map<string, GrammarProvider> = new Map();
   private _grammarListeners: Array<() => void> = [];
+  private _enabledAddOns: Set<string> | null = null;
+
+  private get _enabled(): Set<string> {
+    if (!this._enabledAddOns) this._enabledAddOns = readEnabledAddOns();
+    return this._enabledAddOns;
+  }
+
+  /** Plugins whose contributions reach the app: every plain plugin, and add-ons the writer turned on. */
+  private _active(): OpenDraftPlugin[] {
+    return Array.from(this._plugins.values()).filter((p) => !p.optIn || this._enabled.has(p.id));
+  }
+
+  private async _runActivate(plugin: OpenDraftPlugin): Promise<void> {
+    if (!plugin.onActivate) return;
+    await plugin.onActivate();
+  }
 
   /**
    * Pro registers a callback that opens its tier-picker / checkout flow.
@@ -210,7 +314,77 @@ class PluginRegistry {
   /** Register a plugin. Replaces any existing plugin with the same id. */
   register(plugin: OpenDraftPlugin): void {
     this._plugins.set(plugin.id, plugin);
-    this._notify();
+    if (plugin.optIn && this._enabled.has(plugin.id)) {
+      // Turned on in an earlier session: it starts working again now.
+      this._runActivate(plugin).catch((err) => {
+        console.error(`[add-ons] ${plugin.id} could not start`, err);
+      });
+    }
+    this._notify(plugin);
+  }
+
+  // ── Add-ons ──
+
+  /** Every add-on (opt-in plugin), on or off, sorted by name — for Settings → Add-ons. */
+  getAddOns(): OpenDraftPlugin[] {
+    return Array.from(this._plugins.values())
+      .filter((p) => p.optIn)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** Whether the writer has turned this add-on on. */
+  isAddOnEnabled(id: string): boolean {
+    return this._enabled.has(id);
+  }
+
+  /** Whether a registered plugin's contributions reach the app right now. */
+  isActive(id: string): boolean {
+    const plugin = this._plugins.get(id);
+    return !!plugin && (!plugin.optIn || this._enabled.has(id));
+  }
+
+  /**
+   * Turn an add-on on. The choice is remembered on this device. If the
+   * add-on's `onActivate` throws, it is left off and the error is rethrown
+   * for the caller to show.
+   */
+  async enableAddOn(id: string): Promise<void> {
+    const plugin = this._plugins.get(id);
+    if (!plugin) throw new Error(`No add-on called "${id}" is installed.`);
+    if (!plugin.optIn) throw new Error(`"${plugin.name}" is part of the app and cannot be turned on or off.`);
+    if (this._enabled.has(id)) return;
+    this._enabled.add(id);
+    try {
+      await this._runActivate(plugin);
+    } catch (err) {
+      this._enabled.delete(id);
+      console.error(`[add-ons] ${id} could not be turned on`, err);
+      this._notify(plugin);
+      throw new Error(`${plugin.name} could not be turned on: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    writeEnabledAddOns(this._enabled);
+    this._notify(plugin);
+  }
+
+  /**
+   * Turn an add-on off. Its contributions are withdrawn at once, even if its
+   * own `onDeactivate` fails — an add-on the writer turned off never keeps
+   * running.
+   */
+  async disableAddOn(id: string, ctx: PluginDeactivateContext = { forgetSettings: false }): Promise<void> {
+    const plugin = this._plugins.get(id);
+    if (!this._enabled.delete(id)) return;
+    writeEnabledAddOns(this._enabled);
+    this._notify(plugin);
+    if (!plugin?.onDeactivate) return;
+    try {
+      await plugin.onDeactivate(ctx);
+    } catch (err) {
+      console.error(`[add-ons] ${id} reported an error while turning off`, err);
+      throw new Error(
+        `${plugin.name} is off, but it could not finish cleaning up: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   /** Unregister a plugin by id. Calls destroy() if defined. */
@@ -218,7 +392,7 @@ class PluginRegistry {
     const plugin = this._plugins.get(id);
     if (plugin?.destroy) plugin.destroy();
     this._plugins.delete(id);
-    this._notify();
+    this._notify(plugin);
   }
 
   /** Get all registered plugins. */
@@ -229,7 +403,7 @@ class PluginRegistry {
   /** Get menu items for a specific menu section, sorted by order. */
   getMenuItems(section: MenuSection): PluginMenuEntry[] {
     const items: PluginMenuEntry[] = [];
-    for (const plugin of this._plugins.values()) {
+    for (const plugin of this._active()) {
       if (plugin.menuItems) {
         items.push(...plugin.menuItems.filter((m) => m.section === section));
       }
@@ -240,7 +414,7 @@ class PluginRegistry {
   /** Get panels registered for a specific slot, sorted by order. */
   getPanels(slot: string): PluginPanelEntry[] {
     const panels: PluginPanelEntry[] = [];
-    for (const plugin of this._plugins.values()) {
+    for (const plugin of this._active()) {
       if (plugin.panels) {
         panels.push(...plugin.panels.filter((p) => p.slot === slot));
       }
@@ -251,7 +425,7 @@ class PluginRegistry {
   /** Get plugin routes that ADD new paths (not overrides of built-ins). */
   getRoutes(): PluginRouteEntry[] {
     const routes: PluginRouteEntry[] = [];
-    for (const plugin of this._plugins.values()) {
+    for (const plugin of this._active()) {
       if (plugin.routes) {
         routes.push(...plugin.routes.filter((r) => !r.override));
       }
@@ -264,7 +438,7 @@ class PluginRegistry {
    *  Last-registered wins on conflicts. */
   getRouteOverride(path: string): React.ComponentType<any> | null {
     let component: React.ComponentType<any> | null = null;
-    for (const plugin of this._plugins.values()) {
+    for (const plugin of this._active()) {
       if (!plugin.routes) continue;
       for (const r of plugin.routes) {
         if (r.override && r.path === path) component = r.component;
@@ -276,7 +450,7 @@ class PluginRegistry {
   /** Get all editor extensions from plugins. */
   getEditorExtensions(): any[] {
     const extensions: any[] = [];
-    for (const plugin of this._plugins.values()) {
+    for (const plugin of this._active()) {
       if (plugin.editorExtensions) extensions.push(...plugin.editorExtensions);
     }
     return extensions;
@@ -285,7 +459,7 @@ class PluginRegistry {
   /** Every plugin importer, in registration order. */
   getImporters(): PluginImporter[] {
     const importers: PluginImporter[] = [];
-    for (const plugin of this._plugins.values()) {
+    for (const plugin of this._active()) {
       if (plugin.importers) importers.push(...plugin.importers);
     }
     return importers;
@@ -300,7 +474,7 @@ class PluginRegistry {
   /** Every plugin exporter, in registration order. */
   getExporters(): PluginExporter[] {
     const exporters: PluginExporter[] = [];
-    for (const plugin of this._plugins.values()) {
+    for (const plugin of this._active()) {
       if (plugin.exporters) exporters.push(...plugin.exporters);
     }
     return exporters;
@@ -309,7 +483,7 @@ class PluginRegistry {
   /** Every plugin report, in registration order. */
   getReports(): PluginReport[] {
     const reports: PluginReport[] = [];
-    for (const plugin of this._plugins.values()) {
+    for (const plugin of this._active()) {
       if (plugin.reports) reports.push(...plugin.reports);
     }
     return reports;
@@ -317,7 +491,7 @@ class PluginRegistry {
 
   /** Initialize all plugins. Call once after the editor is ready. */
   async initAll(ctx: PluginContext): Promise<void> {
-    for (const plugin of this._plugins.values()) {
+    for (const plugin of this._active()) {
       if (plugin.init) {
         try {
           await plugin.init(ctx);
@@ -336,8 +510,13 @@ class PluginRegistry {
     };
   }
 
-  private _notify(): void {
+  private _notify(changed?: OpenDraftPlugin): void {
     for (const listener of this._listeners) listener();
+    // A plugin with grammar providers coming or going (or such an add-on
+    // turned on or off) changes the providers too: the editor rescans.
+    if (changed?.grammarProviders && Object.keys(changed.grammarProviders).length > 0) {
+      this._notifyGrammar();
+    }
   }
 
   // ── Grammar providers ──
@@ -356,7 +535,14 @@ class PluginRegistry {
 
   /** Get all registered grammar providers, in insertion order. */
   getGrammarProviders(): RegisteredGrammarProvider[] {
-    return Array.from(this._grammarProviders.entries()).map(([name, provider]) => ({ name, provider }));
+    const providers = new Map(this._grammarProviders);
+    for (const plugin of this._active()) {
+      for (const [name, provider] of Object.entries(plugin.grammarProviders ?? {})) {
+        // One registered by name directly wins, as it always has.
+        if (!providers.has(name)) providers.set(name, provider);
+      }
+    }
+    return Array.from(providers.entries()).map(([name, provider]) => ({ name, provider }));
   }
 
   /** Subscribe to grammar provider registry changes. Returns unsubscribe. */

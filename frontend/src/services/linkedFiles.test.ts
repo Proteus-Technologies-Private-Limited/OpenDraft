@@ -1,3 +1,4 @@
+import { useExternalSaveReview } from './externalSave';
 /**
  * Scripts saved to files on disk (issue #135) — the behaviour that protects the
  * writer's work.
@@ -200,7 +201,11 @@ const fakeApi = {
 };
 
 vi.mock('./api', async (importOriginal) => ({ ...(await importOriginal<object>()), api: fakeApi }));
-vi.mock('./platform', async (importOriginal) => ({ ...(await importOriginal<object>()), isDesktopTauri: () => true }));
+// The desktop app: the overwrite review writes through utils/fileOps, which
+// asks the same question.
+vi.mock('./platform', async (importOriginal) => ({
+  ...(await importOriginal<object>()), isDesktopTauri: () => true, isTauri: () => true, getOS: () => 'macos',
+}));
 
 const lf = await import('./linkedFiles');
 const { useLinkedFileStore } = await import('../stores/linkedFileStore');
@@ -265,6 +270,8 @@ beforeEach(() => {
   lib.projects.clear(); lib.scripts.clear(); lib.checkins = [];
   useLinkedFileStore.setState({ byScript: {}, conflict: null, openScriptFile: null });
   invoke.mockClear();
+  localStorage.removeItem('opendraft:linkedOwnWrites');
+  useExternalSaveReview.setState({ queue: [] });
 });
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -302,11 +309,81 @@ describe('a project kept in a folder', () => {
     await save(pid, cave.id, { content: structuredClone(lib.scripts.get(cave.id)!.content!) });
     expect(fs.files.get(`${FOLDER}/Cave.fountain`)?.text).toBe(original);
 
-    // A real edit is written.
+    // An external source stays untouched after background edits until explicit review.
     const edited = structuredClone(lib.scripts.get(cave.id)!.content) as { content: Array<Record<string, unknown>> };
     edited.content.push({ type: 'action', content: [{ type: 'text', text: 'Water drips.' }] });
     await save(pid, cave.id, { content: edited });
-    expect(fs.files.get(`${FOLDER}/Cave.fountain`)?.text).toContain('Water drips.');
+    expect(fs.files.get(`${FOLDER}/Cave.fountain`)?.text).toBe(original);
+    expect((await lf.getLink(cave.id))?.pending).toBe(true);
+    expect((await lf.getLink(cave.id))?.lastError).toContain('review');
+  });
+
+  it('reviews an explicit save over a file it found in the folder, and keeps it unchanged when cancelled', async () => {
+    const pid = await folderProject('fountain');
+    // Written by another application: OpenDraft has only ever read it.
+    touch(`${FOLDER}/Found.fountain`, 'INT. CAVE - NIGHT\n\nWritten elsewhere.\n');
+    await lf.scanProjectFolder(pid);
+    const [found] = await fakeApi.listScripts(pid);
+    const original = fs.files.get(`${FOLDER}/Found.fountain`)!.text;
+
+    // A background save never overwrites it, and never asks.
+    await save(pid, found.id, { content: doc('edited in OpenDraft') });
+    expect(useExternalSaveReview.getState().queue).toHaveLength(0);
+    expect(fs.files.get(`${FOLDER}/Found.fountain`)!.text).toBe(original);
+    expect((await lf.getLink(found.id))?.pending).toBe(true);
+
+    // The writer's Save asks; Cancel leaves the file as it was.
+    const pending = lf.saveLinkedFileWithReview(pid, found.id);
+    await vi.waitFor(() => expect(useExternalSaveReview.getState().queue).toHaveLength(1));
+    useExternalSaveReview.getState().answer('cancel');
+    expect(await pending).toBe('pending');
+    expect(fs.files.get(`${FOLDER}/Found.fountain`)!.text).toBe(original);
+  });
+
+  it('asks once for a found file; later saves go straight through without another backup', async () => {
+    const pid = await folderProject('fountain');
+    touch(`${FOLDER}/Found.fountain`, 'INT. CAVE - NIGHT\n\nWritten elsewhere.\n');
+    await lf.scanProjectFolder(pid);
+    const [found] = await fakeApi.listScripts(pid);
+    await save(pid, found.id, { content: doc('first edit') });
+
+    const first = lf.saveLinkedFileWithReview(pid, found.id);
+    await vi.waitFor(() => expect(useExternalSaveReview.getState().queue).toHaveLength(1));
+    useExternalSaveReview.getState().answer('overwrite');
+    expect(await first).toBe('written');
+    const firstWrite = invoke.mock.calls.filter(([c]) => c === 'save_text_atomic').at(-1)!;
+    expect(firstWrite[1]).toMatchObject({ backup: true });
+
+    invoke.mockClear();
+    await save(pid, found.id, { content: doc('second edit') });
+    expect(useExternalSaveReview.getState().queue).toHaveLength(0);
+    expect(fs.files.get(`${FOLDER}/Found.fountain`)!.text).toContain('second edit');
+    const writes = invoke.mock.calls.filter(([c]) => c === 'save_text_atomic');
+    expect(writes).toHaveLength(1);
+    expect(writes[0][1]).toMatchObject({ backup: false });
+  });
+
+  it('saves a Fountain file OpenDraft created without asking or backing it up', async () => {
+    const pid = await folderProject('fountain');
+    const id = await newScript(pid, 'Pilot', doc('original'));
+    invoke.mockClear();
+    await save(pid, id, { content: doc('edited in OpenDraft') });
+    expect(useExternalSaveReview.getState().queue).toHaveLength(0);
+    expect(fs.files.get(`${FOLDER}/Pilot.fountain`)!.text).toContain('edited in OpenDraft');
+    expect((await lf.getLink(id))?.pending).toBe(false);
+    const writes = invoke.mock.calls.filter(([c]) => c === 'save_text_atomic');
+    expect(writes).toHaveLength(1);
+    expect(writes[0][1]).toMatchObject({ backup: false });
+  });
+
+  it('asks again once something else has changed a file OpenDraft wrote', async () => {
+    const pid = await folderProject('fountain');
+    const id = await newScript(pid, 'Pilot', doc('original'));
+    // Restoring a version forces the write; the file was edited elsewhere since.
+    touch(`${FOLDER}/Pilot.fountain`, 'INT. ROOM - DAY\n\nChanged in another app.\n');
+    await save(pid, id, { content: doc('restored') });
+    // The changed file is a conflict for the writer to settle, not overwritten.
+    expect(fs.files.get(`${FOLDER}/Pilot.fountain`)!.text).toContain('Changed in another app.');
   });
 
   it('adds files dropped into the folder, but not one the writer removed from the project', async () => {

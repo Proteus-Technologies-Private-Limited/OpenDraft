@@ -19,7 +19,10 @@
  * testable in the node environment.
  */
 
-import { getTextLines } from './wrapText';
+import { getTextLines, type WrapRun } from './wrapText';
+
+/** Layout-only Word paragraph separating adjacent tables; never screenplay text. */
+export const DOCX_DUAL_SEPARATOR_STYLE = 'OpenDraftDualDialogueSeparator';
 
 /** One element inside a column. */
 export interface DualChild {
@@ -107,5 +110,182 @@ export function dualColumnsOf(
       type: String((child as { type?: string })?.type ?? 'dialogue'),
       text: textOf(child),
     })),
+  );
+}
+
+/** A visual row retains UTF-16 offsets into the unmodified source paragraph. */
+export interface DualCell {
+  column: number;
+  child: number;
+  type: string;
+  from: number;
+  to: number;
+  /** Offsets in the PDF run stream, including bracketed references. */
+  drawFrom: number;
+  drawTo: number;
+  sourceFrom: number;
+  sourceTo: number;
+  text: string;
+}
+export type DualRow = DualCell[];
+
+/** Only oversized blocks need this more detailed version of the line counter. */
+export function dualRows(
+  columns: DualColumns,
+  refs: readonly { charOffset: number }[] = [],
+  markerCells = 0,
+): DualRow[] {
+  const rows: DualRow[] = [];
+  let source = 0;
+  columns.forEach((children, column) => {
+    let row = dualColumnLeadLines(children);
+    children.forEach((child, index) => {
+      // Record an inverse offset map while inserting bracketed references.
+      // Decorations still address original text; PDF slices address marked runs.
+      const local = markerCells
+        ? refs.filter(
+            (ref) => ref.charOffset > source && ref.charOffset <= source + child.text.length,
+          )
+        : [];
+      let measured = '';
+      const original: number[] = [0];
+      for (let i = 0; i < child.text.length; i++) {
+        measured += child.text[i];
+        original.push(i + 1);
+        for (const ref of local)
+          if (ref.charOffset === source + i + 1) {
+            measured += '•'.repeat(markerCells);
+            for (let j = 0; j < markerCells; j++) original.push(i + 1);
+          }
+      }
+      const starts: number[] = [];
+      getTextLines(measured, dualCharsPerLine(child.type), (at) => starts.push(at));
+      starts.forEach((drawFrom, line) => {
+        const drawTo = starts[line + 1] ?? measured.length;
+        const from = original[drawFrom];
+        const to = original[drawTo];
+        (rows[row++] ??= []).push({
+          column,
+          child: index,
+          type: child.type,
+          from,
+          to,
+          drawFrom,
+          drawTo,
+          sourceFrom: source + from,
+          sourceTo: source + to,
+          text: child.text.slice(from, to),
+        });
+      });
+      source += child.text.length;
+    });
+  });
+  return Array.from({ length: rows.length }, (_, i) => rows[i] ?? []);
+}
+
+/** Speakers whose existing speech actually continues across this boundary. */
+export function dualContinuations(
+  columns: DualColumns,
+  rows: DualRow[],
+  at: number,
+): Map<number, string> {
+  const speakers = new Map<number, string>();
+  for (const cell of rows[at] ?? []) {
+    if (cell.type === 'character') continue;
+    const children = columns[cell.column];
+    for (let i = cell.child; i >= 0; i--) {
+      if (children[i].type !== 'character') continue;
+      speakers.set(cell.column, children[i].text.replace(/\s+/g, ' ').trim().toUpperCase());
+      break;
+    }
+  }
+  return speakers;
+}
+
+/** Pick a shared column boundary, keeping cues and parentheticals with speech. */
+export function fitDualRows(
+  columns: DualColumns,
+  rows: DualRow[],
+  from: number,
+  room: number,
+  labels: boolean,
+  capacity: (to: number) => number = () => room,
+): number {
+  let to = Math.min(rows.length, from + Math.max(0, Math.floor(room)));
+  for (; to > from; to--) {
+    const more =
+      to < rows.length && labels && dualContinuations(columns, rows, to).size > 0 ? 1 : 0;
+    if (to - from + more > Math.min(room, capacity(to))) continue;
+    if (to === rows.length) return to;
+    if (to - from < (from === 0 ? 4 : 2) || rows.length - to < 2) continue;
+    const unsafe = (rows[to - 1] ?? []).some(
+      (cell) => cell.type === 'character' || cell.type === 'parenthetical',
+    );
+    if (unsafe) continue;
+    // An unfinished column needs two spoken lines on either side. Completed
+    // columns and new cues on the next sheet do not need continuation room.
+    const orphan = [...dualContinuations(columns, rows, to).keys()].some((col) => {
+      let before = 0;
+      for (let r = to - 1; r >= from; r--) {
+        const cell = rows[r].find((c) => c.column === col);
+        if (cell?.type === 'character') break;
+        if (cell?.type === 'dialogue') before++;
+      }
+      let after = 0;
+      for (let r = to; r < rows.length && after < 2; r++) {
+        const cell = rows[r].find((c) => c.column === col);
+        if (!cell || cell.type === 'character') break;
+        if (cell.type === 'dialogue') after++;
+      }
+      return before < 2 || after < 2;
+    });
+    if (!orphan) return to;
+  }
+  return from;
+}
+
+/** Styled source slice for a planned row; visual wrapping must not wrap it again. */
+export function dualRowRuns(runs: WrapRun[], from: number, to: number): WrapRun[] {
+  let offset = 0;
+  const out: WrapRun[] = [];
+  for (const run of runs) {
+    const end = offset + (run.isBreak ? 1 : run.text.length);
+    if (!run.isBreak && end > from && offset < to) {
+      out.push({
+        ...run,
+        text: run.text.slice(Math.max(0, from - offset), to - offset),
+        marker: end <= to ? run.marker : undefined,
+      });
+    }
+    offset = end;
+  }
+  return out;
+}
+
+/** Position of a cell inside a ProseMirror dual block, without importing the editor. */
+export function dualCellPosition(
+  node: { child(index: number): { nodeSize: number; child(index: number): { nodeSize: number } } },
+  offset: number,
+  cell: DualCell,
+): number {
+  let pos = offset + 3;
+  for (let i = 0; i < cell.column; i++) pos += node.child(i).nodeSize;
+  for (let i = 0; i < cell.child; i++) pos += node.child(cell.column).child(i).nodeSize;
+  return pos + cell.from;
+}
+
+/** A reference belongs to the row ending its annotated phrase, not the next row. */
+export function dualRefsInRows<T extends { charOffset: number }>(
+  refs: readonly T[],
+  rows: DualRow[],
+  from: number,
+  to: number,
+): T[] {
+  return refs.filter((ref) =>
+    rows
+      .slice(from, to)
+      .some((row) =>
+        row.some((cell) => ref.charOffset > cell.sourceFrom && ref.charOffset <= cell.sourceTo),
+      ),
   );
 }

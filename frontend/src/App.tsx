@@ -1,3 +1,4 @@
+import ExternalSaveReview from './components/ExternalSaveReview';
 import { Routes, Route } from 'react-router-dom';
 import ScreenplayEditor from './components/ScreenplayEditor';
 import TreatmentEditor from './components/TreatmentEditor';
@@ -17,6 +18,10 @@ import PdfImportPreviewHost from './components/PdfImportPreview';
 import VerifyEmailRoute from './components/VerifyEmailRoute';
 import ResetPasswordRoute from './components/ResetPasswordRoute';
 import { pluginRegistry } from './plugins/registry';
+// Registers the core add-ons (off until the writer turns them on). Imported
+// here rather than in main.tsx so OpenDraft-Pro, which reuses this App, gets
+// them too.
+import './addons';
 import './styles/screenplay.css';
 import './styles/avScript.css';
 import './styles/tableRead.css';
@@ -53,6 +58,7 @@ function App() {
           <Route key={r.path} path={r.path} element={<r.component />} />
         ))}
       </Routes>
+      <ExternalSaveReview />
       <Toast />
       <AuthGate />
       <AuthBootstrap />

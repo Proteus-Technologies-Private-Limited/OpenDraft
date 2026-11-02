@@ -12,20 +12,18 @@
  * हनि्दी. In a language where the vowel is the word that is not a typographic
  * nicety.
  *
- * So the one reordering these scripts cannot be read without is done here, on
- * the string, just before it is drawn. The scripts differ only in where their
- * letters sit in Unicode, so one engine walks all of them and `SCRIPTS` holds
- * what is different.
+ * PDF export now shapes these scripts properly with HarfBuzz (see
+ * `textShaping.ts` and `pdfShapedText.ts`), which runs the font's own rules —
+ * reordering, conjuncts, reph, Tamil's கு and டு. This module is what is drawn
+ * when HarfBuzz cannot be loaded: the one reordering these scripts cannot be
+ * read without, done on the string just before it is drawn. The scripts differ
+ * only in where their letters sit in Unicode, so one engine walks all of them
+ * and `SCRIPTS` holds what is different.
  *
- * What this deliberately does not do is shape. Conjuncts (क् + ष as क्ष) and
- * reph (the र् of कर्म, drawn as a stroke above the syllable) are substitutions,
- * not reorderings: the glyphs exist in the font but there is no way to ask
- * jsPDF for them, since it addresses glyphs only through `cmap` and a conjunct
- * has no character of its own. Those come out as an explicit halant — क्ष, कर्म
- * — which is how these scripts are written when a conjunct is being spelled
- * out, and reads correctly even though a typesetter would not have set it that
- * way. Closing that gap means shaping before drawing and addressing glyphs by
- * index; see `public/fonts/README.md`.
+ * What this fallback cannot do is shape. Conjuncts and ligatures are
+ * substitutions, not reorderings, and jsPDF reaches a glyph only through the
+ * `cmap`; unshaped, क्ष comes out with an explicit halant and Tamil's கு as க
+ * with its sign beside it — legible, not typeset.
  */
 
 /** A half-open range of code points, inclusive at both ends. */
@@ -51,6 +49,8 @@ function inRanges(codePoint: number, ranges: readonly Range[]): boolean {
 export interface IndicScript {
   /** What this script is called, for the face that draws it. */
   name: string;
+  /** Its ISO 15924 code, which is how HarfBuzz is told what it is shaping. */
+  iso15924: string;
   /** The Unicode block. Text outside it is left exactly where it is. */
   block: Range;
   /** The letters that carry a syllable. */
@@ -73,6 +73,19 @@ export interface IndicScript {
    * half can be moved — ொ is ெ and ா, and only the ெ goes to the front.
    */
   twoPart?: Readonly<Record<number, readonly number[]>>;
+  /**
+   * For a script whose virama is written rather than joining letters, the
+   * consonant pairs that do join across it anyway.
+   *
+   * Tamil writes its pulli as a visible dot and forms no conjuncts: க்க is two
+   * syllables, க் and க, and in க்கொ the vowel sign goes before the second க
+   * only. Treating the pair as one cluster — right for Hindi's स्थि — put it
+   * before the first, and எப்போது came out as எபேபாது. க்ஷ is the exception,
+   * a true ligature that takes its vowel sign in front of the whole.
+   *
+   * Absent for the scripts whose virama makes a cluster.
+   */
+  visibleVirama?: { joins: readonly (readonly [number, number])[] };
 }
 
 const ZWNJ = 0x200c; // asks for the halant to stay visible
@@ -80,6 +93,7 @@ const ZWJ = 0x200d;  // asks for the half form
 
 export const DEVANAGARI: IndicScript = {
   name: 'Devanagari',
+  iso15924: 'Deva',
   block: [0x0900, 0x097f],
   // क–ह, the precomposed nukta forms क़–य़, and the later additions.
   consonants: [[0x0915, 0x0939], [0x0958, 0x095f], [0x0978, 0x097f]],
@@ -95,6 +109,7 @@ export const DEVANAGARI: IndicScript = {
 
 export const BENGALI: IndicScript = {
   name: 'Bengali',
+  iso15924: 'Beng',
   block: [0x0980, 0x09ff],
   consonants: [[0x0995, 0x09b9], [0x09dc, 0x09df], [0x09f0, 0x09f1]],
   standalone: [[0x0985, 0x098c], [0x098f, 0x0990], [0x0993, 0x0994]],
@@ -108,6 +123,7 @@ export const BENGALI: IndicScript = {
 
 export const GURMUKHI: IndicScript = {
   name: 'Gurmukhi',
+  iso15924: 'Guru',
   block: [0x0a00, 0x0a7f],
   consonants: [[0x0a15, 0x0a39], [0x0a59, 0x0a5c], [0x0a5e, 0x0a5e]],
   standalone: [[0x0a05, 0x0a0a], [0x0a0f, 0x0a10], [0x0a13, 0x0a14]],
@@ -120,6 +136,7 @@ export const GURMUKHI: IndicScript = {
 
 export const GUJARATI: IndicScript = {
   name: 'Gujarati',
+  iso15924: 'Gujr',
   block: [0x0a80, 0x0aff],
   consonants: [[0x0a95, 0x0ab9]],
   standalone: [[0x0a85, 0x0a8d], [0x0a8f, 0x0a91], [0x0a93, 0x0a94],
@@ -133,6 +150,7 @@ export const GUJARATI: IndicScript = {
 
 export const ORIYA: IndicScript = {
   name: 'Odia',
+  iso15924: 'Orya',
   block: [0x0b00, 0x0b7f],
   consonants: [[0x0b15, 0x0b39], [0x0b5c, 0x0b5d], [0x0b71, 0x0b71]],
   standalone: [[0x0b05, 0x0b0c], [0x0b0f, 0x0b10], [0x0b13, 0x0b14],
@@ -147,6 +165,7 @@ export const ORIYA: IndicScript = {
 
 export const TAMIL: IndicScript = {
   name: 'Tamil',
+  iso15924: 'Taml',
   block: [0x0b80, 0x0bff],
   consonants: [[0x0b95, 0x0bb9]],
   standalone: [[0x0b85, 0x0b8a], [0x0b8e, 0x0b90], [0x0b92, 0x0b94]],
@@ -159,10 +178,12 @@ export const TAMIL: IndicScript = {
     0x0bcb: [0x0bc7, 0x0bbe],
     0x0bcc: [0x0bc6, 0x0bd7],
   },
+  visibleVirama: { joins: [[0x0b95, 0x0bb7]] }, // க்ஷ
 };
 
 export const TELUGU: IndicScript = {
   name: 'Telugu',
+  iso15924: 'Telu',
   block: [0x0c00, 0x0c7f],
   consonants: [[0x0c15, 0x0c39], [0x0c58, 0x0c5a]],
   standalone: [[0x0c05, 0x0c0c], [0x0c0e, 0x0c10], [0x0c12, 0x0c14],
@@ -178,6 +199,7 @@ export const TELUGU: IndicScript = {
 
 export const KANNADA: IndicScript = {
   name: 'Kannada',
+  iso15924: 'Knda',
   block: [0x0c80, 0x0cff],
   consonants: [[0x0c95, 0x0cb9], [0x0cde, 0x0cde]],
   standalone: [[0x0c85, 0x0c8c], [0x0c8e, 0x0c90], [0x0c92, 0x0c94],
@@ -192,6 +214,7 @@ export const KANNADA: IndicScript = {
 
 export const MALAYALAM: IndicScript = {
   name: 'Malayalam',
+  iso15924: 'Mlym',
   block: [0x0d00, 0x0d7f],
   consonants: [[0x0d15, 0x0d3a]],
   standalone: [[0x0d05, 0x0d0c], [0x0d0e, 0x0d10], [0x0d12, 0x0d14],
@@ -209,6 +232,7 @@ export const MALAYALAM: IndicScript = {
 
 export const SINHALA: IndicScript = {
   name: 'Sinhala',
+  iso15924: 'Sinh',
   block: [0x0d80, 0x0dff],
   consonants: [[0x0d9a, 0x0dc6]],
   standalone: [[0x0d85, 0x0d96]],
@@ -295,6 +319,12 @@ function decomposeTwoPart(chars: number[], script: IndicScript): number[] {
   return out;
 }
 
+/** Whether `before` + virama + `after` is one cluster in `script`. */
+function joinsAcrossVirama(script: IndicScript, before: number, after: number): boolean {
+  if (!script.visibleVirama) return true;
+  return script.visibleVirama.joins.some(([a, b]) => a === before && b === after);
+}
+
 /**
  * Reorder `text` for a renderer that paints characters where it finds them.
  *
@@ -328,11 +358,12 @@ export function reorderIndic(text: string, script: IndicScript): string {
     i++;
     if (script.nukta !== undefined && i < chars.length && chars[i] === script.nukta) i++;
 
-    // Consonants strung together by viramas are one syllable, however many.
+    // Consonants strung together by viramas are one syllable, however many —
+    // except where the virama is written and separates them (see visibleVirama).
     while (i < chars.length && chars[i] === script.virama) {
       let next = i + 1;
       if (next < chars.length && (chars[next] === ZWJ || chars[next] === ZWNJ)) next++;
-      if (next < chars.length && isConsonant(chars[next])) {
+      if (next < chars.length && isConsonant(chars[next]) && joinsAcrossVirama(script, chars[i - 1], chars[next])) {
         i = next + 1;
         if (script.nukta !== undefined && i < chars.length && chars[i] === script.nukta) i++;
       } else {

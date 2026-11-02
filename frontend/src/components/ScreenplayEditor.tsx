@@ -1,3 +1,4 @@
+import { readSourceFidelity } from '../utils/sourceFidelity';
 import React, { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import Document from '@tiptap/extension-document';
@@ -45,6 +46,7 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { PastedHighlight } from '../editor/extensions/PastedHighlight';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { restoreImportedFormat } from '../utils/importedFormat';
 import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
@@ -68,6 +70,7 @@ import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
 import IndexCards from './IndexCards';
 import BeatBoard from './BeatBoard';
+import OutlineView from './OutlineView';
 import ScriptStatistics from './ScriptStatistics';
 import TableReadPanel from './TableReadPanel';
 import VoiceProviderDialog from './VoiceProviderDialog';
@@ -80,8 +83,6 @@ import { PluginPanelTabs } from './PluginPanelTabs';
 import LocationDatabase from './LocationDatabase';
 import DialogueTuner from './DialogueTuner';
 import SuggestionsPanel from './SuggestionsPanel';
-import DictationDialog from './DictationDialog';
-import { useDictationStore } from '../stores/dictationStore';
 import WritingGoalsDialog from './WritingGoalsDialog';
 import { useWritingGoalsStore } from '../stores/writingGoalsStore';
 import { useWritingTracker } from '../hooks/useWritingTracker';
@@ -191,7 +192,7 @@ import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGoBack, useGoBackTo } from '../hooks/useGoBack';
-import { setPendingSaveFlush } from '../services/pendingSave';
+import { setPendingSaveFlush, leaveEditor as leaveEditorScreen } from '../services/pendingSave';
 import OpenFile from './OpenFile';
 import type { OpenSource } from './OpenFile';
 import WelcomeDialog, { type WelcomeChoice } from './WelcomeDialog';
@@ -543,6 +544,7 @@ const ScreenplayEditor: React.FC = () => {
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     viewLayout,
     beatBoardOpen, statisticsOpen,
+    outlineOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, dialogueTunerOpen,
     spellCheckEnabled, spellModalOpen, setSpellModalOpen,
@@ -561,6 +563,8 @@ const ScreenplayEditor: React.FC = () => {
 
   // ── Collaboration state ──
   const [collabMode, setCollabMode] = useState(false);
+  const alternatesCollabRef = useRef(collabMode);
+  alternatesCollabRef.current = collabMode;
   const [collabUserName, setCollabUserName] = useState('Owner');
   const [isCollabHost, setIsCollabHost] = useState(false);
   const [collabRole, setCollabRole] = useState<CollabRole>('editor');
@@ -955,6 +959,8 @@ const ScreenplayEditor: React.FC = () => {
       collabInitialContent.current = collabSeedFrom(content);
 
       // Restore per-document template
+      restoreImportedFormat((content as any)?._templateSnapshot);
+      useEditorStore.setState({ sourceFidelity: readSourceFidelity((content as any)?._sourceFidelity) });
       const tplId = (content as any)?._templateId;
       useFormattingTemplateStore.getState().setActiveTemplateId(typeof tplId === 'string' ? tplId : null);
 
@@ -1107,7 +1113,13 @@ const ScreenplayEditor: React.FC = () => {
       container.removeEventListener('wheel', release);
       container.removeEventListener('touchstart', release);
     };
-  }, [statisticsOpen, beatBoardOpen, isHistoryMode]);
+  }, [statisticsOpen, beatBoardOpen, outlineOpen, isHistoryMode]);
+  // The Outline takes over the editor area; a Table Read docked under it would
+  // have no script to read.
+  useEffect(() => {
+    if (!outlineOpen) return;
+    if (useTableReadStore.getState().open) useTableReadStore.getState().setOpen(false);
+  }, [outlineOpen]);
   zoomLevelRef.current = zoomLevel;
 
   const [overlays, setOverlays] = useState<OverlayInfo[]>([]);
@@ -1586,12 +1598,18 @@ const ScreenplayEditor: React.FC = () => {
     for (const brk of breaks) {
       const el = children[brk.nodeIndex];
       if (!el) continue;
-      const elRect = el.getBoundingClientRect();
+      const dualGap = brk.dualRow === undefined ? null
+        : el.querySelector<HTMLElement>(`[data-dual-row="${brk.dualRow}"]`);
+      const elRect = dualGap ? dualGap.getBoundingClientRect() : el.getBoundingClientRect();
       const contdHeight = brk.isDialogueSplit && showContd ? lineHeightPx : 0;
       // The phone view replaces the gap between sheets with a divider of its
       // own height (--phone-page-gap in screenplay.css) directly above the
       // first element of the page.
-      const overlayTop = phoneViewRef.current
+      const separatorHeight = phoneViewRef.current ? PHONE_PAGE_GAP_PX : m.sepHeightPx;
+      const dualContdHeight = dualGap?.dataset.contd === 'true' ? lineHeightPx : 0;
+      const overlayTop = dualGap
+        ? (elRect.bottom - pageRect.top) / scale - separatorHeight - dualContdHeight
+        : phoneViewRef.current
         ? (elRect.top - pageRect.top) / scale - PHONE_PAGE_GAP_PX
         : (elRect.top - pageRect.top) / scale - m.sepHeightPx - contdHeight;
       newOverlays.push({
@@ -2032,6 +2050,26 @@ const ScreenplayEditor: React.FC = () => {
     extensions: [
       Document.extend({
         content: 'block+',
+        // Sequence labels live on the document (and on each scene heading's
+        // sequenceId), so the Outline can group scenes without inserting
+        // structure nodes into the script.
+        addAttributes() {
+          return {
+            sequences: {
+              default: null,
+              parseHTML: (element: HTMLElement) => {
+                const raw = element.getAttribute('data-sequences');
+                if (!raw) return null;
+                try { return JSON.parse(raw); } catch { return null; }
+              },
+              renderHTML: (attributes: Record<string, unknown>) => (
+                attributes.sequences
+                  ? { 'data-sequences': JSON.stringify(attributes.sequences) }
+                  : {}
+              ),
+            },
+          };
+        },
       }),
       // HardBreakLeafText must travel with ScreenplayHardBreak — see that module.
       Text, ScreenplayHardBreak, HardBreakLeafText,
@@ -2102,7 +2140,10 @@ const ScreenplayEditor: React.FC = () => {
             : null;
         },
       }),
-      Alternates,
+      Alternates.configure({
+        isCollaborating: () => alternatesCollabRef.current,
+        onBlocked: () => showToast('Alternate versions can\'t be added, switched or deleted during a live session. End the session (or leave it) first. You can still edit the version shown.', 'info'),
+      }),
       // While suggesting, edits become suggestions (editor/suggestions).
       Suggestions.configure({
         suggester: () => (useSuggestModeStore.getState().suggesting ? suggestionAuthor() : null),
@@ -2266,7 +2307,6 @@ const ScreenplayEditor: React.FC = () => {
   }, [isHistoryMode]);
   // Writing goals: count words written, run sprints (Tools → Writing Goals & Sprints).
   useWritingTracker(editor, currentScriptId || 'unsaved', !isHistoryMode);
-  const dictationOpen = useDictationStore((s) => s.open);
   const writingGoalsOpen = useWritingGoalsStore((s) => s.dialogOpen);
 
   // ── Owner starts collaboration — save current content, create own token, switch to collab mode ──
@@ -3848,6 +3888,8 @@ const ScreenplayEditor: React.FC = () => {
             }
             store.setElementNumbersVisible(c._elementNumbersVisible !== false);
             // Restore per-document formatting template
+            restoreImportedFormat(c._templateSnapshot);
+            useEditorStore.setState({ sourceFidelity: readSourceFidelity(c._sourceFidelity) });
             if (c._templateId && typeof c._templateId === 'string') {
               useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
             } else {
@@ -4377,6 +4419,8 @@ const ScreenplayEditor: React.FC = () => {
           store.setBeatColumns(beatCols2 as import('../stores/editorStore').BeatColumn[]);
           store.setPlotlines(parseAttr2(c._plotlines) as import('../utils/plotlines').Plotline[]);
           // Restore per-document template
+          restoreImportedFormat(c._templateSnapshot);
+          useEditorStore.setState({ sourceFidelity: readSourceFidelity(c._sourceFidelity) });
           if (c._templateId && typeof c._templateId === 'string') {
             useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
           } else {
@@ -4474,6 +4518,29 @@ const ScreenplayEditor: React.FC = () => {
       );
     },
     [guardOpen, openScriptInThisWindow, setOpenFileOpen],
+  );
+
+  // File › Open's links to Manage Projects. Through the leave guard, like the
+  // menu's own Manage Projects…, so unsaved work is saved or asked about first.
+  const handleOpenFileManageProjects = useCallback((source: OpenSource) => {
+    setOpenFileOpen(false);
+    // Land on the tab the writer was browsing, not whichever one was last used.
+    try { localStorage.setItem('opendraft:projectSource', source); } catch { /* private mode */ }
+    void leaveEditorScreen(() => navigate('/projects'));
+  }, [navigate, setOpenFileOpen]);
+
+  const handleOpenFileManageProject = useCallback(
+    (project: import('../services/api').ProjectInfo, source: OpenSource) => {
+      setOpenFileOpen(false);
+      // ProjectView routes its reads by this marker; a cloud project reached
+      // from here, without the Projects list having listed it, needs it set.
+      if (source === 'cloud') useProjectStore.getState().markCloudProject(project.id);
+      try { localStorage.setItem('opendraft:projectSource', source); } catch { /* private mode */ }
+      // No `from`: the entry behind is the editor, not the Projects list, so
+      // the project's back control must replace to /projects, not pop.
+      void leaveEditorScreen(() => navigate(`/project/${project.id}`));
+    },
+    [navigate, setOpenFileOpen],
   );
 
   const handleWelcomeChoice = useCallback(async (choice: WelcomeChoice) => {
@@ -5481,7 +5548,9 @@ const ScreenplayEditor: React.FC = () => {
         )}
         <div className="editor-center">
           {!isHistoryMode && <IndexCards editor={editor} scrollContainer={editorMainRef.current} />}
-          {!isHistoryMode && statisticsOpen && editor ? (
+          {!isHistoryMode && outlineOpen && editor ? (
+            <OutlineView editor={editor} />
+          ) : !isHistoryMode && statisticsOpen && editor ? (
             <ScriptStatistics editor={editor} />
           ) : !isHistoryMode && beatBoardOpen ? (
             <BeatBoard editor={editor} />
@@ -5793,7 +5862,6 @@ const ScreenplayEditor: React.FC = () => {
           overrideSelection={ctxMenuState.savedSelection}
         />
       )}
-      {!isHistoryMode && dictationOpen && editor && <DictationDialog key={`${editorKey}:${currentProject?.id}:${currentScriptId}:${scriptReloadKey}`} editor={editor} />}
       {!isHistoryMode && writingGoalsOpen && <WritingGoalsDialog />}
       {!isHistoryMode && formatPanelOpen && editor && (
         <FormatPanel editor={editor} onClose={() => setFormatPanelOpen(false)} />
@@ -5837,6 +5905,8 @@ const ScreenplayEditor: React.FC = () => {
         <OpenFile
           onOpen={handleOpenFile}
           onClose={() => setOpenFileOpen(false)}
+          onManageProjects={handleOpenFileManageProjects}
+          onManageProject={handleOpenFileManageProject}
         />
       )}
       {!isHistoryMode && <VoiceProviderDialog />}

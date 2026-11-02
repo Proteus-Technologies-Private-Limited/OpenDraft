@@ -107,6 +107,8 @@ class MainActivity : TauriActivity() {
                         val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                         intent.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                         intent.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, language)
+                        // Providers may ignore this preference; the activation dialog discloses that.
+                        intent.putExtra(android.speech.RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
                         intent.putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Dictate a screenplay phrase")
                         activity.startActivityForResult(intent, DICTATION_REQUEST)
                     } catch (e: Exception) {

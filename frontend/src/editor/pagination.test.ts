@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { computeBreaks, buildTemplateHints, getPageMetrics } from './pagination';
-import { DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
+import { DEFAULT_PAGE_LAYOUT as CURRENT_DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { block, doc, pmDoc } from '../test/screenplaySchema';
 
 /** Element ids that open their own page, as a TV template would declare them. */
+// Fixed A4 fixture: these boundary cases cover existing documents, independently of new-document defaults.
+const DEFAULT_PAGE_LAYOUT = { ...CURRENT_DEFAULT_PAGE_LAYOUT, pageWidth: 8.26, pageHeight: 11.69, rightMargin: 0.76 };
+
 const actBreaks = buildTemplateHints({ forceBreakBefore: ['newAct'] });
 
 const breaksFor = (json: ReturnType<typeof doc>) =>

@@ -1,0 +1,27 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { PluginRegistry } from '../../plugins/registry';
+import dictation from './index';
+import { loadSettings, saveSettings } from './settings';
+import { onDeactivate } from './lifecycle';
+afterEach(() => { localStorage.clear(); vi.unstubAllGlobals(); });
+it('withholds contributions until enabled and cancels on disable, optionally forgetting preferences', async () => {
+  const worker = vi.fn(); const getUserMedia = vi.fn(); const fetch = vi.fn();
+  vi.stubGlobal('Worker', worker); vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } }); vi.stubGlobal('fetch', fetch);
+  const registry = new PluginRegistry(); registry.register(dictation);
+  expect(registry.isAddOnEnabled('dictation')).toBe(false);
+  expect(registry.getMenuItems('Tools')).toEqual([]);
+  expect(registry.getPanels('right-sidebar')).toEqual([]);
+  saveSettings({ engine: 'browser', language: 'fr', commands: true });
+  await registry.enableAddOn('dictation');
+  expect(registry.getMenuItems('Tools').map(item => item.label)).toEqual(['Dictation…']);
+  expect(registry.getPanels('right-sidebar')).toHaveLength(1);
+  const cancel = vi.fn(); const unsubscribe = onDeactivate(cancel);
+  await registry.disableAddOn('dictation', { forgetSettings: false });
+  expect(cancel).toHaveBeenCalledOnce(); expect(loadSettings().language).toBe('fr');
+  expect(registry.getMenuItems('Tools')).toEqual([]);
+  await registry.enableAddOn('dictation');
+  await registry.disableAddOn('dictation', { forgetSettings: true });
+  expect(loadSettings()).toEqual({ engine: 'local', language: 'en', commands: false });
+  expect(worker).not.toHaveBeenCalled(); expect(getUserMedia).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled();
+  unsubscribe();
+});
