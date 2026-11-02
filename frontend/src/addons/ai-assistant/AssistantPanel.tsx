@@ -15,6 +15,8 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
+import type { Transaction } from '@tiptap/pm/state';
+import { Mapping } from '@tiptap/pm/transform';
 import { FaRobot, FaPaperPlane, FaTrashAlt } from 'react-icons/fa';
 import { ELEMENT_LABELS } from '../../stores/editorStore';
 import {
@@ -185,14 +187,34 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
   const [pending, setPending] = useState<{
     calls: AiToolCall[];
     ops: PreviewOp[];
-    /** The selection the proposal was made against, restored on Insert. */
-    selection: { from: number; to: number } | null;
   } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mountedRef = useRef(true);
-  /** The selection at the moment the request was sent, for replaceSelection. */
-  const selectionRef = useRef<{ from: number; to: number } | null>(null);
+  /**
+   * The selection a proposal will replace, and the mapping from the moment it
+   * was captured. Edits made while the reply is on its way move the range with
+   * them, so Insert still replaces the words the writer meant.
+   */
+  const pendingSelectionRef = useRef<{
+    from: number;
+    to: number;
+    mapping: Mapping;
+  } | null>(null);
+
+  // Follow every transaction while a proposal waits, so the saved range shifts
+  // with an edit above it or around its ends.
+  useEffect(() => {
+    if (!editor) return;
+    const follow = ({ transaction }: { transaction: Transaction }) => {
+      const saved = pendingSelectionRef.current;
+      if (saved && transaction.docChanged) saved.mapping.appendMapping(transaction.mapping);
+    };
+    editor.on('transaction', follow);
+    return () => {
+      editor.off('transaction', follow);
+    };
+  }, [editor]);
 
   // A request in flight when the panel closes must not land on a dead panel.
   useEffect(() => {
@@ -219,6 +241,12 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     // command id (script.insertDialogue); both resolve to the command id.
     return commandForTool.get(name) ?? name;
   }, [commandForTool]);
+
+  /** Drop the waiting proposal and the selection it was going to replace. */
+  const clearPending = useCallback(() => {
+    pendingSelectionRef.current = null;
+    setPending(null);
+  }, []);
 
   const runCalls = useCallback((adapter: ReturnType<typeof createTiptapAdapter>, calls: AiToolCall[]) => {
     const lines: string[] = [];
@@ -298,22 +326,27 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       };
     }
     // Always show the proposal: nothing reaches the script without the writer.
-    setPending({ calls: valid, ops: preview.ops, selection: selectionRef.current });
+    setPending({ calls: valid, ops: preview.ops });
     return { staged: true, lines: [] as string[], failures, count: valid.length };
   }, [resolveCommand, commandForTool, allowed]);
 
   const acceptPending = useCallback(() => {
     if (!pending || !editor) return;
     if (!editor.isEditable) {
-      setPending(null);
+      clearPending();
       setError('This document is read-only, so the assistant cannot insert into it.');
       return;
     }
-    if (pending.selection) {
+    const saved = pendingSelectionRef.current;
+    pendingSelectionRef.current = null;
+    if (saved) {
       try {
         const max = editor.state.doc.content.size;
-        const from = Math.min(Math.max(0, pending.selection.from), max);
-        const to = Math.min(Math.max(from, pending.selection.to), max);
+        // Map the range through the edits made while it waited. The start
+        // sticks to the words after it and the end to the words before it, so
+        // typing inside the selection does not swallow the new text.
+        const from = Math.min(Math.max(0, saved.mapping.map(saved.from, 1)), max);
+        const to = Math.min(Math.max(from, saved.mapping.map(saved.to, -1)), max);
         editor.commands.setTextSelection({ from, to });
       } catch {
         // The document may have changed since the proposal; insert at the caret.
@@ -326,12 +359,12 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     if (ran.failures.length > 0) {
       setError(`Some actions were not applied: ${ran.failures.join(' ')}`);
     }
-  }, [pending, editor, runCalls, addMessage]);
+  }, [pending, editor, runCalls, addMessage, clearPending]);
 
   const rejectPending = useCallback(() => {
-    setPending(null);
+    clearPending();
     addMessage('assistant', 'Proposal discarded.');
-  }, [addMessage]);
+  }, [addMessage, clearPending]);
 
   const send = useCallback(async (promptArg?: string) => {
     const prompt = (promptArg ?? input).trim();
@@ -339,16 +372,17 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     const settings = loadSettings();
     setInput('');
     setError(null);
-    setPending(null);
+    clearPending();
     addMessage('user', prompt);
     setBusy(true);
 
     try {
       const adapter = createTiptapAdapter(editor);
       const context = executeCommand('script.getContext', {}, adapter).data as ScriptContext | undefined;
-      selectionRef.current = {
+      pendingSelectionRef.current = {
         from: editor.state.selection.from,
         to: editor.state.selection.to,
+        mapping: new Mapping(),
       };
 
       const finishStaged = (staged: ReturnType<typeof stageCalls>): boolean => {
@@ -514,7 +548,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       }
     }
   }, [
-    input, busy, editor, messages, tools, addMessage, stageCalls,
+    input, busy, editor, messages, tools, addMessage, clearPending, stageCalls,
   ]);
 
   const previewBlockCount = pending
@@ -532,7 +566,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
           <button
             className="ai-icon-btn"
             title="New conversation"
-            onClick={() => { setMessages([]); setError(null); setPending(null); }}
+            onClick={() => { setMessages([]); setError(null); clearPending(); }}
             disabled={messages.length === 0 || busy}
           >
             <FaTrashAlt />
