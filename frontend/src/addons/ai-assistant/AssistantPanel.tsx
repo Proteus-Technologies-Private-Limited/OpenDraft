@@ -33,6 +33,7 @@ import {
   type AiToolCall,
 } from './client';
 import { loadSettings } from './settingsStore';
+import { mappedSelection, type ProposedSelection } from './selectionMapping';
 import './assistant.css';
 
 /** Right-sidebar panels receive the editor; that is all this one needs. */
@@ -207,11 +208,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
    * was captured. Edits made while the reply is on its way move the range with
    * them, so Insert still replaces the words the writer meant.
    */
-  const pendingSelectionRef = useRef<{
-    from: number;
-    to: number;
-    mapping: Mapping;
-  } | null>(null);
+  const pendingSelectionRef = useRef<ProposedSelection | null>(null);
 
   // Follow every transaction while a proposal waits, so the saved range shifts
   // with an edit above it or around its ends.
@@ -360,12 +357,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     pendingSelectionRef.current = null;
     if (saved) {
       try {
-        const max = editor.state.doc.content.size;
-        // Map the range through the edits made while it waited. The start
-        // sticks to the words after it and the end to the words before it, so
-        // typing inside the selection does not swallow the new text.
-        const from = Math.min(Math.max(0, saved.mapping.map(saved.from, 1)), max);
-        const to = Math.min(Math.max(from, saved.mapping.map(saved.to, -1)), max);
+        const { from, to } = mappedSelection(saved, editor.state.doc.content.size);
         editor.commands.setTextSelection({ from, to });
       } catch {
         // The document may have changed since the proposal; insert at the caret.
