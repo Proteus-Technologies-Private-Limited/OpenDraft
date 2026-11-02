@@ -7,10 +7,9 @@ import SynopsisModal from './SynopsisModal';
 
 interface IndexCardsProps {
   editor: Editor | null;
-  scrollContainer: HTMLDivElement | null;
 }
 
-const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
+const IndexCards: React.FC<IndexCardsProps> = ({ editor }) => {
   const { scenes, indexCardsOpen, updateSceneSynopsis, updateSceneColor, toggleIndexCards, pageLayout } = useEditorStore();
 
   const [fullscreen, setFullscreen] = useState(false);
@@ -202,21 +201,34 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
         return true;
       });
 
-      editor.chain().focus().setTextSelection(targetPos + 1).run();
-
-      requestAnimationFrame(() => {
-        const coords = editor.view.coordsAtPos(targetPos + 1);
-        if (scrollContainer) {
-          const containerRect = scrollContainer.getBoundingClientRect();
-          const scrollTo =
-            scrollContainer.scrollTop + (coords.top - containerRect.top) - 60;
-          scrollContainer.scrollTo({ top: scrollTo, behavior: 'smooth' });
-        }
-      });
-
       if (fullscreen) setFullscreen(false);
+
+      // The cards are the view, so the script is not mounted: "go to this
+      // scene" means closing the cards and bringing the scene into view.
+      // React mounts the script a moment after the toggle, so wait for the
+      // container instead of assuming it is there straight away.
+      toggleIndexCards();
+      const reveal = (attempt = 0) => {
+        if (editor.isDestroyed) return;
+        // The writer reopened the cards while we were waiting: leave the
+        // caret alone instead of yanking them back to the script.
+        if (useEditorStore.getState().indexCardsOpen) return;
+        const main = document.querySelector<HTMLElement>('.editor-main');
+        if (!main) {
+          if (attempt < 50) setTimeout(() => reveal(attempt + 1), 16);
+          return;
+        }
+        editor.chain().focus().setTextSelection(targetPos + 1).run();
+        const coords = editor.view.coordsAtPos(targetPos + 1);
+        const containerRect = main.getBoundingClientRect();
+        const scrollTo = main.scrollTop + (coords.top - containerRect.top) - 60;
+        // The script has just been mounted, so jump straight there rather than
+        // animating a scroll the writer did not see start.
+        main.scrollTo({ top: scrollTo, behavior: 'auto' });
+      };
+      setTimeout(reveal, 0);
     },
-    [editor, scrollContainer, fullscreen],
+    [editor, fullscreen, toggleIndexCards],
   );
 
   // ── Get document ranges for each scene ──
@@ -557,7 +569,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
 
   if (!indexCardsOpen) return null;
 
-  const containerClass = `index-cards${fullscreen ? ' index-cards-fullscreen' : ''}`;
+  const containerClass = `index-cards index-cards-view${fullscreen ? ' index-cards-fullscreen' : ''}`;
   const indicatorStyle = getIndicatorStyle();
 
   return (

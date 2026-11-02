@@ -4632,6 +4632,27 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   overflow-y: auto;
   flex-shrink: 0;
 }
+/* The cards as the editor's view: the grid fills the writing area instead of
+   taking a strip above it. */
+.index-cards.index-cards-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  overflow: hidden;
+  border-bottom: none;
+}
+.index-cards-view .index-cards-grid {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  padding: 18px 24px 24px;
+  gap: 14px;
+  align-content: start;
+}
+.index-cards-view .index-card { min-height: 170px; }
 /* ── Fullscreen mode ── */
 .index-cards-fullscreen {
   position: fixed;
