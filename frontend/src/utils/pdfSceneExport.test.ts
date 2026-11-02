@@ -238,4 +238,19 @@ describe('PDF one scene per page with act breaks', () => {
     const house = blocks.find((node) => node.type === 'sceneHeading');
     expect(house?.attrs?.startsNewPage).toBeFalsy();
   });
+
+  it('draws the opening matter and scene 1 on the same page', async () => {
+    draws.length = 0;
+    currentPage = 1;
+    const out = sceneRangeDocument(scriptWithOpening(), { from: 0, to: 1, oneScenePerPage: true });
+    await exportPDF(out, 'Test', { ...DEFAULT_PAGE_LAYOUT, headerStartPage: 1 }, { includeTitlePage: false });
+    // The page each line was drawn on.
+    const pageOf = (needle: string) => draws
+      .filter((draw) => draw.text.includes(needle))
+      .map((draw) => draw.page);
+    expect(pageOf('FADE IN:')).toEqual([1]);
+    expect(pageOf('INT. HOUSE')).toEqual([1]);
+    expect(pageOf('ACT TWO')).toEqual([2]);
+    expect(pageOf('EXT. STREET')).toEqual([2]);
+  });
 });
