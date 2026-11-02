@@ -237,7 +237,7 @@ import PdfSecurityDialog, { type PdfSecurityRequest } from './PdfSecurityDialog'
 import DeleteScriptDialog from './DeleteScriptDialog';
 import { confirmTargetName } from '../utils/deleteConfirm';
 import PdfExportDialog, { type PdfExportChoice } from './PdfExportDialog';
-import { sceneRangeDocument, sceneSelectionDocument } from '../utils/pdfSceneExport';
+import { sceneHeadings, sceneRangeDocument, sceneSelectionDocument } from '../utils/pdfSceneExport';
 import { sanitizeExportFilename } from '../utils/exportFilename';
 import type { PluginExporter } from '../plugins/registry';
 import ScriptProfileDialog from './ScriptProfileDialog';
@@ -1123,6 +1123,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const [reportsOpen, setReportsOpen] = useState(false);
   const [pdfSecurityOpen, setPdfSecurityOpen] = useState(false);
   const [pdfExportOpen, setPdfExportOpen] = useState(false);
+  /**
+   * The headings of the document about to be exported, captured when the dialog
+   * opens. The dialog must number the same scenes the exporter will see (the
+   * live store still holds a pending suggested heading, `exportJSON` does not).
+   */
+  const [pdfExportScenes, setPdfExportScenes] = useState<string[]>([]);
   // File › Delete Script…: what the dialog shows, captured when it opens so a
   // later change to the editor cannot retarget the delete.
   const [deleteScriptInfo, setDeleteScriptInfo] = useState<{
@@ -2213,6 +2219,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
   /** File → Export → PDF opens the choices; the export itself is below. */
   const handleExportPDF = useCallback(() => {
     if (!editor) return;
+    // Number the scenes from the same document the export will use, so a
+    // pending suggestion cannot shift the list against the file.
+    setPdfExportScenes(sceneHeadings(exportJSON(editor)));
     setPdfExportOpen(true);
   }, [editor]);
 
@@ -2232,7 +2241,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           oneScenePerPage: choice.oneScenePerPage,
         });
       const base = pdfOptions(doc);
-      const sceneCount = useEditorStore.getState().scenes.length;
+      const sceneCount = sceneHeadings(json).length;
       const fullRange = choice.mode === 'pick'
         ? choice.selectedScenes.length >= sceneCount
         : choice.fromIndex === 0 && choice.toIndex >= sceneCount - 1;
@@ -4542,7 +4551,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
       />
     )}
     {pdfExportOpen && (
-      <PdfExportDialog onExport={handleExportPDFWithChoice} onClose={() => setPdfExportOpen(false)} />
+      <PdfExportDialog
+        scenes={pdfExportScenes}
+        onExport={handleExportPDFWithChoice}
+        onClose={() => setPdfExportOpen(false)}
+      />
     )}
     {sidesDoc && (
       <SidesDialog

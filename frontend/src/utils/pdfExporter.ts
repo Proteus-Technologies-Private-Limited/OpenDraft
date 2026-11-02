@@ -566,7 +566,7 @@ export interface PDFExportOptions {
    */
   security?: PdfSecurity | null;
   /**
-   * Only the pages holding certain elements - sides for an audition, or every
+   * Only the pages holding certain elements — sides for an audition, or every
    * page a character speaks on. Pages keep the numbers they have in the full
    * script. Throws when nothing matches.
    */
@@ -1825,19 +1825,34 @@ export async function exportPDF(
 
 // --- Render helpers ---
 
-/** Render a three-part header or footer line (left, center, right) */
-/** Strip only the page-number fields from one header/footer line. */
-function withoutPageFields(content: HeaderFooterContent): HeaderFooterContent {
-  const clean = (text: string): string => text
-    .replace(/\{(?:page|pages)\}/gi, '')
-    .replace(/\s+/g, ' ')
-    // "Page {page}." must not leave "Page ." behind.
-    .replace(/[\s.,:;|/\\-]+$/g, '')
-    .replace(/^[\s.,:;|/\\-]+/g, '')
-    .trim();
+/**
+ * Remove the page-number fields from one header/footer line.
+ *
+ * The phrase, not just the number, goes: "Page {page} of {pages}" must not
+ * leave "Page of" behind. A line that also carries something else keeps it
+ * ("Draft - Page {page}" becomes "Draft").
+ */
+export function withoutPageFields(content: HeaderFooterContent): HeaderFooterContent {
+  const clean = (text: string): string => {
+    const stripped = text
+      // The whole phrase, in the forms the templates use. No trailing \b: the
+      // token ends with "}", which is not a word character.
+      .replace(/\b(?:page|pagina|p.gina|seite)\s*\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi, '')
+      .replace(/\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi, '')
+      .replace(/\b(?:page|pagina|p.gina|seite)\s*\{page\}/gi, '')
+      .replace(/\b(?:of|di|de|da|von|sur)\s*\{pages\}/gi, '')
+      // A token on its own, and anything left around it.
+      .replace(/\{(?:page|pages)\}/gi, '');
+    return stripped
+      .replace(/\s+/g, ' ')
+      .replace(/[\s.,:;|/\\-]+$/g, '')
+      .replace(/^[\s.,:;|/\\-]+/g, '')
+      .trim();
+  };
   return { left: clean(content.left), center: clean(content.center), right: clean(content.right) };
 }
 
+/** Render a three-part header or footer line (left, center, right) */
 function renderHFLine(
   pdf: jsPDF,
   content: HeaderFooterContent,

@@ -27,12 +27,17 @@ export interface PdfExportChoice {
 }
 
 interface Props {
+  /**
+   * The scene headings of the document being exported, captured from the same
+   * JSON the exporter will lay out. A pending suggested heading is not in it,
+   * so the numbers here cannot shift against the file.
+   */
+  scenes: string[];
   onClose: () => void;
   onExport: (choice: PdfExportChoice) => void;
 }
 
-const PdfExportDialog: React.FC<Props> = ({ onClose, onExport }) => {
-  const scenes = useEditorStore((s) => s.scenes);
+const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
   const includeTitlePageInOutput = useEditorStore((s) => s.includeTitlePageInOutput);
   const sceneNumbersVisible = useEditorStore((s) => s.sceneNumbersVisible);
 
@@ -49,9 +54,9 @@ const PdfExportDialog: React.FC<Props> = ({ onClose, onExport }) => {
   const [watermark, setWatermark] = useState(false);
   const [watermarkText, setWatermarkText] = useState('CONFIDENTIAL');
 
-  const options = useMemo(() => scenes.map((scene, index) => ({
+  const options = useMemo(() => scenes.map((heading, index) => ({
     value: String(index),
-    label: `${scene.sceneNumber ?? index + 1}. ${scene.heading}`,
+    label: `${index + 1}. ${heading || 'Untitled scene'}`,
   })), [scenes]);
 
   /** The pick list narrowed by the search field. All / None act on what is

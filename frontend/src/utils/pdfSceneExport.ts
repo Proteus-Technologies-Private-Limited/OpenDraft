@@ -6,6 +6,14 @@
  * pages before it. "One scene per page" is applied here as the same
  * `startsNewPage` attribute the writer can set by hand, so the PDF lays the
  * selection out exactly as the editor's pagination would.
+ *
+ * Two things around scene boundaries are easy to get wrong, and both are
+ * handled here:
+ *
+ * - the opening matter before the first heading ("FADE IN:", a first action)
+ *   belongs to the script, so it is kept when the export starts at scene 1;
+ * - an act break written just before a heading belongs to that scene, not to
+ *   the scene before it.
  */
 import type { JSONContent } from '@tiptap/react';
 import { findTitlePageRegion, titlePageAttrsCarryData } from './titlePageRegion';
@@ -35,6 +43,33 @@ function headingIndices(content: JSONContent[]): number[] {
   return headings;
 }
 
+/** The headings of a document, in order, for anything that numbers scenes. */
+export function sceneHeadings(doc: JSONContent): string[] {
+  return (doc.content ?? [])
+    .filter((node) => node.type === 'sceneHeading')
+    .map((node) => jsonBlockText(node).trim());
+}
+
+/**
+ * Where each scene really starts, for slicing. An act break written directly
+ * before a heading is part of that scene: it opens the act the scene belongs to,
+ * so a slice that starts at the heading would leave it behind in the previous
+ * scene.
+ */
+function sceneStarts(content: JSONContent[], headings: number[]): number[] {
+  return headings.map((heading, index) => {
+    if (index === 0) return heading;
+    let start = heading;
+    while (start > 0 && content[start - 1]?.type === 'newAct') start -= 1;
+    return start;
+  });
+}
+
+/** Mark a block so the exported page opens there. */
+function withPageBreak(node: JSONContent): JSONContent {
+  return { ...node, attrs: { ...(node.attrs ?? {}), startsNewPage: true } };
+}
+
 /**
  * Keep the title-page region and the picked scenes. Picked scenes are written
  * in script order, so a hand-picked set reads as the script does rather than
@@ -49,16 +84,6 @@ function selectedScenesDocument(
   const headings = headingIndices(content);
   if (headings.length === 0) return doc;
 
-  const ordered = headings
-    .map((_, index) => index)
-    .filter((index) => picked.has(index));
-  // Nothing picked is a caller error; the dialog never sends it. Exporting the
-  // whole script is the least surprising fallback.
-  if (ordered.length === 0) return doc;
-
-  const fullScript = ordered.length === headings.length;
-  if (fullScript && !oneScenePerPage) return doc;
-
   const region = findTitlePageRegion(content.map((node) => ({
     type: node.type || 'general',
     hasText: jsonBlockText(node).trim().length > 0,
@@ -66,23 +91,39 @@ function selectedScenesDocument(
   })));
   const titleNodes = region.length > 0 ? content.slice(0, region.length) : [];
 
+  const valid = [...new Set(picked)]
+    .filter((index) => Number.isInteger(index) && index >= 0 && index < headings.length)
+    .sort((a, b) => a - b);
+  // Nothing picked, or indices that belong to another document: export the
+  // title page only. Falling back to the whole script would send scenes the
+  // writer did not choose.
+  if (valid.length === 0) return { ...doc, content: titleNodes };
+
+  const fullScript = valid.length === headings.length;
+  if (fullScript && !oneScenePerPage) return doc;
+
+  const starts = sceneStarts(content, headings);
   const body: JSONContent[] = [];
-  for (const index of ordered) {
-    const start = headings[index];
-    const end = index + 1 < headings.length ? headings[index + 1] : content.length;
-    for (let i = start; i < end; i++) body.push(content[i]);
+  // The matter before the first heading belongs to the opening of the script,
+  // not to scene 1; keep it only when the export really starts there.
+  if (valid[0] === 0) {
+    body.push(...content.slice(titleNodes.length, starts[0]));
+  }
+  for (const index of valid) {
+    const start = starts[index];
+    // Each scene ends where the next one begins, act break included, so no
+    // block is copied into two slices.
+    const end = index + 1 < starts.length ? starts[index + 1] : content.length;
+    for (let i = start; i < end; i++) {
+      // The break goes on the block the scene opens with: a heading, or the
+      // act break written before it.
+      body.push(oneScenePerPage && i === start ? withPageBreak(content[i]) : content[i]);
+    }
   }
 
   return {
     ...doc,
-    content: [
-      ...titleNodes,
-      ...body.map((node) => (
-        oneScenePerPage && node.type === 'sceneHeading'
-          ? { ...node, attrs: { ...(node.attrs ?? {}), startsNewPage: true } }
-          : node
-      )),
-    ],
+    content: [...titleNodes, ...body],
   };
 }
 
