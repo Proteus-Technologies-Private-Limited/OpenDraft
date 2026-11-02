@@ -299,3 +299,30 @@ describe('review follow-ups', () => {
     expect(blocked).toEqual(['formatConflict']);
   });
 });
+
+describe('formatting review regressions', () => {
+  it('keeps text suggestions available when the server cannot review formatting', () => {
+    const original = stateOf();
+    const blocked: string[] = [];
+    const options = { by: 'Ann', allowFormatting: false, onBlocked: (why: string) => blocked.push(why) };
+    const styled = suggestTransaction(original, original.tr.addMark(1, 4, schema.marks.bold.create()), options);
+    expect(styled.doc.eq(original.doc)).toBe(true);
+    expect(blocked).toEqual(['formatCompatibility']);
+    const typed = suggestTransaction(original, original.tr.insertText('New ', 1), options);
+    expect(listSuggestions(typed.doc)[0].inserted).toBe('New ');
+  });
+  it('does not leave inherited proposed bold on newly suggested letters after rejection', () => {
+    let s = stateOf();
+    s = suggest(s, s.tr.addMark(1, 14, schema.marks.bold.create()));
+    const formatting = listSuggestions(s.doc)[0].id;
+    s = suggest(s, s.tr.insertText('typed', 5));
+    s = s.apply(resolveSuggestionTransaction(s, formatting, false)!);
+    s.doc.descendants((node) => { if (node.isText) expect(node.marks.some((mark) => mark.type.name === 'bold')).toBe(false); });
+    expect(s.doc.textContent).toContain('typed');
+  });
+  it('separates formatting proposal text from adjacent paragraphs', () => {
+    const s = stateOf(doc(block('action', 'Alpha'), block('action', 'Beta')));
+    const proposed = suggest(s, s.tr.addMark(1, s.doc.content.size - 1, schema.marks.bold.create()));
+    expect(listSuggestions(proposed.doc)[0].formatted).toBe('Alpha\nBeta');
+  });
+});

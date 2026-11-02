@@ -301,7 +301,7 @@ function elementChange(a: Unit & { kind: 'open' }, b: Unit & { kind: 'open' }, m
 
 function insertedUnit(u: Unit, me: SuggesterIdentity): string | null {
   if (u.kind === 'char') {
-    if(formatProposals(u.marks).some(p=>!validFormat(p)||!owns(p,me)))return 'added invalid formatting suggestions';
+    if (formatProposals(u.marks).some((p) => !validFormat(p) || !owns(p, me))) return 'added invalid formatting suggestions';
     return owns(u.marks.suggestionInsert, me) ? null : 'added text that is not a suggestion';
   }
   if (u.kind === 'open') return owns(u.attrs.suggestedSplit, me) ? null : `added a ${u.name} that is not a suggested new line`;
@@ -636,7 +636,8 @@ class Reader {
 export function updateInMessage(message: Uint8Array): Uint8Array | null {
   const r = new Reader(message);
   r.string(); // document name
-  if (r.varUint() !== MESSAGE_SYNC) return null;
+  const type = r.varUint();
+  if (type !== MESSAGE_SYNC && type !== 4) return null; // SyncReply also carries updates.
   const step = r.varUint();
   if (step !== SYNC_STEP_2 && step !== SYNC_UPDATE) return null;
   return r.bytes();

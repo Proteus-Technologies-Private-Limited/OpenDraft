@@ -66,10 +66,7 @@ function goTo(editor: Editor, pos: number, focus = true) {
     const main = document.querySelector('.editor-main');
     if (!main || !coords) return;
     const rect = main.getBoundingClientRect();
-    main.scrollTo({
-      top: main.scrollTop + (coords.top - rect.top) - rect.height / 3,
-      behavior: 'auto',
-    });
+    main.scrollTo({ top: main.scrollTop + (coords.top - rect.top) - rect.height / 3, behavior: 'auto' });
   });
 }
 
@@ -147,7 +144,12 @@ const SuggestionsPanel: React.FC<Props> = ({ editor, style }) => {
       </div>
       <div className="suggestions-controls">
         <label className="suggestions-mode">
-          <input type="checkbox" checked={suggesting} disabled={locked} onChange={(e) => setSuggesting(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={suggesting}
+            disabled={locked}
+            onChange={(e) => setSuggesting(e.target.checked)}
+          />
           <span>{locked ? 'You are suggesting — the writer decides what goes in' : 'Suggest my own changes'}</span>
         </label>
         {(people.length > 1 || who) && (

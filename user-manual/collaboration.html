@@ -114,7 +114,7 @@
     <p>Collaboration syncs everything in real time: screenplay text, character profiles, script notes, tags, beats, and scene synopses.</p>
 
     <h3 id="review-compatibility">Use compatible app and server versions</h3>
-    <p>Formatting reviews require an updated app and collaboration server. OpenDraft checks compatibility before connecting and on reconnect; the server refuses older clients before sending any document content, including viewers and the host. If a compatibility check fails, update both the app and server before joining again. Your current script stays unchanged.</p>
+    <p>Formatting reviews require compatible apps and a collaboration server with review support. Older apps can still collaborate on scripts without pending formatting reviews. On an older or temporarily unverifiable server, text collaboration remains available and formatting suggestions are disabled. The server blocks new format proposals while an older participant is present, and refuses an older app joining a script with pending formatting reviews. Resolve those proposals or update the older app before joining. Connection retries do not repeat the compatibility health check.</p>
     <p>Saved scripts keep pending reviews for compatible apps in additional native metadata, with accepted screenplay content as a fallback for older apps. Older apps display that accepted content. <strong>Saving with an older app discards pending review information.</strong> Keep the original native file or a backup and use an updated app to continue reviewing. If a saved body was edited elsewhere, OpenDraft keeps those edits rather than restoring stale review text.</p>
 
     <h2 id="setup">Setting Up Collaboration</h2>

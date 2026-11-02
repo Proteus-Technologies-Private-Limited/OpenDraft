@@ -20,7 +20,7 @@ import cors from 'cors';
 import { WebSocketServer } from 'ws';
 
 import { config } from './config';
-import { requireReviewClient, REVIEW_PROTOCOL } from './services/reviewProtocol';
+import { ReviewGate, supportsReview, REVIEW_PROTOCOL } from './services/reviewProtocol';
 import { reviewDataDirectory, findReviewStateFile, deleteReviewStateFiles } from './services/reviewStorage';
 import { initDB, getDB } from './db';
 import { seedDemoUser } from './bootstrap/seedDemoUser';
@@ -32,6 +32,8 @@ import collabRoutes from './routes/collab';
 import { standardLimiter } from './middleware/rateLimit';
 
 // ── Data directory for Yjs documents ──
+const reviewGate = new ReviewGate();
+const reviewY = Y as unknown as YjsLike;
 const DATA_DIR = reviewDataDirectory(config.dataDir);
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -118,7 +120,8 @@ const hocuspocus = new Hocuspocus({
       throw new Error('No authentication token provided');
     }
 
-    const rawToken = requireReviewClient(wireToken);
+    const rawToken = wireToken;
+    const reviewCapable = supportsReview(wireToken);
 
     let userId: string | null = null;
     let userEmail: string | null = null;
@@ -172,6 +175,29 @@ const hocuspocus = new Hocuspocus({
         throw new Error('Too many connections for this user');
       }
     }
+    // Reserve before any further await: no format update may race a legacy join.
+    reviewGate.join(data.documentName, data.socketId, reviewCapable);
+    const releaseReview = () => reviewGate.leave(data.documentName, data.socketId);
+    data.request.socket.once('close', releaseReview);
+    try {
+      const loaded = data.instance.documents.get(data.documentName);
+      if (loaded) reviewGate.checkClient(reviewY, loaded, reviewCapable);
+      else if (!reviewCapable) {
+        const file = findReviewStateFile(config.dataDir, path.basename(docPath(data.documentName)));
+        if (file) {
+          const saved = new Y.Doc();
+          try {
+            Y.applyUpdate(saved, new Uint8Array(fs.readFileSync(file)));
+            reviewGate.checkClient(reviewY, saved, false);
+          } finally { saved.destroy(); }
+        }
+      }
+    } catch (error) {
+      releaseReview();
+      data.request.socket.off('close', releaseReview);
+      throw error;
+    }
+
     incrementCounter(connectionsPerUser, userKey);
 
     // A viewer's connection takes no changes at all; Hocuspocus drops them.
@@ -185,6 +211,7 @@ const hocuspocus = new Hocuspocus({
       projectId: session.project_id,
       scriptId: session.script_id,
       role: session.role || 'editor',
+      reviewCapable,
       // What a suggester's suggestions must be signed with beside their name:
       // two people invited under the same name are told apart by it.
       suggesterId: suggesterIdOf((text) => crypto.createHash('sha256').update(text).digest('hex'), inviteToken),
@@ -197,6 +224,11 @@ const hocuspocus = new Hocuspocus({
     });
   },
 
+  async connected(data) {
+    const document = data.connection.document;
+    document.broadcastStateless(JSON.stringify({ type: 'review-capability', enabled: !reviewGate.hasLegacy(data.documentName) }));
+  },
+
   async onConnect(data: onConnectPayload) {
     const user = data.context?.user;
     console.log(`Client connected to document: ${data.documentName} (${user?.name || 'unknown'}, role: ${user?.role || 'unknown'})`);
@@ -204,6 +236,8 @@ const hocuspocus = new Hocuspocus({
   },
 
   async onDisconnect(data: onDisconnectPayload) {
+    reviewGate.leave(data.documentName, data.socketId);
+    data.document.broadcastStateless(JSON.stringify({ type: 'review-capability', enabled: !reviewGate.hasLegacy(data.documentName) }));
     const user = data.context?.user;
     console.log(`Client disconnected from document: ${data.documentName} (${user?.name || 'unknown'})`);
 
@@ -224,15 +258,13 @@ const hocuspocus = new Hocuspocus({
    */
   async beforeHandleMessage(data: beforeHandleMessagePayload) {
     const user = data.context?.user;
-    if (user?.role !== 'suggester') return;
-    let update: Uint8Array | null;
-    try {
-      update = updateInMessage(data.update);
-    } catch (err) {
-      throw new Error(`Unreadable message from a suggester: ${(err as Error).message}`);
-    }
+    reviewGate.checkClient(reviewY, data.document, !!user?.reviewCapable);
+    const update = updateInMessage(data.update);
     if (!update) return;
-    const why = checkSuggesterUpdate(Y as unknown as YjsLike, data.document, update, { name: user.name, uid: user.suggesterId });
+    reviewGate.checkUpdate(reviewY, data.documentName, data.document, update, !!user?.reviewCapable);
+    const why = user?.role === 'suggester'
+      ? checkSuggesterUpdate(reviewY, data.document, update, { name: user.name, uid: user.suggesterId })
+      : null;
     if (why) {
       console.warn(`[suggest] Refused a change from ${user.name} on ${data.documentName}: ${why}`);
       await auditService.logEvent('suggestion_refused', user.id || null, data.documentName, { name: user.name, why });
@@ -243,6 +275,9 @@ const hocuspocus = new Hocuspocus({
         reason: SUGGESTION_REFUSED_REASON,
       });
     }
+    // Apply synchronously with the checks so a legacy authentication cannot
+    // slip between validation and commit. Hocuspocus's second apply is a no-op.
+    if (!data.connection.readOnly) Y.applyUpdate(data.document, update, data.connection);
   },
 
   async onChange(data: onChangePayload) {

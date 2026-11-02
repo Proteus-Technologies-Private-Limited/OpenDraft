@@ -119,9 +119,10 @@ export type SuggestionKind = 'insert' | 'delete' | 'split' | 'join' | 'type' | '
  * explain. A line break inside an element is one: collaboration stores marks
  * on text only, so a suggested break would reach everyone else unmarked.
  */
-export type Blocked = 'formatting' | 'lineBreak' | 'alternates' | 'formatConflict';
+export type Blocked = 'formatting' | 'lineBreak' | 'alternates' | 'formatConflict' | 'formatCompatibility';
 
 export interface SuggestOptions {
+  allowFormatting?: boolean;
   /** The suggester's name, as collaborators see it. */
   by: string;
   /** Their stable id in a collaboration session, if any (SuggestionStamp.uid). */
@@ -334,7 +335,22 @@ function markInserted(ctx: Ctx, from: number, to: number, preferredId: string | 
   // Pasted text struck through elsewhere is not a deletion here.
   out.removeMark(from, to, types.del);
   const formatType = ctx.state.schema.marks[SUGGEST_FORMAT];
-  if (formatType) out.removeMark(from, to, formatType);
+  if (formatType) {
+    // New suggested text has its own review. Restore inherited pending styles
+    // before dropping their format stamps, so rejection cannot leave bold behind.
+    const restore: Array<{ from: number; to: number; marks: readonly Mark[] }> = [];
+    out.doc.nodesBetween(from, to, (node, pos) => {
+      if (node.isText) restore.push({ from: Math.max(from, pos), to: Math.min(to, pos + node.nodeSize), marks: node.marks });
+    });
+    for (const range of restore) for (const mark of range.marks) {
+      if (mark.type !== formatType || !isFormatStamp(mark.attrs)) continue;
+      const type = ctx.state.schema.marks[mark.attrs.format];
+      if (!type) continue;
+      if (mark.attrs.before) out.addMark(range.from, range.to, type.create());
+      else out.removeMark(range.from, range.to, type);
+    }
+    out.removeMark(from, to, formatType);
+  }
   out.addMark(from, to, types.ins.create(stamp));
   out.doc.nodesBetween(from, to, (node, pos) => {
     if (node.isTextblock && pos >= from && pos < to && pos > 0 && tracksBlocks(node)) {
@@ -493,6 +509,10 @@ function suggestReplaceAround(ctx: Ctx, step: ReplaceAroundStep, toOut: PosMap):
 
 /** Character styling previews normally; its review mark retains the accepted baseline. */
 function suggestFormat(ctx: Ctx, step: AddMarkStep | RemoveMarkStep, prev: PosMap): void {
+  if (ctx.opts.allowFormatting === false) {
+    ctx.opts.onBlocked?.('formatCompatibility');
+    return;
+  }
   const mapped = step.map(mappable(prev));
   const reviewType = ctx.state.schema.marks[SUGGEST_FORMAT];
   if (!(mapped instanceof AddMarkStep || mapped instanceof RemoveMarkStep) || !reviewType) return;
@@ -671,30 +691,22 @@ export interface Suggestion {
 export function listSuggestions(doc: PmNode): Suggestion[] {
   const byId = new Map<string, Suggestion>();
   const order: string[] = [];
+  let blockPosition = -1;
+  const formatBlock = new Map<string, number>();
   const get = (stamp: SuggestionStamp, pos: number): Suggestion => {
     let s = byId.get(stamp.id);
     if (!s) {
-      s = {
-        id: stamp.id,
-        by: stamp.by,
-        at: Number(stamp.at) || 0,
-        uid: typeof stamp.uid === 'string' ? stamp.uid : null,
-        kinds: [],
-        inserted: '',
-        deleted: '',
-        pos,
-      };
+      s = { id: stamp.id, by: stamp.by, at: Number(stamp.at) || 0, uid: typeof stamp.uid === 'string' ? stamp.uid : null, kinds: [], inserted: '', deleted: '', pos };
       byId.set(stamp.id, s);
       order.push(stamp.id);
     }
     s.end = Math.max(s.end ?? pos, pos);
     return s;
   };
-  const add = (s: Suggestion, kind: SuggestionKind) => {
-    if (!s.kinds.includes(kind)) s.kinds.push(kind);
-  };
+  const add = (s: Suggestion, kind: SuggestionKind) => { if (!s.kinds.includes(kind)) s.kinds.push(kind); };
   doc.descendants((node, pos) => {
     if (node.isTextblock) {
+      blockPosition = pos;
       const split = stampOf(node, SUGGESTED_SPLIT);
       if (split) { const s = get(split, pos); add(s, 'split'); s.inserted += s.inserted ? '\n' : ''; }
       const join = stampOf(node, SUGGESTED_JOIN);
@@ -704,7 +716,7 @@ export function listSuggestions(doc: PmNode): Suggestion[] {
       return true;
     }
     if (!node.isInline) return true;
-    const text = node.isText ? (node.text ?? '') : '\n';
+    const text = node.isText ? node.text ?? '' : '\n';
     const ins = markOf(node.marks, SUGGEST_INSERT);
     if (ins && isStamp(ins.attrs)) { const s = get(ins.attrs as SuggestionStamp, pos); add(s, 'insert'); s.inserted += text; }
     const del = markOf(node.marks, SUGGEST_DELETE);
@@ -717,7 +729,11 @@ export function listSuggestions(doc: PmNode): Suggestion[] {
       const stamp = mark.attrs as FormatStamp;
       const s = get(stamp, pos);
       add(s, 'format');
-      if (!seenFormatIds.has(stamp.id)) s.formatted = (s.formatted ?? '') + text;
+      if (!seenFormatIds.has(stamp.id)) {
+        const separator = formatBlock.has(stamp.id) && formatBlock.get(stamp.id) !== blockPosition ? '\n' : '';
+        s.formatted = (s.formatted ?? '') + separator + text;
+        formatBlock.set(stamp.id, blockPosition);
+      }
       seenFormatIds.add(stamp.id);
       s.formats ??= [];
       if (
@@ -851,22 +867,13 @@ export function resolveSuggestionsTransaction(
     const nodeType = state.schema.nodes[type];
     const node = tr.doc.nodeAt(pos);
     if (nodeType && node) {
-      try {
-        tr.setNodeMarkup(pos, nodeType, { ...node.attrs, [SUGGESTED_TYPE]: null });
-      } catch {
-        /* type not valid here */
-      }
+      try { tr.setNodeMarkup(pos, nodeType, { ...node.attrs, [SUGGESTED_TYPE]: null }); } catch { /* type not valid here */ }
     }
   }
   // Then text and joins, from the end of the script back.
   const ops: Array<{ pos: number; run: () => void }> = [
     ...removeText.map(([a, b]) => ({ pos: a, run: () => tr.delete(a, b) })),
-    ...joins.map((p) => ({
-      pos: p,
-      run: () => {
-        if (p > 0 && canJoin(tr.doc, p)) tr.join(p);
-      },
-    })),
+    ...joins.map((p) => ({ pos: p, run: () => { if (p > 0 && canJoin(tr.doc, p)) tr.join(p); } })),
   ];
   ops.sort((x, y) => y.pos - x.pos);
   for (const op of ops) op.run();
@@ -937,12 +944,7 @@ export function withoutSuggestionsJSON(doc: JSONContent): JSONContent {
         if (!stripped) continue;
         const prev = children[children.length - 1];
         // A suggested new line goes back onto the end of the line before it.
-        if (
-          isStamp(child.attrs?.[SUGGESTED_SPLIT]) &&
-          prev &&
-          prev.type !== 'text' &&
-          prev.type !== 'hardBreak'
-        ) {
+        if (isStamp(child.attrs?.[SUGGESTED_SPLIT]) && prev && prev.type !== 'text' && prev.type !== 'hardBreak') {
           prev.content = [...(prev.content ?? []), ...(stripped.content ?? [])];
           continue;
         }

@@ -199,13 +199,14 @@ export interface SuggestionsOptions {
   onBlocked: (what: Blocked) => void;
   /** True in a suggester's session: the app's own housekeeping changes are not applied (see isHousekeeping). */
   dropHousekeeping: () => boolean;
+  allowFormatting: () => boolean;
 }
 
 export const Suggestions = Extension.create<SuggestionsOptions>({
   name: 'suggestions',
 
   addOptions() {
-    return { suggester: () => null, onBlocked: () => {}, dropHousekeeping: () => false };
+    return { suggester: () => null, onBlocked: () => {}, dropHousekeeping: () => false, allowFormatting: () => true };
   },
 
   addExtensions() {
@@ -240,8 +241,16 @@ export const Suggestions = Extension.create<SuggestionsOptions>({
           return;
         }
         const next = me && isLocalEdit(tr)
-          ? suggestTransaction(view.state, tr, { ...me, onBlocked: options.onBlocked })
+          ? suggestTransaction(view.state, tr, { ...me, onBlocked: options.onBlocked, allowFormatting: options.allowFormatting() })
           : discardOverriddenFormats(tr);
+        if (!options.allowFormatting() && next.docChanged && isLocalEdit(tr)) {
+          let pending = false;
+          next.doc.descendants((node) => {
+            if (node.marks.some((mark) => mark.type.name === SUGGEST_FORMAT)) pending = true;
+            return !pending;
+          });
+          if (pending) { options.onBlocked('formatCompatibility'); return; }
+        }
         original.call(view, next);
       },
     });

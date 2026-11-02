@@ -2,17 +2,14 @@ import { platformFetch } from './platform';
 
 /** Bump when a client cannot safely read the preceding review schema. */
 export const REVIEW_PROTOCOL = 1;
-export const REVIEW_COMPATIBILITY_MESSAGE =
-  'Update OpenDraft and the collaboration server before using this session. This version requires compatible review support to protect your screenplay.';
-
-/** Checked before provider creation and again before every authentication/reconnect. */
-export async function requireReviewServer(
+/** Probe once before provider creation. Unavailable/older servers still allow text collaboration. */
+export async function reviewServerSupportsFormatting(
   wsUrl: string,
   fetcher: (
     url: string,
     options?: RequestInit,
   ) => Promise<Response> = platformFetch,
-): Promise<void> {
+): Promise<boolean> {
   const base = wsUrl
     .replace(/^wss:/, 'https:')
     .replace(/^ws:/, 'http:')
@@ -28,31 +25,26 @@ export async function requireReviewServer(
         );
       }),
     ]);
-    if (!response.ok) throw new Error(REVIEW_COMPATIBILITY_MESSAGE);
+    if (!response.ok) return false;
     const body = await response.json();
-    if (
-      body?.service !== 'opendraft-collab' ||
-      body?.reviewProtocol !== REVIEW_PROTOCOL
-    ) {
-      throw new Error(REVIEW_COMPATIBILITY_MESSAGE);
-    }
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message === REVIEW_COMPATIBILITY_MESSAGE
-    )
-      throw error;
-    throw new Error(
-      `${REVIEW_COMPATIBILITY_MESSAGE} Could not verify the server.`,
-      { cause: error },
-    );
+    return body?.service === 'opendraft-collab' && body?.reviewProtocol === REVIEW_PROTOCOL;
+  } catch {
+    return false;
   } finally {
     clearTimeout(timer);
   }
 }
 
 export function reviewAuthToken(token: string): string {
-  // A legacy server must NOT find a valid invite inside a compound token.
-  // It treats this entire envelope as an invalid invite, before loading/sync.
-  return `od-review.${REVIEW_PROTOCOL}.${encodeURIComponent(token)}`;
+  // Legacy servers ignore unknown compound-token fields.
+  const credential = token.includes('|') ? token : `invite:${token}`;
+  return `${credential}|review:${REVIEW_PROTOCOL}`;
+}
+
+/** Also check restored review snapshots before seeding an older server. */
+export function hasPendingFormat(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  if (Array.isArray(value)) return value.some(hasPendingFormat);
+  const node = value as Record<string, unknown>;
+  return node.type === 'suggestionFormat' || Object.values(node).some(hasPendingFormat);
 }

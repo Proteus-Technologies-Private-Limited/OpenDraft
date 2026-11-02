@@ -6,36 +6,39 @@ shared text. A release-note warning is not sufficient protection.
 
 ## Collaboration
 
-The client verifies the configured collaboration server's `/health` response
-before constructing a provider, and checks again before every authentication or
-reconnect. The server reports `reviewProtocol`; the protocol must match the
-client. Failure leaves the current document/session unchanged and explains that
-the app and server must be updated. Requests go only to the collaboration server
-already selected by the writer; no screenplay content is sent in the health check.
+The client probes the selected server's `/health` once before constructing the
+provider. A matching `reviewProtocol` enables formatting suggestions. An older
+server, timeout, malformed response or HTTP error disables format suggesting for
+that session but still permits ordinary collaboration and text suggestions.
+Authentication/reconnect uses a fixed credential; it never repeats the health
+check or ends a session over an HTTP failure. A document with pending format
+proposals cannot seed a server without verified support; resolve those proposals
+first. The check sends no screenplay content or authentication credentials.
 
-The authenticated WebSocket independently enforces the same protocol **before
-loading or syncing any document**, for hosts, editors, viewers and suggesters.
-Credentials use an `od-review.<protocol>.<encoded credentials>` envelope. A legacy
-server cannot extract a valid invite from it, so it refuses authentication. This
-also protects against a health request and WebSocket reaching different versions
-behind a load balancer. An updated server refuses legacy plain/compound tokens.
-Authentication failure stops reconnection and preserves any local text as an
-unsaved copy rather than discarding a provisional collaborative document.
-The envelope preserves the existing invite/JWT validation and suggester identity;
-it is compatibility negotiation, not a replacement for authentication.
+Tokens append `|review:1` to the existing invite/JWT compound format. Older
+servers ignore that field and still authenticate the invite. Updated servers
+allow legacy hosts, editors, viewers and suggesters on ordinary scripts. A
+legacy connection is refused only if the document contains `suggestionFormat`.
+While any legacy connection is authenticating or connected, updates containing
+that mark are refused for **every role**, before applying or broadcasting them.
+Checks include initial sync uploads and nested screenplay content. A new client
+also disables format suggesting while the server reports legacy peers present.
+A rejected local proposal remains on its author's machine; it is not broadcast.
+Resolve it or update the older participants before rejoining.
 
-Deploy the updated server and app together and restart existing sessions. Mixed
-versions cannot collaborate, even in a script with no current proposals. This
-avoids an older editor joining just before a new proposal is made. The rejection
-happens before shared text can reach an unsupported schema. Do not remove the
-authentication guard while keeping the new review schema.
+Reservations cover the gap between authentication and document loading. Update
+checks and commits run synchronously in the awaited `beforeHandleMessage` hook, preventing a legacy join
+from racing a validated format update. Existing suggester permission checks also
+run there; viewer connections remain read-only.
 
-Persisted Yjs state is written under `DATA_DIR/review-v<protocol>/`, so a
-previous server cannot load newer schema marks after a rollback. Upgrades may
-read older protocol directories (and the original legacy directory), but never
-write newer updates back there. Preserve these directories when backing up the
-server. Previously unprotected experimental state should be backed up and the
-session restarted on updated apps before any rollback.
+Persisted Yjs state is written under `DATA_DIR/review-v1/`. Upgrades read that
+first, falling back to the original legacy directory, but never write newer
+updates back to the legacy file. Back up both directories. **Rollback does not
+restore the latest edits:** an older server reads the pre-upgrade legacy file,
+so rolling back without migration silently resurrects old screenplay content.
+Before rollback, stop sessions, back up current state, and export the latest
+accepted scripts with an updated app into fresh sessions. Do not copy raw
+review-v1 Yjs files into the legacy directory; older schemas cannot read them.
 
 ## Library, native files and recovery
 
@@ -69,10 +72,11 @@ loader. External screenplay serializers still output accepted content.
 
 Unit tests exercise an actual ProseMirror schema without `suggestionFormat`,
 addition/removal baselines, mixed text/style reviews, native round trips, library
-writes, recovery, stale edits and malformed metadata. Protocol tests cover old,
-new and invalid responses, server downgrade between checks and token envelopes.
+writes, recovery, stale edits and malformed metadata. Protocol tests cover supported, legacy, unavailable and timed-out servers,
+backward-compatible tokens, mixed roles and preservation of the original room
+when an incompatible update is rejected.
 
-After installing frontend/collab dependencies and building the collab server, run
-`node test-script/review-compat-smoke.cjs`. It uses real Hocuspocus sockets: compatible
-peers sync; legacy host/editor/viewer/suggester tokens are refused before data is
-loaded; a new client on a legacy server is refused; existing shared text is intact.
+After building the collab server, run `node test-script/review-compat-smoke.cjs`
+for real Hocuspocus sockets: mixed-version ordinary collaboration, new clients on
+old servers, format proposals blocked with legacy peers, and unsafe legacy joins
+refused without sending screenplay content.

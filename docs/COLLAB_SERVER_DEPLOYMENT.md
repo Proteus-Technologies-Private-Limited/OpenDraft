@@ -1,12 +1,15 @@
 # Collab Server Deployment
 
-Review-format clients and servers must be deployed together. The server now
-requires the matching review protocol in WebSocket authentication for **all**
-roles, before sending document data. Older apps cannot join. New apps check the
-server before connecting and on reconnect; old servers cannot authenticate the
-new credential envelope. Restart sessions after upgrading. See
-[Review compatibility](review-compatibility.md) for the saved-file fallback and
-mixed-version regression checks.
+Review-format support can roll out gradually: older apps can still collaborate
+on scripts without pending formatting proposals, and newer apps can use older
+servers with format suggesting disabled. The server blocks legacy clients from
+rooms containing the new mark and blocks proposals while a legacy peer is present.
+
+Current Yjs files are written only under `DATA_DIR/review-v1/`. The original
+legacy files stop receiving updates. **Rolling back directly would restore stale
+pre-upgrade content.** Stop sessions, back up both directories and migrate the
+latest accepted scripts into fresh sessions before downgrading; never copy raw
+review-v1 state into the legacy directory. See [review compatibility](review-compatibility.md).
 
 ## Current Production
 

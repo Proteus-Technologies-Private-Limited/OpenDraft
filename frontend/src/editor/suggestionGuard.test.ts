@@ -365,6 +365,8 @@ describe('reading a client’s message', () => {
     const payload = new Uint8Array(300).map((_, i) => i % 251);
     expect(updateInMessage(message(0, 2, payload))).toEqual(payload);
     expect(updateInMessage(message(0, 1, payload))).toEqual(payload);
+    expect(updateInMessage(message(4, 1, payload))).toEqual(payload);
+    expect(updateInMessage(message(4, 2, payload))).toEqual(payload);
   });
 
   it('finds none in the first sync step or an awareness message', () => {

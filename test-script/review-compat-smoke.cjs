@@ -1,6 +1,4 @@
-/** Run after `cd collab-server && npm run build` and installing both components.
- * Real Hocuspocus sockets: no mocked provider/auth/sync implementation.
- */
+/** Real sockets using the production review gate. Build collab-server first. */
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { createRequire } = require('node:module');
@@ -12,137 +10,135 @@ const { WebSocket } = back('ws');
 const Y = front('yjs');
 const ServerY = back('yjs');
 const { HocuspocusProvider } = front('@hocuspocus/provider');
-const { requireReviewClient, REVIEW_PROTOCOL } = back(
-  './dist/services/reviewProtocol.js',
-);
-const envelope = (token) =>
-  `od-review.${REVIEW_PROTOCOL}.${encodeURIComponent(token)}`;
+const { updateInMessage } = back('./dist/services/suggestionGuard.js');
+const { ReviewGate, supportsReview } = back('./dist/services/reviewProtocol.js');
 const live = [];
-async function serve(legacy) {
-  let loads = 0;
+const servers = [];
+const wire = (role) => `invite:${role}|review:1`;
+const pause = () => new Promise((resolve) => setTimeout(resolve, 30));
+async function until(check) {
+  const deadline = Date.now() + 5000;
+  while (!check()) {
+    if (Date.now() > deadline) throw new Error('Socket condition timed out');
+    await pause();
+  }
+}
+async function serve(legacy = false) {
+  const gate = new ReviewGate();
   const server = new Server({
-    port: 0,
-    address: '127.0.0.1',
-    stopOnSignals: false,
-    debounce: 10,
-    maxDebounce: 20,
-    name: 'Review compatibility test',
-    quiet: true,
-    async onAuthenticate({ token }) {
-      const credential = legacy ? token : requireReviewClient(token);
-      // Match legacy's real plain/compound invite parsing. A new envelope
-      // must not expose a valid invite even if HTTP and WS hit different nodes.
-      const invite = credential.includes('|')
-        ? credential
-            .split('|')
-            .find((part) => part.startsWith('invite:'))
-            ?.slice(7)
-        : credential;
-      if (!['host', 'editor', 'viewer', 'suggester'].includes(invite))
-        throw { reason: 'Invalid invite' };
-      return { role: invite };
+    port: 0, address: '127.0.0.1', stopOnSignals: false, quiet: true,
+    async onAuthenticate({ token, documentName, socketId, instance, request }) {
+      const role = token.includes('|') ? token.split('|').find((p) => p.startsWith('invite:'))?.slice(7) : token;
+      assert.ok(['host', 'editor', 'viewer', 'suggester'].includes(role));
+      const capable = supportsReview(token);
+      if (!legacy) {
+        gate.join(documentName, socketId, capable);
+        request.socket.once('close', () => gate.leave(documentName, socketId));
+        try {
+          const doc = instance.documents.get(documentName);
+          if (doc) gate.checkClient(ServerY, doc, capable);
+        } catch (error) { gate.leave(documentName, socketId); throw error; }
+      }
+      return { capable, role };
     },
-    async onLoadDocument({ document }) {
-      loads++;
+    async onLoadDocument({ document, documentName }) {
       const action = new ServerY.XmlElement('action');
       const text = new ServerY.XmlText();
-      text.insert(0, 'Keep every word.', {
-        suggestionFormat: {
-          id: 'pending',
-          by: 'Ann',
-          at: 1,
-          format: 'bold',
-          before: false,
-          after: true,
-        },
-      });
+      text.insert(0, 'Keep every word.');
+      if (documentName === 'persisted') text.format(0, 4, { suggestionFormat: { id: 'saved', by: 'Ann', at: 1, format: 'bold', before: false, after: true } });
       action.insert(0, [text]);
       document.getXmlFragment('default').insert(0, [action]);
       return document;
     },
+    async beforeHandleMessage({ context, document, documentName, update: message, connection }) {
+      if (legacy) return;
+      gate.checkClient(ServerY, document, context.capable);
+      const payload = updateInMessage(message);
+      if (!payload) return;
+      gate.checkUpdate(ServerY, documentName, document, payload, context.capable);
+      ServerY.applyUpdate(document, payload, connection);
+    },
+    async onDisconnect({ documentName, socketId }) { gate.leave(documentName, socketId); },
   });
   await server.listen();
-  return { server, url: server.webSocketURL, loads: () => loads };
+  servers.push(server);
+  return { server, url: server.webSocketURL, gate };
 }
-function connect(server, token) {
+function connect(server, token, name = 'plain') {
   const doc = new Y.Doc();
+  const status = { synced: false, denied: false, closed: '', connections: 0 };
   let provider;
-  const result = new Promise((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error('Client did not authenticate or sync')),
-      5000,
-    );
-    provider = new HocuspocusProvider({
-      url: server.url,
-      name: 'screenplay',
-      document: doc,
-      token,
-      WebSocketPolyfill: WebSocket,
-      onAuthenticationFailed: ({ reason }) => {
-        provider.configuration.websocketProvider.disconnect();
-        clearTimeout(timer);
-        resolve({ accepted: false, reason });
-      },
-      onSynced: ({ state }) => {
-        if (state) {
-          clearTimeout(timer);
-          resolve({ accepted: true });
-        }
-      },
-    });
+  provider = new HocuspocusProvider({
+    url: server.url, name, document: doc, token, WebSocketPolyfill: WebSocket,
+    onConnect: () => { status.connections++; },
+    onAuthenticationFailed: () => { status.denied = true; provider.configuration.websocketProvider.disconnect(); },
+    onSynced: ({ state }) => { status.synced = state; },
+    onClose: ({ event }) => {
+      if (event.reason) status.closed = event.reason;
+      if (event.reason === 'review-incompatible') provider.configuration.websocketProvider.disconnect();
+    },
   });
-  live.push({ provider, doc });
-  return { doc, result };
+  const client = { provider, doc, status, stop() { provider.configuration.websocketProvider.disconnect(); provider.destroy(); } };
+  live.push(client);
+  return client;
+}
+function text(doc) { return doc.getXmlFragment('default').get(0).get(0); }
+function propose(doc) {
+  text(doc).format(0, 4, { bold: {}, suggestionFormat: { id: 'f', by: 'Ann', at: 1, format: 'bold', before: false, after: true } });
 }
 (async () => {
-  const modern = await serve(false),
-    old = await serve(true);
   try {
-    const compatible = connect(modern, envelope('host'));
-    assert.equal((await compatible.result).accepted, true);
-    assert.match(
-      compatible.doc.getXmlFragment('default').toString(),
-      /Keep every word\./,
-    );
-    const before = compatible.doc.getXmlFragment('default').toString();
+    const modern = await serve();
+    const host = connect(modern, wire('host'));
+    await until(() => host.status.synced);
     for (const role of ['host', 'editor', 'viewer', 'suggester']) {
-      const client = connect(modern, role);
-      const denied = await client.result;
-      assert.equal(denied.accepted, false);
-      assert.match(denied.reason, /Update OpenDraft/);
-      assert.equal(client.doc.getXmlFragment('default').length, 0);
+      const peer = connect(modern, role);
+      await until(() => peer.status.synced);
+      assert.equal(text(peer.doc).toDelta().map((op) => op.insert).join(''), 'Keep every word.');
+      peer.stop();
+      await until(() => !modern.gate.hasLegacy('plain'));
     }
-    assert.equal(modern.loads(), 1);
-    assert.equal(compatible.doc.getXmlFragment('default').toString(), before);
-    const newOnOld = connect(old, envelope('editor'));
-    assert.equal((await newOnOld.result).accepted, false);
-    assert.equal(newOnOld.doc.getXmlFragment('default').length, 0);
-    assert.equal(old.loads(), 0);
-    const peer = connect(modern, envelope('editor'));
-    assert.equal((await peer.result).accepted, true);
-    assert.match(
-      peer.doc.getXmlFragment('default').toString(),
-      /Keep every word\./,
-    );
-    console.log(
-      JSON.stringify({
-        protocol: REVIEW_PROTOCOL,
-        legacyRolesDenied: 4,
-        compatiblePeersSynced: 2,
-        newClientOldServerDenied: true,
-        sourceTextPreserved: true,
-      }),
-    );
+    const persisted = connect(modern, 'viewer', 'persisted');
+    await until(() => persisted.status.closed === 'review-incompatible');
+    assert.equal(persisted.doc.getXmlFragment('default').length, 0);
+    const old = await serve(true);
+    const modernOnOld = connect(old, wire('editor'));
+    await until(() => modernOnOld.status.synced);
+    // A reconnect uses the same token: no HTTP dependency or authentication failure.
+    const initialConnections = modernOnOld.status.connections;
+    modernOnOld.provider.configuration.websocketProvider.disconnect();
+    await until(() => modernOnOld.provider.configuration.websocketProvider.status === 'disconnected');
+    await modernOnOld.provider.configuration.websocketProvider.connect();
+    await until(() => modernOnOld.status.connections > initialConnections);
+    text(modernOnOld.doc).insert(0, 'Reconnected. ');
+    await until(() => old.server.hocuspocus.documents.get('plain').getXmlFragment('default').toString().includes('Reconnected.'));
+    assert.equal(modernOnOld.status.denied, false);
+
+    // Every modern role is blocked from uploading a format while an old viewer is present.
+    for (const role of ['host', 'editor', 'viewer', 'suggester']) {
+      const room = `blocked-${role}`;
+      const older = connect(modern, 'viewer', room);
+      await until(() => older.status.synced);
+      const writer = connect(modern, wire(role), room);
+      await until(() => writer.status.synced);
+      propose(writer.doc);
+      await until(() => writer.status.closed === 'review-incompatible');
+      assert.equal(text(older.doc).toDelta().some((op) => op.attributes?.suggestionFormat), false);
+      assert.equal(text(older.doc).toDelta().map((op) => op.insert).join(''), 'Keep every word.');
+    }
+    propose(host.doc);
+    await until(() => modern.server.hocuspocus.documents.get('plain').getXmlFragment('default').toString().includes('suggestionFormat'));
+    for (const role of ['host', 'editor', 'viewer', 'suggester']) {
+      const unsupported = connect(modern, role);
+      await until(() => unsupported.status.denied);
+      assert.equal(unsupported.doc.getXmlFragment('default').length, 0);
+    }
+    const peer = connect(modern, wire('editor'));
+    await until(() => peer.status.synced);
+    assert.ok(peer.doc.getXmlFragment('default').toString().includes('suggestionFormat'));
+    console.log('PASS: four legacy roles sync ordinary scripts; new client syncs/reconnects on old server; every role is gated with legacy peers; unsafe joins receive no script; modern peers retain reviews.');
   } finally {
-    for (const { provider, doc } of live) {
-      provider.configuration.websocketProvider.disconnect();
-      provider.destroy();
-      doc.destroy();
-    }
-    await modern.server.destroy();
-    await old.server.destroy();
+    for (const client of live) { client.stop(); client.doc.destroy(); }
+    for (const server of servers) await server.destroy();
   }
-})().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+})().catch((error) => { console.error(error); process.exitCode = 1; });

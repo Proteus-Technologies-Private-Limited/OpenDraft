@@ -1,88 +1,85 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  requireReviewServer,
-  reviewAuthToken,
-  REVIEW_PROTOCOL,
-} from './reviewProtocol';
-import {
-  requireReviewClient,
-  REVIEW_PROTOCOL as SERVER_PROTOCOL,
-} from '../../../collab-server/src/services/reviewProtocol';
-const response = (data: unknown, status = 200) =>
-  new Response(JSON.stringify(data), { status });
-
-describe('review compatibility before any document sync', () => {
-  it('keeps client and server protocol declarations aligned', () => {
-    expect(REVIEW_PROTOCOL).toBe(SERVER_PROTOCOL);
-    expect(requireReviewClient(reviewAuthToken('my-invite'))).toBe('my-invite');
-    expect(
-      requireReviewClient(reviewAuthToken('jwt:access|invite:my-invite')),
-    ).toBe('jwt:access|invite:my-invite');
-  });
-  it('refuses legacy hosts, editors, viewers and suggesters before role handling', () => {
-    for (const token of [
-      'invite',
-      'jwt:access|invite:token',
-      'invite:token|review:0',
-      'invite:token|review:999',
-      `od-review.${REVIEW_PROTOCOL}.%invalid`,
-      `od-review.999.invite`,
-    ]) {
-      expect(() => requireReviewClient(token)).toThrow('Update OpenDraft');
-    }
-  });
-  it('makes the auth envelope unusable by legacy servers even behind mixed-version load balancers', () => {
+import * as Y from 'yjs';
+import { reviewServerSupportsFormatting, reviewAuthToken, hasPendingFormat, REVIEW_PROTOCOL } from './reviewProtocol';
+import { ReviewGate, supportsReview, hasReviewFormats } from '../../../collab-server/src/services/reviewProtocol';
+import type { YjsLike } from '../../../collab-server/src/services/suggestionGuard';
+const reviewY = Y as unknown as YjsLike;
+const response = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
+function script() {
+  const doc = new Y.Doc();
+  const action = new Y.XmlElement('action');
+  const text = new Y.XmlText();
+  text.insert(0, 'Keep every word.');
+  action.insert(0, [text]);
+  doc.getXmlFragment('default').insert(0, [action]);
+  return doc;
+}
+function formatUpdate(doc: Y.Doc) {
+  const peer = new Y.Doc();
+  Y.applyUpdate(peer, Y.encodeStateAsUpdate(doc));
+  const vector = Y.encodeStateVector(peer);
+  const text = (peer.getXmlFragment('default').get(0) as Y.XmlElement).get(0) as Y.XmlText;
+  text.format(0, 4, { suggestionFormat: { id: 'f', by: 'Ann', at: 1, format: 'bold', before: false, after: true } });
+  const update = Y.encodeStateAsUpdate(peer, vector);
+  peer.destroy();
+  return update;
+}
+describe('mixed-version review compatibility', () => {
+  it('keeps invites readable by old servers', () => {
     for (const token of ['my-invite', 'jwt:access|invite:my-invite']) {
       const wire = reviewAuthToken(token);
-      expect(wire).not.toContain('|');
-      expect(wire).not.toBe('my-invite');
-      // Old servers treat any token without a pipe as a plain invite. The
-      // envelope is not a valid invite, so they cannot sync this client.
-      expect(requireReviewClient(wire)).toBe(token);
+      expect(supportsReview(wire)).toBe(true);
+      expect(wire.split('|').find((p) => p.startsWith('invite:'))).toBe('invite:my-invite');
+    }
+    expect(supportsReview('my-invite')).toBe(false);
+    expect(supportsReview('invite:my-invite|review:999')).toBe(false);
+  });
+  it('recognizes pending format reviews before seeding legacy servers', () => {
+    expect(hasPendingFormat({ type: 'doc', content: [{ type: 'text', text: 'Words', marks: [{ type: 'suggestionFormat', attrs: {} }] }] })).toBe(true);
+    expect(hasPendingFormat({ type: 'doc', content: [{ type: 'text', text: 'Words', marks: [{ type: 'bold' }] }] })).toBe(false);
+  });
+  it('enables formatting only when the initial capability check succeeds', async () => {
+    const fetcher = vi.fn(async () => response({ service: 'opendraft-collab', reviewProtocol: REVIEW_PROTOCOL }));
+    expect(await reviewServerSupportsFormatting('wss://example.test/collab/', fetcher)).toBe(true);
+    expect(fetcher).toHaveBeenCalledWith('https://example.test/collab/health', { cache: 'no-store' });
+    for (const unavailable of [
+      async () => response({ service: 'opendraft-collab' }),
+      async () => response({ service: 'opendraft-collab', reviewProtocol: 999 }),
+      async () => response({}, 429),
+      async () => new Response('not JSON'),
+      async () => { throw new Error('Offline'); },
+    ]) expect(await reviewServerSupportsFormatting('ws://example.test', unavailable)).toBe(false);
+  });
+  it('degrades a timed-out health check to text collaboration', async () => {
+    vi.useFakeTimers();
+    try {
+      const probe = reviewServerSupportsFormatting('ws://example.test', () => new Promise(() => {}));
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(await probe).toBe(false);
+    } finally { vi.useRealTimers(); }
+  });
+  it('allows legacy roles on plain scripts and refuses formats during their connection', () => {
+    for (const role of ['host', 'editor', 'viewer', 'suggester']) {
+      const gate = new ReviewGate();
+      const doc = script();
+      gate.join('room', role, false);
+      expect(() => gate.checkClient(reviewY, doc, false)).not.toThrow();
+      const update = formatUpdate(doc);
+      expect(() => gate.checkUpdate(reviewY, 'room', doc, update, true)).toThrow();
+      expect(hasReviewFormats(reviewY, doc)).toBe(false);
+      gate.leave('room', role);
+      expect(() => gate.checkUpdate(reviewY, 'room', doc, update, true)).not.toThrow();
+      Y.applyUpdate(doc, update);
+      expect(() => gate.checkClient(reviewY, doc, false)).toThrow();
+      expect(() => gate.checkClient(reviewY, doc, true)).not.toThrow();
+      expect(((doc.getXmlFragment('default').get(0) as Y.XmlElement).get(0) as Y.XmlText).toDelta().map((op: { insert: unknown }) => op.insert).join('')).toBe('Keep every word.');
+      doc.destroy();
     }
   });
-  it('checks the configured server without sending script or authentication data', async () => {
-    const fetcher = vi.fn(async () =>
-      response({
-        service: 'opendraft-collab',
-        reviewProtocol: REVIEW_PROTOCOL,
-      }),
-    );
-    await requireReviewServer('wss://example.test/collab/', fetcher);
-    expect(fetcher).toHaveBeenCalledWith('https://example.test/collab/health', {
-      cache: 'no-store',
-    });
-  });
-  it('fails closed for old/mismatched servers and unavailable/malformed responses', async () => {
-    for (const fetcher of [
-      async () => response({ service: 'opendraft-collab' }),
-      async () =>
-        response({ service: 'opendraft-collab', reviewProtocol: 999 }),
-      async () =>
-        response({ service: 'other', reviewProtocol: REVIEW_PROTOCOL }),
-      async () => response({}, 503),
-      async () => new Response('not JSON'),
-      async () => {
-        throw new Error('Offline');
-      },
-    ])
-      await expect(
-        requireReviewServer('ws://example.test', fetcher),
-      ).rejects.toThrow('Update OpenDraft');
-  });
-  it('does not cache verification across reconnects or server downgrades', async () => {
-    const fetcher = vi
-      .fn()
-      .mockResolvedValueOnce(
-        response({
-          service: 'opendraft-collab',
-          reviewProtocol: REVIEW_PROTOCOL,
-        }),
-      )
-      .mockResolvedValueOnce(response({ service: 'opendraft-collab' }));
-    await requireReviewServer('ws://example.test', fetcher);
-    await expect(
-      requireReviewServer('ws://example.test', fetcher),
-    ).rejects.toThrow('Update OpenDraft');
+  it('refuses format marks from a legacy connection without mutating the room', () => {
+    const doc = script();
+    expect(() => new ReviewGate().checkUpdate(reviewY, 'room', doc, formatUpdate(doc), false)).toThrow();
+    expect(hasReviewFormats(reviewY, doc)).toBe(false);
+    doc.destroy();
   });
 });

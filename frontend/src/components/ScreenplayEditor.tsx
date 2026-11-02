@@ -177,12 +177,14 @@ function collabRoleOf(role: unknown): CollabRole {
 
 /** Said once in a while, not on every keystroke, when a suggester tries what a suggestion cannot carry. */
 let blockedToastAt = 0;
-function sayCannotBeSuggested(what: 'formatting' | 'lineBreak' | 'alternates' | 'formatConflict') {
+function sayCannotBeSuggested(what: 'formatting' | 'lineBreak' | 'alternates' | 'formatConflict' | 'formatCompatibility') {
   const now = Date.now();
   // Alternates are a deliberate click, not a keystroke: always say why it did nothing.
   if (what !== 'alternates' && now - blockedToastAt < 8000) return;
   blockedToastAt = now;
-  showToast(what === 'lineBreak'
+  showToast(what === 'formatCompatibility'
+    ? 'Formatting suggestions need a compatible collaboration server and clients. Text suggestions are still available.'
+    : what === 'lineBreak'
     ? 'A line break inside an element can’t be suggested — press Enter for a new line instead.'
     : what === 'alternates'
       ? 'Versions of a line or scene can’t be added or switched while suggesting. Turn off Tools → Suggest Changes to do that.'
@@ -223,7 +225,7 @@ import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
 import CompareVersionPicker from './CompareVersionPicker';
-import { requireReviewServer, reviewAuthToken } from '../services/reviewProtocol';
+import { reviewServerSupportsFormatting, reviewAuthToken, hasPendingFormat } from '../services/reviewProtocol';
 import ZoomPanel from './ZoomPanel';
 import { captureZoomAnchor, restoreZoomAnchor, type ZoomAnchor } from '../utils/zoomAnchor';
 import { isNoteResolved } from '../utils/noteThreads';
@@ -672,6 +674,7 @@ const ScreenplayEditor: React.FC = () => {
       ydocRef.current = null;
     }
     useSuggestModeStore.getState().setUid(null);
+    useSuggestModeStore.getState().setFormatSuggesting(true);
     setCollabUsers([]);
   }, []);
 
@@ -715,17 +718,16 @@ const ScreenplayEditor: React.FC = () => {
     if (collabDocNameRef.current === docName && providerRef.current) {
       return true;
     }
-    // Do not attach an editor/Y.Doc to an unverified server, or replace the
-    // current session while a compatibility request is still pending.
     const setupEpoch = ++collabSetupEpoch.current;
     const wsUrl = overrideWsUrl || getCollabWsUrl();
-    try { await requireReviewServer(wsUrl); }
-    catch (err) {
-      if (setupEpoch === collabSetupEpoch.current) showToast(err instanceof Error ? err.message : 'Could not verify collaboration compatibility.', 'error');
+    const formatSuggesting = await reviewServerSupportsFormatting(wsUrl);
+    if (setupEpoch !== collabSetupEpoch.current) return false;
+    if (!formatSuggesting && hasPendingFormat(collabInitialContent.current)) {
+      showToast('Resolve pending formatting suggestions before sharing this script on a server without verified review support. Your script is unchanged.', 'error');
       return false;
     }
-    if (setupEpoch !== collabSetupEpoch.current) return false;
     destroyCollab();
+    useSuggestModeStore.getState().setFormatSuggesting(formatSuggesting);
     collabDocNameRef.current = docName;
     collabExitingRef.current = false;
     // What this window's suggestions are signed with in the session, as the
@@ -763,15 +765,14 @@ const ScreenplayEditor: React.FC = () => {
       url: wsUrl,
       name: docName,
       document: ydoc,
-      token: async () => {
-        try { await requireReviewServer(wsUrl); }
-        catch (err) {
-          // provider.disconnect() is a no-op in provider 3.x. Close the actual
-          // socket before its onOpen can send sync after a rejected token.
-          provider.configuration.websocketProvider.disconnect();
-          throw err;
-        }
-        return reviewAuthToken(token);
+      token: reviewAuthToken(token),
+      onStateless: ({ payload }) => {
+        try {
+          const message = JSON.parse(payload);
+          if (message.type === 'review-capability' && typeof message.enabled === 'boolean') {
+            useSuggestModeStore.getState().setFormatSuggesting(formatSuggesting && message.enabled);
+          }
+        } catch { /* Other stateless messages do not advertise review support. */ }
       },
       onConnect: () => {
         console.log(`[Collab] Connected to room "${docName}" (${isHost ? 'host' : 'guest'})`);
@@ -786,6 +787,12 @@ const ScreenplayEditor: React.FC = () => {
         // The server refused a change from a suggester that was not a
         // suggestion (collab-server/src/services/suggestionGuard). Reconnecting
         // would send the same change again, so stop and say so.
+        if ((event as { reason?: string }).reason === 'review-incompatible') {
+          provider.configuration.websocketProvider.disconnect();
+          showToast('Formatting suggestions cannot sync with an older app in this session. Your local text is retained. Resolve pending formatting suggestions or ask everyone to update before rejoining.', 'error');
+          return;
+        }
+
         if ((event as { reason?: string }).reason === SUGGESTION_REFUSED_REASON) {
           provider.disconnect();
           showToast('The collaboration server refused a change that was not a suggestion, and disconnected you. Open the invite link again to carry on.', 'error');
@@ -2185,6 +2192,7 @@ const ScreenplayEditor: React.FC = () => {
       Suggestions.configure({
         suggester: () => (useSuggestModeStore.getState().suggesting ? suggestionAuthor() : null),
         onBlocked: sayCannotBeSuggested,
+        allowFormatting: () => useSuggestModeStore.getState().formatSuggesting,
         dropHousekeeping: () => useSuggestModeStore.getState().locked,
       }),
       LockedPages,

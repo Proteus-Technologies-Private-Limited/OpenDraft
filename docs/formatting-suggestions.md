@@ -29,13 +29,14 @@ Known same-style proposals from another author must be reviewed before that
 style can be changed again. Simultaneous agreeing proposals can coexist after a
 Yjs merge: withdrawing one leaves the other pending; accepting one settles the
 agreeing proposals on that text. Independent styles can overlap. New words typed
-inside a formatting proposal are a separately signed insertion and retain their
-style as part of that insertion.
+inside a formatting proposal are a separately signed insertion. They inherit the
+accepted baseline style, so rejecting the proposal cannot leave its bold behind.
 
 Compatibility is enforced before collaboration sync; see [Review compatibility](review-compatibility.md).
 
-Update both clients and the collaboration server before using the feature.
-Older clients and servers cannot join these sessions. Saved native/library bodies
+Ordinary scripts remain available to mixed versions. Formatting proposals are
+disabled on older servers and while an older participant is present. Older apps
+can join again after pending formatting proposals have been resolved. Saved native/library bodies
 contain accepted content, with review data in versioned metadata for compatible
 apps. Saving in an older app drops that review data; keep the original backup. Font/colour changes, paragraph alignment and spacing, and
 Shift+Enter suggestions remain outside this implementation.

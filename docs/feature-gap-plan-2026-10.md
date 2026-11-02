@@ -273,10 +273,7 @@ suggestions have their own model (`editor/suggestions.ts`):
   `beforeHandleMessage` (`services/suggestionGuard.ts`) by comparing the script
   before and after, unit by unit, and closes the connection on anything that is
   not the author's own suggestion; viewers now get a read-only connection.
-- Character-style suggestions and review workflow follow-up: bold, italic,
-  underline, strikethrough, subscript and superscript retain their accepted
-  baseline; author/type filters, previous/next and accept/reject-and-next.
-  Font/colour and paragraph formatting remain unsupported, as does an inline line break (y-prosemirror does
+- Not suggestible yet: formatting, and an inline line break (y-prosemirror does
   not store marks on inline nodes). Panels other than the script — notes,
   beats, characters — sync as they do for any collaborator.
 - Exports, print, sides and linked files leave pending suggestions out
