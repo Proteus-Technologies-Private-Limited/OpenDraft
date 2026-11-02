@@ -240,7 +240,8 @@ describe('Fountain', () => {
     const source = doc(
       el(
         'sceneHeading',
-        { sequenceId: 'seq-1', sequenceName: 'The Heist', sequenceColor: '#123456' },
+        // A bracket is what ends a note, so the name exercises the escaping.
+        { sequenceId: 'seq-1', sequenceName: 'The ] Heist', sequenceColor: '#123456' },
         txt('INT. HOUSE - DAY'),
       ),
       el('action', null, txt('A door slams.')),
@@ -253,7 +254,7 @@ describe('Fountain', () => {
       ['sceneHeading', 'INT. HOUSE - DAY'], ['action', 'A door slams.'],
     ]);
     expect(read[0].attrs?.sequenceId).toBe('seq-1');
-    expect(read[0].attrs?.sequenceName).toBe('The Heist');
+    expect(read[0].attrs?.sequenceName).toBe('The ] Heist');
     expect(read[0].attrs?.sequenceColor).toBe('#123456');
   });
 

@@ -50,7 +50,12 @@ export const useTableReadStore = create<TableReadState>((set) => ({
   setOpen: (open) => set({ open }),
   openTableRead: () => {
     const editors = useEditorStore.getState();
+    // Table Read docks under the script, so every view that replaces the
+    // script has to close first — the Outline, Statistics and the Beat Board
+    // all hide it. The menu used to guard only against the Outline.
     if (editors.outlineOpen) editors.toggleOutline();
+    if (editors.statisticsOpen) editors.setStatisticsOpen(false);
+    if (editors.beatBoardOpen) editors.toggleBeatBoard();
     set({ open: true });
   },
   setNeedsProvider: (v) => set({ needsProvider: v }),
