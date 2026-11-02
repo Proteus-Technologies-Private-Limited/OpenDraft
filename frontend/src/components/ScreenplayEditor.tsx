@@ -131,7 +131,7 @@ import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
 import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile } from '../utils/scriptProfile';
 import { restoreRevisionState } from '../utils/revisionState';
 import { characterKey } from '../utils/nodeText';
-import { buildScriptIndex, emptyScriptIndex, suggestSmartType, type BlockLike, type ScriptIndex } from '../editor/smartType';
+import { buildScriptIndex, collectScriptBlocks, emptyScriptIndex, suggestSmartType, type ScriptIndex } from '../editor/smartType';
 import { computeContdChanges, type ContdBlock } from '../editor/contdAuto';
 import { useBackupScheduler } from '../hooks/useBackupScheduler';
 import { useRecoverySnapshot } from '../hooks/useRecoverySnapshot';
@@ -1578,7 +1578,9 @@ const ScreenplayEditor: React.FC = () => {
     position: { top: number; left: number };
     suggestions: string[];
     from: number;
-  }>({ visible: false, position: { top: 0, left: 0 }, suggestions: [], from: 0 });
+    /** Scene headings and transitions only accept Enter/Tab after an arrow key. */
+    requireNavigation: boolean;
+  }>({ visible: false, position: { top: 0, left: 0 }, suggestions: [], from: 0, requireNavigation: false });
   /**
    * The exact block text the popup was dismissed at, or accepted into. Hidden
    * only while the text is unchanged, so typing again — or accepting a prefix —
@@ -2696,11 +2698,9 @@ const ScreenplayEditor: React.FC = () => {
   useEffect(() => {
     if (!editor) return;
     const rebuild = () => {
-      const blocks: BlockLike[] = [];
-      editor.state.doc.forEach((node) => {
-        blocks.push({ type: node.type.name, text: node.textContent });
-      });
-      smartTypeIndexRef.current = buildScriptIndex(blocks);
+      const { $from } = editor.state.selection;
+      const blockPos = $from.depth > 0 ? $from.before($from.depth) : null;
+      smartTypeIndexRef.current = buildScriptIndex(collectScriptBlocks(editor.state.doc, blockPos));
     };
     rebuild();
     let timeout: ReturnType<typeof setTimeout> | null = null;
@@ -2715,11 +2715,16 @@ const ScreenplayEditor: React.FC = () => {
     };
   }, [editor]);
 
-  // --- SmartType: show/update on each editor update ---
+  // --- SmartType: show on typing, hide when the caret moves without typing ---
   useEffect(() => {
     if (!editor) return;
     const hide = () => setSmartTypeState(s => (s.visible ? { ...s, visible: false } : s));
-    const onUpdate = () => {
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+    const cancelHide = () => {
+      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    };
+
+    const compute = () => {
       const { $from } = editor.state.selection;
       const element = $from.parent.type.name;
       if (element !== 'character' && element !== 'sceneHeading' && element !== 'transition') {
@@ -2761,11 +2766,28 @@ const ScreenplayEditor: React.FC = () => {
         position: { top: coords.bottom + 4, left: coords.left },
         suggestions: result.items,
         from: result.from,
+        // A location or transition suggestion is only accepted once the
+        // writer has stepped into the list; Enter and Tab keep moving on.
+        requireNavigation: element !== 'character',
       });
     };
+
+    const onUpdate = () => { cancelHide(); compute(); };
+    // Tiptap emits selectionUpdate before update. A pure caret move (arrow keys
+    // at the end of a cue) schedules a hide; a typed character is followed by
+    // update, which cancels it.
+    const onSelection = () => {
+      cancelHide();
+      hideTimer = setTimeout(() => { hideTimer = null; hide(); }, 0);
+    };
+
     editor.on('update', onUpdate);
-    editor.on('selectionUpdate', onUpdate);
-    return () => { editor.off('update', onUpdate); editor.off('selectionUpdate', onUpdate); };
+    editor.on('selectionUpdate', onSelection);
+    return () => {
+      cancelHide();
+      editor.off('update', onUpdate);
+      editor.off('selectionUpdate', onSelection);
+    };
   }, [editor]);
 
   // Re-measure overlays after editor updates (decorations settle)
@@ -5908,8 +5930,10 @@ const ScreenplayEditor: React.FC = () => {
       )}
       {!isHistoryMode && smartTypeState.visible && !pickerState.visible && (
         <SmartTypePopup
+          key={`${smartTypeState.requireNavigation ? 'nav' : 'cue'}:${smartTypeState.suggestions.join('\u0000')}:${Math.round(smartTypeState.position.top)}:${Math.round(smartTypeState.position.left)}`}
           position={smartTypeState.position}
           suggestions={smartTypeState.suggestions}
+          requireNavigation={smartTypeState.requireNavigation}
           onSelect={handleSmartTypeSelect}
           onDismiss={handleSmartTypeDismiss}
         />
