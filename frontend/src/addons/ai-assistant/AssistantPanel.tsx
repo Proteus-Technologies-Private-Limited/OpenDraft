@@ -18,9 +18,10 @@ import type { Editor } from '@tiptap/react';
 import { FaRobot, FaPaperPlane, FaTrashAlt } from 'react-icons/fa';
 import { ELEMENT_LABELS } from '../../stores/editorStore';
 import {
-  commandTools, createPreviewAdapter, createTiptapAdapter, executeCommand, getCommand,
+  createPreviewAdapter, createTiptapAdapter, executeCommand,
   type PreviewOp, type ScriptContext,
 } from './commands';
+import { isModelCommand, modelTools } from './modelTools';
 import { parseQuickDialogue } from './quickIntent';
 import { parseQuickScene, parseSceneWithDialogue } from './quickScene';
 import {
@@ -77,8 +78,12 @@ const CORE_JSON_TOOLS = new Set([
  * nothing is inserted. It is told that the app does the inserting, and that
  * JSON is the reply only when no tools arrive.
  */
-function systemPrompt(context: unknown, openAiCompatible: boolean): string {
-  const tools = commandTools().tools
+function systemPrompt(
+  context: unknown,
+  openAiCompatible: boolean,
+  tools: ReturnType<typeof modelTools>['tools'],
+): string {
+  const list = tools
     .filter((tool) => !openAiCompatible || CORE_JSON_TOOLS.has(tool.function.name))
     .map((tool) => `- ${tool.function.name}: ${tool.function.description}`)
     .join('\n');
@@ -117,7 +122,7 @@ function systemPrompt(context: unknown, openAiCompatible: boolean): string {
     'Reply: {"actions":[{"tool":"script_insertScene","args":{"heading":"EXT. HOUSE - LATER"}},{"tool":"script_insertAction","args":{"text":"Vilgax waits by the door."}}]}',
     '',
     'Tools:',
-    tools,
+    list,
     '',
     'Current context:',
     JSON.stringify(context ?? {}),
@@ -177,10 +182,17 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
   const [error, setError] = useState<string | null>(null);
   const [input, setInput] = useState('');
   /** The model's proposal, waiting for Accept. Nothing has touched the script. */
-  const [pending, setPending] = useState<{ calls: AiToolCall[]; ops: PreviewOp[] } | null>(null);
+  const [pending, setPending] = useState<{
+    calls: AiToolCall[];
+    ops: PreviewOp[];
+    /** The selection the proposal was made against, restored on Insert. */
+    selection: { from: number; to: number } | null;
+  } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mountedRef = useRef(true);
+  /** The selection at the moment the request was sent, for replaceSelection. */
+  const selectionRef = useRef<{ from: number; to: number } | null>(null);
 
   // A request in flight when the panel closes must not land on a dead panel.
   useEffect(() => {
@@ -196,7 +208,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, busy]);
 
-  const tools = useMemo(() => commandTools(), []);
+  const { tools, commandForTool, allowed } = useMemo(() => modelTools(), []);
 
   const addMessage = useCallback((role: UiMessage['role'], content: string) => {
     setMessages((current) => [...current, { id: messageId(), role, content }].slice(-200));
@@ -205,8 +217,8 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
   const resolveCommand = useCallback((name: string): string => {
     // The model may use the sanitised tool name (script_insertDialogue) or the
     // command id (script.insertDialogue); both resolve to the command id.
-    return tools.commandForTool.get(name) ?? name;
-  }, [tools]);
+    return commandForTool.get(name) ?? name;
+  }, [commandForTool]);
 
   const runCalls = useCallback((adapter: ReturnType<typeof createTiptapAdapter>, calls: AiToolCall[]) => {
     const lines: string[] = [];
@@ -228,17 +240,32 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
   /**
    * Run the calls against a dry-run adapter first. Valid ones become a
    * proposal the writer accepts; nothing reaches the script until then.
+   *
+   * A reply may only run commands the panel offers as tools, and a proposal
+   * with nothing to show is refused: an empty preview that still runs on
+   * Insert could undo work behind the writer's back.
    */
   const stageCalls = useCallback((
     adapter: ReturnType<typeof createTiptapAdapter>,
     calls: AiToolCall[],
   ) => {
+    if (calls.length > 60) {
+      return {
+        staged: false,
+        lines: [] as string[],
+        failures: ['The proposal is too large (max 60 actions). Try a more specific request.'],
+        count: 0,
+      };
+    }
     const preview = createPreviewAdapter(adapter.context());
     const valid: AiToolCall[] = [];
     const failures: string[] = [];
     for (const call of calls) {
       const id = resolveCommand(call.name);
-      if (getCommand(id)?.readOnly) continue;
+      if (!isModelCommand(id, commandForTool, allowed)) {
+        failures.push(`The assistant is not allowed to run ${call.name}.`);
+        continue;
+      }
       const before = preview.ops.length;
       const result = executeCommand(id, call.args, preview.adapter);
       if (result.ok) valid.push(call);
@@ -254,6 +281,14 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       (count, op) => count + (op.kind === 'blocks' ? op.blocks.length : 1),
       0,
     );
+    if (blockCount === 0) {
+      return {
+        staged: false,
+        lines: [] as string[],
+        failures: ['The proposal had nothing to insert.'],
+        count: 0,
+      };
+    }
     if (blockCount > 40) {
       return {
         staged: false,
@@ -263,12 +298,27 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       };
     }
     // Always show the proposal: nothing reaches the script without the writer.
-    setPending({ calls: valid, ops: preview.ops });
+    setPending({ calls: valid, ops: preview.ops, selection: selectionRef.current });
     return { staged: true, lines: [] as string[], failures, count: valid.length };
-  }, [resolveCommand]);
+  }, [resolveCommand, commandForTool, allowed]);
 
   const acceptPending = useCallback(() => {
     if (!pending || !editor) return;
+    if (!editor.isEditable) {
+      setPending(null);
+      setError('This document is read-only, so the assistant cannot insert into it.');
+      return;
+    }
+    if (pending.selection) {
+      try {
+        const max = editor.state.doc.content.size;
+        const from = Math.min(Math.max(0, pending.selection.from), max);
+        const to = Math.min(Math.max(from, pending.selection.to), max);
+        editor.commands.setTextSelection({ from, to });
+      } catch {
+        // The document may have changed since the proposal; insert at the caret.
+      }
+    }
     const adapter = createTiptapAdapter(editor);
     const ran = runCalls(adapter, pending.calls);
     setPending(null);
@@ -296,6 +346,10 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     try {
       const adapter = createTiptapAdapter(editor);
       const context = executeCommand('script.getContext', {}, adapter).data as ScriptContext | undefined;
+      selectionRef.current = {
+        from: editor.state.selection.from,
+        to: editor.state.selection.to,
+      };
 
       const finishStaged = (staged: ReturnType<typeof stageCalls>): boolean => {
         if (staged.count === 0) return false;
@@ -371,14 +425,14 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
           .slice(-10)
           .map((m): AiChatMessage => ({ role: m.role, content: m.content }));
       const conversation: AiChatMessage[] = [
-        { role: 'system', content: systemPrompt(context, openAiCompatible) },
+        { role: 'system', content: systemPrompt(context, openAiCompatible, tools) },
         ...history,
         { role: 'user', content: prompt },
       ];
 
       const executed: string[] = [];
       for (let step = 0; step < MAX_STEPS; step++) {
-        const reply = await callModel(settings, conversation, tools.tools);
+        const reply = await callModel(settings, conversation, tools);
         if (!mountedRef.current) return;
         if (import.meta.env.DEV) console.warn('[ai-assistant] reply', reply.content, reply.toolCalls);
 
@@ -393,7 +447,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
               role: 'user',
               content: 'The previous tool calls were invalid. A new place or time is script_insertScene; use script_insertTransition only for CUT TO, DISSOLVE or FADE. Reply with corrected tool calls.',
             },
-          ], tools.tools);
+          ], tools);
           if (!mountedRef.current) return;
           if (correction.toolCalls.length > 0 && finishStaged(stageCalls(adapter, correction.toolCalls))) return;
           setError(`No valid actions: ${reply.toolCalls.map((c) => c.name).join(', ')}`);

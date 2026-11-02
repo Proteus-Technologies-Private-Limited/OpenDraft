@@ -366,6 +366,9 @@ export function registerScreenplayCommands(): void {
     },
   });
 
+  // Undo and redo change the document without producing anything the preview
+  // can show, so the add-on never offers them to a model
+  // (addons/ai-assistant/modelTools.ts). They stay available to the app.
   registerCommand({
     id: 'editor.undo',
     label: 'Undo',

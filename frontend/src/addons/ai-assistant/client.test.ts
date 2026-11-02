@@ -1,11 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
+  describeNetworkError,
+  isLocalHost,
   normalizeBaseUrl,
   ollamaToolCalls,
   openaiToolCalls,
   parseJsonActions,
   toolResultMessage,
+  type AiSettings,
 } from './client';
+
+// The LAN rule only applies to the desktop app, so keep isTauri deterministic.
+vi.mock('../../services/platform', () => ({ isTauri: () => true }));
 
 describe('normalizeBaseUrl', () => {
   it('drops trailing slashes', () => {
@@ -84,5 +90,49 @@ describe('toolResultMessage', () => {
     expect(message.role).toBe('tool');
     expect(message.tool_name).toBe('script_insertDialogue');
     expect(JSON.parse(message.content)).toMatchObject({ ok: true });
+  });
+});
+
+describe('isLocalHost', () => {
+  it('accepts localhost and loopback addresses', () => {
+    for (const url of [
+      'http://localhost:11434',
+      'http://127.0.0.1:8080/v1',
+      'http://[::1]:1234',
+    ]) {
+      expect(isLocalHost(url), url).toBe(true);
+    }
+  });
+
+  it('rejects a LAN address', () => {
+    expect(isLocalHost('http://192.168.1.20:11434')).toBe(false);
+    expect(isLocalHost('http://10.0.0.5:8080/v1')).toBe(false);
+  });
+});
+
+describe('describeNetworkError', () => {
+  const settings = (baseUrl: string): AiSettings => ({
+    provider: 'openai',
+    baseUrl,
+    model: 'mock-model',
+    apiKey: '',
+  });
+
+  it('explains the desktop localhost-only rule for a LAN server', () => {
+    const message = describeNetworkError(
+      settings('http://192.168.1.20:11434'),
+      new TypeError('Failed to fetch'),
+    );
+    expect(message).toContain('192.168.1.20');
+    expect(message).toContain('only allows plain-http connections to localhost');
+    expect(message).not.toContain('OLLAMA_ORIGINS');
+  });
+
+  it('keeps the origin hint for a local server', () => {
+    const message = describeNetworkError(
+      settings('http://localhost:11434'),
+      new TypeError('Failed to fetch'),
+    );
+    expect(message).toContain('OLLAMA_ORIGINS');
   });
 });

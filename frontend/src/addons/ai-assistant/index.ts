@@ -25,7 +25,8 @@ const aiAssistant: OpenDraftPlugin = {
     'Sends your question, the script context it needs to answer, and the text you select to the AI '
     + 'server you choose. With a local server such as Ollama, LM Studio or Unsloth Studio on your own '
     + 'computer, nothing leaves your device. The server address, model name and any API key are stored '
-    + 'on this device only, never in scripts.',
+    + 'on this device only, never in scripts; the key is kept in the app storage unencrypted, so use a '
+    + 'key made for this purpose.',
   settings: AssistantSettingsForm,
   onDeactivate: ({ forgetSettings: forget }) => {
     if (forget) forgetSettings();

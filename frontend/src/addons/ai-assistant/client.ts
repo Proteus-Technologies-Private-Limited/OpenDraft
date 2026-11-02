@@ -16,6 +16,7 @@
  * normalized reply, and turns a model's JSON into tool calls.
  */
 import type { ToolDefinition } from './commands/types';
+import { isTauri } from '../../services/platform';
 
 export type AiProviderKind = 'ollama' | 'openai';
 
@@ -63,10 +64,24 @@ function endpoint(settings: AiSettings): string {
     : `${base}/chat/completions`;
 }
 
-function describeNetworkError(settings: AiSettings, err: unknown): string {
+export function isLocalHost(raw: string): boolean {
+  try {
+    const host = new URL(raw).hostname;
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+  } catch {
+    return true;
+  }
+}
+
+export function describeNetworkError(settings: AiSettings, err: unknown): string {
   const base = normalizeBaseUrl(settings.baseUrl);
   const message = err instanceof Error ? err.message : String(err);
   if (/failed to fetch|networkerror|load failed/i.test(message)) {
+    if (isTauri() && !isLocalHost(base)) {
+      return `Could not reach ${base}. The desktop app only allows plain-http connections to localhost or `
+        + '127.0.0.1, so a server on your local network is blocked by its security policy. Run the server '
+        + 'on this computer, or use OpenDraft in the browser.';
+    }
     return `Could not reach ${base}. Check that the server is running and that the app's origin `
       + `is allowed (for Ollama: OLLAMA_ORIGINS=*; for Unsloth Studio: the server must be `
       + `listening on ${base}).`;
@@ -271,7 +286,9 @@ export async function listModels(settings: AiSettings): Promise<string[]> {
  *   {"actions":[{"tool":...,"args":...}, ...]}
  *
  * Code fences are tolerated; anything that is not JSON gives no actions, so a
- * normal prose answer is shown as prose.
+ * normal prose answer is shown as prose. Names are not trusted here: the panel
+ * checks every action against the commands a model may run before anything is
+ * staged (see modelTools.ts).
  */
 export function parseJsonActions(content: string): AiToolCall[] {
   const text = content.replace(/```(?:json)?/gi, '').trim();

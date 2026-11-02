@@ -131,6 +131,10 @@ const AssistantSettingsForm: React.FC<PluginSettingsProps> = ({ registerSave }) 
           onChange={field('baseUrl')}
           placeholder="http://localhost:11434"
         />
+        <div className="settings-hint">
+          In the desktop app the server must run on this computer (localhost or 127.0.0.1);
+          a server on your local network is blocked by the app&rsquo;s security policy.
+        </div>
       </div>
       <div className="settings-row">
         <label htmlFor="ai-model">Model</label>

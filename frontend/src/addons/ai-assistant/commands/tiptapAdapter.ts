@@ -95,12 +95,18 @@ export function createTiptapAdapter(editor: Editor): EditorAdapter {
       editor.chain().focus().setNode(type).run();
     },
     replaceSelection: (text: string, element?: CommandElement) => {
-      const { from, to } = editor.state.selection;
-      editor.chain().focus().insertContentAt({ from, to }, text).run();
+      // Plain text: insertContent(string) would parse the reply as HTML, which
+      // is not what the preview showed and could create nodes or load images.
+      const { state, view } = editor;
+      const { from, to } = state.selection;
+      view.dispatch(state.tr.insertText(text, from, to));
+      view.focus();
       if (element) editor.chain().focus().setNode(element).run();
     },
     insertText: (text: string) => {
-      editor.chain().focus().insertContent(text).run();
+      const { state, view } = editor;
+      view.dispatch(state.tr.insertText(text, state.selection.from, state.selection.to));
+      view.focus();
     },
     undo: () => {
       editor.commands.undo();
