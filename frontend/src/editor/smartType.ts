@@ -81,6 +81,59 @@ export function emptyScriptIndex(): ScriptIndex {
   return { characters: [], locations: [], times: [], transitions: [] };
 }
 
+export type SmartTypeKeyAction = 'down' | 'up' | 'accept' | 'dismiss' | 'pass';
+
+/**
+ * What a key does while the popup is open. A location or transition only
+ * accepts Enter/Tab after the writer has stepped into the list with an arrow
+ * key; a character cue accepts at once. Everything else goes to the editor.
+ */
+export function smartTypeKeyAction(
+  requireNavigation: boolean,
+  navigated: boolean,
+  key: string,
+): SmartTypeKeyAction {
+  if (key === 'ArrowDown') return 'down';
+  if (key === 'ArrowUp') return 'up';
+  if (key === 'Escape') return 'dismiss';
+  if (key === 'Enter' || key === 'Tab') {
+    return requireNavigation && !navigated ? 'pass' : 'accept';
+  }
+  return 'pass';
+}
+
+/** The smallest shape of a document node the collector needs. */
+export interface BlockNodeLike {
+  isTextblock: boolean;
+  type: { name: string };
+  textContent: string;
+}
+
+export interface BlockDocLike {
+  descendants: (callback: (node: BlockNodeLike, pos: number) => boolean | void) => void;
+}
+
+/**
+ * Every text block in the document, including the ones inside wrappers such as
+ * dual dialogue columns and AV cells. `doc.forEach` only visits top-level
+ * blocks, which is why a character who speaks only in dual dialogue used to be
+ * missing from the index.
+ *
+ * `excludePos` leaves out the block being typed: pausing on "MARG" must not
+ * offer "MARG" back from the unfinished line itself.
+ */
+export function collectScriptBlocks(doc: BlockDocLike, excludePos: number | null = null): BlockLike[] {
+  const blocks: BlockLike[] = [];
+  doc.descendants((node, pos) => {
+    if (excludePos !== null && pos === excludePos) return false;
+    if (node.isTextblock) {
+      blocks.push({ type: node.type.name, text: node.textContent });
+    }
+    return true;
+  });
+  return blocks;
+}
+
 function pushUnique(list: string[], value: string): void {
   if (value && !list.includes(value)) list.push(value);
 }

@@ -2,10 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   MAX_ITEMS,
   buildScriptIndex,
+  collectScriptBlocks,
   emptyScriptIndex,
+  smartTypeKeyAction,
   suggestSmartType,
   type ScriptIndex,
 } from './smartType';
+import { pmDoc } from '../test/screenplaySchema';
 
 const items = (element: string, text: string, index: ScriptIndex = emptyScriptIndex()) => {
   const result = suggestSmartType(element, text, text.length, index);
@@ -118,5 +121,104 @@ describe('suggestSmartType: limits and boundaries', () => {
       Array.from({ length: MAX_ITEMS * 2 }, (_, i) => ({ type: 'character', text: `NAME${i}` })),
     );
     expect(items('character', 'N', many)).toHaveLength(MAX_ITEMS);
+  });
+});
+
+describe('collectScriptBlocks', () => {
+  const fakeDoc = (entries: Array<{ pos: number; block: any }>) => ({
+    descendants: (callback: (node: any, pos: number) => boolean | void) => {
+      for (const entry of entries) {
+        if (callback(entry.block, entry.pos) === false) return;
+      }
+    },
+  });
+
+  it('collects text blocks nested inside wrappers, not only top-level blocks', () => {
+    const doc = fakeDoc([
+      { pos: 0, block: { isTextblock: true, type: { name: 'sceneHeading' }, textContent: 'INT. HOUSE - DAY' } },
+      // dualDialogue / dualDialogueColumn wrappers are not text blocks
+      { pos: 20, block: { isTextblock: false, type: { name: 'dualDialogue' }, textContent: '' } },
+      { pos: 21, block: { isTextblock: true, type: { name: 'character' }, textContent: 'DUAL ONLY' } },
+      { pos: 40, block: { isTextblock: true, type: { name: 'character' }, textContent: 'MARGO' } },
+    ]);
+    expect(collectScriptBlocks(doc)).toEqual([
+      { type: 'sceneHeading', text: 'INT. HOUSE - DAY' },
+      { type: 'character', text: 'DUAL ONLY' },
+      { type: 'character', text: 'MARGO' },
+    ]);
+  });
+
+  it('leaves out the block being typed', () => {
+    const doc = fakeDoc([
+      { pos: 0, block: { isTextblock: true, type: { name: 'character' }, textContent: 'MARGO' } },
+      { pos: 20, block: { isTextblock: true, type: { name: 'character' }, textContent: 'MARG' } },
+    ]);
+    expect(collectScriptBlocks(doc, 20)).toEqual([
+      { type: 'character', text: 'MARGO' },
+    ]);
+  });
+});
+describe('smartTypeKeyAction', () => {
+  it('accepts a character cue with Enter or Tab at once', () => {
+    expect(smartTypeKeyAction(false, false, 'Enter')).toBe('accept');
+    expect(smartTypeKeyAction(false, false, 'Tab')).toBe('accept');
+  });
+
+  it('lets Enter and Tab keep moving in a heading until the writer navigates', () => {
+    expect(smartTypeKeyAction(true, false, 'Enter')).toBe('pass');
+    expect(smartTypeKeyAction(true, false, 'Tab')).toBe('pass');
+    expect(smartTypeKeyAction(true, true, 'Enter')).toBe('accept');
+    expect(smartTypeKeyAction(true, true, 'Tab')).toBe('accept');
+  });
+
+  it('navigates, dismisses and lets every other key through', () => {
+    expect(smartTypeKeyAction(true, false, 'ArrowDown')).toBe('down');
+    expect(smartTypeKeyAction(true, false, 'ArrowUp')).toBe('up');
+    expect(smartTypeKeyAction(true, false, 'Escape')).toBe('dismiss');
+    expect(smartTypeKeyAction(true, false, 'a')).toBe('pass');
+  });
+});
+
+describe('collectScriptBlocks on a real ProseMirror document', () => {
+  it('finds a character that only appears inside dual dialogue', () => {
+    const doc = pmDoc({
+      type: 'doc',
+      content: [
+        { type: 'sceneHeading', content: [{ type: 'text', text: 'INT. HOUSE - DAY' }] },
+        {
+          type: 'dualDialogue',
+          content: [
+            {
+              type: 'dualDialogueColumn',
+              content: [
+                { type: 'character', content: [{ type: 'text', text: 'DUALONLY' }] },
+                { type: 'dialogue', content: [{ type: 'text', text: 'Left.' }] },
+              ],
+            },
+            {
+              type: 'dualDialogueColumn',
+              content: [
+                { type: 'character', content: [{ type: 'text', text: 'BOB' }] },
+                { type: 'dialogue', content: [{ type: 'text', text: 'Right.' }] },
+              ],
+            },
+          ],
+        },
+        { type: 'character' },
+      ],
+    });
+
+    expect(collectScriptBlocks(doc)).toContainEqual({ type: 'character', text: 'DUALONLY' });
+    expect(collectScriptBlocks(doc)).toContainEqual({ type: 'character', text: 'BOB' });
+
+    let emptyPos: number | null = null;
+    doc.descendants((node, pos) => {
+      if (node.type.name === 'character' && node.textContent === '') emptyPos = pos;
+      return true;
+    });
+    expect(emptyPos).not.toBeNull();
+    const withoutCurrent = collectScriptBlocks(doc, emptyPos!);
+    expect(withoutCurrent.filter((block) => block.type === 'character' && block.text === '')).toHaveLength(0);
+    expect(withoutCurrent).toContainEqual({ type: 'character', text: 'DUALONLY' });
   });
 });
