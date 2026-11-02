@@ -3009,6 +3009,7 @@ pub fn run() {
             tts::tts_native_speak,
             tts::tts_native_poll,
             tts::tts_native_stop,
+            tts::tts_speech_server_request,
         ]);
 
         // ── Native menu (desktop only) ────────────────────────────────
