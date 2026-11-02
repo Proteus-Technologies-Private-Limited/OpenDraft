@@ -28,6 +28,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # Full history, so the sitemap's <lastmod> is each page's last commit
+          fetch-depth: 0
 
       - name: Build site
         run: |
@@ -35,6 +38,32 @@ jobs:
           cp -r landing/* _site/
           cp -r user-manual _site/user-manual
           cp -r images _site/images
+
+      # GitHub Pages serves no sitemap of its own, and a robots.txt under
+      # /OpenDraft/ is ignored (crawlers only read one at the domain root), so
+      # this file is submitted by hand in Google Search Console instead.
+      - name: Generate sitemap.xml
+        run: |
+          set -euo pipefail
+          base="https://proteus-technologies-private-limited.github.io/OpenDraft/"
+          {
+            echo '<?xml version="1.0" encoding="UTF-8"?>'
+            echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+            for src in landing/index.html landing/faq.html landing/report-issue.html user-manual/*.html; do
+              path="${src#landing/}"
+              path="${path%index.html}"
+              lastmod="$(git log -1 --format=%cs -- "$src")"
+              if [ -z "$lastmod" ]; then
+                echo "::error::$src has no git history; cannot compute <lastmod>"
+                exit 1
+              fi
+              printf '  <url><loc>%s%s</loc><lastmod>%s</lastmod></url>\n' "$base" "$path" "$lastmod"
+            done
+            echo '</urlset>'
+          } > _site/sitemap.xml
+          count="$(grep -c '<loc>' _site/sitemap.xml)"
+          echo "sitemap.xml lists $count pages"
+          [ "$count" -gt 20 ] || { echo "::error::sitemap.xml looks too small ($count pages)"; exit 1; }
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
