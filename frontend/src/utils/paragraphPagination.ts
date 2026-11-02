@@ -58,25 +58,37 @@ export function sliceParagraphRuns<T extends { text: string; isBreak?: boolean; 
   return out;
 }
 
-/** Only oversized paragraphs use fragments. Two/three-line groups prevent
- * either side of a page turn containing a single orphaned line. */
+/** Only oversized paragraphs use fragments. Every group has at least two
+ * visual lines, with sentence boundaries preferred over the fallback grid. */
 export function paragraphFragments(
   text: string,
   cpl: number,
 ): (ParagraphLine & { lines: ParagraphLine[] })[] {
   const lines = paragraphLines(text, cpl);
-  const fragments = [];
+  const fragments: (ParagraphLine & { lines: ParagraphLine[] })[] = [];
+  const endsSentence = (index: number) => /[.!?]["'’”)\]]*\s*$/.test(lines[index].text);
   for (let from = 0; from < lines.length; ) {
-    let to = Math.min(lines.length, from + 2);
-    if (lines.length - to === 1) to++;
-    // Prefer a nearby sentence ending; a single oversized paragraph may fall
-    // back to a visual line boundary when there is no sentence ending here.
-    if (
-      to + 3 <= lines.length &&
-      !/[.!?]["'’”)\]]*\s*$/.test(lines[to - 1].text) &&
-      /[.!?]["'’”)\]]*\s*$/.test(lines[to].text)
-    )
-      to++;
+    const latest = Math.min(from + 6, lines.length - 2);
+    let sentence = -1;
+    // Search back four lines, retaining at least two lines on both sides.
+    for (let end = latest; end >= from + 2; end--) {
+      if (endsSentence(end - 1)) { sentence = end; break; }
+    }
+    const previous = fragments.at(-1);
+    if (previous && sentence < 0 && lines.length - from >= 3 && endsSentence(from)) {
+      // A sentence one line ahead cannot form a fragment on its own. Extend
+      // the preceding fragment instead of hiding that valid turn boundary.
+      previous.lines.push(lines[from]);
+      previous.to = lines[from].to;
+      previous.text = text.slice(previous.from, previous.to);
+      from++;
+      continue;
+    }
+    // Do not introduce fallback cuts in the four lines immediately after an
+    // available sentence ending. Elsewhere keep the compact two-line grid.
+    let to = Math.min(lines.length, from + (from > 0 && endsSentence(from - 1) ? 6 : 2));
+    if (lines.length - to === 1) to += to - from > 2 ? -1 : 1;
+    if (sentence >= 0) to = sentence;
     const first = lines[from].from;
     const end = lines[to - 1].to;
     fragments.push({

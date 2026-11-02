@@ -445,3 +445,81 @@ it.each(['action','dialogue'])('matches every line of an oversized %s without or
   }
   for(let page=1;page<=pageCount;page++)expect(draws.filter(d=>d.page===page&&/^P\d/.test(d.text)).length).toBeGreaterThanOrEqual(2);
 });
+
+it.each(['near-footer', 'manual-break', 'template-break', 'no-continuation-labels'])(
+  'keeps oversized speech pages aligned after %s', async (mode) => {
+    const layout = { ...DEFAULT_PAGE_LAYOUT, pageWidth: 8.27, pageHeight: 11.69,
+      ...(mode === 'no-continuation-labels' ? { moresContds: { ...resolveMoresContds(DEFAULT_PAGE_LAYOUT), dialogueBreakContd: false } } : {}) };
+    const json = doc(
+      ...Array.from({ length: 26 }, () => block('action', 'Filler action.')),
+      ...(mode === 'manual-break' || mode === 'template-break' ? [block('sceneHeading', 'INT. ROOM - DAY', { startsNewPage: mode === 'manual-break' })] : []),
+      block('character', 'SARAH'),
+      block('dialogue', Array.from({ length: 700 }, (_, i) => `word${i}`).join(' ')),
+    );
+    const previous = useFormattingTemplateStore.getState();
+    const template = INDUSTRY_STANDARD_TEMPLATE;
+    if (mode === 'template-break') {
+      useFormattingTemplateStore.setState({ templates: [{ ...template, id: 'forced-scene', category: 'user', forceBreakBefore: ['sceneHeading'] }], activeTemplateId: 'forced-scene' });
+    }
+    try {
+      const result = computeBreaks(pmDoc(json), layout, activeTemplateHints());
+      await exportPDF(json, 'Oversized speech', layout);
+      expect(pageCount).toBe(result.pageCount);
+      expect(result.breaks.every(b => b.linesOnPage <= getPageMetrics(layout).linesPerPage)).toBe(true);
+      const sourceIndex = json.content!.length - 1;
+      const text = json.content![sourceIndex].content![0].text!;
+      for (const drawn of draws) {
+        const match = /word\d+/.exec(drawn.text);
+        if (!match) continue;
+        const offset = text.indexOf(match[0]);
+        const expected = result.breaks.filter(b => b.nodeIndex < sourceIndex || b.nodeIndex === sourceIndex && (b.contentOffset ?? 0) <= offset).at(-1)?.pageNumber ?? 1;
+        expect(drawn.page, match[0]).toBe(expected);
+        expect(drawn.y).toBeLessThanOrEqual(layout.pageHeight * 72 - layout.bottomMargin);
+      }
+    } finally {
+      useFormattingTemplateStore.setState({ templates: previous.templates, activeTemplateId: previous.activeTemplateId });
+    }
+  },
+);
+
+it('paginates dual dialogue after fragmented action using original node indices', async () => {
+  const speech = (name: string) => ({ type: 'dualDialogueColumn', content: [block('character', name), block('dialogue', `${name} speaks. `.repeat(300))] });
+  const json = doc(block('action', 'A lengthy opening paragraph. '.repeat(500)), { type: 'dualDialogue', content: [speech('SARAH'), speech('JOHN')] }, block('action', 'THE END.'));
+  const source = pmDoc(json);
+  const result = computeBreaks(source, DEFAULT_PAGE_LAYOUT, activeTemplateHints());
+  await exportPDF(json, 'Combined', DEFAULT_PAGE_LAYOUT);
+  expect(pageCount).toBe(result.pageCount);
+  expect(result.breaks.some(b => b.nodeIndex === 1 && b.dualRow !== undefined)).toBe(true);
+  const { computePageBlocks } = await import('../editor/pagination');
+  const preview = computePageBlocks(source, DEFAULT_PAGE_LAYOUT, activeTemplateHints());
+  expect(preview).toHaveLength(result.pageCount);
+  expect(preview.flatMap(p => p.blocks).filter(b => b.typeName === 'dualDialogue').length).toBeGreaterThan(1);
+});
+
+it('keeps forty oversized speech stress scripts aligned with the editor', async () => {
+  for (let seed = 0; seed < 40; seed++) {
+    draws.length = 0; pageCount = 1; currentPage = 1;
+    const layout = { ...DEFAULT_PAGE_LAYOUT, pageHeight: 11.69,
+      ...(seed % 4 === 0 ? { moresContds: { ...resolveMoresContds(DEFAULT_PAGE_LAYOUT), dialogueBreakContd: false } } : {}) };
+    const json = doc(
+      ...Array.from({ length: seed % 35 }, () => block('action', 'Filler action.')),
+      block('sceneHeading', 'INT. ROOM - DAY', { startsNewPage: seed % 3 === 0 }),
+      block('character', 'SARAH'),
+      block('dialogue', Array.from({ length: 520 + seed * 11 }, (_, i) => `word${i}`).join(' ')),
+    );
+    const source = pmDoc(json);
+    const result = computeBreaks(source, layout, activeTemplateHints());
+    await exportPDF(json, 'Stress', layout);
+    expect(pageCount, `seed ${seed}`).toBe(result.pageCount);
+    expect(result.breaks.every(b => b.linesOnPage <= getPageMetrics(layout).linesPerPage), `seed ${seed}`).toBe(true);
+    const index = source.childCount - 1;
+    const text = source.child(index).textContent;
+    for (const drawn of draws) {
+      const match = /word\d+/.exec(drawn.text);
+      if (!match) continue;
+      const offset = text.indexOf(match[0]);
+      const expected = result.breaks.filter(b => b.nodeIndex < index || b.nodeIndex === index && (b.contentOffset ?? 0) <= offset).at(-1)?.pageNumber ?? 1;
+      expect(drawn.page, `seed ${seed}: ${match[0]}`).toBe(expected);
+    }
+  }
+});

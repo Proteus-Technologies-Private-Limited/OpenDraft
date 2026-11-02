@@ -15,7 +15,10 @@ import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { isNonPrintingType } from '../utils/nonPrinting';
 import { laysItselfOut } from '../utils/pageBreaks';
 import { lockedPageLabels, lockedPageOf, startPages, startsLockedPage, type PageAnchor } from '../utils/lockedPages';
-import { dualDialogueLineCount, type DualColumns } from '../utils/dualDialogue';
+import {
+  dualDialogueLineCount, dualRows, dualContinuations, fitDualRows,
+  dualCellPosition, dualRefsInRows, dualChildBounds, type DualColumns,
+} from '../utils/dualDialogue';
 import {
   buildEndnotePages,
   packFootnotePage,
@@ -156,6 +159,8 @@ export function getPageMetrics(layout: PageLayout) {
 
 export interface BreakInfo {
   nodeIndex: number;
+  /** Visual row inside an oversized dual block; never a source-document split. */
+  dualRow?: number;
   offset: number;
   nodeSize: number;
   /** UTF-16 offset inside the unchanged paragraph, for a layout-only page turn. */
@@ -203,8 +208,8 @@ export interface PaginationState {
 function breaksDiffer(a: PaginationState, b: PaginationState): boolean {
   if (a.breaks.length !== b.breaks.length) return true;
   for (let i = 0; i < a.breaks.length; i++) {
-    if (a.breaks[i].offset !== b.breaks[i].offset) return true;
     if (a.breaks[i].contentOffset !== b.breaks[i].contentOffset) return true;
+    if (a.breaks[i].offset !== b.breaks[i].offset || a.breaks[i].dualRow !== b.breaks[i].dualRow) return true;
     if (a.breaks[i].linesOnPage !== b.breaks[i].linesOnPage) return true;
   }
   return false;
@@ -322,7 +327,9 @@ export function createPaginationPlugin(
             );
           }
         }
+        decos.push(...dualDecorations(state.doc, ps.breaks, linesPerPage, sepHeightPx, layout, getFootnotes()));
         for (const brk of ps.breaks) {
+          if (brk.dualRow !== undefined) continue;
           const whitespacePx = Math.max(0, linesPerPage - brk.linesOnPage) * lineHeightPx;
           // Dialogue splits need extra space for the CONT'D label on the next page
           const contdPx = brk.isDialogueSplit && showDialogueBreakContd ? lineHeightPx : 0;
@@ -405,8 +412,8 @@ const paragraphMeasures = new WeakMap<PmNode, { text: string; cpl: number; lines
 function measuredParagraphLines(node: PmNode, text: string, cpl: number): number {
   const cached = paragraphMeasures.get(node);
   if (cached?.text === text && cached.cpl === cpl) return cached.lines;
-  const lines = getTextLines(text,cpl);
-  paragraphMeasures.set(node,{text,cpl,lines});
+  const lines = getTextLines(text, cpl);
+  paragraphMeasures.set(node, { text, cpl, lines });
   return lines;
 }
 
@@ -419,13 +426,23 @@ function computeBreaksUnlabelled(
   const { linesPerPage } = getPageMetrics(layout);
 
   interface NodeInfo {
-    typeName: string; elementId: string; spaceBefore: number; text: string;
-    offset: number; nodeSize: number; lineMul: number; fixedLines?: number;
-    startsNewPage: boolean; hasTitleData: boolean;
-    sourceIndex: number; contentOffset?: number; continuation?: boolean; noteIds?: string[];
+    typeName: string;
+    elementId: string;
+    spaceBefore: number;
+    text: string;
+    offset: number;
+    nodeSize: number;
+    lineMul: number;
+    fixedLines?: number;
+    startsNewPage: boolean;
+    hasTitleData: boolean;
+    sourceIndex: number;
+    contentOffset?: number;
+    continuation?: boolean;
+    noteIds?: string[];
   }
   const nodes: NodeInfo[] = [];
-  const titleNodes: Array<{type:string;hasText:boolean;hasTitleData:boolean}> = [];
+  const titleNodes: Array<{ type: string; hasText: boolean; hasTitleData: boolean }> = [];
   let isFirst = true;
   let hasFragments = false;
   doc.forEach((node, offset, index) => {
@@ -564,7 +581,7 @@ function computeBreaksUnlabelled(
   // the break the writer sees on screen is the break they get in the file — the
   // two used to part company as soon as anything sat above the title (#52).
   const titleRegion = findTitlePageRegion(titleNodes);
-  const bodyStart = nodes.findIndex(node=>node.sourceIndex>=titleRegion.length);
+  const bodyStart = nodes.findIndex((node) => node.sourceIndex >= titleRegion.length);
   const titleRegionLength = titleRegion.isReal ? (bodyStart < 0 ? nodes.length : bodyStart) : 0;
   let titleBroken = false;
 
@@ -662,9 +679,13 @@ function computeBreaksUnlabelled(
     // considered. Nothing is ever un-committed, so there is no cycle to enter
     // and no iteration to cap.
     const inTitleRegion = i < titleRegionLength;
-    const notesFor = (from: number, to: number): string[] =>
-      plan && !inTitleRegion ? !hasFragments ? plan.notesForNodes(from,to)
-        : [...new Set(nodes.slice(from,to+1).flatMap(n=>n.noteIds ?? plan.notesForNodes(n.sourceIndex,n.sourceIndex)))] : EMPTY_IDS;
+    const notesFor = (from: number, to: number): string[] => {
+      if (!plan || inTitleRegion) return EMPTY_IDS;
+      if (!hasFragments) return plan.notesForNodes(from, to);
+      return [...new Set(nodes.slice(from, to + 1).flatMap((n) =>
+        n.noteIds ?? plan.notesForNodes(n.sourceIndex, n.sourceIndex),
+      ))];
+    };
     const capacityWith = (extra: readonly string[]): number => {
       if (!plan) return linesPerPage;
       const all = extra.length > 0 ? pageNotes.concat(extra) : pageNotes;
@@ -690,6 +711,81 @@ function computeBreaksUnlabelled(
       pendingSlices = fill.pending;
       carryLines = fill.pending.reduce((n, q) => n + q.lines, 0);
     };
+
+    // Ordinary dual dialogue remains indivisible. Only a block taller than a
+    // complete sheet takes the row path; normal scripts keep their old breaks.
+    if (node.typeName === 'dualDialogue' && textLines > linesPerPage) {
+      const columns = pmDualColumns(doc.child(node.sourceIndex));
+      const rows = dualRows(columns, plan?.refsByNode.get(node.sourceIndex), plan?.markerCells);
+      const labels = resolveMoresContds(layout).dialogueBreakContd;
+      const refs = plan?.refsByNode.get(node.sourceIndex) ?? [];
+      const rowNotes = (from: number, to: number): string[] => {
+        if (!plan || inTitleRegion) return EMPTY_IDS;
+        return dualRefsInRows(refs, rows, from, to)
+          .filter((ref) => plan.footnoteIds.has(ref.noteId))
+          .map((ref) => ref.noteId);
+      };
+      let pendingSpace = lineCount > 0 ? node.spaceBefore : 0;
+      const turn = (row: number) => {
+        breaks.push({
+          nodeIndex: i,
+          offset: node.offset,
+          nodeSize: node.nodeSize,
+          ...(row > 0 ? { dualRow: row } : {}),
+          pageNumber,
+          linesOnPage: lineCount,
+          isDialogueSplit: false,
+          characterName: '',
+          isTitlePage: false,
+        });
+        closePage(pageNotes);
+        pageNotes = EMPTY_IDS;
+        pendingSpace = 0;
+        pageNumber++;
+        lineCount = row > 0 && labels && dualContinuations(columns, rows, row).size > 0 ? 1 : 0;
+      };
+      if (forceBreak) turn(0);
+      let from = 0;
+      while (from < rows.length) {
+        let to = fitDualRows(
+          columns,
+          rows,
+          from,
+          capacityWith(EMPTY_IDS) - lineCount - pendingSpace,
+          labels,
+          (end) => capacityWith(rowNotes(from, end)) - lineCount - pendingSpace,
+        );
+        if (to === from) {
+          // Retry on a fresh page; even a pathological multi-line cue must
+          // make progress rather than create an unbounded series of sheets.
+          if (
+            lineCount >
+            (from > 0 && labels && dualContinuations(columns, rows, from).size > 0 ? 1 : 0)
+          ) {
+            turn(from);
+            continue;
+          }
+          to = Math.min(
+            rows.length,
+            from +
+              Math.max(
+                1,
+                Math.floor(capacityWith(rowNotes(from, from + 1)) - lineCount - (labels ? 1 : 0)),
+              ),
+          );
+        }
+        pageNotes = pageNotes.concat(rowNotes(from, to));
+        lineCount += pendingSpace + to - from;
+        pendingSpace = 0;
+        if (to < rows.length) {
+          if (labels && dualContinuations(columns, rows, to).size > 0) lineCount++;
+          turn(to);
+        }
+        from = to;
+      }
+      i++;
+      continue;
+    }
 
     const blockNotes = notesFor(i, blockEnd);
     const capacity = capacityWith(blockNotes);
@@ -853,6 +949,14 @@ function computeBreaksUnlabelled(
         pageNotes = blockNotes;
       }
       pageNumber++;
+      if (oversizedSpeech && lineCount > 0) {
+        // Retry the speech on the fresh sheet instead of swallowing all its
+        // fragments into one overflowing block. Forced breaks are now satisfied.
+        lineCount = 0;
+        pageNotes = EMPTY_IDS;
+        node.spaceBefore = 0;
+        continue;
+      }
       lineCount = blockLines - node.spaceBefore;
     } else {
       lineCount += blockLines;
@@ -862,9 +966,15 @@ function computeBreaksUnlabelled(
     i = blockEnd + 1;
   }
 
-  const mappedBreaks = !hasFragments ? breaks : breaks.map(brk=>{
-    const node=nodes[brk.nodeIndex];
-    return {...brk,nodeIndex:node.sourceIndex,offset:node.offset,nodeSize:node.nodeSize,...((node.contentOffset ?? 0)>0?{contentOffset:node.contentOffset}:{})};
+  const mappedBreaks = !hasFragments ? breaks : breaks.map((brk) => {
+    const node = nodes[brk.nodeIndex];
+    return {
+      ...brk,
+      nodeIndex: node.sourceIndex,
+      offset: node.offset,
+      nodeSize: node.nodeSize,
+      ...((node.contentOffset ?? 0) > 0 ? { contentOffset: node.contentOffset } : {}),
+    };
   });
   if (!plan) return { pageCount: pageNumber - 1, breaks: mappedBreaks };
 
@@ -975,7 +1085,7 @@ export function computePageBlocks(
   if (nodes.length === 0) return [];
 
   const starts = [
-    { pageNumber: 1, nodeIndex: 0, contentOffset: 0, isDialogueSplit: false },
+    { pageNumber: 1, nodeIndex: 0, contentOffset: 0, isDialogueSplit: false, dualRow: undefined as number | undefined },
     ...breaks.map((brk) => ({ ...brk, contentOffset: brk.contentOffset ?? 0 })),
   ];
   const pages: PageContentInfo[] = [];
@@ -983,23 +1093,39 @@ export function computePageBlocks(
     const start = starts[page],
       end = starts[page + 1];
     const blocks: PageBlockInfo[] = [];
-    let lineOnPage = start.isDialogueSplit && resolveMoresContds(layout).dialogueBreakContd ? 1 : 0;
+    const columns = start.dualRow === undefined ? null : pmDualColumns(doc.child(start.nodeIndex));
+    const continued = columns && dualContinuations(
+      columns,
+      dualRows(columns, plan?.refsByNode.get(start.nodeIndex), plan?.markerCells),
+      start.dualRow!,
+    ).size > 0;
+    let lineOnPage = (start.isDialogueSplit || continued) && resolveMoresContds(layout).dialogueBreakContd ? 1 : 0;
+    let firstPrinting = true;
     for (let index = start.nodeIndex; index < nodes.length; index++) {
-      if (end && (index > end.nodeIndex || (index === end.nodeIndex && end.contentOffset === 0)))
+      if (end && (index > end.nodeIndex || (index === end.nodeIndex && end.contentOffset === 0 && end.dualRow === undefined)))
         break;
       const node = nodes[index];
       const from = index === start.nodeIndex ? start.contentOffset : 0;
       const to = end && index === end.nodeIndex ? end.contentOffset : node.text.length;
-      const text = node.text.slice(from, to);
+      const dual = node.typeName === 'dualDialogue'
+        ? dualRows(pmDualColumns(doc.child(index)), plan?.refsByNode.get(index), plan?.markerCells) : null;
+      const rowFrom = index === start.nodeIndex ? start.dualRow ?? 0 : 0;
+      const rowTo = end && index === end.nodeIndex ? end.dualRow ?? dual?.length ?? 0 : dual?.length ?? 0;
+      const text = dual
+        ? dual.slice(rowFrom, rowTo).map((row) => row.map((cell) => cell.text.trimEnd()).join(' | ')).join('\n')
+        : node.text.slice(from, to);
       const displayed = text.endsWith('\n') && to < node.text.length ? text.slice(0, -1) : text;
       const nonPrinting = isNonPrintingType(node.typeName);
-      const lines = nonPrinting ? 0 : getTextLines(displayed, CHARS_PER_LINE[node.typeName] || 62);
-      const sb = blocks.length === 0 || nonPrinting ? 0 : (hints.spaceBefore[node.typeName] ?? 0);
+      const lines = dual ? rowTo - rowFrom : nonPrinting ? 0 : getTextLines(displayed, CHARS_PER_LINE[node.typeName] || 62);
+      const sb = firstPrinting || nonPrinting ? 0 : (hints.spaceBefore[node.typeName] ?? 0);
+      if (!nonPrinting) firstPrinting = false;
       blocks.push({
         typeName: node.typeName,
         lineStart: lineOnPage + sb,
         lineCount: lines,
-        docPos: from ? node.offset + 1 + from : node.offset,
+        docPos: dual?.[rowFrom]?.[0]
+          ? dualCellPosition(doc.child(index), node.offset, dual[rowFrom][0])
+          : from ? node.offset + 1 + from : node.offset,
         text,
       });
       lineOnPage += sb + lines;
@@ -1008,4 +1134,87 @@ export function computePageBlocks(
   }
 
   return pages;
+}
+
+/** Editor-only line grid and page gaps. Stored speeches and collaboration steps stay intact. */
+function dualDecorations(
+  doc: PmNode,
+  breaks: BreakInfo[],
+  linesPerPage: number,
+  sepHeightPx: number,
+  layout: PageLayout,
+  plan: FootnotePlan | null = null,
+): Decoration[] {
+  const decos: Decoration[] = [];
+  const linePx = 16;
+  const mc = resolveMoresContds(layout);
+  const blocks = new Map<number, BreakInfo[]>();
+  for (const brk of breaks) {
+    if (brk.dualRow === undefined) continue;
+    const group = blocks.get(brk.nodeIndex) ?? [];
+    group.push(brk);
+    blocks.set(brk.nodeIndex, group);
+  }
+  for (const [index, blockBreaks] of blocks) {
+    const node = doc.child(index);
+    const offset = blockBreaks[0].offset;
+    const columns = pmDualColumns(node);
+    const rows = dualRows(columns, plan?.refsByNode.get(index), plan?.markerCells);
+    const turns = new Map(blockBreaks.map((b) => [b.dualRow!, b]));
+    rows.forEach((row, r) =>
+      row.forEach((cell) => {
+        const pos = dualCellPosition(node, offset, cell);
+        if (cell.from === 0) {
+          const child = node.child(cell.column).child(cell.child);
+          decos.push(Decoration.node(pos - 1, pos - 1 + child.nodeSize, { class: 'sp-dual-grid' }));
+        }
+        const brk = turns.get(r);
+        const hardBreak =
+          cell.from > 0 && columns[cell.column][cell.child].text[cell.from - 1] === '\n';
+        if (!brk) {
+          if (cell.from > 0 && !hardBreak)
+            decos.push(Decoration.widget(pos, () => document.createElement('br'), { side: -1 }));
+          return;
+        }
+        const speakers = dualContinuations(columns, rows, r);
+        const hasLabels = mc.dialogueBreakContd && speakers.size > 0;
+        const speaker = speakers.get(cell.column);
+        decos.push(
+          Decoration.widget(
+            pos,
+            () => {
+              const el = document.createElement('span');
+              el.className = 'sp-dual-page-break';
+              el.dataset.dualRow = String(r);
+              el.setAttribute('aria-hidden', 'true');
+              el.contentEditable = 'false';
+              const filler = Math.max(0, linesPerPage - brk.linesOnPage) * linePx;
+              // MORE closes the old sheet; CONT'D opens the new one. A regular
+              // line advance already exists at inline and paragraph boundaries.
+              el.dataset.contd = String(hasLabels);
+              el.style.setProperty('--dual-label-height', `${hasLabels ? 2 * linePx : 0}px`);
+              el.style.setProperty(
+                '--dual-cue-offset',
+                `${dualChildBounds(cell.column, 'character')[0] - dualChildBounds(cell.column, cell.type)[0]}in`,
+              );
+              el.style.height = `${filler + sepHeightPx + (hasLabels ? 2 * linePx : 0)}px`;
+              if (mc.dialogueBreakContd && speaker !== undefined) {
+                const more = document.createElement('span');
+                more.className = 'sp-dual-more';
+                more.textContent = mc.moreText;
+                more.style.top = '0';
+                const contd = document.createElement('span');
+                contd.className = 'sp-dual-contd';
+                contd.textContent = `${speaker} ${mc.contdText}`;
+                el.append(more, contd);
+              }
+              return el;
+            },
+            { side: -1 },
+          ),
+        );
+      }),
+    );
+  }
+  return decos;
 }

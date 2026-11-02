@@ -139,3 +139,46 @@ it('never leaves a one-line fragment when preferring a sentence ending', () => {
     expect(fragments.map(fragment => fragment.text).join('')).toBe(text);
   }
 });
+
+it('prefers a sentence ending four lines beyond the minimum fragment', () => {
+  const text = ['one', 'two', 'three', 'four', 'five', 'six.', 'seven', 'eight', 'nine', 'ten'].join('\n');
+  expect(paragraphFragments(text, 62)[0].lines).toHaveLength(6);
+});
+
+it.each(['note', 'section'])('keeps the first printing preview block flush after a leading %s', type => {
+  const source = pmDoc(doc(block(type, 'Nonprinting'), block('action', 'Visible')));
+  const pages = computePageBlocks(source, layout, { forceBreakBefore: new Set(), lineHeightMultiplier: {}, spaceBefore: { action: 2 } });
+  expect(pages[0].blocks.find(b => b.typeName === 'action')!.lineStart).toBe(0);
+});
+
+it('turns at available sentence endings across a long action', () => {
+  const content = Array.from({ length: 120 }, (_, i) => [
+    `Line ${i}${i % 5 === 4 ? '.' : ''}`,
+    ...(i < 119 ? [BR] : []),
+  ]).flat();
+  const source = pmDoc(doc(block('action', ...content)));
+  const result = computeBreaks(source, layout);
+  for (const turn of result.breaks) {
+    expect(source.child(0).textContent.slice(0, turn.contentOffset).trimEnd()).toMatch(/\.$/);
+  }
+});
+
+it('uses a sentence in the preceding four lines whenever a page turn can retain two lines per side', () => {
+  let seed = 1;
+  const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 2 ** 32; };
+  for (let trial = 0; trial < 100; trial++) {
+    const lines = Array.from({ length: 120 }, (_, i) => `Line ${i}${random() < 0.2 ? '.' : ''}`);
+    const source = pmDoc(doc(block('action', ...lines.flatMap((line, i) => i < 119 ? [line, BR] : [line]))));
+    const offsets = textLineOffsets(source.child(0).textContent, 62);
+    const result = computeBreaks(source, layout);
+    let previous = 0;
+    for (const turn of result.breaks) {
+      const cut = offsets.indexOf(turn.contentOffset!);
+      if (!lines[cut - 1].endsWith('.')) {
+        const eligible = lines.slice(Math.max(previous + 1, cut - 5), cut - 1);
+        expect(eligible.some(line => line.endsWith('.')), `trial ${trial}, line ${cut}`).toBe(false);
+      }
+      previous = cut;
+    }
+  }
+});

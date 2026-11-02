@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stage Play Format: How to Format a Play Script (Free Template) - OpenDraft</title>
+  <link rel="canonical" href="https://proteus-technologies-private-limited.github.io/OpenDraft/blog/stage-play-format.html">
+  <meta name="description" content="How to format a stage play: act and scene headings, centred character names, full-width dialogue and italic stage directions, with an example page, a comparison with screenplay format and a free stage play template.">
+  <meta property="og:title" content="Stage play format: how to format a play script, with examples and a free template">
+  <meta property="og:description" content="Every element of stage play format explained, with an example page and a free template that lays out your play as you type.">
+  <meta property="og:image" content="https://proteus-technologies-private-limited.github.io/OpenDraft/blog/images/stage-play-format/3-stage-play-scene-example.jpg">
+  <meta property="og:type" content="article">
+  <meta property="article:published_time" content="2026-11-02">
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Stage play format: how to format a play script, with examples and a free template",
+  "description": "How to format a stage play: act and scene headings, centred character names, full-width dialogue and italic stage directions, with an example page, a comparison with screenplay format and a free stage play template.",
+  "image": "https://proteus-technologies-private-limited.github.io/OpenDraft/blog/images/stage-play-format/3-stage-play-scene-example.jpg",
+  "datePublished": "2026-11-02",
+  "dateModified": "2026-11-02",
+  "author": {
+    "@type": "Organization",
+    "name": "Proteus Technologies"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "OpenDraft"
+  },
+  "mainEntityOfPage": "https://proteus-technologies-private-limited.github.io/OpenDraft/blog/stage-play-format.html"
+}
+  </script>
+  <style>
+    :root {
+      --color-bg: #0e0e12;
+      --color-surface: #16161d;
+      --color-surface-2: #1c1c25;
+      --color-border: #2a2a35;
+      --color-text: #ececf0;
+      --color-text-secondary: #8a8a9a;
+      --color-accent: #c455ce;
+      --color-accent-hover: #d470dd;
+      --color-warn: #e0b04a;
+      --color-warn-bg: rgba(224,176,74,0.08);
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --max-width: 1100px;
+      --radius: 10px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 100;
+      background: rgba(14,14,18,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .nav-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--color-text);
+      font-weight: 600;
+      font-size: 17px;
+    }
+    .nav-brand img { width: 28px; height: 28px; border-radius: 6px; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a {
+      color: var(--color-text-secondary);
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--color-text); }
+    .nav-cta {
+      background: var(--color-accent) !important;
+      color: #fff !important;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    .nav-cta:hover { background: var(--color-accent-hover) !important; }
+    .nav-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--color-text);
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    /* ── ARTICLE ── */
+    .article-header {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 120px 24px 32px;
+    }
+    .breadcrumb {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+    .breadcrumb a { color: var(--color-accent); text-decoration: none; }
+    .breadcrumb a:hover { color: var(--color-accent-hover); }
+    .article-header h1 {
+      font-size: clamp(30px, 5vw, 44px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 16px;
+      text-wrap: balance;
+    }
+    .article-header .lede {
+      font-size: 18px;
+      color: var(--color-text-secondary);
+      line-height: 1.6;
+    }
+    .meta {
+      margin-top: 20px;
+      font-size: 14px;
+      color: var(--color-text-secondary);
+    }
+
+    .hero-figure {
+      max-width: 1000px;
+      margin: 8px auto 48px;
+      padding: 0 24px;
+    }
+
+    article {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+      font-size: 16.5px;
+    }
+    article h2 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 56px 0 14px;
+      scroll-margin-top: 80px;
+    }
+    article h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 32px 0 10px;
+    }
+    article p { margin-bottom: 16px; color: #d6d6de; }
+    article ul, article ol { margin: 0 0 16px 22px; color: #d6d6de; }
+    article li { margin-bottom: 8px; }
+    article a { color: var(--color-accent); text-decoration: none; }
+    article a:hover { color: var(--color-accent-hover); text-decoration: underline; }
+    article strong { color: var(--color-text); }
+    article code {
+      font-family: var(--font-mono);
+      background: rgba(255,255,255,0.07);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.88em;
+      overflow-wrap: anywhere;
+    }
+    article pre {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 0 0 18px;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    article pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+    article blockquote {
+      border-left: 3px solid var(--color-accent);
+      padding: 4px 0 4px 18px;
+      margin: 0 0 18px;
+      font-style: italic;
+      color: var(--color-text);
+    }
+
+    figure { margin: 24px 0 32px; }
+    figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+    figcaption {
+      margin-top: 10px;
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      text-align: center;
+    }
+
+    .step {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--color-accent);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      margin-right: 10px;
+      vertical-align: 3px;
+    }
+
+    .callout {
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin: 0 0 20px;
+      font-size: 15px;
+    }
+    .callout p:last-child, .callout ul:last-child { margin-bottom: 0; }
+    .callout-title { font-weight: 600; color: var(--color-text); margin-bottom: 6px; }
+    .callout.warn { border-color: rgba(224,176,74,0.35); background: var(--color-warn-bg); }
+    .callout.warn .callout-title { color: var(--color-warn); }
+
+    .settings {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 20px;
+      font-size: 15px;
+    }
+    .settings th, .settings td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--color-border);
+      vertical-align: top;
+    }
+    .settings th { color: var(--color-text-secondary); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .settings td:first-child { white-space: nowrap; color: var(--color-text); font-weight: 500; }
+
+    .toc {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin: 0 0 32px;
+      background: var(--color-surface);
+    }
+    .toc-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-secondary); margin-bottom: 8px; }
+    .toc ol { margin: 0 0 0 20px; }
+    .toc li { margin-bottom: 4px; }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 40px 24px;
+      border-top: 1px solid var(--color-border);
+      text-align: center;
+    }
+    footer p { font-size: 14px; color: var(--color-text-secondary); }
+    footer a { color: var(--color-text-secondary); text-decoration: none; }
+    footer a:hover { color: var(--color-text); }
+
+    /* ── MOBILE ── */
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .nav-links.open {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 56px;
+        left: 0;
+        right: 0;
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+        padding: 20px;
+        gap: 14px;
+      }
+      .nav-menu-btn { display: block; }
+      .article-header { padding: 96px 16px 24px; }
+      .article-header .lede { font-size: 16.5px; }
+      .hero-figure { padding: 0 16px; margin-bottom: 32px; }
+      article { padding: 0 16px 64px; font-size: 16px; }
+      article h2 { font-size: 21px; margin-top: 44px; }
+      .settings td:first-child { white-space: normal; }
+    }
+    .callout.answer { border-color: rgba(196,85,206,0.45); background: rgba(196,85,206,0.07); }
+    .callout.answer .callout-title { color: var(--color-accent); }
+    .callout.answer ol, .callout.answer ul { margin-bottom: 0; }
+    .compare { width: 100%; border-collapse: collapse; margin: 0 0 20px; font-size: 14.5px; }
+    .compare th, .compare td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+    .compare th { color: var(--color-text-secondary); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .compare td:first-child { color: var(--color-text); font-weight: 600; }
+    .table-wrap { overflow-x: auto; margin: 0 0 20px; }
+    .table-wrap .compare { margin: 0; min-width: 560px; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <nav>
+    <div class="nav-inner">
+      <a href="../" class="nav-brand">
+        <img src="https://raw.githubusercontent.com/Proteus-Technologies-Private-Limited/OpenDraft/main/images/OpenDraft-1024x1024.png" alt="OpenDraft">
+        OpenDraft
+      </a>
+      <button class="nav-menu-btn" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../#features">Features</a>
+        <a href="../#download">Download</a>
+        <a href="../user-manual/">User Manual</a>
+        <a href="../faq.html">FAQ</a>
+        <a href="./" style="color:var(--color-text)">Blog</a>
+        <a href="https://open-draft.com" target="_blank" rel="noopener" class="nav-cta">Try Online</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="article-header">
+    <div class="breadcrumb"><a href="./">Blog</a> &middot; Formatting</div>
+    <h1>Stage play format: how to format a play script, with examples and a free template</h1>
+    <p class="lede">A play script doesn&rsquo;t look like a screenplay. Character names sit in the middle of the page, dialogue runs from margin to margin, and stage directions are set in italics and parentheses. Here&rsquo;s how each part of a stage play is formatted, with an example, and a free way to get the layout right automatically.</p>
+    <p class="meta">2 November 2026 &middot; 6 minute read</p>
+  </header>
+
+  <article>
+    <figure>
+      <img src="images/stage-play-format/3-stage-play-scene-example.jpg" width="1512" height="739" alt="A stage play page in OpenDraft: ACT I and SCENE 1 centred and underlined, an italic stage direction in parentheses, character names NORA and SAM centred in capitals, dialogue running across the page, a parenthetical and a second stage direction">
+      <figcaption>A stage play page: act and scene headings, stage directions, character names and dialogue.</figcaption>
+    </figure>
+
+    <div class="callout answer">
+      <p class="callout-title">Stage play format at a glance</p>
+      <ul>
+        <li><strong>Act and scene headings</strong> centred: <em>ACT I</em>, <em>SCENE 1</em>. Each act starts on a new page.</li>
+        <li><strong>Character names</strong> centred, in capitals, above every speech.</li>
+        <li><strong>Dialogue</strong> runs the full width of the page, margin to margin.</li>
+        <li><strong>Stage directions</strong> are indented, in italics and in parentheses.</li>
+        <li><strong>Short directions inside a speech</strong> go in parentheses on their own line, under the character name.</li>
+        <li><strong>A 12-point font</strong>, usually Courier or Times New Roman, with 1-inch margins.</li>
+      </ul>
+    </div>
+
+    <p>That&rsquo;s the format most theatres, contests and publishers expect for a new play in English. The rest of this guide goes through each element, shows how a play differs from a screenplay, and walks through writing one in OpenDraft, a free screenwriting app with a stage play template built in.</p>
+
+    <div class="callout">
+      <p class="callout-title">Check the submission guidelines first</p>
+      <p>Play format is a convention, not a rule book, and it varies more than screenplay format does. Some theatres and publishers ask for their own layout. If a contest or theatre gives guidelines, follow them over anything here.</p>
+    </div>
+
+    <h2 id="elements">The elements of a stage play</h2>
+
+    <h3>Act and scene headings</h3>
+    <p>A play is divided into acts, and acts into scenes. Headings are centred, usually in capitals: <em>ACT I</em> or <em>ACT ONE</em>, then <em>SCENE 1</em> or <em>Scene One</em>. Pick one style and use it throughout. Each new act starts at the top of a new page. Many writers end an act with <em>END OF ACT I</em> and the whole script with <em>END OF PLAY</em>.</p>
+    <p>A play doesn&rsquo;t use a film-style <code>INT. KITCHEN &ndash; NIGHT</code> heading. Where and when a scene happens goes in the stage directions that open it.</p>
+
+    <h3>Character names</h3>
+    <p>The speaker&rsquo;s name goes above each speech, centred and in capitals. Use the same name every time: if the character list calls her NORA, she&rsquo;s never MRS. HALE in one scene and NORA in the next.</p>
+
+    <h3>Dialogue</h3>
+    <p>Dialogue runs the full width of the text area, from the left margin to the right. That&rsquo;s the clearest visual difference from a screenplay, where dialogue sits in a narrow column in the middle of the page.</p>
+
+    <h3>Stage directions</h3>
+    <p>Stage directions describe what the audience sees: the set, entrances and exits, movement, lighting and sound cues. They&rsquo;re indented, set in italics and enclosed in parentheses:</p>
+    <blockquote>(The lights rise on a sparsely furnished room. NORA paces.)</blockquote>
+    <p>Many playwrights also put a character&rsquo;s name in capitals inside a stage direction, so actors can spot their own business quickly. Keep directions short. In theatre, the director and actors decide most of the movement, and a script that choreographs every gesture reads as overwritten.</p>
+
+    <h3>Parentheticals</h3>
+    <p>A short direction for how a line is said, or a small action in the middle of a speech, goes on its own line under the character name, in parentheses: <em>(not looking up)</em>. Use them sparingly, for the moments when the meaning would otherwise be lost.</p>
+
+    <h3>Songs and lyrics</h3>
+    <p>In a musical, lyrics are usually set apart from spoken dialogue: often indented, in capitals or italics, depending on the publisher&rsquo;s house style. Whatever you choose, keep sung and spoken lines visibly different.</p>
+
+    <h3>The pages before the play</h3>
+    <p>Before Act I, a play script usually has:</p>
+    <ul>
+      <li><strong>A title page:</strong> the title, &ldquo;by&rdquo; and your name, centred, with your contact details at the bottom.</li>
+      <li><strong>A character list</strong> (cast of characters): each character, with a short description such as age and one line about who they are.</li>
+      <li><strong>Setting and time:</strong> where and when the play takes place, in a sentence or two.</li>
+    </ul>
+
+    <h3>Page numbers</h3>
+    <p>Pages are numbered at the top right. Some theatres prefer act-scene-page numbering, for example <code>1-2-14</code> for Act 1, Scene 2, page 14. Others are happy with plain consecutive numbers. If the guidelines don&rsquo;t say, consecutive numbers are fine.</p>
+
+    <h2 id="vs-screenplay">Stage play vs screenplay format</h2>
+    <div class="table-wrap">
+      <table class="compare">
+        <thead><tr><th></th><th>Stage play</th><th>Screenplay</th></tr></thead>
+        <tbody>
+          <tr><td>Divisions</td><td>Acts and scenes, with centred headings</td><td>Scenes with sluglines (<code>INT. HOUSE &ndash; DAY</code>)</td></tr>
+          <tr><td>Character names</td><td>Centred, capitals</td><td>Indented about 3.7 inches, capitals</td></tr>
+          <tr><td>Dialogue</td><td>Full page width</td><td>Narrow column in the middle</td></tr>
+          <tr><td>Description</td><td>Stage directions: indented, italic, in parentheses</td><td>Action lines: full width, plain text</td></tr>
+          <tr><td>Camera</td><td>None: no shots, no transitions</td><td>Shots and transitions (<code>CUT TO:</code>)</td></tr>
+          <tr><td>Front matter</td><td>Title page, character list, setting</td><td>Title page only</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="how-to">How to write a stage play in OpenDraft, for free</h2>
+    <p>You can lay all this out by hand in Word or Google Docs, but you&rsquo;ll spend your time fighting indents and tabs instead of writing. <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank" rel="noopener">OpenDraft</a> is a free, open-source screenwriting app with a stage play format built in. It does the layout as you type, in your browser at <a href="https://open-draft.com" target="_blank" rel="noopener">open-draft.com</a> or in the desktop and mobile apps.</p>
+
+    <h3><span class="step">1</span>Turn on the Stage Play format</h3>
+    <p>Choose <strong>Format &rarr; Script Format Preferences&hellip;</strong>, tick <strong>Stage Play</strong> and click <strong>Save</strong>. The same list has formats for TV drama, multi-camera sitcoms, radio plays, podcasts and comic books.</p>
+    <figure>
+      <img src="images/stage-play-format/1-turn-on-stage-play-format.jpg" width="1512" height="739" loading="lazy" alt="OpenDraft's Script Format Preferences dialog with Film Screenplay and Stage Play ticked, alongside 1-Hour TV Drama, Multi-Cam Sitcom, Radio Play, Podcast and Comic Book">
+      <figcaption>Script Format Preferences: choose which formats new scripts can use.</figcaption>
+    </figure>
+
+    <h3><span class="step">2</span>Start a new stage play</h3>
+    <p>Choose <strong>File &rarr; New Script</strong> and pick <strong>Stage Play</strong>.</p>
+    <figure>
+      <img src="images/stage-play-format/2-new-stage-play-script.jpg" width="1512" height="739" loading="lazy" alt="The Choose script format dialog offering Film Screenplay and Stage Play">
+      <figcaption>Pick Stage Play when you start a new script.</figcaption>
+    </figure>
+    <p>The new script opens with <em>ACT I</em>, <em>SCENE 1</em> and an opening stage direction, ready to replace with your own.</p>
+
+    <h3><span class="step">3</span>Write, and let the format follow</h3>
+    <p>Each element leads into the next as you write:</p>
+    <ul>
+      <li>Press <strong>Enter</strong> after a stage direction to start a character name, and again for their dialogue.</li>
+      <li>Press <strong>Enter</strong> after dialogue for the next character.</li>
+      <li>Press <strong>Tab</strong> after a character name to add a parenthetical.</li>
+    </ul>
+    <p>To switch a line to something else, such as a stage direction in the middle of a scene, a new act or lyrics, pick it from the element menu at the top left of the toolbar.</p>
+    <figure>
+      <img src="images/stage-play-format/4-stage-play-elements.jpg" width="1512" height="739" loading="lazy" alt="OpenDraft's element menu for a stage play, listing Scene Heading, Action, Character, Dialogue, Parenthetical, General, New Act, End of Act, Lyrics, Section, Note and Stage Direction">
+      <figcaption>The stage play elements, including New Act, End of Act, Lyrics and Stage Direction.</figcaption>
+    </figure>
+    <p>OpenDraft starts every act on a new page automatically. Add your title page from <strong>Format &rarr; Title Page&hellip;</strong>.</p>
+
+    <h3><span class="step">4</span>Export a PDF to submit</h3>
+    <p>When it&rsquo;s ready, <strong>File &rarr; Export &rarr; PDF</strong> gives you a file to send. If you&rsquo;re sending it to several theatres or readers, <strong>PDF with Watermark or Password&hellip;</strong> can stamp each copy with the reader&rsquo;s name. You can also export to Word if a dramaturg wants to make tracked changes.</p>
+
+    <div class="callout">
+      <p class="callout-title">Your script stays yours</p>
+      <p>In the browser, OpenDraft keeps the script on your own computer unless you sign in and save it. The desktop apps store scripts on your own device. Download the <a href="../#download">free app</a> for macOS, Windows, Linux, iPad or Android to keep working offline.</p>
+    </div>
+
+    <h2 id="faq">Questions</h2>
+
+    <h3>What font should a stage play use?</h3>
+    <p>A 12-point font. Courier is the traditional choice, and Times New Roman is also widely accepted for plays. Whichever you use, use it throughout.</p>
+
+    <h3>How long is a stage play script?</h3>
+    <p>It depends on the layout, because play formats vary more than screenplay formats. As a rough guide, a full-length play usually runs to between about 80 and 120 pages, and a one-act play is much shorter. If a contest gives a page or time limit, that&rsquo;s the number that matters.</p>
+
+    <h3>Can I write a stage play in Google Docs or Word?</h3>
+    <p>Yes, with a template and a lot of manual indenting. A dedicated app keeps the layout consistent automatically. OpenDraft is free, and it can export your play to Word whenever someone needs a <code>.docx</code>.</p>
+
+    <h3>Is UK stage play format different?</h3>
+    <p>The building blocks are the same. British scripts often put the character name on the left, in the margin, beside the speech, instead of centred above it. Follow the theatre&rsquo;s guidelines when they specify a layout.</p>
+
+    <h3>Does OpenDraft handle musicals and other formats?</h3>
+    <p>Its stage play format includes a Lyrics element for songs. OpenDraft also has formats for film, one-hour TV drama, multi-camera sitcom, radio plays, podcasts and comic books, all free.</p>
+
+  </article>
+
+  <footer>
+    <p>Made by <a href="https://github.com/Proteus-Technologies-Private-Limited">Proteus Technologies</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/LICENSE">MIT License</a> &middot; <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft">GitHub</a></p>
+  </footer>
+
+</body>
+</html>
