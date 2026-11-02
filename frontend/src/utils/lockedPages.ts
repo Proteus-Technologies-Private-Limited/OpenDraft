@@ -135,6 +135,7 @@ export function lockedPageLabels(pageCount: number, anchors: PageAnchor[]): stri
 
 /** A break as the editor's paginator reports it — the fields this needs. */
 export interface LockBreak {
+  dualRow?: number;
   nodeIndex: number;
   pageNumber: number;
   isDialogueSplit: boolean;
@@ -143,7 +144,8 @@ export interface LockBreak {
 
 /**
  * The page each top-level node starts on (0 for the title page), from the
- * paginator's breaks. Every break begins its page at the start of a node.
+ * paginator's breaks. An internal dual-dialogue turn advances following
+ * nodes, but cannot change the sheet the dual block itself starts on.
  */
 export function startPages(nodeCount: number, breaks: LockBreak[]): number[] {
   const titleEnd = breaks.find((b) => b.isTitlePage)?.nodeIndex ?? 0;
@@ -153,7 +155,11 @@ export function startPages(nodeCount: number, breaks: LockBreak[]): number[] {
   let page = 1;
   for (let k = 0; k < nodeCount; k++) {
     if (k < titleEnd) { out[k] = 0; continue; }
-    while (bi < body.length && body[bi].nodeIndex <= k) { page = body[bi].pageNumber; bi++; }
+    while (bi < body.length && (body[bi].nodeIndex < k
+      || body[bi].nodeIndex === k && body[bi].dualRow === undefined)) {
+      page = body[bi].pageNumber;
+      bi++;
+    }
     out[k] = page;
   }
   return out;
@@ -170,7 +176,7 @@ export function lockPlan(
   if (titleEnd >= nodeCount) return [];
   const plan = [{ nodeIndex: titleEnd, label: label(1), mid: false }];
   for (const b of breaks) {
-    if (b.isTitlePage || b.nodeIndex >= nodeCount) continue;
+    if (b.isTitlePage || b.dualRow !== undefined || b.nodeIndex >= nodeCount) continue;
     plan.push({ nodeIndex: b.nodeIndex, label: label(b.pageNumber), mid: b.isDialogueSplit });
   }
   return plan;

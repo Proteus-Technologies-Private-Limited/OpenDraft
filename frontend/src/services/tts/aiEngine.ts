@@ -18,6 +18,7 @@ import { TtsUnavailableError } from './types';
 import { WordClock, estimateDurationMs } from './wordClock';
 import { wordRanges } from './script';
 import { kokoroGenerate, kokoroVoices } from './kokoroClient';
+import { isTauri } from '../platform';
 
 type ProviderConfig = Pick<VoiceSettingsState,
   | 'aiProvider' | 'apiKeys' | 'openaiModel' | 'elevenlabsModel' | 'geminiModel' | 'azureRegion'
@@ -145,6 +146,29 @@ function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+/**
+ * The voices a speech server lists at `/audio/voices`: plain names
+ * (Kokoro-FastAPI), or objects with an id and a display name. VoiceStudio's
+ * cloned voices have ids like `395cafef`, so the name is what the writer sees,
+ * and the id is what goes back to the server.
+ */
+export function parseServerVoices(voices: unknown): { id: string; name: string }[] {
+  if (!Array.isArray(voices)) return [];
+  const out: { id: string; name: string }[] = [];
+  for (const v of voices) {
+    if (typeof v === 'string') {
+      if (v) out.push({ id: v, name: v });
+      continue;
+    }
+    if (!v || typeof v !== 'object') continue;
+    const o = v as { id?: unknown; voice_id?: unknown; name?: unknown };
+    const id = [o.id, o.voice_id, o.name].find((x): x is string => typeof x === 'string' && !!x);
+    if (!id) continue;
+    out.push({ id, name: typeof o.name === 'string' && o.name ? o.name : id });
+  }
+  return out;
+}
+
 /** `openai:alloy` → `alloy`; ids from another provider are not ours to use. */
 function bareVoice(provider: AiProviderId, id: string | null): string | null {
   if (!id) return null;
@@ -169,22 +193,97 @@ async function describeHttpError(res: Response, name: string): Promise<string> {
       detail = body.slice(0, 200);
     }
   } catch { /* body unreadable */ }
-  if (res.status === 401 || res.status === 403) {
+  // 403 is not always about the key: a local server refuses requests from an
+  // origin it does not know with 403 too, and calling that a bad key sends
+  // the writer looking in the wrong place.
+  if (res.status === 401 || (res.status === 403 && /key|token|auth|credential|permission/i.test(detail))) {
     return `${provider} rejected the API key${detail ? `: ${detail}` : '.'} Check it in Settings → Table Read Voices.`;
   }
+  if (res.status === 403) return `${provider} refused the request${detail ? `: ${detail}` : ' (403).'}`;
   if (res.status === 429) return `${provider} says the account is over its rate limit or quota${detail ? `: ${detail}` : '.'}`;
   return `${provider} returned an error (${res.status})${detail ? `: ${detail}` : '.'}`;
 }
 
-/** fetch() with a message that says what to check when the request never got an answer. */
-async function request(url: string, init: RequestInit, provider: string): Promise<Response> {
+/**
+ * Turn what `tts_speech_server_request` answers — status (u16 BE), length of
+ * the Content-Type (u16 BE), the Content-Type, then the body — into a Response.
+ */
+export function unframeSpeechServerResponse(raw: ArrayBuffer | Uint8Array | number[]): Response {
+  const bytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw as ArrayBuffer);
+  if (bytes.length < 4) throw new Error('The speech server answered with nothing readable.');
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const status = view.getUint16(0);
+  const ctLen = view.getUint16(2);
+  if (4 + ctLen > bytes.length) throw new Error('The speech server answered with nothing readable.');
+  const contentType = new TextDecoder().decode(bytes.subarray(4, 4 + ctLen));
+  // A Response refuses a body for these, and refuses a status outside 200–599.
+  const body = status === 204 || status === 205 || status === 304 ? null : bytes.slice(4 + ctLen);
+  return new Response(body, {
+    status: status >= 200 && status <= 599 ? status : 502,
+    headers: contentType ? { 'Content-Type': contentType } : {},
+  });
+}
+
+/** How often, and how long, a busy speech server of the writer's own is waited for. */
+const COMPATIBLE_BUSY_RETRIES = 3;
+const COMPATIBLE_BUSY_WAIT_MS = 5000;
+
+/** Resolves after `ms`, or rejects with an AbortError the moment the signal fires. */
+function waitFor(ms: number, signal?: AbortSignal | null): Promise<void> {
+  return abortable(new Promise<void>((resolve) => { setTimeout(resolve, ms); }), signal);
+}
+
+/** Rejects with an AbortError as soon as the signal fires, whatever the call is doing. */
+function abortable<T>(call: Promise<T>, signal?: AbortSignal | null): Promise<T> {
+  if (!signal) return call;
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new DOMException('The read was stopped.', 'AbortError'));
+    if (signal.aborted) { onAbort(); return; }
+    signal.addEventListener('abort', onAbort, { once: true });
+    call.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));
+  });
+}
+
+/**
+ * A request to the writer's own speech server, made by the app rather than its
+ * web view. In the app the page's origin is `tauri://localhost` on macOS and
+ * iOS, and a local server may refuse a POST from an origin it does not
+ * recognise — VoiceStudio does, with no setting to allow it. The app sends
+ * the request the way any local client would, without one (see tts.rs).
+ */
+async function fetchFromApp(url: string, init: RequestInit): Promise<Response> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  const headers: Record<string, string> = {};
+  new Headers(init.headers).forEach((value, name) => { headers[name] = value; });
+  const raw = await abortable(invoke<ArrayBuffer | number[]>('tts_speech_server_request', {
+    url,
+    method: init.method || 'GET',
+    headers,
+    body: typeof init.body === 'string' ? init.body : undefined,
+  }), init.signal);
+  return unframeSpeechServerResponse(raw);
+}
+
+/**
+ * fetch() with a message that says what to check when the request never got an
+ * answer. `fromApp` sends it from the app instead of the web view (Tauri only).
+ */
+async function request(url: string, init: RequestInit, provider: string, fromApp = false): Promise<Response> {
   try {
-    return await fetch(url, init);
+    return fromApp ? await fetchFromApp(url, init) : await fetch(url, init);
   } catch (err) {
     if ((err as Error)?.name === 'AbortError') throw err;
     console.error(`[tableRead] ${provider} request failed:`, err);
+    let origin = url;
+    try { origin = new URL(url).origin; } catch { /* keep the address as typed */ }
+    if (fromApp) {
+      throw new Error(
+        `Could not reach ${provider} at ${origin}${typeof err === 'string' && err ? ` (${err})` : ''}. ` +
+        'Check that it is running and that the server address is right.',
+      );
+    }
     throw new Error(
-      `Could not reach ${provider} at ${new URL(url).origin}. Check the network connection` +
+      `Could not reach ${provider} at ${origin}. Check the network connection` +
       (provider === 'the speech server' ? ', the server address, and that the server allows requests from this page (CORS).' : '.'),
     );
   }
@@ -221,6 +320,16 @@ export class AiEngine implements TtsEngine {
 
   private get key(): string {
     return this.cfg.apiKeys[this.provider] || '';
+  }
+
+  /** The server address as typed, less any trailing slash. */
+  private get compatibleBase(): string {
+    return this.cfg.compatibleBaseUrl.trim().replace(/\/+$/, '');
+  }
+
+  /** The writer's own server is asked from the app itself, never from its web view. */
+  private get fromApp(): boolean {
+    return this.provider === 'openai-compatible' && isTauri();
   }
 
   prime(): void {
@@ -300,20 +409,18 @@ export class AiEngine implements TtsEngine {
 
   private async compatibleVoices(): Promise<VoiceInfo[]> {
     const typed = this.cfg.compatibleVoices.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
-    const toInfo = (id: string): VoiceInfo => ({ id: `openai-compatible:${id}`, name: id, lang: '' });
-    if (typed.length) return typed.map(toInfo);
+    const toInfo = (id: string, name: string = id): VoiceInfo => ({ id: `openai-compatible:${id}`, name, lang: '' });
+    if (typed.length) return typed.map((id) => toInfo(id));
     // Kokoro-FastAPI and several others list their voices here; servers that
     // do not are offered OpenAI's names, which most of them accept.
     try {
-      const res = await fetch(`${this.cfg.compatibleBaseUrl}/audio/voices`, {
+      const res = await request(`${this.compatibleBase}/audio/voices`, {
         headers: this.key ? { Authorization: `Bearer ${this.key}` } : {},
-      });
+      }, this.providerName, this.fromApp);
       if (res.ok) {
         const json = await res.json() as { voices?: unknown[] };
-        const ids = (json.voices || [])
-          .map((v) => (typeof v === 'string' ? v : (v as { id?: string; name?: string })?.id ?? (v as { name?: string })?.name))
-          .filter((v): v is string => typeof v === 'string' && !!v);
-        if (ids.length) return ids.map(toInfo);
+        const voices = parseServerVoices(json.voices);
+        if (voices.length) return voices.map((v) => toInfo(v.id, v.name));
       }
     } catch (err) {
       console.info('[tableRead] speech server does not list voices; offering the standard names', err);
@@ -435,18 +542,30 @@ export class AiEngine implements TtsEngine {
       return { url, words };
     }
 
-    const base = p === 'openai' ? OPENAI_BASE : this.cfg.compatibleBaseUrl;
+    const base = p === 'openai' ? OPENAI_BASE : this.compatibleBase;
     const voice = bareVoice(p, voiceId);
     if (!voice) throw new Error('No voice is selected.');
     const model = p === 'openai' ? this.cfg.openaiModel : this.cfg.compatibleModel;
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (this.key) headers.Authorization = `Bearer ${this.key}`;
-    const res = await request(`${base}/audio/speech`, {
+    const send = () => request(`${base}/audio/speech`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ model, voice, input: text, response_format: 'mp3' }),
       signal,
-    }, this.providerName);
+    }, this.providerName, this.fromApp);
+    let res = await send();
+    // A server on the writer's own machine often has one worker, and Table Read
+    // asks for the next line while this one plays — so it answers "busy, try
+    // again in a few seconds" with 429 (VoiceStudio says exactly that). That is
+    // not a quota; wait as asked and try again rather than fail the line.
+    for (let attempt = 0; p === 'openai-compatible' && res.status === 429 && attempt < COMPATIBLE_BUSY_RETRIES; attempt++) {
+      const after = Number(res.headers.get('Retry-After'));
+      const ms = Number.isFinite(after) && after > 0 ? Math.min(after, 30) * 1000 : COMPATIBLE_BUSY_WAIT_MS;
+      console.info(`[tableRead] the speech server is busy; trying the line again in ${ms / 1000}s`);
+      await waitFor(ms, signal);
+      res = await send();
+    }
     if (!res.ok) throw new Error(await describeHttpError(res, this.providerName));
     const blob = await res.blob();
     if (!blob.size) throw new Error(`${capitalise(this.providerName)} returned no audio.`);
