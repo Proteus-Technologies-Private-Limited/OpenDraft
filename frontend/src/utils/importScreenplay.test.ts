@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { DOMParser as XmlDOMParser } from '@xmldom/xmldom';
 import JSZip from 'jszip';
 import {
@@ -7,10 +7,14 @@ import {
   isImportableExtension,
   importFormatLabel,
   parseScreenplayImport,
+  resetStoresForImport,
   importAccept,
   SCREENPLAY_IMPORT_EXTENSIONS,
 } from './importScreenplay';
 import { useEditorStore } from '../stores/editorStore';
+import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { STAGE_PLAY_ID } from '../stores/templates/stagePlayTemplate';
+import { serializeOdraft } from './odraftFormat';
 import { titleRegionOf, bodyTypesOf } from '../test/titlePage';
 
 beforeAll(() => {
@@ -201,6 +205,44 @@ describe('parseScreenplayImport', () => {
     await expect(parseScreenplayImport('Script.fadein', 'garbled')).rejects.toThrow(
       /compressed archives.*Export the script from Fade In/s,
     );
+  });
+
+  describe('the script format of the script being replaced', () => {
+    const active = () => useFormattingTemplateStore.getState().activeTemplateId;
+    beforeEach(() => useFormattingTemplateStore.getState().setActiveTemplateId(STAGE_PLAY_ID));
+    afterEach(() => useFormattingTemplateStore.getState().setActiveTemplateId(null));
+
+    it('is cleared by the reset every import path goes through', () => {
+      // Final Draft, PDF, Highland, WriterDuet, Celtx and plugin imports all
+      // reset through here; none of their files name a format.
+      resetStoresForImport();
+      expect(active()).toBeNull();
+    });
+
+    it('is not carried into a Fountain import', async () => {
+      await parseScreenplayImport('Film.fountain', 'INT. LAB - NIGHT\n\nShe waits.');
+      expect(active()).toBeNull();
+    });
+
+    it('stays when the import only adds a script to a project', async () => {
+      await parseScreenplayImport('Film.fountain', 'INT. LAB - NIGHT\n\nShe waits.', { hydrateStores: false });
+      expect(active()).toBe(STAGE_PLAY_ID);
+    });
+
+    it('stays when the file cannot be read', async () => {
+      await expect(parseScreenplayImport('Broken.fdx', '<?xml version="1.0"?><FinalDraft><Content><Paragraph')).rejects.toThrow();
+      expect(active()).toBe(STAGE_PLAY_ID);
+    });
+
+    it('gives way to the format an .odraft names', async () => {
+      useFormattingTemplateStore.getState().setActiveTemplateId(null);
+      const file = serializeOdraft(
+        { title: 'Play' } as never,
+        { type: 'doc', content: [{ type: 'sceneHeading', content: [{ type: 'text', text: 'SCENE 1' }] }], _templateId: STAGE_PLAY_ID },
+      );
+      await parseScreenplayImport('Play.odraft', file);
+      expect(active()).toBe(STAGE_PLAY_ID);
+    });
   });
 
   it('reports a malformed .odraft with a readable message', async () => {
