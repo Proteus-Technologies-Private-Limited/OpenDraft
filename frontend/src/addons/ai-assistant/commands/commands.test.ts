@@ -187,4 +187,18 @@ describe('the other editorial commands', () => {
     expect(result.ok).toBe(true);
     expect(result.data).toMatchObject({ sceneHeading: 'INT. DINER - NIGHT', characters: ['BEN'] });
   });
+
+  it('keeps the lines of plain text for the editor to split into blocks', () => {
+    const { adapter, calls } = fakeAdapter();
+    executeCommand('editor.insertText', { text: 'One\nTwo' }, adapter);
+    executeCommand('editor.replaceSelection', { text: 'Three\nFour' }, adapter);
+    expect(calls.texts).toEqual(['One\nTwo']);
+    expect(calls.replaced).toEqual([{ text: 'Three\nFour', element: undefined }]);
+  });
+
+  it('still flattens a dialogue line, which is a single element', () => {
+    const { adapter, calls } = fakeAdapter();
+    executeCommand('script.insertDialogue', { character: 'BEN', text: 'One\nTwo' }, adapter);
+    expect(calls.blocks[0].map((block) => block.text)).toEqual(['BEN', 'One Two']);
+  });
 });

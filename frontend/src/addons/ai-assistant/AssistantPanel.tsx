@@ -20,7 +20,7 @@ import { Mapping } from '@tiptap/pm/transform';
 import { FaRobot, FaPaperPlane, FaTrashAlt } from 'react-icons/fa';
 import { ELEMENT_LABELS } from '../../stores/editorStore';
 import {
-  createPreviewAdapter, createTiptapAdapter, executeCommand,
+  createPreviewAdapter, createTiptapAdapter, executeCommand, previewTextLines,
   type PreviewOp, type ScriptContext,
 } from './commands';
 import { isModelCommand, modelTools } from './modelTools';
@@ -169,13 +169,24 @@ const PreviewOpView: React.FC<{ op: PreviewOp }> = ({ op }) => {
   }
   if (op.kind === 'replace') {
     return (
-      <div className="ai-preview-block ai-preview-replace">
-        Replace with: {op.text}
-        {op.element ? ` (${ELEMENT_LABELS[op.element] ?? op.element})` : ''}
-      </div>
+      <>
+        {previewTextLines(op).map((line, i) => (
+          <div key={i} className="ai-preview-block ai-preview-replace">
+            {i === 0 ? 'Replace with: ' : ''}
+            {line}
+            {i === 0 && op.element ? ` (${ELEMENT_LABELS[op.element] ?? op.element})` : ''}
+          </div>
+        ))}
+      </>
     );
   }
-  return <div className="ai-preview-block ai-preview-text">{op.text}</div>;
+  return (
+    <>
+      {previewTextLines(op).map((line, i) => (
+        <div key={i} className="ai-preview-block ai-preview-text">{line}</div>
+      ))}
+    </>
+  );
 };
 
 const AssistantPanel: React.FC<Props> = ({ editor }) => {
@@ -248,6 +259,12 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     setPending(null);
   }, []);
 
+  // A proposal belongs to the document it was made in. A new editor is another
+  // script, and the saved range would point at words that are not there.
+  useEffect(() => {
+    clearPending();
+  }, [editor, clearPending]);
+
   const runCalls = useCallback((adapter: ReturnType<typeof createTiptapAdapter>, calls: AiToolCall[]) => {
     const lines: string[] = [];
     const failures: string[] = [];
@@ -306,7 +323,9 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       return { staged: false, lines: [] as string[], failures, count: 0 };
     }
     const blockCount = preview.ops.reduce(
-      (count, op) => count + (op.kind === 'blocks' ? op.blocks.length : 1),
+      (count, op) => count + (op.kind === 'blocks'
+        ? op.blocks.length
+        : op.kind === 'element' ? 1 : previewTextLines(op).length),
       0,
     );
     if (blockCount === 0) {
@@ -553,7 +572,9 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
 
   const previewBlockCount = pending
     ? pending.ops.reduce(
-      (count, op) => count + (op.kind === 'blocks' ? op.blocks.length : 1),
+      (count, op) => count + (op.kind === 'blocks'
+        ? op.blocks.length
+        : op.kind === 'element' ? 1 : previewTextLines(op).length),
       0,
     )
     : 0;
