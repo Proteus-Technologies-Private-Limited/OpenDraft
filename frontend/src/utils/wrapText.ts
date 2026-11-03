@@ -426,3 +426,10 @@ export function wordWrapRuns(
 
   return lines.length > 0 ? lines : [[emptyRun()]];
 }
+
+/** Visual line offsets from the same counter used for ordinary pagination. */
+export function textLineOffsets(text: string, cpl: number): number[] {
+  const starts: number[] = [];
+  getTextLines(text, cpl, offset => starts.push(Math.min(text.length, offset)));
+  return starts;
+}

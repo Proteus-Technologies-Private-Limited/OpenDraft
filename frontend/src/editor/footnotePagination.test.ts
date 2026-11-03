@@ -267,3 +267,17 @@ describe('a page that ends in a dialogue split', () => {
     expect(state.footnotePages!.some((f) => f.noteIds.includes('n2'))).toBe(true);
   });
 });
+
+describe('a note anchored inside a paragraph that spans pages', () => {
+  for (const markerStyle of ['superscript', 'bracketed'] as const) it(`keeps the ${markerStyle} reference with its final fragment`, () => {
+    const l = layout({markerStyle});
+    const json = doc(noted('A long paragraph with words. '.repeat(700), 'long'));
+    const p = plan(json, [note('long')], l)!;
+    const result = computeBreaks(pmDoc(json), l, undefined, p);
+    expect(result.pageCount).toBeGreaterThan(2);
+    const owing = result.footnotePages!.filter(page => page.noteIds.includes('long'));
+    expect(owing).toHaveLength(1);
+    expect(owing[0].pageNumber).toBe(result.pageCount);
+    expect(result.breaks.every(b=>b.contentOffset!==undefined)).toBe(true);
+  });
+});
