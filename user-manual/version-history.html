@@ -169,7 +169,14 @@
     </ol>
 
     <p>The summary counts each kind and lists the scenes and characters affected. A moved line remembers the
-       scene it came from, shown when you hover it.</p>
+       scene it came from, shown when you hover it. Deleted lines stay in their original reading position
+       when the preceding line moves elsewhere. A renamed scene appears once in the summary, under its
+       new name.</p>
+
+    <p>Rewrite matching compares shared content words, counting repeated words only as often as they
+       occur in both lines. Most lines need at least 50% similarity; dialogue under the same named
+       speaker uses 45%, so a modest expansion can still appear as a rewrite. This is a text-matching
+       heuristic: heavily rewritten lines may still appear as a deletion and an addition.</p>
 
     <p>See <a href="revision-mode.html">Revision Mode &amp; Track Changes</a> for more details on the diff view.</p>
 

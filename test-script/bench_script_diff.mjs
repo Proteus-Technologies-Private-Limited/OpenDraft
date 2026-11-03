@@ -78,3 +78,19 @@ const base = script(N);
   const b = { type: 'doc', content: script(N, 'w').content.filter((n) => n.type !== 'character') };
   run('7 different shape, nothing aligns', base, b);
 }
+
+// 8. Exactly 500x500 scores at the pairing cap, with disjoint vocabularies.
+// Different element types prevent the equal-shape positional fast path.
+{
+  const oldWords = 'candle river mountain forest window paper garden shadow'.split(' ');
+  const newWords = 'quartz zebra violin copper falcon harbor orchid saddle'.split(' ');
+  const paragraphs = (words, type, tag) => ({
+    type: 'doc',
+    content: Array.from({ length: 500 }, (_, i) => {
+      const text = Array.from({ length: 60 }, (_, j) => words[(i + j) % words.length]).join(' ');
+      return block(type, `${text} ${tag}${i}`);
+    }),
+  });
+  run('8 exact 500x500, disjoint 60-word blocks',
+    paragraphs(oldWords, 'action', 'old'), paragraphs(newWords, 'general', 'new'));
+}

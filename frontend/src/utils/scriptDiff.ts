@@ -10,7 +10,7 @@
  *   elements, one after the other - is a **modification** with a word-level diff;
  * - otherwise removed and added paragraphs are paired in order when they share
  *   at least half their words, so a rewritten line is a modification rather
- *   than a deletion plus an addition;
+ *   than a deletion plus an addition (45% for dialogue under the same cue);
  * - a removed paragraph whose exact text comes back elsewhere is **moved**;
  * - what remains is **added** or **deleted**.
  *
@@ -73,6 +73,10 @@ const MAX_PAIR_CELLS = 250_000;
 /** How many words two paragraphs must share to count as the same line rewritten
  *  (Dice coefficient over word multisets: 0 = nothing, 1 = identical). */
 const CHANGE_SIMILARITY = 0.5;
+
+/** A little more tolerance for dialogue attributed to the same named speaker.
+ *  Other elements and unattributed speech retain the general threshold. */
+const DIALOGUE_CHANGE_SIMILARITY = 0.45;
 
 // Hard breaks must appear in the extracted text, or two revisions differing
 // only in where a break sits produce identical strings and the alignment below
@@ -298,19 +302,30 @@ function contentWords(text: string): string[] {
     .filter((word) => word && !STRUCTURAL_WORDS.has(word));
 }
 
-/** Shared content words over all content words (0–1), counting repeated words
- *  only as often as both texts have them. Structural words do not count. */
-function similarity(a: string, b: string): number {
-  const wa = contentWords(a);
-  const wb = contentWords(b);
-  if (wa.length === 0 || wb.length === 0) return 0;
-  const pool = [...wb];
+interface WordCounts {
+  counts: Map<string, number>;
+  total: number;
+}
+
+function countContentWords(text: string): WordCounts {
+  const words = contentWords(text);
+  const counts = new Map<string, number>();
+  for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1);
+  return { counts, total: words.length };
+}
+
+/** Dice coefficient over cached word multisets. Each shared word counts only
+ *  as often as it occurs in both texts; neither multiset is consumed. */
+function similarity(a: WordCounts, b: WordCounts): number {
+  if (a.total === 0 || b.total === 0) return 0;
+  const [smaller, larger] = a.counts.size <= b.counts.size
+    ? [a.counts, b.counts]
+    : [b.counts, a.counts];
   let shared = 0;
-  for (const word of wa) {
-    const at = pool.indexOf(word);
-    if (at >= 0) { pool.splice(at, 1); shared++; }
+  for (const [word, count] of smaller) {
+    shared += Math.min(count, larger.get(word) ?? 0);
   }
-  return (2 * shared) / (wa.length + wb.length);
+  return (2 * shared) / (a.total + b.total);
 }
 
 /** Pair a run of removed and added indexes into modifications, in order.
@@ -321,6 +336,8 @@ function pairRun(
   b: FlatBlock[],
   runA: number[],
   runB: number[],
+  charactersA: Array<string | null>,
+  charactersB: Array<string | null>,
 ): {
   changed: Array<[number, number]>;
   same: Array<[number, number]>;
@@ -333,6 +350,16 @@ function pairRun(
   if (runB.length === 0) {
     return { changed: [], same: [], removed: [...runA], added: [] };
   }
+
+  // Tokenize each candidate once, rather than once per scored pair.
+  const wordsA = runA.map((ai) => countContentWords(a[ai].text));
+  const wordsB = runB.map((bi) => countContentWords(b[bi].text));
+  const threshold = (ai: number, bi: number) => (
+    a[ai].type === 'dialogue'
+    && b[bi].type === 'dialogue'
+    && charactersA[ai]
+    && charactersA[ai] === charactersB[bi]
+  ) ? DIALOGUE_CHANGE_SIMILARITY : CHANGE_SIMILARITY;
 
   // Edited in place: the run is the same length and every element lines up.
   if (
@@ -347,7 +374,7 @@ function pairRun(
       const bi = runB[k];
       if (sameBlock(a[ai], b[bi])) {
         same.push([ai, bi]);
-      } else if (similarity(a[ai].text, b[bi].text) >= CHANGE_SIMILARITY) {
+      } else if (similarity(wordsA[k], wordsB[k]) >= threshold(ai, bi)) {
         changed.push([ai, bi]);
       } else {
         // Same shape, nothing in common: a deletion and an addition, not a
@@ -382,7 +409,7 @@ function pairRun(
       }
     }
   } else {
-    for (const ai of runA) {
+    for (const [i, ai] of runA.entries()) {
       let bestK = -1;
       let bestScore = -1;
       let exactK = -1;
@@ -390,8 +417,8 @@ function pairRun(
         if (usedB[k]) continue;
         const bi = runB[k];
         if (sameBlock(a[ai], b[bi])) { exactK = k; break; }
-        const score = similarity(a[ai].text, b[bi].text);
-        if (score >= CHANGE_SIMILARITY && score > bestScore) {
+        const score = similarity(wordsA[i], wordsB[k]);
+        if (score >= threshold(ai, bi) && score > bestScore) {
           bestK = k;
           bestScore = score;
         }
@@ -419,10 +446,10 @@ function pairRun(
 }
 
 /** The scene each block belongs to, in its own draft. */
-function sceneNames(blocks: FlatBlock[]): string[] {
+function sceneNames(blocks: FlatBlock[], renamedHeadings?: Map<number, string>): string[] {
   let current = '';
-  return blocks.map((block) => {
-    if (block.type === 'sceneHeading') current = block.text;
+  return blocks.map((block, index) => {
+    if (block.type === 'sceneHeading') current = renamedHeadings?.get(index) ?? block.text;
     return current;
   });
 }
@@ -431,6 +458,7 @@ function sceneNames(blocks: FlatBlock[]): string[] {
 function precedingCharacters(blocks: FlatBlock[]): Array<string | null> {
   let current: string | null = null;
   return blocks.map((block) => {
+    if (block.type === 'sceneHeading') current = null;
     const before = current;
     if (block.type === 'character') current = block.text;
     return before;
@@ -467,7 +495,7 @@ export function computeScriptDiff(docA: JSONContent, docB: JSONContent): ScriptD
     const runB: number[] = [];
     for (let i = prevA; i < ai; i++) runA.push(i);
     for (let j = prevB; j < bi; j++) runB.push(j);
-    const paired = pairRun(a, b, runA, runB);
+    const paired = pairRun(a, b, runA, runB, charactersA, charactersB);
     changed.push(...paired.changed);
     same.push(...paired.same);
     removed.push(...paired.removed);
@@ -506,6 +534,16 @@ export function computeScriptDiff(docA: JSONContent, docB: JSONContent): ScriptD
     added.splice(added.indexOf(bi), 1);
     addedByKey.delete(key);
   }
+
+  // Use the new name for every summary contribution from a renamed scene,
+  // including deletions and moves. Detailed rows retain their original names.
+  const renamedHeadings = new Map<number, string>();
+  for (const [ai, bi] of changed) {
+    if (a[ai].type === 'sceneHeading' && b[bi].type === 'sceneHeading') {
+      renamedHeadings.set(ai, b[bi].text);
+    }
+  }
+  const summaryScenesA = sceneNames(a, renamedHeadings);
 
   const entries: Entry[] = [];
   const scenesChanged = new Set<string>();
@@ -566,7 +604,7 @@ export function computeScriptDiff(docA: JSONContent, docB: JSONContent): ScriptD
       rank: 0,
     });
     if (scenesB[bi]) scenesChanged.add(scenesB[bi]);
-    if (scenesA[ai]) scenesChanged.add(scenesA[ai]);
+    if (summaryScenesA[ai]) scenesChanged.add(summaryScenesA[ai]);
     totalModified++;
   }
 
@@ -587,12 +625,12 @@ export function computeScriptDiff(docA: JSONContent, docB: JSONContent): ScriptD
       rank: 0,
     });
     if (scenesB[bi]) scenesChanged.add(scenesB[bi]);
-    if (scenesA[ai]) scenesChanged.add(scenesA[ai]);
+    if (summaryScenesA[ai]) scenesChanged.add(summaryScenesA[ai]);
   }
 
-  // Every matched pair, in old-draft order, so a deletion can be placed after
-  // the block it followed even when that block was itself rewritten.
-  const matched = [...pairs, ...same, ...changed, ...moved]
+  // Only stationary matches anchor deletions. A moved block must not drag
+  // the deletion that followed it into its new scene.
+  const matched = [...pairs, ...same, ...changed]
     .sort((x, y) => x[0] - y[0] || x[1] - y[1]);
 
   for (const ai of removed) {
@@ -618,7 +656,7 @@ export function computeScriptDiff(docA: JSONContent, docB: JSONContent): ScriptD
       key: anchor,
       rank: -1,
     });
-    if (scenesA[ai]) scenesChanged.add(scenesA[ai]);
+    if (summaryScenesA[ai]) scenesChanged.add(summaryScenesA[ai]);
   }
 
   for (const bi of added) {

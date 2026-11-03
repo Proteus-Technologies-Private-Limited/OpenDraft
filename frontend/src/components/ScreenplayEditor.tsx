@@ -763,7 +763,7 @@ const ScreenplayEditor: React.FC = () => {
     collabWsUrlRef.current = wsUrl;
     console.log(`[Collab] setupCollab: docName="${docName}", wsUrl="${wsUrl}", isHost=${isHost}, tokenPrefix="${inviteToken.slice(0, 8)}..."`);
 
-    const handleCollabRefusal = (reason: string) => {
+    const handleCollabRefusal = (reason: string, source: 'authentication' | 'update') => {
       // Ignore auth failures from a stale provider (e.g. old provider fires
       // after host switched documents and a new provider replaced it)
       if (providerRef.current !== provider) return;
@@ -774,17 +774,20 @@ const ScreenplayEditor: React.FC = () => {
       }
       collabExitingRef.current = true;
 
-      console.error(`[Collab] Auth FAILED for "${docName}": ${reason}`);
+      console.error(`[Collab] Collaboration refused for "${docName}": ${reason}`);
       // Hocuspocus reports a refused invite as "permission-denied" — what a
       // guest gets back once the host has ended the session and revoked it.
       // A link that was bad from the start never gets this far: joining
       // validates it first.
       const isSessionEnded = reason?.includes('expired') || reason?.includes('Invalid')
         || reason === 'permission-denied';
+      const refusalMessage = source === 'authentication'
+        ? `Unable to join collaboration: ${reason}`
+        : reason;
       showToast(
         isSessionEnded
           ? 'The collaboration session has ended'
-          : `Unable to join collaboration: ${reason}`,
+          : refusalMessage,
         isSessionEnded ? 'info' : 'error',
       );
       // Preserve any local text/proposals made while connecting. An auth
@@ -843,7 +846,10 @@ const ScreenplayEditor: React.FC = () => {
         // suggestion (collab-server/src/services/suggestionGuard). Reconnecting
         // would send the same change again, so stop and say so.
         if (isReviewRefusal((event as { reason?: string }).reason, event.code)) {
-          handleCollabRefusal('Formatting suggestions cannot sync with an older app in this session. Your local text is retained. Resolve pending formatting suggestions or ask everyone to update before rejoining.');
+          handleCollabRefusal(
+            'Formatting suggestions cannot sync with an older app in this session. Your local text is retained. Resolve pending formatting suggestions or ask everyone to update before rejoining.',
+            'update',
+          );
           return;
         }
 
@@ -907,7 +913,7 @@ const ScreenplayEditor: React.FC = () => {
         }
       },
       onAuthenticationFailed: ({ reason }) => {
-        handleCollabRefusal(reason);
+        handleCollabRefusal(reason, 'authentication');
       },
       onAwarenessUpdate: ({ states }) => {
         // Ignore events from a stale provider after doc switch
