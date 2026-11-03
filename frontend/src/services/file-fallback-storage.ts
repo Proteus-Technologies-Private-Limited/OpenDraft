@@ -482,6 +482,9 @@ export async function createFileFallbackStorage() {
     restoreVersion: async (): Promise<VersionInfo> => {
       throw new Error('Versioning is not available in file-fallback mode');
     },
+    deleteVersion: async (): Promise<{ message: string }> => {
+      throw new Error('Versioning is not available in file-fallback mode');
+    },
 
     // ── Collaboration (network-only) ─────────────────────────────────
 

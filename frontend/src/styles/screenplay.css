@@ -43,6 +43,9 @@
   --fd-toolbar-bg: #353535;
   --fd-menu-bg: #333333;
   --fd-menu-hover: #4a4a4a;
+  /* Used by dialog buttons and list rows (template editor, bookmarks …) but
+     never defined, so hovers fell back to near-black under dark text. */
+  --fd-toolbar-hover: #4a4a4a;
   --fd-accent: #4a9eff;
   --fd-border: #2a2a2a;
   --fd-chrome-separator: rgba(255,255,255,0.06);
@@ -108,6 +111,7 @@
   --fd-toolbar-bg: #f4f4f4;
   --fd-menu-bg: #f6f6f6;
   --fd-menu-hover: #e0e0e0;
+  --fd-toolbar-hover: #e0e0e0;
   --fd-accent: #1565c0;
   --fd-border: #d8d8d8;
   --fd-chrome-separator: rgba(0,0,0,0.04);
@@ -7945,7 +7949,8 @@ html.android .version-history-panel {
   gap: 6px;
 }
 .version-view-btn,
-.version-restore-btn {
+.version-restore-btn,
+.version-delete-btn {
   background: transparent;
   border: 1px solid var(--fd-border);
   color: var(--fd-text-muted);
@@ -7964,6 +7969,12 @@ html.android .version-history-panel {
   border-color: var(--fd-accent);
   color: var(--fd-accent);
   background: rgba(74, 158, 255, 0.1);
+}
+.version-delete-btn { margin-left: auto; }
+.version-delete-btn:hover {
+  border-color: #c0392b;
+  color: var(--od-danger-text, #c0392b);
+  background: rgba(192, 57, 43, 0.1);
 }
 
 /* ============ HISTORY BANNER (read-only version view) ============ */
@@ -11752,7 +11763,8 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 
   /* Larger tap targets for version items */
   .version-item { padding: 14px 16px; min-height: 56px; }
-  .version-restore-btn { min-height: 36px; padding: 6px 12px; font-size: 12px; }
+  .version-restore-btn,
+  .version-delete-btn { min-height: 36px; padding: 6px 12px; font-size: 12px; }
 
   /* Index card actions: larger */
   .ic-action-btn { min-height: 36px; padding: 6px 12px; }
@@ -13168,8 +13180,10 @@ del.suggestion-delete {
   background: transparent;
   border: 1px solid var(--fd-border);
   color: var(--fd-text);
-  width: 24px;
+  min-width: 24px;
   height: 24px;
+  padding: 0 8px;
+  gap: 4px;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
@@ -13193,7 +13207,7 @@ del.suggestion-delete {
   color: var(--fd-text);
   border-left: 3px solid transparent;
 }
-.template-element-item:hover { background: var(--fd-toolbar-hover, #333); }
+.template-element-item:hover { background: var(--fd-toolbar-hover); }
 .template-element-item.selected { background: var(--fd-toolbar-hover); border-left-color: var(--fd-accent); }
 .template-element-item.disabled { opacity: 0.5; }
 .template-element-label { flex: 1; }

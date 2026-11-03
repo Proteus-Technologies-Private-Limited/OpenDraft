@@ -350,6 +350,12 @@ export const api = {
       method: 'POST',
     }),
 
+  /** Remove one checkpoint from the history; the scripts themselves are untouched. */
+  deleteVersion: (projectId: string, hash: string) =>
+    request<{ message: string }>(`/projects/${projectId}/versions/${encodeURIComponent(hash)}`, {
+      method: 'DELETE',
+    }),
+
   // Collaboration (routed to collab server, not Python backend)
   createCollabInvite: (projectId: string, scriptId: string, collaboratorName: string, role: string = 'editor', expiresInHours: number = 1, sessionNonce: string = '') =>
     collabServerRequest<CollabSession>('/api/collab/invite', {

@@ -1,43 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { ELEMENT_LABELS, type ElementType } from '../stores/editorStore';
-import { ELEMENT_DESCRIPTIONS, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
+import { ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { AV_SCRIPT_TEMPLATE } from '../stores/templates/avScriptTemplate';
-
-// Context-aware element ordering: most likely choices first per current type
-// The two non-printing elements sit at the end of every list: they are
-// structure, not script, so they should never be the first thing offered.
-// AV Columns joins them there: it inserts a two-column body rather than
-// restyling the line, so it is never the answer to "what comes next?" either.
-const OUTLINE_TYPES: ElementType[] = ['section', 'note'];
-const TAIL_TYPES: ElementType[] = [...OUTLINE_TYPES, AV_BLOCK_RULE_ID];
-
-const ELEMENT_ORDER: Record<string, ElementType[]> = {
-  sceneHeading: ['action', 'character', 'general', 'transition', 'shot', 'sceneHeading', 'dialogue', 'parenthetical', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
-  action:       ['action', 'character', 'dialogue', 'general', 'sceneHeading', 'transition', 'shot', 'parenthetical', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
-  character:    ['dialogue', 'parenthetical', 'action', 'character', 'general', 'sceneHeading', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
-  dialogue:     ['action', 'character', 'general', 'dialogue', 'parenthetical', 'sceneHeading', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
-  parenthetical:['dialogue', 'action', 'character', 'general', 'parenthetical', 'sceneHeading', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
-  transition:   ['sceneHeading', 'action', 'transition', 'general', 'character', 'dialogue', 'parenthetical', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
-  general:      ['general', 'action', 'character', 'dialogue', 'sceneHeading', 'transition', 'parenthetical', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
-  shot:         ['action', 'shot', 'character', 'general', 'sceneHeading', 'transition', 'dialogue', 'parenthetical', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
-  newAct:       ['sceneHeading', 'action', 'newAct', 'general', 'character', 'dialogue', 'parenthetical', 'transition', 'shot', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
-  endOfAct:     ['newAct', 'sceneHeading', 'action', 'endOfAct', 'general', 'character', 'dialogue', 'parenthetical', 'transition', 'shot', 'lyrics', 'showEpisode', 'castList'],
-  lyrics:       ['lyrics', 'dialogue', 'action', 'character', 'general', 'sceneHeading', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'showEpisode', 'castList'],
-  showEpisode:  ['action', 'sceneHeading', 'showEpisode', 'general', 'character', 'dialogue', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'castList'],
-  castList:     ['castList', 'action', 'character', 'general', 'sceneHeading', 'dialogue', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode'],
-  section:      ['action', 'sceneHeading', 'section', 'general', 'character', 'dialogue', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
-  note:         ['action', 'note', 'sceneHeading', 'general', 'character', 'dialogue', 'parenthetical', 'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList'],
-};
-for (const [type, order] of Object.entries(ELEMENT_ORDER)) {
-  ELEMENT_ORDER[type] = [...order, ...TAIL_TYPES.filter((t) => !order.includes(t))];
-}
-
-const DEFAULT_ORDER: ElementType[] = [
-  'action', 'character', 'dialogue', 'general', 'sceneHeading', 'parenthetical',
-  'transition', 'shot', 'newAct', 'endOfAct', 'lyrics', 'showEpisode', 'castList',
-  ...TAIL_TYPES,
-];
+import { pickerElementTypes } from '../utils/elementPickerOrder';
 
 interface ElementPickerProps {
   position: { top: number; left: number };
@@ -70,11 +36,7 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
     () => {
       // Caller-supplied list (e.g. AV cell context) wins outright.
       if (availableTypes && availableTypes.length > 0) return availableTypes;
-      const enabled = new Set(
-        Object.values(activeTemplate.rules).filter((r) => r.enabled).map((r) => r.id),
-      );
-      return (ELEMENT_ORDER[defaultType] || DEFAULT_ORDER)
-        .filter((t) => enabled.has(t));
+      return pickerElementTypes(activeTemplate, defaultType);
     },
     [defaultType, activeTemplate, availableTypes],
   );

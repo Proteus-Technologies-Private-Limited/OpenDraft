@@ -252,6 +252,7 @@ export function createFallbackStorage() {
     getVersionDiff: async (): Promise<DiffResponse> => ({ diff: '', from_hash: '', to_hash: '' }),
     getScriptAtVersion: async (): Promise<ScriptResponse> => { throw new Error('Not available in fallback mode'); },
     restoreVersion: async (): Promise<VersionInfo> => { throw new Error('Not available in fallback mode'); },
+    deleteVersion: async (): Promise<{ message: string }> => { throw new Error('Not available in fallback mode'); },
 
     // ── Collaboration (pass-through — still works via HTTP) ──────────
 

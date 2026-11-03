@@ -92,6 +92,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   const [selectedId, setSelectedId] = useState<string | null>(
     Object.keys(rules)[0] || null,
   );
+  /** The element just added with "+ New", so its label is ready to type over. */
+  const [newElementId, setNewElementId] = useState<string | null>(null);
   /** Element ids that must open a new page (e.g. New Act in TV formats). */
   const [forceBreakBefore, setForceBreakBefore] = useState<string[]>(
     () => [...(initial.forceBreakBefore ?? [])],
@@ -120,6 +122,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     const newRule = createDefaultRule(id, 'Custom Element', false);
     setRules((prev) => ({ ...prev, [id]: newRule }));
     setSelectedId(id);
+    setNewElementId(id);
   }, []);
 
   const removeElement = useCallback(
@@ -230,9 +233,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               <button
                 className="template-add-btn"
                 onClick={addCustomElement}
-                title="Add custom element"
+                title="Add a custom element (e.g. Sound Effect, Lyric, Insert)"
               >
-                <FaPlus />
+                <FaPlus /> New
               </button>
             </div>
             <div className="template-editor-elements-list">
@@ -297,6 +300,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                   <input
                     className="dialog-input"
                     value={selectedRule.label}
+                    key={selectedId}
+                    autoFocus={!!newElementId && selectedId === newElementId}
+                    onFocus={(e) => { if (newElementId && selectedId === newElementId) e.target.select(); }}
                     onChange={(e) => updateRule(selectedId!, { label: e.target.value })}
                     disabled={selectedRule.isBuiltIn}
                     placeholder="Element name"
