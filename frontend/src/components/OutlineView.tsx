@@ -21,6 +21,7 @@ import { FaPlus, FaPen, FaTimes, FaTrashAlt } from 'react-icons/fa';
 import { useEditorStore } from '../stores/editorStore';
 import { activeTemplateHints, computeSceneLengths } from '../editor/pagination';
 import { computeScriptStructure, type StructureScene } from '../utils/scriptStructure';
+import { safeSequenceColor } from '../utils/formatAnnotations';
 import { reorderScene } from '../editor/sceneReorder';
 
 interface Props {
@@ -114,7 +115,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
           found.set(scene.sequenceId, {
             id: scene.sequenceId,
             name: scene.sequenceName || 'Untitled Sequence',
-            color: scene.sequenceColor || '#64748b',
+            color: safeSequenceColor(scene.sequenceColor) || '#64748b',
           });
         }
       }
@@ -183,7 +184,7 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
     const tr = editor.state.tr;
     tr.setNodeAttribute(pos, 'sequenceId', sequence?.id ?? null);
     tr.setNodeAttribute(pos, 'sequenceName', sequence?.name ?? null);
-    tr.setNodeAttribute(pos, 'sequenceColor', sequence?.color ?? null);
+    tr.setNodeAttribute(pos, 'sequenceColor', safeSequenceColor(sequence?.color) || null);
     editor.view.dispatch(tr);
   }, [editor]);
 
@@ -280,7 +281,9 @@ const OutlineView: React.FC<Props> = ({ editor }) => {
     const id = scene.sequenceId;
     if (!id) return null;
     const name = scene.sequenceName || sequences.find((s) => s.id === id)?.name || 'Untitled Sequence';
-    const color = scene.sequenceColor || sequences.find((s) => s.id === id)?.color || '#64748b';
+    const color = safeSequenceColor(scene.sequenceColor)
+      || safeSequenceColor(sequences.find((s) => s.id === id)?.color)
+      || '#64748b';
     const editing = editingSequence?.id === id;
     return (
       <div key={`sequence-${id}-${scene.sceneIndex}`} className="outline-row outline-sequence-row">

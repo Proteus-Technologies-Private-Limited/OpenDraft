@@ -1,5 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { sceneUidPastePlugin } from '../../utils/beatScenes';
+import { safeSequenceColor } from '../../utils/formatAnnotations';
 
 export const SceneHeading = Node.create({
   name: 'sceneHeading',
@@ -60,7 +61,7 @@ export const SceneHeading = Node.create({
           sceneColor: dom.getAttribute('data-scene-color') || '',
           sequenceId: dom.getAttribute('data-sequence-id') || null,
           sequenceName: dom.getAttribute('data-sequence-name') || null,
-          sequenceColor: dom.getAttribute('data-sequence-color') || null,
+          sequenceColor: safeSequenceColor(dom.getAttribute('data-sequence-color')) || null,
           omitted: dom.getAttribute('data-omitted') === 'true',
         };
       },
@@ -89,8 +90,9 @@ export const SceneHeading = Node.create({
     if (node.attrs.sequenceName) {
       attrs['data-sequence-name'] = node.attrs.sequenceName;
     }
-    if (node.attrs.sequenceColor) {
-      attrs['data-sequence-color'] = node.attrs.sequenceColor;
+    const sequenceColor = safeSequenceColor(node.attrs.sequenceColor);
+    if (sequenceColor) {
+      attrs['data-sequence-color'] = sequenceColor;
     }
     if (node.attrs.omitted) {
       attrs['data-omitted'] = 'true';

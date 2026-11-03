@@ -124,6 +124,11 @@ export interface SequenceLabel {
   color: string;
 }
 
+/** A sequence colour safe to put in a style attribute: `#rgb` or `#rrggbb`. */
+export function safeSequenceColor(value: unknown): string {
+  return typeof value === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value) ? value : '';
+}
+
 /** The label on a scene heading, or null when it carries none. */
 export function sequenceOf(node: JSONContent): SequenceLabel | null {
   if (node.type !== 'sceneHeading') return null;
@@ -132,7 +137,7 @@ export function sequenceOf(node: JSONContent): SequenceLabel | null {
   return {
     id,
     name: typeof node.attrs?.sequenceName === 'string' ? node.attrs.sequenceName : '',
-    color: typeof node.attrs?.sequenceColor === 'string' ? node.attrs.sequenceColor : '',
+    color: safeSequenceColor(node.attrs?.sequenceColor),
   };
 }
 
@@ -159,7 +164,8 @@ export function readSequenceLabel(
   if (typeof id !== 'string' || !id) return null;
   const out: Record<string, string> = { sequenceId: id };
   if (typeof name === 'string' && name) out.sequenceName = name;
-  if (typeof color === 'string' && color) out.sequenceColor = color;
+  const safeColor = safeSequenceColor(color);
+  if (safeColor) out.sequenceColor = safeColor;
   return out;
 }
 
