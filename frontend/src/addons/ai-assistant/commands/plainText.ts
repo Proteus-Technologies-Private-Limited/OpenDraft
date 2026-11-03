@@ -44,9 +44,11 @@ export function insertPlainText(
   // words are the point, so keep the element being edited.
   const canHoldText = !requested || requested.isTextblock;
   const type = requested && canHoldText ? requested : base.type;
-  // A new element starts from its own defaults; typing more of the same one
-  // keeps its attributes.
-  const attrs = requested && canHoldText ? null : base.attrs;
+  // A new block starts from its element's defaults: a reply line is a new
+  // line, not a copy of the block it lands next to. Copying `base.attrs` here
+  // gave every line the same sceneUid, locked scene number, bookmark, page
+  // anchor or set of versions.
+  const attrs = null;
 
   if (lines.length === 1) {
     // Replace the words, then retype the block they are in. Both steps sit in

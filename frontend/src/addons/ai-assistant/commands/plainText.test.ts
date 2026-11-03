@@ -113,4 +113,49 @@ describe('insertPlainText', () => {
       ['dialogue', 'Hi.'],
     ]);
   });
+
+  it('gives new lines the element defaults, not the block they land next to', () => {
+    const source = doc({
+      type: 'sceneHeading',
+      attrs: {
+        sceneUid: 'scene-1', sceneNumber: 7, locked: true,
+        startsNewPage: true, bookmark: 'Open',
+      },
+      content: [{ type: 'text', text: 'INT. HOUSE - DAY' }],
+    });
+    const from = afterText(source, 'DAY');
+    const { tr } = insert(source, from, from, 'One\nTwo');
+    const blocks = tr.doc.content.content;
+    expect(blocks.map((b) => [b.type.name, b.textContent])).toEqual([
+      ['sceneHeading', 'INT. HOUSE - DAY'],
+      ['sceneHeading', 'One'],
+      ['sceneHeading', 'Two'],
+    ]);
+    // The line the writer was on keeps its own scene identity.
+    expect(blocks[0].attrs.sceneUid).toBe('scene-1');
+    expect(blocks[0].attrs.startsNewPage).toBe(true);
+    for (const created of blocks.slice(1)) {
+      expect(created.attrs.sceneUid).toBeNull();
+      expect(created.attrs.sceneNumber).toBeNull();
+      expect(created.attrs.locked).toBe(false);
+      expect(created.attrs.startsNewPage).toBe(false);
+      expect(created.attrs.bookmark).toBeNull();
+    }
+  });
+
+  it('does not copy line versions onto new dialogue lines', () => {
+    const source = doc({
+      type: 'dialogue',
+      attrs: { alternates: [{ id: 'v1', text: 'Hi.' }], alternateIndex: 0 },
+      content: [{ type: 'text', text: 'Hello.' }],
+    });
+    const from = afterText(source, 'Hello.');
+    const { tr } = insert(source, from, from, 'One\nTwo');
+    const created = tr.doc.content.content.slice(1);
+    expect(created.map((b) => b.type.name)).toEqual(['dialogue', 'dialogue']);
+    for (const line of created) {
+      expect(line.attrs.alternates).toBeNull();
+      expect(line.attrs.alternateIndex).toBe(0);
+    }
+  });
 });
