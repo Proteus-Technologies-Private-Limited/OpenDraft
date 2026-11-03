@@ -73,5 +73,8 @@ fn call(action: &str, id: &str, language: &str) -> Result<Option<String>, String
 }
 #[cfg(not(any(target_os = "ios", target_os = "android")))]
 fn call(_action: &str, _id: &str, _language: &str) -> Result<Option<String>, String> {
-    Err("Use Local Whisper or browser recognition on desktop".into())
+    Err(
+        "Device speech recognition is available only on iOS and Android. Use Local Whisper in the desktop app."
+            .into(),
+    )
 }

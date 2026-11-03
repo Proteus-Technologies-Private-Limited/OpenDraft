@@ -527,10 +527,10 @@
     <p>Enable <strong>Dictation</strong> in <strong>Settings &rarr; Add-ons</strong>, review the privacy statement,
       and choose an available recognition engine and language. Then open <strong>Tools &rarr; Dictation&hellip;</strong> and click <strong>Start recording</strong>. Speak a short phrase, stop, review or correct the
       transcript, then choose <strong>Insert into script</strong>. The cursor must be in a screenplay
-      text element; title pages, AV cells and selections across paragraphs are not supported.</p>
+      text element; title pages, AV cells and selections across paragraphs are not supported. The panel leaves the script usable: click another position before inserting to change the destination.</p>
     <p><strong>Local Whisper</strong> keeps audio on your device and records up to 30 seconds at a time.
       The first recognition downloads model assets from huggingface.co (38.95 MiB of q8 weights, plus tokenizer and runtime assets); slower devices may take several
-      minutes. <strong>Browser speech service</strong> and the iOS/Android <strong>Device speech service</strong>
+      minutes. <strong>Browser speech service</strong> is offered in the web app, not desktop or mobile app webviews. Browser recognition and the iOS/Android <strong>Device speech service</strong>
       may send recorded voice to Google, Apple or Microsoft and may need an internet connection. Nothing starts until you
       click Start. Close or Cancel stops recording and ignores pending results.</p>
     <p>To use English commands, enable <strong>Interpret English voice commands</strong> in the add-on settings. Say a whole
@@ -538,7 +538,7 @@
       <em>parenthetical</em>, <em>transition</em>, or <em>new paragraph</em>. Review the command before
       inserting it. Commands start a new element after existing text; they do not convert those words.
       Say <em>literal new scene</em> to insert those words instead. Ordinary dialogue containing
-      &ldquo;new scene&rdquo; is not a command.</p>
+      &ldquo;new scene&rdquo; is not a command. In dual dialogue, character, dialogue, parenthetical and new-paragraph commands remain in the current column; a new paragraph becomes dialogue there.</p>
 
     <div class="page-nav">
       <a href="installation.html">

@@ -4,7 +4,7 @@ Enable **Dictation** in **Settings → Add-ons** first. Read “What leaves your
 
 Open **Tools → Dictation…** (after Table Read) from an editable script. Speak one short phrase,
 stop, review or correct the transcript, and choose **Insert into script**. The
-script is never changed by an interim result or a cancelled recording.
+script is never changed by an interim result or a cancelled recording. Dictation stays in a non-modal sidebar panel: click elsewhere in the screenplay while it is open to choose where the reviewed transcript goes.
 
 ## Recognition choices
 
@@ -20,11 +20,11 @@ script is never changed by an interim result or a cancelled recording.
   inference may take several minutes on slower devices. This is phrase-based,
   not continuous dictation. A microphone-capable secure context is required:
   HTTPS, localhost or a supported desktop web view.
-- **Browser speech service**: uses SpeechRecognition/webkitSpeechRecognition.
+- **Browser speech service**: uses SpeechRecognition/webkitSpeechRecognition in the web app only. It is not offered inside Tauri desktop or mobile webviews, even when a constructor exists.
   Availability depends on the browser and installed service; a browser can send
   recorded voice to Google, Apple or Microsoft. This requires choosing the engine before activation, followed by a separate Start click.
 - **Device speech service** (the only engine offered on native Android): iOS uses SFSpeechRecognizer
-  with microphone and speech permission prompts, requiring on-device recognition when supported for the selected language; Android opens the system
+  with microphone and speech permission prompts, requiring on-device recognition when supported for the selected language. iOS resolves the saved language against Apple's supported locales, preferring the current region when its language matches and otherwise a supported default region. Android opens the system
   recognition dialog, whose provider owns the microphone and permission UI.
   Otherwise Apple may process recorded voice remotely. Android requests offline recognition, but its provider (usually Google) can ignore that preference and process audio remotely.
   Android's system dialog is intentionally allowed to cover the app while it
@@ -50,7 +50,7 @@ then review the recognized command before inserting it:
 | `new scene` | Start an empty scene heading |
 | `character Sarah` | Start a character cue containing `SARAH` |
 | `action`, `dialogue`, `parenthetical`, `transition` | Start that element |
-| `new paragraph` or `new line` | Start a new action paragraph |
+| `new paragraph` or `new line` | Start an action paragraph, or dialogue inside a dual-dialogue column |
 | `literal new scene` | Insert the words `new scene` |
 
 Commands match a complete phrase, case-insensitively, with terminal punctuation
@@ -59,7 +59,7 @@ append after a populated paragraph rather than converting its existing words.
 Ordinary text replaces the selected text, with surrounding spaces adjusted.
 Insertion uses a normal ProseMirror transaction so existing suggestion, revision,
 undo and collaboration processing applies. Title pages, AV cells and selections
-across paragraphs are rejected with an explanation.
+across paragraphs are rejected with an explanation. Inside dual dialogue, character, dialogue, parenthetical and new-paragraph commands stay in the current speaker's column. Scene headings, action and transitions are rejected there rather than breaking the two-column structure.
 
 ## Reference repositories
 

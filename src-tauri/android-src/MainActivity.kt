@@ -85,8 +85,16 @@ class MainActivity : TauriActivity() {
     }
 
     companion object {
-        private const val DICTATION_REQUEST = 4021
-        @Volatile private var dictationId: String? = null
+        private const val DICTATION_REQUEST_FIRST = 0x4000
+        private const val DICTATION_REQUEST_LAST = 0x7fff
+        private data class DictationRequest(
+            val id: String,
+            val activity: java.lang.ref.WeakReference<android.app.Activity>,
+        )
+        // Accessed only on the main thread. Retired requests keep their code
+        // until their result drains, so an old result cannot finish a new session.
+        private val dictationRequests = mutableMapOf<Int, DictationRequest>()
+        private var activeDictationRequest: Int? = null
         private val dictationEvents = java.util.concurrent.ConcurrentLinkedQueue<JSONObject>()
 
         private fun dictationEvent(id: String, kind: String, text: String = "", message: String = "") {
@@ -98,11 +106,20 @@ class MainActivity : TauriActivity() {
         fun dictationStart(context: Context, id: String, language: String): String? {
             val activity = context as? android.app.Activity ?: return "No speech activity is available."
             activity.runOnUiThread {
-                // One system dialog at a time; a cancelled result must not reach a later session.
-                if (dictationId != null) {
+                dictationRequests.entries.removeAll { it.value.activity.get()?.isDestroyed != false }
+                val active = activeDictationRequest
+                if (active != null && !dictationRequests.containsKey(active)) activeDictationRequest = null
+                if (activeDictationRequest != null) {
                     dictationEvent(id, "error", message = "Close the previous device speech dialog first.")
                 } else {
-                    dictationId = id
+                    val requestCode = (DICTATION_REQUEST_FIRST..DICTATION_REQUEST_LAST)
+                        .firstOrNull { !dictationRequests.containsKey(it) }
+                    if (requestCode == null) {
+                        dictationEvent(id, "error", message = "Close earlier device speech dialogs and try again.")
+                        return@runOnUiThread
+                    }
+                    dictationRequests[requestCode] = DictationRequest(id, java.lang.ref.WeakReference(activity))
+                    activeDictationRequest = requestCode
                     try {
                         val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                         intent.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -110,9 +127,10 @@ class MainActivity : TauriActivity() {
                         // Providers may ignore this preference; the activation dialog discloses that.
                         intent.putExtra(android.speech.RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
                         intent.putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Dictate a screenplay phrase")
-                        activity.startActivityForResult(intent, DICTATION_REQUEST)
+                        activity.startActivityForResult(intent, requestCode)
                     } catch (e: Exception) {
-                        dictationId = null
+                        dictationRequests.remove(requestCode)
+                        activeDictationRequest = null
                         dictationEvent(id, "error", message = "Device speech recognition is unavailable. Install or enable a speech provider.")
                     }
                 }
@@ -122,27 +140,32 @@ class MainActivity : TauriActivity() {
 
         @JvmStatic
         fun dictationStop(context: Context, id: String): String? {
-            val activity = context as? android.app.Activity ?: return null
-            activity.runOnUiThread {
-                if (dictationId == id) {
-                    activity.finishActivity(DICTATION_REQUEST)
-                    // Keep ownership until onActivityResult drains the cancelled dialog.
+            Handler(Looper.getMainLooper()).post {
+                val code = activeDictationRequest ?: return@post
+                val request = dictationRequests[code] ?: return@post
+                if (request.id != id) return@post
+                // Release ownership even if the original activity is gone or
+                // cancellation came from another window. Keep its result retired.
+                activeDictationRequest = null
+                dictationEvent(id, "end")
+                try {
+                    request.activity.get()?.finishActivity(code)
+                } catch (error: Exception) {
+                    android.util.Log.w("OpenDraft", "Could not close device speech dialog", error)
                 }
             }
             return null
         }
 
         fun handleDictationResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
-            if (requestCode != DICTATION_REQUEST) return false
-            val id = dictationId
-            dictationId = null
-            if (id != null) {
-                if (resultCode == android.app.Activity.RESULT_OK) {
-                    val text = data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-                    if (!text.isNullOrBlank()) dictationEvent(id, "result", text)
-                }
-                dictationEvent(id, "end")
+            val request = dictationRequests.remove(requestCode) ?: return false
+            if (activeDictationRequest != requestCode) return true
+            activeDictationRequest = null
+            if (resultCode == android.app.Activity.RESULT_OK) {
+                val text = data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+                if (!text.isNullOrBlank()) dictationEvent(request.id, "result", text)
             }
+            dictationEvent(request.id, "end")
             return true
         }
 

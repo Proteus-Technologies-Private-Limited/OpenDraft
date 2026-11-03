@@ -10,10 +10,18 @@ passed all three jobs:
 - Android Rust type check (`aarch64-linux-android`). This does not compile Kotlin or package an APK.
 - iOS Simulator app compilation, including the tracked Xcode project and native helpers, without `ios init` or project regeneration. This is an unsigned simulator build.
 
-The local frontend suite passed 2,715 tests across 197 files. Controlled browser
+The prior local frontend suite passed 2,715 tests across 197 files. Controlled browser
 recognition checks passed for activation privacy, settings, final-result handling,
 focus, script changes and cancellation. These checks do not establish actual
 microphone recognition, signing, notarization or physical-device behavior.
+
+## Review follow-up evidence
+
+The current follow-up passed the full frontend suite on Node 20: **3,094 tests**, with three SQLite tests skipped (214 files pass, one skipped). The dictation subset passes all **62 tests**; frontend build, TypeScript and targeted dictation ESLint checks pass.
+
+A controlled Chromium fixture using the actual plugin panel and editor verified non-modal cursor changes while recording, insertion at the new destination, single-step undo, a dual-dialogue command staying in its column, actionable browser/local permission errors, 375px layout, and Escape/close focus restoration. No model was downloaded. Recognition and denied permissions were simulated; this was not an acoustic test.
+
+The changed Android bridge methods were extracted directly from `MainActivity.kt` and compiled with Kotlin 1.9.24 in an isolated JVM harness with Android API stubs. Cross-window cancellation, immediate restart, stale-result isolation, a failed `finishActivity`, a caller without an activity, a destroyed owner, and an unrelated cancel all passed. This verifies the bridge's session logic and Kotlin syntax, not Android SDK linkage, APK packaging or a real speech provider.
 
 ## macOS: signed, notarized app
 
@@ -59,13 +67,26 @@ Record the source SHA, iOS version, device, language and whether on-device speec
 recognition is available. Verify the installed app has both
 `NSMicrophoneUsageDescription` and `NSSpeechRecognitionUsageDescription`.
 
-1. Enable Dictation and choose Device speech service. Test speech/microphone allow and deny flows. No text should enter the script until Insert is chosen.
+1. Enable Dictation and choose Device speech service. Test speech/microphone allow and deny flows. No text should enter the script until Insert is chosen. Check every offered language (en, pl, fr, de, es, it, pt, ja), the current-region match and a different-language fallback. Confirm the chosen Apple locale is supported and bare language codes do not cause an unavailable-recognizer error.
 2. Speak a phrase whose last words are easy to identify. Press Stop while speaking, wait for the final result, and verify the phrase ending is retained. Repeat several times; record the actual transcript.
 3. Cancel while listening and while permission is pending; close/reopen and switch scripts. Confirm stale results are ignored and the microphone stops.
 4. Play Table Read before dictation and after Stop, Cancel, Close and an error. Confirm playback remains audible; this checks restoration of the audio-session category, mode and options.
 5. Background the app and interrupt it with another audio session. Confirm capture stops appropriately and the app can record again afterwards.
 6. When on-device recognition is supported, test offline. When unavailable, confirm the UI notice and document the required connection rather than claiming an offline guarantee.
 7. On iPad, open another window and confirm sessions and results remain isolated.
+
+## Additional review checks
+
+- On native macOS/Windows, a webview exposing a speech constructor must still offer no Browser speech service. Local Whisper remains subject to actual capture support.
+- The non-modal panel must allow moving the script cursor before insertion, including both dual-dialogue columns. Incompatible commands must leave the document unchanged.
+- On Android, cancel from the window that started recognition and from another window. Immediately start another session, then deliver/dismiss the older dialog: its result must not end or insert into the newer session. Check activity recreation as well as normal cancellation.
+- Confirm permission failures show instructions for the relevant browser/system settings. Inject an audio-context close failure and confirm it is logged without an unhandled rejection.
+
+## Opt-in boundary and release metadata
+
+Dictation's opt-in is enforced by the add-on UI and lifecycle. Native bridge commands remain registered in the app; this is not a native IPC authorization boundary. Application code invoking those commands directly still reaches the OS permission checks. There is no recording during ordinary use while the add-on is disabled, and disabling cancels its active session.
+
+Before distribution, update the App Store privacy labels and Play Data safety form to match the optional Apple/Google/Microsoft voice processing disclosed in `PRIVACY.md`. These store forms are release tasks, and have not been changed by this PR.
 
 ## Result record
 
