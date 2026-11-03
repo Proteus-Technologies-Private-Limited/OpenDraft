@@ -26,6 +26,33 @@ describe('withoutPageFields', () => {
     expect(clean('Draft - Page {page} of {pages}')).toBe('Draft');
   });
 
+  it('drops a comma, colon or semicolon that introduced the field', () => {
+    // These are separators that belong to the removed phrase. Only a full
+    // stop can be the writer's (an abbreviation such as Rev. or Inc.).
+    expect(clean('Draft: Page {page}')).toBe('Draft');
+    expect(clean('Draft, Page {page}')).toBe('Draft');
+    expect(clean('Draft; Page {page}')).toBe('Draft');
+  });
+
+  it('repeats the edge trims after removing a template full stop', () => {
+    // Removing the full stop exposes the dash, which must then go too.
+    expect(clean('Draft - {page}.')).toBe('Draft');
+    expect(clean('Draft - Page {page} of {pages}.')).toBe('Draft');
+  });
+
+  it('drops empty brackets left around a removed field', () => {
+    expect(clean('Draft (Page {page})')).toBe('Draft');
+    expect(clean('Draft [{page}]')).toBe('Draft');
+  });
+
+  it('keeps the writer\'s punctuation when a page field follows it', () => {
+    expect(clean('Blue Rev. Page {page}')).toBe('Blue Rev.');
+    expect(clean('Blue Rev. Page {page} of {pages}')).toBe('Blue Rev.');
+    expect(clean('Blue Rev. - Page {page}')).toBe('Blue Rev.');
+    // A full stop that trails the field is the template's, not the writer's.
+    expect(clean('Page {page} of {pages}.')).toBe('');
+  });
+
   it('drops a page field on its own', () => {
     expect(clean('{page}')).toBe('');
     expect(clean('Page {page}')).toBe('');
