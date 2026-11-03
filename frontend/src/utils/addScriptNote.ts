@@ -1,6 +1,24 @@
 import type { Editor } from '@tiptap/core';
+import type { Mark } from '@tiptap/pm/model';
 import { useEditorStore, NOTE_COLORS } from '../stores/editorStore';
 import { singleLine } from './nodeText';
+
+/**
+ * The note mark under the caret, or null. Shared with the toolbar button,
+ * which must know whether a click would focus a note instead of closing the
+ * panel.
+ */
+export function scriptNoteAtSelection(editor: Editor): Mark | null {
+  const noteMarkType = editor.schema.marks.scriptNote;
+  if (!noteMarkType) return null;
+  const $from = editor.state.selection.$from;
+  let noteMark = $from.marks().find((m) => m.type === noteMarkType);
+  if (!noteMark) {
+    const node = $from.nodeAfter || $from.nodeBefore;
+    if (node?.marks) noteMark = node.marks.find((m) => m.type === noteMarkType);
+  }
+  return noteMark ?? null;
+}
 
 /**
  * The toolbar's Notes button and ⇧⌘N: open the note under the cursor, or add a
@@ -10,20 +28,11 @@ import { singleLine } from './nodeText';
 export function addScriptNoteAtSelection(editor: Editor): void {
   const { scriptNotesOpen, toggleScriptNotes, addNote, setNoteFilter } = useEditorStore.getState();
 
-  // Detect if cursor is on an existing note
-  const noteMarkType = editor.schema.marks.scriptNote;
-  if (noteMarkType) {
-    const $from = editor.state.selection.$from;
-    let noteMark = $from.marks().find((m) => m.type === noteMarkType);
-    if (!noteMark) {
-      const node = $from.nodeAfter || $from.nodeBefore;
-      if (node?.marks) noteMark = node.marks.find((m) => m.type === noteMarkType);
-    }
-    if (noteMark) {
-      setNoteFilter({ elementType: null, contextLabel: null, color: null, noteId: noteMark.attrs.noteId as string });
-      if (!scriptNotesOpen) toggleScriptNotes();
-      return;
-    }
+  const noteMark = scriptNoteAtSelection(editor);
+  if (noteMark) {
+    setNoteFilter({ elementType: null, contextLabel: null, color: null, noteId: noteMark.attrs.noteId as string });
+    if (!scriptNotesOpen) toggleScriptNotes();
+    return;
   }
 
   const { from, to, empty } = editor.state.selection;
