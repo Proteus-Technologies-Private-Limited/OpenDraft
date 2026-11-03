@@ -21,7 +21,7 @@ export default function ElementNumberDialog({
     if (onSave(number)) onClose();
     else
       setError(
-        'That number is already used in this sequence, or the paragraph changed. Reopen the dialog if the script changed.',
+        'That number is already used in this sequence, or this reference was changed or removed. Check the number or reopen the dialog.',
       );
   }
   return (

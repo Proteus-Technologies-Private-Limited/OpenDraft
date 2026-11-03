@@ -3,6 +3,7 @@ import { getSchema } from '@tiptap/core';
 import { EditorState, type Plugin, type Transaction } from '@tiptap/pm/state';
 import { history, undo, redo } from '@tiptap/pm/history';
 import { testExtensions, doc, block } from '../test/screenplaySchema';
+import { assignElementNumbers } from '../utils/elementNumbers';
 import {
   ElementNumbers,
   collectNumberedElements,
@@ -296,4 +297,70 @@ it('confirms concurrent local suffix allocation needs explicit resolution after 
   expect(refs(subsequent.state)).toEqual(labels);
   for (const peer of peers) peer.destroy();
   shared.destroy();
+});
+
+it.each(['action', 'general'])(
+  'keeps the reference on text when splitting at the start of a locked %s',
+  (type) => {
+    const json = doc(block(type, 'original text'));
+    json.content![0].attrs = {
+      elementNumber: '12',
+      elementNumberId: 'original',
+      elementNumberLocked: true,
+    };
+    const options = {
+      getRules: () => ({ [type]: { enabled: true, resetOn: [] } }),
+      getSceneNumbersVisible: () => false,
+    };
+    const plugins = (ElementNumbers.config.addProseMirrorPlugins as () => Plugin[]).call({
+      options,
+    } as never);
+    const initial = EditorState.create({ schema, doc: schema.nodeFromJSON(json), plugins });
+    const result = initial.applyTransaction(initial.tr.split(1));
+    expect(result.state.doc.child(0).textContent).toBe('');
+    expect(refs(result.state)).toEqual([null, '12']);
+    expect(result.state.doc.child(0).attrs.elementNumberId).toBeNull();
+    expect(result.state.doc.child(1).attrs.elementNumberId).toBe('original');
+    expect(result.state.doc.child(1).textContent).toBe('original text');
+  },
+);
+
+it('resumes automatic numbering for unlocked legacy anchors in bulk', () => {
+  const e = setup();
+  e.dispatch(e.state.tr.setNodeAttribute(0, 'elementNumber', '3').setMeta('preventUpdate', true));
+  expect(e.run('unlockElementNumbers')).toBe(true);
+  expect(e.state.doc.child(0).attrs.elementNumberAutomatic).toBe(true);
+  expect(assignElementNumbers(collectNumberedElements(e.state.doc).map(f => f.item), opts.getRules(), { sceneNumbersVisible: false }))
+    .toEqual(['1', '2']);
+  const labels = elementNumbersPluginKey.getState(e.state)!.find();
+  expect(labels).toHaveLength(2);
+  // Source metadata remains available to an unnumbered format/native save.
+  expect(e.state.doc.child(0).attrs.elementNumber).toBe('3');
+});
+
+it('preserves an internal drag move but strips the same reference from a copy', async () => {
+  const { Fragment, Slice } = await import('@tiptap/pm/model');
+  const e = setup();
+  e.run('lockElementNumbers');
+  const plugin = e.state.plugins.find((plugin) => plugin.props.transformPasted)!;
+  const original = e.state.doc.child(0);
+  const slice = new Slice(Fragment.from(original), 0, 0);
+  const movedView = {
+    state: e.state,
+    dragging: { move: true },
+  } as unknown as import('@tiptap/pm/view').EditorView;
+  const copiedView = {
+    state: e.state,
+    dragging: { move: false },
+  } as unknown as import('@tiptap/pm/view').EditorView;
+  const moved = plugin.props.transformPasted!.call(plugin, slice, movedView, false);
+  expect(moved).toBe(slice);
+  let tr = e.state.tr.delete(0, original.nodeSize);
+  tr = tr.insert(tr.doc.content.size, moved.content);
+  const after = e.state.applyTransaction(tr).state;
+  expect(after.doc.lastChild!.attrs.elementNumber).toBe('1');
+  expect(after.doc.lastChild!.attrs.elementNumberId).toBe(original.attrs.elementNumberId);
+  const copied = plugin.props.transformPasted!.call(plugin, slice, copiedView, false);
+  expect(copied.content.firstChild!.attrs.elementNumber).toBeNull();
+  expect(copied.content.firstChild!.attrs.elementNumberId).toBeNull();
 });

@@ -57,10 +57,20 @@ function insertion(previous: string | null, following: string | null, used: Set<
   if (previous) {
     const p = split(previous);
     const next = following ? split(following) : null;
-    if (p && next && p[1] === next[1] && next[2].toUpperCase() === p[2].toUpperCase() + 'A') {
-      // There is no free suffix between a parent and its first child (1/1A).
-      // Prefix the following reference, as for inserts before the first number:
-      // A1A is before 1A, rather than allocating 1B after it.
+    const parent = p ? /^(.*?)(\d+)$/.exec(p[1]) : null;
+    const child = next ? /^(.*?)(\d+)$/.exec(next[1]) : null;
+    const prefixedFollowing =
+      parent &&
+      child &&
+      parent[2] === child[2] &&
+      child[1].toUpperCase().startsWith(parent[1].toUpperCase()) &&
+      child[1].length > parent[1].length;
+    if (
+      prefixedFollowing ||
+      (p && next && p[1] === next[1] && next[2].toUpperCase() === p[2].toUpperCase() + 'A')
+    ) {
+      // Prefix the following reference before a first suffix or an existing
+      // prefix insertion: 1 / 1A -> A1A, then 1 / A1A -> AA1A.
       return insertion(null, following, used);
     }
     if (p && next && p[1] === next[1]) base = previous;
@@ -86,25 +96,26 @@ export function retainElementNumbers(
   automatic: Array<string | null>,
 ): Array<string | null> {
   if (!items.some((item) => item.number)) return automatic;
-  const out = automatic.map((label, i) =>
-    !items[i].numberAutomatic ? (items[i].number ?? label) : label,
-  );
+  // Sparse imports remain visible without a numbering format. When their
+  // type has an active counter, imported automatic references follow it.
+  const isAutomatic = (i: number) => items[i].numberAutomatic && !!rules[items[i].elementId];
+  const out = automatic.map((label, i) => (!isAutomatic(i) ? (items[i].number ?? label) : label));
   const owner = (id: string) => rules[id]?.countWith ?? id;
   const lockedOwners = new Set(
     items.filter((item) => item.numberLocked).map((item) => owner(item.elementId)),
   );
   for (const group of numberingGroups(items, rules)) {
     const locked = group.some((i) => lockedOwners.has(owner(items[i].elementId)));
-    const hasAnchors = group.some((i) => items[i].number && !items[i].numberAutomatic);
+    const hasAnchors = group.some((i) => items[i].number && !isAutomatic(i));
     const used = new Set(
       group
-        .map((i) => (!items[i].numberAutomatic ? items[i].number?.toUpperCase() : undefined))
+        .map((i) => (!isAutomatic(i) ? items[i].number?.toUpperCase() : undefined))
         .filter((n): n is string => !!n),
     );
     let previous: string | null = null;
     group.forEach((i, position) => {
       const item = items[i];
-      if (item.number && !item.numberAutomatic) {
+      if (item.number && !isAutomatic(i)) {
         out[i] = item.number;
         previous = item.number;
         return;
@@ -114,7 +125,7 @@ export function retainElementNumbers(
         const following =
           group
             .slice(position + 1)
-            .map((j) => (items[j].numberAutomatic ? null : items[j].number))
+            .map((j) => (isAutomatic(j) ? null : items[j].number))
             .find(Boolean) ?? null;
         out[i] = insertion(previous, following, used);
       }

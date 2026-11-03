@@ -700,7 +700,9 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   // Labels for numbered elements, on a copy. The very same document comes back
   // when nothing is numbered, so nothing below can tell the difference.
   doc = withElementNumbers(doc, {
-    visible: options?.elementNumbersVisible === true,
+    visible: options?.elementNumbersVisible !== false,
+    // Omitted options preserve stored references without enabling counters.
+    ...(options?.elementNumbersVisible === undefined ? { rules: {} } : {}),
     sceneNumbersVisible: options?.sceneNumbersVisible === true,
     // An inline number (PANEL 3) prints as the start of its line.
     inlineAsText: true,

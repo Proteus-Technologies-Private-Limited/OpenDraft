@@ -19,7 +19,7 @@ import type { ElementNumbering, FormattingElementRule } from '../stores/formatti
 import { AV_BLOCK_RULE_ID, isTitlePageRuleId } from '../stores/formattingTypes';
 import { useFormattingTemplateStore, findTemplate } from '../stores/formattingTemplateStore';
 import { elementIdOf } from './pageBreaks';
-import { retainElementNumbers, storedElementNumber } from './lockedElementNumbers';
+import { retainElementNumbers, storedElementNumber, numberingGroups } from './lockedElementNumbers';
 import { NON_PRINTING_TYPES } from './nonPrinting';
 
 /** The attribute a numbered node carries in the copy the exporters are given. */
@@ -126,6 +126,7 @@ export interface NumberingItem {
   sceneNumber?: string | null;
   number?: string | null;
   numberLocked?: boolean;
+  /** Follow an active counter, or retain the source label without one. */
   numberAutomatic?: boolean;
 }
 
@@ -193,6 +194,17 @@ function assignAutomaticElementNumbers(
     }
   }
 
+  // Manual anchors and older imports must not collide with automatic labels.
+  // Reserve them in the same counter/reset scopes as the locked resolver.
+  const reserved = new Map<number, Set<string>>();
+  if (items.some((item) => item.number && !item.numberAutomatic)) {
+    for (const group of numberingGroups(items, rules)) {
+      const labels = new Set(group
+        .filter((i) => items[i].number && !items[i].numberAutomatic)
+        .map((i) => items[i].number!.toUpperCase()));
+      for (const i of group) reserved.set(i, labels);
+    }
+  }
   let scene: string | null = null;
   items.forEach((item, i) => {
     if (item.elementId === 'sceneHeading') {
@@ -207,12 +219,18 @@ function assignAutomaticElementNumbers(
     // is made.
     if (!rule || (item.empty && !isInlineNumbering(rule))) return;
     const counter = counterOf(item.elementId);
-    const n = next.get(counter) ?? startOf(counter);
+    let n = next.get(counter) ?? startOf(counter);
+    const label = (value: number) => {
+      const num = rule.style === 'scene' && scene
+        ? `${scene}.${value}`
+        : rule.style === 'words' ? numberInWords(value) : String(value);
+      return `${rule.prefix ?? ''}${num}`;
+    };
+    if (!item.number || item.numberAutomatic) {
+      while (reserved.get(i)?.has(label(n).toUpperCase())) n++;
+    }
     next.set(counter, n + 1);
-    const num = rule.style === 'scene' && scene
-      ? `${scene}.${n}`
-      : rule.style === 'words' ? numberInWords(n) : String(n);
-    out[i] = `${rule.prefix ?? ''}${num}`;
+    out[i] = label(n);
   });
   return out;
 }
@@ -312,17 +330,23 @@ export function withElementNumbers(
   const rules = opts.rules ?? getElementNumberingRules();
   const found = collectJSON(doc);
   const labels = assignElementNumbers(found.map((f) => f.item), rules, opts);
-  const byNode = new Map<JSONContent, { label: string; inline: boolean }>();
+  const byNode = new Map<JSONContent, { label: string | null; inline: boolean }>();
   found.forEach((f, i) => {
     const label = labels[i];
-    if (label == null) return;
+    if (label == null) {
+      // An empty imported paragraph waits for text before joining its counter.
+      if (f.item.number && f.item.numberAutomatic && rules[f.item.elementId]) {
+        byNode.set(f.node, { label: null, inline: false });
+      }
+      return;
+    }
     byNode.set(f.node, { label, inline: opts.inlineAsText === true && isInlineNumbering(rules[f.item.elementId]) });
   });
   if (byNode.size === 0) return doc;
 
   const copy = (node: JSONContent): JSONContent => {
     const hit = byNode.get(node);
-    if (hit?.inline) return withLeadingLabel(node, hit.label);
+    if (hit?.inline && hit.label != null) return withLeadingLabel(node, hit.label);
     if (hit) return { ...node, attrs: { ...(node.attrs ?? {}), [ELEMENT_NUMBER_ATTR]: hit.label } };
     const type = node.type || 'general';
     if (DESCEND.has(type) && node.content) return { ...node, content: node.content.map(copy) };

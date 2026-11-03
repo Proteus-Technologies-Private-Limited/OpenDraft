@@ -2161,6 +2161,7 @@ const ScreenplayEditor: React.FC = () => {
       AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
       ElementNumbers.configure({
         getRules: getElementNumberingRules,
+        canRepair: () => !useSuggestModeStore.getState().suggesting,
         getSceneNumbersVisible: () => useEditorStore.getState().sceneNumbersVisible,
       }),
       ScriptNoteMark, TagMark, TableReadHighlight,

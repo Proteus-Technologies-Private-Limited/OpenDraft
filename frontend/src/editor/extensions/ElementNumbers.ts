@@ -19,6 +19,7 @@ import {
 } from '@tiptap/pm/transform';
 import { uuid } from '../../utils/uuid';
 import { REVISION_SKIP_META } from '../revisionMarks';
+import { SUGGESTION_META } from '../suggestions';
 import {
   NUMBERABLE_BLOCK_TYPES,
   numberingGroups,
@@ -47,6 +48,8 @@ export const ELEMENT_NUMBERS_REFRESH = 'elementNumbersRefresh';
 export interface ElementNumbersOptions {
   /** The active format's numbered elements. */
   getRules: () => NumberingRules;
+  /** Display numbers while suggesting, but leave document repairs to editors. */
+  canRepair?: () => boolean;
   /** Whether scene numbers are shown — the 12.3 style needs them. */
   getSceneNumbersVisible: () => boolean;
 }
@@ -292,10 +295,13 @@ export const ElementNumbers = Extension.create<ElementNumbersOptions>({
           const formatNumbers = hasNumbering(rules);
           const inScope = (f: typeof found[number]) =>
             !!rules[f.item.elementId] || (!formatNumbers && !!f.item.number);
-          if (!found.some((f) => f.item.numberLocked && inScope(f))) return false;
+          const needsUnlock = (f: typeof found[number]) =>
+            inScope(f) && (f.item.numberLocked ||
+              !!rules[f.item.elementId] && !!f.item.number && !f.item.numberAutomatic);
+          if (!found.some(needsUnlock)) return false;
           if (dispatch) {
             for (const f of found)
-              if (f.item.numberLocked && inScope(f)) {
+              if (needsUnlock(f)) {
                 tr.setNodeAttribute(f.from, 'elementNumberAutomatic', !!rules[f.item.elementId]);
                 tr.setNodeAttribute(f.from, 'elementNumberLocked', false);
               }
@@ -355,7 +361,7 @@ export const ElementNumbers = Extension.create<ElementNumbersOptions>({
   },
 
   addOptions() {
-    return { getRules: () => ({}), getSceneNumbersVisible: () => false };
+    return { getRules: () => ({}), getSceneNumbersVisible: () => false, canRepair: () => true };
   },
 
   addProseMirrorPlugins() {
@@ -375,10 +381,12 @@ export const ElementNumbers = Extension.create<ElementNumbersOptions>({
         },
         appendTransaction(transactions, oldState, newState) {
           if (
+            opts.canRepair?.() === false ||
             !transactions.some((tr) => tr.docChanged || tr.getMeta(ELEMENT_NUMBERS_REFRESH)) ||
             transactions.some(
               (tr) =>
-                tr.getMeta(NUMBER_REPAIR) || tr.getMeta('preventUpdate') || tr.getMeta('y-sync$'),
+                tr.getMeta(NUMBER_REPAIR) || tr.getMeta(SUGGESTION_META) ||
+                tr.getMeta('preventUpdate') || tr.getMeta('y-sync$'),
             )
           )
             return null;
@@ -394,9 +402,21 @@ export const ElementNumbers = Extension.create<ElementNumbersOptions>({
           const previous = collectNumberedElements(oldState.doc);
           const mapping = new Mapping();
           for (const tr of transactions) mapping.appendMapping(tr.mapping);
-          const protectedPositions = new Set(
-            previous.filter((f) => f.item.number).map((f) => mapping.map(f.from, 1)),
-          );
+          const protectedPositions = new Set<number>();
+          for (const f of previous) {
+            if (!f.item.number) continue;
+            // At a split at the start, the opening token stays on the blank
+            // half. Map the first text position so the reference follows text.
+            const mapped = newState.doc.resolve(mapping.map(f.from + 1, 1));
+            const position = mapped.depth > 0 ? mapped.before(mapped.depth) : mapping.map(f.from, 1);
+            const node = newState.doc.nodeAt(position);
+            if (
+              node?.attrs.elementNumber === f.item.number &&
+              node.attrs.elementNumberId === f.node.attrs.elementNumberId
+            ) {
+              protectedPositions.add(position);
+            }
+          }
           const seenIds = new Map<string, number>();
           const clear = new Set<number>();
           for (const f of found) {
@@ -471,6 +491,9 @@ export const ElementNumbers = Extension.create<ElementNumbersOptions>({
         },
         props: {
           transformPasted(slice, view) {
+            // A move is transformed before ProseMirror deletes its source.
+            // It carries the original reference; copies still lose collisions.
+            if (view.dragging?.move) return slice;
             if (
               !hasNumbering(opts.getRules()) &&
               !elementNumbersPluginKey.getState(view.state)?.find().length

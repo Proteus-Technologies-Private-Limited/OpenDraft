@@ -1,4 +1,5 @@
 import ElementNumberDialog from './ElementNumberDialog';
+import { mapElementNumberTarget, type ElementNumberTarget } from '../editor/elementNumberTarget';
 import { collectNumberedElements, elementNumberAt, elementNumbersPluginKey } from '../editor/extensions/ElementNumbers';
 import SourceBackupRecovery from './SourceBackupRecovery';
 import { isTauri as isNativeApp, getOS as nativeOS } from '../services/platform';
@@ -952,11 +953,21 @@ const MenuBar: React.FC<MenuBarProps> = ({
     () => numberingDoc && formatNumbersElements ? elementNumberAt(numberingDoc, selectionPosition) : null,
     [numberingDoc, selectionPosition, formatNumbersElements],
   );
-  const [numberDialog, setNumberDialog] = useState<{
-    position: number;
-    node: unknown;
-    value: string;
-  } | null>(null);
+  const [numberDialog, setNumberDialog] = useState<(ElementNumberTarget & { value: string }) | null>(null);
+  const numberDialogOpen = numberDialog !== null;
+  useEffect(() => {
+    if (!editor || !numberDialogOpen) return;
+    const followTarget = ({ transaction }: { transaction: Transaction }) => {
+      if (!transaction.docChanged) return;
+      setNumberDialog((current) => {
+        if (!current) return null;
+        const next = mapElementNumberTarget(current, transaction);
+        return next ? { ...current, ...next } : { ...current, position: -1 };
+      });
+    };
+    editor.on('transaction', followTarget);
+    return () => { editor.off('transaction', followTarget); };
+  }, [editor, numberDialogOpen]);
   const editElementNumber = () => {
     if (!editor) return;
     const target = selectedNumberTarget;
@@ -3517,6 +3528,19 @@ const MenuBar: React.FC<MenuBarProps> = ({
                         );
                     },
                   },
+                  ...(!elementReferencesLocked && numberTargets.some((f) =>
+                    numberingRules[f.item.elementId] && f.item.number && !f.item.numberAutomatic)
+                    ? [{
+                        icon: <FaUnlock />,
+                        label: 'Use Automatic Element Numbers',
+                        disabled: !editor || isCollabGuest,
+                        action: () => {
+                          if (editor?.commands.unlockElementNumbers()) {
+                            showToast('Element numbers flow automatically again', 'success');
+                          }
+                        },
+                      }]
+                    : []),
                   {
                     icon: <FaPencilAlt />,
                     label: 'Edit Element Number\u2026',
@@ -4079,7 +4103,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {numberDialog && <ElementNumberDialog
       initialValue={numberDialog.value}
       onClose={() => setNumberDialog(null)}
-      onSave={value => !!editor && editor.state.doc.nodeAt(numberDialog.position) === numberDialog.node
+      onSave={value => !!editor && numberDialog.position >= 0
+        && editor.state.doc.nodeAt(numberDialog.position) === numberDialog.node
         && editor.commands.setElementNumber(value, numberDialog.position)}
     />}
     {sourceBackupOpen && <SourceBackupRecovery onClose={() => setSourceBackupOpen(false)} />}

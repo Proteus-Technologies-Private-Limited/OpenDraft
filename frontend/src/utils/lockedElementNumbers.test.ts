@@ -115,3 +115,72 @@ it('keeps suffix rollover and existing intermediate suffixes intact', () => {
   expect(assignElementNumbers(items('1Z', null, '2'), rules, { sceneNumbersVisible: true })).toEqual(['1Z', '1AA', '2']);
   expect(assignElementNumbers(items('2A', null, '2B'), rules, { sceneNumbersVisible: true })).toEqual(['2A', '2AA', '2B']);
 });
+
+it('keeps repeated insertions before an existing prefix insertion', () => {
+  for (const [previous, following, expected] of [
+    ['1', 'A1A', 'AA1A'],
+    ['1', 'AA1A', 'AAA1A'],
+    ['1A', 'A1AA', 'AA1AA'],
+    ['FX 1', 'FX A1A', 'FX AA1A'],
+  ]) {
+    expect(
+      assignElementNumbers(items(previous, null, following), rules, { sceneNumbersVisible: false }),
+    ).toEqual([previous, expected, following]);
+  }
+});
+
+it('renumbers automatic imported references after insertion and deletion, retaining sparse display without a format', () => {
+  const imported = items('1', '2', '3').map((item) => ({
+    ...item,
+    numberLocked: false,
+    numberAutomatic: true,
+  }));
+  const inserted = [imported[0], ...items(null), ...imported.slice(1)];
+  expect(assignElementNumbers(inserted, rules, { sceneNumbersVisible: false })).toEqual([
+    '1',
+    '2',
+    '3',
+    '4',
+  ]);
+  expect(
+    assignElementNumbers([imported[0], imported[2]], rules, { sceneNumbersVisible: false }),
+  ).toEqual(['1', '2']);
+  expect(assignElementNumbers(imported, {}, { sceneNumbersVisible: false })).toEqual([
+    '1',
+    '2',
+    '3',
+  ]);
+  expect(
+    assignElementNumbers([{ ...imported[0], number: '3' }, ...items(null, null)], rules, {
+      sceneNumbersVisible: false,
+    }),
+  ).toEqual(['1', '2', '3']);
+});
+
+it('does not allocate automatic labels already held by legacy or manual references', () => {
+  const legacy = items('1', null, '2', '3').map((item) => ({ ...item, numberLocked: false }));
+  const labels = assignElementNumbers(legacy, rules, { sceneNumbersVisible: false });
+  expect(labels).toEqual(['1', '4', '2', '3']);
+  expect(new Set(labels).size).toBe(labels.length);
+  expect(
+    assignElementNumbers(
+      items('3', null, null).map((item) => ({ ...item, numberLocked: false })),
+      rules,
+      { sceneNumbersVisible: false },
+    ),
+  ).toEqual(['3', '2', '4']);
+});
+
+it('suppresses an automatic imported label on an empty paragraph only in a numbered export copy', () => {
+  const source = {
+    type: 'doc',
+    content: [{ type: 'dialogue', attrs: { elementNumber: '3', elementNumberAutomatic: true } }],
+  };
+  const exported = withElementNumbers(source, { visible: true, sceneNumbersVisible: false, rules });
+  expect(exported.content![0].attrs?.elementNumber).toBeNull();
+  expect(source.content[0].attrs.elementNumber).toBe('3');
+  expect(
+    withElementNumbers(source, { visible: true, sceneNumbersVisible: false, rules: {} }).content![0]
+      .attrs?.elementNumber,
+  ).toBe('3');
+});
