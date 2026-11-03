@@ -158,4 +158,51 @@ describe('insertPlainText', () => {
       expect(line.attrs.alternateIndex).toBe(0);
     }
   });
+
+  it('does not give the second half of a split heading the same scene identity', () => {
+    const source = doc({
+      type: 'sceneHeading',
+      attrs: { sceneUid: 'scene-1', sceneNumber: 7, locked: true },
+      content: [{ type: 'text', text: 'INT. HOUSE - DAY' }],
+    });
+    const from = afterText(source, 'HOUSE');
+    const { tr } = insert(source, from, from, 'One\nTwo');
+    const blocks = tr.doc.content.content;
+    expect(blocks.map((b) => b.textContent)).toEqual(['INT. HOUSE', 'One', 'Two', ' - DAY']);
+    expect(blocks[0].attrs.sceneUid).toBe('scene-1');
+    expect(blocks[0].attrs.sceneNumber).toBe(7);
+    const uids = blocks.map((b) => b.attrs.sceneUid).filter(Boolean);
+    expect(uids).toEqual(['scene-1']);
+  });
+
+  it('keeps a dual dialogue whole when the element asked for cannot go in it', () => {
+    const t = (type: string, text: string): JSONContent => block(type, text);
+    const source = doc(
+      t('action', 'Before.'),
+      {
+        type: 'dualDialogue',
+        content: [
+          { type: 'dualDialogueColumn', content: [t('character', 'ANA'), t('dialogue', 'Hello there friend.')] },
+          { type: 'dualDialogueColumn', content: [t('character', 'BO'), t('dialogue', 'Hi.')] },
+        ],
+      },
+      t('action', 'After.'),
+    );
+    const from = afterText(source, 'Hello ');
+    const to = afterText(source, 'there');
+    for (const element of ['sceneHeading', 'action'] as const) {
+      const { tr } = insert(source, from, to, 'A\nB', element);
+      // Still one dual dialogue between the two actions, with the reply as
+      // dialogue lines in the first column and nothing left empty.
+      expect(blocksOf(tr.doc).map(([type]) => type)).toEqual(['action', 'dualDialogue', 'action']);
+      const first = tr.doc.child(1).child(0);
+      expect(first.content.content.map((b) => [b.type.name, b.textContent])).toEqual([
+        ['character', 'ANA'],
+        ['dialogue', 'Hello '],
+        ['dialogue', 'A'],
+        ['dialogue', 'B'],
+        ['dialogue', ' friend.'],
+      ]);
+    }
+  });
 });

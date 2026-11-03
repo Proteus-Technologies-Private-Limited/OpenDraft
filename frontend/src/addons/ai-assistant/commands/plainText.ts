@@ -43,7 +43,15 @@ export function insertPlainText(
   // A node that cannot hold text (an act break) would throw on create; the
   // words are the point, so keep the element being edited.
   const canHoldText = !requested || requested.isTextblock;
-  const type = requested && canHoldText ? requested : base.type;
+  // Nor may it go where its container does not allow it: a scene heading asked
+  // for inside a dual dialogue column cannot sit there, and ProseMirror would
+  // fit it by splitting the dual dialogue in two around empty cue and dialogue
+  // lines. The words go in as the element being edited instead.
+  const container = $from.depth > 0 ? $from.node($from.depth - 1) : null;
+  const index = $from.depth > 0 ? $from.index($from.depth - 1) : 0;
+  const allowedHere = !requested || !container
+    || container.canReplaceWith(index, index + 1, requested);
+  const type = requested && canHoldText && allowedHere ? requested : base.type;
   // A new block starts from its element's defaults: a reply line is a new
   // line, not a copy of the block it lands next to. Copying `base.attrs` here
   // gave every line the same sceneUid, locked scene number, bookmark, page
@@ -77,8 +85,12 @@ export function insertPlainText(
   } else if ($at.parentOffset === $at.parent.content.size) {
     at = $at.after();
   } else {
-    // Split the line and put the reply between the halves.
-    tr.split(at);
+    // Split the line and put the reply between the halves. The first half is
+    // the block the writer was on and keeps its identity; the second half is
+    // a new block and starts from defaults, as Enter does (`keepOnSplit`).
+    // A bare `split` copies every attribute, so a heading split mid-line had
+    // two halves with the one sceneUid.
+    tr.split(at, 1, [{ type: $at.parent.type, attrs: null }]);
   }
 
   tr.replaceWith(at, at, fragment);
