@@ -4590,28 +4590,33 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 }
 .page-preview-sheet {
   position: relative;
+  width: 100%;
   background: #fff;
   color: #111;
   border-radius: 2px;
   box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
-  padding: 40px 34px 22px;
-  font-family: var(--screenplay-font, 'Courier Prime', monospace);
-  font-size: 10px;
-  line-height: 1.35;
+  overflow: hidden;
   flex-shrink: 0;
 }
-.page-preview-body { max-width: 100%; }
+/* The manuscript drawn at full page size, then scaled to the sheet. */
+.page-preview-sheet-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  transform-origin: top left;
+  color: #111;
+  background: #fff;
+}
 .page-preview-line { white-space: pre-wrap; overflow-wrap: anywhere; }
-.page-preview-scene-heading { font-weight: 700; text-transform: uppercase; margin-top: 1.2em; }
-.page-preview-character { padding-left: 33%; margin-top: 0.9em; text-transform: uppercase; }
-.page-preview-parenthetical { padding-left: 27%; padding-right: 25%; }
-.page-preview-dialogue { padding-left: 20%; padding-right: 18%; }
+.page-preview-scene-heading { font-weight: 700; text-transform: uppercase; }
+.page-preview-character { text-transform: uppercase; }
 .page-preview-transition { text-align: right; text-transform: uppercase; }
 .page-preview-shot { text-transform: uppercase; }
-.page-preview-new-act { font-weight: 700; text-transform: uppercase; margin-top: 1.2em; }
+.page-preview-new-act { font-weight: 700; text-transform: uppercase; }
 .page-preview-number {
   position: absolute;
-  right: 10px;
+  right: 8px;
   bottom: 6px;
   font-size: 10px;
   color: #555;
