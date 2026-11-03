@@ -49,10 +49,18 @@ import { isInAvCell, isInAvRow, avCellSideAt } from '../editor/extensions/AvBloc
 import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 import Select from './Select';
 import { PHONE_DEVICE_CHANGE_EVENT } from '../utils/phoneDevice';
+import { formatShortcut } from '../utils/shortcuts';
+import { elementShortcutSpec } from '../utils/elementShortcuts';
 
 interface ToolbarProps {
   editor: Editor | null;
 }
+
+/** The shortcut that reaches an element, for the dropdown's right-hand column. */
+const shortcutFor = (id: string): string | undefined => {
+  const spec = elementShortcutSpec(id);
+  return spec ? formatShortcut(spec) : undefined;
+};
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 
@@ -1016,7 +1024,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             ? avCellElementRules(activeTemplate, avCellSide, String(activeElement))
             : scriptBodyElementRules(activeTemplate, isTitlePageRuleId)
           ).map((r) => (
-            <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]}>
+            <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]} data-shortcut={shortcutFor(r.id)}>
               {r.label}
             </option>
           ))}

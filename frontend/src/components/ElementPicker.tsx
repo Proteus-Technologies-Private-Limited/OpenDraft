@@ -4,6 +4,8 @@ import { ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { AV_SCRIPT_TEMPLATE } from '../stores/templates/avScriptTemplate';
 import { pickerElementTypes } from '../utils/elementPickerOrder';
+import { formatShortcut } from '../utils/shortcuts';
+import { elementShortcutSpec } from '../utils/elementShortcuts';
 
 interface ElementPickerProps {
   position: { top: number; left: number };
@@ -153,6 +155,7 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
         // The menu only opens on a blank line, so the row the line is already
         // on cannot mean "convert" — it means one more line of this element.
         // Say so, rather than leaving it to be discovered (issue #100).
+        const shortcut = elementShortcutSpec(type);
         const hint = [
           type === defaultType && onInsertBlankLine ? 'blank line' : '',
           hasNavigated && i === selectedIndex ? '\u23CE' : '',
@@ -168,6 +171,10 @@ const ElementPicker: React.FC<ElementPickerProps> = ({
           title={ELEMENT_DESCRIPTIONS[type]}
         >
           <span className="element-picker-label">{labelFor(type)}</span>
+          {/* The shortcut has its own column: the hint column is reserved for
+              "blank line" and the Return arrow, and sharing it changed the
+              menu's width as the selection moved. */}
+          <span className="element-picker-shortcut">{shortcut ? formatShortcut(shortcut) : ''}</span>
           {/* Always rendered, even empty: the hint column is reserved width, so
               a hint appearing or moving between rows never resizes the menu. */}
           <span className="element-picker-hint">{hint}</span>

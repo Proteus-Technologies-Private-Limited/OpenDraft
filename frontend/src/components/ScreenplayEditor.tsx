@@ -131,6 +131,7 @@ import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
 import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile } from '../utils/scriptProfile';
 import { restoreRevisionState } from '../utils/revisionState';
 import { characterKey } from '../utils/nodeText';
+import { ELEMENT_SHORTCUT_TYPES } from '../utils/elementShortcuts';
 import { computeContdChanges, type ContdBlock } from '../editor/contdAuto';
 import { useBackupScheduler } from '../hooks/useBackupScheduler';
 import { useRecoverySnapshot } from '../hooks/useRecoverySnapshot';
@@ -1978,7 +1979,7 @@ const ScreenplayEditor: React.FC = () => {
       name: 'elementShortcuts',
       priority: 999,
       addKeyboardShortcuts() {
-        const types = ['sceneHeading', 'action', 'character', 'dialogue', 'parenthetical', 'transition', 'general', 'shot'];
+        const types = ELEMENT_SHORTCUT_TYPES;
         const shortcuts: Record<string, any> = {};
         types.forEach((type, i) => {
           shortcuts[`Mod-${i + 1}`] = ({ editor }: { editor: any }) => {
@@ -2207,9 +2208,15 @@ const ScreenplayEditor: React.FC = () => {
     onCreate: () => {
       if (!collabMode) rejectedCollabDocRef.current = null;
     },
-    onSelectionUpdate: ({ editor: ed }) => {
+    onTransaction: ({ editor: ed, transaction }) => {
+      // Pagination, spellcheck/grammar decorations and remote steps dispatch
+      // transactions that cannot change the element under the caret. Only a
+      // document change or a moved selection can, and the setter is only
+      // reached when the type actually differs — 26 components subscribe to
+      // the store without a selector.
+      if (!transaction.docChanged && !transaction.selectionSet) return;
       const type = resolveActiveElement(ed);
-      if (type) setActiveElement(type);
+      if (type && type !== useEditorStore.getState().activeElement) setActiveElement(type);
     },
   }, [editorKey]);
 
