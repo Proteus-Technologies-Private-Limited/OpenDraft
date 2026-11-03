@@ -23,4 +23,10 @@ describe('parseHeading', () => {
   it('leaves the time empty when there is none', () => {
     expect(parseHeading('EXT. OUTSIDE LA RUE 14°').timeOfDay).toBe('');
   });
+
+  it('knows the EST. prefix', () => {
+    expect(parseHeading('EST. CITY - DAY')).toEqual({
+      prefix: 'EST.', location: 'CITY', timeOfDay: 'DAY',
+    });
+  });
 });

@@ -83,6 +83,62 @@ export function emptyScriptIndex(): ScriptIndex {
 
 export type SmartTypeKeyAction = 'down' | 'up' | 'accept' | 'dismiss' | 'pass';
 
+/** The smallest shape of a transaction the local-input check needs. */
+export interface SmartTypeTransactionLike {
+  docChanged: boolean;
+  mapping: {
+    maps: ReadonlyArray<{
+      forEach: (callback: (oldStart: number, oldEnd: number, newStart: number, newEnd: number) => void) => void;
+    }>;
+  };
+  getMeta: (key: string) => unknown;
+}
+
+/**
+ * Whether a transaction is the writer typing in the block the caret is in.
+ *
+ * `update` fires for far more than typing: a collaborator's Yjs update, undo,
+ * and the auto-CONT'D pass all dispatch transactions. Opening the popup for
+ * those means the writer's next Enter can accept a name they never asked for
+ * (a remote edit in another cue would fill the popup here). Remote edits are
+ * tagged `y-sync$` by y-prosemirror, undo carries `history$`, and the
+ * programmatic passes set `addToHistory: false`; anything left must also
+ * touch the current block, so a peer typing elsewhere is ignored.
+ */
+export function isLocalSmartTypeUpdate(
+  transaction: SmartTypeTransactionLike,
+  blockStart: number,
+  blockEnd: number,
+): boolean {
+  if (!transaction.docChanged) return false;
+  if (transaction.getMeta('y-sync$')) return false;
+  if (transaction.getMeta('history$')) return false;
+  if (transaction.getMeta('addToHistory') === false) return false;
+  return transaction.mapping.maps.some((map) => {
+    let touched = false;
+    map.forEach((oldStart, oldEnd) => {
+      if (oldStart <= blockEnd && oldEnd >= blockStart) touched = true;
+    });
+    return touched;
+  });
+}
+
+/** Characters from scripts that go through an IME (CJK, kana, Hangul, Zhuyin). */
+const NON_LATIN_INPUT = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}]/u;
+
+/**
+ * Whether an active composition should keep the popup closed.
+ *
+ * A blanket `view.composing` check also suppressed Latin keyboards: Gboard
+ * keeps each word in composition until a space or commit, so a one-word cue
+ * ("MAR") never got a suggestion. The popup would only rewrite the text on
+ * accept, which also ends the composition; non-Latin input is the case where
+ * rewriting mid-composition is unsafe, so that is what is guarded.
+ */
+export function isNonLatinComposition(composing: boolean, text: string): boolean {
+  return composing && NON_LATIN_INPUT.test(text);
+}
+
 /**
  * What a key does while the popup is open. A location or transition only
  * accepts Enter/Tab after the writer has stepped into the list with an arrow
@@ -147,6 +203,10 @@ function pushUnique(list: string[], value: string): void {
  * back as a location. Since SmartType should offer back whatever the script
  * actually uses, the time is taken from after the last " - " when there is
  * one, with any trailing "(1973)" / "[FLASHBACK]" notes removed.
+ *
+ * The trade-off: a sub-location with no time, "INT. HOUSE - KITCHEN", offers
+ * KITCHEN as a time. There is no way to tell it from a custom time like NOON,
+ * and the cost is only a stray completion, so custom times win.
  */
 function splitHeading(raw: string): { location: string; time: string } {
   const text = raw.trim();
