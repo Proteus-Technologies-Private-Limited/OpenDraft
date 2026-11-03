@@ -13,6 +13,8 @@ import type { Suggester } from '../editor/suggestions';
 interface SuggestModeState {
   /** Edits become suggestions. */
   suggesting: boolean;
+  formatSuggesting: boolean;
+  setFormatSuggesting: (allowed: boolean) => void;
   /** Set by a Suggest invite: the writer cannot leave suggest mode. */
   locked: boolean;
   /** The Suggestions panel. */
@@ -28,6 +30,8 @@ interface SuggestModeState {
 
 export const useSuggestModeStore = create<SuggestModeState>((set) => ({
   suggesting: false,
+  formatSuggesting: true,
+  setFormatSuggesting: (formatSuggesting) => set({ formatSuggesting }),
   locked: false,
   panelOpen: false,
   uid: null,

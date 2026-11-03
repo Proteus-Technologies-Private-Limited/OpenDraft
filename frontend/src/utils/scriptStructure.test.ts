@@ -19,9 +19,8 @@ const action = (text: string): JSONContent => ({
   content: [{ type: 'text', text }],
 });
 
-const doc = (content: JSONContent[], attrs: Record<string, unknown> = {}): JSONContent => ({
+const doc = (content: JSONContent[]): JSONContent => ({
   type: 'doc',
-  attrs,
   content,
 });
 
@@ -41,17 +40,6 @@ describe('computeScriptStructure sequences', () => {
     expect(opening?.name).toBe('Opening');
     expect(opening?.color).toBe('#111111');
     expect(opening?.scenes.map((scene) => scene.sceneIndex)).toEqual([0, 2]);
-  });
-
-  it('falls back to the old document-level list for names and colours', () => {
-    const structure = computeScriptStructure(doc(
-      [heading('INT. A - DAY', { sequenceId: 'legacy' })],
-      { sequences: [{ id: 'legacy', name: 'Old Label', color: '#abcdef' }] },
-    ));
-
-    expect(structure.acts[0].scenes[0].sequenceName).toBe('Old Label');
-    expect(structure.acts[0].scenes[0].sequenceColor).toBe('#abcdef');
-    expect(structure.acts[0].sequences[0].name).toBe('Old Label');
   });
 
   it('keeps scenes of a sequence inside the act they belong to', () => {

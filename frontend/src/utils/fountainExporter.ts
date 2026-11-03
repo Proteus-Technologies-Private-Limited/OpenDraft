@@ -6,7 +6,7 @@ import { clampSectionLevel } from '../editor/extensions/Section';
 import { DEFAULT_TITLE_PAGE_CREDIT } from './titlePageBlocks';
 import { blockRevision, fountainRevisionNote } from './revisionExport';
 import type { RevisionSettings } from '../editor/revisionColors';
-import { bookmarkOf, fountainAlternateNotes, fountainBookmarkNote } from './formatAnnotations';
+import { bookmarkOf, fountainAlternateNotes, fountainBookmarkNote, fountainSequenceNote } from './formatAnnotations';
 
 export interface FountainExportOptions {
   /** The marks revised lines are written with; absent writes `*`. */
@@ -297,15 +297,18 @@ function synopsisLines(node: JSONContent): string[] {
 const NO_ELEMENT_NOTES = new Set(['titlePage', 'note', 'screenplayImage', 'dualDialogue', 'avBlock']);
 
 /**
- * The notes that carry an element's bookmark and its other versions, which
- * Fountain has no syntax for (see utils/formatAnnotations). Notes are not
- * printed, so the script itself reads exactly as it does without them.
+ * The notes that carry an element's bookmark, its other versions and, for a
+ * scene, its sequence label — things Fountain has no syntax for (see
+ * utils/formatAnnotations). Notes are not printed, so the script itself reads
+ * exactly as it does without them.
  */
 function elementNotes(node: JSONContent): string[] {
   if (!node.type || NO_ELEMENT_NOTES.has(node.type)) return [];
   const notes: string[] = [];
   const bookmark = bookmarkOf(node);
   if (bookmark) notes.push(fountainBookmarkNote(bookmark));
+  const sequence = fountainSequenceNote(node);
+  if (sequence) notes.push(sequence);
   notes.push(...fountainAlternateNotes(node, (version) => getTextContent(version)));
   return notes;
 }

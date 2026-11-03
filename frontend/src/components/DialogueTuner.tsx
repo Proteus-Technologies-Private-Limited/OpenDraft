@@ -99,8 +99,9 @@ const DialogueTuner: React.FC<DialogueTunerProps> = ({ editor, style }) => {
   const hear = (cuePos: number) => {
     if (!editor) return;
     goTo(editor, cuePos);
+    // The panel opens with the script in view; the Outline would cover it.
     const tr = useTableReadStore.getState();
-    tr.setOpen(true);
+    tr.openTableRead();
     const vs = useVoiceSettingsStore.getState();
     if (activeEngineKind(vs) === 'ai' && !isAiProviderConfigured(vs)) { tr.setNeedsProvider(true); return; }
     play(editor);

@@ -24,7 +24,7 @@ import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
 import { showToast } from './Toast';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
-import { withoutSuggestionsJSON } from '../editor/suggestions';
+import { hasSuggestions, withoutSuggestionsJSON } from '../editor/suggestions';
 import type { Editor as TiptapEditor } from '@tiptap/react';
 
 /**
@@ -2335,9 +2335,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
     // Where there is a print dialog, the writer chooses what goes into it: the
     // PDF the exporter lays out, or the page as the web view paginates it.
     // Everywhere else there is no choice to make — see printRoute().
-    if (route === 'dialog' && printViaPdf && editor) {
+    const pendingSuggestions = !!editor && hasSuggestions(editor.state.doc);
+    // DOM printing exposes pending text and styling; use the accepted copy.
+    if (route === 'dialog' && (printViaPdf || pendingSuggestions) && editor) {
       try {
-        showToast('Preparing your script for printing…');
+        showToast(pendingSuggestions
+          ? 'Printing the accepted script as a PDF to keep pending suggestions out of the printout.'
+          : 'Preparing your script for printing…');
         const json = exportJSON(editor);
         const { renderPDF } = await import('../utils/pdfExporter');
         const { printPDFBytes } = await import('../utils/printPdf');
@@ -2355,7 +2359,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
         // console to open in a packaged desktop build, and "it did not work"
         // on its own is what made the DOM print path so slow to diagnose.
         const reason = err instanceof Error ? err.message : String(err);
-        showToast(`Could not print the PDF: ${reason}. Turn off "Print the PDF" in Settings → Printing to use the print dialog instead.`);
+        showToast(pendingSuggestions
+          ? `Could not print the accepted PDF: ${reason}. Your suggestions are unchanged. Retry after fixing the error, or accept/reject suggestions before using the print dialog.`
+          : `Could not print the PDF: ${reason}. Turn off "Print the PDF" in Settings → Printing to use the print dialog instead.`);
       }
       return;
     }
@@ -2600,7 +2606,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
    * caret comes back somewhere other than where the writer left it. A menu
    * that does not take focus leaves the selection exactly as it was.
    *
-   * Same treatment as ElementPicker and CharacterAutocomplete: mousedown
+   * Same treatment as ElementPicker and SmartTypePopup: mousedown
    * rather than pointerdown, because preventing the pointer event suppresses
    * the click that follows it and the menu would stop responding at all.
    * Nothing inside a menu wants focus of its own.
@@ -3392,10 +3398,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
           action: () => {
             const tr = useTableReadStore.getState();
             if (tr.open) { tr.setOpen(false); return; }
-            // Table Read docks under the script; close the Outline so the
-            // script it reads is actually on screen.
-            if (useEditorStore.getState().outlineOpen) useEditorStore.getState().toggleOutline();
-            tr.setOpen(true);
+            // Table Read docks under the script; the panel closes the Outline
+            // so the script it reads is actually on screen.
+            tr.openTableRead();
             // A browser asks where the voices come from before the first
             // read, rather than at the first Play; so does a choice of AI
             // voices with no provider set up yet.

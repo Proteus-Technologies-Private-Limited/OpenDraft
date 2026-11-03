@@ -275,9 +275,26 @@
       </div>
     </div>
 
-    <h2 id="character-autocomplete">Character Autocomplete</h2>
+    <h2 id="smarttype">SmartType: Characters, Locations and Transitions</h2>
 
-    <p>When typing a <strong>Character</strong> element, OpenDraft suggests character names that already appear in your script. Start typing and select from the dropdown suggestions to ensure consistent spelling.</p>
+    <p>As you type a <strong>Character</strong>, <strong>Scene Heading</strong> or <strong>Transition</strong>,
+       OpenDraft completes the parts a script repeats:</p>
+    <ul>
+      <li><strong>Scene headings</strong> &mdash; the INT./EXT./EST. prefix, locations already used in the script,
+          and times of day after the dash.</li>
+      <li><strong>Character cues</strong> &mdash; names already used, and extensions such as (V.O.), (O.S.),
+          (O.C.) and (CONT'D) after an opening parenthesis.</li>
+      <li><strong>Transitions</strong> &mdash; CUT TO:, DISSOLVE TO:, FADE OUT. and the other standard
+          transitions, plus any already used in the script.</li>
+    </ul>
+
+    <p>Use the arrow keys to move through the list and <kbd>Esc</kbd> to dismiss it. In a character
+       cue, <kbd>Tab</kbd> or <kbd>Enter</kbd> accepts the highlighted suggestion; in a scene heading
+       or transition they accept it only after you have moved into the list &mdash; until then
+       <kbd>Tab</kbd> moves to the next element and <kbd>Enter</kbd> starts a new line. SmartType only
+       completes the end of the line you are typing, offers at most twelve items in the order they
+       first appear in the script, and dismissing it hides it until you type the next character.
+       Accepting an item does not reopen it on the word just completed.</p>
 
     <h2 id="handwriting">Handwriting with an Apple Pencil (iPad)</h2>
 
@@ -497,7 +514,7 @@
       <span class="callout-icon">&#128161;</span>
       <div class="callout-content">
         <ul>
-          <li><strong>Scene headings</strong> always start with <code>INT.</code> (interior), <code>EXT.</code> (exterior), or <code>INT./EXT.</code> (both), followed by the location and time of day.</li>
+          <li><strong>Scene headings</strong> always start with <code>INT.</code> (interior), <code>EXT.</code> (exterior), <code>EST.</code> (establishing), or <code>INT./EXT.</code> (both), followed by the location and time of day.</li>
           <li><strong>Action lines</strong> should describe only what the audience can see and hear. No internal thoughts.</li>
           <li><strong>Character names</strong> are always in ALL CAPS the first time they appear in an action line, and always in the Character element.</li>
           <li><strong>One page equals roughly one minute</strong> of screen time.</li>

@@ -4,6 +4,7 @@
  * services/tts/player.ts drives it; the panel and the editor highlight read it.
  */
 import { create } from 'zustand';
+import { useEditorStore } from './editorStore';
 import type { ReadLine } from '../services/tts/script';
 import type { EngineKind, VoiceInfo } from '../services/tts/types';
 
@@ -27,8 +28,10 @@ interface TableReadState {
   casting: Record<string, string | null>;
 
   setOpen: (open: boolean) => void;
+  /** Open the panel with the script on screen: the Outline would cover it. */
+  openTableRead: () => void;
   setNeedsProvider: (v: boolean) => void;
-  patch: (p: Partial<Omit<TableReadState, 'setOpen' | 'setNeedsProvider' | 'patch'>>) => void;
+  patch: (p: Partial<Omit<TableReadState, 'setOpen' | 'openTableRead' | 'setNeedsProvider' | 'patch'>>) => void;
 }
 
 export const useTableReadStore = create<TableReadState>((set) => ({
@@ -45,6 +48,16 @@ export const useTableReadStore = create<TableReadState>((set) => ({
   casting: {},
 
   setOpen: (open) => set({ open }),
+  openTableRead: () => {
+    const editors = useEditorStore.getState();
+    // Table Read docks under the script, so every view that replaces the
+    // script has to close first — the Outline, Statistics and the Beat Board
+    // all hide it. The menu used to guard only against the Outline.
+    if (editors.outlineOpen) editors.toggleOutline();
+    if (editors.statisticsOpen) editors.setStatisticsOpen(false);
+    if (editors.beatBoardOpen) editors.toggleBeatBoard();
+    set({ open: true });
+  },
   setNeedsProvider: (v) => set({ needsProvider: v }),
   patch: (p) => set(p),
 }));

@@ -20,7 +20,7 @@ registerBuiltinCommands();
 
 export { registerCommand, listCommands, getCommand, executeCommand, commandTools, toolNameFor } from './registry';
 export { createTiptapAdapter } from './tiptapAdapter';
-export { createPreviewAdapter } from './preview';
+export { createPreviewAdapter, previewTextLines } from './preview';
 export type { PreviewAdapter, PreviewOp } from './preview';
 export type {
   BlockSpec,

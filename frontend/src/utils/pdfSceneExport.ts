@@ -94,9 +94,8 @@ function selectedScenesDocument(
   const valid = [...new Set(picked)]
     .filter((index) => Number.isInteger(index) && index >= 0 && index < headings.length)
     .sort((a, b) => a - b);
-  // Nothing picked, or indices that belong to another document: export the
-  // title page only. Falling back to the whole script would send scenes the
-  // writer did not choose.
+  // Nothing picked: export the title page only. Falling back to the whole
+  // script would send scenes the writer did not choose.
   if (valid.length === 0) return { ...doc, content: titleNodes };
 
   const fullScript = valid.length === headings.length;
@@ -109,6 +108,10 @@ function selectedScenesDocument(
   if (valid[0] === 0) {
     body.push(...content.slice(titleNodes.length, starts[0]));
   }
+  // The first scene in the file never opens a page of its own: it follows the
+  // title page, which already breaks, or the opening matter it belongs with.
+  // Breaking it as well left "FADE IN:" alone on a page.
+  let firstScene = true;
   for (const index of valid) {
     const start = starts[index];
     // Each scene ends where the next one begins, act break included, so no
@@ -117,8 +120,10 @@ function selectedScenesDocument(
     for (let i = start; i < end; i++) {
       // The break goes on the block the scene opens with: a heading, or the
       // act break written before it.
-      body.push(oneScenePerPage && i === start ? withPageBreak(content[i]) : content[i]);
+      const startsPage = oneScenePerPage && !firstScene && i === start;
+      body.push(startsPage ? withPageBreak(content[i]) : content[i]);
     }
+    firstScene = false;
   }
 
   return {
@@ -138,5 +143,15 @@ export function sceneRangeDocument(doc: JSONContent, range: SceneExportRange): J
 }
 
 export function sceneSelectionDocument(doc: JSONContent, selection: SceneExportSelection): JSONContent {
-  return selectedScenesDocument(doc, new Set(selection.scenes), selection.oneScenePerPage);
+  const headings = headingIndices(doc.content ?? []);
+  if (headings.length === 0) return doc;
+  // Indices saved against another document are clamped to the script being
+  // exported, exactly as a range is: a stale selection keeps the scenes it can
+  // still name instead of exporting nothing. The dialog reads its list from the
+  // same JSON, so this only matters when the document changed under it.
+  const last = headings.length - 1;
+  const clamped = selection.scenes
+    .filter((index) => Number.isInteger(index))
+    .map((index) => Math.min(last, Math.max(0, index)));
+  return selectedScenesDocument(doc, new Set(clamped), selection.oneScenePerPage);
 }

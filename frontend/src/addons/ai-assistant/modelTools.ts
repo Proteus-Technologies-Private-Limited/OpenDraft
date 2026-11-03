@@ -1,19 +1,29 @@
 /**
  * The commands a model may call.
  *
- * Undo and redo change the document without producing anything to preview, so a
- * reply made only of them would look like an empty proposal and then undo the
- * writer's work when accepted. Read-only commands are not actions either. What
- * is left — inserting dialogue, action, scenes, blocks, changing the element,
- * replacing the selection — all produces something the preview can show.
+ * An allow-list, one id at a time. A block-list was the wrong shape: plugins
+ * register commands, and a command nobody reviewed would have been offered to
+ * the model simply because it changed the text. Undo and redo stay out because
+ * they change the document without producing anything to preview, so a reply
+ * made only of them would look empty and then undo the writer's work when
+ * accepted. Read-only commands are not actions either.
+ *
+ * A new command is refused until it is added here deliberately.
  */
 import { commandTools, listCommands } from './commands';
 
-/** Commands that are never handed to a model, even though they change the text. */
-const NOT_FOR_MODEL: ReadonlySet<string> = new Set([
-  'editor.undo',
-  'editor.redo',
-  'script.getContext',
+/** Commands a model may run. Adding one is a decision, not an oversight. */
+const FOR_MODEL: ReadonlySet<string> = new Set([
+  'script.insertDialogue',
+  'script.insertAction',
+  'script.insertScene',
+  'script.insertTransition',
+  'script.insertParenthetical',
+  'script.insertBlocks',
+  'script.insertBlock',
+  'editor.setElement',
+  'editor.replaceSelection',
+  'editor.insertText',
 ]);
 
 export interface ModelTools {
@@ -29,7 +39,7 @@ export function modelTools(): ModelTools {
   const { tools, commandForTool } = commandTools();
   const allowed = new Set(
     listCommands()
-      .filter((command) => !command.readOnly && !NOT_FOR_MODEL.has(command.id))
+      .filter((command) => !command.readOnly && FOR_MODEL.has(command.id))
       .map((command) => command.id),
   );
   return {
