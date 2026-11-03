@@ -6,6 +6,7 @@
  */
 
 import { create } from 'zustand';
+import { showToast } from '../components/Toast';
 import { parseTemplateSnapshot, sameTemplateDefinition } from '../utils/templateSnapshot';
 import type { FormattingTemplate } from './formattingTypes';
 import { INDUSTRY_STANDARD_ID } from './formattingTypes';
@@ -57,6 +58,8 @@ interface FormattingTemplateState {
   activeTemplateId: string | null;
   /** The open script's format, separate from this device's reusable library. */
   documentTemplate: FormattingTemplate | null;
+  /** Opaque data from an unsupported format; retained until the writer chooses a format. */
+  unreadableTemplateSnapshot: unknown;
   restoreDocumentTemplate: (id: unknown, snapshot?: unknown) => boolean;
   /** Whether templates have been loaded from storage */
   loaded: boolean;
@@ -207,11 +210,23 @@ export function templateForSavedContent(content: Record<string, unknown> | null 
 }
 
 /** A detached copy of the active custom format, or no snapshot for built-ins. */
-export function activeTemplateSnapshot(): FormattingTemplate | null {
+export function activeTemplateSnapshot(): unknown {
   const store = useFormattingTemplateStore.getState();
+  if (store.unreadableTemplateSnapshot != null) return copySnapshot(store.unreadableTemplateSnapshot);
   const active = store.getActiveTemplate();
   return active.id === store.activeTemplateId && !isSystemTemplateId(active.id)
     ? JSON.parse(JSON.stringify(active)) as FormattingTemplate : null;
+}
+
+function copySnapshot(snapshot: unknown): unknown {
+  return JSON.parse(JSON.stringify(snapshot));
+}
+
+/** Document edits and explicit applications must never reuse a library identity. */
+export function applyDocumentTemplate(template: FormattingTemplate): boolean {
+  const detached = { ...template, id: uuid() };
+  if (!parseTemplateSnapshot(detached, detached.id)) return false;
+  return useFormattingTemplateStore.getState().restoreDocumentTemplate(detached.id, detached);
 }
 
 /** Metadata saves must notice format-only edits, without reacting to unrelated library changes. */
@@ -219,14 +234,17 @@ export function subscribeActiveTemplate(listener: () => void): () => void {
   let previous = useFormattingTemplateStore.getState().getActiveTemplate();
   let previousId = useFormattingTemplateStore.getState().activeTemplateId;
   let wasLoaded = useFormattingTemplateStore.getState().loaded;
+  let previousUnreadable = JSON.stringify(useFormattingTemplateStore.getState().unreadableTemplateSnapshot);
   return useFormattingTemplateStore.subscribe(state => {
     const current = state.getActiveTemplate();
+    const unreadable = JSON.stringify(state.unreadableTemplateSnapshot);
     const libraryArrived = !wasLoaded && state.loaded;
     wasLoaded = state.loaded;
-    if (libraryArrived) { previous = current; previousId = state.activeTemplateId; return; }
-    if ((current !== previous && !sameTemplateDefinition(current, previous)) || state.activeTemplateId !== previousId) {
+    if (libraryArrived) { previous = current; previousId = state.activeTemplateId; previousUnreadable = unreadable; return; }
+    if ((current !== previous && !sameTemplateDefinition(current, previous)) || state.activeTemplateId !== previousId || unreadable !== previousUnreadable) {
       previous = current;
       previousId = state.activeTemplateId;
+      previousUnreadable = unreadable;
       listener();
     }
   });
@@ -257,6 +275,7 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
   templates: [],
   activeTemplateId: null,
   documentTemplate: null,
+  unreadableTemplateSnapshot: null,
   restoreDocumentTemplate: (value, snapshot) => {
     let payload = snapshot;
     if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch { payload = null; } }
@@ -264,8 +283,14 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
     const selected = value ?? legacyId;
     const id = typeof selected === 'string' && selected ? selected : null;
     const parsed = id && !isSystemTemplateId(id) ? parseTemplateSnapshot(payload, id) : null;
-    set({ activeTemplateId: id, documentTemplate: parsed ? withMissingRulesOnce(parsed) : null });
-    return snapshot == null || !!id && isSystemTemplateId(id) || !!parsed;
+    const valid = snapshot == null || !!id && isSystemTemplateId(id) || !!parsed;
+    set({
+      activeTemplateId: id,
+      documentTemplate: parsed ? withMissingRulesOnce(parsed) : null,
+      unreadableTemplateSnapshot: valid ? null : copySnapshot(snapshot),
+    });
+    if (!valid) showToast('This script’s saved format cannot be read by this version of OpenDraft. A local format is used for display; the original format data will be kept when you save. Update OpenDraft to use the saved format.', 'error');
+    return valid;
   },
   loaded: false,
 
@@ -338,7 +363,7 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
   deleteTemplate: async (id) => {
     set((s) => ({
       templates: s.templates.filter((t) => t.id !== id),
-      activeTemplateId: s.activeTemplateId === id && !s.documentTemplate ? null : s.activeTemplateId,
+      activeTemplateId: s.activeTemplateId === id && !s.documentTemplate && s.unreadableTemplateSnapshot == null ? null : s.activeTemplateId,
     }));
     // A deleted template must also stop being a format new scripts can be
     // started in — otherwise the preference outlives the template it names and
@@ -373,6 +398,6 @@ export const useFormattingTemplateStore = create<FormattingTemplateState>((set, 
   },
 
   setActiveTemplateId: (id) => {
-    set({ activeTemplateId: id, documentTemplate: null });
+    set({ activeTemplateId: id, documentTemplate: null, unreadableTemplateSnapshot: null });
   },
 }));

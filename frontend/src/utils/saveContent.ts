@@ -90,7 +90,7 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
     ...(store.plotlines.length ? { _plotlines: store.plotlines } : {}),
     ...(store.sourceFidelity ? { _sourceFidelity: store.sourceFidelity } : {}),
     _templateId: tplStore.activeTemplateId,
-    ...(template ? { _templateSnapshot: template } : {}),
+    ...(template != null ? { _templateSnapshot: template } : {}),
     _ignoredWords: spellChecker.getIgnoredWords(),
     _ignoredOnce: spellChecker.getIgnoredOnce(),
     // Project dictionary lives on the Project entity now; keep the script

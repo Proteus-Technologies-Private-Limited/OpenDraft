@@ -12,7 +12,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { Editor } from '@tiptap/react';
-import { useFormattingTemplateStore, SYSTEM_TEMPLATES, SYSTEM_TEMPLATE_LIST, findTemplate } from '../stores/formattingTemplateStore';
+import { useFormattingTemplateStore, SYSTEM_TEMPLATES, SYSTEM_TEMPLATE_LIST, findTemplate, applyDocumentTemplate } from '../stores/formattingTemplateStore';
 import { INDUSTRY_STANDARD_ID } from '../stores/formattingTypes';
 import { INDUSTRY_STANDARD_TEMPLATE } from '../stores/industryStandardTemplate';
 import type { FormattingTemplate } from '../stores/formattingTypes';
@@ -24,7 +24,6 @@ import { showToast } from './Toast';
 import { useSettingsStore } from '../stores/settingsStore';
 
 import { parseTemplateSnapshot, sameTemplateDefinition } from '../utils/templateSnapshot';
-import { uuid } from '../utils/uuid';
 
 const DOCUMENT_FORMAT = '__document_format_selection__';
 
@@ -38,7 +37,7 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
     templates,
     activeTemplateId,
     documentTemplate,
-    restoreDocumentTemplate,
+    unreadableTemplateSnapshot,
     setActiveTemplateId,
     loadTemplates,
     createTemplate,
@@ -87,8 +86,7 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
 
   const applyTemplate = (template: FormattingTemplate) => {
     if (template === documentTemplate) {
-      const selected = findTemplate(template.id) ? { ...template, id: uuid() } : template;
-      if (!restoreDocumentTemplate(selected.id, selected)) {
+      if (!applyDocumentTemplate(template)) {
         showToast('Invalid document format. The format was not applied.', 'error');
         return;
       }
@@ -264,6 +262,8 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
           The template controls element-level formatting rules; for an empty document, choosing a script type also seeds starter content.
         </p>
 
+        {unreadableTemplateSnapshot != null && <p className="template-select-hint" role="alert">The saved format cannot be read by this version. Its original data is kept when you save. Update OpenDraft to use it; choosing another format replaces the saved definition.</p>}
+
         {/* Template list */}
         <div className="template-select-list">
           {showDocumentTemplate && documentTemplate && <>
@@ -271,10 +271,12 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
             <div className={`template-select-item document-template-card${selectedId === DOCUMENT_FORMAT ? ' selected' : ''}`}>
               <div className="template-select-item-info">
                 <button className="dialog-btn" onClick={() => setSelectedId(DOCUMENT_FORMAT)}>{documentTemplate.name} {documentIsActive && <span className="template-select-current-badge">current</span>}</button>
-                <span className="template-select-hint">Saved with this script. Editing this format leaves your other templates unchanged.</span>
+                <span className="template-select-hint">{libraryTemplate
+                  ? `${Date.parse(libraryTemplate.updatedAt) > Date.parse(documentTemplate.updatedAt) ? 'The library version is newer. ' : Date.parse(documentTemplate.updatedAt) > Date.parse(libraryTemplate.updatedAt) ? 'The saved copy is newer. ' : ''}The local library version is currently in use. Edit Current Format starts from that version; applying this saved copy creates a separate document format.`
+                  : 'Saved with this script. Editing this format creates a separate document format and leaves your other templates unchanged.'}</span>
               </div>
               <div className="template-select-item-actions">
-                <button className="dialog-btn dialog-btn-sm" onClick={() => { setEditingDocument(true); setEditingTemplate(documentTemplate); }}>Edit Document Format</button>
+                <button className="dialog-btn dialog-btn-sm" onClick={() => { setEditingDocument(true); setEditingTemplate(libraryTemplate || documentTemplate); }}>{libraryTemplate ? 'Edit Current Format' : 'Edit Document Format'}</button>
                 <button className="dialog-btn dialog-btn-sm" onClick={async () => {
                   const copy = await createTemplate({ ...JSON.parse(JSON.stringify(documentTemplate)), name: `${documentTemplate.name} (Copy)`, category: 'user' });
                   setSelectedId(copy.id);
@@ -325,8 +327,7 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
                 return;
               }
               if (editingDocument) {
-                const detached = findTemplate(updated.id) ? { ...updated, id: uuid() } : updated;
-                if (!restoreDocumentTemplate(detached.id, detached)) {
+                if (!applyDocumentTemplate(updated)) {
                   showToast('Invalid document format. The template was not saved.', 'error');
                   return;
                 }

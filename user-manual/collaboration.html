@@ -197,7 +197,7 @@
 
     <ul>
       <li>Screenplay text and formatting</li>
-      <li>The complete custom format definition (including custom elements, numbering, flow rules and starter content) and page layout. These go to the collaboration server selected for the session and its participants; no new external service is contacted. Collaborators can change the shared document format and page settings. Your template library is not overwritten: a matching local template takes precedence, with the embedded definition used as a fallback. Choosing or editing the document definition separately creates a new format ID.</li>
+      <li>The complete custom format definition (including custom elements, numbering, flow rules and starter content) and page layout. These go to the collaboration server selected for the session and its participants; no new external service is contacted. Collaborators can change the shared document format and page settings. Your template library is not overwritten: a matching local template takes precedence, with the embedded definition used as a fallback. Every explicit application or edit of the document definition creates a new format ID, even when the original template is absent locally. Margin-only changes keep the shared definition and do not replace it with a different local library copy. Unsupported definitions are preserved with a warning rather than silently discarded.</li>
       <li>Character profiles</li>
       <li>Script notes and general notes</li>
       <li>Tags and tag categories</li>

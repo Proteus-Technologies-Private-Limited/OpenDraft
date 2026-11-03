@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import { startCollabSync, stopCollabSync } from './collabSync';
-import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { useFormattingTemplateStore, applyDocumentTemplate } from '../stores/formattingTemplateStore';
 import { useEditorStore, DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { INDUSTRY_STANDARD_TEMPLATE } from '../stores/industryStandardTemplate';
 import type { FormattingTemplate } from '../stores/formattingTypes';
@@ -41,6 +41,7 @@ beforeEach(() => {
     templates: [],
     activeTemplateId: null,
     documentTemplate: null,
+    unreadableTemplateSnapshot: null,
   });
   useEditorStore.setState({ pageLayout: DEFAULT_PAGE_LAYOUT });
 });
@@ -132,4 +133,71 @@ describe('collaboration document format', () => {
       .restoreDocumentTemplate('same-id', format());
     expect(mine.getMap<string>('metadata').get('documentFormat')).toBe(saved);
   });
+});
+
+it('keeps a guest’s document edit when the host has the original library ID', () => {
+  const original = format('Host library');
+  peer.getMap<string>('metadata').set('documentFormat', packet(original));
+  exchange(); startCollabSync(mine, false);
+  const edited = structuredClone(useFormattingTemplateStore.getState().getActiveTemplate());
+  edited.rules.action.bold = true;
+  expect(applyDocumentTemplate(edited)).toBe(true);
+  const guestId = useFormattingTemplateStore.getState().activeTemplateId;
+  expect(guestId).not.toBe(original.id);
+  Y.applyUpdate(peer, Y.encodeStateAsUpdate(mine, Y.encodeStateVector(peer)), 'remote');
+  stopCollabSync();
+  useFormattingTemplateStore.setState({ templates: [original], activeTemplateId: original.id, documentTemplate: null, unreadableTemplateSnapshot: null });
+  startCollabSync(peer, false);
+  expect(useFormattingTemplateStore.getState().activeTemplateId).toBe(guestId);
+  expect(useFormattingTemplateStore.getState().getActiveTemplate().rules.action.bold).toBe(true);
+  expect(original.rules.action.bold).toBe(false);
+});
+
+it('preserves the shared format when a same-ID library conflict only changes margins', () => {
+  const local = format('Different guest library');
+  local.rules.action.bold = true;
+  useFormattingTemplateStore.setState({ templates: [local] });
+  const shared = format('Host document');
+  peer.getMap<string>('metadata').set('documentFormat', packet(shared));
+  exchange(); startCollabSync(mine, false);
+  expect(useFormattingTemplateStore.getState().getActiveTemplate().name).toBe('Different guest library');
+  useEditorStore.getState().setPageLayout({ ...useEditorStore.getState().pageLayout, rightMargin: 1.5 });
+  const published = JSON.parse(mine.getMap<string>('metadata').get('documentFormat')!);
+  expect(published._templateSnapshot).toEqual(shared);
+  expect(published._pageLayout.rightMargin).toBe(1.5);
+  expect(published._templateId).toBe(shared.id);
+  Y.applyUpdate(peer, Y.encodeStateAsUpdate(mine, Y.encodeStateVector(peer)), 'remote');
+  stopCollabSync();
+  useFormattingTemplateStore.setState({ templates: [], activeTemplateId: null, documentTemplate: null, unreadableTemplateSnapshot: null });
+  startCollabSync(peer, false);
+  expect(useFormattingTemplateStore.getState().getActiveTemplate().name).toBe('Host document');
+  expect(useFormattingTemplateStore.getState().getActiveTemplate().rules.action.bold).toBe(false);
+  expect(useEditorStore.getState().pageLayout.rightMargin).toBe(1.5);
+});
+
+it('retains an unsupported remote snapshot through later layout edits', () => {
+  const unknown = { ...format('Future'), futureFormatProperty: { version: 99 } };
+  // A future rule key is deliberately unreadable in this version.
+  Object.assign(unknown.rules.action, { futureRuleProperty: true });
+  peer.getMap<string>('metadata').set('documentFormat', packet(unknown));
+  exchange(); startCollabSync(mine, false);
+  expect(useFormattingTemplateStore.getState().documentTemplate).toBeNull();
+  expect(useFormattingTemplateStore.getState().unreadableTemplateSnapshot).toEqual(unknown);
+  useEditorStore.getState().setPageLayout({ ...DEFAULT_PAGE_LAYOUT, rightMargin: 1.4 });
+  const published = JSON.parse(mine.getMap<string>('metadata').get('documentFormat')!);
+  expect(published._templateSnapshot).toEqual(unknown);
+  expect(published._pageLayout.rightMargin).toBe(1.4);
+});
+
+it('does not throw on a layout edit after malformed shared metadata', () => {
+  const local = format('Local');
+  useFormattingTemplateStore.setState({ templates: [local], activeTemplateId: local.id });
+  startCollabSync(mine, true);
+  Y.applyUpdate(peer, Y.encodeStateAsUpdate(mine), 'remote');
+  peer.getMap<string>('metadata').set('documentFormat', 'not JSON');
+  exchange();
+  expect(() => useEditorStore.getState().setPageLayout({ ...DEFAULT_PAGE_LAYOUT, rightMargin: 1.2 })).not.toThrow();
+  const published = JSON.parse(mine.getMap<string>('metadata').get('documentFormat')!);
+  expect(published._templateSnapshot).toEqual(local);
+  expect(published._pageLayout.rightMargin).toBe(1.2);
 });

@@ -85,7 +85,7 @@ export function hydrateEditorStoresFromContent(
   store.setScriptProfile(normalizeScriptProfile(c._scriptProfile));
 
   const templates = useFormattingTemplateStore.getState();
-  if (c._templateId !== undefined || c._templateSnapshot !== undefined || templates.documentTemplate) {
+  if (c._templateId !== undefined || c._templateSnapshot !== undefined || templates.documentTemplate || templates.unreadableTemplateSnapshot != null) {
     templates.restoreDocumentTemplate(c._templateId, c._templateSnapshot);
   }
 

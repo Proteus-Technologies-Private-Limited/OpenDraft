@@ -8,6 +8,7 @@ import {
 import {
   useFormattingTemplateStore,
   activeTemplateSnapshot,
+  applyDocumentTemplate,
   templateForSavedContent,
   subscribeActiveTemplate,
 } from '../stores/formattingTemplateStore';
@@ -18,6 +19,8 @@ import { serializeContentForFormat } from './linkedFileFormat';
 import { parseOdraft } from './odraftFormat';
 import { numberingRulesForSaved } from './elementNumbers';
 import { parseTemplateSnapshot, sameTemplateDefinition } from './templateSnapshot';
+import { showToast } from '../components/Toast';
+vi.mock('../components/Toast', () => ({ showToast: vi.fn() }));
 import { generateTemplateCss } from './templateCss';
 vi.mock('../services/api', () => ({
   api: {
@@ -89,6 +92,7 @@ beforeEach(() => {
     templates: [],
     activeTemplateId: null,
     documentTemplate: null,
+    unreadableTemplateSnapshot: null,
     loaded: false,
   });
 });
@@ -404,4 +408,78 @@ it('rejects unknown rule properties instead of retaining them in snapshots', () 
   const f = customFormat();
   Object.assign(f.rules.action, { arbitraryRuleProperty: true });
   expect(parseTemplateSnapshot(f, f.id)).toBeNull();
+});
+
+it.each([false, true])('preserves document edits on the author’s next save (local library=%s)', hasLibrary => {
+  const original = customFormat();
+  useFormattingTemplateStore.setState({ templates: hasLibrary ? [original] : [] });
+  const guestCopy = structuredClone(original);
+  guestCopy.rules.action.bold = true;
+  useFormattingTemplateStore.getState().restoreDocumentTemplate(original.id, original);
+  expect(applyDocumentTemplate(guestCopy)).toBe(true);
+  const fromGuest = buildSaveContent(editor)!;
+  expect(fromGuest._templateId).not.toBe(original.id);
+  useFormattingTemplateStore.setState({ templates: [original] });
+  hydrateEditorStoresFromContent(fromGuest);
+  expect(useFormattingTemplateStore.getState().getActiveTemplate().rules.action.bold).toBe(true);
+  expect((buildSaveContent(editor)!._templateSnapshot as FormattingTemplate).rules.action.bold).toBe(true);
+  expect(original.rules.action.bold).toBe(false);
+  const firstId = fromGuest._templateId;
+  expect(applyDocumentTemplate(useFormattingTemplateStore.getState().documentTemplate!)).toBe(true);
+  expect(useFormattingTemplateStore.getState().activeTemplateId).not.toBe(firstId);
+});
+
+it.each([
+  ['unknown rule', (): unknown => {
+    const value = customFormat();
+    Object.assign(value.rules.action, { futureRuleProperty: { keep: 'exactly' } });
+    return value;
+  }],
+  ['unknown layout', (): unknown => ({ ...customFormat(), pageLayout: { futureLayoutProperty: true } })],
+  ['unreadable serialized data', (): unknown => '{future-format-version'],
+  ['falsy snapshot', (): unknown => false],
+] as const)('retains %s snapshots and warns without applying unvalidated data', (_label, value) => {
+  const raw = value();
+  const local = customFormat();
+  useFormattingTemplateStore.setState({ templates: [local] });
+  vi.mocked(showToast).mockClear();
+  expect(useFormattingTemplateStore.getState().restoreDocumentTemplate(local.id, raw)).toBe(false);
+  expect(showToast).toHaveBeenCalledWith(expect.stringContaining('original format data will be kept'), 'error');
+  expect(useFormattingTemplateStore.getState().getActiveTemplate()).toBe(local);
+  expect(activeTemplateSnapshot()).toEqual(raw);
+  const saved = buildSaveContent(editor)!;
+  expect(saved._templateId).toBe(local.id);
+  expect(saved._templateSnapshot).toEqual(raw);
+  const backup = parseOdraft(serializeContentForFormat('odraft', saved, 'Future format'));
+  hydrateEditorStoresFromContent(backup.content);
+  expect(buildSaveContent(editor)!._templateSnapshot).toEqual(raw);
+  useFormattingTemplateStore.getState().setActiveTemplateId(null);
+  expect(buildSaveContent(editor)).not.toHaveProperty('_templateSnapshot');
+});
+
+it('does not carry an unreadable snapshot into the next legacy document', () => {
+  useFormattingTemplateStore.getState().restoreDocumentTemplate('future-format', { id: 'future-format', futureVersion: 99 });
+  hydrateEditorStoresFromContent({ _notes: [] });
+  expect(useFormattingTemplateStore.getState().activeTemplateId).toBeNull();
+  expect(activeTemplateSnapshot()).toBeNull();
+});
+
+it('saves opaque snapshot changes while ignoring identical reloads', () => {
+  useFormattingTemplateStore.getState().restoreDocumentTemplate('future-format', { id: 'future-format', futureVersion: 99 });
+  const saved = vi.fn(); const stop = subscribeActiveTemplate(saved);
+  useFormattingTemplateStore.getState().restoreDocumentTemplate('future-format', { id: 'future-format', futureVersion: 99 });
+  expect(saved).not.toHaveBeenCalled();
+  useFormattingTemplateStore.getState().restoreDocumentTemplate('future-format', { id: 'future-format', futureVersion: 100 });
+  expect(saved).toHaveBeenCalledOnce();
+  stop();
+});
+
+it('keeps an unreadable snapshot and its ID when its local library template is deleted', async () => {
+  const format = customFormat();
+  const raw = { ...format, rules: { ...format.rules, action: { ...format.rules.action, futureProperty: true } } };
+  useFormattingTemplateStore.setState({ templates: [format] });
+  useFormattingTemplateStore.getState().restoreDocumentTemplate(format.id, raw);
+  await useFormattingTemplateStore.getState().deleteTemplate(format.id);
+  expect(buildSaveContent(editor)!._templateId).toBe(format.id);
+  expect(buildSaveContent(editor)!._templateSnapshot).toEqual(raw);
 });

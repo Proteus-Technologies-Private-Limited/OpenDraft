@@ -17,8 +17,8 @@
  */
 
 import * as Y from 'yjs';
-import { useFormattingTemplateStore, isSystemTemplateId } from '../stores/formattingTemplateStore';
-import { parseTemplateSnapshot, validTemplatePageLayout } from '../utils/templateSnapshot';
+import { useFormattingTemplateStore, activeTemplateSnapshot } from '../stores/formattingTemplateStore';
+import { validTemplatePageLayout } from '../utils/templateSnapshot';
 import { useEditorStore, DEFAULT_PAGE_LAYOUT, type GeneralNote, type NoteInfo, type PageLayout } from '../stores/editorStore';
 import { normalizeRevisionSettings } from '../editor/revisionColors';
 import { normalizeScriptProfile } from '../utils/scriptProfile';
@@ -73,6 +73,7 @@ let fromYjs = false;
 let unsubStore: (() => void) | null = null;
 let unsubTemplates: (() => void) | null = null;
 let prevFormat: string | null = null;
+let prevSharedFormat: string | null = null;
 let mayPublishFormat = false;
 const FORMAT_KEY = 'documentFormat';
 /** The store as last written to or read from Yjs, to tell what changed. */
@@ -158,7 +159,8 @@ export function startCollabSync(ydoc: Y.Doc, isHost: boolean): void {
         if (changed.includes(key)) recordNoteDeletions(key);
       }
       for (const key of changed) map.set(key, curr[key]);
-      if (formatChanged) map.set(FORMAT_KEY, format);
+      if (formatChanged) map.set(FORMAT_KEY, formatForPublishing(format, prevFormat, map.get(FORMAT_KEY)));
+      prevSharedFormat = map.get(FORMAT_KEY) ?? null;
     });
     prevSnapshot = curr;
     prevFormat = format;
@@ -181,6 +183,7 @@ export function stopCollabSync(): void {
   }
   prevSnapshot = null;
   prevFormat = null;
+  prevSharedFormat = null;
   mayPublishFormat = false;
   unsubTemplates?.();
   unsubTemplates = null;
@@ -221,12 +224,29 @@ function takeSnapshot(): Record<SyncKey, string> {
 function formatSnapshot(): string {
   const templates = useFormattingTemplateStore.getState();
   const store = useEditorStore.getState();
-  const template = templates.getActiveTemplate();
+  const template = activeTemplateSnapshot();
   return JSON.stringify({
     _templateId: templates.activeTemplateId,
-    ...(!isSystemTemplateId(template.id) && template.id === templates.activeTemplateId ? { _templateSnapshot: template } : {}),
+    ...(template != null ? { _templateSnapshot: template } : {}),
     _pageLayout: store.pageLayout,
     _sceneHeadingSpaceBefore: store.sceneHeadingSpaceBefore,
+  });
+}
+
+/** Layout edits must not promote a different same-ID local library definition. */
+function formatForPublishing(current: string, previous: string | null, shared: string | undefined): string {
+  if (!previous || !shared) return current;
+  const next = JSON.parse(current);
+  const before = JSON.parse(previous);
+  if (next._templateId !== before._templateId || JSON.stringify(next._templateSnapshot) !== JSON.stringify(before._templateSnapshot)) return current;
+  let packet: unknown;
+  try { packet = JSON.parse(shared); } catch { return current; }
+  if (!packet || typeof packet !== 'object' || Array.isArray(packet)
+    || !('_templateId' in packet) || !(packet._templateId === null || typeof packet._templateId === 'string')) return current;
+  return JSON.stringify({
+    ...packet,
+    _pageLayout: next._pageLayout,
+    _sceneHeadingSpaceBefore: next._sceneHeadingSpaceBefore,
   });
 }
 
@@ -234,7 +254,6 @@ function applySharedFormat(raw: string): void {
   const packet = JSON.parse(raw) as Record<string, unknown>;
   if (!packet || typeof packet !== 'object' || !(packet._templateId === null || typeof packet._templateId === 'string')) return;
   const id = packet._templateId;
-  if (packet._templateSnapshot != null && typeof id === 'string' && !isSystemTemplateId(id) && !parseTemplateSnapshot(packet._templateSnapshot, id)) return;
   const layout = packet._pageLayout;
   if (layout != null && !validTemplatePageLayout(layout)) return;
   mayPublishFormat = true;
@@ -248,6 +267,7 @@ function rememberStore() {
   const s = useEditorStore.getState();
   prevSnapshot = takeSnapshot();
   prevFormat = formatSnapshot();
+  prevSharedFormat = metaMap?.get(FORMAT_KEY) ?? null;
   prevNoteLists = { notes: s.notes, generalNotes: s.generalNotes };
 }
 
@@ -375,7 +395,7 @@ function applyYjsToStore() {
   try {
     const store = useEditorStore.getState();
     const format = metaMap.get(FORMAT_KEY);
-    if (format && format !== prevFormat) {
+    if (format && format !== prevSharedFormat) {
       try { applySharedFormat(format); } catch (err) { console.warn('[collabSync] could not apply document format', err); }
     }
 
