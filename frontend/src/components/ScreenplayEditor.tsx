@@ -2092,29 +2092,7 @@ const ScreenplayEditor: React.FC = () => {
 
   const editor = useEditor({
     extensions: [
-      Document.extend({
-        content: 'block+',
-        // Sequence labels live on the document (and on each scene heading's
-        // sequenceId), so the Outline can group scenes without inserting
-        // structure nodes into the script.
-        addAttributes() {
-          return {
-            sequences: {
-              default: null,
-              parseHTML: (element: HTMLElement) => {
-                const raw = element.getAttribute('data-sequences');
-                if (!raw) return null;
-                try { return JSON.parse(raw); } catch { return null; }
-              },
-              renderHTML: (attributes: Record<string, unknown>) => (
-                attributes.sequences
-                  ? { 'data-sequences': JSON.stringify(attributes.sequences) }
-                  : {}
-              ),
-            },
-          };
-        },
-      }),
+      Document,
       // HardBreakLeafText must travel with ScreenplayHardBreak — see that module.
       Text, ScreenplayHardBreak, HardBreakLeafText,
       Bold, Italic, Underline, Strike, Dropcursor, Gapcursor,

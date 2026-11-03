@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { JSONContent } from '@tiptap/react';
 import { sceneRangeDocument, sceneSelectionDocument, sceneHeadings } from './pdfSceneExport';
+import { withoutSuggestionsJSON } from '../editor/suggestions';
 
 interface DrawCall { text: string; page: number }
 
@@ -92,11 +93,13 @@ describe('PDF scene range', () => {
     expect(sceneRangeDocument(doc, { from: 0, to: 2, oneScenePerPage: false })).toBe(doc);
   });
 
-  it('marks every scene to start its own page', () => {
+  it('marks every scene after the first to start its own page', () => {
     const out = sceneRangeDocument(script(), { from: 0, to: 2, oneScenePerPage: true });
     const headings = (out.content ?? []).filter((node) => node.type === 'sceneHeading');
     expect(headings).toHaveLength(3);
-    for (const heading of headings) expect(heading.attrs?.startsNewPage).toBe(true);
+    // The title page already ends with a break, so scene 1 needs none.
+    expect(headings[0].attrs?.startsNewPage).toBeFalsy();
+    for (const heading of headings.slice(1)) expect(heading.attrs?.startsNewPage).toBe(true);
   });
 
   it('clamps a range that runs past the script', () => {
@@ -122,11 +125,13 @@ describe('PDF hand-picked scenes', () => {
     expect(textsOf(out).join('\n')).not.toContain('EXT. STREET - NIGHT');
   });
 
-  it('starts every ticked scene on its own page', () => {
+  it('starts every ticked scene after the first on its own page', () => {
     const out = sceneSelectionDocument(script(), { scenes: [0, 2], oneScenePerPage: true });
     const headings = (out.content ?? []).filter((node) => node.type === 'sceneHeading');
     expect(headings).toHaveLength(2);
-    for (const heading of headings) expect(heading.attrs?.startsNewPage).toBe(true);
+    // The title page already breaks; only the scene after it needs one.
+    expect(headings[0].attrs?.startsNewPage).toBeFalsy();
+    expect(headings[1].attrs?.startsNewPage).toBe(true);
   });
 });
 
@@ -181,7 +186,33 @@ describe('PDF scene boundaries', () => {
 
   it('never falls back to the whole script for indices from another document', () => {
     const out = sceneSelectionDocument(script(), { scenes: [99], oneScenePerPage: false });
-    expect(textsOf(out)).toEqual(['THE SCRIPT']);
+    // Clamped the same way a range is: the last scene, not the whole script.
+    const range = sceneRangeDocument(script(), { from: 99, to: 99, oneScenePerPage: false });
+    expect(textsOf(out)).toEqual(['THE SCRIPT', 'INT. CAR - CONTINUOUS', 'She drives away.']);
+    expect(textsOf(out)).toEqual(textsOf(range));
+  });
+
+  it('numbers the scenes from the document that is exported, not the live one', () => {
+    // A pending suggestion to turn an action into a scene heading is in the
+    // editor, but not in the file the exporter lays out.
+    const live: JSONContent = {
+      type: 'doc',
+      content: [
+        block('sceneHeading', 'INT. HOUSE - DAY'),
+        {
+          type: 'sceneHeading',
+          attrs: { suggestedType: { id: 's1', by: 'Reviewer', from: 'action' } },
+          content: [{ type: 'text', text: 'INT. SUGGESTED - DAY' }],
+        },
+        block('sceneHeading', 'EXT. STREET - NIGHT'),
+      ],
+    };
+    expect(sceneHeadings(live)).toHaveLength(3);
+    const exported = withoutSuggestionsJSON(live);
+    expect(sceneHeadings(exported)).toEqual(['INT. HOUSE - DAY', 'EXT. STREET - NIGHT']);
+    // "Scene 2" is EXT. STREET in the file, despite the live list numbering it 3.
+    const out = sceneSelectionDocument(exported, { scenes: [1], oneScenePerPage: false });
+    expect(textsOf(out)).toEqual(['EXT. STREET - NIGHT']);
   });
 });
 describe('PDF one scene per page with act breaks', () => {
@@ -194,7 +225,32 @@ describe('PDF one scene per page with act breaks', () => {
     );
     expect(act?.attrs?.startsNewPage).toBe(true);
     expect(street?.attrs?.startsNewPage).toBeFalsy();
+    // The first scene follows the opening matter, so it needs no break.
     const first = blocks.find((node) => node.type === 'sceneHeading');
-    expect(first?.attrs?.startsNewPage).toBe(true);
+    expect(first?.attrs?.startsNewPage).toBeFalsy();
+  });
+
+  it('does not put the opening matter on a page of its own', () => {
+    const out = sceneRangeDocument(scriptWithOpening(), { from: 0, to: 1, oneScenePerPage: true });
+    const blocks = out.content ?? [];
+    const fadeIn = blocks.find((node) => (node.content ?? []).some((child) => child.text === 'FADE IN:'));
+    expect(fadeIn?.attrs?.startsNewPage).toBeFalsy();
+    const house = blocks.find((node) => node.type === 'sceneHeading');
+    expect(house?.attrs?.startsNewPage).toBeFalsy();
+  });
+
+  it('draws the opening matter and scene 1 on the same page', async () => {
+    draws.length = 0;
+    currentPage = 1;
+    const out = sceneRangeDocument(scriptWithOpening(), { from: 0, to: 1, oneScenePerPage: true });
+    await exportPDF(out, 'Test', { ...DEFAULT_PAGE_LAYOUT, headerStartPage: 1 }, { includeTitlePage: false });
+    // The page each line was drawn on.
+    const pageOf = (needle: string) => draws
+      .filter((draw) => draw.text.includes(needle))
+      .map((draw) => draw.page);
+    expect(pageOf('FADE IN:')).toEqual([1]);
+    expect(pageOf('INT. HOUSE')).toEqual([1]);
+    expect(pageOf('ACT TWO')).toEqual([2]);
+    expect(pageOf('EXT. STREET')).toEqual([2]);
   });
 });
