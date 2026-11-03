@@ -60,11 +60,29 @@ describe('viewLayout', () => {
     expect(saved()).toMatchObject({ viewLayout: 'speed' });
   });
 
-  it('opens the speed view at the page zoom, not the phone zoom', async () => {
+  it('opens the speed view at its own zoom, or the page zoom when it has none', async () => {
+    localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ zoomLevel: 75, phoneZoomLevel: 130, speedZoomLevel: 90 }));
+    let store = await freshStore(false);
+    store.getState().setViewLayout('speed');
+    expect(store.getState().zoomLevel).toBe(90);
+
     localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ zoomLevel: 75, phoneZoomLevel: 130 }));
-    const store = await freshStore(false);
+    store = await freshStore(false);
     store.getState().setViewLayout('speed');
     expect(store.getState().zoomLevel).toBe(75);
+  });
+
+  it('saves the speed zoom apart from the page and phone zooms', async () => {
+    localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ zoomLevel: 80, phoneZoomLevel: 130 }));
+    const store = await freshStore(false);
+    store.getState().setViewLayout('speed');
+    store.getState().setZoomLevel(95);
+    expect(saved()).toMatchObject({ speedZoomLevel: 95, zoomLevel: 80, phoneZoomLevel: 130 });
+
+    store.getState().setViewLayout('page');
+    expect(store.getState().zoomLevel).toBe(80);
+    store.getState().setViewLayout('speed');
+    expect(store.getState().zoomLevel).toBe(95);
   });
 
   it('keeps a saved speed view when the device changes', async () => {

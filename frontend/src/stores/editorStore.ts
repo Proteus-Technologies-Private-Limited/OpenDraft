@@ -37,6 +37,7 @@ interface ViewState {
   /** Zoom in the phone view, kept apart: there it sets the size of the text,
    *  and the page view's zoom on a phone is fitted to the screen every time. */
   phoneZoomLevel?: number;
+  speedZoomLevel?: number;
   viewLayout?: ViewLayout;
   toolbarMode?: 'compact' | 'comfortable' | 'hidden';
   focusTypewriter?: boolean;
@@ -1789,11 +1790,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   editingTagId: null,
   setEditingTagId: (id) => set({ editingTagId: id }),
 
-  zoomLevel: (initialViewLayout === 'phone' ? _vs.phoneZoomLevel : _vs.zoomLevel) ?? 100,
+  zoomLevel: (initialViewLayout === 'phone'
+    ? _vs.phoneZoomLevel
+    : initialViewLayout === 'speed'
+      ? (_vs.speedZoomLevel ?? _vs.zoomLevel)
+      : _vs.zoomLevel) ?? 100,
   setZoomLevel: (level) => {
     const clamped = Math.min(300, Math.max(50, level));
     set({ zoomLevel: clamped });
-    saveViewState(get().viewLayout === 'phone' ? { phoneZoomLevel: clamped } : { zoomLevel: clamped });
+    saveViewState(get().viewLayout === 'phone'
+      ? { phoneZoomLevel: clamped }
+      : get().viewLayout === 'speed'
+        ? { speedZoomLevel: clamped }
+        : { zoomLevel: clamped });
   },
   viewLayout: initialViewLayout,
   setViewLayout: (layout) => {
@@ -1802,7 +1811,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // full-size text, while the same number in the page view is a whole
     // sheet the phone has to scroll sideways across.
     const saved = loadViewState();
-    const zoom = (layout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
+    const zoom = (layout === 'phone'
+      ? saved.phoneZoomLevel
+      : layout === 'speed'
+        ? (saved.speedZoomLevel ?? saved.zoomLevel)
+        : saved.zoomLevel) ?? 100;
     set({ viewLayout: layout, zoomLevel: zoom });
     saveViewState({ viewLayout: layout });
   },
