@@ -1,12 +1,13 @@
 import { getFoldState, isFoldableDevice } from './foldPosture';
 export type PostureKey = 'folded' | 'open';
 /** Book posture reflows the page without replacing the writer's layout choice. */
-export function currentZoomLayout(layout: 'page' | 'phone'): 'page' | 'phone' {
-  return layout === 'phone' || (isFoldableDevice() && getFoldState().fold === 'book') ? 'phone' : 'page';
+export function currentZoomLayout(layout: 'page' | 'phone' | 'speed'): 'page' | 'phone' | 'speed' {
+  if (layout === 'phone' || (isFoldableDevice() && getFoldState().fold === 'book')) return 'phone';
+  return layout === 'speed' ? 'speed' : 'page';
 }
 export interface PostureChoices {
   toolbarMode?: 'compact' | 'comfortable' | 'hidden';
-  viewLayout?: 'page' | 'phone';
+  viewLayout?: 'page' | 'phone' | 'speed';
 }
 export interface PosturePreferences extends PostureChoices {
   byPosture?: Partial<Record<PostureKey, PostureChoices>>;

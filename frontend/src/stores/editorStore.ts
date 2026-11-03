@@ -36,6 +36,11 @@ import {
 import { useSettingsStore } from './settingsStore';
 import { t } from '../i18n';
 
+/** The zoom saved for a layout; Speed uses the page zoom until it has its own. */
+function savedZoom(saved: { zoomLevel?: number; phoneZoomLevel?: number; speedZoomLevel?: number }, layout: 'page' | 'phone' | 'speed'): number {
+  return (layout === 'phone' ? saved.phoneZoomLevel : layout === 'speed' ? (saved.speedZoomLevel ?? saved.zoomLevel) : saved.zoomLevel) ?? 100;
+}
+
 // ── View-state persistence helpers ──
 const VIEW_STATE_KEY = 'opendraft:viewState';
 interface ViewState extends PosturePreferences {
@@ -58,6 +63,7 @@ interface ViewState extends PosturePreferences {
   /** Zoom in the phone view, kept apart: there it sets the size of the text,
    *  and the page view's zoom on a phone is fitted to the screen every time. */
   phoneZoomLevel?: number;
+  speedZoomLevel?: number;
   viewLayout?: ViewLayout;
   toolbarMode?: 'compact' | 'comfortable' | 'hidden';
   /** The toolbar's and footer's controls, sides and labels (toolbarLayout.ts). */
@@ -1883,12 +1889,12 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
   setEditingTagId: (id) => set({ editingTagId: id }),
 
   zoomLayout: currentZoomLayout(initialViewLayout),
-  zoomLevel: (currentZoomLayout(initialViewLayout) === 'phone' ? _vs.phoneZoomLevel : _vs.zoomLevel) ?? 100,
+  zoomLevel: savedZoom(_vs, currentZoomLayout(initialViewLayout)),
   setZoomLevel: (level) => {
     const clamped = Math.min(300, Math.max(50, level));
     const zoomLayout = currentZoomLayout(get().viewLayout);
     set({ zoomLevel: clamped, zoomLayout });
-    saveViewState(zoomLayout === 'phone' ? { phoneZoomLevel: clamped } : { zoomLevel: clamped });
+    saveViewState(zoomLayout === 'phone' ? { phoneZoomLevel: clamped } : zoomLayout === 'speed' ? { speedZoomLevel: clamped } : { zoomLevel: clamped });
   },
   viewLayout: initialViewLayout,
   setViewLayout: (layout) => {
@@ -1900,7 +1906,7 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     // sheet the phone has to scroll sideways across.
     const saved = loadViewState();
     const zoomLayout = currentZoomLayout(layout);
-    const zoom = (zoomLayout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
+    const zoom = savedZoom(saved, zoomLayout);
     set({ viewLayout: layout, zoomLevel: zoom, zoomLayout });
     if (!key) saveViewState({ viewLayout: layout });
   },
@@ -1912,7 +1918,7 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     if (layout === get().viewLayout) return;
     // Not saved: it is still the device's default, and should keep following it.
     const zoomLayout = currentZoomLayout(layout);
-    const zoom = (zoomLayout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
+    const zoom = savedZoom(saved, zoomLayout);
     set({ viewLayout: layout, zoomLevel: zoom, zoomLayout });
   },
   followFoldPosture: () => {
@@ -1922,7 +1928,7 @@ export const useEditorStore = create<EditorState>()(skipUnchanged((set, get) => 
     if (!saved.byPosture) saveViewState({ byPosture: migratePosturePreferences(saved) });
     const choices = postureChoices(saved, key);
     const zoomLayout = currentZoomLayout(choices.viewLayout);
-    const zoom = (zoomLayout === 'phone' ? saved.phoneZoomLevel : saved.zoomLevel) ?? 100;
+    const zoom = savedZoom(saved, zoomLayout);
     set({ ...choices, zoomLayout, ...(zoomLayout !== get().zoomLayout ? { zoomLevel: zoom } : {}) });
   },
   zoomPanelOpen: false,
