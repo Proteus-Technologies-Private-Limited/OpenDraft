@@ -22,6 +22,18 @@ export function useIsTouchDevice(): boolean {
 export type AnimationState = 'entering' | 'entered' | 'exiting' | 'exited';
 
 /**
+ * How long a side panel needs to stay mounted while it closes.
+ *
+ * Only the overlay layout (≤900px) slides panels out; on a wide screen the
+ * panel is part of the flex row and `panel-closing` has no transition, so
+ * keeping it in the DOM for 250 ms reads as a frozen close.
+ */
+export function panelCloseDelay(durationMs = 250): number {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 0;
+  return window.matchMedia('(max-width: 900px)').matches ? durationMs : 0;
+}
+
+/**
  * Keeps a component in the DOM during its close animation.
  *
  * When `isOpen` flips true → sets shouldRender immediately, then on the

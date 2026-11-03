@@ -5,6 +5,7 @@ A complete list of features in OpenDraft.
 ## Screenplay Editor
 
 - **Industry-standard formatting** -- Scene headings, action, character, dialogue, parenthetical, transition, and shot elements with proper Courier Prime formatting
+- **Formatting review** -- Suggest bold, italic, underline, strikethrough, subscript and superscript; accept, reject or withdraw with the original styling retained for exports. Filter reviews by change type and author, step through changes and accept/reject-and-next
 - **Character Autocomplete** -- Smart suggestions as you type character names
 - **Macros** -- Insert text you type often (CONTINUOUS, a recurring location, a character with an extension) with a shortcut or from Edit → Insert Macro, optionally as a given element; export and import them as JSON
 - **Scene Navigator** -- Jump between scenes instantly from the sidebar
@@ -38,7 +39,7 @@ A complete list of features in OpenDraft.
 ## Version Control
 
 - **Built-in Version History** -- Check in drafts at any point
-- **Visual Diff** -- Compare any two versions side-by-side to see exactly what changed
+- **Visual Diff** -- Compare any two versions side-by-side to see exactly what changed, with word-level marks for rewritten lines and moved lines and scenes detected
 - **Restore** -- Roll back to any previous draft instantly
 
 ## Backups

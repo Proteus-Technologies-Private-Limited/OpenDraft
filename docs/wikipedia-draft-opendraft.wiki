@@ -1,0 +1,86 @@
+<!--
+  Draft Wikipedia article for OpenDraft, in MediaWiki wikitext.
+  Submit through Articles for Creation: https://en.wikipedia.org/wiki/Wikipedia:Articles_for_creation
+
+  BEFORE SUBMITTING:
+  1. Conflict of interest. Anyone at Proteus Technologies must disclose it on their
+     user page and on the draft's talk page ({{Connected contributor}}), and should
+     submit through AfC rather than creating the article directly.
+     See https://en.wikipedia.org/wiki/Wikipedia:Conflict_of_interest
+  2. Notability. Every reference below is a primary source (the project's own site
+     and repository). Wikipedia needs significant coverage in independent, reliable
+     secondary sources (press, trade publications, reviews). Add those where marked
+     {{citation needed}} / "ADD INDEPENDENT SOURCE" or the draft will be declined.
+  3. Keep the tone neutral: no "free forever", "best", or comparisons not backed by
+     an independent source.
+-->
+{{Short description|Open-source screenwriting software}}
+{{Infobox software
+| name                   = OpenDraft
+| logo                   =
+| screenshot             =
+| caption                =
+| developer              = Proteus Technologies
+| released               = {{Start date and age|2026|03|29}}
+| latest release version = 2.8.2
+| latest release date    = {{Start date and age|2026|11|02}}
+| repo                   = {{URL|https://github.com/Proteus-Technologies-Private-Limited/OpenDraft}}
+| programming language   = [[TypeScript]], [[Rust (programming language)|Rust]], [[Python (programming language)|Python]]
+| operating system       = [[macOS]], [[Microsoft Windows|Windows]], [[Linux]], [[Android (operating system)|Android]], [[iOS]], [[iPadOS]]; [[web browser]]
+| platform               =
+| language               = English
+| genre                  = [[Screenwriting software]]
+| license                = [[MIT License]]
+| website                = {{URL|https://open-draft.com}}
+}}
+
+'''OpenDraft''' is a [[free and open-source software|free and open-source]] [[screenwriting software|screenwriting application]] developed by Proteus Technologies and released under the [[MIT License]].<ref name="repo" /> It formats scripts to screenplay conventions and includes story-planning, revision and production tools, and runs as a desktop application on [[macOS]], [[Microsoft Windows|Windows]] and [[Linux]], as a mobile application on [[Android (operating system)|Android]] and [[iOS]], and in a [[web browser]].<ref name="website" />
+
+== History ==
+The first public version of OpenDraft was released on [[GitHub]] in March 2026.<ref name="releases" /> Version 2.0 followed in September 2026.<ref name="releases" /> The project follows an [[open-core model]]: the core application is MIT-licensed, while a separate proprietary edition adds commercial features through the core's plugin interface.<ref name="repo" />
+
+<!-- ADD INDEPENDENT SOURCE: launch coverage, reviews, or articles about the project -->
+
+== Features ==
+OpenDraft's editor applies standard screenplay formatting to scene headings, action, character cues, dialogue, parentheticals, transitions and shots, with autocompletion of character names and scene headings.<ref name="features" /> Besides feature-film screenplays it supports formats for scripted podcasts and comic-book scripts, and can number elements such as scenes, lines of dialogue or sound cues.<ref name="features" />
+
+Story-planning tools include a beat board of [[index card]]s, plotlines with a story timeline, and character profiles with reference images.<ref name="features" /> A "Table Read" feature reads the script aloud with a separate [[speech synthesis|synthesized voice]] for each character, using the device's own voices, an on-device neural voice model, or third-party speech services.<ref name="features" />
+
+The application keeps a built-in version history in which drafts can be checked in, compared side by side and restored, and can write timestamped backup files to a folder chosen by the user.<ref name="features" /> Production features include production tagging, scene, character, location and breakdown reports exportable as [[comma-separated values|CSV]] or [[PDF]], watermarked and password-protected PDF output, and sides.<ref name="features" />
+
+=== Collaboration ===
+Writers can edit a script together in real time, with live cursors, presence indicators and per-collaborator permissions (co-edit, suggest or read only). A suggest mode records proposed changes for the author to accept or reject. The collaboration server can be self-hosted.<ref name="features" />
+
+=== File formats ===
+OpenDraft imports and exports [[Final Draft (software)|Final Draft]] (<code>.fdx</code>), [[Fountain (markup language)|Fountain]], [[Fade In (software)|Fade In]], Open Screenplay Format and [[Office Open XML|Microsoft Word]] (<code>.docx</code>) files, exports PDF and imports screenplay PDFs back into editable elements, and imports files from Highland, [[WriterDuet]] and [[Celtx]].<ref name="features" /> Its native <code>.odraft</code> format stores a script together with its notes, tags, beats, character profiles and images.<ref name="features" />
+
+== Technology ==
+The interface is written in [[TypeScript]] with [[React (software)|React]] and the [[ProseMirror]]-based Tiptap editor. Desktop and mobile builds are packaged with [[Tauri (software framework)|Tauri]] and store projects in a local [[SQLite]] database; the browser version uses a [[Python (programming language)|Python]] [[FastAPI]] backend. Real-time collaboration is built on the [[Yjs]] [[conflict-free replicated data type|CRDT]] library through the Hocuspocus server.<ref name="repo" />
+
+== Reception ==
+<!-- ADD INDEPENDENT SOURCE(S). This section is required in practice for notability;
+     leave it out entirely rather than filling it with self-published material. -->
+
+== See also ==
+* [[Comparison of screenwriting software]]
+* [[Final Draft (software)]]
+* [[Fade In (software)]]
+* [[Fountain (markup language)]]
+
+== References ==
+{{Reflist|refs=
+<ref name="repo">{{cite web |title=OpenDraft |url=https://github.com/Proteus-Technologies-Private-Limited/OpenDraft |website=GitHub |publisher=Proteus Technologies |access-date=2 November 2026}}</ref>
+<ref name="releases">{{cite web |title=Releases · OpenDraft |url=https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases |website=GitHub |publisher=Proteus Technologies |access-date=2 November 2026}}</ref>
+<ref name="features">{{cite web |title=OpenDraft Features |url=https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/blob/main/docs/FEATURES.md |website=GitHub |publisher=Proteus Technologies |access-date=2 November 2026}}</ref>
+<ref name="website">{{cite web |title=OpenDraft |url=https://open-draft.com |publisher=Proteus Technologies |access-date=2 November 2026}}</ref>
+}}
+
+== External links ==
+* {{Official website|https://open-draft.com}}
+* {{GitHub|Proteus-Technologies-Private-Limited/OpenDraft|OpenDraft}}
+
+[[Category:Screenwriting software]]
+[[Category:Free and open-source software]]
+[[Category:Software using the MIT license]]
+[[Category:Cross-platform software]]
+[[Category:2026 software]]

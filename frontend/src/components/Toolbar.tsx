@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Editor } from '@tiptap/react';
+import type { Mark } from '@tiptap/pm/model';
 import {
   FaBold,
   FaItalic,
@@ -27,7 +28,8 @@ import {
 } from 'react-icons/fa';
 import { useEditorStore } from '../stores/editorStore';
 import type { ElementType } from '../stores/editorStore';
-import { addScriptNoteAtSelection } from '../utils/addScriptNote';
+import { addScriptNoteAtSelection, scriptNoteAtSelection } from '../utils/addScriptNote';
+import { panelButtonAction } from '../utils/panelButton';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
 import { BUILT_IN_ELEMENT_IDS, ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
 import {
@@ -47,10 +49,18 @@ import { isInAvCell, isInAvRow, avCellSideAt } from '../editor/extensions/AvBloc
 import { avCellElementRules, scriptBodyElementRules } from '../utils/avCellElements';
 import Select from './Select';
 import { PHONE_DEVICE_CHANGE_EVENT } from '../utils/phoneDevice';
+import { formatShortcut } from '../utils/shortcuts';
+import { elementShortcutSpec } from '../utils/elementShortcuts';
 
 interface ToolbarProps {
   editor: Editor | null;
 }
+
+/** The shortcut that reaches an element, for the dropdown's right-hand column. */
+const shortcutFor = (id: string): string | undefined => {
+  const spec = elementShortcutSpec(id);
+  return spec ? formatShortcut(spec) : undefined;
+};
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 
@@ -513,8 +523,19 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   const handleNotesClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
     e.preventDefault();
     if (!editor) { toggleScriptNotes(); return; }
+    // A second click closes the panel, but only when it would otherwise add a
+    // note to the whole current element or focus a note under the caret. With
+    // a selection it must still add the note the writer selected.
+    if (panelButtonAction(
+      scriptNotesOpen,
+      editor.state.selection.empty,
+      scriptNoteAtSelection(editor) !== null,
+    ) === 'close') {
+      toggleScriptNotes();
+      return;
+    }
     addScriptNoteAtSelection(editor);
-  }, [editor, toggleScriptNotes]);
+  }, [editor, scriptNotesOpen, toggleScriptNotes]);
 
   // ── Tags handler (shared between inline and overflow) ──
   const handleTagsClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
@@ -522,24 +543,30 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     if (!editor) { toggleTagsPanel(); return; }
 
     const markType = editor.schema.marks.productionTag;
+    const $from = editor.state.selection.$from;
+    let tagMark: Mark | null = null;
     if (markType) {
-      const $from = editor.state.selection.$from;
-      const storedMarks = $from.marks();
-      let tagMark = storedMarks.find((m) => m.type === markType);
+      tagMark = $from.marks().find((m) => m.type === markType) ?? null;
       if (!tagMark) {
         const node = $from.nodeAfter || $from.nodeBefore;
-        if (node?.marks) tagMark = node.marks.find((m) => m.type === markType);
-      }
-
-      if (tagMark) {
-        setEditingTagId(tagMark.attrs.tagId as string);
-        if (!tagsPanelOpen) toggleTagsPanel();
-        return;
+        if (node?.marks) tagMark = node.marks.find((m) => m.type === markType) ?? null;
       }
     }
 
+    // As with Notes: close on a plain second click, but a selection or a tag
+    // under the caret keeps the add/focus action.
+    if (panelButtonAction(tagsPanelOpen, editor.state.selection.empty, tagMark !== null) === 'close') {
+      toggleTagsPanel();
+      return;
+    }
+
+    if (tagMark) {
+      setEditingTagId(tagMark.attrs.tagId as string);
+      if (!tagsPanelOpen) toggleTagsPanel();
+      return;
+    }
+
     const { from, to, empty } = editor.state.selection;
-    const $from = editor.state.selection.$from;
     const selFrom = empty ? $from.start() : from;
     const selTo = empty ? $from.end() : to;
     const text = editor.state.doc.textBetween(selFrom, selTo, ' ');
@@ -997,7 +1024,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
             ? avCellElementRules(activeTemplate, avCellSide, String(activeElement))
             : scriptBodyElementRules(activeTemplate, isTitlePageRuleId)
           ).map((r) => (
-            <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]}>
+            <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]} data-shortcut={shortcutFor(r.id)}>
               {r.label}
             </option>
           ))}

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
-import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
+import { panelCloseDelay, useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import {
   useEditorStore,
   ELEMENT_LABELS,
@@ -674,7 +674,7 @@ const ScriptNotes: React.FC<ScriptNotesProps> = ({ editor, style }) => {
     <NoteContentDisplay content={text} assets={assets} projectId={projectId} people={people} me={me} />
   );
 
-  const { shouldRender, animationState } = useDelayedUnmount(scriptNotesOpen, 250);
+  const { shouldRender, animationState } = useDelayedUnmount(scriptNotesOpen, panelCloseDelay());
   const panelRef = useRef<HTMLDivElement>(null);
   useSwipeDismiss(panelRef, { direction: 'right', onDismiss: toggleScriptNotes, enabled: shouldRender });
 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { Editor } from '@tiptap/react';
-import { useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
+import { panelCloseDelay, useDelayedUnmount, useSwipeDismiss } from '../hooks/useTouch';
 import { useEditorStore } from '../stores/editorStore';
 
 interface TagsPanelProps {
@@ -388,7 +388,7 @@ const TagsPanel: React.FC<TagsPanelProps> = ({ editor, style }) => {
     setShowAddForm(false);
   }, [newCatName, newCatColor, addTagCategory]);
 
-  const { shouldRender, animationState } = useDelayedUnmount(tagsPanelOpen, 250);
+  const { shouldRender, animationState } = useDelayedUnmount(tagsPanelOpen, panelCloseDelay());
   const panelRef = useRef<HTMLDivElement>(null);
   useSwipeDismiss(panelRef, { direction: 'right', onDismiss: toggleTagsPanel, enabled: shouldRender });
 

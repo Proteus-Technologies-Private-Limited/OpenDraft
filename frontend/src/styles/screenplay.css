@@ -43,6 +43,9 @@
   --fd-toolbar-bg: #353535;
   --fd-menu-bg: #333333;
   --fd-menu-hover: #4a4a4a;
+  /* Used by dialog buttons and list rows (template editor, bookmarks …) but
+     never defined, so hovers fell back to near-black under dark text. */
+  --fd-toolbar-hover: #4a4a4a;
   --fd-accent: #4a9eff;
   --fd-border: #2a2a2a;
   --fd-chrome-separator: rgba(255,255,255,0.06);
@@ -108,6 +111,7 @@
   --fd-toolbar-bg: #f4f4f4;
   --fd-menu-bg: #f6f6f6;
   --fd-menu-hover: #e0e0e0;
+  --fd-toolbar-hover: #e0e0e0;
   --fd-accent: #1565c0;
   --fd-border: #d8d8d8;
   --fd-chrome-separator: rgba(0,0,0,0.04);
@@ -166,7 +170,14 @@
   padding: 4px 12px 4px 6px; line-height: 1.35; cursor: pointer; white-space: nowrap;
 }
 .od-select-check { flex: none; width: 12px; font-size: 11px; color: var(--fd-accent); text-align: center; }
-.od-select-option-label { overflow: hidden; text-overflow: ellipsis; }
+.od-select-option-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Shortcuts share one right-hand column, so every row lines up. */
+.od-select-shortcut {
+  flex: none; margin-left: auto; padding-left: 24px;
+  color: var(--fd-text-muted); font-size: 11px;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.2px;
+}
+.od-select-option.is-active .od-select-shortcut { color: rgba(255, 255, 255, 0.85); }
 .od-select-option.is-active { background: var(--fd-accent); color: #fff; }
 .od-select-option.is-active .od-select-check { color: #fff; }
 .od-select-option.is-disabled { color: var(--fd-text-muted); cursor: default; }
@@ -999,6 +1010,12 @@ body {
   font-weight: 700; font-size: 11px;
   min-width: 32px; text-align: center;
 }
+.script-diff-chip-moved {
+  background: #3b82f6; color: white;
+  padding: 1px 8px; border-radius: 3px;
+  font-weight: 700; font-size: 11px;
+  min-width: 32px; text-align: center;
+}
 .script-diff-scenes, .script-diff-dialogue-delta {
   list-style: none; padding: 0; margin: 0;
 }
@@ -1038,6 +1055,10 @@ body {
 .diff-modified {
   background: rgba(245, 158, 11, 0.08);
   border-left-color: #f59e0b;
+}
+.diff-moved {
+  background: rgba(59, 130, 246, 0.08);
+  border-left-color: #3b82f6;
 }
 .diff-unchanged { opacity: 0.55; }
 .diff-empty { background: rgba(0, 0, 0, 0.02); }
@@ -4378,6 +4399,18 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 .element-picker-label {
   flex: 1;
   white-space: nowrap;
+}
+/* The shortcut has its own column, separate from the reserved hint column, so
+   a hint moving between rows never changes the menu's width. */
+.element-picker-shortcut {
+  flex: 0 0 auto;
+  margin-left: 12px;
+  font-size: 10px;
+  color: var(--fd-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.element-picker-item.selected .element-picker-shortcut {
+  color: rgba(255,255,255,.6);
 }
 /* Reserved column, wide enough for the longest hint ("blank line"), so the menu
    is sized by its element labels alone. Without it the menu resized as hints
@@ -7935,7 +7968,8 @@ html.android .version-history-panel {
   gap: 6px;
 }
 .version-view-btn,
-.version-restore-btn {
+.version-restore-btn,
+.version-delete-btn {
   background: transparent;
   border: 1px solid var(--fd-border);
   color: var(--fd-text-muted);
@@ -7954,6 +7988,12 @@ html.android .version-history-panel {
   border-color: var(--fd-accent);
   color: var(--fd-accent);
   background: rgba(74, 158, 255, 0.1);
+}
+.version-delete-btn { margin-left: auto; }
+.version-delete-btn:hover {
+  border-color: #c0392b;
+  color: var(--od-danger-text, #c0392b);
+  background: rgba(192, 57, 43, 0.1);
 }
 
 /* ============ HISTORY BANNER (read-only version view) ============ */
@@ -11220,6 +11260,9 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   }
   .menu-dropdown-item { padding: 10px 16px; font-size: 14px; min-height: 40px; }
   .menu-shortcut { display: none; }
+  /* Phone keyboards have no Ctrl/⌘, and the element dropdowns must not grow
+     wider for labels that promise shortcuts only the desktop apps have. */
+  .od-select-shortcut, .element-picker-shortcut { display: none; }
 
   /* Submenus: inline on mobile instead of flyout */
   .menu-dropdown-item.has-children {
@@ -11742,7 +11785,8 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
 
   /* Larger tap targets for version items */
   .version-item { padding: 14px 16px; min-height: 56px; }
-  .version-restore-btn { min-height: 36px; padding: 6px 12px; font-size: 12px; }
+  .version-restore-btn,
+  .version-delete-btn { min-height: 36px; padding: 6px 12px; font-size: 12px; }
 
   /* Index card actions: larger */
   .ic-action-btn { min-height: 36px; padding: 6px 12px; }
@@ -13158,8 +13202,10 @@ del.suggestion-delete {
   background: transparent;
   border: 1px solid var(--fd-border);
   color: var(--fd-text);
-  width: 24px;
+  min-width: 24px;
   height: 24px;
+  padding: 0 8px;
+  gap: 4px;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
@@ -13183,7 +13229,7 @@ del.suggestion-delete {
   color: var(--fd-text);
   border-left: 3px solid transparent;
 }
-.template-element-item:hover { background: var(--fd-toolbar-hover, #333); }
+.template-element-item:hover { background: var(--fd-toolbar-hover); }
 .template-element-item.selected { background: var(--fd-toolbar-hover); border-left-color: var(--fd-accent); }
 .template-element-item.disabled { opacity: 0.5; }
 .template-element-label { flex: 1; }
@@ -14897,6 +14943,18 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
 .external-save-review ul { padding-inline-start: 1.25rem; margin: .75rem 0; }
 .external-save-review label { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; }
 .external-save-review button:disabled { opacity: .5; cursor: not-allowed; }
+/* Proposed character styling remains distinguishable from accepted styling. */
+.suggestion-format { background: rgba(180, 130, 30, .14); border-bottom: 1px dotted #a27312; }
+.suggestions-navigation { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+.suggestions-navigation [role="status"] { font-size: 12px; color: var(--fd-text-muted); }
+.suggestions-navigation button, .suggestions-bulk button, .suggestion-card-actions button { min-height: 36px; }
+.suggestion-card--current { box-shadow: inset 3px 0 var(--fd-accent, #4387cf); background: rgba(80, 140, 200, .08); }
+@media (pointer: coarse) { .suggestions-navigation button, .suggestions-bulk button, .suggestion-card-actions button { min-height: 44px; } }
+
+/* Give both navigation directions the same styling, including on touch screens. */
+.suggestions-navigation .dialog-btn { flex: 1; padding: 4px 8px; font-size: 12px; background: var(--fd-toolbar-bg); color: var(--fd-text); border: 1px solid var(--fd-border); }
+.suggestions-navigation .dialog-btn:hover:not(:disabled) { background: var(--fd-toolbar-hover); }
+.suggestions-navigation .dialog-btn:disabled { opacity: .5; cursor: default; }
 
 /* Layout-only turns within oversized paragraphs never enter the screenplay. */
 .sp-paragraph-page-break {
