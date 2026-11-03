@@ -278,6 +278,8 @@ interface MenuBarProps {
   onJoinCollab?: () => void;
   isCollabActive?: boolean;
   isCollabGuest?: boolean;
+  /** Only editors may change the format or page settings of a shared document. */
+  canEditDocumentFormat?: boolean;
   /**
    * Called with the payload that was just written, so the editor's own idea of
    * "what is on disk" keeps up. Without it a document saved from this menu
@@ -326,6 +328,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   onJoinCollab,
   isCollabActive,
   isCollabGuest,
+  canEditDocumentFormat = true,
   onDocumentSaved,
 }) => {
   const navigate = useNavigate();
@@ -2937,7 +2940,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           },
         ] : []),
         { separator: true, label: '' },
-        { icon: <FaCog />, label: 'Page Setup…', action: () => setPageSetupOpen(true) },
+        { icon: <FaCog />, label: 'Page Setup…', action: () => setPageSetupOpen(true), disabled: !canEditDocumentFormat },
         // "Include Title Page" used to sit here. It moved to the Title Page
         // dialog (Format ▸ Title Page): a bare entry in a long File menu is not
         // where anyone looks for it — the writer who wants the title page kept
@@ -3220,7 +3223,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { separator: true, label: '' },
         { icon: <FaFileAlt />, label: 'Title Page…', action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
         { icon: <FaStream />, label: 'Genre & Pacing…', title: 'Genres for this script, and the pacing the runtime estimate uses', action: () => useEditorStore.getState().setScriptProfileOpen(true) },
-        { icon: <FaFileAlt />, label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true) },
+        { icon: <FaFileAlt />, label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true), disabled: !canEditDocumentFormat },
         { icon: <FaFileAlt />, label: 'Script Format Preferences…', action: () => setFormatPrefsOpen({ firstRun: false, afterSave: null }) },
       ],
     },
@@ -3458,6 +3461,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
               icon: <FaSlidersH />, label: 'Element Numbering\u2026',
               title: 'Choose which elements are numbered and what restarts each count, in the formatting template',
               action: () => setTemplateSelectOpen(true),
+              disabled: !canEditDocumentFormat,
             },
             { separator: true, label: '' },
             {
@@ -3960,10 +3964,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
         </div>
       </div>
     )}
-    {pageSetupOpen && (
+    {pageSetupOpen && canEditDocumentFormat && (
       <PageSetupDialog onClose={() => setPageSetupOpen(false)} />
     )}
-    {templateSelectOpen && (
+    {templateSelectOpen && canEditDocumentFormat && (
       <TemplateSelectDialog editor={editor} onClose={() => setTemplateSelectOpen(false)} />
     )}
     {formatPrefsOpen && (

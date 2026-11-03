@@ -201,3 +201,63 @@ it('does not throw on a layout edit after malformed shared metadata', () => {
   expect(published._templateSnapshot).toEqual(local);
   expect(published._pageLayout.rightMargin).toBe(1.2);
 });
+
+it.each(['suggester', 'viewer'])(
+  'receives the host format without publishing local changes as a %s',
+  (role) => {
+    const shared = packet(format('Host format'));
+    peer.getMap<string>('metadata').set('documentFormat', shared);
+    exchange();
+    startCollabSync(mine, false, () => role === 'editor');
+
+    expect(useFormattingTemplateStore.getState().getActiveTemplate().name).toBe('Host format');
+    expect(applyDocumentTemplate(format('Private change'))).toBe(true);
+    useEditorStore.getState().setPageLayout({
+      ...DEFAULT_PAGE_LAYOUT,
+      rightMargin: 2,
+    });
+    useEditorStore.getState().setSceneHeadingSpaceBefore(3);
+    // Other metadata subscriptions must not smuggle the private format out.
+    useEditorStore.getState().setBeatArrangeMode('custom');
+    expect(mine.getMap<string>('metadata').get('documentFormat')).toBe(shared);
+    Y.applyUpdate(peer, Y.encodeStateAsUpdate(mine, Y.encodeStateVector(peer)), 'remote');
+    expect(peer.getMap<string>('metadata').get('documentFormat')).toBe(shared);
+
+    // Read-only participants must continue receiving later editor changes.
+    peer.getMap<string>('metadata').set('documentFormat', packet(format('Updated host format')));
+    exchange();
+    expect(useFormattingTemplateStore.getState().getActiveTemplate().name).toBe('Updated host format');
+    expect(useEditorStore.getState().pageLayout.rightMargin).toBe(1);
+  },
+);
+
+it('keeps a restricted guest from publishing when the host format arrives after joining', () => {
+  startCollabSync(mine, false, () => false);
+  expect(applyDocumentTemplate(format('Private format'))).toBe(true);
+  expect(mine.getMap('metadata').has('documentFormat')).toBe(false);
+
+  const shared = packet(format('Host format'));
+  peer.getMap<string>('metadata').set('documentFormat', shared);
+  exchange();
+  useEditorStore.getState().setPageLayout({ ...DEFAULT_PAGE_LAYOUT, rightMargin: 2 });
+  expect(mine.getMap<string>('metadata').get('documentFormat')).toBe(shared);
+});
+
+it('checks the format permission on every publication and does not queue blocked changes', () => {
+  let allowed = true;
+  startCollabSync(mine, true, () => allowed);
+  const initial = mine.getMap<string>('metadata').get('documentFormat');
+
+  allowed = false;
+  expect(applyDocumentTemplate(format('Private format'))).toBe(true);
+  useEditorStore.getState().setPageLayout({ ...DEFAULT_PAGE_LAYOUT, rightMargin: 2 });
+  expect(mine.getMap<string>('metadata').get('documentFormat')).toBe(initial);
+
+  allowed = true;
+  useEditorStore.getState().setBeatArrangeMode('custom');
+  expect(mine.getMap<string>('metadata').get('documentFormat')).toBe(initial);
+
+  useEditorStore.getState().setPageLayout({ ...DEFAULT_PAGE_LAYOUT, rightMargin: 1.4 });
+  expect(JSON.parse(mine.getMap<string>('metadata').get('documentFormat')!)._pageLayout.rightMargin)
+    .toBe(1.4);
+});

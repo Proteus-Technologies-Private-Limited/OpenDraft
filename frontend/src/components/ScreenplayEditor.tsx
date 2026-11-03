@@ -713,7 +713,7 @@ const ScreenplayEditor: React.FC = () => {
   // Ref for document-switch handler (defined after setupCollab to avoid circular dependency)
   const handleDocumentSwitchRef = useRef<(projectId: string, scriptId: string, token: string, title?: string) => void>(() => {});
 
-  const setupCollab = useCallback(async (docName: string, inviteToken: string, _userName: string, isHost = false, overrideWsUrl?: string) => {
+  const setupCollab = useCallback(async (docName: string, inviteToken: string, _userName: string, isHost = false, overrideWsUrl?: string, role: CollabRole = 'editor') => {
     // Skip if already setting up the same document (prevents React StrictMode
     // double-invoke from destroying a provider that's still connecting)
     if (collabDocNameRef.current === docName && providerRef.current) {
@@ -958,7 +958,7 @@ const ScreenplayEditor: React.FC = () => {
     providerRef.current = provider;
 
     // Start syncing metadata (characters, notes, tags, beats) via Yjs
-    startCollabSync(ydoc, isHost);
+    startCollabSync(ydoc, isHost, () => role === 'editor');
     return true;
   }, [destroyCollab]);
 
@@ -1010,7 +1010,7 @@ const ScreenplayEditor: React.FC = () => {
       useEditorStore.setState({ sourceFidelity: readSourceFidelity((content as any)?._sourceFidelity) });
 
       const docName = `${projectId}/${scriptId}${nonce ? `/${nonce}` : ''}`;
-      if (!await setupCollab(docName, sharedToken, collabUserName, false, collabWs)) return;
+      if (!await setupCollab(docName, sharedToken, collabUserName, false, collabWs, collabRole)) return;
 
       const docTitle = scriptResp?.meta?.title || title || 'Untitled';
       setCurrentProject(project || { id: projectId, name: 'Collaboration' });
@@ -1022,7 +1022,7 @@ const ScreenplayEditor: React.FC = () => {
       console.error('[Collab] Could not open the document the host switched to:', err);
       showToast(`Couldn't follow the host to ${named}. You're still in the previous script.`, 'error');
     }
-  }, [setupCollab, collabUserName, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
+  }, [setupCollab, collabUserName, collabRole, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
   handleDocumentSwitchRef.current = handleDocumentSwitch;
 
@@ -1245,7 +1245,7 @@ const ScreenplayEditor: React.FC = () => {
         // Include session_nonce so guest joins the exact same Yjs room as the host
         const nonce = session.session_nonce || '';
         const docName = `${session.project_id}/${session.script_id}${nonce ? `/${nonce}` : ''}`;
-        if (!await setupCollab(docName, urlCollabToken, session.collaborator_name)) {
+        if (!await setupCollab(docName, urlCollabToken, session.collaborator_name, false, undefined, collabRoleOf(session.role))) {
           setCollabLoading(false);
           return;
         }
@@ -1443,7 +1443,7 @@ const ScreenplayEditor: React.FC = () => {
       // Do NOT wait for backend content loading (which may hang on unreachable ports).
       const nonce = session.session_nonce || '';
       const docName = `${session.project_id}/${session.script_id}${nonce ? `/${nonce}` : ''}`;
-      if (!await setupCollab(docName, token, session.collaborator_name, false, collabWs)) return;
+      if (!await setupCollab(docName, token, session.collaborator_name, false, collabWs, collabRoleOf(session.role))) return;
 
       setCollabUserName(session.collaborator_name);
       setCollabRole(collabRoleOf(session.role));
@@ -5571,7 +5571,7 @@ const ScreenplayEditor: React.FC = () => {
           return;
         }
         setShareDialogOpen(true);
-      }} onJoinCollab={() => setJoinCollabOpen(true)} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} />}
+      }} onJoinCollab={() => setJoinCollabOpen(true)} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
       <div className="editor-layout">
         {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} style={{ width: navWidth, minWidth: navWidth }} />}

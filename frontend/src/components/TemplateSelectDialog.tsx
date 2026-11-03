@@ -278,9 +278,21 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
               <div className="template-select-item-actions">
                 <button className="dialog-btn dialog-btn-sm" onClick={() => { setEditingDocument(true); setEditingTemplate(libraryTemplate || documentTemplate); }}>{libraryTemplate ? 'Edit Current Format' : 'Edit Document Format'}</button>
                 <button className="dialog-btn dialog-btn-sm" onClick={async () => {
-                  const copy = await createTemplate({ ...JSON.parse(JSON.stringify(documentTemplate)), name: `${documentTemplate.name} (Copy)`, category: 'user' });
-                  setSelectedId(copy.id);
-                  showToast('Format copied to your templates', 'success');
+                  try {
+                    const copy = await createTemplate({
+                      ...JSON.parse(JSON.stringify(documentTemplate)),
+                      name: `${documentTemplate.name} (Copy)`,
+                      category: 'user',
+                    });
+                    setSelectedId(copy.id);
+                    showToast('Format copied to your templates', 'success');
+                  } catch (err) {
+                    console.warn('[TemplateSelectDialog] could not copy the document format', err);
+                    showToast(
+                      err instanceof Error ? err.message : 'Could not save format to your templates.',
+                      'error',
+                    );
+                  }
                 }}>Save to My Templates</button>
               </div>
             </div>

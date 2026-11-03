@@ -93,8 +93,13 @@ let adoptNextNotes: Record<NoteKey, boolean> = { notes: false, generalNotes: fal
  *
  * @param ydoc  The Yjs document used by the collab session
  * @param isHost  If true, seeds the Yjs map with current store data
+ * @param canEditFormat  Whether this participant may publish format/layout changes
  */
-export function startCollabSync(ydoc: Y.Doc, isHost: boolean): void {
+export function startCollabSync(
+  ydoc: Y.Doc,
+  isHost: boolean,
+  canEditFormat: () => boolean = () => true,
+): void {
   stopCollabSync(); // clean up any previous session
 
   metaMap = ydoc.getMap('metadata');
@@ -120,7 +125,7 @@ export function startCollabSync(ydoc: Y.Doc, isHost: boolean): void {
       metaMap!.set('revisionHistory', JSON.stringify(store.revisionHistory));
       metaMap!.set('revisionSettings', JSON.stringify(store.revisionSettings));
       metaMap!.set('scriptProfile', JSON.stringify(store.scriptProfile));
-      metaMap!.set(FORMAT_KEY, formatSnapshot());
+      if (canEditFormat()) metaMap!.set(FORMAT_KEY, formatSnapshot());
       pruneTombstones(Date.now());
     });
     // What the guests start from, so the merge can tell their deletions.
@@ -150,8 +155,12 @@ export function startCollabSync(ydoc: Y.Doc, isHost: boolean): void {
     // Only write keys that actually changed (by stringified value)
     const changed = SYNC_KEYS.filter((key) => !prev || curr[key] !== prev[key]);
     const format = formatSnapshot();
-    const formatChanged = mayPublishFormat && format !== prevFormat;
-    if (changed.length === 0 && !formatChanged) return;
+    const formatChanged = mayPublishFormat && canEditFormat() && format !== prevFormat;
+    if (changed.length === 0 && !formatChanged) {
+      // Do not queue a restricted participant's private changes for later publication.
+      prevFormat = format;
+      return;
+    }
     // One transaction, so a deletion's tombstone travels with the list it
     // was deleted from.
     ydoc.transact(() => {
