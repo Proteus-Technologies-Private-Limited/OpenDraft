@@ -84,6 +84,14 @@ export const SceneHeading = Node.create({
     if (node.attrs.sequenceId) {
       attrs['data-sequence-id'] = node.attrs.sequenceId;
     }
+    // The name and colour travel with the id: copying a scene heading to
+    // another script must not land it in a nameless, grey sequence.
+    if (node.attrs.sequenceName) {
+      attrs['data-sequence-name'] = node.attrs.sequenceName;
+    }
+    if (node.attrs.sequenceColor) {
+      attrs['data-sequence-color'] = node.attrs.sequenceColor;
+    }
     if (node.attrs.omitted) {
       attrs['data-omitted'] = 'true';
     }
