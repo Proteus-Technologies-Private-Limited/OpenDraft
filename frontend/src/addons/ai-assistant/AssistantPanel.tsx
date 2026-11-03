@@ -33,7 +33,7 @@ import {
   type AiToolCall,
 } from './client';
 import { loadSettings } from './settingsStore';
-import { mappedSelection, type ProposedSelection } from './selectionMapping';
+import { discardsProposal, mappedSelection, type ProposedSelection } from './selectionMapping';
 import './assistant.css';
 
 /** Right-sidebar panels receive the editor; that is all this one needs. */
@@ -211,12 +211,21 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
   const pendingSelectionRef = useRef<ProposedSelection | null>(null);
 
   // Follow every transaction while a proposal waits, so the saved range shifts
-  // with an edit above it or around its ends.
+  // with an edit above it or around its ends. A remote change, a Yjs undo or a
+  // whole-document replace (a script switch) removes the words it pointed at,
+  // and mapping through it would collapse the range to the end of the script.
   useEffect(() => {
     if (!editor) return;
     const follow = ({ transaction }: { transaction: Transaction }) => {
       const saved = pendingSelectionRef.current;
-      if (saved && transaction.docChanged) saved.mapping.appendMapping(transaction.mapping);
+      if (!saved || !transaction.docChanged) return;
+      if (discardsProposal(transaction)) {
+        pendingSelectionRef.current = null;
+        setPending(null);
+        setError('The script changed while the proposal was waiting, so it was discarded. Ask again.');
+        return;
+      }
+      saved.mapping.appendMapping(transaction.mapping);
     };
     editor.on('transaction', follow);
     return () => {
@@ -356,9 +365,14 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     const saved = pendingSelectionRef.current;
     pendingSelectionRef.current = null;
     if (saved) {
+      const range = mappedSelection(saved, editor.state.doc.content.size);
+      if (!range) {
+        clearPending();
+        setError('The text the proposal was going to replace is no longer there. Ask again.');
+        return;
+      }
       try {
-        const { from, to } = mappedSelection(saved, editor.state.doc.content.size);
-        editor.commands.setTextSelection({ from, to });
+        editor.commands.setTextSelection(range);
       } catch {
         // The document may have changed since the proposal; insert at the caret.
       }
@@ -386,6 +400,10 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     clearPending();
     addMessage('user', prompt);
     setBusy(true);
+    // A proposal keeps the captured selection for Insert; a prose answer, an
+    // error or a refused action must not leave it following every edit until
+    // the next send.
+    let keptSelection = false;
 
     try {
       const adapter = createTiptapAdapter(editor);
@@ -398,8 +416,12 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
 
       const finishStaged = (staged: ReturnType<typeof stageCalls>): boolean => {
         if (staged.count === 0) return false;
-        if (staged.staged) addMessage('assistant', 'Proposal ready - review and confirm.');
-        else addMessage('assistant', staged.lines.join(' ') || 'Done.');
+        if (staged.staged) {
+          keptSelection = true;
+          addMessage('assistant', 'Proposal ready - review and confirm.');
+        } else {
+          addMessage('assistant', staged.lines.join(' ') || 'Done.');
+        }
         if (staged.failures.length > 0) {
           setError(`Some actions were not applied: ${staged.failures.join(' ')}`);
         }
@@ -553,6 +575,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       setError(message);
       addMessage('assistant', `⚠️ ${message}`);
     } finally {
+      if (!keptSelection) pendingSelectionRef.current = null;
       if (mountedRef.current) {
         setBusy(false);
         inputRef.current?.focus();
