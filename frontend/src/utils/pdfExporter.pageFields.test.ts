@@ -27,11 +27,30 @@ describe('withoutPageFields', () => {
   });
 
   it('drops a comma, colon or semicolon that introduced the field', () => {
-    // These are separators that belong to the removed phrase. Only a full
-    // stop can be the writer's (an abbreviation such as Rev. or Inc.).
+    // These separators introduce the removed phrase, rather than follow it.
     expect(clean('Draft: Page {page}')).toBe('Draft');
     expect(clean('Draft, Page {page}')).toBe('Draft');
     expect(clean('Draft; Page {page}')).toBe('Draft');
+  });
+
+  it('keeps attached punctuation on text after a leading page field', () => {
+    expect(clean('Page {page} - Draft:')).toBe('Draft:');
+    expect(clean('Page {page} - Draft,')).toBe('Draft,');
+    expect(clean('Page {page} - Draft;')).toBe('Draft;');
+    expect(clean('(Page {page}) - Draft:')).toBe('Draft:');
+  });
+
+  it('still drops a separator before a trailing field when fields appear at both ends', () => {
+    expect(clean('Page {page} - Draft: Page {page}')).toBe('Draft');
+    expect(clean('Page {page} - Draft; ({page}).')).toBe('Draft');
+  });
+
+  it('preserves trailing text punctuation in all header/footer slots', () => {
+    expect(withoutPageFields({
+      left: 'Page {page} - Draft:',
+      center: '{page} / {pages} - Notes;',
+      right: 'Page {page} - Rev.,',
+    })).toEqual({ left: 'Draft:', center: 'Notes;', right: 'Rev.,' });
   });
 
   it('repeats the edge trims after removing a template full stop', () => {
