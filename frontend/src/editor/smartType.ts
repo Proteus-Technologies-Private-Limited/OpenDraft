@@ -158,6 +158,28 @@ export function smartTypeKeyAction(
   return 'pass';
 }
 
+/**
+ * The row an arrow key moves to.
+ *
+ * Where Enter/Tab only accept after an arrow key (headings, transitions) no
+ * row is highlighted until then, so the first Down lands on the first row and
+ * the first Up on the last — Down then Enter takes the first suggestion, not
+ * the second.
+ */
+export function smartTypeMove(
+  selected: number,
+  navigated: boolean,
+  requireNavigation: boolean,
+  direction: 'down' | 'up',
+  count: number,
+): number {
+  if (count <= 0) return 0;
+  if (requireNavigation && !navigated) return direction === 'down' ? 0 : count - 1;
+  return direction === 'down'
+    ? Math.min(selected + 1, count - 1)
+    : Math.max(selected - 1, 0);
+}
+
 /** The smallest shape of a document node the collector needs. */
 export interface BlockNodeLike {
   isTextblock: boolean;

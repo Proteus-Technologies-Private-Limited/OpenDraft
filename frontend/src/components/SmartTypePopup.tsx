@@ -9,7 +9,7 @@
  * those keys keep moving the writer on until they step into the list.
  */
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { smartTypeKeyAction } from '../editor/smartType';
+import { smartTypeKeyAction, smartTypeMove } from '../editor/smartType';
 
 interface SmartTypePopupProps {
   position: { top: number; left: number };
@@ -64,12 +64,9 @@ const SmartTypePopup: React.FC<SmartTypePopupProps> = ({
 
     e.preventDefault();
     e.stopPropagation();
-    if (action === 'down') {
+    if (action === 'down' || action === 'up') {
+      setSelectedIndex(smartTypeMove(selectedIndex, navigated, requireNavigation, action, suggestions.length));
       setNavigated(true);
-      setSelectedIndex(i => Math.min(i + 1, suggestions.length - 1));
-    } else if (action === 'up') {
-      setNavigated(true);
-      setSelectedIndex(i => Math.max(i - 1, 0));
     } else if (action === 'accept') {
       onSelect(suggestions[selectedIndex]);
     } else {
@@ -95,6 +92,10 @@ const SmartTypePopup: React.FC<SmartTypePopupProps> = ({
 
   if (suggestions.length === 0) return null;
 
+  // Before the first arrow key in a heading or transition, Enter would not
+  // accept anything, so no row is drawn as chosen.
+  const showSelection = !requireNavigation || navigated;
+
   return (
     <div
       className="smarttype-popup"
@@ -105,7 +106,7 @@ const SmartTypePopup: React.FC<SmartTypePopupProps> = ({
         <div
           key={item}
           ref={el => { itemRefs.current[i] = el; }}
-          className={`smarttype-popup-item${i === selectedIndex ? ' selected' : ''}`}
+          className={`smarttype-popup-item${showSelection && i === selectedIndex ? ' selected' : ''}`}
           onMouseDown={(e) => { e.preventDefault(); onSelect(item); }}
           onMouseEnter={() => setSelectedIndex(i)}
         >

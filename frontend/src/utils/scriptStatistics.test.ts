@@ -29,4 +29,14 @@ describe('parseHeading', () => {
       prefix: 'EST.', location: 'CITY', timeOfDay: 'DAY',
     });
   });
+
+  it('does not read a prefix out of the end of a word', () => {
+    expect(parseHeading('FOREST CLEARING - NIGHT')).toEqual({
+      prefix: '', location: 'FOREST CLEARING', timeOfDay: 'NIGHT',
+    });
+    expect(parseHeading('THE WEST WING - DAY').location).toBe('THE WEST WING');
+    expect(parseHeading('GUEST ROOM - LATER').location).toBe('GUEST ROOM');
+    expect(parseHeading('PRINT SHOP - DAY').location).toBe('PRINT SHOP');
+    expect(parseHeading('NEXT DOOR - NIGHT').location).toBe('NEXT DOOR');
+  });
 });

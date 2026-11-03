@@ -7,6 +7,7 @@ import {
   isLocalSmartTypeUpdate,
   isNonLatinComposition,
   smartTypeKeyAction,
+  smartTypeMove,
   suggestSmartType,
   type ScriptIndex,
 } from './smartType';
@@ -285,5 +286,26 @@ describe('isNonLatinComposition', () => {
 
   it('does nothing when no composition is active', () => {
     expect(isNonLatinComposition(false, '马')).toBe(false);
+  });
+});
+describe('smartTypeMove', () => {
+  it('lands the first Down on the first row where Enter waits for navigation', () => {
+    expect(smartTypeMove(0, false, true, 'down', 3)).toBe(0);
+    expect(smartTypeMove(0, false, true, 'up', 3)).toBe(2);
+  });
+
+  it('steps one row at a time once navigating, clamped to the list', () => {
+    expect(smartTypeMove(0, true, true, 'down', 3)).toBe(1);
+    expect(smartTypeMove(2, true, true, 'down', 3)).toBe(2);
+    expect(smartTypeMove(0, true, true, 'up', 3)).toBe(0);
+  });
+
+  it('moves from the highlighted first row in a character cue', () => {
+    expect(smartTypeMove(0, false, false, 'down', 3)).toBe(1);
+    expect(smartTypeMove(0, false, false, 'up', 3)).toBe(0);
+  });
+
+  it('copes with an empty list', () => {
+    expect(smartTypeMove(0, false, true, 'down', 0)).toBe(0);
   });
 });
