@@ -7,7 +7,7 @@ import { resolveMoresContds } from '../stores/editorStore';
 import { singleLine } from '../utils/nodeText';
 // Line counting lives with the PDF exporter's word wrapper — the two must
 // agree exactly or the editor paginates differently from the exported file.
-import { SPLIT_PARAGRAPH_TYPES, paragraphFragments, paragraphLines, originalTextOffset } from '../utils/paragraphPagination';
+import { SPLIT_PARAGRAPH_TYPES, paragraphFragments, originalTextOffset } from '../utils/paragraphPagination';
 import { getTextLines } from '../utils/wrapText';
 import { DEFAULT_SPACE_BEFORE, buildSpaceBefore, getSpaceBefore, type SpaceBeforeSource } from '../utils/elementSpacing';
 import { findTitlePageRegion, titlePageAttrsCarryData } from '../utils/titlePageRegion';
@@ -311,7 +311,9 @@ export function createPaginationPlugin(
           const turns = new Set(
             ps.breaks.filter((b) => b.nodeIndex === index).map((b) => b.contentOffset),
           );
-          for (const line of paragraphLines(text, CHARS_PER_LINE[node.type.name] || 62).slice(1)) {
+          const lines = paragraphFragments(text, CHARS_PER_LINE[node.type.name] || 62)
+            .flatMap((part) => part.lines);
+          for (const line of lines.slice(1)) {
             const from = originalTextOffset(plan, index, line.from);
             if (turns.has(from) || node.textContent[from - 1] === '\n') continue;
             decos.push(
@@ -477,8 +479,12 @@ function computeBreaksUnlabelled(
     const measuredLines =
       fixedLines ??
       measuredParagraphLines(node, markedText, CHARS_PER_LINE[typeName] || 62) * lineMul;
+    const cueLines =
+      (typeName === 'dialogue' || typeName === 'lyrics') && resolveMoresContds(layout).dialogueBreakContd
+        ? 1 : 0;
     const split =
-      fixedLines === undefined && SPLIT_PARAGRAPH_TYPES.has(typeName) && measuredLines > linesPerPage;
+      fixedLines === undefined && SPLIT_PARAGRAPH_TYPES.has(typeName) &&
+      measuredLines + cueLines > linesPerPage;
     const base = {
       typeName,
       elementId,
@@ -877,7 +883,8 @@ function computeBreaksUnlabelled(
             const splitNode = splitIdx < nodes.length ? nodes[splitIdx] : nodes[blockEnd];
             breaks.push({
               nodeIndex: Math.min(splitIdx, nodes.length - 1),
-              offset: splitNode.offset, nodeSize: splitNode.nodeSize,
+              offset: splitNode.offset,
+              nodeSize: splitNode.nodeSize,
               pageNumber, linesOnPage: lineCount,
               isDialogueSplit: true,
               // One line by definition — this becomes the (MORE)/(CONT'D)
@@ -910,16 +917,21 @@ function computeBreaksUnlabelled(
               const dn = nodes[j];
               const ownNotes = notesFor(j, j);
               const add = j === pageFirst ? linesOf(dn) : dn.spaceBefore + linesOf(dn);
-              if (lineCount + add + (oversizedSpeech && j < blockEnd ? contdLine : 0) > capacityWith(ownNotes) && j > pageFirst) {
+              const moreLines = oversizedSpeech && j < blockEnd ? contdLine : 0;
+              if (lineCount + add + moreLines > capacityWith(ownNotes) && j > pageFirst) {
                 breaks.push({
                   nodeIndex: j,
-                  offset: dn.offset, nodeSize: dn.nodeSize,
+                  offset: dn.offset,
+                  nodeSize: dn.nodeSize,
                   pageNumber, linesOnPage: lineCount,
                   isDialogueSplit: true,
                   characterName: singleLine(nodes[speechAt].text),
                   isTitlePage: false,
                 });
-                if (plan) { closePage(pageNotes); pageNotes = ownNotes; }
+                if (plan) {
+                  closePage(pageNotes);
+                  pageNotes = ownNotes;
+                }
                 pageNumber++;
                 // First on its page: no space above it, under the CONT'D.
                 lineCount = contdLine + linesOf(dn);
@@ -983,7 +995,7 @@ function computeBreaksUnlabelled(
     const arriving = pageNotes
       .map((id) => plan.entryById.get(id))
       .filter((e): e is NonNullable<typeof e> => !!e);
-    let fill = packFootnotePage(pendingSlices, arriving, linesPerPage);
+    const fill = packFootnotePage(pendingSlices, arriving, linesPerPage);
     footnotePages.push({
       pageNumber: pageNumber - 1, noteIds: pageNotes, carryLines, slices: fill.slices,
     });
@@ -1088,10 +1100,19 @@ export function computePageBlocks(
     { pageNumber: 1, nodeIndex: 0, contentOffset: 0, isDialogueSplit: false, dualRow: undefined as number | undefined },
     ...breaks.map((brk) => ({ ...brk, contentOffset: brk.contentOffset ?? 0 })),
   ];
+  const grids = new Map<number, number[]>();
+  for (const turn of breaks) {
+    if (turn.contentOffset === undefined || grids.has(turn.nodeIndex)) continue;
+    const node = nodes[turn.nodeIndex];
+    const marked = plan ? plan.textWithMarkers(turn.nodeIndex, node.text) : node.text;
+    const lines = paragraphFragments(marked, CHARS_PER_LINE[node.typeName] || 62)
+      .flatMap((part) => part.lines);
+    grids.set(turn.nodeIndex, lines.map((line) => originalTextOffset(plan, turn.nodeIndex, line.from)));
+  }
   const pages: PageContentInfo[] = [];
   for (let page = 0; page < starts.length; page++) {
-    const start = starts[page],
-      end = starts[page + 1];
+    const start = starts[page];
+    const end = starts[page + 1];
     const blocks: PageBlockInfo[] = [];
     const columns = start.dualRow === undefined ? null : pmDualColumns(doc.child(start.nodeIndex));
     const continued = columns && dualContinuations(
@@ -1116,7 +1137,15 @@ export function computePageBlocks(
         : node.text.slice(from, to);
       const displayed = text.endsWith('\n') && to < node.text.length ? text.slice(0, -1) : text;
       const nonPrinting = isNonPrintingType(node.typeName);
-      const lines = dual ? rowTo - rowFrom : nonPrinting ? 0 : getTextLines(displayed, CHARS_PER_LINE[node.typeName] || 62);
+      const grid = grids.get(index);
+      let lines = 0;
+      if (dual) lines = rowTo - rowFrom;
+      else if (!nonPrinting) {
+        lines = grid
+          ? grid.filter((offset) => offset >= from &&
+              (offset < to || to === node.text.length && offset === to)).length
+          : getTextLines(displayed, CHARS_PER_LINE[node.typeName] || 62);
+      }
       const sb = firstPrinting || nonPrinting ? 0 : (hints.spaceBefore[node.typeName] ?? 0);
       if (!nonPrinting) firstPrinting = false;
       blocks.push({

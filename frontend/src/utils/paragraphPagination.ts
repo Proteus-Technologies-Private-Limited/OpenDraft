@@ -64,40 +64,64 @@ export function paragraphFragments(
   text: string,
   cpl: number,
 ): (ParagraphLine & { lines: ParagraphLine[] })[] {
-  const lines = paragraphLines(text, cpl);
+  // Bound each reflow to ten original lines. Rewrapping the entire remaining
+  // paragraph at every sentence would make long speeches quadratic.
+  const original = paragraphLines(text, cpl);
   const fragments: (ParagraphLine & { lines: ParagraphLine[] })[] = [];
-  const endsSentence = (index: number) => /[.!?]["'’”)\]]*\s*$/.test(lines[index].text);
-  for (let from = 0; from < lines.length; ) {
-    const latest = Math.min(from + 6, lines.length - 2);
+  let originalLine = 0;
+  let from = 0;
+  let followsSentence = false;
+  while (from < text.length) {
+    while (originalLine + 1 < original.length && original[originalLine + 1].from <= from) {
+      originalLine++;
+    }
+    const windowEnd = original[Math.min(originalLine + 10, original.length - 1)].to;
+    const window = text.slice(from, windowEnd);
+    const lines = paragraphLines(window, cpl);
+    if (windowEnd < text.length && lines.at(-1)?.from === window.length) lines.pop();
+    const latest = Math.min(6, lines.length - 2);
     let sentence = -1;
-    // Search back four lines, retaining at least two lines on both sides.
-    for (let end = latest; end >= from + 2; end--) {
-      if (endsSentence(end - 1)) { sentence = end; break; }
+    const limit = lines[latest - 1]?.to ?? 0;
+    // A sentence can end inside a printed line. Keep that short line and
+    // reflow the following fragment, rather than waiting for punctuation to
+    // coincide with a pre-existing line end.
+    for (const match of window.matchAll(/[.!?]["'’”)\]]*(?=\s|$)[ \t]*(?:\n)?/g)) {
+      const end = match.index + match[0].length;
+      if (end > limit) break;
+      const before = paragraphLines(window.slice(0, end), cpl);
+      if (before.at(-1)?.from === end) before.pop();
+      if (before.length >= 2 && paragraphLines(window.slice(end), cpl).length >= 2) {
+        sentence = end;
+      }
     }
     const previous = fragments.at(-1);
-    if (previous && sentence < 0 && lines.length - from >= 3 && endsSentence(from)) {
-      // A sentence one line ahead cannot form a fragment on its own. Extend
-      // the preceding fragment instead of hiding that valid turn boundary.
-      previous.lines.push(lines[from]);
-      previous.to = lines[from].to;
+    if (previous && sentence < 0 && lines.length >= 3 && /[.!?]["'’”)\]]*\s*$/.test(lines[0].text)) {
+      const line = lines[0];
+      previous.lines.push({ from: from + line.from, to: from + line.to, text: line.text });
+      previous.to = from + line.to;
       previous.text = text.slice(previous.from, previous.to);
-      from++;
+      from = previous.to;
+      followsSentence = true;
       continue;
     }
-    // Do not introduce fallback cuts in the four lines immediately after an
-    // available sentence ending. Elsewhere keep the compact two-line grid.
-    let to = Math.min(lines.length, from + (from > 0 && endsSentence(from - 1) ? 6 : 2));
-    if (lines.length - to === 1) to += to - from > 2 ? -1 : 1;
-    if (sentence >= 0) to = sentence;
-    const first = lines[from].from;
-    const end = lines[to - 1].to;
+    let count = Math.min(lines.length, followsSentence ? 6 : 2);
+    if (lines.length - count === 1) count += count > 2 ? -1 : 1;
+    const end = sentence >= 0 ? sentence : lines[count - 1].to;
+    const fragmentText = window.slice(0, end);
+    const fragmentLines = paragraphLines(fragmentText, cpl);
+    if (from + end < text.length && fragmentLines.at(-1)?.from === end) fragmentLines.pop();
     fragments.push({
-      from: first,
-      to: end,
-      text: text.slice(first, end),
-      lines: lines.slice(from, to),
+      from,
+      to: from + end,
+      text: fragmentText,
+      lines: fragmentLines.map((line) => ({
+        from: from + line.from,
+        to: from + line.to,
+        text: line.text,
+      })),
     });
-    from = to;
+    followsSentence = /[.!?]["'’”)\]]*\s*$/.test(fragmentText);
+    from += end;
   }
   return fragments;
 }
