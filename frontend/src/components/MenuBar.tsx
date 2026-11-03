@@ -211,6 +211,7 @@ import {
   FaExpandArrowsAlt,
   FaEyeSlash,
   FaListUl,
+  FaMap,
   FaToggleOn,
   FaLock,
   FaFileSignature,
@@ -352,6 +353,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     toggleIndexCards,
     beatBoardOpen,
     toggleBeatBoard,
+    storyMapOpen,
+    toggleStoryMap,
     outlineOpen,
     toggleOutline,
     scriptNotesOpen,
@@ -3291,6 +3294,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             { icon: <FaTh />, label: indexCardsOpen ? '\u2713 Index Cards' : 'Index Cards', action: toggleIndexCards },
             { icon: <FaStream />, label: beatBoardOpen ? '\u2713 Beat Board' : 'Beat Board', action: toggleBeatBoard },
             { icon: <FaListUl />, label: outlineOpen ? '\u2713 Outline' : 'Outline', action: toggleOutline },
+            { icon: <FaMap />, label: storyMapOpen ? '\u2713 Story Map' : 'Story Map', title: 'The scenes as one strip, by page length or screen time', action: toggleStoryMap },
             { icon: <FaProjectDiagram />, label: 'Story Timeline…', title: 'Plotlines across the scenes, by screen time', action: () => {
               // The timeline edits scene headings, so the script has to be on
               // screen under it, not the Beat Board or Statistics.

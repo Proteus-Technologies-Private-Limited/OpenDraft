@@ -68,6 +68,7 @@ import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
 import SceneNavigator from './SceneNavigator';
 import IndexCards from './IndexCards';
+import StoryMap from './StoryMap';
 import BeatBoard from './BeatBoard';
 import OutlineView from './OutlineView';
 import ScriptStatistics from './ScriptStatistics';
@@ -550,6 +551,7 @@ const ScreenplayEditor: React.FC = () => {
     zoomLevel, setZoomLevel, fontFamily, fontSize, pageLayout, tagsVisible, notesVisible,
     viewLayout,
     beatBoardOpen, statisticsOpen,
+    storyMapOpen, toggleStoryMap,
     outlineOpen,
     navigatorOpen, toggleNavigator, scriptNotesOpen, toggleScriptNotes,
     characterProfilesOpen, tagsPanelOpen, locationDatabaseOpen, dialogueTunerOpen,
@@ -5906,6 +5908,11 @@ const ScreenplayEditor: React.FC = () => {
               </div>
               </div>
             </div>
+          )}
+          {/* The scenes as one strip under the script; the same component is
+              the timeline inside the Index Cards view. */}
+          {!isHistoryMode && storyMapOpen && editor && !outlineOpen && !statisticsOpen && !beatBoardOpen && (
+            <StoryMap editor={editor} onRequestClose={toggleStoryMap} scrollContainer={editorMainRef.current} />
           )}
           {/* Table Read docks over the bottom of the script it is reading. */}
           {storyTimelineOpen && editor && (
