@@ -14915,6 +14915,9 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
 .screenplay-element.sp-paragraph-grid { white-space: pre; overflow-wrap: normal; word-break: normal; }
 @media screen {
   .phone-view .screenplay-element.sp-paragraph-grid { white-space: pre-wrap; overflow-wrap: break-word; }
+  /* The desktop line grid's breaks would double up with the phone column's
+     own wrapping. */
+  .phone-view br.sp-paragraph-line { display: none; }
 }
 /* Oversized dual dialogue alone uses the shared character grid. These are
    decorations, never hard breaks or text in the saved screenplay. */

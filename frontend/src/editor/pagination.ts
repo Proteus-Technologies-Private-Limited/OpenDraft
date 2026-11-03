@@ -319,10 +319,16 @@ export function createPaginationPlugin(
                 offset + 1 + from,
                 () => {
                   const br = document.createElement('br');
+                  // Phone view hides these and lets the column wrap: a 62-column
+                  // grid on a narrow screen alternated long and short lines.
+                  br.className = 'sp-paragraph-line';
                   br.setAttribute('aria-hidden', 'true');
                   return br;
                 },
-                { side: -1 },
+                // A stable key lets ProseMirror keep the same <br> across view
+                // updates; without one every line break of an oversized
+                // paragraph was rebuilt on each keystroke and caret move.
+                { side: -1, key: `sp-paragraph-line-${index}-${from}` },
               ),
             );
           }
