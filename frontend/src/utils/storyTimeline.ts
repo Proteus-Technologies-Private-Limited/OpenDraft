@@ -52,6 +52,33 @@ export function timelineScenes(doc: PmNode, timing: TimingOptions): TimelineScen
   });
 }
 
+/**
+ * How far apart the Story Map's time ruler labels sit, chosen for the script's
+ * length. Shared with the strip that sits under the Index Cards.
+ */
+export function storyMapTimeStep(totalSeconds: number): number {
+  if (totalSeconds <= 120) return 15;
+  if (totalSeconds <= 300) return 30;
+  if (totalSeconds <= 900) return 60;
+  if (totalSeconds <= 1800) return 120;
+  return 300;
+}
+
+/**
+ * Screen seconds for every scene heading, matched by document position.
+ *
+ * `timelineScenes` skips a scene heading with no text, while the editor's
+ * scene list includes it as "Untitled Scene". Aligning by index would shift
+ * every duration after it onto the wrong block.
+ */
+export function secondsByScenePosition(
+  positions: ReadonlyArray<number | null>,
+  timeline: ReadonlyArray<Pick<TimelineScene, 'pos' | 'seconds'>>,
+): number[] {
+  const byPos = new Map(timeline.map((scene) => [scene.pos, scene.seconds]));
+  return positions.map((pos) => (pos === null ? 0 : byPos.get(pos) ?? 0));
+}
+
 /** Put the scene heading at `pos` in a plotline, or take it out if it is in it. */
 export function toggleScenePlotlineTransaction(state: EditorState, pos: number, plotlineId: string): Transaction | null {
   const node = state.doc.nodeAt(pos);
