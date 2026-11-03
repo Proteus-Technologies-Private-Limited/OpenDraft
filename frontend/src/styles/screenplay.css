@@ -4590,7 +4590,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 }
 .page-preview-sheet {
   position: relative;
-  width: 100%;
+  margin: 0 auto;
   background: #fff;
   color: #111;
   border-radius: 2px;

@@ -80,14 +80,20 @@ const PagePreviewPane: React.FC<Props> = ({ editor, onRequestClose }) => {
     const el = scrollRef.current;
     if (!el) return;
     const measure = () => {
-      const available = el.clientWidth - SCROLL_PADDING * 2;
-      setScale(Math.max(0.05, available / refWidthPx));
+      const availableW = el.clientWidth - SCROLL_PADDING * 2;
+      const availableH = el.clientHeight - SCROLL_PADDING * 2;
+      // In the side-by-side pane the width is the limit; in a stacked pane the
+      // height is. Taking the smaller scale keeps a whole page visible in both
+      // instead of drawing a letter page as wide as the window.
+      const widthScale = availableW / refWidthPx;
+      const heightScale = availableH / refHeightPx;
+      setScale(Math.max(0.05, Math.min(widthScale, heightScale)));
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [refWidthPx]);
+  }, [refWidthPx, refHeightPx]);
 
   const spaceBefore = useMemo(() => getSpaceBefore(), []);
 
@@ -135,7 +141,10 @@ const PagePreviewPane: React.FC<Props> = ({ editor, onRequestClose }) => {
           <div
             className="page-preview-sheet"
             key={page.pageNumber}
-            style={{ aspectRatio: `${pageLayout.pageWidth} / ${pageLayout.pageHeight}` }}
+            style={{
+              width: `${Math.max(1, Math.round(refWidthPx * scale))}px`,
+              height: `${Math.max(1, Math.round(refHeightPx * scale))}px`,
+            }}
           >
             <div
               className="page-preview-sheet-inner"
