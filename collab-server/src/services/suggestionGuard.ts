@@ -55,6 +55,7 @@ interface YFragmentLike {
   unobserveDeep(f: (events: YEventLike[]) => void): void;
 }
 interface YDocLike {
+  store?: { pendingStructs: { update: Uint8Array } | null };
   getXmlFragment(name: string): YFragmentLike;
   destroy(): void;
   on(event: 'update', f: (update: Uint8Array) => void): void;
@@ -71,6 +72,7 @@ export interface YjsLike {
   encodeStateAsUpdate(doc: YDocLike): Uint8Array;
   encodeStateVector(doc: YDocLike): Uint8Array;
   decodeStateVector(state: Uint8Array): Map<number, number>;
+  decodeUpdateV2(update: Uint8Array): ReturnType<YjsLike['decodeUpdate']>;
   decodeUpdate(update: Uint8Array): {
     structs: Array<{ id?: { client: number; clock: number }; content?: { key?: string; value?: unknown } }>;
     ds: { clients: Map<number, Array<{ clock: number; len: number }>> };

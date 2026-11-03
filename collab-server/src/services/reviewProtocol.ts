@@ -11,8 +11,15 @@ export function supportsReview(token: string): boolean {
   return token.split('|').includes(`review:${REVIEW_PROTOCOL}`);
 }
 
-/** Only visible marks matter; deleted Yjs structs cannot damage an older schema. */
+/** Visible marks and buffered marks awaiting dependencies must not reach older schemas. */
 export function hasReviewFormats(Y: YjsLike, doc: ReviewDocument): boolean {
+  // A later dependency could make buffered format structs visible without
+  // sending another ContentFormat struct. Refuse legacy joins until resolved.
+  const pending = doc.store?.pendingStructs?.update;
+  if (pending && Y.decodeUpdateV2(pending).structs.some(({ content }) =>
+    content?.key?.split('--')[0] === 'suggestionFormat'
+      && content.value != null && content.value !== false,
+  )) return true;
   return flatten(Y, doc.getXmlFragment('default')).some((unit) =>
     unit.kind === 'char' && Object.entries(unit.marks).some(([name, value]) =>
       name.split('--')[0] === 'suggestionFormat' && value != null && value !== false,

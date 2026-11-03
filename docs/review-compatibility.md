@@ -39,6 +39,8 @@ run there; viewer connections remain read-only.
 Normal update checks decode only incoming Yjs structs. Already-integrated or
 simultaneously deleted formatting structs are ignored. The document is checked
 for existing proposals when an older client joins, not on every cursor message.
+That join check also covers buffered proposals awaiting CRDT dependencies, so a
+later parent update cannot reveal an unchecked mark to an older client.
 Refusal reasons include readable guidance for installed older apps.
 
 Collaborative undo/redo is guarded before the Yjs document changes. When format

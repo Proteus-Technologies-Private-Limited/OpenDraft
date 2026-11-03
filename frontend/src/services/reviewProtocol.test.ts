@@ -127,3 +127,17 @@ it('recovers formatting capability from server messages after a failed probe', a
   }
   for (const payload of ['not JSON', 'null', '{"type":"other","enabled":true}', '{"type":"review-capability","enabled":"true"}']) expect(reviewCapability(payload)).toBeNull();
 });
+
+it('refuses legacy joins while buffered proposals await parent dependencies', () => {
+  const source = script();
+  const base = Y.encodeStateAsUpdate(source);
+  const update = formatUpdate(source);
+  const room = new Y.Doc();
+  Y.applyUpdate(room, update);
+  expect(room.getXmlFragment('default').length).toBe(0);
+  expect(hasReviewFormats(reviewY, room)).toBe(true);
+  expect(() => new ReviewGate().checkClient(reviewY, room, false)).toThrow(/Update OpenDraft/);
+  Y.applyUpdate(room, base);
+  expect(hasReviewFormats(reviewY, room)).toBe(true);
+  source.destroy(); room.destroy();
+});
