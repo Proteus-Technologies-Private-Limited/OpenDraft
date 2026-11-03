@@ -1061,7 +1061,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
             <span className="scene-count">
               {structure.totalSections > 0
                 ? `${structure.totalSections} section${structure.totalSections === 1 ? '' : 's'}`
-                : `${structure.acts.filter((a) => a.actNumber > 0).length || 'â€”'} acts`}
+                : `${structure.acts.filter((a) => a.actNumber > 0).length || '\u2014'} acts`}
             </span>
           </div>
           <div className="navigator-list">
