@@ -66,6 +66,7 @@ import HeaderFooterDialog from './HeaderFooterDialog';
 import type { BandKind } from './HeaderFooterBand';
 import MenuBar from './MenuBar';
 import Toolbar from './Toolbar';
+import ToolbarCustomiseDialog from './ToolbarCustomiseDialog';
 import SceneNavigator from './SceneNavigator';
 import IndexCards from './IndexCards';
 import StoryMap from './StoryMap';
@@ -5718,6 +5719,7 @@ const ScreenplayEditor: React.FC = () => {
         setShareDialogOpen(true);
       }} onJoinCollab={() => setJoinCollabOpen(true)} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
+      {!isHistoryMode && <ToolbarCustomiseDialog />}
       <div className="editor-layout">
         {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} style={{ width: navWidth, minWidth: navWidth }} />}
         {!isHistoryMode && navigatorOpen && (

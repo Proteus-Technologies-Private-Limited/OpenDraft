@@ -14,6 +14,12 @@ import {
   type FootnoteMarkerStyle,
 } from '../utils/noteNumbering';
 import { normalizeNoteThread, type NoteThread } from '../utils/noteThreads';
+import {
+  findToolbarPreset,
+  normaliseSavedLayouts,
+  normaliseToolbarItems,
+  type SavedToolbarLayout,
+} from '../utils/toolbarLayout';
 import { useSettingsStore } from './settingsStore';
 
 // ── View-state persistence helpers ──
@@ -40,6 +46,12 @@ interface ViewState {
   speedZoomLevel?: number;
   viewLayout?: ViewLayout;
   toolbarMode?: 'compact' | 'comfortable' | 'hidden';
+  /** The toolbar's controls, in the order the writer arranged them. */
+  toolbarItems?: string[];
+  /** The preset the layout came from, or 'custom' once it was edited. */
+  toolbarPreset?: string;
+  /** Layouts the writer saved under their own names, on this device. */
+  toolbarLayouts?: SavedToolbarLayout[];
   focusTypewriter?: boolean;
   focusDim?: 'off' | 'element' | 'scene';
   characterSortBy?: 'name' | 'importance' | 'scenes' | 'dialogues' | 'appearance';
@@ -124,6 +136,14 @@ export type SplitScreenMode = 'side-by-side' | 'stacked';
 
 /** What the split screen shows beside the script. */
 export type SplitScreenPane = 'page-view' | 'index-cards' | 'outline' | 'beat-board';
+
+/**
+ * The view that owns the writing area. Index Cards, the Beat Board and the
+ * Outline each take the whole screen, so only one can be up at a time; the
+ * Navigators and the Story Map are panels that sit alongside whichever one it
+ * is.
+ */
+export type MainView = 'script' | 'index-cards' | 'beat-board' | 'outline';
 
 function defaultViewLayout(): ViewLayout {
   return isPhoneDevice() ? 'phone' : 'page';
@@ -826,6 +846,12 @@ interface EditorState {
   /** Dedicated outline editor (acts, sequences, sections, scenes). */
   outlineOpen: boolean;
   toggleOutline: () => void;
+  /**
+   * Choose the view that owns the writing area, closing the other full-screen
+   * views. `script` leaves the split screen alone; a full view closes it,
+   * because there would be no editor left to split.
+   */
+  setMainView: (view: MainView) => void;
   statisticsOpen: boolean;
   setStatisticsOpen: (open: boolean) => void;
   statisticsScrollTo: string | null;
@@ -1056,6 +1082,20 @@ interface EditorState {
   // Toolbar display mode
   toolbarMode: 'compact' | 'comfortable' | 'hidden';
   setToolbarMode: (mode: 'compact' | 'comfortable' | 'hidden') => void;
+  /** The toolbar's controls, in order. Saved on this device, like the mode. */
+  toolbarItems: string[];
+  setToolbarItems: (items: string[]) => void;
+  applyToolbarPreset: (preset: string) => void;
+  toolbarPreset: string;
+  /** Named layouts the writer saved, kept apart from the built-in presets. */
+  toolbarLayouts: SavedToolbarLayout[];
+  /** Save the current bar under a name; returns its id, or null for a blank name. */
+  saveToolbarLayout: (label: string) => string | null;
+  applyToolbarLayout: (id: string) => void;
+  deleteToolbarLayout: (id: string) => void;
+  /** The Customise Toolbar dialog. Not saved: every launch starts closed. */
+  toolbarCustomiseOpen: boolean;
+  setToolbarCustomiseOpen: (open: boolean) => void;
   /**
    * View → Focus Mode: full screen, menus and panels out of the way. Not
    * saved — every launch starts with the normal window. Its two options are.
@@ -1267,17 +1307,27 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   indexCardsOpen: _vs.indexCardsOpen ?? false,
   toggleIndexCards: () => set((s) => {
     const v = !s.indexCardsOpen;
-    saveViewState({ indexCardsOpen: v });
-    return { indexCardsOpen: v };
+    // The full-width views replace one another; opening the cards closes the
+    // Beat Board, the Outline and a split screen that has no editor left.
+    saveViewState(v ? { indexCardsOpen: true, beatBoardOpen: false } : { indexCardsOpen: false });
+    return v
+      ? {
+        indexCardsOpen: true, beatBoardOpen: false, outlineOpen: false,
+        statisticsOpen: false, storyTimelineOpen: false, splitScreenOpen: false,
+      }
+      : { indexCardsOpen: false };
   }),
   beatBoardOpen: _vs.beatBoardOpen ?? false,
   toggleBeatBoard: () => set((s) => {
     const v = !s.beatBoardOpen;
-    saveViewState({ beatBoardOpen: v });
     // The full-width planning views replace one another; opening this one
-    // closes the Outline and Statistics instead of hiding them.
+    // closes the Outline, Statistics, the cards and a split screen.
+    saveViewState(v ? { beatBoardOpen: true, indexCardsOpen: false } : { beatBoardOpen: false });
     return v
-      ? { beatBoardOpen: true, outlineOpen: false, statisticsOpen: false, splitScreenOpen: false }
+      ? {
+        beatBoardOpen: true, indexCardsOpen: false, outlineOpen: false,
+        statisticsOpen: false, storyTimelineOpen: false, splitScreenOpen: false,
+      }
       : { beatBoardOpen: false };
   }),
   storyMapOpen: _vs.storyMapOpen ?? false,
@@ -1295,39 +1345,77 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   toggleSplitScreen: () => set((s) => {
     const open = !s.splitScreenOpen;
     // The full-width views leave no editor to split.
+    if (open) saveViewState({ indexCardsOpen: false, beatBoardOpen: false });
     return open
-      ? { splitScreenOpen: true, statisticsOpen: false, beatBoardOpen: false, outlineOpen: false }
+      ? {
+        splitScreenOpen: true, indexCardsOpen: false, beatBoardOpen: false,
+        outlineOpen: false, statisticsOpen: false, storyTimelineOpen: false,
+      }
       : { splitScreenOpen: false };
   }),
   splitScreenMode: 'side-by-side',
-  setSplitScreenMode: (mode) => set((s) => (s.splitScreenOpen && s.splitScreenMode === mode
-    ? {}
-    : {
+  setSplitScreenMode: (mode) => set((s) => {
+    if (s.splitScreenOpen && s.splitScreenMode === mode) return {};
+    saveViewState({ indexCardsOpen: false, beatBoardOpen: false });
+    return {
       splitScreenMode: mode, splitScreenOpen: true,
-      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false,
-    })),
+      indexCardsOpen: false, beatBoardOpen: false, outlineOpen: false,
+      statisticsOpen: false, storyTimelineOpen: false,
+    };
+  }),
   splitScreenPane: 'index-cards',
-  setSplitScreenPane: (pane) => set((s) => (s.splitScreenOpen && s.splitScreenPane === pane
-    ? {}
-    : {
+  setSplitScreenPane: (pane) => set((s) => {
+    if (s.splitScreenOpen && s.splitScreenPane === pane) return {};
+    saveViewState({ indexCardsOpen: false, beatBoardOpen: false });
+    return {
       splitScreenPane: pane, splitScreenOpen: true,
-      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false,
-    })),
+      indexCardsOpen: false, beatBoardOpen: false, outlineOpen: false,
+      statisticsOpen: false, storyTimelineOpen: false,
+    };
+  }),
   outlineOpen: false,
   toggleOutline: () => set((s) => {
     const open = !s.outlineOpen;
     if (!open) return { outlineOpen: false };
-    // Keep the saved Beat Board choice in step: the Outline takes the screen.
-    saveViewState({ beatBoardOpen: false });
-    return { outlineOpen: true, statisticsOpen: false, beatBoardOpen: false, storyTimelineOpen: false, splitScreenOpen: false };
+    // Keep the saved choices in step: the Outline takes the screen.
+    saveViewState({ beatBoardOpen: false, indexCardsOpen: false });
+    return {
+      outlineOpen: true, indexCardsOpen: false, statisticsOpen: false,
+      beatBoardOpen: false, storyTimelineOpen: false, splitScreenOpen: false,
+    };
   }),
+  setMainView: (view) => {
+    const s = get();
+    if (view === 'script') {
+      if (!s.indexCardsOpen && !s.beatBoardOpen && !s.outlineOpen) return;
+      saveViewState({ indexCardsOpen: false, beatBoardOpen: false });
+      set({ indexCardsOpen: false, beatBoardOpen: false, outlineOpen: false });
+      return;
+    }
+    // A full view takes the whole writing area, so the split screen goes too.
+    saveViewState({
+      indexCardsOpen: view === 'index-cards',
+      beatBoardOpen: view === 'beat-board',
+    });
+    set({
+      indexCardsOpen: view === 'index-cards',
+      beatBoardOpen: view === 'beat-board',
+      outlineOpen: view === 'outline',
+      statisticsOpen: false,
+      storyTimelineOpen: false,
+      splitScreenOpen: false,
+    });
+  },
   statisticsOpen: false,
-  setStatisticsOpen: (open) => set((s) => {
+  setStatisticsOpen: (open) => set(() => {
     if (!open) return { statisticsOpen: false };
-    // Statistics takes the screen like the Outline does, so the Beat Board
-    // choice is saved as closed instead of opening again on the next reload.
-    if (s.beatBoardOpen) saveViewState({ beatBoardOpen: false });
-    return { statisticsOpen: true, outlineOpen: false, beatBoardOpen: false, splitScreenOpen: false };
+    // Statistics takes the screen like the Outline does, so the saved choices
+    // are closed instead of opening again on the next reload.
+    saveViewState({ beatBoardOpen: false, indexCardsOpen: false });
+    return {
+      statisticsOpen: true, indexCardsOpen: false, outlineOpen: false,
+      beatBoardOpen: false, splitScreenOpen: false,
+    };
   }),
   statisticsScrollTo: null,
   setStatisticsScrollTo: (id) => set({ statisticsScrollTo: id }),
@@ -1851,6 +1939,49 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   toolbarMode: (_vs.toolbarMode as 'compact' | 'comfortable' | 'hidden') ?? defaultToolbarMode(),
   setToolbarMode: (mode) => { set({ toolbarMode: mode }); saveViewState({ toolbarMode: mode }); },
+  toolbarItems: normaliseToolbarItems(_vs.toolbarItems),
+  setToolbarItems: (items) => {
+    const next = normaliseToolbarItems(items);
+    set({ toolbarItems: next, toolbarPreset: 'custom' });
+    saveViewState({ toolbarItems: next, toolbarPreset: 'custom' });
+  },
+  applyToolbarPreset: (preset) => {
+    const found = findToolbarPreset(preset);
+    if (!found) return;
+    const next = [...found.items];
+    set({ toolbarItems: next, toolbarPreset: found.id });
+    saveViewState({ toolbarItems: next, toolbarPreset: found.id });
+  },
+  // An old build may have saved an id this one has since dropped; the
+  // normaliser has already removed it. An unset preset means the writer has
+  // never arranged the bar, so it is the default one.
+  toolbarPreset: _vs.toolbarPreset ?? 'default',
+  toolbarLayouts: normaliseSavedLayouts(_vs.toolbarLayouts),
+  saveToolbarLayout: (label) => {
+    const clean = label.trim().slice(0, 40);
+    if (!clean) return null;
+    const id = `layout-${uuid()}`;
+    const layout: SavedToolbarLayout = { id, label: clean, items: [...get().toolbarItems] };
+    const layouts = [...get().toolbarLayouts, layout];
+    set({ toolbarLayouts: layouts, toolbarPreset: id });
+    saveViewState({ toolbarLayouts: layouts, toolbarPreset: id });
+    return id;
+  },
+  applyToolbarLayout: (id) => {
+    const layout = get().toolbarLayouts.find((entry) => entry.id === id);
+    if (!layout) return;
+    const items = [...layout.items];
+    set({ toolbarItems: items, toolbarPreset: id });
+    saveViewState({ toolbarItems: items, toolbarPreset: id });
+  },
+  deleteToolbarLayout: (id) => {
+    const layouts = get().toolbarLayouts.filter((entry) => entry.id !== id);
+    const preset = get().toolbarPreset === id ? 'custom' : get().toolbarPreset;
+    set({ toolbarLayouts: layouts, toolbarPreset: preset });
+    saveViewState({ toolbarLayouts: layouts, toolbarPreset: preset });
+  },
+  toolbarCustomiseOpen: false,
+  setToolbarCustomiseOpen: (open) => set({ toolbarCustomiseOpen: open }),
   focusMode: false,
   setFocusMode: (on) => set({ focusMode: on }),
   focusTypewriter: _vs.focusTypewriter ?? true,

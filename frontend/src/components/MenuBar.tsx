@@ -23,6 +23,7 @@ import { macroLabel } from '../utils/macros';
 import { insertMacro } from './macroActions';
 import { addScriptNoteAtSelection } from '../utils/addScriptNote';
 import { FOCUS_MODE_SHORTCUT } from '../editor/extensions/FocusMode';
+import { APP_COMMAND_EVENT, type AppCommand } from '../utils/appCommands';
 import { showToast } from './Toast';
 import { useSuggestModeStore } from '../stores/suggestModeStore';
 import { hasSuggestions, withoutSuggestionsJSON } from '../editor/suggestions';
@@ -405,6 +406,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setAppearance,
     toolbarMode: savedToolbarMode,
     setToolbarMode,
+    setToolbarCustomiseOpen,
     focusMode,
     setFocusMode,
     focusTypewriter,
@@ -2343,6 +2345,25 @@ const MenuBar: React.FC<MenuBarProps> = ({
     }
   }, [editor, documentTitle, pageLayout, pdfOptions]);
 
+  // The toolbar's file buttons run the menu handlers, so those actions still
+  // go through the unsaved-changes guard, the file origin and the library.
+  // One implementation, two entry points.
+  useEffect(() => {
+    const onCommand = (event: Event) => {
+      const command = (event as CustomEvent<AppCommand>).detail;
+      switch (command) {
+        case 'new-script': handleNewScreenplay(); break;
+        case 'import-script': confirmOrRun(handleImport); break;
+        case 'save-script': void handleSave(); break;
+        case 'export-pdf': handleExportPDF(); break;
+        case 'reports': setReportsOpen(true); break;
+        default: break;
+      }
+    };
+    window.addEventListener(APP_COMMAND_EVENT, onCommand);
+    return () => window.removeEventListener(APP_COMMAND_EVENT, onCommand);
+  }, [handleNewScreenplay, confirmOrRun, handleImport, handleSave, handleExportPDF]);
+
   /**
    * File → Print (and ⌘P).
    *
@@ -3388,6 +3409,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
                 setShowHiddenModeIntro(true);
               }
             }},
+            { separator: true, label: '' },
+            { icon: <FaSlidersH />, label: 'Customise Toolbar\u2026', action: () => setToolbarCustomiseOpen(true) },
           ],
         },
         {

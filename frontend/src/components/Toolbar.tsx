@@ -25,9 +25,39 @@ import {
   FaHashtag,
   FaPlus,
   FaTrashAlt,
+  FaCompass,
+  FaFile,
+  FaFolderOpen,
+  FaSave,
+  FaFilePdf,
+  FaColumns,
+  FaFileAlt,
+  FaRegFileAlt,
+  FaTh,
+  FaListUl,
+  FaListOl,
+  FaStream,
+  FaMap,
+  FaTable,
+  FaCaretDown,
+  FaMobileAlt,
+  FaBolt,
+  FaSlidersH,
+  FaMoon,
+  FaSun,
 } from 'react-icons/fa';
 import { useEditorStore } from '../stores/editorStore';
-import type { ElementType } from '../stores/editorStore';
+import type {
+  ElementType,
+  MainView,
+  SplitScreenMode,
+  SplitScreenPane,
+} from '../stores/editorStore';
+import { pluginRegistry, type PluginPanelEntry } from '../plugins/registry';
+import { requestAppCommand } from '../utils/appCommands';
+import {
+  TOOLBAR_PLUGIN_PREFIX,
+} from '../utils/toolbarLayout';
 import { addScriptNoteAtSelection, scriptNoteAtSelection } from '../utils/addScriptNote';
 import { panelButtonAction } from '../utils/panelButton';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
@@ -64,6 +94,13 @@ const shortcutFor = (id: string): string | undefined => {
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 
+/**
+ * Controls that must not fold into the overflow menu: the two every writer
+ * needs whatever the window width, and the one the AV row buttons depend on.
+ * Everything else hides right-to-left as the bar runs out of room.
+ */
+const TOOLBAR_FIXED_IDS = new Set(['undo-redo', 'element']);
+
 // Priority groups — higher number = hidden first when toolbar shrinks.
 // Priority 1 = zoom-out (just the minus button area)
 // Priority 2 = zoom/goto/search
@@ -90,6 +127,29 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     setEditingTagId,
     toolbarMode: savedToolbarMode,
     focusMode,
+    toolbarItems,
+    setToolbarCustomiseOpen,
+    viewLayout,
+    setViewLayout,
+    navigatorOpen,
+    toggleNavigator,
+    indexCardsOpen,
+    beatBoardOpen,
+    outlineOpen,
+    storyMapOpen,
+    toggleStoryMap,
+    splitScreenOpen,
+    toggleSplitScreen,
+    splitScreenMode,
+    setSplitScreenMode,
+    splitScreenPane,
+    setSplitScreenPane,
+    setMainView,
+    setTitlePageEditorOpen,
+    sceneNumbersVisible,
+    setSceneNumbersVisible,
+    appearance,
+    setAppearance,
   } = useEditorStore();
   // Focus Mode hides the toolbar like Hidden does, keeping the saved choice.
   const toolbarMode = focusMode ? 'hidden' : savedToolbarMode;
@@ -251,7 +311,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     return () => { editor.off('update', collectFonts); };
   }, [editor]);
 
-  const handleElementChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleElementChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const type = e.target.value;
     if (!editor) return;
     setActiveElement(type as ElementType);
@@ -279,7 +339,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         customLabel: rule.label,
       }).run();
     }
-  };
+  }, [editor, setActiveElement, activeTemplate]);
 
   /** True when the selection is inside an AV cell — used to scope the element dropdown. */
   const isInTitlePage = isTitlePageRuleId(String(activeElement));
@@ -360,6 +420,94 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
   const [overflowOpen, setOverflowOpen] = useState(false);
   const overflowRef = useRef<HTMLDivElement>(null);
 
+  // Right-clicking the bar offers the customiser, where the controls can be
+  // dragged into a new order.
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = (e: MouseEvent) => {
+      if (contextMenuRef.current && contextMenuRef.current.contains(e.target as Node)) return;
+      setContextMenu(null);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setContextMenu(null); };
+    const onScroll = () => setContextMenu(null);
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onScroll, true);
+    };
+  }, [contextMenu]);
+
+  const handleToolbarContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setOverflowOpen(false);
+    setViewsOpenAt(null);
+    setContextMenu({
+      x: Math.min(e.clientX, window.innerWidth - 232),
+      y: Math.min(e.clientY, window.innerHeight - 64),
+    });
+  }, []);
+
+  // Panels a plugin registered in the toolbar slot. Tracked so one added by an
+  // add-on that is turned on later appears without a reload.
+  const [pluginPanels, setPluginPanels] = useState<PluginPanelEntry[]>(() =>
+    pluginRegistry.getPanels('toolbar'));
+  useEffect(() => {
+    const sync = () => setPluginPanels(pluginRegistry.getPanels('toolbar'));
+    sync();
+    return pluginRegistry.subscribe(sync);
+  }, []);
+
+  // The Views menu: layout, panels and planning views in one place. It records
+  // which copy opened it — the bar or the overflow — so the hidden copy does
+  // not render a second menu into the page.
+  const [viewsOpenAt, setViewsOpenAt] = useState<'bar' | 'overflow' | null>(null);
+  // Which way the menu opens: to the right of a left-hand button, to the left
+  // of a right-hand one, so it never runs off screen.
+  const [viewsAlign, setViewsAlign] = useState<'left' | 'right'>('right');
+  const viewsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!viewsOpenAt) return;
+    const handler = (e: MouseEvent) => {
+      if (viewsRef.current && !viewsRef.current.contains(e.target as Node)) setViewsOpenAt(null);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setViewsOpenAt(null); };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [viewsOpenAt]);
+
+  const zoomEnabled = toolbarItems.includes('zoom');
+  const themeEnabled = toolbarItems.includes('theme');
+
+  /**
+   * Which controls give way first when the bar runs out of room.
+   *
+   * Zoom-out goes first and zoom-in last, as before: losing the "−" costs one
+   * click, losing the level and the "+" altogether costs the control. Notes
+   * are the very last to fold, because a phone used to lose them to a
+   * measurement that reserved room for a "…" that had not appeared yet.
+   * Undo/redo and the element picker never fold.
+   */
+  const hideOrder = useMemo(() => {
+    const order: string[] = [];
+    if (zoomEnabled) order.push('zoom-out');
+    const folding = toolbarItems
+      .filter((id) => id !== 'zoom' && id !== 'theme' && id !== 'notes' && !TOOLBAR_FIXED_IDS.has(id))
+      .reverse();
+    order.push(...folding);
+    if (zoomEnabled) order.push('zoom-in');
+    order.push('notes');
+    return order;
+  }, [toolbarItems, zoomEnabled]);
+
   // Close overflow menu on outside click
   useEffect(() => {
     if (!overflowOpen) return;
@@ -371,13 +519,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [overflowOpen]);
-
-  // Hide order: "1" first, then "2" (matches "2" and "2b"), "3", "4", "5",
-  // and "6" (Notes & Tags) last of all. On a phone 3–5 are already off the bar,
-  // so 6 follows Search & Go To: a 375px iPhone (Display Zoom, SE, mini) has
-  // no room for them beside the element picker, and the zoom button they
-  // pushed off the edge is the one control with nowhere else to go.
-  const HIDE_ORDER = ['1', '2', '3', '4', '5', '6'];
 
   /**
    * True while the narrow-layout single zoom button is on screen.  Below the
@@ -415,26 +556,42 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       const allItems: { el: HTMLElement; key: string }[] = [];
       const newHidden = new Set<string>();
 
+      // Width as the flex row actually spends it: offsetWidth leaves out the
+      // separators' margins and the bar's 2px gap. Ignoring those made the
+      // estimate ~10px per separator too small, so the pinned zoom/theme ended
+      // up pushed past the right edge at some widths.
+      const outerWidth = (el: HTMLElement) => {
+        const cs = getComputedStyle(el);
+        return el.offsetWidth
+          + (parseFloat(cs.marginLeft) || 0)
+          + (parseFloat(cs.marginRight) || 0)
+          + 2;
+      };
+
       let totalWidth = 0;
       for (const child of toolbar.children) {
         const el = child as HTMLElement;
+        // The flexible spacer takes whatever room is left. Counting it as
+        // content made the bar think it was full when it was not, and fold
+        // formatting groups that still had room on the right.
+        if (el.classList.contains('toolbar-spacer')) continue;
         const w = el.offsetWidth;
         if (el.dataset.priority) {
-          // CSS-hidden items (e.g. toolbar-desktop-only on mobile) have 0 width —
-          // mark them as hidden so they appear in the overflow menu.
+          // CSS-hidden items (e.g. a control the phone stylesheet folds) have
+          // 0 width — mark them as hidden so they appear in the overflow menu.
           if (w === 0) {
             newHidden.add(el.dataset.priority);
           } else {
             allItems.push({ el, key: el.dataset.priority });
           }
         }
-        totalWidth += w + 2;
+        totalWidth += outerWidth(el);
       }
 
       if (totalWidth > containerWidth) {
         let currentTotal = totalWidth + OVERFLOW_BTN_WIDTH;
 
-        for (const prefix of HIDE_ORDER) {
+        for (const id of hideOrder) {
           if (currentTotal <= containerWidth) break;
           // Notes & Tags go only when the bar really does not fit. The estimate
           // above is generous (2px per item, room for a "…" that may already be
@@ -442,14 +599,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           // folded these away on a 402px iPhone where they fit. The groups
           // hidden so far are already display:none, so the bar's own overflow
           // is the truth — plus the "…" button if it has yet to appear.
-          if (prefix === '6') {
+          if (id === 'notes') {
             const reserve = toolbar.querySelector('.toolbar-overflow-wrap') ? 0 : OVERFLOW_BTN_WIDTH;
             if (toolbar.scrollWidth + reserve <= toolbar.clientWidth) break;
           }
-          const matching = allItems.filter(p => p.key.startsWith(prefix));
+          const matching = allItems.filter(p => p.key === id);
           for (const { el, key } of matching) {
             newHidden.add(key);
-            currentTotal -= el.offsetWidth + 2;
+            currentTotal -= outerWidth(el);
             el.style.display = 'none';
           }
         }
@@ -517,7 +674,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
       }
       cancelAnimationFrame(rafId);
     };
-  }, []);
+  }, [hideOrder]);
 
   // ── Notes handler (shared between inline and overflow) ──
   const handleNotesClick = useCallback((e: React.PointerEvent | React.MouseEvent) => {
@@ -782,7 +939,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     </React.Fragment>
   ), [editor, isOverrideMode, activeTemplate, activeElement, textColorOpen, bgColorOpen, currentTextColor, currentBgColor, locked]);
 
-  const renderAlignment = useCallback((_inOverflow = false) => (
+  const renderAlignment = useCallback(() => (
     <div className="toolbar-group" key="alignment">
       <button
         className={`toolbar-btn ${editor?.isActive({ textAlign: 'left' }) ? 'active' : ''}`}
@@ -838,6 +995,341 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     </div>
   ), [setSearchOpen, setGoToPageOpen]);
 
+  const renderUndoRedo = useCallback(() => (
+    <div className="toolbar-group" key="undo-redo">
+      <button
+        className="toolbar-btn"
+        title="Undo (⌘Z)"
+        onClick={() => { try { editor?.chain().focus().undo().run(); } catch { /* nothing to undo */ } }}
+        disabled={!editor || typeof (editor.can() as { undo?: () => boolean }).undo !== 'function' || !(editor.can() as { undo?: () => boolean }).undo?.()}
+      >
+        <FaUndo />
+      </button>
+      <button
+        className="toolbar-btn"
+        title="Redo (⇧⌘Z)"
+        onClick={() => { try { editor?.chain().focus().redo().run(); } catch { /* nothing to redo */ } }}
+        disabled={!editor || typeof (editor.can() as { redo?: () => boolean }).redo !== 'function' || !(editor.can() as { redo?: () => boolean }).redo?.()}
+      >
+        <FaRedo />
+      </button>
+    </div>
+  ), [editor]);
+
+  const renderElement = useCallback(() => (
+    <div className="toolbar-group" key="element">
+      <Select
+        className="element-selector"
+        value={activeElement}
+        onChange={handleElementChange}
+        disabled={isInTitlePage}
+        title={isInTitlePage
+          ? 'Title page elements are set in the Title Page editor; their formatting lives in the template'
+          : 'Element type'}
+      >
+        {/* The title page's fields have template rules but are not things a
+            paragraph converts into, so they never appear here — only as the
+            read-only label below when the cursor is actually in one. */}
+        {isInTitlePage && (
+          <option value={activeElement}>
+            {activeTemplate.rules[activeElement]?.label || 'Title Page'}
+          </option>
+        )}
+        {/*
+          Inside an AV cell the list is resolved by utils/avCellElements.ts:
+          the four AV paragraph types always, plus whatever the template
+          admits to THIS column. The four are unconditional on purpose —
+          `avCell` holds them in every document whatever template is active,
+          and reading the list off the template alone left the dropdown empty
+          (and the body uneditable) for an AV body under a screenplay template
+          and for an AV document whose template did not come back with it,
+          such as a restored session. Outside a cell, the template is the
+          authority as before.
+        */}
+        {(isInsideAvCell
+          ? avCellElementRules(activeTemplate, avCellSide, String(activeElement))
+          : scriptBodyElementRules(activeTemplate, isTitlePageRuleId)
+        ).map((r) => (
+          <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]} data-shortcut={shortcutFor(r.id)}>
+            {r.label}
+          </option>
+        ))}
+      </Select>
+      <button
+        className={`toolbar-btn${editor?.isActive('dualDialogue') ? ' active' : ''}`}
+        title="Dual Dialogue"
+        onClick={() => (editor?.commands as unknown as { toggleDualDialogue?: () => void })?.toggleDualDialogue?.()}
+      >
+        <FaColumns />
+      </button>
+    </div>
+  ), [
+    activeElement, handleElementChange, isInTitlePage, isInsideAvCell, avCellSide,
+    activeTemplate, editor,
+  ]);
+
+  const renderDocument = useCallback((inOverflow = false) => (
+    <div className="toolbar-group" key="document">
+      <button
+        className="toolbar-btn"
+        title="New Script"
+        onClick={() => { requestAppCommand('new-script'); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaFile />
+      </button>
+      <button
+        className="toolbar-btn"
+        title="Import Script"
+        onClick={() => { requestAppCommand('import-script'); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaFolderOpen />
+      </button>
+      <button
+        className="toolbar-btn"
+        title="Save Script"
+        onClick={() => { requestAppCommand('save-script'); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaSave />
+      </button>
+      <button
+        className="toolbar-btn"
+        title="Export PDF"
+        onClick={() => { requestAppCommand('export-pdf'); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaFilePdf />
+      </button>
+    </div>
+  ), []);
+
+  const renderNavigator = useCallback((inOverflow = false) => (
+    <div className="toolbar-group" key="navigator">
+      <button
+        className={`toolbar-btn${navigatorOpen ? ' active' : ''}`}
+        title="Navigator"
+        onClick={() => { toggleNavigator(); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaCompass />
+      </button>
+    </div>
+  ), [navigatorOpen, toggleNavigator]);
+
+  const renderTitlePage = useCallback((inOverflow = false) => (
+    <div className="toolbar-group" key="title-page">
+      <button
+        className="toolbar-btn"
+        title="Title Page"
+        onClick={() => { setTitlePageEditorOpen(true); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaFileAlt />
+      </button>
+    </div>
+  ), [setTitlePageEditorOpen]);
+
+  const renderProduction = useCallback((inOverflow = false) => (
+    <div className="toolbar-group" key="production">
+      <button
+        className={`toolbar-btn${sceneNumbersVisible ? ' active' : ''}`}
+        title="Scene Numbers"
+        onClick={() => { setSceneNumbersVisible(!sceneNumbersVisible); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaListOl />
+      </button>
+      <button
+        className="toolbar-btn"
+        title="Reports"
+        onClick={() => { requestAppCommand('reports'); if (inOverflow) setOverflowOpen(false); }}
+      >
+        <FaTable />
+      </button>
+    </div>
+  ), [sceneNumbersVisible, setSceneNumbersVisible]);
+
+  /**
+   * Views: one menu for the layout, the view that owns the writing area, the
+   * panels and the split screen.
+   *
+   * Index Cards, the Beat Board and the Outline each take the whole screen, so
+   * they are a radio group, not checkboxes: only one can be up at a time.
+   * Navigator and Story Map sit alongside whichever view is up, so they stay
+   * checkboxes. Split Screen has its own group, and the second pane is chosen
+   * there too.
+   */
+  const renderViews = useCallback((inOverflow = false) => {
+    const here = inOverflow ? 'overflow' : 'bar';
+    const isOpen = viewsOpenAt === here;
+    const menuAlign = inOverflow ? 'right' : viewsAlign;
+    const suffix = inOverflow ? '-overflow' : '';
+    const layoutName = `toolbar-view-layout${suffix}`;
+    const mainViewName = `toolbar-main-view${suffix}`;
+    const splitModeName = `toolbar-split-mode${suffix}`;
+    const splitPaneName = `toolbar-split-pane${suffix}`;
+    const mainView: MainView = indexCardsOpen
+      ? 'index-cards'
+      : beatBoardOpen
+        ? 'beat-board'
+        : outlineOpen
+          ? 'outline'
+          : 'script';
+    const layouts: Array<{ id: 'page' | 'phone' | 'speed'; label: string; icon: React.ReactNode }> = [
+      { id: 'page', label: 'Page', icon: <FaRegFileAlt /> },
+      { id: 'phone', label: 'Phone', icon: <FaMobileAlt /> },
+      { id: 'speed', label: 'Speed', icon: <FaBolt /> },
+    ];
+    const mainViews: Array<{ id: MainView; label: string; icon: React.ReactNode }> = [
+      { id: 'script', label: 'Script', icon: <FaFileAlt /> },
+      { id: 'index-cards', label: 'Index Cards', icon: <FaTh /> },
+      { id: 'beat-board', label: 'Beat Board', icon: <FaStream /> },
+      { id: 'outline', label: 'Outline', icon: <FaListUl /> },
+    ];
+    const panels: Array<{ id: string; label: string; icon: React.ReactNode; checked: boolean; toggle: () => void }> = [
+      { id: 'navigator', label: 'Navigator', icon: <FaCompass />, checked: navigatorOpen, toggle: toggleNavigator },
+      { id: 'story-map', label: 'Story Map', icon: <FaMap />, checked: storyMapOpen, toggle: toggleStoryMap },
+    ];
+    const splitModes: Array<{ id: 'off' | SplitScreenMode; label: string }> = [
+      { id: 'off', label: 'Off' },
+      { id: 'side-by-side', label: 'Side by Side' },
+      { id: 'stacked', label: 'Stacked' },
+    ];
+    const splitPanes: Array<{ id: SplitScreenPane; label: string; icon: React.ReactNode }> = [
+      { id: 'page-view', label: 'Page View', icon: <FaRegFileAlt /> },
+      { id: 'index-cards', label: 'Index Cards', icon: <FaTh /> },
+      { id: 'outline', label: 'Outline', icon: <FaListUl /> },
+      { id: 'beat-board', label: 'Beat Board', icon: <FaStream /> },
+    ];
+    return (
+      <div className="toolbar-group toolbar-views-wrap" key="views" ref={viewsRef}>
+        <button
+          className={`toolbar-btn toolbar-btn-text${isOpen ? ' active' : ''}`}
+          title="Views: layout, panels and split screen"
+          onClick={(e) => {
+            if (isOpen) {
+              setViewsOpenAt(null);
+              return;
+            }
+            if (inOverflow) {
+              setViewsAlign('right');
+            } else {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setViewsAlign(window.innerWidth - rect.left >= 240 ? 'left' : 'right');
+            }
+            setViewsOpenAt(here);
+          }}
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+        >
+          Views <FaCaretDown />
+        </button>
+        {isOpen && (
+          <div className={`toolbar-views-menu toolbar-views-menu-${menuAlign}`} role="menu" aria-label="Views">
+            <div className="toolbar-views-heading">Layout</div>
+            {layouts.map((layout) => (
+              <label className="toolbar-views-option" key={layout.id}>
+                <input
+                  type="radio"
+                  name={layoutName}
+                  checked={viewLayout === layout.id}
+                  onChange={() => { setViewLayout(layout.id); setViewsOpenAt(null); }}
+                />
+                <span className="toolbar-views-icon">{layout.icon}</span>
+                {layout.label}
+              </label>
+            ))}
+
+            <div className="toolbar-views-sep" />
+            <div className="toolbar-views-heading">View</div>
+            {mainViews.map((view) => (
+              <label className="toolbar-views-option" key={view.id}>
+                <input
+                  type="radio"
+                  name={mainViewName}
+                  checked={mainView === view.id}
+                  onChange={() => { setMainView(view.id); setViewsOpenAt(null); }}
+                />
+                <span className="toolbar-views-icon">{view.icon}</span>
+                {view.label}
+              </label>
+            ))}
+
+            <div className="toolbar-views-sep" />
+            <div className="toolbar-views-heading">Panels</div>
+            {panels.map((panel) => (
+              <label className="toolbar-views-option" key={panel.id}>
+                <input
+                  type="checkbox"
+                  checked={panel.checked}
+                  onChange={() => { panel.toggle(); setViewsOpenAt(null); }}
+                />
+                <span className="toolbar-views-icon">{panel.icon}</span>
+                {panel.label}
+              </label>
+            ))}
+
+            <div className="toolbar-views-sep" />
+            <div className="toolbar-views-heading">Split Screen</div>
+            {splitModes.map((mode) => (
+              <label className="toolbar-views-option" key={mode.id}>
+                <input
+                  type="radio"
+                  name={splitModeName}
+                  checked={mode.id === 'off'
+                    ? !splitScreenOpen
+                    : splitScreenOpen && splitScreenMode === mode.id}
+                  onChange={() => {
+                    if (mode.id === 'off') {
+                      if (splitScreenOpen) toggleSplitScreen();
+                    } else {
+                      setSplitScreenMode(mode.id);
+                    }
+                    setViewsOpenAt(null);
+                  }}
+                />
+                {mode.label}
+              </label>
+            ))}
+            <div className="toolbar-views-subheading">Second Pane</div>
+            {splitPanes.map((pane) => (
+              <label className="toolbar-views-option" key={pane.id}>
+                <input
+                  type="radio"
+                  name={splitPaneName}
+                  checked={splitScreenOpen && splitScreenPane === pane.id}
+                  onChange={() => { setSplitScreenPane(pane.id); setViewsOpenAt(null); }}
+                />
+                <span className="toolbar-views-icon">{pane.icon}</span>
+                {pane.label}
+              </label>
+            ))}
+
+                      </div>
+        )}
+      </div>
+    );
+  }, [
+    viewsOpenAt, viewsAlign, viewLayout, setViewLayout,
+    navigatorOpen, toggleNavigator, storyMapOpen, toggleStoryMap,
+    indexCardsOpen, beatBoardOpen, outlineOpen, setMainView,
+    splitScreenOpen, toggleSplitScreen, splitScreenMode, setSplitScreenMode,
+    splitScreenPane, setSplitScreenPane,
+  ]);
+
+  /** One click between the light and dark themes, for the toolbar. */
+  const renderTheme = useCallback(() => {
+    const dark = appearance !== 'light';
+    return (
+      <div className="toolbar-group" key="theme">
+        <button
+          className={`toolbar-btn${dark ? ' active' : ''}`}
+          title={dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          onClick={() => {
+            setAppearance(dark ? 'light' : 'dark');
+          }}
+        >
+          {dark ? <FaSun /> : <FaMoon />}
+        </button>
+      </div>
+    );
+  }, [appearance, setAppearance]);
+
   const renderNotesTags = useCallback((inOverflow = false) => (
     <div className="toolbar-group" key="notes-tags">
       <button
@@ -857,7 +1349,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     </div>
   ), [scriptNotesOpen, tagsPanelOpen, handleNotesClick, handleTagsClick]);
 
-  const renderZoom = useCallback((_inOverflow = false) => (
+  const renderZoom = useCallback(() => (
     <div className="toolbar-group zoom-group" key="zoom">
       <button
         className="toolbar-btn"
@@ -901,8 +1393,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     </div>
   ), [zoomLevel, zoomEditing, zoomInput, setZoomLevel, commitZoom]);
 
-  const renderZoomMin = useCallback((_inOverflow = false) => (
-    <div className="toolbar-group zoom-group" key="zoom-min">
+  const renderZoomOut = useCallback(() => (
+    <div className="toolbar-group zoom-group" key="zoom-out">
       <button
         className="toolbar-btn"
         title="Zoom Out"
@@ -914,48 +1406,88 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     </div>
   ), [zoomLevel, setZoomLevel]);
 
-  // Check if a given prefix has any hidden items
-  const isHidden = useCallback((prefix: string) => {
-    for (const k of hiddenPriorities) { if (k.startsWith(prefix)) return true; }
-    return false;
-  }, [hiddenPriorities]);
+  /** Render one configured control. */
+  const renderItem = useCallback((id: string, inOverflow = false): React.ReactNode => {
+    switch (id) {
+      case 'undo-redo': return renderUndoRedo();
+      case 'document': return renderDocument(inOverflow);
+      case 'navigator': return renderNavigator(inOverflow);
+      case 'title-page': return renderTitlePage(inOverflow);
+      case 'production': return renderProduction(inOverflow);
+      case 'element': return renderElement();
+      case 'font': return renderFontFaceSize(inOverflow);
+      // When the inline copy is folded away its color popups must not stay
+      // mounted, or a hidden button would own the open picker.
+      case 'format': return renderFontStyleColors(inOverflow, inOverflow || !hiddenPriorities.has('format'));
+      case 'align': return renderAlignment();
+      case 'search': return renderSearchGoto(inOverflow);
+      case 'views': return renderViews(inOverflow);
+      case 'notes': return renderNotesTags(inOverflow);
+      default: break;
+    }
+    if (id.startsWith(TOOLBAR_PLUGIN_PREFIX)) {
+      const panel = pluginPanels.find((p) => `${TOOLBAR_PLUGIN_PREFIX}${p.id}` === id);
+      if (!panel) return null;
+      const Component = panel.component;
+      return (
+        <div className="toolbar-group toolbar-plugin-item" key={id}>
+          <Component editor={editor} />
+        </div>
+      );
+    }
+    return null;
+  }, [
+    renderUndoRedo, renderDocument, renderNavigator, renderElement, renderFontFaceSize,
+    renderFontStyleColors, renderAlignment, renderSearchGoto, renderViews, renderNotesTags,
+    renderTitlePage, renderProduction,
+    pluginPanels, editor, hiddenPriorities,
+  ]);
 
-  /**
-   * Exact-key test, as against {@link isHidden}'s prefix test.
-   *
-   * The zoom controls carry priorities "1" and "2b", so a prefix test for "2"
-   * also matches "2b" — which made the narrow layout report Search & Go to as
-   * hidden (it is not; only the desktop zoom group is) and offer a second copy
-   * of it in the overflow menu.
-   */
-  const isHiddenExact = useCallback(
-    (key: string) => hiddenPriorities.has(key),
-    [hiddenPriorities],
-  );
-
-  // Build overflow menu content from hidden priorities
+  // Build the overflow menu from the controls the measurement folded away, in
+  // the order the writer arranged them.
   const overflowContent = useMemo(() => {
     if (hiddenPriorities.size === 0) return null;
-    const items: React.ReactNode[] = [];
-    const addSep = () => { if (items.length > 0) items.push(<div className="toolbar-overflow-sep" key={`sep-${items.length}`} />); };
+    const nodes: React.ReactNode[] = [];
+    const addSep = () => {
+      if (nodes.length > 0) nodes.push(<div className="toolbar-overflow-sep" key={`sep-${nodes.length}`} />);
+    };
 
-    // Show items in logical order (most important first within overflow)
-    if (isHiddenExact('5')) { addSep(); items.push(renderFontFaceSize(true)); }
-    if (isHiddenExact('4')) { addSep(); items.push(renderFontStyleColors(true)); }
-    if (isHiddenExact('3')) { addSep(); items.push(renderAlignment(true)); }
-    if (isHiddenExact('2')) { addSep(); items.push(renderSearchGoto(true)); }
-    if (isHiddenExact('6')) { addSep(); items.push(renderNotesTags(true)); }
+    for (const id of toolbarItems) {
+      if (id === 'zoom' || !hiddenPriorities.has(id)) continue;
+      const node = renderItem(id, true);
+      if (node === null) continue;
+      addSep();
+      nodes.push(node);
+    }
 
     // Zoom: skip entirely when the narrow layout's own zoom button is on screen.
     if (!mobileZoomVisible) {
-      if (isHiddenExact('2b')) { addSep(); items.push(renderZoom(true)); }
-      else if (isHiddenExact('1')) { addSep(); items.push(renderZoomMin(true)); }
+      if (hiddenPriorities.has('zoom-in')) {
+        addSep();
+        nodes.push(renderZoom());
+      } else if (hiddenPriorities.has('zoom-out')) {
+        addSep();
+        nodes.push(renderZoomOut());
+      }
     }
 
-    return items.length > 0 ? items : null;
-  }, [hiddenPriorities, isHiddenExact, mobileZoomVisible, renderZoomMin, renderZoom, renderSearchGoto, renderNotesTags, renderAlignment, renderFontStyleColors, renderFontFaceSize]);
+    if (nodes.length > 0) {
+      addSep();
+      nodes.push(
+        <button
+          key="customise-toolbar"
+          className="toolbar-overflow-customise"
+          onClick={() => { setToolbarCustomiseOpen(true); setOverflowOpen(false); }}
+        >
+          <FaSlidersH /> Customise Toolbar…
+        </button>,
+      );
+    }
 
-  // Derived from the menu's contents, not from the hidden set: a group can be
+    return nodes.length > 0 ? nodes : null;
+  }, [hiddenPriorities, toolbarItems, mobileZoomVisible, renderItem, renderZoom, renderZoomOut, setToolbarCustomiseOpen]);
+
+  // Derived from the menu's contents, not from the hidden set: a control can be
   // hidden and still have nothing to offer here (zoom, when the narrow layout
   // shows its own zoom button), and a "…" that opens an empty popup is worse
   // than no "…" at all.
@@ -967,75 +1499,53 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
     <div
       className={`toolbar${toolbarMode === 'comfortable' ? ' toolbar-comfortable' : ''}${isInsideAvRow ? ' toolbar-av' : ''}`}
       ref={toolbarRef}
+      onContextMenu={handleToolbarContextMenu}
     >
-      {/* Undo / Redo — always visible */}
-      <div className="toolbar-group">
-        <button
-          className="toolbar-btn"
-          title="Undo (⌘Z)"
-          onClick={() => { try { editor?.chain().focus().undo().run(); } catch {} }}
-          disabled={!editor || typeof (editor.can() as any).undo !== 'function' || !(editor.can() as any).undo()}
-        >
-          <FaUndo />
-        </button>
-        <button
-          className="toolbar-btn"
-          title="Redo (⇧⌘Z)"
-          onClick={() => { try { editor?.chain().focus().redo().run(); } catch {} }}
-          disabled={!editor || typeof (editor.can() as any).redo !== 'function' || !(editor.can() as any).redo()}
-        >
-          <FaRedo />
-        </button>
-      </div>
+      {toolbarItems.filter((id) => id !== 'zoom' && id !== 'theme').map((id, index) => (
+        <React.Fragment key={id}>
+          <div
+            className={`toolbar-priority-block${TOOLBAR_FIXED_IDS.has(id) ? ' toolbar-fixed-item' : ''}`}
+            data-priority={TOOLBAR_FIXED_IDS.has(id) ? undefined : id}
+          >
+            {/* Inside the block so it folds with the control it separates. */}
+            {index > 0 && <div className="toolbar-separator" />}
+            {renderItem(id)}
+          </div>
 
-      <div className="toolbar-separator" />
-
-      {/* Element type selector — always visible */}
-      <div className="toolbar-group">
-        <Select
-          className="element-selector"
-          value={activeElement}
-          onChange={handleElementChange}
-          disabled={isInTitlePage}
-          title={isInTitlePage
-            ? 'Title page elements are set in the Title Page editor; their formatting lives in the template'
-            : 'Element type'}
-        >
-          {/* The title page's fields have template rules but are not things a
-              paragraph converts into, so they never appear here — only as the
-              read-only label below when the cursor is actually in one. */}
-          {isInTitlePage && (
-            <option value={activeElement}>
-              {activeTemplate.rules[activeElement]?.label || 'Title Page'}
-            </option>
+          {/* AV row controls — the only route to a new row without a hardware
+              keyboard (issue #116), so they are never collapsed into the
+              overflow menu and never hidden on mobile. Shown only inside an AV
+              cell, where they are the actions the writer actually needs. */}
+          {id === 'element' && isInsideAvRow && (
+            <>
+              <div className="toolbar-separator" />
+              <div className="toolbar-group av-row-group">
+                <button
+                  className="toolbar-btn av-row-btn av-row-btn-add"
+                  title="Add AV Row below (Tab from the audio cell, or ⌘↵)"
+                  onClick={() => editor?.chain().focus().insertAvRow('below').run()}
+                  disabled={!editor}
+                >
+                  <FaPlus />
+                  <span className="toolbar-btn-label">Row</span>
+                </button>
+                <button
+                  className="toolbar-btn av-row-btn av-row-btn-delete"
+                  title="Delete this AV Row"
+                  onClick={() => editor?.chain().focus().deleteAvRow().run()}
+                  disabled={!editor}
+                >
+                  <FaTrashAlt />
+                </button>
+              </div>
+            </>
           )}
-          {/*
-            Inside an AV cell the list is resolved by utils/avCellElements.ts:
-            the four AV paragraph types always, plus whatever the template
-            admits to THIS column. The four are unconditional on purpose —
-            `avCell` holds them in every document whatever template is active,
-            and reading the list off the template alone left the dropdown empty
-            (and the body uneditable) for an AV body under a screenplay template
-            and for an AV document whose template did not come back with it,
-            such as a restored session. Outside a cell, the template is the
-            authority as before.
-          */}
-          {(isInsideAvCell
-            ? avCellElementRules(activeTemplate, avCellSide, String(activeElement))
-            : scriptBodyElementRules(activeTemplate, isTitlePageRuleId)
-          ).map((r) => (
-            <option key={r.id} value={r.id} title={ELEMENT_DESCRIPTIONS[r.id]} data-shortcut={shortcutFor(r.id)}>
-              {r.label}
-            </option>
-          ))}
-        </Select>
-      </div>
+        </React.Fragment>
+      ))}
 
-      {/* AV row controls — the only route to a new row without a hardware
-          keyboard (issue #116), so they are never collapsed into the overflow
-          menu and never hidden on mobile. Shown only inside an AV cell, where
-          they are the actions the writer actually needs. */}
-      {isInsideAvRow && (
+      {/* The element picker can be removed; the AV row buttons still have to
+          be reachable while the caret is in a row. */}
+      {isInsideAvRow && !toolbarItems.includes('element') && (
         <>
           <div className="toolbar-separator" />
           <div className="toolbar-group av-row-group">
@@ -1060,42 +1570,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         </>
       )}
 
-      <div className="toolbar-separator" />
-
-      {/* Priority 5: Font face & size — hidden on mobile, collapsible on desktop */}
-      <div className="toolbar-desktop-only toolbar-priority-block" data-priority="5">
-        {renderFontFaceSize()}
-        <div className="toolbar-separator" />
-      </div>
-
-      {/* Priority 4: Font style & colors — hidden on mobile, collapsible on desktop.
-          Suppress ColorPicker popups when hidden so they only render in the overflow copy. */}
-      <div className="toolbar-desktop-only toolbar-priority-block" data-priority="4">
-        {renderFontStyleColors(false, !isHidden('4'))}
-        <div className="toolbar-separator" />
-      </div>
-
-      {/* Priority 3: Alignment — hidden on mobile, collapsible on desktop */}
-      <div className="toolbar-desktop-only toolbar-priority-block" data-priority="3">
-        {renderAlignment()}
-        <div className="toolbar-separator" />
-      </div>
-
-      {/* Priority 2: Search & Go to — collapsible on desktop */}
-      <div className="toolbar-priority-block" data-priority="2">
-        {renderSearchGoto()}
-      </div>
-
-      <div className="toolbar-separator" />
-
-      {/* Priority 6: Notes & Tags — the last to fold into the overflow menu,
-          only when nothing else is left to give way (see HIDE_ORDER) */}
-      <div className="toolbar-priority-block" data-priority="6">
-        {renderNotesTags()}
-      </div>
-
       {/* Spacer */}
-      <div style={{ flex: 1 }} />
+      <div className="toolbar-spacer" style={{ flex: 1 }} />
 
       {/* Overflow 3-dot menu */}
       {hasOverflow && (
@@ -1115,52 +1591,60 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
         </div>
       )}
 
-      {/* Zoom — desktop: P1 hides zoom-out, P2 hides zoom label/in */}
-      <div className="toolbar-priority-block zoom-group" data-priority="1">
-        <button
-          className="toolbar-btn"
-          title="Zoom Out"
-          onClick={() => setZoomLevel(zoomLevel - 10)}
-          disabled={zoomLevel <= 50}
-        >
-          <FaSearchMinus />
-        </button>
-      </div>
-      <div className="toolbar-priority-block zoom-group" data-priority="2b">
-        {zoomEditing ? (
-          <input
-            ref={zoomInputRef}
-            className="zoom-input"
-            type="number"
-            min={50}
-            max={200}
-            step={10}
-            value={zoomInput}
-            onChange={(e) => setZoomInput(e.target.value)}
-            onBlur={commitZoom}
-            onKeyDown={(e) => { if (e.key === 'Enter') commitZoom(); if (e.key === 'Escape') { setZoomInput(String(zoomLevel)); setZoomEditing(false); } }}
-            autoFocus
-          />
-        ) : (
-          <span
-            className="zoom-label"
-            onClick={() => { setZoomEditing(true); setTimeout(() => zoomInputRef.current?.select(), 0); }}
-            title="Click to edit zoom"
-          >
-            {zoomLevel}%
-          </span>
-        )}
-        <button
-          className="toolbar-btn"
-          title="Zoom In"
-          onClick={() => setZoomLevel(zoomLevel + 10)}
-          disabled={zoomLevel >= 300}
-        >
-          <FaSearchPlus />
-        </button>
-      </div>
-
       {/* Zoom — mobile: single button */}
+            {zoomEnabled && (
+        <>
+          {/* Zoom — pinned to the right of the bar whatever the saved order
+              says, so adding or removing controls never moves it. */}
+          <div className="toolbar-priority-block zoom-group" data-priority="zoom-out">
+            <button
+              className="toolbar-btn"
+              title="Zoom Out"
+              onClick={() => setZoomLevel(zoomLevel - 10)}
+              disabled={zoomLevel <= 50}
+            >
+              <FaSearchMinus />
+            </button>
+          </div>
+          <div className="toolbar-priority-block zoom-group" data-priority="zoom-in">
+            {zoomEditing ? (
+              <input
+                ref={zoomInputRef}
+                className="zoom-input"
+                type="number"
+                min={50}
+                max={200}
+                step={10}
+                value={zoomInput}
+                onChange={(e) => setZoomInput(e.target.value)}
+                onBlur={commitZoom}
+                onKeyDown={(e) => { if (e.key === 'Enter') commitZoom(); if (e.key === 'Escape') { setZoomInput(String(zoomLevel)); setZoomEditing(false); } }}
+                autoFocus
+              />
+            ) : (
+              <span
+                className="zoom-label"
+                onClick={() => { setZoomEditing(true); setTimeout(() => zoomInputRef.current?.select(), 0); }}
+                title="Click to edit zoom"
+              >
+                {zoomLevel}%
+              </span>
+            )}
+            <button
+              className="toolbar-btn"
+              title="Zoom In"
+              onClick={() => setZoomLevel(zoomLevel + 10)}
+              disabled={zoomLevel >= 300}
+            >
+              <FaSearchPlus />
+            </button>
+          </div>
+        </>
+      )}
+
+      {themeEnabled && renderTheme()}
+
+      {/* Zoom: mobile single button */}
       <div className="toolbar-group zoom-mobile-group">
         <button
           className="toolbar-btn"
@@ -1170,6 +1654,25 @@ const Toolbar: React.FC<ToolbarProps> = ({ editor }) => {
           <FaSearchPlus />
         </button>
       </div>
+
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="toolbar-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          role="menu"
+          aria-label="Toolbar"
+          onContextMenu={(e) => e.stopPropagation()}
+        >
+          <button
+            className="toolbar-context-item"
+            role="menuitem"
+            onClick={() => { setContextMenu(null); setToolbarCustomiseOpen(true); }}
+          >
+            <FaSlidersH /> Customise Toolbar…
+          </button>
+        </div>
+      )}
     </div>
   );
 };

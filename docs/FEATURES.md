@@ -19,6 +19,7 @@ A complete list of features in OpenDraft.
 - **Alternates** -- Keep other versions of a line of dialogue or action, or of a whole scene, beside it and switch between them; only the version showing prints and exports. During a live collaboration session the version shown stays editable, but adding, switching or deleting versions waits until the session ends (or you leave it), so two people switching at once cannot duplicate text
 - **Distraction-free writing** -- Clean, focused interface with minimal chrome
 - **Speed View** -- The page layout without page breaks: one continuous sheet for drafting, while pagination, page count and every export stay unchanged (View → Layout → Speed)
+- **Customisable Toolbar** -- Drag the controls into order and pick a preset (Default, Writing, Review, Everything); right-click the bar to customise it, save any arrangement under a name, switch light/dark from a button, plugin controls appear alongside the built-ins, a Views menu collects the layout, the full-screen view, panels and the split-screen pane, hidden controls move into the overflow menu, and the layout is saved per device
 - **Focus Mode** -- Full screen with panels and menus out of the way, typewriter scrolling, and optional dimming of all but the current element or scene
 - **Writing Goals & Sprints** -- Daily and session goals in words or pages with a status bar progress ring, timed sprints with an optional no-backspace mode, and a words-written-per-day calendar in Script Statistics, kept on your device only
 
