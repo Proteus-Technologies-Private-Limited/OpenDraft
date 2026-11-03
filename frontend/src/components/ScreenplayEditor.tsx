@@ -132,7 +132,7 @@ import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile } from '../utils/scriptP
 import { restoreRevisionState } from '../utils/revisionState';
 import { characterKey } from '../utils/nodeText';
 import { ELEMENT_SHORTCUT_TYPES } from '../utils/elementShortcuts';
-import { buildScriptIndex, collectScriptBlocks, emptyScriptIndex, suggestSmartType, type ScriptIndex } from '../editor/smartType';
+import { buildScriptIndex, collectScriptBlocks, emptyScriptIndex, suggestSmartType, isLocalSmartTypeUpdate, isNonLatinComposition, type ScriptIndex, type SmartTypeTransactionLike } from '../editor/smartType';
 import { computeContdChanges, type ContdBlock } from '../editor/contdAuto';
 import { useBackupScheduler } from '../hooks/useBackupScheduler';
 import { useRecoverySnapshot } from '../hooks/useRecoverySnapshot';
@@ -2712,8 +2712,11 @@ const ScreenplayEditor: React.FC = () => {
     rebuild();
     let timeout: ReturnType<typeof setTimeout> | null = null;
     const onUpdate = () => {
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(rebuild, 250);
+      // Do not restart the timer on every update: a collaborator typing
+      // continuously would otherwise postpone the rebuild indefinitely,
+      // leaving the local index stale.
+      if (timeout) return;
+      timeout = setTimeout(() => { timeout = null; rebuild(); }, 250);
     };
     editor.on('update', onUpdate);
     return () => {
@@ -2749,8 +2752,10 @@ const ScreenplayEditor: React.FC = () => {
         smartTypeHiddenForRef.current = null;
       }
       // An IME composition owns the text being built; rewriting it with a
-      // completion would break the composition.
-      if (editor.view.composing) {
+      // completion would break the composition. Latin keyboards also compose
+      // each word (Gboard keeps "MAR" composed until a space), so the guard
+      // is limited to scripts where mid-composition rewriting is unsafe.
+      if (isNonLatinComposition(editor.view.composing, text)) {
         hide();
         return;
       }
@@ -2779,7 +2784,24 @@ const ScreenplayEditor: React.FC = () => {
       });
     };
 
-    const onUpdate = () => { cancelHide(); compute(); };
+    const onUpdate = ({ transaction }: { transaction?: SmartTypeTransactionLike }) => {
+      // Only the writer's own typing opens the popup. A remote Yjs edit, an
+      // undo or the auto-CONT'D pass must not offer a name the writer never
+      // typed: the next Enter would accept it.
+      if (transaction) {
+        if (transaction.getMeta('y-sync$') || transaction.getMeta('history$')) {
+          // The text or the positions under the popup changed outside the
+          // writer's typing. Keeping it open would let Enter replace text
+          // that was not there when the suggestion was computed.
+          hide();
+          return;
+        }
+        const { $from } = editor.state.selection;
+        if (!isLocalSmartTypeUpdate(transaction, $from.start(), $from.end())) return;
+      }
+      cancelHide();
+      compute();
+    };
     // Tiptap emits selectionUpdate before update. A pure caret move (arrow keys
     // at the end of a cue) schedules a hide; a typed character is followed by
     // update, which cancels it.

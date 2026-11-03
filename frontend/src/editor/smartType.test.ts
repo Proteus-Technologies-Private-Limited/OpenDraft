@@ -4,6 +4,8 @@ import {
   buildScriptIndex,
   collectScriptBlocks,
   emptyScriptIndex,
+  isLocalSmartTypeUpdate,
+  isNonLatinComposition,
   smartTypeKeyAction,
   suggestSmartType,
   type ScriptIndex,
@@ -61,6 +63,18 @@ describe('suggestSmartType: scene headings', () => {
   it('ignores the case the writer typed', () => {
     expect(items('sceneHeading', 'int. ', index)).toEqual(['DINER', 'DINER PARKING LOT', 'MARGO APARTMENT']);
     expect(items('sceneHeading', 'INT. din', index)).toEqual(['DINER', 'DINER PARKING LOT']);
+  });
+
+  it('indexes an EST. heading by its location, not by the whole slugline', () => {
+    const withEst = buildScriptIndex([
+      { type: 'sceneHeading', text: 'EST. CITY - DAY' },
+      { type: 'sceneHeading', text: 'INT. HOUSE - DAY' },
+    ]);
+    expect(withEst.locations).toEqual(['CITY', 'HOUSE']);
+    expect(items('sceneHeading', 'EST. C', withEst)).toEqual(['CITY']);
+    // "EST. CITY" used to be indexed as a location, so "INT. E" offered it
+    // and accepting produced "INT. EST. CITY".
+    expect(items('sceneHeading', 'INT. E', withEst)).toEqual([]);
   });
 });
 
@@ -220,5 +234,56 @@ describe('collectScriptBlocks on a real ProseMirror document', () => {
     const withoutCurrent = collectScriptBlocks(doc, emptyPos!);
     expect(withoutCurrent.filter((block) => block.type === 'character' && block.text === '')).toHaveLength(0);
     expect(withoutCurrent).toContainEqual({ type: 'character', text: 'DUALONLY' });
+  });
+});
+
+describe('isLocalSmartTypeUpdate', () => {
+  const step = (from: number, to: number) => ({
+    forEach: (cb: (a: number, b: number, c: number, d: number) => void) => cb(from, to, from, to),
+  });
+  const transaction = (ranges: Array<[number, number]>, meta: Record<string, unknown> = {}) => ({
+    docChanged: true,
+    mapping: { maps: ranges.map(([from, to]) => step(from, to)) },
+    getMeta: (key: string) => meta[key],
+  });
+
+  it('accepts a character typed inside the current block', () => {
+    expect(isLocalSmartTypeUpdate(transaction([[20, 21]]), 10, 40)).toBe(true);
+    // A character inserted exactly at the caret at the end of the block.
+    expect(isLocalSmartTypeUpdate(transaction([[40, 40]]), 10, 40)).toBe(true);
+  });
+
+  it('ignores an edit in another block', () => {
+    expect(isLocalSmartTypeUpdate(transaction([[2, 3]]), 10, 40)).toBe(false);
+  });
+
+  it('ignores remote collaboration edits, undo and programmatic passes', () => {
+    expect(isLocalSmartTypeUpdate(transaction([[20, 21]], { 'y-sync$': {} }), 10, 40)).toBe(false);
+    expect(isLocalSmartTypeUpdate(transaction([[20, 21]], { 'history$': {} }), 10, 40)).toBe(false);
+    expect(isLocalSmartTypeUpdate(transaction([[20, 21]], { addToHistory: false }), 10, 40)).toBe(false);
+  });
+
+  it('ignores transactions that do not change the document', () => {
+    const tr = transaction([[20, 21]]);
+    tr.docChanged = false;
+    expect(isLocalSmartTypeUpdate(tr, 10, 40)).toBe(false);
+  });
+});
+
+describe('isNonLatinComposition', () => {
+  it('lets a Latin word composed by an Android keyboard through', () => {
+    expect(isNonLatinComposition(true, 'MAR')).toBe(false);
+  });
+
+  it('keeps the popup closed while a CJK or Hangul composition runs', () => {
+    expect(isNonLatinComposition(true, '马')).toBe(true);
+    expect(isNonLatinComposition(true, 'あ')).toBe(true);
+    expect(isNonLatinComposition(true, '한')).toBe(true);
+    // Han extension B, a surrogate pair: the old range list missed it.
+    expect(isNonLatinComposition(true, '𠀀')).toBe(true);
+  });
+
+  it('does nothing when no composition is active', () => {
+    expect(isNonLatinComposition(false, '马')).toBe(false);
   });
 });
