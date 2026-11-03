@@ -8,6 +8,7 @@
  */
 import type { JSONContent } from '@tiptap/react';
 import { jsonBlockText, singleLine } from './nodeText';
+import { safeSequenceColor } from './formatAnnotations';
 
 export interface StructureScene {
   sceneIndex: number;          // 0-based index within the whole document
@@ -184,7 +185,7 @@ export function computeScriptStructure(doc: JSONContent): ScriptStructure {
         docPos: blockPos,
         sequenceId,
         sequenceName: (node.attrs?.sequenceName as string | undefined) || null,
-        sequenceColor: (node.attrs?.sequenceColor as string | undefined) || null,
+        sequenceColor: safeSequenceColor(node.attrs?.sequenceColor) || null,
       };
 
       // Target act: current act, or create an implicit Prologue if no acts yet
@@ -208,7 +209,7 @@ export function computeScriptStructure(doc: JSONContent): ScriptStructure {
           actSeq = {
             id: sequenceId,
             name: scene.sequenceName || 'Untitled Sequence',
-            color: scene.sequenceColor || '#64748b',
+            color: safeSequenceColor(scene.sequenceColor) || '#64748b',
             scenes: [],
           };
           targetAct.sequences.push(actSeq);
