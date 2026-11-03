@@ -1179,6 +1179,13 @@ const ScreenplayEditor: React.FC = () => {
   zoomLevelRef.current = zoomLevel;
 
   const [overlays, setOverlays] = useState<OverlayInfo[]>([]);
+  /**
+   * The page Go to Page just asked for. The scroll handler consumes it before
+   * its own heuristic so the status bar names the page the writer jumped to,
+   * even when that page's break cannot reach the top (Speed has no page gap to
+   * scroll through).
+   */
+  const pendingCurrentPageRef = useRef<number | null>(null);
 
   const {
     openFileOpen, setOpenFileOpen, saveAsOpen, setSaveAsOpen,
@@ -4198,12 +4205,24 @@ const ScreenplayEditor: React.FC = () => {
   // scale before mixing with rect deltas.
   const handleScroll = useCallback(() => {
     if (!editorMainRef.current || !pageRef.current) return;
+    if (pendingCurrentPageRef.current !== null) {
+      setCurrentPage(pendingCurrentPageRef.current);
+      pendingCurrentPageRef.current = null;
+      return;
+    }
     const containerTop = editorMainRef.current.getBoundingClientRect().top;
     const pageTop = pageRef.current.getBoundingClientRect().top;
     const scale = (zoomLevelRef.current || 100) / 100;
     let page = 1;
     for (const ov of overlays) {
       if (pageTop + ov.top * scale - containerTop < 50) page = ov.pageNumber;
+    }
+    // At the end of the document the last page is on screen even when its
+    // break cannot reach the top: Speed has no page gap to scroll through, so
+    // a short last page can stay 30-60px below the top at the maximum scroll.
+    const el = editorMainRef.current;
+    if (overlays.length > 0 && el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
+      page = overlays[overlays.length - 1].pageNumber;
     }
     setCurrentPage(page);
   }, [overlays, setCurrentPage]);
@@ -4232,11 +4251,17 @@ const ScreenplayEditor: React.FC = () => {
   const handleGoToPage = useCallback((page: number) => {
     if (!editorMainRef.current || !pageRef.current) return;
     if (page <= 1) {
+      pendingCurrentPageRef.current = null;
+      setCurrentPage(1);
       editorMainRef.current.scrollTo({ top: 0, behavior: 'auto' });
       return;
     }
     const ov = overlays.find(o => o.pageNumber === page);
     if (ov) {
+      // Name the page now, and let the first scroll event consume the request
+      // instead of recomputing it from the 50px threshold.
+      pendingCurrentPageRef.current = page;
+      setCurrentPage(page);
       const pageRect = pageRef.current.getBoundingClientRect();
       const containerRect = editorMainRef.current.getBoundingClientRect();
       const scale = (zoomLevelRef.current || 100) / 100;
@@ -4253,7 +4278,7 @@ const ScreenplayEditor: React.FC = () => {
       const scrollTo = editorMainRef.current.scrollTop + (pageRect.top + pageTopOffset * scale - containerRect.top);
       editorMainRef.current.scrollTo({ top: scrollTo, behavior: 'auto' });
     }
-  }, [overlays, speedView]);
+  }, [overlays, speedView, setCurrentPage]);
 
   // Wire up the picker trigger
   showPickerRef.current = useCallback((defaultType: ElementType, availableTypes?: ElementType[]) => {
