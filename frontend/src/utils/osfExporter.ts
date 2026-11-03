@@ -32,7 +32,8 @@ import { isNonPrintingType } from './nonPrinting';
 import { blockRevision, osfRevisionColors, osfRevisionIndex } from './revisionExport';
 import { latestRevision, type RevisionSettings } from '../editor/revisionColors';
 import {
-  bookmarkOf, encodeAlternates, OSF_ALTERNATES_ATTR, OSF_ALTERNATE_INDEX_ATTR,
+  bookmarkOf, encodeAlternates, encodeSequence, OSF_ALTERNATES_ATTR, OSF_ALTERNATE_INDEX_ATTR,
+  OSF_SEQUENCE_ATTR,
 } from './formatAnnotations';
 
 /** Element type → the OSF style a paragraph is based on. */
@@ -265,6 +266,10 @@ function paragraph(node: JSONContent, dual = false, sceneNumbers = true): string
     paraAttrs += ` ${OSF_ALTERNATES_ATTR}="${esc(alternates.json)}"`
       + ` ${OSF_ALTERNATE_INDEX_ATTR}="${alternates.index}"`;
   }
+  // The Outline's sequence label, in an attribute only OpenDraft reads; the
+  // parser already had the read side, this is the write side it was missing.
+  const sequence = encodeSequence(node);
+  if (sequence) paraAttrs += ` ${OSF_SEQUENCE_ATTR}="${esc(sequence)}"`;
 
   const revision = blockRevision(node);
   return [

@@ -16,7 +16,7 @@ import { exportFountain } from './fountainExporter';
 import { parseFountain } from './fountainParser';
 import {
   decodeAlternates, fdxParagraphAnnotations, osfParagraphAnnotations,
-  parseFountainAnnotation, fountainBookmarkNote,
+  parseFountainAnnotation, fountainBookmarkNote, readSequenceLabel, safeSequenceColor,
 } from './formatAnnotations';
 import { testSchema } from '../test/screenplaySchema';
 
@@ -129,7 +129,21 @@ describe('Final Draft (.fdx)', () => {
     });
   });
 
-  it('ignores damaged or misplaced versions without failing the import', () => {    const [bad, misplaced] = Array.from(xml(
+  it('drops a sequence colour that is not a hex value', () => {
+    expect(safeSequenceColor('#abc')).toBe('#abc');
+    expect(safeSequenceColor('#AABBCC')).toBe('#AABBCC');
+    expect(safeSequenceColor('url(https://example.com/x.png)')).toBe('');
+    expect(safeSequenceColor('red')).toBe('');
+
+    const read = readSequenceLabel(
+      JSON.stringify({ id: 'seq-1', name: 'The Heist', color: 'url(https://example.com/x.png)' }),
+      'sceneHeading',
+    );
+    expect(read).toEqual({ sequenceId: 'seq-1', sequenceName: 'The Heist' });
+  });
+
+  it('ignores damaged or misplaced versions without failing the import', () => {
+    const [bad, misplaced] = Array.from(xml(
       '<FinalDraft><Content>'
       + '<Paragraph Type="Dialogue" data-od-alternates="{not json"><Text>Hi.</Text></Paragraph>'
       + '<Paragraph Type="Character" data-od-alternates="[{&quot;id&quot;:&quot;a&quot;,&quot;content&quot;:[]}]"><Text>ANNA</Text></Paragraph>'

@@ -197,6 +197,23 @@ describe('osfExporter', () => {
     expect(flatText(parsed.doc.content![1])).toBe('Zipped and delivered.');
   });
 
+  it('writes and reads the Outline sequence label', () => {
+    const doc = docOf({
+      type: 'sceneHeading',
+      attrs: { sequenceId: 'seq-1', sequenceName: 'The Heist', sequenceColor: '#123456' },
+      content: [text('INT. HOUSE - DAY')],
+    });
+
+    const xml = exportOSF(doc);
+    expect(xml).toContain('od_sequence=');
+
+    const parsed = parseOSF(xml);
+    const heading = (parsed.doc.content ?? []).find((n) => n.type === 'sceneHeading');
+    expect(heading?.attrs).toMatchObject({
+      sequenceId: 'seq-1', sequenceName: 'The Heist', sequenceColor: '#123456',
+    });
+  });
+
   // The document is the same shape after each save, or a file edited over
   // several sessions drifts a little further from itself every time.
   it('is stable across repeated save cycles', () => {

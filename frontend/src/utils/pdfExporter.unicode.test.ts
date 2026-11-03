@@ -156,9 +156,17 @@ describe('a Latin screenplay', () => {
     // out of a clean Standard 14 path afterwards. Only the file id, which jsPDF
     // stamps per document, is allowed to differ.
     const withoutFileId = (pdf: string) => pdf.replace(/\/ID \[[^\]]*\]/, '');
-    const before = withoutFileId(await exportBytes(latin));
-    await exportBytes(cyrillic);
-    expect(withoutFileId(await exportBytes(latin))).toBe(before);
+    // jsPDF also writes /CreationDate to the second, so the clock is held
+    // still: exports either side of a second boundary failed this at random.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      const before = withoutFileId(await exportBytes(latin));
+      await exportBytes(cyrillic);
+      expect(withoutFileId(await exportBytes(latin))).toBe(before);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

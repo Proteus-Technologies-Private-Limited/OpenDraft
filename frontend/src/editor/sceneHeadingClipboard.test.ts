@@ -44,6 +44,21 @@ describe('copying a scene heading', () => {
     expect(pasted.sequenceColor).toBe('#123456');
   });
 
+  it('drops a sequence colour that is not a hex value', () => {
+    const copied = copiedAttributes({
+      sequenceId: 'seq-1', sequenceColor: 'url(https://example.com/x.png)',
+    });
+    expect(copied['data-sequence-id']).toBe('seq-1');
+    expect(copied['data-sequence-color']).toBeUndefined();
+
+    const pasted = pastedAttributes({
+      'data-sequence-id': 'seq-1',
+      'data-sequence-color': 'url(https://example.com/x.png)',
+    });
+    expect(pasted.sequenceId).toBe('seq-1');
+    expect(pasted.sequenceColor).toBeNull();
+  });
+
   it('writes no sequence attributes for a scene in no sequence', () => {
     const copied = copiedAttributes({});
     expect(copied['data-sequence-id']).toBeUndefined();
