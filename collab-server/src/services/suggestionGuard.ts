@@ -31,7 +31,9 @@
  * The id is what tells apart two collaborators invited under the same name.
  * A stamp without one, from a version of the app before ids, goes by name.
  *
- * Nothing else about the script: no plain text, no formatting, no other
+ * Character styles may change only with an owned, reversible suggestionFormat
+ * mark. Withdrawing restores the original; accepting remains an editor action.
+ * Nothing else about the script: no plain text, no untracked formatting, no other
  * attribute. Only the script itself (the `default` fragment) is checked; the
  * notes, beats and other panels sync beside it as they do for any
  * collaborator.
@@ -53,6 +55,7 @@ interface YFragmentLike {
   unobserveDeep(f: (events: YEventLike[]) => void): void;
 }
 interface YDocLike {
+  store?: { pendingStructs: { update: Uint8Array } | null };
   getXmlFragment(name: string): YFragmentLike;
   destroy(): void;
   on(event: 'update', f: (update: Uint8Array) => void): void;
@@ -69,6 +72,11 @@ export interface YjsLike {
   encodeStateAsUpdate(doc: YDocLike): Uint8Array;
   encodeStateVector(doc: YDocLike): Uint8Array;
   decodeStateVector(state: Uint8Array): Map<number, number>;
+  decodeUpdateV2(update: Uint8Array): ReturnType<YjsLike['decodeUpdate']>;
+  decodeUpdate(update: Uint8Array): {
+    structs: Array<{ id?: { client: number; clock: number }; content?: { key?: string; value?: unknown } }>;
+    ds: { clients: Map<number, Array<{ clock: number; len: number }>> };
+  };
 }
 
 /** Who a suggester is: their session name and, from their invite, their id. */
@@ -172,15 +180,92 @@ const SUGGESTION_ATTRS = new Set(['suggestedSplit', 'suggestedJoin', 'suggestedT
 /** A scene heading's stable id, which Beat Board links go by. */
 const SCENE_UID = 'sceneUid';
 
+const FORMAT_MARK = 'suggestionFormat';
+const FORMATS = new Set(['bold', 'italic', 'underline', 'strike', 'subscript', 'superscript']);
+interface FormatProposal {
+  id: string;
+  by: string;
+  uid?: string;
+  format: string;
+  before: boolean;
+  after: boolean;
+}
+function formatProposals(marks: Attrs): FormatProposal[] {
+  return Object.entries(marks)
+    .filter(([key, value]) => markName(key) === FORMAT_MARK && !isEmpty(value))
+    .map(([, value]) => value as FormatProposal);
+}
+function validFormat(p: FormatProposal): boolean {
+  return (
+    !!p &&
+    typeof p === 'object' &&
+    typeof p.id === 'string' &&
+    !!p.id &&
+    typeof p.by === 'string' &&
+    FORMATS.has(p.format) &&
+    typeof p.before === 'boolean' &&
+    typeof p.after === 'boolean' &&
+    p.before !== p.after
+  );
+}
+const styleOn = (marks: Attrs, format: string) =>
+  Object.entries(marks).some(([key, value]) => markName(key) === format && !isEmpty(value));
+/** The only permitted changes to accepted styling are paired with an owned, reversible proposal. */
+function formatChange(a: Attrs, b: Attrs, me: SuggesterIdentity): string | null {
+  const before = formatProposals(a),
+    after = formatProposals(b);
+  if (after.some((p) => !validFormat(p)) || before.some((p) => !validFormat(p)))
+    return 'invalid formatting suggestion';
+  if (
+    after.some((p) =>
+      after.some((q) => q.format === p.format && (q.before !== p.before || q.after !== p.after)),
+    )
+  )
+    return 'conflicting formatting suggestions for the same style';
+  for (const p of before)
+    if (!after.some((q) => same(p, q)) && !owns(p, me))
+      return "changed someone else's formatting suggestion";
+  for (const p of after)
+    if (!before.some((q) => same(p, q)) && !owns(p, me))
+      return 'suggested formatting as someone else';
+  const ownInsert = owns(a.suggestionInsert, me) && owns(b.suggestionInsert, me);
+  for (const format of FORMATS) {
+    const old = before.find((p) => p.format === format),
+      next = after.find((p) => p.format === format);
+    const was = styleOn(a, format),
+      now = styleOn(b, format);
+    if (same(old, next)) {
+      if (was !== now && !ownInsert) return `changed ${format} without suggesting it`;
+      continue;
+    }
+    if (next) {
+      if (next.before !== (old?.before ?? was) || now !== next.after)
+        return `changed the baseline of suggested ${format}`;
+    } else if (old && now !== old.before)
+      return `accepted suggested ${format} instead of withdrawing it`;
+  }
+  return null;
+}
+
 /** Why a change from `a` to `b` of the same character is not the author's to make, or null. */
 function charChange(a: Attrs, b: Attrs, me: SuggesterIdentity): string | null {
+  const formatError = formatChange(a, b, me);
+  if (formatError) return formatError;
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
   for (const key of keys) {
     const before = a[key];
     const after = b[key];
     if (same(before, after)) continue;
     const name = markName(key);
-    if (name === 'scriptNote') continue;
+    if (name === 'scriptNote' || name === FORMAT_MARK) continue;
+    if (FORMATS.has(name)) {
+      if (
+        (!isEmpty(before) && Object.keys(meaningful(before) as object).length) ||
+        (!isEmpty(after) && Object.keys(meaningful(after) as object).length)
+      )
+        return `invalid ${name} attributes`;
+      continue;
+    }
     if (name === 'suggestionDelete') {
       if (after !== undefined && !owns(after, me)) return 'marked a deletion as someone else';
       if (after === undefined && !owns(before, me)) return "removed someone else's suggested deletion";
@@ -220,7 +305,10 @@ function elementChange(a: Unit & { kind: 'open' }, b: Unit & { kind: 'open' }, m
 }
 
 function insertedUnit(u: Unit, me: SuggesterIdentity): string | null {
-  if (u.kind === 'char') return owns(u.marks.suggestionInsert, me) ? null : 'added text that is not a suggestion';
+  if (u.kind === 'char') {
+    if (formatProposals(u.marks).some((p) => !validFormat(p) || !owns(p, me))) return 'added invalid formatting suggestions';
+    return owns(u.marks.suggestionInsert, me) ? null : 'added text that is not a suggestion';
+  }
   if (u.kind === 'open') return owns(u.attrs.suggestedSplit, me) ? null : `added a ${u.name} that is not a suggested new line`;
   return null;
 }
@@ -553,7 +641,8 @@ class Reader {
 export function updateInMessage(message: Uint8Array): Uint8Array | null {
   const r = new Reader(message);
   r.string(); // document name
-  if (r.varUint() !== MESSAGE_SYNC) return null;
+  const type = r.varUint();
+  if (type !== MESSAGE_SYNC && type !== 4) return null; // SyncReply also carries updates.
   const step = r.varUint();
   if (step !== SYNC_STEP_2 && step !== SYNC_UPDATE) return null;
   return r.bytes();

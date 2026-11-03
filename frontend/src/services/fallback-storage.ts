@@ -1,3 +1,4 @@
+import { prepareReviewSave } from '../utils/reviewSave';
 /**
  * localStorage-based fallback storage for when Tauri SQLite is unavailable.
  *
@@ -172,7 +173,7 @@ export function createFallbackStorage() {
       const data = loadData();
       const id = uuid();
       const ts = now();
-      const content = scriptData.content || null;
+      const content = prepareReviewSave(scriptData.content || null);
       const contentStr = content ? JSON.stringify(content) : '';
       const meta: ScriptMeta = {
         id, title: scriptData.title, author: '', format: normalizeFormat(scriptData.format),
@@ -203,8 +204,8 @@ export function createFallbackStorage() {
       if (!s) throw new Error(`Script not found: ${scriptId}`);
       if (updates.title !== undefined) s.meta.title = updates.title;
       if (updates.content !== undefined) {
-        s.content = updates.content;
-        s.meta.size_bytes = JSON.stringify(updates.content).length;
+        s.content = prepareReviewSave(updates.content);
+        s.meta.size_bytes = JSON.stringify(s.content).length;
       }
       if (updates.color !== undefined) s.meta.color = updates.color;
       if (updates.pinned !== undefined) s.meta.pinned = updates.pinned;

@@ -1,3 +1,4 @@
+import { prepareScriptWrite } from '../utils/reviewSave';
 /**
  * cloudApi — the subset of `api` that ALWAYS talks to the remote Python
  * backend over HTTP, regardless of platform.
@@ -74,7 +75,7 @@ export const cloudApi = {
   createScript: (projectId: string, data: { title: string; content?: any; format?: string }) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/`, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(prepareScriptWrite(data)),
     }),
 
   getScript: (projectId: string, scriptId: string) =>
@@ -93,7 +94,7 @@ export const cloudApi = {
   ) =>
     request<ScriptResponse>(`/projects/${projectId}/scripts/${scriptId}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify(prepareScriptWrite(data)),
     }),
 
   deleteScript: (projectId: string, scriptId: string) =>
