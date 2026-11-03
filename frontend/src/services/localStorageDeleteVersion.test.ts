@@ -7,12 +7,29 @@
  * one `db.ts` migrates and the SQL is the SQL the app runs.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { DatabaseSync } from 'node:sqlite';
+import { createRequire } from 'node:module';
 
-let sqlite: DatabaseSync;
+type SqliteDatabase = import('node:sqlite').DatabaseSync;
+type SqliteConstructor = new (path: string) => SqliteDatabase;
+
+/**
+ * Node's built-in SQLite arrived in 22.5. The CI runner is Node 20, where the
+ * module does not exist; loading it through `require` in a try keeps the suite
+ * skippable there instead of failing the whole run at collection time.
+ */
+const require = createRequire(import.meta.url);
+let DatabaseSync: SqliteConstructor | null = null;
+try {
+  DatabaseSync = (require('node:sqlite') as { DatabaseSync: SqliteConstructor }).DatabaseSync;
+} catch {
+  DatabaseSync = null;
+}
+const describeSqlite = DatabaseSync ? describe : describe.skip;
+
+let sqlite: SqliteDatabase;
 
 /** The slice of @tauri-apps/plugin-sql the store uses, over node:sqlite. */
-function adapter(conn: DatabaseSync) {
+function adapter(conn: SqliteDatabase) {
   // node:sqlite binds plain `?` by position; Tauri's `$n` may repeat or come
   // out of order, so each `$n` becomes a `?` with its value at that place.
   const bind = (sql: string, params: unknown[]) => {
@@ -48,6 +65,7 @@ let clock = Date.parse('2026-01-01T00:00:00Z');
 
 async function setup() {
   vi.resetModules();
+  if (!DatabaseSync) throw new Error('node:sqlite is not available');
   sqlite = new DatabaseSync(':memory:');
   const { createLocalStorage } = await import('./local-storage');
   const storage = await createLocalStorage();
@@ -77,7 +95,7 @@ async function setup() {
   return { storage, write, checkin, textAt };
 }
 
-describe('local storage deleteVersion', () => {
+describeSqlite('local storage deleteVersion', () => {
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); });
 
   it('keeps later versions that inherited content from the deleted one', async () => {
