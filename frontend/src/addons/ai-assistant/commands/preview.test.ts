@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import './index';
 import { executeCommand } from './index';
-import { createPreviewAdapter } from './preview';
+import { createPreviewAdapter, previewTextLines } from './preview';
 import type { ScriptContext } from './types';
 
 const context: ScriptContext = {
@@ -36,6 +36,16 @@ describe('createPreviewAdapter', () => {
     executeCommand('editor.replaceSelection', { text: 'Nuovo.' }, adapter);
     executeCommand('editor.insertText', { text: 'Testo.' }, adapter);
     expect(ops.map((op) => op.kind)).toEqual(['element', 'replace', 'text']);
+  });
+
+  it('splits a multi-line reply into the blocks the insert will make', () => {
+    const { adapter, ops } = createPreviewAdapter(context);
+    executeCommand('editor.insertText', { text: 'One\nTwo' }, adapter);
+    executeCommand('editor.replaceSelection', { text: 'Three\nFour' }, adapter);
+    const texts = ops.flatMap((op) => (
+      op.kind === 'text' || op.kind === 'replace' ? previewTextLines(op) : []
+    ));
+    expect(texts).toEqual(['One', 'Two', 'Three', 'Four']);
   });
 
   it('still validates, so an invalid command records nothing', () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { modelTools, isModelCommand } from './modelTools';
+import { registerCommand } from './commands';
 
 describe('modelTools', () => {
   const { tools, commandForTool, allowed } = modelTools();
@@ -36,5 +37,18 @@ describe('modelTools', () => {
 
   it('rejects an unknown command name', () => {
     expect(isModelCommand('editor_deleteEverything', commandForTool, allowed)).toBe(false);
+  });
+
+  it('does not offer a command registered later until it is listed', () => {
+    registerCommand({
+      id: 'editor.deleteScript',
+      label: 'Delete Script',
+      description: 'Delete everything in the script.',
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+      run: () => ({ ok: true, message: 'Deleted.' }),
+    });
+    const fresh = modelTools();
+    expect(fresh.allowed.has('editor.deleteScript')).toBe(false);
+    expect(fresh.tools.map((tool) => tool.function.name)).not.toContain('editor_deleteScript');
   });
 });
