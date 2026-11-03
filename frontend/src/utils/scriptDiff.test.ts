@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { JSONContent } from '@tiptap/react';
 import { computeScriptDiff } from './scriptDiff';
 import { doc, block, BR } from '../test/screenplaySchema';
 
@@ -219,7 +220,7 @@ describe('scriptDiff: summary', () => {
 
 describe('scriptDiff: large scripts', () => {
   const bigScript = (opts: { early?: boolean; late?: boolean; insert?: boolean }) => {
-    const content: any[] = [];
+    const content: JSONContent[] = [];
     for (let i = 0; i < 410; i++) {
       content.push({ type: 'sceneHeading', content: [{ type: 'text', text: `INT. ROOM ${i} - DAY` }] });
       for (let j = 0; j < 9; j++) {
@@ -327,5 +328,157 @@ describe('scriptDiff: cue extensions and transitions', () => {
     const b = doc(block('transition', 'DISSOLVE TO:'), block('action', 'One.'));
     const result = computeScriptDiff(a, b);
     expect(result.summary.totalModified).toBe(0);
+  });
+});
+
+describe('scriptDiff: post-merge follow-ups', () => {
+  it.each([false, true])('keeps a deletion in its original scene when the preceding block moves (backward: %s)', (backward) => {
+    const street = block('sceneHeading', 'EXT. CITY STREET - NIGHT');
+    const cafe = block('sceneHeading', 'INT. COFFEE SHOP - DAY');
+    const moved = block('action', 'She turns down an alley and listens hard.');
+    const deleted = block('action', 'Then: FOOTSTEPS behind her.');
+    const streetEnd = block('action', 'Sarah does not run.');
+    const cafeEnd = block('action', 'Cups clatter.');
+    const a = backward
+      ? doc(cafe, cafeEnd, street, moved, deleted, streetEnd)
+      : doc(street, moved, deleted, streetEnd, cafe, cafeEnd);
+    const b = backward
+      ? doc(cafe, cafeEnd, moved, street, streetEnd)
+      : doc(street, streetEnd, cafe, cafeEnd, moved);
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalMoved).toBe(1);
+    expect(result.summary.totalDeleted).toBe(1);
+    const rows = result.blocks;
+    const deletion = rows.findIndex((row) => row.type === 'deleted');
+    const heading = rows.findIndex((row) => row.newText === 'EXT. CITY STREET - NIGHT');
+    const end = rows.findIndex((row) => row.newText === 'Sarah does not run.');
+    expect(deletion).toBeGreaterThan(heading);
+    expect(deletion).toBeLessThan(end);
+    expect(rows[deletion].sceneHeading).toBe('EXT. CITY STREET - NIGHT');
+  });
+
+  it('counts a renamed scene once under its new name, including deleted content', () => {
+    const a = doc(
+      block('sceneHeading', "INT. MARCUS' APARTMENT - NIGHT"),
+      block('action', 'He opens the window.'),
+      block('action', 'The discarded letter burns.'),
+      block('sceneHeading', 'EXT. STREET - DAY'),
+    );
+    const b = doc(
+      block('sceneHeading', "INT. MARCUS' APARTMENT - DAWN"),
+      block('action', 'He opens the window.'),
+      block('sceneHeading', 'EXT. STREET - DAY'),
+    );
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalModified).toBe(1);
+    expect(result.summary.totalDeleted).toBe(1);
+    expect(result.summary.scenesChanged).toEqual(["INT. MARCUS' APARTMENT - DAWN"]);
+    // Detailed rows keep the original draft's scene information.
+    expect(result.blocks.find((row) => row.type === 'deleted')?.sceneHeading)
+      .toBe("INT. MARCUS' APARTMENT - NIGHT");
+  });
+
+  it('keeps both scenes in the summary when a line moves between them', () => {
+    const a = doc(
+      block('sceneHeading', 'INT. HOUSE - NIGHT'),
+      block('action', 'She puts the letter in her pocket.'),
+      block('sceneHeading', 'EXT. STREET - DAY'),
+      block('action', 'Traffic stops.'),
+    );
+    const b = doc(
+      block('sceneHeading', 'INT. HOUSE - DAWN'),
+      block('sceneHeading', 'EXT. STREET - DAY'),
+      block('action', 'Traffic stops.'),
+      block('action', 'She puts the letter in her pocket.'),
+    );
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalMoved).toBe(1);
+    expect(result.summary.scenesChanged).toEqual(['INT. HOUSE - DAWN', 'EXT. STREET - DAY']);
+  });
+
+  it.each([false, true])('pairs the borderline dialogue rewrite under the same cue (extra beat: %s)', (extraBeat) => {
+    const a = doc(
+      block('character', 'JOHN'),
+      block('dialogue', 'You should have left it alone, Sarah.'),
+    );
+    const b = doc(
+      block('character', 'JOHN'),
+      block('dialogue', 'You should have walked away, Sarah. While you still could.'),
+      ...(extraBeat ? [block('action', 'Sarah closes the door.')] : []),
+    );
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalModified).toBe(1);
+    expect(result.summary.totalDeleted).toBe(0);
+    expect(result.summary.totalAdded).toBe(extraBeat ? 1 : 0);
+    expect(result.summary.dialogueDelta).toEqual([]);
+  });
+
+  it.each(['different cue', 'no cue', 'action', 'new scene'])('keeps the original threshold for %s', (context) => {
+    const type = context === 'action' ? 'action' : 'dialogue';
+    const cue = context === 'no cue' || context === 'action' ? [] : [block('character', 'JOHN')];
+    const a = doc(...cue, block(type, 'You should have left it alone, Sarah.'));
+    const b = doc(
+      ...(context === 'different cue' ? [block('character', 'MARY')] : cue),
+      ...(context === 'new scene' ? [block('sceneHeading', 'EXT. ROAD - DAY')] : []),
+      block(type, 'You should have walked away, Sarah. While you still could.'),
+    );
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalModified).toBe(0);
+  });
+
+  it('keeps a separate scene with the same old heading in the summary', () => {
+    const a = doc(
+      block('sceneHeading', 'INT. HOUSE - NIGHT'),
+      block('action', 'An intact beat.'),
+      block('sceneHeading', 'EXT. ROAD - DAY'),
+      block('sceneHeading', 'INT. HOUSE - NIGHT'),
+      block('action', 'Another deleted beat.'),
+    );
+    const b = doc(
+      block('sceneHeading', 'INT. HOUSE - DAWN'),
+      block('action', 'An intact beat.'),
+      block('sceneHeading', 'EXT. ROAD - DAY'),
+      block('sceneHeading', 'INT. HOUSE - NIGHT'),
+    );
+    expect(computeScriptDiff(a, b).summary.scenesChanged)
+      .toEqual(['INT. HOUSE - DAWN', 'INT. HOUSE - NIGHT']);
+  });
+
+  it('still separates unrelated dialogue spoken by the same character', () => {
+    const a = doc(block('character', 'JOHN'), block('dialogue', 'Sarah, you left too early.'));
+    const b = doc(block('character', 'JOHN'), block('dialogue', 'Sarah, the harbor is closed.'));
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalModified).toBe(0);
+    expect(result.summary.dialogueDelta).toEqual([{ character: 'JOHN', added: 1, removed: 1 }]);
+  });
+
+  it('compares Unicode words without losing accents or repeated-word counts', () => {
+    const a = doc(block('action', 'Écho écho rivière forêt'));
+    const b = doc(block('action', 'écho ÉCHO montagne jardin'), block('action', 'Extra beat.'));
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalModified).toBe(1);
+    expect(result.summary.totalAdded).toBe(1);
+    expect(result.summary.totalDeleted).toBe(0);
+  });
+
+  it('does not inflate similarity by counting a repeated word more than its counterpart', () => {
+    const a = doc(block('action', 'echo echo echo echo echo echo'));
+    const b = doc(block('action', 'echo mountain river forest meadow valley'));
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalModified).toBe(0);
+    expect(result.summary.totalDeleted).toBe(1);
+    expect(result.summary.totalAdded).toBe(1);
+  });
+
+  it('preserves multiset similarity at the threshold in the unequal-run pairing path', () => {
+    const a = doc(block('action', 'echo echo river river'));
+    const b = doc(
+      block('action', 'echo echo mountain mountain'),
+      block('action', 'Unrelated extra beat.'),
+    );
+    const result = computeScriptDiff(a, b);
+    expect(result.summary.totalModified).toBe(1);
+    expect(result.summary.totalAdded).toBe(1);
+    expect(result.summary.totalDeleted).toBe(0);
   });
 });
