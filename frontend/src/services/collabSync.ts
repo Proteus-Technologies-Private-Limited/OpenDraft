@@ -17,7 +17,9 @@
  */
 
 import * as Y from 'yjs';
-import { useEditorStore, type GeneralNote, type NoteInfo } from '../stores/editorStore';
+import { useFormattingTemplateStore, activeTemplateSnapshot } from '../stores/formattingTemplateStore';
+import { validTemplatePageLayout } from '../utils/templateSnapshot';
+import { useEditorStore, DEFAULT_PAGE_LAYOUT, type GeneralNote, type NoteInfo, type PageLayout } from '../stores/editorStore';
 import { normalizeRevisionSettings } from '../editor/revisionColors';
 import { normalizeScriptProfile } from '../utils/scriptProfile';
 import {
@@ -69,6 +71,11 @@ let metaMap: Y.Map<string> | null = null;
 let tombMap: Y.Map<string> | null = null;
 let fromYjs = false;
 let unsubStore: (() => void) | null = null;
+let unsubTemplates: (() => void) | null = null;
+let prevFormat: string | null = null;
+let prevSharedFormat: string | null = null;
+let mayPublishFormat = false;
+const FORMAT_KEY = 'documentFormat';
 /** The store as last written to or read from Yjs, to tell what changed. */
 let prevSnapshot: Record<SyncKey, string> | null = null;
 let prevNoteLists: Record<NoteKey, NoteList> | null = null;
@@ -86,13 +93,19 @@ let adoptNextNotes: Record<NoteKey, boolean> = { notes: false, generalNotes: fal
  *
  * @param ydoc  The Yjs document used by the collab session
  * @param isHost  If true, seeds the Yjs map with current store data
+ * @param canEditFormat  Whether this participant may publish format/layout changes
  */
-export function startCollabSync(ydoc: Y.Doc, isHost: boolean): void {
+export function startCollabSync(
+  ydoc: Y.Doc,
+  isHost: boolean,
+  canEditFormat: () => boolean = () => true,
+): void {
   stopCollabSync(); // clean up any previous session
 
   metaMap = ydoc.getMap('metadata');
   tombMap = ydoc.getMap('noteTombstones');
 
+  mayPublishFormat = isHost;
   // ── 1. Host seeds Yjs map from current store ──
   if (isHost) {
     const store = useEditorStore.getState();
@@ -112,6 +125,7 @@ export function startCollabSync(ydoc: Y.Doc, isHost: boolean): void {
       metaMap!.set('revisionHistory', JSON.stringify(store.revisionHistory));
       metaMap!.set('revisionSettings', JSON.stringify(store.revisionSettings));
       metaMap!.set('scriptProfile', JSON.stringify(store.scriptProfile));
+      if (canEditFormat()) metaMap!.set(FORMAT_KEY, formatSnapshot());
       pruneTombstones(Date.now());
     });
     // What the guests start from, so the merge can tell their deletions.
@@ -132,7 +146,7 @@ export function startCollabSync(ydoc: Y.Doc, isHost: boolean): void {
   // ── 3. Store → Yjs: subscribe to Zustand store changes ──
   rememberStore();
 
-  unsubStore = useEditorStore.subscribe(() => {
+  const publishChanges = () => {
     if (fromYjs || !metaMap) return; // skip if this change originated from Yjs
     const curr = takeSnapshot();
     const prev = prevSnapshot;
@@ -140,7 +154,13 @@ export function startCollabSync(ydoc: Y.Doc, isHost: boolean): void {
 
     // Only write keys that actually changed (by stringified value)
     const changed = SYNC_KEYS.filter((key) => !prev || curr[key] !== prev[key]);
-    if (changed.length === 0) return;
+    const format = formatSnapshot();
+    const formatChanged = mayPublishFormat && canEditFormat() && format !== prevFormat;
+    if (changed.length === 0 && !formatChanged) {
+      // Do not queue a restricted participant's private changes for later publication.
+      prevFormat = format;
+      return;
+    }
     // One transaction, so a deletion's tombstone travels with the list it
     // was deleted from.
     ydoc.transact(() => {
@@ -148,9 +168,14 @@ export function startCollabSync(ydoc: Y.Doc, isHost: boolean): void {
         if (changed.includes(key)) recordNoteDeletions(key);
       }
       for (const key of changed) map.set(key, curr[key]);
+      if (formatChanged) map.set(FORMAT_KEY, formatForPublishing(format, prevFormat, map.get(FORMAT_KEY)));
+      prevSharedFormat = map.get(FORMAT_KEY) ?? null;
     });
     prevSnapshot = curr;
-  });
+    prevFormat = format;
+  };
+  unsubStore = useEditorStore.subscribe(publishChanges);
+  unsubTemplates = useFormattingTemplateStore.subscribe(publishChanges);
 }
 
 /**
@@ -166,6 +191,11 @@ export function stopCollabSync(): void {
     tombMap = null;
   }
   prevSnapshot = null;
+  prevFormat = null;
+  prevSharedFormat = null;
+  mayPublishFormat = false;
+  unsubTemplates?.();
+  unsubTemplates = null;
   prevNoteLists = null;
   lastRemoteIds = { notes: undefined, generalNotes: undefined };
   adoptNextNotes = { notes: false, generalNotes: false };
@@ -200,9 +230,53 @@ function takeSnapshot(): Record<SyncKey, string> {
 }
 
 /** Note what the store holds now as already in Yjs. */
+function formatSnapshot(): string {
+  const templates = useFormattingTemplateStore.getState();
+  const store = useEditorStore.getState();
+  const template = activeTemplateSnapshot();
+  return JSON.stringify({
+    _templateId: templates.activeTemplateId,
+    ...(template != null ? { _templateSnapshot: template } : {}),
+    _pageLayout: store.pageLayout,
+    _sceneHeadingSpaceBefore: store.sceneHeadingSpaceBefore,
+  });
+}
+
+/** Layout edits must not promote a different same-ID local library definition. */
+function formatForPublishing(current: string, previous: string | null, shared: string | undefined): string {
+  if (!previous || !shared) return current;
+  const next = JSON.parse(current);
+  const before = JSON.parse(previous);
+  if (next._templateId !== before._templateId || JSON.stringify(next._templateSnapshot) !== JSON.stringify(before._templateSnapshot)) return current;
+  let packet: unknown;
+  try { packet = JSON.parse(shared); } catch { return current; }
+  if (!packet || typeof packet !== 'object' || Array.isArray(packet)
+    || !('_templateId' in packet) || !(packet._templateId === null || typeof packet._templateId === 'string')) return current;
+  return JSON.stringify({
+    ...packet,
+    _pageLayout: next._pageLayout,
+    _sceneHeadingSpaceBefore: next._sceneHeadingSpaceBefore,
+  });
+}
+
+function applySharedFormat(raw: string): void {
+  const packet = JSON.parse(raw) as Record<string, unknown>;
+  if (!packet || typeof packet !== 'object' || !(packet._templateId === null || typeof packet._templateId === 'string')) return;
+  const id = packet._templateId;
+  const layout = packet._pageLayout;
+  if (layout != null && !validTemplatePageLayout(layout)) return;
+  mayPublishFormat = true;
+  useFormattingTemplateStore.getState().restoreDocumentTemplate(id, packet._templateSnapshot);
+  if (layout) useEditorStore.getState().setPageLayout({ ...DEFAULT_PAGE_LAYOUT, ...layout as Partial<PageLayout> });
+  const spacing = packet._sceneHeadingSpaceBefore;
+  if (spacing === null || (typeof spacing === 'number' && Number.isFinite(spacing) && spacing >= 0)) useEditorStore.getState().setSceneHeadingSpaceBefore(spacing);
+}
+
 function rememberStore() {
   const s = useEditorStore.getState();
   prevSnapshot = takeSnapshot();
+  prevFormat = formatSnapshot();
+  prevSharedFormat = metaMap?.get(FORMAT_KEY) ?? null;
   prevNoteLists = { notes: s.notes, generalNotes: s.generalNotes };
 }
 
@@ -329,6 +403,10 @@ function applyYjsToStore() {
   fromYjs = true;
   try {
     const store = useEditorStore.getState();
+    const format = metaMap.get(FORMAT_KEY);
+    if (format && format !== prevSharedFormat) {
+      try { applySharedFormat(format); } catch (err) { console.warn('[collabSync] could not apply document format', err); }
+    }
 
     const cp = metaMap.get('characterProfiles');
     if (cp) {

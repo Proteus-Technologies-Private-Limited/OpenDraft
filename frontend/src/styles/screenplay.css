@@ -14927,6 +14927,10 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
   color: var(--fd-text-muted);
 }
 
+/* Document-carried formats stay usable on narrow screens. */
+.document-template-card .template-select-item-info { flex-wrap: wrap; }
+.document-template-card .template-select-item-actions { flex-wrap: wrap; }
+.document-template-card .template-select-hint { flex-basis: 100%; margin: 4px 0; }
 /* #178: keep the document's own draggable scrollbar, including beside panels. */
 .editor-main { min-height: 0; min-width: 0; overflow-y: scroll; scrollbar-gutter: stable; scrollbar-width: auto; scrollbar-color: var(--fd-text-muted) var(--fd-bg); }
 .editor-main::-webkit-scrollbar { display: block; width: 14px; height: 14px; }

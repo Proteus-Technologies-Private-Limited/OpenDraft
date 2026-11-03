@@ -38,20 +38,5 @@ export function restoreImportedFormat(value: unknown): void {
     typeof template.rules !== 'object'
   )
     return;
-  const fallback = structuredClone(INDUSTRY_STANDARD_TEMPLATE.rules);
-  for (const [id, rule] of Object.entries(template.rules))
-    if (fallback[id] && rule && typeof rule === 'object')
-      fallback[id] = { ...fallback[id], ...rule };
-  const restored = {
-    ...INDUSTRY_STANDARD_TEMPLATE,
-    ...template,
-    rules: fallback,
-  };
-  const store = useFormattingTemplateStore.getState();
-  useFormattingTemplateStore.setState({
-    templates: [
-      ...store.templates.filter((t) => t.id !== restored.id),
-      restored,
-    ],
-  });
+  useFormattingTemplateStore.getState().restoreDocumentTemplate(template.id, template);
 }

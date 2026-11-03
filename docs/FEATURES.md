@@ -4,6 +4,8 @@ A complete list of features in OpenDraft.
 
 ## Screenplay Editor
 
+- **Portable custom formats** -- Native scripts and backups include the full custom template, including custom elements, numbering and flow rules. Devices without the template use the embedded definition; a matching library template remains authoritative. Edit a separate document format or save a reusable copy without overwriting the library.
+
 - **Industry-standard formatting** -- Scene headings, action, character, dialogue, parenthetical, transition, and shot elements with proper Courier Prime formatting
 - **Formatting review** -- Suggest bold, italic, underline, strikethrough, subscript and superscript; accept, reject or withdraw with the original styling retained for exports. Filter reviews by change type and author, step through changes and accept/reject-and-next
 - **Character Autocomplete** -- Smart suggestions as you type character names

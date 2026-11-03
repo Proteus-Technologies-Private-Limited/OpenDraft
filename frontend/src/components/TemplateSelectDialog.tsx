@@ -12,7 +12,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { Editor } from '@tiptap/react';
-import { useFormattingTemplateStore, SYSTEM_TEMPLATES, SYSTEM_TEMPLATE_LIST } from '../stores/formattingTemplateStore';
+import { useFormattingTemplateStore, SYSTEM_TEMPLATES, SYSTEM_TEMPLATE_LIST, findTemplate, applyDocumentTemplate } from '../stores/formattingTemplateStore';
 import { INDUSTRY_STANDARD_ID } from '../stores/formattingTypes';
 import { INDUSTRY_STANDARD_TEMPLATE } from '../stores/industryStandardTemplate';
 import type { FormattingTemplate } from '../stores/formattingTypes';
@@ -23,6 +23,10 @@ import type { TemplateConflicts } from '../utils/templateConflicts';
 import { showToast } from './Toast';
 import { useSettingsStore } from '../stores/settingsStore';
 
+import { parseTemplateSnapshot, sameTemplateDefinition } from '../utils/templateSnapshot';
+
+const DOCUMENT_FORMAT = '__document_format_selection__';
+
 interface TemplateSelectDialogProps {
   editor: Editor | null;
   onClose: () => void;
@@ -32,6 +36,8 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
   const {
     templates,
     activeTemplateId,
+    documentTemplate,
+    unreadableTemplateSnapshot,
     setActiveTemplateId,
     loadTemplates,
     createTemplate,
@@ -42,7 +48,14 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
 
   const defaultScriptFormat = useSettingsStore((s) => s.defaultScriptFormat);
 
-  const [selectedId, setSelectedId] = useState<string | null>(activeTemplateId);
+  const libraryTemplate = findTemplate(documentTemplate?.id);
+  const showDocumentTemplate = !!documentTemplate && (!libraryTemplate || !sameTemplateDefinition(documentTemplate, libraryTemplate));
+  const documentIsActive = !!documentTemplate && !libraryTemplate;
+  const [selection, setSelection] = useState<{ id: string | null } | null>(null);
+  const selectedId = selection && (selection.id !== DOCUMENT_FORMAT || showDocumentTemplate)
+    ? selection.id : documentIsActive ? DOCUMENT_FORMAT : activeTemplateId;
+  const setSelectedId = (id: string | null) => setSelection({ id });
+  const [editingDocument, setEditingDocument] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<FormattingTemplate | null>(null);
   const [pendingConflicts, setPendingConflicts] = useState<TemplateConflicts | null>(null);
   const [pendingTemplate, setPendingTemplate] = useState<FormattingTemplate | null>(null);
@@ -54,6 +67,7 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
 
   // Resolve the selected template object — checks system templates first, then user-created.
   const getSelectedTemplate = (): FormattingTemplate => {
+    if (selectedId === DOCUMENT_FORMAT && documentTemplate) return documentTemplate;
     if (!selectedId || selectedId === INDUSTRY_STANDARD_ID) {
       return INDUSTRY_STANDARD_TEMPLATE;
     }
@@ -71,7 +85,12 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
   };
 
   const applyTemplate = (template: FormattingTemplate) => {
-    if (template.id === INDUSTRY_STANDARD_ID) {
+    if (template === documentTemplate) {
+      if (!applyDocumentTemplate(template)) {
+        showToast('Invalid document format. The format was not applied.', 'error');
+        return;
+      }
+    } else if (template.id === INDUSTRY_STANDARD_ID) {
       setActiveTemplateId(null);
     } else {
       setActiveTemplateId(template.id);
@@ -155,7 +174,7 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
     const isSystem = t.category === 'system';
     const isSelected = (t.id === INDUSTRY_STANDARD_ID && (!selectedId || selectedId === INDUSTRY_STANDARD_ID))
       || t.id === selectedId;
-    const isCurrent = t.id === resolvedActiveId;
+    const isCurrent = !documentIsActive && t.id === resolvedActiveId;
     const isDefault = t.id === defaultScriptFormat;
     return (
       <div
@@ -243,18 +262,51 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
           The template controls element-level formatting rules; for an empty document, choosing a script type also seeds starter content.
         </p>
 
+        {unreadableTemplateSnapshot != null && <p className="template-select-hint" role="alert">The saved format cannot be read by this version. Its original data is kept when you save. Update OpenDraft to use it; choosing another format replaces the saved definition.</p>}
+
         {/* Template list */}
         <div className="template-select-list">
+          {showDocumentTemplate && documentTemplate && <>
+            <div className="template-select-category">This Document</div>
+            <div className={`template-select-item document-template-card${selectedId === DOCUMENT_FORMAT ? ' selected' : ''}`}>
+              <div className="template-select-item-info">
+                <button className="dialog-btn" onClick={() => setSelectedId(DOCUMENT_FORMAT)}>{documentTemplate.name} {documentIsActive && <span className="template-select-current-badge">current</span>}</button>
+                <span className="template-select-hint">{libraryTemplate
+                  ? `${Date.parse(libraryTemplate.updatedAt) > Date.parse(documentTemplate.updatedAt) ? 'The library version is newer. ' : Date.parse(documentTemplate.updatedAt) > Date.parse(libraryTemplate.updatedAt) ? 'The saved copy is newer. ' : ''}The local library version is currently in use. Edit Current Format starts from that version; applying this saved copy creates a separate document format.`
+                  : 'Saved with this script. Editing this format creates a separate document format and leaves your other templates unchanged.'}</span>
+              </div>
+              <div className="template-select-item-actions">
+                <button className="dialog-btn dialog-btn-sm" onClick={() => { setEditingDocument(true); setEditingTemplate(libraryTemplate || documentTemplate); }}>{libraryTemplate ? 'Edit Current Format' : 'Edit Document Format'}</button>
+                <button className="dialog-btn dialog-btn-sm" onClick={async () => {
+                  try {
+                    const copy = await createTemplate({
+                      ...JSON.parse(JSON.stringify(documentTemplate)),
+                      name: `${documentTemplate.name} (Copy)`,
+                      category: 'user',
+                    });
+                    setSelectedId(copy.id);
+                    showToast('Format copied to your templates', 'success');
+                  } catch (err) {
+                    console.warn('[TemplateSelectDialog] could not copy the document format', err);
+                    showToast(
+                      err instanceof Error ? err.message : 'Could not save format to your templates.',
+                      'error',
+                    );
+                  }
+                }}>Save to My Templates</button>
+              </div>
+            </div>
+          </>}
           {/* Script formats (system templates) */}
           <div className="template-select-category">Script Formats</div>
-          {systemTemplates.map(renderTemplateItem)}
+          {systemTemplates.map(t => renderTemplateItem(t))}
 
           {/* User Defined section */}
           <div className="template-select-category">User Defined</div>
           {userTemplates.length === 0 ? (
             <div className="template-select-empty">No custom templates yet.</div>
           ) : (
-            userTemplates.map(renderTemplateItem)
+            userTemplates.map(t => renderTemplateItem(t))
           )}
         </div>
 
@@ -282,11 +334,22 @@ const TemplateSelectDialog: React.FC<TemplateSelectDialogProps> = ({ editor, onC
           <TemplateEditorDialog
             template={editingTemplate}
             onSave={async (updated) => {
-              await updateTemplate(updated.id, updated);
+              if (!parseTemplateSnapshot(updated, updated.id)) {
+                showToast('Invalid template settings. The template was not saved.', 'error');
+                return;
+              }
+              if (editingDocument) {
+                if (!applyDocumentTemplate(updated)) {
+                  showToast('Invalid document format. The template was not saved.', 'error');
+                  return;
+                }
+                setSelectedId(DOCUMENT_FORMAT);
+              } else await updateTemplate(updated.id, updated);
+              setEditingDocument(false);
               setEditingTemplate(null);
               showToast('Template saved', 'success');
             }}
-            onCancel={() => setEditingTemplate(null)}
+            onCancel={() => { setEditingTemplate(null); setEditingDocument(false); }}
           />
         )}
 

@@ -17,7 +17,6 @@ import { readSourceFidelity } from './sourceFidelity';
  */
 import { useEditorStore, DEFAULT_TAG_CATEGORIES, DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
-import { restoreImportedFormat } from './importedFormat';
 import { hasSaveMetadata } from './saveContent';
 import { resolveSceneHeadingSpaceBefore } from './elementSpacing';
 import { restoreRevisionState } from './revisionState';
@@ -85,13 +84,9 @@ export function hydrateEditorStoresFromContent(
   // no genres, not with whatever the previous script had.
   store.setScriptProfile(normalizeScriptProfile(c._scriptProfile));
 
-  restoreImportedFormat(c._templateSnapshot);
-  if (typeof c._templateId === 'string' && c._templateId) {
-    try {
-      useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
-    } catch (err) {
-      console.warn('[import] could not apply template', c._templateId, err);
-    }
+  const templates = useFormattingTemplateStore.getState();
+  if (c._templateId !== undefined || c._templateSnapshot !== undefined || templates.documentTemplate || templates.unreadableTemplateSnapshot != null) {
+    templates.restoreDocumentTemplate(c._templateId, c._templateSnapshot);
   }
 
   return true;

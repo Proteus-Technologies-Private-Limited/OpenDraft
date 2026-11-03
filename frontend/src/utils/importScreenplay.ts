@@ -395,7 +395,7 @@ async function parseScreenplayImportInternal(
       applyDocumentFont(parsed.documentFont);
       applyImportedLayout(parsed.pageLayout ?? undefined);
       if (template) restoreImportedFormat(template);
-      useFormattingTemplateStore.getState().setActiveTemplateId(template?.id ?? null);
+      else useFormattingTemplateStore.getState().restoreDocumentTemplate(null);
     }
     return { doc: parsed.doc, title: parsed.scriptTitle, formatLabel, warnings: parsed.warnings, metadata };
   }
@@ -451,7 +451,7 @@ async function parseScreenplayImportInternal(
     // imported .odraft comes back as bare text with all of that dropped.
     if (hydrateStores) {
       resetStoresForImport();
-      hydrateEditorStoresFromContent(parsed.content);
+      if (!hydrateEditorStoresFromContent(parsed.content)) useFormattingTemplateStore.getState().restoreDocumentTemplate(null);
     }
     // Images travel in the envelope's `assets` array. They were ignored here
     // entirely, so even a backup that had carefully packed them came back with

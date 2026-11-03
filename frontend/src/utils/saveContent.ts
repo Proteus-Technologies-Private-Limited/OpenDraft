@@ -17,7 +17,7 @@
 import type { Editor } from '@tiptap/react';
 import { prepareReviewSave, restoreReviewContent } from './reviewSave';
 import { useEditorStore } from '../stores/editorStore';
-import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
+import { useFormattingTemplateStore, activeTemplateSnapshot } from '../stores/formattingTemplateStore';
 import { spellChecker } from '../editor/spellchecker';
 import { grammarIgnore } from '../editor/grammar/grammarIgnore';
 
@@ -75,6 +75,7 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
   const store = useEditorStore.getState();
   const tplStore = useFormattingTemplateStore.getState();
   const doc = prepareReviewSave(editor.getJSON());
+  const template = activeTemplateSnapshot();
   return {
     ...doc,
     _notes: store.notes,
@@ -91,7 +92,7 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
     ...(store.plotlines.length ? { _plotlines: store.plotlines } : {}),
     ...(store.sourceFidelity ? { _sourceFidelity: store.sourceFidelity } : {}),
     _templateId: tplStore.activeTemplateId,
-    ...(tplStore.activeTemplateId?.startsWith('osf-import:') ? { _templateSnapshot: tplStore.getActiveTemplate() } : {}),
+    ...(template != null ? { _templateSnapshot: template } : {}),
     _ignoredWords: spellChecker.getIgnoredWords(),
     _ignoredOnce: spellChecker.getIgnoredOnce(),
     // Project dictionary lives on the Project entity now; keep the script

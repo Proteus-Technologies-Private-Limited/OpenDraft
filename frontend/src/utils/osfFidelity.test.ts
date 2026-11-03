@@ -111,7 +111,7 @@ describe('source geometry and supported element rules', () => {
     useFormattingTemplateStore.setState({ templates: [] });
     restoreImportedFormat(JSON.parse(JSON.stringify(template)));
     expect(
-      useFormattingTemplateStore.getState().templates[0].rules.action.bold,
+      useFormattingTemplateStore.getState().getActiveTemplate().rules.action.bold,
     ).toBe(true);
   });
   it('keeps geometry, warnings and formatting when a native working copy is reopened', async () => {
