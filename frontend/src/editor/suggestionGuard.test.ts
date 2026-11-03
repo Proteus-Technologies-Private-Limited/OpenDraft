@@ -424,3 +424,54 @@ it('lets a reviewer type inside another reviewer’s proposed formatting without
  const original=listSuggestions(c.state.doc).find(s=>s.kinds.includes('format'))!;
  expect(original.by).toBe('Bob');expect(original.formatted).toBe('One');
 });
+
+it.each([true, false])(
+  'does not send locked-number repairs with a suggester edit (repair permission %s)',
+  async (canRepair) => {
+    const { getSchema } = await import('@tiptap/core');
+    const { testExtensions } = await import('../test/screenplaySchema');
+    const { ElementNumbers } = await import('./extensions/ElementNumbers');
+    const schema = getSchema([...testExtensions, ElementNumbers]);
+    const options = {
+      getRules: () => ({ dialogue: { enabled: true, resetOn: [] } }),
+      getSceneNumbersVisible: () => false,
+      canRepair: () => canRepair,
+    };
+    const plugins = (
+      ElementNumbers.config.addProseMirrorPlugins as () => import('@tiptap/pm/state').Plugin[]
+    ).call({ options } as never);
+    const json = doc(block('dialogue', 'first'), block('dialogue'), block('dialogue', 'last'));
+    json.content![0].attrs = {
+      elementNumber: '12',
+      elementNumberId: 'first',
+      elementNumberLocked: true,
+    };
+    json.content![2].attrs = {
+      elementNumber: '13',
+      elementNumberId: 'last',
+      elementNumberLocked: true,
+    };
+    const state = EditorState.create({ schema, doc: schema.nodeFromJSON(json), plugins });
+    const local = new Y.Doc();
+    const fragment = local.getXmlFragment(SCRIPT_FIELD);
+    const meta = { mapping: new Map(), isOMark: new Map() };
+    updateYFragment(local, fragment, state.doc, meta);
+    const server = new Y.Doc();
+    Y.applyUpdate(server, Y.encodeStateAsUpdate(local));
+    const vector = Y.encodeStateVector(local);
+    const pos = state.doc.child(0).nodeSize + 1;
+    const proposal = suggestTransaction(state, state.tr.insertText('suggested text', pos), {
+      by: 'Ann',
+      now: 1,
+    });
+    const result = state.applyTransaction(proposal);
+    expect(result.transactions).toHaveLength(1);
+    expect(result.state.doc.child(1).attrs.elementNumberId).toBeNull();
+    expect(result.state.doc.child(1).attrs.elementNumberLocked).toBe(false);
+    updateYFragment(local, fragment, result.state.doc, meta);
+    const update = Y.encodeStateAsUpdate(local, vector);
+    expect(checkSuggesterUpdate(Yjs, server, update, { name: 'Ann', uid: null })).toBeNull();
+    local.destroy();
+    server.destroy();
+  },
+);
