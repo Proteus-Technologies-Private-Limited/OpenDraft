@@ -284,7 +284,8 @@ export interface FDXExportOptions {
   sceneNumbersVisible?: boolean;
   /** Write the numbers the active format puts on other elements
    *  (utils/elementNumbers) as each paragraph's `Number`, which is where Final
-   *  Draft keeps a numbered element's number. Absent or false writes none. */
+   *  Draft keeps a numbered element's number. False hides references; absent
+   * preserves stored source references without enabling automatic numbering. */
   elementNumbersVisible?: boolean;
 }
 
@@ -365,7 +366,10 @@ export function exportFDX(doc: JSONContent, _title: string = 'Untitled', charact
   const plan = footnotes && footnotes.settings.includeInExports ? footnotes : null;
   // Labels for numbered elements, on a copy; the same document when none are.
   doc = withElementNumbers(doc, {
-    visible: options.elementNumbersVisible === true,
+    visible: options.elementNumbersVisible !== false,
+    // Without an explicit display choice, retain source references but do not
+    // opt the document into the active template's automatic numbering.
+    ...(options.elementNumbersVisible === undefined ? {rules:{}} : {}),
     sceneNumbersVisible: options.sceneNumbersVisible !== false,
     // An inline number (PANEL 3) prints as the start of its line.
     inlineAsText: true,

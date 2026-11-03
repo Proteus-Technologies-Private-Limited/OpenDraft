@@ -1,3 +1,6 @@
+import ElementNumberDialog from './ElementNumberDialog';
+import { mapElementNumberTarget, type ElementNumberTarget } from '../editor/elementNumberTarget';
+import { collectNumberedElements, elementNumberAt, elementNumbersPluginKey } from '../editor/extensions/ElementNumbers';
 import SourceBackupRecovery from './SourceBackupRecovery';
 import { isTauri as isNativeApp, getOS as nativeOS } from '../services/platform';
 import { ExternalSaveCancelled, externalScreenplay } from '../services/externalSave';
@@ -59,7 +62,7 @@ import TemplateSelectDialog from './TemplateSelectDialog';
 import ScriptFormatPreferencesDialog from './ScriptFormatPreferencesDialog';
 import ScriptFormatPickerDialog from './ScriptFormatPickerDialog';
 import { useFormattingTemplateStore, ensureTemplatesLoaded } from '../stores/formattingTemplateStore';
-import { hasNumbering, numberingRulesOf } from '../utils/elementNumbers';
+import { hasNumbering, numberingRulesOf, assignElementNumbers } from '../utils/elementNumbers';
 import { applyScriptFormat } from '../utils/applyScriptFormat';
 import { isTitlePageRuleId, AV_BLOCK_RULE_ID } from '../stores/formattingTypes';
 import { INDUSTRY_STANDARD_ID, ELEMENT_DESCRIPTIONS } from '../stores/formattingTypes';
@@ -278,6 +281,8 @@ interface MenuBarProps {
   onJoinCollab?: () => void;
   isCollabActive?: boolean;
   isCollabGuest?: boolean;
+  /** Only editors may change the format or page settings of a shared document. */
+  canEditDocumentFormat?: boolean;
   /**
    * Called with the payload that was just written, so the editor's own idea of
    * "what is on disk" keeps up. Without it a document saved from this menu
@@ -326,6 +331,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   onJoinCollab,
   isCollabActive,
   isCollabGuest,
+  canEditDocumentFormat = true,
   onDocumentSaved,
 }) => {
   const navigate = useNavigate();
@@ -928,7 +934,58 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   // ── Per-attribute locking from active template ──
   const activeTemplate = useFormattingTemplateStore((s) => s.getActiveTemplate());
-  const formatNumbersElements = hasNumbering(numberingRulesOf(activeTemplate.rules));
+  const numberingRules = useMemo(
+    () => numberingRulesOf(activeTemplate.rules),
+    [activeTemplate.rules],
+  );
+  const formatHasNumbering = hasNumbering(numberingRules);
+  const numberingDoc = editor?.state.doc ?? null;
+  const selectionPosition = editor?.state.selection.from ?? 0;
+  const formatNumbersElements =
+    formatHasNumbering ||
+    !!(editor && elementNumbersPluginKey.getState(editor.state)?.find().length);
+  const numberTargets = useMemo(
+    () => (numberingDoc && formatNumbersElements ? collectNumberedElements(numberingDoc) : []),
+    [numberingDoc, formatNumbersElements],
+  );
+  const elementReferencesLocked = useMemo(
+    () => numberTargets.some((f) => f.item.numberLocked && (!formatHasNumbering || numberingRules[f.item.elementId])),
+    [numberTargets, numberingRules, formatHasNumbering],
+  );
+  const selectedNumberTarget = useMemo(
+    () => numberingDoc && formatNumbersElements ? elementNumberAt(numberingDoc, selectionPosition) : null,
+    [numberingDoc, selectionPosition, formatNumbersElements],
+  );
+  const [numberDialog, setNumberDialog] = useState<(ElementNumberTarget & { value: string }) | null>(null);
+  const numberDialogOpen = numberDialog !== null;
+  useEffect(() => {
+    if (!editor || !numberDialogOpen) return;
+    const followTarget = ({ transaction }: { transaction: Transaction }) => {
+      if (!transaction.docChanged) return;
+      setNumberDialog((current) => {
+        if (!current) return null;
+        const next = mapElementNumberTarget(current, transaction);
+        return next ? { ...current, ...next } : { ...current, position: -1 };
+      });
+    };
+    editor.on('transaction', followTarget);
+    return () => { editor.off('transaction', followTarget); };
+  }, [editor, numberDialogOpen]);
+  const editElementNumber = () => {
+    if (!editor) return;
+    const target = selectedNumberTarget;
+    if (!target) return;
+    const labels = assignElementNumbers(
+      numberTargets.map((f) => f.item),
+      numberingRules,
+      { sceneNumbersVisible },
+    );
+    setNumberDialog({
+      position: target.from,
+      node: target.node,
+      value: labels[numberTargets.findIndex((f) => f.from === target.from)] ?? '',
+    });
+  };
   const isEnforceMode = activeTemplate.mode === 'enforce';
   const editorRule = editor ? getCurrentElementRule(editor, activeTemplate) : null;
   const locked = getLockedFormatting(editorRule, isEnforceMode);
@@ -2937,7 +2994,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           },
         ] : []),
         { separator: true, label: '' },
-        { icon: <FaCog />, label: 'Page Setup…', action: () => setPageSetupOpen(true) },
+        { icon: <FaCog />, label: 'Page Setup…', action: () => setPageSetupOpen(true), disabled: !canEditDocumentFormat },
         // "Include Title Page" used to sit here. It moved to the Title Page
         // dialog (Format ▸ Title Page): a bare entry in a long File menu is not
         // where anyone looks for it — the writer who wants the title page kept
@@ -3220,7 +3277,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { separator: true, label: '' },
         { icon: <FaFileAlt />, label: 'Title Page…', action: () => useEditorStore.getState().setTitlePageEditorOpen(true) },
         { icon: <FaStream />, label: 'Genre & Pacing…', title: 'Genres for this script, and the pacing the runtime estimate uses', action: () => useEditorStore.getState().setScriptProfileOpen(true) },
-        { icon: <FaFileAlt />, label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true) },
+        { icon: <FaFileAlt />, label: `Formatting Template (${activeTemplate.name})...`, action: () => setTemplateSelectOpen(true), disabled: !canEditDocumentFormat },
         { icon: <FaFileAlt />, label: 'Script Format Preferences…', action: () => setFormatPrefsOpen({ firstRun: false, afterSave: null }) },
       ],
     },
@@ -3454,10 +3511,52 @@ const MenuBar: React.FC<MenuBarProps> = ({
               action: () => setElementNumbersVisible(!elementNumbersVisible),
               disabled: !formatNumbersElements,
             },
+            ...(formatNumbersElements
+              ? [
+                  {
+                    icon: <FaLock />,
+                    label: elementReferencesLocked ? '\u2713 Lock Element Numbers' : 'Lock Element Numbers',
+                    disabled: !editor || !formatNumbersElements || isCollabGuest,
+                    action: () => {
+                      if (!editor) return;
+                      const ok = elementReferencesLocked
+                        ? editor.commands.unlockElementNumbers()
+                        : editor.commands.lockElementNumbers();
+                      if (ok)
+                        showToast(
+                          elementReferencesLocked
+                            ? 'Element numbers flow automatically again'
+                            : 'Element references locked; inserted lines get suffixes',
+                          'success',
+                        );
+                    },
+                  },
+                  ...(!elementReferencesLocked && numberTargets.some((f) =>
+                    numberingRules[f.item.elementId] && f.item.number && !f.item.numberAutomatic)
+                    ? [{
+                        icon: <FaUnlock />,
+                        label: 'Use Automatic Element Numbers',
+                        disabled: !editor || isCollabGuest,
+                        action: () => {
+                          if (editor?.commands.unlockElementNumbers()) {
+                            showToast('Element numbers flow automatically again', 'success');
+                          }
+                        },
+                      }]
+                    : []),
+                  {
+                    icon: <FaPencilAlt />,
+                    label: 'Edit Element Number\u2026',
+                    action: editElementNumber,
+                    disabled: !editor || !selectedNumberTarget || isCollabGuest,
+                  },
+                ]
+              : []),
             {
               icon: <FaSlidersH />, label: 'Element Numbering\u2026',
               title: 'Choose which elements are numbered and what restarts each count, in the formatting template',
               action: () => setTemplateSelectOpen(true),
+              disabled: !canEditDocumentFormat,
             },
             { separator: true, label: '' },
             {
@@ -3960,10 +4059,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
         </div>
       </div>
     )}
-    {pageSetupOpen && (
+    {pageSetupOpen && canEditDocumentFormat && (
       <PageSetupDialog onClose={() => setPageSetupOpen(false)} />
     )}
-    {templateSelectOpen && (
+    {templateSelectOpen && canEditDocumentFormat && (
       <TemplateSelectDialog editor={editor} onClose={() => setTemplateSelectOpen(false)} />
     )}
     {formatPrefsOpen && (
@@ -4005,6 +4104,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
         }}
       />
     )}
+    {numberDialog && <ElementNumberDialog
+      initialValue={numberDialog.value}
+      onClose={() => setNumberDialog(null)}
+      onSave={value => !!editor && numberDialog.position >= 0
+        && editor.state.doc.nodeAt(numberDialog.position) === numberDialog.node
+        && editor.commands.setElementNumber(value, numberDialog.position)}
+    />}
     {sourceBackupOpen && <SourceBackupRecovery onClose={() => setSourceBackupOpen(false)} />}
     <RecoverBackupDialog
       open={recoverBackupOpen}

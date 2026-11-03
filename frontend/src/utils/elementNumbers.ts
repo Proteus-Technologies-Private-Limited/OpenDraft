@@ -7,11 +7,9 @@
  * names the elements that start a count again (utils/formattingTypes
  * `ElementNumbering`).
  *
- * The numbers are worked out from the order of the script and never stored in
- * it. Nothing is added to the document, its history or what collaborators are
- * sent, and a script whose format numbers nothing is exactly what it was — the
- * editor draws them as decorations (editor/extensions/ElementNumbers) and the
- * exporters read them off a copy of the document (`withElementNumbers`).
+ * Automatic numbers follow document order. Locked and manually edited labels
+ * are retained on document nodes; exporters resolve both onto a document copy.
+ * The editor displays the resolved labels as decorations.
  *
  * Scene headings are not numbered here: theirs are kept, locked and lettered by
  * utils/sceneNumbers. A scene heading can still restart a count.
@@ -19,8 +17,9 @@
 import type { JSONContent } from '@tiptap/react';
 import type { ElementNumbering, FormattingElementRule } from '../stores/formattingTypes';
 import { AV_BLOCK_RULE_ID, isTitlePageRuleId } from '../stores/formattingTypes';
-import { useFormattingTemplateStore, findTemplate } from '../stores/formattingTemplateStore';
+import { useFormattingTemplateStore, templateForSavedContent } from '../stores/formattingTemplateStore';
 import { elementIdOf } from './pageBreaks';
+import { retainElementNumbers, storedElementNumber, numberingGroups } from './lockedElementNumbers';
 import { NON_PRINTING_TYPES } from './nonPrinting';
 
 /** The attribute a numbered node carries in the copy the exporters are given. */
@@ -92,8 +91,7 @@ export function getElementNumberingRules(): NumberingRules {
  */
 export function numberingRulesForSaved(content: Record<string, unknown> | null | undefined): NumberingRules {
   try {
-    const id = content?._templateId;
-    return numberingRulesOf(findTemplate(typeof id === 'string' ? id : null)?.rules);
+    return numberingRulesOf(templateForSavedContent(content)?.rules);
   } catch (err) {
     console.warn('[elementNumbers] could not read the saved script\'s numbering rules', err);
     return {};
@@ -125,6 +123,10 @@ export interface NumberingItem {
   empty: boolean;
   /** A scene heading's number, for the 12.3 style. */
   sceneNumber?: string | null;
+  number?: string | null;
+  numberLocked?: boolean;
+  /** Follow an active counter, or retain the source label without one. */
+  numberAutomatic?: boolean;
 }
 
 export interface ElementNumberOptions {
@@ -158,7 +160,7 @@ export function numberInWords(n: number): string {
  * The label each element should carry, in document order — null where it
  * carries none.
  */
-export function assignElementNumbers(
+function assignAutomaticElementNumbers(
   items: NumberingItem[],
   rules: NumberingRules,
   opts: ElementNumberOptions,
@@ -191,6 +193,17 @@ export function assignElementNumbers(
     }
   }
 
+  // Manual anchors and older imports must not collide with automatic labels.
+  // Reserve them in the same counter/reset scopes as the locked resolver.
+  const reserved = new Map<number, Set<string>>();
+  if (items.some((item) => item.number && !item.numberAutomatic)) {
+    for (const group of numberingGroups(items, rules)) {
+      const labels = new Set(group
+        .filter((i) => items[i].number && !items[i].numberAutomatic)
+        .map((i) => items[i].number!.toUpperCase()));
+      for (const i of group) reserved.set(i, labels);
+    }
+  }
   let scene: string | null = null;
   items.forEach((item, i) => {
     if (item.elementId === 'sceneHeading') {
@@ -205,14 +218,26 @@ export function assignElementNumbers(
     // is made.
     if (!rule || (item.empty && !isInlineNumbering(rule))) return;
     const counter = counterOf(item.elementId);
-    const n = next.get(counter) ?? startOf(counter);
+    let n = next.get(counter) ?? startOf(counter);
+    const label = (value: number) => {
+      const num = rule.style === 'scene' && scene
+        ? `${scene}.${value}`
+        : rule.style === 'words' ? numberInWords(value) : String(value);
+      return `${rule.prefix ?? ''}${num}`;
+    };
+    if (!item.number || item.numberAutomatic) {
+      while (reserved.get(i)?.has(label(n).toUpperCase())) n++;
+    }
     next.set(counter, n + 1);
-    const num = rule.style === 'scene' && scene
-      ? `${scene}.${n}`
-      : rule.style === 'words' ? numberInWords(n) : String(n);
-    out[i] = `${rule.prefix ?? ''}${num}`;
+    out[i] = label(n);
   });
   return out;
+}
+
+/** Explicit labels are anchors; unlocked unlabelled scripts retain their old output. */
+export function assignElementNumbers(items: NumberingItem[], rules: NumberingRules, opts: ElementNumberOptions): Array<string | null> {
+  const automatic = assignAutomaticElementNumbers(items, rules, opts);
+  return retainElementNumbers(items, rules, automatic);
 }
 
 // ── Walking a document ───────────────────────────────────────────────────
@@ -241,6 +266,10 @@ export function collectJSON(doc: JSONContent): Array<{ node: JSONContent; item: 
         item: {
           elementId: elementIdOf({ type, attrs: node.attrs }),
           empty: !jsonHasText(node),
+          number: isNumberableElementId(elementIdOf({type,attrs:node.attrs}))
+            ? storedElementNumber(node.attrs?.elementNumber) : null,
+          numberLocked: node.attrs?.elementNumberLocked === true,
+          numberAutomatic: node.attrs?.elementNumberAutomatic === true,
           sceneNumber: type === 'sceneHeading' ? (node.attrs?.sceneNumber as string | null | undefined) ?? null : undefined,
         },
       });
@@ -255,6 +284,7 @@ export function collectJSON(doc: JSONContent): Array<{ node: JSONContent; item: 
  * heading prints: PANEL 3, or PAGE ONE (SPLASH) when the writer added to it.
  */
 function withLeadingLabel(node: JSONContent, label: string): JSONContent {
+  if (node.attrs?.elementNumber) node = { ...node, attrs: { ...node.attrs, elementNumber: null } };
   const [first, ...rest] = node.content ?? [];
   const text = jsonHasText(node) ? `${label} ` : label;
   // Joined to plain text that follows it, so Word and Final Draft get one run
@@ -277,30 +307,45 @@ function withLeadingLabel(node: JSONContent, label: string): JSONContent {
  * into a panel the template numbers again.
  *
  * Returns `doc` itself — not a copy — when nothing is numbered or numbers are
- * hidden, so every script that does not use numbering exports exactly as it
- * did. Only the nodes on the path to a numbered element are copied.
+ * hidden and no stored references need suppressing. Stored references are
+ * cleared only in the export copy; native saves retain the original attributes.
  */
 export function withElementNumbers(
   doc: JSONContent,
   opts: ElementNumberOptions & { visible: boolean; rules?: NumberingRules; inlineAsText?: boolean },
 ): JSONContent {
-  if (!opts.visible || !doc?.content) return doc;
+  if (!doc?.content) return doc;
+  if (!opts.visible) {
+    if (!collectJSON(doc).some((f) => f.item.number)) return doc;
+    const hide = (node: JSONContent): JSONContent => {
+      if (DESCEND.has(node.type ?? '') && node.content)
+        return { ...node, content: node.content.map(hide) };
+      return node.attrs?.elementNumber
+        ? { ...node, attrs: { ...node.attrs, elementNumber: null } }
+        : node;
+    };
+    return { ...doc, content: doc.content.map(hide) };
+  }
   const rules = opts.rules ?? getElementNumberingRules();
-  if (!hasNumbering(rules)) return doc;
-
   const found = collectJSON(doc);
   const labels = assignElementNumbers(found.map((f) => f.item), rules, opts);
-  const byNode = new Map<JSONContent, { label: string; inline: boolean }>();
+  const byNode = new Map<JSONContent, { label: string | null; inline: boolean }>();
   found.forEach((f, i) => {
     const label = labels[i];
-    if (label == null) return;
+    if (label == null) {
+      // An empty imported paragraph waits for text before joining its counter.
+      if (f.item.number && f.item.numberAutomatic && rules[f.item.elementId]) {
+        byNode.set(f.node, { label: null, inline: false });
+      }
+      return;
+    }
     byNode.set(f.node, { label, inline: opts.inlineAsText === true && isInlineNumbering(rules[f.item.elementId]) });
   });
   if (byNode.size === 0) return doc;
 
   const copy = (node: JSONContent): JSONContent => {
     const hit = byNode.get(node);
-    if (hit?.inline) return withLeadingLabel(node, hit.label);
+    if (hit?.inline && hit.label != null) return withLeadingLabel(node, hit.label);
     if (hit) return { ...node, attrs: { ...(node.attrs ?? {}), [ELEMENT_NUMBER_ATTR]: hit.label } };
     const type = node.type || 'general';
     if (DESCEND.has(type) && node.content) return { ...node, content: node.content.map(copy) };

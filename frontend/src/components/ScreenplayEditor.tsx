@@ -45,8 +45,7 @@ import Strike from '@tiptap/extension-strike';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { PastedHighlight } from '../editor/extensions/PastedHighlight';
-import { useFormattingTemplateStore } from '../stores/formattingTemplateStore';
-import { restoreImportedFormat } from '../utils/importedFormat';
+import { useFormattingTemplateStore, subscribeActiveTemplate } from '../stores/formattingTemplateStore';
 import { generateTemplateCss, injectTemplateCss } from '../utils/templateCss';
 import { docHasAnyText } from '../utils/docText';
 import { getCurrentElementRule, getLockedFormatting } from '../utils/effectiveFormatting';
@@ -715,7 +714,7 @@ const ScreenplayEditor: React.FC = () => {
   // Ref for document-switch handler (defined after setupCollab to avoid circular dependency)
   const handleDocumentSwitchRef = useRef<(projectId: string, scriptId: string, token: string, title?: string) => void>(() => {});
 
-  const setupCollab = useCallback(async (docName: string, inviteToken: string, _userName: string, isHost = false, overrideWsUrl?: string) => {
+  const setupCollab = useCallback(async (docName: string, inviteToken: string, _userName: string, isHost = false, overrideWsUrl?: string, role: CollabRole = 'editor') => {
     // Skip if already setting up the same document (prevents React StrictMode
     // double-invoke from destroying a provider that's still connecting)
     if (collabDocNameRef.current === docName && providerRef.current) {
@@ -960,7 +959,7 @@ const ScreenplayEditor: React.FC = () => {
     providerRef.current = provider;
 
     // Start syncing metadata (characters, notes, tags, beats) via Yjs
-    startCollabSync(ydoc, isHost);
+    startCollabSync(ydoc, isHost, () => role === 'editor');
     return true;
   }, [destroyCollab]);
 
@@ -1008,13 +1007,11 @@ const ScreenplayEditor: React.FC = () => {
       collabInitialContent.current = collabSeedFrom(content);
 
       // Restore per-document template
-      restoreImportedFormat((content as any)?._templateSnapshot);
+      useFormattingTemplateStore.getState().restoreDocumentTemplate((content as any)?._templateId, (content as any)?._templateSnapshot);
       useEditorStore.setState({ sourceFidelity: readSourceFidelity((content as any)?._sourceFidelity) });
-      const tplId = (content as any)?._templateId;
-      useFormattingTemplateStore.getState().setActiveTemplateId(typeof tplId === 'string' ? tplId : null);
 
       const docName = `${projectId}/${scriptId}${nonce ? `/${nonce}` : ''}`;
-      if (!await setupCollab(docName, sharedToken, collabUserName, false, collabWs)) return;
+      if (!await setupCollab(docName, sharedToken, collabUserName, false, collabWs, collabRole)) return;
 
       const docTitle = scriptResp?.meta?.title || title || 'Untitled';
       setCurrentProject(project || { id: projectId, name: 'Collaboration' });
@@ -1026,7 +1023,7 @@ const ScreenplayEditor: React.FC = () => {
       console.error('[Collab] Could not open the document the host switched to:', err);
       showToast(`Couldn't follow the host to ${named}. You're still in the previous script.`, 'error');
     }
-  }, [setupCollab, collabUserName, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
+  }, [setupCollab, collabUserName, collabRole, setCurrentProject, setCurrentScriptId, setDocumentTitle]);
 
   handleDocumentSwitchRef.current = handleDocumentSwitch;
 
@@ -1249,7 +1246,7 @@ const ScreenplayEditor: React.FC = () => {
         // Include session_nonce so guest joins the exact same Yjs room as the host
         const nonce = session.session_nonce || '';
         const docName = `${session.project_id}/${session.script_id}${nonce ? `/${nonce}` : ''}`;
-        if (!await setupCollab(docName, urlCollabToken, session.collaborator_name)) {
+        if (!await setupCollab(docName, urlCollabToken, session.collaborator_name, false, undefined, collabRoleOf(session.role))) {
           setCollabLoading(false);
           return;
         }
@@ -1447,7 +1444,7 @@ const ScreenplayEditor: React.FC = () => {
       // Do NOT wait for backend content loading (which may hang on unreachable ports).
       const nonce = session.session_nonce || '';
       const docName = `${session.project_id}/${session.script_id}${nonce ? `/${nonce}` : ''}`;
-      if (!await setupCollab(docName, token, session.collaborator_name, false, collabWs)) return;
+      if (!await setupCollab(docName, token, session.collaborator_name, false, collabWs, collabRoleOf(session.role))) return;
 
       setCollabUserName(session.collaborator_name);
       setCollabRole(collabRoleOf(session.role));
@@ -2161,6 +2158,7 @@ const ScreenplayEditor: React.FC = () => {
       AvBlock, AvRow, AvCell, AvPara, AvShot, AvDirection, AvGraphic, AvImage, AvKeymap, AvCueDecorations,
       ElementNumbers.configure({
         getRules: getElementNumberingRules,
+        canRepair: () => !useSuggestModeStore.getState().suggesting,
         getSceneNumbersVisible: () => useEditorStore.getState().sceneNumbersVisible,
       }),
       ScriptNoteMark, TagMark, TableReadHighlight,
@@ -2264,6 +2262,7 @@ const ScreenplayEditor: React.FC = () => {
   const activeTemplateId = useFormattingTemplateStore((s) => s.activeTemplateId);
   const templatesLoaded = useFormattingTemplateStore((s) => s.loaded);
   const templates = useFormattingTemplateStore((s) => s.templates);
+  const documentTemplate = useFormattingTemplateStore((s) => s.documentTemplate);
   const sceneHeadingSpaceBefore = useEditorStore((s) => s.sceneHeadingSpaceBefore);
 
   useEffect(() => {
@@ -2297,7 +2296,7 @@ const ScreenplayEditor: React.FC = () => {
     injectTemplateCss(overrideCss ? `${css}\n${overrideCss}` : css);
 
     return () => { injectTemplateCss(null); };
-  }, [activeTemplateId, templatesLoaded, templates, pageLayout, sceneHeadingSpaceBefore]);
+  }, [activeTemplateId, templatesLoaded, templates, documentTemplate, pageLayout, sceneHeadingSpaceBefore]);
 
   // Element numbers follow the format and the scene numbers, neither of which
   // is in the document — so a change to either has to ask for a recount.
@@ -2309,7 +2308,7 @@ const ScreenplayEditor: React.FC = () => {
     } catch (err) {
       console.warn('[elementNumbers] could not refresh element numbers', err);
     }
-  }, [editor, activeTemplateId, templatesLoaded, templates, sceneNumbersVisible]);
+  }, [editor, activeTemplateId, templatesLoaded, templates, documentTemplate, sceneNumbersVisible]);
 
   // ── Focus Mode (View → Focus Mode) ──
   const focusMode = useEditorStore((s) => s.focusMode);
@@ -2873,7 +2872,7 @@ const ScreenplayEditor: React.FC = () => {
       editor.view.dispatch(tr);
     }, 300);
     return () => clearTimeout(t);
-  }, [editor, pageLayout, activeTemplateId, templates, templatesLoaded, sceneHeadingSpaceBefore, footnoteSig]);
+  }, [editor, pageLayout, activeTemplateId, templates, documentTemplate, templatesLoaded, sceneHeadingSpaceBefore, footnoteSig]);
 
   // --- Initialize spell checker on mount ---
   useEffect(() => {
@@ -3498,27 +3497,13 @@ const ScreenplayEditor: React.FC = () => {
   // With auto-save off — or for a file opened in place, whose own auto-save
   // runs from the menu bar — it only marks the document unsaved.
   useEffect(() => {
-    if (!editor || !hasSaveTarget || isCollabGuest) return;
+    if (!editor || !hasSaveTarget || isCollabGuest || isHistoryMode) return;
     const pid = currentProject?.id ?? null;
     const sid = currentScriptId;
     const saveToLibrary = Boolean(pid && sid) && autoSaveLibrary;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
-    const unsub = useEditorStore.subscribe((state, prev) => {
-      // Only react to metadata field changes
-      if (
-        state.characterRelationships === prev.characterRelationships &&
-        state.characterProfiles === prev.characterProfiles &&
-        state.notes === prev.notes &&
-        state.generalNotes === prev.generalNotes &&
-        state.tags === prev.tags &&
-        state.beats === prev.beats &&
-        state.beatColumns === prev.beatColumns &&
-        state.plotlines === prev.plotlines &&
-        state.scriptProfile === prev.scriptProfile &&
-        state.spellCheckEnabled === prev.spellCheckEnabled &&
-        state.grammarCheckEnabled === prev.grammarCheckEnabled
-      ) return;
+    const persistMetadataChange = () => {
       if (scriptSwitchingRef.current) return;
       // Mark unsaved immediately
       const { saveStatus, setSaveStatus } = useEditorStore.getState();
@@ -3551,10 +3536,29 @@ const ScreenplayEditor: React.FC = () => {
           });
         }
       }, 2000);
-    });
+    };
 
-    return () => { unsub(); if (timer) clearTimeout(timer); };
-  }, [editor, hasSaveTarget, currentProject, currentScriptId, buildSaveContent, isCollabGuest, autoSaveLibrary]);
+    const unsub = useEditorStore.subscribe((state, prev) => {
+      // Only react to metadata field changes
+      if (
+        state.characterRelationships === prev.characterRelationships &&
+        state.characterProfiles === prev.characterProfiles &&
+        state.notes === prev.notes &&
+        state.generalNotes === prev.generalNotes &&
+        state.tags === prev.tags &&
+        state.beats === prev.beats &&
+        state.beatColumns === prev.beatColumns &&
+        state.plotlines === prev.plotlines &&
+        state.scriptProfile === prev.scriptProfile &&
+        state.spellCheckEnabled === prev.spellCheckEnabled &&
+        state.grammarCheckEnabled === prev.grammarCheckEnabled
+      ) return;
+      persistMetadataChange();
+    });
+    const unsubTemplate = subscribeActiveTemplate(persistMetadataChange);
+
+    return () => { unsub(); unsubTemplate(); if (timer) clearTimeout(timer); };
+  }, [editor, hasSaveTarget, currentProject, currentScriptId, buildSaveContent, isCollabGuest, isHistoryMode, autoSaveLibrary]);
 
   // --- Persist project dictionary words when they change ---
   // Words live on the Project entity (shared by every script in the project).
@@ -4018,13 +4022,8 @@ const ScreenplayEditor: React.FC = () => {
             }
             store.setElementNumbersVisible(c._elementNumbersVisible !== false);
             // Restore per-document formatting template
-            restoreImportedFormat(c._templateSnapshot);
+            useFormattingTemplateStore.getState().restoreDocumentTemplate(c._templateId, c._templateSnapshot);
             useEditorStore.setState({ sourceFidelity: readSourceFidelity(c._sourceFidelity) });
-            if (c._templateId && typeof c._templateId === 'string') {
-              useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
-            } else {
-              useFormattingTemplateStore.getState().setActiveTemplateId(null);
-            }
             // Restore per-document ignored words for spell check
             const ignoredArr = parseAttr(c._ignoredWords);
             spellChecker.setIgnoredWords(ignoredArr as string[]);
@@ -4549,13 +4548,8 @@ const ScreenplayEditor: React.FC = () => {
           store.setBeatColumns(beatCols2 as import('../stores/editorStore').BeatColumn[]);
           store.setPlotlines(parseAttr2(c._plotlines) as import('../utils/plotlines').Plotline[]);
           // Restore per-document template
-          restoreImportedFormat(c._templateSnapshot);
+          useFormattingTemplateStore.getState().restoreDocumentTemplate(c._templateId, c._templateSnapshot);
           useEditorStore.setState({ sourceFidelity: readSourceFidelity(c._sourceFidelity) });
-          if (c._templateId && typeof c._templateId === 'string') {
-            useFormattingTemplateStore.getState().setActiveTemplateId(c._templateId);
-          } else {
-            useFormattingTemplateStore.getState().setActiveTemplateId(null);
-          }
           // Restore per-document page layout (header/footer, margins)
           if (c._pageLayout && typeof c._pageLayout === 'object') {
             store.setPageLayout({ ...DEFAULT_PAGE_LAYOUT, ...(c._pageLayout as Record<string, unknown>) });
@@ -5677,7 +5671,7 @@ const ScreenplayEditor: React.FC = () => {
           return;
         }
         setShareDialogOpen(true);
-      }} onJoinCollab={() => setJoinCollabOpen(true)} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} />}
+      }} onJoinCollab={() => setJoinCollabOpen(true)} isCollabActive={collabMode} isCollabGuest={collabMode && !isCollabHost} canEditDocumentFormat={!collabMode || collabRole === 'editor'} />}
       {!isHistoryMode && <Toolbar editor={editor} />}
       <div className="editor-layout">
         {!isHistoryMode && <SceneNavigator editor={editor} scrollContainer={editorMainRef.current} style={{ width: navWidth, minWidth: navWidth }} />}

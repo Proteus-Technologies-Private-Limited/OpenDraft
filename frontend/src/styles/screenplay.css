@@ -14927,6 +14927,10 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
   color: var(--fd-text-muted);
 }
 
+/* Document-carried formats stay usable on narrow screens. */
+.document-template-card .template-select-item-info { flex-wrap: wrap; }
+.document-template-card .template-select-item-actions { flex-wrap: wrap; }
+.document-template-card .template-select-hint { flex-basis: 100%; margin: 4px 0; }
 /* #178: keep the document's own draggable scrollbar, including beside panels. */
 .editor-main { min-height: 0; min-width: 0; overflow-y: scroll; scrollbar-gutter: stable; scrollbar-width: auto; scrollbar-color: var(--fd-text-muted) var(--fd-bg); }
 .editor-main::-webkit-scrollbar { display: block; width: 14px; height: 14px; }
@@ -14951,6 +14955,17 @@ button.beat-scene-chip:hover { border-color: var(--fd-accent); color: var(--fd-a
 .suggestion-card--current { box-shadow: inset 3px 0 var(--fd-accent, #4387cf); background: rgba(80, 140, 200, .08); }
 @media (pointer: coarse) { .suggestions-navigation button, .suggestions-bulk button, .suggestion-card-actions button { min-height: 44px; } }
 
+.element-number-dialog {
+  position: fixed; inset: 0; margin: auto; height: fit-content;
+  width: min(32rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem);
+  overflow: auto; padding: 24px; border: 1px solid var(--fd-border);
+  border-radius: 8px; background: var(--fd-bg); color: var(--fd-text);
+}
+.element-number-dialog::backdrop { background: rgba(0,0,0,.55); }
+.element-number-dialog p { margin: 12px 0; line-height: 1.5; }
+.element-number-dialog input { display: block; width: 100%; min-height: 44px; margin: 8px 0 16px; }
+.element-number-dialog button { min-height: 44px; }
+.element-number-dialog .dialog-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 /* Give both navigation directions the same styling, including on touch screens. */
 .suggestions-navigation .dialog-btn { flex: 1; padding: 4px 8px; font-size: 12px; background: var(--fd-toolbar-bg); color: var(--fd-text); border: 1px solid var(--fd-border); }
 .suggestions-navigation .dialog-btn:hover:not(:disabled) { background: var(--fd-toolbar-hover); }

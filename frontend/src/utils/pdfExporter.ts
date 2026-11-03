@@ -700,7 +700,9 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   // Labels for numbered elements, on a copy. The very same document comes back
   // when nothing is numbered, so nothing below can tell the difference.
   doc = withElementNumbers(doc, {
-    visible: options?.elementNumbersVisible === true,
+    visible: options?.elementNumbersVisible !== false,
+    // Omitted options preserve stored references without enabling counters.
+    ...(options?.elementNumbersVisible === undefined ? { rules: {} } : {}),
     sceneNumbersVisible: options?.sceneNumbersVisible === true,
     // An inline number (PANEL 3) prints as the start of its line.
     inlineAsText: true,
@@ -1959,11 +1961,33 @@ export function withoutPageFields(content: HeaderFooterContent): HeaderFooterCon
     // A line with no page field is left exactly as written: tidying it would
     // turn "Blue Rev." into "Blue Rev".
     if (!removed) return text;
-    return stripped
+    let out = stripped
       .replace(/\s+/g, ' ')
-      .replace(/[\s.,:;|/\\-]+$/g, '')
-      .replace(/^[\s.,:;|/\\-]+/g, '')
       .trim();
+    // Empty brackets left around a removed field: "Draft (Page {page})" ->
+    // "Draft ()" -> "Draft".
+    out = out.replace(/\(\s*\)|\[\s*\]/g, '');
+    // Repeat the edge trims until the line stops changing: removing the
+    // template's full stop can expose a dash ("Draft - {page}."), and removing
+    // that dash can expose a separator of its own.
+    let previous = '';
+    while (out !== previous) {
+      previous = out;
+      // A dash, pipe or slash left at an edge belongs to the removed phrase
+      // ("Draft - Page {page}" -> "Draft").
+      out = out.replace(/[|/\\\-\u2013\u2014]+$/g, '').replace(/\s+$/g, '');
+      // A detached full stop, comma, colon or semicolon is the template's:
+      // "Page {page} of {pages}." goes, but "Blue Rev. Page {page}" keeps its
+      // full stop.
+      out = out.replace(/(^|\s)[.,:;]+$/g, '').replace(/\s+$/g, '');
+      // A comma, colon or semicolon attached to the last word is the separator
+      // that introduced the removed phrase, so it goes too. Only a full stop
+      // can be the writer's ("Rev.", "Inc.").
+      out = out.replace(/[,:;]+$/g, '');
+      out = out.replace(/^[\s.,:;|/\\\-\u2013\u2014]+/g, '');
+      out = out.replace(/\s+/g, ' ').trim();
+    }
+    return out;
   };
   return { left: clean(content.left), center: clean(content.center), right: clean(content.right) };
 }
