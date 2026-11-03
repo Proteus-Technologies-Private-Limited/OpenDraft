@@ -773,7 +773,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
       {/* Top bar â€” the panel's name, with the close button pinned right. */}
       <div className="navigator-topbar">
         <span className="navigator-eyebrow">Navigator</span>
-        <button className="navigator-close" onClick={toggleNavigator} title="Close Navigator">Ã—</button>
+        <button className="navigator-close" onClick={toggleNavigator} title="Close Navigator">{'\u00d7'}</button>
       </div>
 
       {/* Tab bar â€” horizontally scrollable tab strip */}
