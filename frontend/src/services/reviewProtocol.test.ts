@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
-import { reviewServerSupportsFormatting, reviewAuthToken, hasPendingFormat, REVIEW_PROTOCOL } from './reviewProtocol';
+import { reviewServerSupportsFormatting, reviewAuthToken, hasPendingFormat, reviewCapability, REVIEW_PROTOCOL } from './reviewProtocol';
 import { ReviewGate, supportsReview, hasReviewFormats } from '../../../collab-server/src/services/reviewProtocol';
 import type { YjsLike } from '../../../collab-server/src/services/suggestionGuard';
 const reviewY = Y as unknown as YjsLike;
@@ -82,4 +82,48 @@ describe('mixed-version review compatibility', () => {
     expect(hasReviewFormats(reviewY, doc)).toBe(false);
     doc.destroy();
   });
+});
+
+it('scans only new structs, not full document clones or previously integrated history', () => {
+  const doc = script(); const gate = new ReviewGate();
+  const undo = new Y.UndoManager(doc.getXmlFragment('default'), { captureTimeout: 0 });
+  const text = (doc.getXmlFragment('default').get(0) as Y.XmlElement).get(0) as Y.XmlText;
+  text.format(0, 4, { suggestionFormat: { id: 'f' } });
+  text.format(0, 4, { suggestionFormat: null });
+  gate.join('room', 'old', false);
+  const module = { ...reviewY, Doc: vi.fn(() => { throw new Error('No trial document'); }), encodeStateAsUpdate: vi.fn(() => { throw new Error('No full snapshot'); }) } as unknown as YjsLike;
+  expect(() => gate.checkUpdate(module, 'room', doc, Y.encodeStateAsUpdate(doc), true)).not.toThrow();
+  const peer = new Y.Doc(); Y.applyUpdate(peer, Y.encodeStateAsUpdate(doc));
+  const vector = Y.encodeStateVector(peer);
+  ((peer.getXmlFragment('default').get(0) as Y.XmlElement).get(0) as Y.XmlText).insert(0, 'More ');
+  expect(() => gate.checkUpdate(module, 'room', doc, Y.encodeStateAsUpdate(peer, vector), true)).not.toThrow();
+  expect(module.Doc).not.toHaveBeenCalled(); expect(module.encodeStateAsUpdate).not.toHaveBeenCalled();
+  undo.destroy(); doc.destroy(); peer.destroy();
+});
+it('allows a full upload whose historical proposals are deleted in the same update', () => {
+  const source = script(); const undo = new Y.UndoManager(source.getXmlFragment('default'));
+  const text = (source.getXmlFragment('default').get(0) as Y.XmlElement).get(0) as Y.XmlText;
+  text.format(0, 4, { suggestionFormat: { id: 'f' } });
+  text.format(0, 4, { suggestionFormat: null });
+  const room = new Y.Doc(); const gate = new ReviewGate(); gate.join('room', 'old', false);
+  expect(() => gate.checkUpdate(reviewY, 'room', room, Y.encodeStateAsUpdate(source), true)).not.toThrow();
+  undo.destroy(); source.destroy(); room.destroy();
+});
+it('rejects pending format structs even when their parent dependencies have not arrived', () => {
+  const source = script(); const vector = Y.encodeStateVector(source);
+  const text = (source.getXmlFragment('default').get(0) as Y.XmlElement).get(0) as Y.XmlText;
+  text.format(0, 4, { 'suggestionFormat--f': { id: 'f' } });
+  const room = new Y.Doc(); const gate = new ReviewGate(); gate.join('room', 'old', false);
+  expect(() => gate.checkUpdate(reviewY, 'room', room, Y.encodeStateAsUpdate(source, vector), true)).toThrow(/Update OpenDraft/);
+  source.destroy(); room.destroy();
+});
+it('recovers formatting capability from server messages after a failed probe', async () => {
+  let allowed = await reviewServerSupportsFormatting('ws://example.test', async () => response({}, 429));
+  expect(allowed).toBe(false);
+  for (const enabled of [true, false, true]) {
+    const advertised = reviewCapability(JSON.stringify({ type: 'review-capability', enabled }));
+    if (advertised !== null) allowed = advertised;
+    expect(allowed).toBe(enabled);
+  }
+  for (const payload of ['not JSON', 'null', '{"type":"other","enabled":true}', '{"type":"review-capability","enabled":"true"}']) expect(reviewCapability(payload)).toBeNull();
 });

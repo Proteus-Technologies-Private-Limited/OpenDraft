@@ -10,6 +10,8 @@ The client probes the selected server's `/health` once before constructing the
 provider. A matching `reviewProtocol` enables formatting suggestions. An older
 server, timeout, malformed response or HTTP error disables format suggesting for
 that session but still permits ordinary collaboration and text suggestions.
+Existing proposals do not block ordinary typing after a failed probe. A server
+capability message can establish support later without another HTTP request.
 Authentication/reconnect uses a fixed credential; it never repeats the health
 check or ends a session over an HTTP failure. A document with pending format
 proposals cannot seed a server without verified support; resolve those proposals
@@ -24,12 +26,30 @@ that mark are refused for **every role**, before applying or broadcasting them.
 Checks include initial sync uploads and nested screenplay content. A new client
 also disables format suggesting while the server reports legacy peers present.
 A rejected local proposal remains on its author's machine; it is not broadcast.
+A refused review update exits collaboration instead of leaving an editor that
+looks collaborative but cannot sync. Hosts retain their project, script, title
+and local edits; guests retain an unsaved local copy.
 Resolve it or update the older participants before rejoining.
 
 Reservations cover the gap between authentication and document loading. Update
 checks and commits run synchronously in the awaited `beforeHandleMessage` hook, preventing a legacy join
 from racing a validated format update. Existing suggester permission checks also
 run there; viewer connections remain read-only.
+
+Normal update checks decode only incoming Yjs structs. Already-integrated or
+simultaneously deleted formatting structs are ignored. The document is checked
+for existing proposals when an older client joins, not on every cursor message.
+Refusal reasons include readable guidance for installed older apps.
+
+Collaborative undo/redo is guarded before the Yjs document changes. When format
+suggestions are unavailable, a history action is previewed in a temporary local
+Y.Doc and refused if it would re-emit a proposal mark. The real document and history
+entry remain intact. Typing and unaffected history continue; the blocked action
+can run when compatible participants are available. Yjs can re-emit historical
+format structs while undoing a later text edit in the same paragraph, even when
+the visible result would have no proposal. Such actions are held too; typing
+continues, and history in unaffected paragraphs remains available. The preview is confined to
+restricted history actions, not ordinary edits or server messages.
 
 Persisted Yjs state is written under `DATA_DIR/review-v1/`. Upgrades read that
 first, falling back to the original legacy directory, but never write newer

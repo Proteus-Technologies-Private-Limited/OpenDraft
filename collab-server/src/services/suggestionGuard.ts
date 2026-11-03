@@ -71,6 +71,10 @@ export interface YjsLike {
   encodeStateAsUpdate(doc: YDocLike): Uint8Array;
   encodeStateVector(doc: YDocLike): Uint8Array;
   decodeStateVector(state: Uint8Array): Map<number, number>;
+  decodeUpdate(update: Uint8Array): {
+    structs: Array<{ id?: { client: number; clock: number }; content?: { key?: string; value?: unknown } }>;
+    ds: { clients: Map<number, Array<{ clock: number; len: number }>> };
+  };
 }
 
 /** Who a suggester is: their session name and, from their invite, their id. */
@@ -262,8 +266,7 @@ function charChange(a: Attrs, b: Attrs, me: SuggesterIdentity): string | null {
     }
     if (name === 'suggestionDelete') {
       if (after !== undefined && !owns(after, me)) return 'marked a deletion as someone else';
-      if (after === undefined && !owns(before, me))
-        return "removed someone else's suggested deletion";
+      if (after === undefined && !owns(before, me)) return "removed someone else's suggested deletion";
       continue;
     }
     return `changed ${name} on existing text`;

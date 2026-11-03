@@ -258,7 +258,6 @@ const hocuspocus = new Hocuspocus({
    */
   async beforeHandleMessage(data: beforeHandleMessagePayload) {
     const user = data.context?.user;
-    reviewGate.checkClient(reviewY, data.document, !!user?.reviewCapable);
     const update = updateInMessage(data.update);
     if (!update) return;
     reviewGate.checkUpdate(reviewY, data.documentName, data.document, update, !!user?.reviewCapable);

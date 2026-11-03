@@ -10,8 +10,14 @@ const { WebSocket } = back('ws');
 const Y = front('yjs');
 const ServerY = back('yjs');
 const { HocuspocusProvider } = front('@hocuspocus/provider');
+// Run the actual client undo guard against this fixture's Yjs instance.
+const fs = require('node:fs');
+const undoExports = {};
+const undoCode = front('typescript').transpileModule(fs.readFileSync(path.join(root, 'frontend/src/editor/reviewUndo.ts'), 'utf8'), { compilerOptions: { module: front('typescript').ModuleKind.CommonJS, target: front('typescript').ScriptTarget.ES2022 } }).outputText;
+new Function('require', 'exports', undoCode)(front, undoExports);
+const { guardReviewUndo } = undoExports;
 const { updateInMessage } = back('./dist/services/suggestionGuard.js');
-const { ReviewGate, supportsReview } = back('./dist/services/reviewProtocol.js');
+const { ReviewGate, supportsReview, REVIEW_REFUSED_REASON } = back('./dist/services/reviewProtocol.js');
 const live = [];
 const servers = [];
 const wire = (role) => `invite:${role}|review:1`;
@@ -37,6 +43,16 @@ async function serve(legacy = false) {
         try {
           const doc = instance.documents.get(documentName);
           if (doc) gate.checkClient(ServerY, doc, capable);
+          // Match production's persisted-state check before loading/syncing a room.
+          else if (documentName === 'persisted') {
+            const saved = new ServerY.Doc();
+            try {
+              const node = new ServerY.XmlElement('action'); const text = new ServerY.XmlText();
+              text.insert(0, 'Keep every word.'); text.format(0, 4, { suggestionFormat: { id: 'saved' } });
+              node.insert(0, [text]); saved.getXmlFragment('default').insert(0, [node]);
+              gate.checkClient(ServerY, saved, capable);
+            } finally { saved.destroy(); }
+          }
         } catch (error) { gate.leave(documentName, socketId); throw error; }
       }
       return { capable, role };
@@ -52,7 +68,6 @@ async function serve(legacy = false) {
     },
     async beforeHandleMessage({ context, document, documentName, update: message, connection }) {
       if (legacy) return;
-      gate.checkClient(ServerY, document, context.capable);
       const payload = updateInMessage(message);
       if (!payload) return;
       gate.checkUpdate(ServerY, documentName, document, payload, context.capable);
@@ -71,11 +86,11 @@ function connect(server, token, name = 'plain') {
   provider = new HocuspocusProvider({
     url: server.url, name, document: doc, token, WebSocketPolyfill: WebSocket,
     onConnect: () => { status.connections++; },
-    onAuthenticationFailed: () => { status.denied = true; provider.configuration.websocketProvider.disconnect(); },
+    onAuthenticationFailed: ({ reason }) => { status.denied = true; status.reason = reason; provider.configuration.websocketProvider.disconnect(); },
     onSynced: ({ state }) => { status.synced = state; },
     onClose: ({ event }) => {
       if (event.reason) status.closed = event.reason;
-      if (event.reason === 'review-incompatible') provider.configuration.websocketProvider.disconnect();
+      if (event.reason === REVIEW_REFUSED_REASON) provider.configuration.websocketProvider.disconnect();
     },
   });
   const client = { provider, doc, status, stop() { provider.configuration.websocketProvider.disconnect(); provider.destroy(); } };
@@ -99,7 +114,8 @@ function propose(doc) {
       await until(() => !modern.gate.hasLegacy('plain'));
     }
     const persisted = connect(modern, 'viewer', 'persisted');
-    await until(() => persisted.status.closed === 'review-incompatible');
+    await until(() => persisted.status.denied);
+    assert.equal(persisted.status.reason, REVIEW_REFUSED_REASON);
     assert.equal(persisted.doc.getXmlFragment('default').length, 0);
     const old = await serve(true);
     const modernOnOld = connect(old, wire('editor'));
@@ -122,21 +138,51 @@ function propose(doc) {
       const writer = connect(modern, wire(role), room);
       await until(() => writer.status.synced);
       propose(writer.doc);
-      await until(() => writer.status.closed === 'review-incompatible');
+      await until(() => writer.status.closed === REVIEW_REFUSED_REASON);
       assert.equal(text(older.doc).toDelta().some((op) => op.attributes?.suggestionFormat), false);
       assert.equal(text(older.doc).toDelta().map((op) => op.insert).join(''), 'Keep every word.');
     }
+    // Resolving a proposal permits a legacy join; undo must not restore it
+    // or close the writer's socket while the legacy peer is still there.
+    const undoWriter = connect(modern, wire('editor'), 'undo');
+    await until(() => undoWriter.status.synced);
+    const history = new Y.UndoManager(undoWriter.doc.getXmlFragment('default'), { captureTimeout: 0 });
+    let formatAllowed = true; let undoBlocked = 0;
+    const restoreUndo = guardReviewUndo(history, () => formatAllowed, () => { undoBlocked++; });
+    propose(undoWriter.doc);
+    const roomText = () => modern.server.hocuspocus.documents.get('undo').getXmlFragment('default').get(0).get(0);
+    await until(() => roomText().toDelta().some(op => op.attributes?.suggestionFormat));
+    text(undoWriter.doc).format(0, 4, { suggestionFormat: null });
+    await until(() => !roomText().toDelta().some(op => op.attributes?.suggestionFormat));
+    const undoLegacy = connect(modern, 'viewer', 'undo');
+    await until(() => undoLegacy.status.synced);
+    formatAllowed = false;
+    assert.equal(history.undo(), null);
+    assert.equal(undoBlocked, 1);
+    text(undoWriter.doc).insert(text(undoWriter.doc).length, ' Still syncing.');
+    await until(() => text(undoLegacy.doc).toDelta().some(op => String(op.insert).includes('Still syncing.')));
+    assert.equal(undoWriter.status.closed, '');
+    assert.equal(undoLegacy.status.closed, '');
+    assert.equal(text(undoLegacy.doc).toDelta().some(op => op.attributes?.suggestionFormat), false);
+    undoLegacy.stop();
+    await until(() => !modern.gate.hasLegacy('undo'));
+    formatAllowed = true;
+    history.undo(); history.undo();
+    await until(() => roomText().toDelta().some(op => op.attributes?.suggestionFormat));
+    restoreUndo(); history.destroy();
+
     propose(host.doc);
     await until(() => modern.server.hocuspocus.documents.get('plain').getXmlFragment('default').toString().includes('suggestionFormat'));
     for (const role of ['host', 'editor', 'viewer', 'suggester']) {
       const unsupported = connect(modern, role);
       await until(() => unsupported.status.denied);
       assert.equal(unsupported.doc.getXmlFragment('default').length, 0);
+      assert.equal(unsupported.status.reason, REVIEW_REFUSED_REASON);
     }
     const peer = connect(modern, wire('editor'));
     await until(() => peer.status.synced);
     assert.ok(peer.doc.getXmlFragment('default').toString().includes('suggestionFormat'));
-    console.log('PASS: four legacy roles sync ordinary scripts; new client syncs/reconnects on old server; every role is gated with legacy peers; unsafe joins receive no script; modern peers retain reviews.');
+    console.log('PASS: four legacy roles sync ordinary scripts; new client syncs/reconnects on old server; every role is gated with legacy peers; unsafe joins receive no script; modern peers retain reviews; blocked undo keeps both sockets and subsequent typing synchronized.');
   } finally {
     for (const client of live) { client.stop(); client.doc.destroy(); }
     for (const server of servers) await server.destroy();

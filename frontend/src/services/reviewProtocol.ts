@@ -48,3 +48,17 @@ export function hasPendingFormat(value: unknown): boolean {
   const node = value as Record<string, unknown>;
   return node.type === 'suggestionFormat' || Object.values(node).some(hasPendingFormat);
 }
+
+/** Old servers use a machine reason; new ones send text readable by older apps too. */
+export function isReviewRefusal(reason: unknown, code?: number): boolean {
+  return code === 4409 || reason === 'review-incompatible'
+    || reason === 'This screenplay has formatting suggestions. Update OpenDraft or resolve those suggestions before joining.';
+}
+
+/** A protocol message can establish support even when the initial HTTP probe failed. */
+export function reviewCapability(payload: string): boolean | null {
+  try {
+    const message = JSON.parse(payload);
+    return message?.type === 'review-capability' && typeof message.enabled === 'boolean' ? message.enabled : null;
+  } catch { return null; }
+}

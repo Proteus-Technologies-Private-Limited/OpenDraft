@@ -7,6 +7,7 @@ import { history, undo, redo, closeHistory } from '@tiptap/pm/history';
 import { testExtensions, block, doc } from '../test/screenplaySchema';
 import {
   hasSuggestions,
+  introducesFormatSuggestions,
   discardOverriddenFormats,
   listSuggestions,
   resolveSuggestionsTransaction,
@@ -324,5 +325,28 @@ describe('formatting review regressions', () => {
     const s = stateOf(doc(block('action', 'Alpha'), block('action', 'Beta')));
     const proposed = suggest(s, s.tr.addMark(1, s.doc.content.size - 1, schema.marks.bold.create()));
     expect(listSuggestions(proposed.doc)[0].formatted).toBe('Alpha\nBeta');
+  });
+});
+
+describe('typing after an unavailable capability probe', () => {
+  it('allows editor typing and text suggestions alongside existing format reviews', () => {
+    const initial = stateOf();
+    const pending = suggest(initial, initial.tr.addMark(1, 4, schema.marks.bold.create()));
+    const editorEdit = pending.tr.insertText('More ', 9);
+    expect(introducesFormatSuggestions(editorEdit)).toBe(false);
+    const suggestedEdit = suggestTransaction(pending, pending.tr.insertText('More ', 9), { by: 'Bob', allowFormatting: false });
+    expect(introducesFormatSuggestions(suggestedEdit)).toBe(false);
+    expect(suggestedEdit.doc.textContent).toContain('More ');
+    expect(listSuggestions(suggestedEdit.doc).some(s => s.kinds.includes('insert'))).toBe(true);
+  });
+  it('allows text inheriting an existing proposal but rejects pasted new proposals', () => {
+    const initial = stateOf();
+    const pending = suggest(initial, initial.tr.addMark(1, 4, schema.marks.bold.create()));
+    expect(introducesFormatSuggestions(pending.tr.insertText('X', 2))).toBe(false);
+    const proposal = pending.doc.child(0).firstChild!;
+    expect(introducesFormatSuggestions(initial.tr.insert(2, proposal))).toBe(true);
+    const marked = schema.marks.suggestionFormat.create({ ...proposal.marks.find(m => m.type.name === 'suggestionFormat')!.attrs, id: 'different' });
+    expect(introducesFormatSuggestions(pending.tr.addMark(1, 3, marked))).toBe(true);
+    expect(introducesFormatSuggestions(pending.tr.removeMark(1, 4, schema.marks.suggestionFormat))).toBe(false);
   });
 });

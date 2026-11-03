@@ -225,7 +225,8 @@ import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
 import CompareVersionPicker from './CompareVersionPicker';
-import { reviewServerSupportsFormatting, reviewAuthToken, hasPendingFormat } from '../services/reviewProtocol';
+import { recoverRejectedCollaboration } from '../services/rejectedCollabRecovery';
+import { reviewServerSupportsFormatting, reviewAuthToken, hasPendingFormat, isReviewRefusal, reviewCapability } from '../services/reviewProtocol';
 import ZoomPanel from './ZoomPanel';
 import { captureZoomAnchor, restoreZoomAnchor, type ZoomAnchor } from '../utils/zoomAnchor';
 import { isNoteResolved } from '../utils/noteThreads';
@@ -761,18 +762,71 @@ const ScreenplayEditor: React.FC = () => {
     collabWsUrlRef.current = wsUrl;
     console.log(`[Collab] setupCollab: docName="${docName}", wsUrl="${wsUrl}", isHost=${isHost}, tokenPrefix="${inviteToken.slice(0, 8)}..."`);
 
+    const handleCollabRefusal = (reason: string) => {
+      // Ignore auth failures from a stale provider (e.g. old provider fires
+      // after host switched documents and a new provider replaced it)
+      if (providerRef.current !== provider) return;
+      // Skip if session-ended already handled the exit
+      if (collabExitingRef.current) {
+        provider.disconnect();
+        return;
+      }
+      collabExitingRef.current = true;
+
+      console.error(`[Collab] Auth FAILED for "${docName}": ${reason}`);
+      // Hocuspocus reports a refused invite as "permission-denied" — what a
+      // guest gets back once the host has ended the session and revoked it.
+      // A link that was bad from the start never gets this far: joining
+      // validates it first.
+      const isSessionEnded = reason?.includes('expired') || reason?.includes('Invalid')
+        || reason === 'permission-denied';
+      showToast(
+        isSessionEnded
+          ? 'The collaboration session has ended'
+          : `Unable to join collaboration: ${reason}`,
+        isSessionEnded ? 'info' : 'error',
+      );
+      // Preserve any local text/proposals made while connecting. An auth
+      // refusal must not turn the pending Y.Doc into a discarded document.
+      const localEditor = collabEditorRef.current;
+      const localDoc = localEditor && !localEditor.isDestroyed ? localEditor.getJSON() : null;
+      const project = useProjectStore.getState();
+      recoverRejectedCollaboration({
+        isHost,
+        projectId: project.currentProject?.id ?? null,
+        scriptId: project.currentScriptId,
+        doc: localDoc && docHasAnyText(localDoc) ? localDoc : null,
+        preserve: (doc, projectId, scriptId) => {
+          rejectedCollabDocRef.current = doc;
+          stashSessionDoc({ doc, projectId, scriptId });
+        },
+        disconnect: () => provider.configuration.websocketProvider.disconnect(),
+        isCurrent: () => providerRef.current === provider,
+        leave: () => {
+          destroyCollab();
+          setCollabMode(false);
+          setCollabRole('editor');
+        },
+        clearGuestProject: () => {
+          setCurrentProject(null);
+          setCurrentScriptId(null);
+          setDocumentTitle('Untitled Screenplay');
+          navigate('/', { replace: true });
+        },
+        markUnsaved: () => useEditorStore.getState().setSaveStatus('unsaved'),
+        remount: () => setEditorKey((k) => k + 1),
+      });
+    };
+
     const provider = new HocuspocusProvider({
       url: wsUrl,
       name: docName,
       document: ydoc,
       token: reviewAuthToken(token),
       onStateless: ({ payload }) => {
-        try {
-          const message = JSON.parse(payload);
-          if (message.type === 'review-capability' && typeof message.enabled === 'boolean') {
-            useSuggestModeStore.getState().setFormatSuggesting(formatSuggesting && message.enabled);
-          }
-        } catch { /* Other stateless messages do not advertise review support. */ }
+        if (providerRef.current !== provider) return;
+        const enabled = reviewCapability(payload);
+        if (enabled !== null) useSuggestModeStore.getState().setFormatSuggesting(enabled);
       },
       onConnect: () => {
         console.log(`[Collab] Connected to room "${docName}" (${isHost ? 'host' : 'guest'})`);
@@ -787,9 +841,8 @@ const ScreenplayEditor: React.FC = () => {
         // The server refused a change from a suggester that was not a
         // suggestion (collab-server/src/services/suggestionGuard). Reconnecting
         // would send the same change again, so stop and say so.
-        if ((event as { reason?: string }).reason === 'review-incompatible') {
-          provider.configuration.websocketProvider.disconnect();
-          showToast('Formatting suggestions cannot sync with an older app in this session. Your local text is retained. Resolve pending formatting suggestions or ask everyone to update before rejoining.', 'error');
+        if (isReviewRefusal((event as { reason?: string }).reason, event.code)) {
+          handleCollabRefusal('Formatting suggestions cannot sync with an older app in this session. Your local text is retained. Resolve pending formatting suggestions or ask everyone to update before rejoining.');
           return;
         }
 
@@ -853,54 +906,7 @@ const ScreenplayEditor: React.FC = () => {
         }
       },
       onAuthenticationFailed: ({ reason }) => {
-        // Ignore auth failures from a stale provider (e.g. old provider fires
-        // after host switched documents and a new provider replaced it)
-        if (providerRef.current !== provider) return;
-        // Skip if session-ended already handled the exit
-        if (collabExitingRef.current) {
-          provider.disconnect();
-          return;
-        }
-        collabExitingRef.current = true;
-
-        console.error(`[Collab] Auth FAILED for "${docName}": ${reason}`);
-        // Hocuspocus reports a refused invite as "permission-denied" — what a
-        // guest gets back once the host has ended the session and revoked it.
-        // A link that was bad from the start never gets this far: joining
-        // validates it first.
-        const isSessionEnded = reason?.includes('expired') || reason?.includes('Invalid')
-          || reason === 'permission-denied';
-        showToast(
-          isSessionEnded
-            ? 'The collaboration session has ended'
-            : `Unable to join collaboration: ${reason}`,
-          isSessionEnded ? 'info' : 'error',
-        );
-        // Preserve any local text/proposals made while connecting. An auth
-        // refusal must not turn the pending Y.Doc into a discarded document.
-        const localEditor = collabEditorRef.current;
-        if (localEditor && !localEditor.isDestroyed) {
-          const localDoc = localEditor.getJSON();
-          if (docHasAnyText(localDoc)) {
-            rejectedCollabDocRef.current = localDoc;
-            stashSessionDoc({ doc: localDoc, projectId: null, scriptId: null });
-          }
-        }
-        // Stop the actual socket: provider.disconnect() is a no-op in 3.x.
-        provider.configuration.websocketProvider.disconnect();
-        setTimeout(() => {
-          destroyCollab();
-          setCollabMode(false);
-          setCollabRole('editor');
-          // Keep the rejected room as an unsaved copy, never autosave it over
-          // a project-backed script or reload that script over local edits.
-          setCurrentProject(null);
-          setCurrentScriptId(null);
-          setDocumentTitle('Untitled Screenplay');
-          useEditorStore.getState().setSaveStatus('unsaved');
-          setEditorKey((k) => k + 1);
-          navigate('/', { replace: true });
-        }, 0);
+        handleCollabRefusal(reason);
       },
       onAwarenessUpdate: ({ states }) => {
         // Ignore events from a stale provider after doc switch

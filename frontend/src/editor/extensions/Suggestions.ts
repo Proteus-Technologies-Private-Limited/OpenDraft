@@ -17,10 +17,12 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import { BOOKMARKABLE_TYPES } from '../../utils/bookmarks';
+import { yUndoPluginKey } from 'y-prosemirror';
+import { guardReviewUndo } from '../reviewUndo';
 import { ALTERNATES_META } from '../alternates';
 import {
   SUGGEST_FORMAT, isFormatStamp, SUGGEST_DELETE, SUGGEST_INSERT, SUGGESTED_JOIN, SUGGESTED_SPLIT, SUGGESTED_TYPE,
-  discardOverriddenFormats, isHousekeeping, isLocalEdit, onlyGivesSceneIds, suggestTransaction, type Blocked, type Suggester, type SuggestionStamp, type TypeStamp,
+  discardOverriddenFormats, introducesFormatSuggestions, isHousekeeping, isLocalEdit, onlyGivesSceneIds, suggestTransaction, type Blocked, type Suggester, type SuggestionStamp, type TypeStamp,
 } from '../suggestions';
 
 const when = (at: unknown) => {
@@ -209,6 +211,10 @@ export const Suggestions = Extension.create<SuggestionsOptions>({
     return { suggester: () => null, onBlocked: () => {}, dropHousekeeping: () => false, allowFormatting: () => true };
   },
 
+  addStorage() {
+    return { restoreUndo: () => {} };
+  },
+
   addExtensions() {
     return [SuggestionInsert, SuggestionDelete, SuggestionFormat];
   },
@@ -229,8 +235,16 @@ export const Suggestions = Extension.create<SuggestionsOptions>({
     const original = view.props.dispatchTransaction;
     if (!original) return;
     const options = this.options;
+    const undoManager = yUndoPluginKey.getState(view.state)?.undoManager;
+    if (undoManager) {
+      this.storage.restoreUndo = guardReviewUndo(undoManager, options.allowFormatting, () => options.onBlocked('formatCompatibility'));
+    }
+    let formattingAllowed = options.allowFormatting();
     view.setProps({
       dispatchTransaction(tr) {
+        const allowed = options.allowFormatting();
+        if (allowed !== formattingAllowed) undoManager?.stopCapturing();
+        formattingAllowed = allowed;
         if (options.dropHousekeeping() && isHousekeeping(tr) && !onlyGivesSceneIds(tr)) return;
         const me = options.suggester();
         // Adding, switching or dropping a version of a line or scene is not
@@ -243,17 +257,17 @@ export const Suggestions = Extension.create<SuggestionsOptions>({
         const next = me && isLocalEdit(tr)
           ? suggestTransaction(view.state, tr, { ...me, onBlocked: options.onBlocked, allowFormatting: options.allowFormatting() })
           : discardOverriddenFormats(tr);
-        if (!options.allowFormatting() && next.docChanged && isLocalEdit(tr)) {
-          let pending = false;
-          next.doc.descendants((node) => {
-            if (node.marks.some((mark) => mark.type.name === SUGGEST_FORMAT)) pending = true;
-            return !pending;
-          });
-          if (pending) { options.onBlocked('formatCompatibility'); return; }
+        if (!options.allowFormatting() && next.docChanged && !tr.getMeta('y-sync$') && introducesFormatSuggestions(next)) {
+          options.onBlocked('formatCompatibility');
+          return;
         }
         original.call(view, next);
       },
     });
+  },
+
+  onDestroy() {
+    this.storage.restoreUndo?.();
   },
 
   addProseMirrorPlugins() {

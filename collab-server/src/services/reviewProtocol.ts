@@ -3,7 +3,7 @@ import { flatten, type YjsLike } from './suggestionGuard';
 export const REVIEW_PROTOCOL = 1;
 export const REVIEW_COMPATIBILITY_MESSAGE =
   'This screenplay has formatting suggestions. Update OpenDraft or resolve those suggestions before joining.';
-export const REVIEW_REFUSED_REASON = 'review-incompatible';
+export const REVIEW_REFUSED_REASON = REVIEW_COMPATIBILITY_MESSAGE;
 
 type ReviewDocument = InstanceType<YjsLike['Doc']>;
 
@@ -47,14 +47,17 @@ export class ReviewGate {
 
   checkUpdate(Y: YjsLike, room: string, doc: ReviewDocument, update: Uint8Array, capable: boolean): void {
     if (capable && !this.legacy.has(room)) return;
-    const trial = new Y.Doc();
-    try {
-      Y.applyUpdate(trial, Y.encodeStateAsUpdate(doc));
-      Y.applyUpdate(trial, update);
-      if (hasReviewFormats(Y, trial)) this.refuse();
-    } finally {
-      trial.destroy();
-    }
+    // ContentFormat structs carry y-prosemirror marks, including marks nested
+    // in new blocks and updates whose dependencies have not arrived yet.
+    // Scan the incoming delta only; cursor messages never reach this check.
+    const known = Y.decodeStateVector(Y.encodeStateVector(doc));
+    const decoded = Y.decodeUpdate(update);
+    if (decoded.structs.some(({ id, content }) =>
+      id && id.clock >= (known.get(id.client) ?? 0)
+        && !decoded.ds.clients.get(id.client)?.some((range) => id.clock >= range.clock && id.clock < range.clock + range.len)
+        && content?.key?.split('--')[0] === 'suggestionFormat'
+        && content.value != null && content.value !== false,
+    )) this.refuse();
   }
 
   private refuse(): never {

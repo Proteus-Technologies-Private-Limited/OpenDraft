@@ -580,6 +580,26 @@ export function discardOverriddenFormats(tr: Transaction): Transaction {
   return tr;
 }
 
+/** Existing proposals do not prevent ordinary typing when a capability probe fails. */
+export function introducesFormatSuggestions(tr: Transaction): boolean {
+  const inserted: Mark[] = [];
+  for (const step of tr.steps) {
+    if (step instanceof AddMarkStep && step.mark.type.name === SUGGEST_FORMAT) return true;
+    if (!(step instanceof ReplaceStep || step instanceof ReplaceAroundStep)) continue;
+    step.slice.content.descendants((node) => {
+      inserted.push(...node.marks.filter((mark) => mark.type.name === SUGGEST_FORMAT));
+    });
+  }
+  if (!inserted.length) return false;
+  const existing: Mark[] = [];
+  tr.before.descendants((node) => {
+    for (const mark of node.marks) {
+      if (mark.type.name === SUGGEST_FORMAT && !existing.some((old) => old.eq(mark))) existing.push(mark);
+    }
+  });
+  return inserted.some((mark) => !existing.some((old) => old.eq(mark)));
+}
+
 /**
  * The suggestion version of `tr`, an edit made on `state`: deletions struck,
  * insertions and new lines marked, type and character-format changes recorded.
@@ -773,11 +793,7 @@ type Which = (stamp: SuggestionStamp) => boolean;
  * Resolve the suggestions `which` picks out: accept makes them part of the
  * script, reject puts the script back as it was.
  */
-export function resolveSuggestionsTransaction(
-  state: EditorState,
-  which: Which,
-  accept: boolean,
-): Transaction | null {
+export function resolveSuggestionsTransaction(state: EditorState, which: Which, accept: boolean): Transaction | null {
   const types = markTypes(state.schema);
   if (!types) return null;
   const tr = state.tr;
@@ -817,14 +833,7 @@ export function resolveSuggestionsTransaction(
     return false;
   });
 
-  if (
-    !removeText.length &&
-    !unmark.length &&
-    !clearAttr.length &&
-    !settle.length &&
-    !formats.length
-  )
-    return null;
+  if (!removeText.length && !unmark.length && !clearAttr.length && !settle.length && !formats.length) return null;
 
   // Marks, attributes and same-size rewrites first: they move nothing.
   for (const [a, b, type] of unmark) tr.removeMark(a, b, type);
