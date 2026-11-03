@@ -23,7 +23,7 @@ interface SceneNavigatorProps {
 
 type NavTab = 'scenes' | 'pages' | 'locations' | 'structure' | 'bookmarks';
 
-// ── Scene heading parser ────────────────────────────────────────────────
+// â”€â”€ Scene heading parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface ParsedHeading {
   preamble: string;
@@ -75,7 +75,7 @@ function parseHeading(raw: string): ParsedHeading {
   return { preamble, prefix, location, timeOfDay, raw };
 }
 
-// ── Location grouping ───────────────────────────────────────────────────
+// â”€â”€ Location grouping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface LocationGroup {
   name: string;
@@ -106,7 +106,7 @@ function groupByLocation(scenes: Array<{ heading: string }>): LocationGroup[] {
   return Array.from(map.values());
 }
 
-// ── Search highlight helper ─────────────────────────────────────────────
+// â”€â”€ Search highlight helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function highlightText(text: string, query: string): React.ReactNode {
   if (!query) return text;
@@ -123,7 +123,7 @@ function highlightText(text: string, query: string): React.ReactNode {
   );
 }
 
-// ── Scene detail helpers ────────────────────────────────────────────────
+// â”€â”€ Scene detail helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface SceneDetail {
   characters: string[];
@@ -138,7 +138,7 @@ function formatPageLength(pages: number): string {
   return `${n} ${n <= 1 ? 'page' : 'pages'}`;
 }
 
-// ── Page thumbnail: exact-match layout constants (same as pagination.ts) ─
+// â”€â”€ Page thumbnail: exact-match layout constants (same as pagination.ts) â”€
 
 const FD_INDENTS: Record<string, [number, number]> = {
   sceneHeading: [1.50, 7.50], action: [1.50, 7.50],
@@ -150,13 +150,13 @@ const FD_INDENTS: Record<string, [number, number]> = {
   castList: [1.50, 7.50],
 };
 
-// Space before each element comes from the active template — see
+// Space before each element comes from the active template â€” see
 // utils/elementSpacing.ts. The thumbnail must use the same values as
 // pagination, or the preview shows a different layout from the page.
 
-const LINE_HEIGHT_PX = 12 * (96 / 72); // 16px — matches pagination LINE_HEIGHT_PT
+const LINE_HEIGHT_PX = 12 * (96 / 72); // 16px â€” matches pagination LINE_HEIGHT_PT
 
-// ── Section outline ─────────────────────────────────────────────────────
+// â”€â”€ Section outline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface SectionOutlineProps {
   sections: StructureSection[];
@@ -169,8 +169,8 @@ interface SectionOutlineProps {
  * The Fountain Section outline, rendered as the tree the hashes describe.
  *
  * Depth comes from the node's own level rather than from how deep the recursion
- * has run, so an outline that skips a rung — `#` straight to `###`, which the
- * format allows — is still drawn where the writer put it.
+ * has run, so an outline that skips a rung â€” `#` straight to `###`, which the
+ * format allows â€” is still drawn where the writer put it.
  */
 const SectionOutline: React.FC<SectionOutlineProps> = ({
   sections, onGoToSection, onGoToScene, query,
@@ -226,7 +226,7 @@ const SectionOutline: React.FC<SectionOutlineProps> = ({
   </>
 );
 
-// ── Main component ──────────────────────────────────────────────────────
+// â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer, style }) => {
   const { scenes, navigatorOpen, toggleNavigator, updateSceneSynopsis, updateSceneColor, pageLabels } = useEditorStore();
@@ -304,7 +304,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     }
   }, [renamingLocation]);
 
-  // Detect scroll direction in the scene list — show search bar on scroll-up.
+  // Detect scroll direction in the scene list â€” show search bar on scroll-up.
   // Re-run when the Scenes tab becomes active; the `.navigator-list` div is
   // unmounted while the user is on another tab, so the scroll listener must
   // re-attach to the freshly mounted element when they come back.
@@ -326,7 +326,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     return () => el.removeEventListener('scroll', onScroll);
   }, [activeTab]);
 
-  // ── Compute scene details (characters, location, length) ──
+  // â”€â”€ Compute scene details (characters, location, length) â”€â”€
 
   const sceneDetails = useMemo((): SceneDetail[] => {
     if (!editor) return [];
@@ -353,7 +353,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
             pageLength: lengths[details.length] || 0,
           });
         }
-        // Headings are single-line by definition here — collapse any break so
+        // Headings are single-line by definition here â€” collapse any break so
         // parseHeading sees one line and the displayed label doesn't wrap.
         currentHeading = singleLine(node.textContent || '');
         currentChars = new Set();
@@ -377,7 +377,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     return details;
   }, [editor, scenes, pageLayout]);
 
-  // ── Compute scene timing ──
+  // â”€â”€ Compute scene timing â”€â”€
 
   const sceneTimings = useMemo(() => {
     if (!editor) return [];
@@ -389,7 +389,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     }
   }, [editor, scenes]);
 
-  // ── Compute act/sequence structure ──
+  // â”€â”€ Compute act/sequence structure â”€â”€
 
   const structure: ScriptStructure = useMemo(() => {
     const empty: ScriptStructure = {
@@ -403,7 +403,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     }
   }, [editor, scenes]);
 
-  // ── Collapsed acts / sequences (Structure tab state) ──
+  // â”€â”€ Collapsed acts / sequences (Structure tab state) â”€â”€
   const [collapsedActs, setCollapsedActs] = useState<Set<number>>(new Set());
   const [collapsedSequences, setCollapsedSequences] = useState<Set<string>>(new Set());
 
@@ -423,7 +423,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     });
   }, []);
 
-  // ── Compute page blocks for page preview ──
+  // â”€â”€ Compute page blocks for page preview â”€â”€
 
   const pageContent = useMemo((): PageContentInfo[] => {
     if (!editor) return [];
@@ -448,12 +448,12 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     return pages;
   }, [pageContent]);
 
-  // ── Exact-match page layout for thumbnails ──
+  // â”€â”€ Exact-match page layout for thumbnails â”€â”€
 
-  // Reference width = actual page width in CSS px (inches × 96 DPI)
+  // Reference width = actual page width in CSS px (inches Ã— 96 DPI)
   const refWidthPx = useMemo(() => pageLayout.pageWidth * 96, [pageLayout.pageWidth]);
 
-  // Inline style for the page content container — matches editor's .page element
+  // Inline style for the page content container â€” matches editor's .page element
   const pageContentStyle = useMemo((): React.CSSProperties => ({
     width: `${refWidthPx}px`,
     paddingTop: `${pageLayout.topMargin}pt`,
@@ -465,7 +465,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     lineHeight: `${LINE_HEIGHT_PX}px`,
   }), [refWidthPx, pageLayout, fontFamily, fontSize]);
 
-  // Per-element inline style — same indentation as the editor
+  // Per-element inline style â€” same indentation as the editor
   const spaceBefore = useMemo(() => getSpaceBefore(), []);
   const getBlockStyle = useCallback((typeName: string, isFirst: boolean): React.CSSProperties => {
     const [left, right] = FD_INDENTS[typeName] || [1.50, 7.50];
@@ -479,7 +479,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     };
   }, [pageLayout, spaceBefore]);
 
-  // ── ResizeObserver for thumbnail scaling ──
+  // â”€â”€ ResizeObserver for thumbnail scaling â”€â”€
 
   useEffect(() => {
     if (activeTab !== 'pages' || !pageGridRef.current) return;
@@ -494,7 +494,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     return () => observer.disconnect();
   }, [activeTab, pageContent.length, refWidthPx]);
 
-  // ── Scroll sync: highlight current page in editor ──
+  // â”€â”€ Scroll sync: highlight current page in editor â”€â”€
 
   useEffect(() => {
     if (activeTab !== 'pages' || !scrollContainer || !editor || pageContent.length === 0) return;
@@ -532,7 +532,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     };
   }, [activeTab, scrollContainer, editor, pageContent, currentVisiblePage]);
 
-  // ── Filter dropdown options ──
+  // â”€â”€ Filter dropdown options â”€â”€
 
   const allCharacters = useMemo(() => {
     const chars = new Set<string>();
@@ -558,7 +558,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     return Array.from(t).sort();
   }, [sceneDetails]);
 
-  // ── Filtered scene indices ──
+  // â”€â”€ Filtered scene indices â”€â”€
 
   const hasActiveFilter = filterCharacters.length > 0 || !!filterLocation || !!filterPrefix || !!filterTime || !!filterColor || !!filterSynopsis;
 
@@ -570,7 +570,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     return scenes.reduce((acc, scene, idx) => {
       const detail = sceneDetails[idx];
       if (!detail) return acc;
-      // Search bar — matches heading or synopsis
+      // Search bar â€” matches heading or synopsis
       if (query) {
         const headingMatch = scene.heading.toLowerCase().includes(query);
         const synopsisMatch = (scene.synopsis || '').toLowerCase().includes(query);
@@ -588,7 +588,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     }, [] as number[]);
   }, [scenes, sceneDetails, searchQuery, filterCharacters, filterLocation, filterPrefix, filterTime, filterColor, filterSynopsis, hasActiveFilter]);
 
-  // ── Navigate to a scene by index ──
+  // â”€â”€ Navigate to a scene by index â”€â”€
 
   const goToScene = useCallback(
     (sceneIndex: number) => {
@@ -650,7 +650,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     [editor, scrollContainer],
   );
 
-  // ── Bookmarks ──
+  // â”€â”€ Bookmarks â”€â”€
   const setBookmarkEditing = useEditorStore((s) => s.setBookmarkEditing);
   const bookmarks = useMemo(
     () => (editor && activeTab === 'bookmarks' ? listBookmarks(editor.state.doc) : []),
@@ -659,7 +659,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     [editor, editor?.state.doc, activeTab],
   );
 
-  // ── Navigate to a document position ──
+  // â”€â”€ Navigate to a document position â”€â”€
 
   const goToPosition = useCallback(
     (pos: number) => {
@@ -677,7 +677,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     [editor, scrollContainer],
   );
 
-  // ── Handle page thumbnail click ──
+  // â”€â”€ Handle page thumbnail click â”€â”€
 
   const handlePageClick = useCallback(
     (page: PageContentInfo, e: React.MouseEvent<HTMLDivElement>) => {
@@ -700,7 +700,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
     [editor, goToPosition],
   );
 
-  // ── Batch rename a location across all scene headings ──
+  // â”€â”€ Batch rename a location across all scene headings â”€â”€
 
   const handleRenameSubmit = useCallback(() => {
     if (!editor || !renamingLocation || !renameValue.trim()) {
@@ -738,7 +738,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         const usesDot = /\.\s*\w+\.?\s*$/.test(heading) && !/\s-\s/.test(heading);
         newHeading += usesDot ? '. ' + parsed.timeOfDay + '.' : ' - ' + parsed.timeOfDay;
       }
-      // Derive the range from nodeSize, never `pos + 1 + heading.length` —
+      // Derive the range from nodeSize, never `pos + 1 + heading.length` â€”
       // the latter is short by one per inline atom and would leave the tail
       // of the heading behind, duplicating it.
       const { from, to } = blockContentRange(node, pos);
@@ -770,13 +770,13 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
   return (
     <>
     <div ref={navPanelRef} className={`scene-navigator ${panelClass}`} style={style}>
-      {/* Top bar — the panel's name, with the close button pinned right. */}
+      {/* Top bar â€” the panel's name, with the close button pinned right. */}
       <div className="navigator-topbar">
         <span className="navigator-eyebrow">Navigator</span>
-        <button className="navigator-close" onClick={toggleNavigator} title="Close Navigator">×</button>
+        <button className="navigator-close" onClick={toggleNavigator} title="Close Navigator">Ã—</button>
       </div>
 
-      {/* Tab bar — horizontally scrollable tab strip */}
+      {/* Tab bar â€” horizontally scrollable tab strip */}
       <div className="navigator-tabs">
         <div className="navigator-tabs-scroll">
           <button className={`navigator-tab${activeTab === 'scenes' ? ' active' : ''}`} onClick={() => setActiveTab('scenes')}>Scenes</button>
@@ -787,7 +787,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         </div>
       </div>
 
-      {/* ── Scenes tab ───────────────────────────────────────────────── */}
+      {/* â”€â”€ Scenes tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {activeTab === 'scenes' && (
         <>
           <div className="navigator-header navigator-scenes-bar">
@@ -827,7 +827,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                     {filterCharacters.map(c => (
                       <span key={c} className="filter-tag">
                         {c}
-                        <button onClick={() => setFilterCharacters(filterCharacters.filter(x => x !== c))}>×</button>
+                        <button onClick={() => setFilterCharacters(filterCharacters.filter(x => x !== c))}>Ã—</button>
                       </span>
                     ))}
                   </div>
@@ -885,7 +885,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
           )}
 
           <div className="navigator-list" ref={listRef}>
-            {/* Search bar — sticky on scroll-up, scrolls away on scroll-down */}
+            {/* Search bar â€” sticky on scroll-up, scrolls away on scroll-down */}
             <div className={`navigator-search${scrollingUp ? ' navigator-search--pinned' : ''}`}>
               <svg className="navigator-search-icon" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <circle cx="6.5" cy="6.5" r="5" /><line x1="10" y1="10" x2="14.5" y2="14.5" />
@@ -898,7 +898,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               {searchQuery && (
-                <button className="navigator-search-clear" onClick={() => setSearchQuery('')}>×</button>
+                <button className="navigator-search-clear" onClick={() => setSearchQuery('')}>Ã—</button>
               )}
             </div>
             {filteredIndices.length === 0 ? (
@@ -924,8 +924,8 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                             const label = sceneActLabel(structure, sceneIdx);
                             return label ? <span className="scene-act-badge" title={`Act ${label.slice(1)}`}>{label}</span> : null;
                           })()}
-                          <span className="scene-heading-label">{highlightText(scene.heading, searchQuery)}</span>
-                          {/* The plotlines this scene carries — View → Story Timeline. */}
+                          <span className="scene-heading-label" title={scene.heading}>{highlightText(scene.heading, searchQuery)}</span>
+                          {/* The plotlines this scene carries â€” View â†’ Story Timeline. */}
                           {plotlines.some((p) => scene.plotlineIds?.includes(p.id)) && (
                             <span className="scene-plotline-dots">
                               {plotlines.filter((p) => scene.plotlineIds?.includes(p.id)).map((p) => (
@@ -935,15 +935,36 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
                           )}
                         </div>
                         {(sceneStartPages[sceneIdx] || (detail && detail.pageLength > 0)) && (
-                          <div className="scene-page-ref" data-tooltip={
-                            (sceneStartPages[sceneIdx] ? `Page ${sceneStartPages[sceneIdx]}` : '') +
-                            (detail && detail.pageLength > 0
-                              ? `${sceneStartPages[sceneIdx] ? ' \u00b7 ' : ''}${formatPageLength(detail.pageLength)}`
-                              : '') +
-                            (sceneTimings[sceneIdx]?.finalSeconds ? ` \u00b7 ${formatSceneDuration(sceneTimings[sceneIdx].finalSeconds)}` : '')
-                          }>
-                            {sceneStartPages[sceneIdx] ?? (detail ? formatPageLength(detail.pageLength) : '')}
-                          </div>
+                          <>
+                            {detail && detail.pageLength > 0 && (
+                              <span
+                                className="scene-length"
+                                data-tooltip={formatPageLength(detail.pageLength)}
+                                aria-hidden="true"
+                              >
+                                <svg width="9" height="12" viewBox="0 0 9 12">
+                                  <rect x="0.5" y="0.5" width="8" height="11" rx="1" fill="none" stroke="currentColor" strokeWidth="1" />
+                                  <rect
+                                    className="scene-length-fill"
+                                    x="2"
+                                    y={2 + (7 - Math.max(2, Math.min(7, Math.round(2 + Math.min(1, detail.pageLength) * 5))))}
+                                    width="5"
+                                    height={Math.max(2, Math.min(7, Math.round(2 + Math.min(1, detail.pageLength) * 5)))}
+                                    fill="currentColor"
+                                  />
+                                </svg>
+                              </span>
+                            )}
+                            <div className="scene-page-ref" data-tooltip={
+                              (sceneStartPages[sceneIdx] ? `Page ${sceneStartPages[sceneIdx]}` : '') +
+                              (detail && detail.pageLength > 0
+                                ? `${sceneStartPages[sceneIdx] ? ' \u00b7 ' : ''}${formatPageLength(detail.pageLength)}`
+                                : '') +
+                              (sceneTimings[sceneIdx]?.finalSeconds ? ` \u00b7 ${formatSceneDuration(sceneTimings[sceneIdx].finalSeconds)}` : '')
+                            }>
+                              {sceneStartPages[sceneIdx] ?? (detail ? formatPageLength(detail.pageLength) : '')}
+                            </div>
+                          </>
                         )}
                       </div>
                       {!isExpanded && scene.synopsis && (
@@ -989,7 +1010,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         </>
       )}
 
-      {/* ── Pages tab ────────────────────────────────────────────────── */}
+      {/* â”€â”€ Pages tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {activeTab === 'pages' && (
         <div className="navigator-list page-thumbnails-scroll" ref={pageGridRef}>
           {pageContent.length === 0 ? (
@@ -1032,7 +1053,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         </div>
       )}
 
-      {/* ── Structure tab ────────────────────────────────────────────── */}
+      {/* â”€â”€ Structure tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {activeTab === 'structure' && (
         <>
           <div className="navigator-header">
@@ -1040,7 +1061,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
             <span className="scene-count">
               {structure.totalSections > 0
                 ? `${structure.totalSections} section${structure.totalSections === 1 ? '' : 's'}`
-                : `${structure.acts.filter((a) => a.actNumber > 0).length || '—'} acts`}
+                : `${structure.acts.filter((a) => a.actNumber > 0).length || 'â€”'} acts`}
             </span>
           </div>
           <div className="navigator-list">
@@ -1137,7 +1158,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         </>
       )}
 
-      {/* ── Bookmarks tab ────────────────────────────────────────────── */}
+      {/* â”€â”€ Bookmarks tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {activeTab === 'bookmarks' && (
         <>
           <div className="navigator-header">
@@ -1184,7 +1205,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({ editor, scrollContainer
         </>
       )}
 
-      {/* ── Locations tab ────────────────────────────────────────────── */}
+      {/* â”€â”€ Locations tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {activeTab === 'locations' && (
         <>
           <div className="navigator-header">
