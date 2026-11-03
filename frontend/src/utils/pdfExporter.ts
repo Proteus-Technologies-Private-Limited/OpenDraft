@@ -1961,6 +1961,10 @@ export function withoutPageFields(content: HeaderFooterContent): HeaderFooterCon
     // A line with no page field is left exactly as written: tidying it would
     // turn "Blue Rev." into "Blue Rev".
     if (!removed) return text;
+    // Attached punctuation can introduce a trailing field ("Draft: {page}").
+    // When text follows the last field, its punctuation belongs to the writer
+    // instead ("Page {page} - Draft:"). Allow field wrappers and separators.
+    const trailingField = /\{(?:page|pages)\}[\s.,:;|/\\\-\u2013\u2014()[\]]*$/i.test(text);
     let out = stripped
       .replace(/\s+/g, ' ')
       .trim();
@@ -1980,10 +1984,9 @@ export function withoutPageFields(content: HeaderFooterContent): HeaderFooterCon
       // "Page {page} of {pages}." goes, but "Blue Rev. Page {page}" keeps its
       // full stop.
       out = out.replace(/(^|\s)[.,:;]+$/g, '').replace(/\s+$/g, '');
-      // A comma, colon or semicolon attached to the last word is the separator
-      // that introduced the removed phrase, so it goes too. Only a full stop
-      // can be the writer's ("Rev.", "Inc.").
-      out = out.replace(/[,:;]+$/g, '');
+      // Only strip attached separators when they introduced a trailing field.
+      // Full stops can be abbreviations ("Rev.", "Inc.") in either position.
+      if (trailingField) out = out.replace(/[,:;]+$/g, '');
       out = out.replace(/^[\s.,:;|/\\\-\u2013\u2014]+/g, '');
       out = out.replace(/\s+/g, ' ').trim();
     }
