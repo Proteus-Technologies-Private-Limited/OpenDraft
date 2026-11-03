@@ -63,31 +63,34 @@ export default function DictationDialog({ editor }: { editor: Editor }) {
     setText('');
     setError('');
     setStatus('Listening…');
+    let failed = false;
     const callbacks = {
       result: (value: string) => {
-        if (!abort.signal.aborted) {
+        if (!abort.signal.aborted && !failed) {
           setText(value);
           setStatus('Review the transcript before inserting.');
         }
       },
       interim: (value: string) => {
-        if (!abort.signal.aborted) {
+        if (!abort.signal.aborted && !failed) {
           setStatus(value);
         }
       },
       notice: (value: string) => {
-        if (!abort.signal.aborted) setStatus(value);
+        if (!abort.signal.aborted && !failed) setStatus(value);
       },
       error: (value: string) => {
         if (!abort.signal.aborted) {
+          failed = true;
           setText('');
+          setStatus('');
           setError(value);
         }
       },
       end: () => {
         if (!abort.signal.aborted) {
           setBusy(false);
-          setStatus('Recording stopped. Review the transcript before inserting.');
+          if (!failed) setStatus('Recording stopped. Review the transcript before inserting.');
         }
       },
     };
@@ -152,8 +155,8 @@ export default function DictationDialog({ editor }: { editor: Editor }) {
           type="button"
           disabled={!busy || (engine === 'device' && getOS() === 'android')}
           onClick={() => {
-            session.current?.stop();
             setStatus('Finishing recognition…');
+            session.current?.stop();
           }}
         >
           Stop
@@ -197,6 +200,7 @@ export default function DictationDialog({ editor }: { editor: Editor }) {
           disabled={busy || !text.trim() || !editor.isEditable}
           onClick={() => {
             if (insertDictation(editor, text, commands)) {
+              setError('');
               setText('');
               setStatus('Inserted.');
             } else

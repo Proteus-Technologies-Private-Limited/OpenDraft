@@ -2,6 +2,7 @@
 #import <Foundation/Foundation.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <objc/runtime.h>
+#import "DictationSupport.h"
 
 // ── iOS Share Sheet ─────────────────────────────────────────────────────────
 // Present the native iOS share sheet for a file.
@@ -1434,39 +1435,8 @@ void ios_dictation_stop(const char *session) {
 // Match only locales Apple advertises. The settings UI stores language codes,
 // while Speech usually requires a regional locale such as en-US or fr-FR.
 static NSLocale *dictation_locale(NSString *language) {
-    NSArray<NSLocale *> *supported = [[[SFSpeechRecognizer supportedLocales] allObjects]
-        sortedArrayUsingComparator:^NSComparisonResult(NSLocale *a, NSLocale *b) {
-            return [a.localeIdentifier compare:b.localeIdentifier];
-        }];
-    NSLocale *requested = [NSLocale localeWithLocaleIdentifier:language];
-    NSString *code = [requested objectForKey:NSLocaleLanguageCode];
-    if (!code.length) return nil;
-    NSLocale *current = [NSLocale currentLocale];
-    NSString *currentCode = [current objectForKey:NSLocaleLanguageCode];
-    NSString *region = [current objectForKey:NSLocaleCountryCode];
-    NSString *currentMatch = @"";
-    if ([currentCode isEqualToString:code] && region.length) {
-        currentMatch = [NSLocale localeIdentifierFromComponents:@{
-            NSLocaleLanguageCode: code, NSLocaleCountryCode: region
-        }];
-    }
-    NSDictionary<NSString *, NSString *> *defaults = @{
-        @"en": @"en_US", @"pl": @"pl_PL", @"fr": @"fr_FR", @"de": @"de_DE",
-        @"es": @"es_ES", @"it": @"it_IT", @"pt": @"pt_BR", @"ja": @"ja_JP"
-    };
-    for (NSString *candidate in @[language, currentMatch, defaults[code] ?: @""]) {
-        if (!candidate.length) continue;
-        NSString *identifier = [NSLocale canonicalLocaleIdentifierFromString:candidate];
-        for (NSLocale *locale in supported) {
-            NSString *available = [NSLocale canonicalLocaleIdentifierFromString:locale.localeIdentifier];
-            if ([identifier caseInsensitiveCompare:available] == NSOrderedSame) return locale;
-        }
-    }
-    // A supported regional variant is preferable to an unsupported bare code.
-    for (NSLocale *locale in supported) {
-        if ([[locale objectForKey:NSLocaleLanguageCode] isEqualToString:code]) return locale;
-    }
-    return nil;
+    return dictation_supported_locale(language, [NSLocale currentLocale],
+                                      [SFSpeechRecognizer supportedLocales]);
 }
 void ios_dictation_start(const char *session, const char *language) {
     NSString *sid = session ? @(session) : @"";
@@ -1486,6 +1456,7 @@ void ios_dictation_start(const char *session, const char *language) {
                         if (!granted) { dictation_event(sid, @"error", nil, @"Allow Microphone access in iOS Settings."); gDictationId = nil; return; }
                         NSLocale *locale = dictation_locale(lang);
                         if (!locale) { dictation_event(sid, @"error", nil, @"Apple speech recognition does not support this language. Choose another language in Dictation settings."); gDictationId = nil; return; }
+                        NSLog(@"[Dictation] Requested language %@; selected Apple locale %@", lang, locale.localeIdentifier);
                         gDictationRecognizer = [[SFSpeechRecognizer alloc] initWithLocale:locale];
                         if (!gDictationRecognizer.available) { dictation_event(sid, @"error", nil, @"Speech recognition is unavailable for this language or connection."); gDictationId = nil; gDictationRecognizer = nil; return; }
                         NSError *error = nil;
@@ -1499,7 +1470,8 @@ void ios_dictation_start(const char *session, const char *language) {
                         gDictationEngine = [[AVAudioEngine alloc] init];
                         gDictationRequest = [[SFSpeechAudioBufferRecognitionRequest alloc] init];
                         gDictationRequest.shouldReportPartialResults = YES;
-                        if (gDictationRecognizer.supportsOnDeviceRecognition) {
+                        BOOL onDevice = gDictationRecognizer.supportsOnDeviceRecognition;
+                        if (onDevice) {
                             gDictationRequest.requiresOnDeviceRecognition = YES;
                             dictation_event(sid, @"notice", nil, @"Using on-device Apple speech recognition.");
                         } else {
@@ -1510,7 +1482,9 @@ void ios_dictation_start(const char *session, const char *language) {
                                 if (![gDictationId isEqualToString:sid]) return;
                                 if (result) dictation_event(sid, result.isFinal ? @"result" : @"interim", result.bestTranscription.formattedString, nil);
                                 if (failure || result.isFinal) {
-                                    if (failure && !result.isFinal) dictation_event(sid, @"error", nil, failure.localizedDescription);
+                                    if (failure && !result.isFinal) {
+                                        dictation_event(sid, @"error", nil, dictation_recognition_error(failure.localizedDescription, onDevice));
+                                    }
                                     dictation_event(sid, @"end", nil, nil); gDictationId = nil; dictation_cleanup();
                                 }
                             });

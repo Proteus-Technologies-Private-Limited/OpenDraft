@@ -114,6 +114,12 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: Check native dictation locale selection and failure guidance
+        run: |
+          xcrun clang -fobjc-arc -fblocks -framework Foundation \
+            -I src-tauri/gen/apple/Sources/opendraft \
+            test-script/dictation_native_test.m -o "$RUNNER_TEMP/dictation-native-tests"
+          "$RUNNER_TEMP/dictation-native-tests"
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
