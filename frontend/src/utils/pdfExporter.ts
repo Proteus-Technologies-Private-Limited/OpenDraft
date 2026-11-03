@@ -1834,15 +1834,26 @@ export async function exportPDF(
  */
 export function withoutPageFields(content: HeaderFooterContent): HeaderFooterContent {
   const clean = (text: string): string => {
-    const stripped = text
-      // The whole phrase, in the forms the templates use. No trailing \b: the
-      // token ends with "}", which is not a word character.
-      .replace(/\b(?:page|pagina|p.gina|seite)\s*\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi, '')
-      .replace(/\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi, '')
-      .replace(/\b(?:page|pagina|p.gina|seite)\s*\{page\}/gi, '')
-      .replace(/\b(?:of|di|de|da|von|sur)\s*\{pages\}/gi, '')
-      // A token on its own, and anything left around it.
-      .replace(/\{(?:page|pages)\}/gi, '');
+    let stripped = text;
+    let removed = false;
+    const drop = (pattern: RegExp) => {
+      const next = stripped.replace(pattern, '');
+      if (next !== stripped) {
+        stripped = next;
+        removed = true;
+      }
+    };
+    // The whole phrase, in the forms the templates use. No trailing \b: the
+    // token ends with "}", which is not a word character.
+    drop(/\b(?:page|pagina|p.gina|seite)\s*\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi);
+    drop(/\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi);
+    drop(/\b(?:page|pagina|p.gina|seite)\s*\{page\}/gi);
+    drop(/\b(?:of|di|de|da|von|sur)\s*\{pages\}/gi);
+    // A token on its own, and anything left around it.
+    drop(/\{(?:page|pages)\}/gi);
+    // A line with no page field is left exactly as written: tidying it would
+    // turn "Blue Rev." into "Blue Rev".
+    if (!removed) return text;
     return stripped
       .replace(/\s+/g, ' ')
       .replace(/[\s.,:;|/\\-]+$/g, '')
