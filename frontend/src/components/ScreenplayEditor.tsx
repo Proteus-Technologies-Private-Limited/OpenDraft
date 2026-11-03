@@ -130,6 +130,7 @@ import { hydrateEditorStoresFromContent } from '../utils/hydrateStores';
 import { DEFAULT_SCRIPT_PROFILE, normalizeScriptProfile } from '../utils/scriptProfile';
 import { restoreRevisionState } from '../utils/revisionState';
 import { characterKey } from '../utils/nodeText';
+import { ELEMENT_SHORTCUT_TYPES } from '../utils/elementShortcuts';
 import { computeContdChanges, type ContdBlock } from '../editor/contdAuto';
 import { useBackupScheduler } from '../hooks/useBackupScheduler';
 import { useRecoverySnapshot } from '../hooks/useRecoverySnapshot';
@@ -176,16 +177,20 @@ function collabRoleOf(role: unknown): CollabRole {
 
 /** Said once in a while, not on every keystroke, when a suggester tries what a suggestion cannot carry. */
 let blockedToastAt = 0;
-function sayCannotBeSuggested(what: 'formatting' | 'lineBreak' | 'alternates') {
+function sayCannotBeSuggested(what: 'formatting' | 'lineBreak' | 'alternates' | 'formatConflict' | 'formatCompatibility') {
   const now = Date.now();
   // Alternates are a deliberate click, not a keystroke: always say why it did nothing.
   if (what !== 'alternates' && now - blockedToastAt < 8000) return;
   blockedToastAt = now;
-  showToast(what === 'lineBreak'
+  showToast(what === 'formatCompatibility'
+    ? 'Formatting suggestions need a compatible collaboration server and clients. Text suggestions are still available.'
+    : what === 'lineBreak'
     ? 'A line break inside an element can’t be suggested — press Enter for a new line instead.'
     : what === 'alternates'
       ? 'Versions of a line or scene can’t be added or switched while suggesting. Turn off Tools → Suggest Changes to do that.'
-      : 'Formatting can’t be suggested — only words, new lines and element types. Script notes still work.', 'info');
+      : what === 'formatConflict'
+        ? 'This selection already has a formatting suggestion from someone else. Review it before changing the same style.'
+        : 'This formatting cannot be suggested yet. Bold, italic, underline, strikethrough, subscript and superscript are supported.', 'info');
 }
 import VersionHistory from './VersionHistory';
 import AssetManager from './AssetManager';
@@ -220,6 +225,8 @@ import ShareDialog from './ShareDialog';
 import CollabLoginDialog from './CollabLoginDialog';
 import JoinCollabDialog from './JoinCollabDialog';
 import CompareVersionPicker from './CompareVersionPicker';
+import { recoverRejectedCollaboration } from '../services/rejectedCollabRecovery';
+import { reviewServerSupportsFormatting, reviewAuthToken, hasPendingFormat, isReviewRefusal, reviewCapability } from '../services/reviewProtocol';
 import ZoomPanel from './ZoomPanel';
 import { captureZoomAnchor, restoreZoomAnchor, type ZoomAnchor } from '../utils/zoomAnchor';
 import { isNoteResolved } from '../utils/noteThreads';
@@ -384,8 +391,7 @@ function collabSeedFrom(content: unknown): Record<string, unknown> | null {
   if (!content || typeof content !== 'object') return null;
   const doc = content as Record<string, unknown>;
   if (doc.type === 'doc') {
-    const { _notes, _generalNotes, _tags, _tagCategories, _characterProfiles, _characterRelationships, _templateId, _pageLayout, ...pmDoc } = doc;
-    return pmDoc;
+    return stripSaveMetadata(doc).pmDoc;
   }
   return Object.keys(doc).length > 0 ? doc : null;
 }
@@ -652,8 +658,12 @@ const ScreenplayEditor: React.FC = () => {
   // back on screen after the reset had cleared it.
   const signingOutRef = useRef(false);
 
+  const collabSetupEpoch = useRef(0);
+  const rejectedCollabDocRef = useRef<Record<string, unknown> | null>(null);
+
   // Cleanup collab provider
   const destroyCollab = useCallback(() => {
+    collabSetupEpoch.current++;
     stopCollabSync();
     collabDocNameRef.current = null;
     if (providerRef.current) {
@@ -665,6 +675,7 @@ const ScreenplayEditor: React.FC = () => {
       ydocRef.current = null;
     }
     useSuggestModeStore.getState().setUid(null);
+    useSuggestModeStore.getState().setFormatSuggesting(true);
     setCollabUsers([]);
   }, []);
 
@@ -702,13 +713,22 @@ const ScreenplayEditor: React.FC = () => {
   // Ref for document-switch handler (defined after setupCollab to avoid circular dependency)
   const handleDocumentSwitchRef = useRef<(projectId: string, scriptId: string, token: string, title?: string) => void>(() => {});
 
-  const setupCollab = useCallback((docName: string, inviteToken: string, _userName: string, isHost = false, overrideWsUrl?: string) => {
+  const setupCollab = useCallback(async (docName: string, inviteToken: string, _userName: string, isHost = false, overrideWsUrl?: string) => {
     // Skip if already setting up the same document (prevents React StrictMode
     // double-invoke from destroying a provider that's still connecting)
     if (collabDocNameRef.current === docName && providerRef.current) {
-      return;
+      return true;
+    }
+    const setupEpoch = ++collabSetupEpoch.current;
+    const wsUrl = overrideWsUrl || getCollabWsUrl();
+    const formatSuggesting = await reviewServerSupportsFormatting(wsUrl);
+    if (setupEpoch !== collabSetupEpoch.current) return false;
+    if (!formatSuggesting && hasPendingFormat(collabInitialContent.current)) {
+      showToast('Resolve pending formatting suggestions before sharing this script on a server without verified review support. Your script is unchanged.', 'error');
+      return false;
     }
     destroyCollab();
+    useSuggestModeStore.getState().setFormatSuggesting(formatSuggesting);
     collabDocNameRef.current = docName;
     collabExitingRef.current = false;
     // What this window's suggestions are signed with in the session, as the
@@ -739,15 +759,75 @@ const ScreenplayEditor: React.FC = () => {
 
     // Use the collab server URL extracted from the invite link if provided,
     // otherwise fall back to the local setting.
-    const wsUrl = overrideWsUrl || getCollabWsUrl();
     collabWsUrlRef.current = wsUrl;
     console.log(`[Collab] setupCollab: docName="${docName}", wsUrl="${wsUrl}", isHost=${isHost}, tokenPrefix="${inviteToken.slice(0, 8)}..."`);
+
+    const handleCollabRefusal = (reason: string) => {
+      // Ignore auth failures from a stale provider (e.g. old provider fires
+      // after host switched documents and a new provider replaced it)
+      if (providerRef.current !== provider) return;
+      // Skip if session-ended already handled the exit
+      if (collabExitingRef.current) {
+        provider.disconnect();
+        return;
+      }
+      collabExitingRef.current = true;
+
+      console.error(`[Collab] Auth FAILED for "${docName}": ${reason}`);
+      // Hocuspocus reports a refused invite as "permission-denied" — what a
+      // guest gets back once the host has ended the session and revoked it.
+      // A link that was bad from the start never gets this far: joining
+      // validates it first.
+      const isSessionEnded = reason?.includes('expired') || reason?.includes('Invalid')
+        || reason === 'permission-denied';
+      showToast(
+        isSessionEnded
+          ? 'The collaboration session has ended'
+          : `Unable to join collaboration: ${reason}`,
+        isSessionEnded ? 'info' : 'error',
+      );
+      // Preserve any local text/proposals made while connecting. An auth
+      // refusal must not turn the pending Y.Doc into a discarded document.
+      const localEditor = collabEditorRef.current;
+      const localDoc = localEditor && !localEditor.isDestroyed ? localEditor.getJSON() : null;
+      const project = useProjectStore.getState();
+      recoverRejectedCollaboration({
+        isHost,
+        projectId: project.currentProject?.id ?? null,
+        scriptId: project.currentScriptId,
+        doc: localDoc && docHasAnyText(localDoc) ? localDoc : null,
+        preserve: (doc, projectId, scriptId) => {
+          rejectedCollabDocRef.current = doc;
+          stashSessionDoc({ doc, projectId, scriptId });
+        },
+        disconnect: () => provider.configuration.websocketProvider.disconnect(),
+        isCurrent: () => providerRef.current === provider,
+        leave: () => {
+          destroyCollab();
+          setCollabMode(false);
+          setCollabRole('editor');
+        },
+        clearGuestProject: () => {
+          setCurrentProject(null);
+          setCurrentScriptId(null);
+          setDocumentTitle('Untitled Screenplay');
+          navigate('/', { replace: true });
+        },
+        markUnsaved: () => useEditorStore.getState().setSaveStatus('unsaved'),
+        remount: () => setEditorKey((k) => k + 1),
+      });
+    };
 
     const provider = new HocuspocusProvider({
       url: wsUrl,
       name: docName,
       document: ydoc,
-      token,
+      token: reviewAuthToken(token),
+      onStateless: ({ payload }) => {
+        if (providerRef.current !== provider) return;
+        const enabled = reviewCapability(payload);
+        if (enabled !== null) useSuggestModeStore.getState().setFormatSuggesting(enabled);
+      },
       onConnect: () => {
         console.log(`[Collab] Connected to room "${docName}" (${isHost ? 'host' : 'guest'})`);
         setCollabConnectionState('connected');
@@ -761,6 +841,11 @@ const ScreenplayEditor: React.FC = () => {
         // The server refused a change from a suggester that was not a
         // suggestion (collab-server/src/services/suggestionGuard). Reconnecting
         // would send the same change again, so stop and say so.
+        if (isReviewRefusal((event as { reason?: string }).reason, event.code)) {
+          handleCollabRefusal('Formatting suggestions cannot sync with an older app in this session. Your local text is retained. Resolve pending formatting suggestions or ask everyone to update before rejoining.');
+          return;
+        }
+
         if ((event as { reason?: string }).reason === SUGGESTION_REFUSED_REASON) {
           provider.disconnect();
           showToast('The collaboration server refused a change that was not a suggestion, and disconnected you. Open the invite link again to carry on.', 'error');
@@ -821,45 +906,7 @@ const ScreenplayEditor: React.FC = () => {
         }
       },
       onAuthenticationFailed: ({ reason }) => {
-        // Ignore auth failures from a stale provider (e.g. old provider fires
-        // after host switched documents and a new provider replaced it)
-        if (providerRef.current !== provider) return;
-        // Skip if session-ended already handled the exit
-        if (collabExitingRef.current) {
-          provider.disconnect();
-          return;
-        }
-        collabExitingRef.current = true;
-
-        console.error(`[Collab] Auth FAILED for "${docName}": ${reason}`);
-        // Hocuspocus reports a refused invite as "permission-denied" — what a
-        // guest gets back once the host has ended the session and revoked it.
-        // A link that was bad from the start never gets this far: joining
-        // validates it first.
-        const isSessionEnded = reason?.includes('expired') || reason?.includes('Invalid')
-          || reason === 'permission-denied';
-        showToast(
-          isSessionEnded
-            ? 'The collaboration session has ended'
-            : `Unable to join collaboration: ${reason}`,
-          isSessionEnded ? 'info' : 'error',
-        );
-        // Prevent reconnection loop — disconnect provider immediately, then clean up
-        provider.disconnect();
-        setTimeout(() => {
-          destroyCollab();
-          setCollabMode(false);
-          setCollabRole('editor');
-          if (!isHost) {
-            // Clear project context so sample content can't overwrite the real file
-            setCurrentProject(null);
-            setCurrentScriptId(null);
-            setDocumentTitle('Untitled Screenplay');
-          }
-          setEditorKey((k) => k + 1);
-          // replace: the collab route no longer leads anywhere (see above).
-          if (!isHost) navigate('/', { replace: true });
-        }, 0);
+        handleCollabRefusal(reason);
       },
       onAwarenessUpdate: ({ states }) => {
         // Ignore events from a stale provider after doc switch
@@ -912,6 +959,7 @@ const ScreenplayEditor: React.FC = () => {
 
     // Start syncing metadata (characters, notes, tags, beats) via Yjs
     startCollabSync(ydoc, isHost);
+    return true;
   }, [destroyCollab]);
 
   // Called when host broadcasts document-switch — guest auto-follows
@@ -962,7 +1010,7 @@ const ScreenplayEditor: React.FC = () => {
       useEditorStore.setState({ sourceFidelity: readSourceFidelity((content as any)?._sourceFidelity) });
 
       const docName = `${projectId}/${scriptId}${nonce ? `/${nonce}` : ''}`;
-      setupCollab(docName, sharedToken, collabUserName, false, collabWs);
+      if (!await setupCollab(docName, sharedToken, collabUserName, false, collabWs)) return;
 
       const docTitle = scriptResp?.meta?.title || title || 'Untitled';
       setCurrentProject(project || { id: projectId, name: 'Collaboration' });
@@ -1197,7 +1245,10 @@ const ScreenplayEditor: React.FC = () => {
         // Include session_nonce so guest joins the exact same Yjs room as the host
         const nonce = session.session_nonce || '';
         const docName = `${session.project_id}/${session.script_id}${nonce ? `/${nonce}` : ''}`;
-        setupCollab(docName, urlCollabToken, session.collaborator_name);
+        if (!await setupCollab(docName, urlCollabToken, session.collaborator_name)) {
+          setCollabLoading(false);
+          return;
+        }
 
         setCollabUserName(session.collaborator_name);
         setCollabRole(collabRoleOf(session.role));
@@ -1368,7 +1419,7 @@ const ScreenplayEditor: React.FC = () => {
       }
 
       const docName = `${newProjectId}/${newScriptId}${sharedNonce ? `/${sharedNonce}` : ''}`;
-      setupCollab(docName, hostToken, collabUserName, true);
+      if (!await setupCollab(docName, hostToken, collabUserName, true)) return;
       collabSessionDocsRef.current.push({ projectId: newProjectId, scriptId: newScriptId, docName });
 
       setCurrentProject(project);
@@ -1392,7 +1443,7 @@ const ScreenplayEditor: React.FC = () => {
       // Do NOT wait for backend content loading (which may hang on unreachable ports).
       const nonce = session.session_nonce || '';
       const docName = `${session.project_id}/${session.script_id}${nonce ? `/${nonce}` : ''}`;
-      setupCollab(docName, token, session.collaborator_name, false, collabWs);
+      if (!await setupCollab(docName, token, session.collaborator_name, false, collabWs)) return;
 
       setCollabUserName(session.collaborator_name);
       setCollabRole(collabRoleOf(session.role));
@@ -1925,7 +1976,7 @@ const ScreenplayEditor: React.FC = () => {
       name: 'elementShortcuts',
       priority: 999,
       addKeyboardShortcuts() {
-        const types = ['sceneHeading', 'action', 'character', 'dialogue', 'parenthetical', 'transition', 'general', 'shot'];
+        const types = ELEMENT_SHORTCUT_TYPES;
         const shortcuts: Record<string, any> = {};
         types.forEach((type, i) => {
           shortcuts[`Mod-${i + 1}`] = ({ editor }: { editor: any }) => {
@@ -2123,6 +2174,7 @@ const ScreenplayEditor: React.FC = () => {
       Suggestions.configure({
         suggester: () => (useSuggestModeStore.getState().suggesting ? suggestionAuthor() : null),
         onBlocked: sayCannotBeSuggested,
+        allowFormatting: () => useSuggestModeStore.getState().formatSuggesting,
         dropHousekeeping: () => useSuggestModeStore.getState().locked,
       }),
       LockedPages,
@@ -2140,7 +2192,7 @@ const ScreenplayEditor: React.FC = () => {
     // For normal editing from URL, content is loaded later via useEffect.
     content: collabMode
       ? (collabInitialContent.current || { type: 'doc', content: [{ type: 'action', content: [] }] })
-      : (urlScriptId || urlCommitHash) ? undefined : { type: 'doc', content: [{ type: 'action', content: [] }] },
+      : rejectedCollabDocRef.current || ((urlScriptId || urlCommitHash) ? undefined : { type: 'doc', content: [{ type: 'action', content: [] }] }),
     editable: !isHistoryMode && !(collabMode && collabRole === 'viewer'),
     editorProps: {
       attributes: { class: `screenplay-content${isHistoryMode ? ' history-readonly' : ''}`, spellcheck: 'false' },
@@ -2150,9 +2202,18 @@ const ScreenplayEditor: React.FC = () => {
       // editor/stripNoteBackgrounds.
       transformPastedHTML: (html) => stripNoteBackgrounds(html),
     },
-    onSelectionUpdate: ({ editor: ed }) => {
+    onCreate: () => {
+      if (!collabMode) rejectedCollabDocRef.current = null;
+    },
+    onTransaction: ({ editor: ed, transaction }) => {
+      // Pagination, spellcheck/grammar decorations and remote steps dispatch
+      // transactions that cannot change the element under the caret. Only a
+      // document change or a moved selection can, and the setter is only
+      // reached when the type actually differs — 26 components subscribe to
+      // the store without a selector.
+      if (!transaction.docChanged && !transaction.selectionSet) return;
       const type = resolveActiveElement(ed);
-      if (type) setActiveElement(type);
+      if (type && type !== useEditorStore.getState().activeElement) setActiveElement(type);
     },
   }, [editorKey]);
 
@@ -2315,7 +2376,7 @@ const ScreenplayEditor: React.FC = () => {
     const docName = `${currentProject.id}/${currentScriptId}/${nonce}`;
     // Use the logged-in user's display name so remote users see the real name
     const hostDisplayName = useSettingsStore.getState().collabAuth.user?.displayName || 'Host';
-    setupCollab(docName, ownerToken, hostDisplayName, true);
+    if (!await setupCollab(docName, ownerToken, hostDisplayName, true)) return;
     collabSessionDocsRef.current = [{ projectId: currentProject.id, scriptId: currentScriptId, docName }];
 
     setCollabUserName(hostDisplayName);

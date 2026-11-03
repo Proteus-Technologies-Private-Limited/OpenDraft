@@ -483,3 +483,29 @@ it('keeps an unreadable snapshot and its ID when its local library template is d
   expect(buildSaveContent(editor)!._templateId).toBe(format.id);
   expect(buildSaveContent(editor)!._templateSnapshot).toEqual(raw);
 });
+
+it('preserves an unreadable format alongside the accepted baseline and pending review metadata', () => {
+  const format = customFormat();
+  const raw = { ...format, rules: { ...format.rules, action: { ...format.rules.action, futureRuleProperty: true } } };
+  useFormattingTemplateStore.getState().restoreDocumentTemplate(format.id, raw);
+  const reviewEditor = {
+    isDestroyed: false,
+    getJSON: () => ({ type: 'doc', content: [{ type: 'action', content: [{
+      type: 'text', text: 'Keep the review and the format.', marks: [
+        { type: 'bold' },
+        { type: 'suggestionFormat', attrs: { id: 'format-review', by: 'Ann', at: 1, format: 'bold', before: false, after: true } },
+      ],
+    }] }] }),
+  } as unknown as Editor;
+  const saved = buildSaveContent(reviewEditor)!;
+  expect(saved._templateSnapshot).toEqual(raw);
+  expect(saved._reviewSnapshot).toBeDefined();
+  const baseline = saved.content as Array<{ content: Array<{ marks?: Array<{ type: string }> }> }>;
+  expect(baseline[0].content[0].marks ?? []).not.toContainEqual(expect.objectContaining({ type: 'suggestionFormat' }));
+  const backup = parseOdraft(serializeContentForFormat('odraft', saved, 'Future format with review'));
+  expect(backup.content._templateSnapshot).toEqual(raw);
+  const reopened = backup.content.content as Array<{ content: Array<{ marks?: Array<{ type: string }> }> }>;
+  expect(reopened[0].content[0].marks).toContainEqual(expect.objectContaining({
+    type: 'suggestionFormat', attrs: expect.objectContaining({ id: 'format-review' }),
+  }));
+});

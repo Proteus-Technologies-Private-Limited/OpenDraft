@@ -202,6 +202,8 @@
     { page: 'Version History', title: 'Checking In', section: 'Check In', text: 'File check in. Brief message describe changes. Finished scene rewrite. Snapshot saved version.', url: 'version-history.html#check-in' },
     { page: 'Version History', title: 'Viewing History', section: 'View', text: 'File version history. Versions tab project view. Message date author. Relative time hours ago.', url: 'version-history.html#view-history' },
     { page: 'Version History', title: 'Restoring a Version', section: 'Restore', text: 'Go back previous version. Find version restore button. Script updated match. New version created. Safe undo restore. Does not delete history.', url: 'version-history.html#restore' },
+    { page: 'Version History', title: 'Deleting a Version', section: 'Delete', text: 'Delete version remove checkpoint clean up history. Scripts and other versions unchanged. Cannot be undone.', url: 'version-history.html#delete' },
+    { page: 'Formatting', title: 'Custom Elements', section: 'Custom Elements', text: 'Custom element. Add your own element type sound effect lyric insert flashback. Template editor new element. Element menu Enter.', url: 'formatting.html#custom-elements' },
     { page: 'Version History', title: 'Save vs Check In', section: 'Save vs Check In', text: 'Save Cmd S disk frequently. Check in named version snapshot milestones. Finished scene end session before major changes.', url: 'version-history.html#save-vs-checkin' },
     { page: 'Version History', title: 'Backups', section: 'Backups', text: 'Backups ordinary files outside database survive data loss. Backup vs version history difference. See Backups and Recovery page.', url: 'version-history.html#backups' },
 

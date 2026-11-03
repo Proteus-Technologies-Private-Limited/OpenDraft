@@ -24,8 +24,8 @@
  * transaction the editor was about to apply and builds the equivalent one in
  * suggestions. Undoing a suggestion of your own — deleting text you suggested,
  * pressing Backspace after your own Enter — really undoes it, as it would in
- * any editor. Formatting cannot be suggested (yet); a script note can still be
- * added, since that is how a reviewer comments.
+ * any editor. Character styling carries its original and proposed values in a
+ * `suggestionFormat` mark; exports restore the original until it is accepted.
  *
  * Everything here is pure ProseMirror, with no editor or store, so it is tested
  * on its own (suggestions.test.ts) and shared by the collab server's check.
@@ -44,6 +44,28 @@ import { REVISION_SKIP_META } from './revisionMarks';
 
 export const SUGGEST_INSERT = 'suggestionInsert';
 export const SUGGEST_DELETE = 'suggestionDelete';
+export const SUGGEST_FORMAT = 'suggestionFormat';
+export const SUGGESTIBLE_FORMATS = [
+  'bold',
+  'italic',
+  'underline',
+  'strike',
+  'subscript',
+  'superscript',
+] as const;
+export type SuggestedFormat = (typeof SUGGESTIBLE_FORMATS)[number];
+export interface FormatStamp extends SuggestionStamp {
+  format: SuggestedFormat;
+  before: boolean;
+  after: boolean;
+}
+export const isFormatStamp = (v: unknown): v is FormatStamp =>
+  isStamp(v) &&
+  SUGGESTIBLE_FORMATS.includes((v as FormatStamp).format) &&
+  typeof (v as FormatStamp).before === 'boolean' &&
+  typeof (v as FormatStamp).after === 'boolean' &&
+  (v as FormatStamp).before !== (v as FormatStamp).after;
+
 /** Block attributes, each `{ id, by, at }` — plus `from` (the old type) on `suggestedType`. */
 export const SUGGESTED_SPLIT = 'suggestedSplit';
 export const SUGGESTED_JOIN = 'suggestedJoin';
@@ -90,16 +112,17 @@ export interface TypeStamp extends SuggestionStamp {
   from: string;
 }
 
-export type SuggestionKind = 'insert' | 'delete' | 'split' | 'join' | 'type';
+export type SuggestionKind = 'insert' | 'delete' | 'split' | 'join' | 'type' | 'format';
 
 /**
  * What a suggester tried that a suggestion cannot carry, for the editor to
  * explain. A line break inside an element is one: collaboration stores marks
  * on text only, so a suggested break would reach everyone else unmarked.
  */
-export type Blocked = 'formatting' | 'lineBreak' | 'alternates';
+export type Blocked = 'formatting' | 'lineBreak' | 'alternates' | 'formatConflict' | 'formatCompatibility';
 
 export interface SuggestOptions {
+  allowFormatting?: boolean;
   /** The suggester's name, as collaborators see it. */
   by: string;
   /** Their stable id in a collaboration session, if any (SuggestionStamp.uid). */
@@ -189,6 +212,7 @@ interface Ctx {
   types: { ins: MarkType; del: MarkType };
   opts: SuggestOptions;
   now: number;
+  formatId?: string;
 }
 
 /** A new stamp for the author, with their id when they have one. */
@@ -310,6 +334,23 @@ function markInserted(ctx: Ctx, from: number, to: number, preferredId: string | 
       ?? ownNewLine(out.doc, from, opts));
   // Pasted text struck through elsewhere is not a deletion here.
   out.removeMark(from, to, types.del);
+  const formatType = ctx.state.schema.marks[SUGGEST_FORMAT];
+  if (formatType) {
+    // New suggested text has its own review. Restore inherited pending styles
+    // before dropping their format stamps, so rejection cannot leave bold behind.
+    const restore: Array<{ from: number; to: number; marks: readonly Mark[] }> = [];
+    out.doc.nodesBetween(from, to, (node, pos) => {
+      if (node.isText) restore.push({ from: Math.max(from, pos), to: Math.min(to, pos + node.nodeSize), marks: node.marks });
+    });
+    for (const range of restore) for (const mark of range.marks) {
+      if (mark.type !== formatType || !isFormatStamp(mark.attrs)) continue;
+      const type = ctx.state.schema.marks[mark.attrs.format];
+      if (!type) continue;
+      if (mark.attrs.before) out.addMark(range.from, range.to, type.create());
+      else out.removeMark(range.from, range.to, type);
+    }
+    out.removeMark(from, to, formatType);
+  }
   out.addMark(from, to, types.ins.create(stamp));
   out.doc.nodesBetween(from, to, (node, pos) => {
     if (node.isTextblock && pos >= from && pos < to && pos > 0 && tracksBlocks(node)) {
@@ -466,9 +507,102 @@ function suggestReplaceAround(ctx: Ctx, step: ReplaceAroundStep, toOut: PosMap):
   return true;
 }
 
+/** Character styling previews normally; its review mark retains the accepted baseline. */
+function suggestFormat(ctx: Ctx, step: AddMarkStep | RemoveMarkStep, prev: PosMap): void {
+  if (ctx.opts.allowFormatting === false) {
+    ctx.opts.onBlocked?.('formatCompatibility');
+    return;
+  }
+  const mapped = step.map(mappable(prev));
+  const reviewType = ctx.state.schema.marks[SUGGEST_FORMAT];
+  if (!(mapped instanceof AddMarkStep || mapped instanceof RemoveMarkStep) || !reviewType) return;
+  const format = step.mark.type.name as SuggestedFormat;
+  const after = step instanceof AddMarkStep;
+  const ranges: Array<{ from: number; to: number; node: PmNode; prior: Mark | undefined }> = [];
+  let conflict = false;
+  ctx.out.doc.nodesBetween(mapped.from, mapped.to, (node, pos) => {
+    if (!node.isText) return true; // Inline atoms cannot carry Yjs text marks.
+    const prior = node.marks.find((m) => m.type === reviewType && m.attrs.format === format);
+    if (prior && (!isFormatStamp(prior.attrs) || !isOwn(prior.attrs, ctx.opts))) conflict = true;
+    ranges.push({
+      from: Math.max(mapped.from, pos),
+      to: Math.min(mapped.to, pos + node.nodeSize),
+      node,
+      prior,
+    });
+    return false;
+  });
+  if (conflict) {
+    ctx.opts.onBlocked?.('formatConflict');
+    return;
+  }
+  for (const { from, to, node, prior } of ranges) {
+    const present = !!step.mark.type.isInSet(node.marks);
+    if (present === after) continue;
+    const ownInsert = ctx.types.ins.isInSet(node.marks);
+    if (after) ctx.out.addMark(from, to, step.mark);
+    else ctx.out.removeMark(from, to, step.mark.type);
+    if (prior) ctx.out.removeMark(from, to, prior);
+    // Formatting your own proposed words is part of that insertion.
+    if (ownInsert && isOwn(ownInsert.attrs, ctx.opts)) continue;
+    const before = prior ? (prior.attrs.before as boolean) : present;
+    if (before === after) continue; // Toggling back withdraws this range of the proposal.
+    ctx.formatId ??= uuid();
+    const stamp = prior ? prior.attrs : stampFor(ctx, ctx.formatId);
+    ctx.out.addMark(from, to, reviewType.create({ ...stamp, format, before, after }));
+  }
+}
+
+/** Direct editor styling settles proposals for that style only, in the edited range. */
+export function discardOverriddenFormats(tr: Transaction): Transaction {
+  if (!isLocalEdit(tr)) return tr;
+  const review = tr.doc.type.schema.marks[SUGGEST_FORMAT];
+  if (!review) return tr;
+  const steps = tr.steps.slice();
+  steps.forEach((step, index) => {
+    if (!(step instanceof AddMarkStep || step instanceof RemoveMarkStep)
+      || !SUGGESTIBLE_FORMATS.includes(step.mark.type.name as SuggestedFormat)) return;
+    const mapping = tr.mapping.slice(index + 1);
+    const from = mapping.map(step.from, 1), to = mapping.map(step.to, -1);
+    if (to <= from || !tr.doc.rangeHasMark(from, to, review)) return;
+    const clear: Array<{ from: number; to: number; mark: Mark }> = [];
+    tr.doc.nodesBetween(from, to, (node, pos) => {
+      if (!node.isText) return true;
+      for (const mark of node.marks) {
+        if (mark.type === review && mark.attrs.format === step.mark.type.name) {
+          clear.push({ from: Math.max(from, pos), to: Math.min(to, pos + node.nodeSize), mark });
+        }
+      }
+      return false;
+    });
+    for (const range of clear) tr.removeMark(range.from, range.to, range.mark);
+  });
+  return tr;
+}
+
+/** Existing proposals do not prevent ordinary typing when a capability probe fails. */
+export function introducesFormatSuggestions(tr: Transaction): boolean {
+  const inserted: Mark[] = [];
+  for (const step of tr.steps) {
+    if (step instanceof AddMarkStep && step.mark.type.name === SUGGEST_FORMAT) return true;
+    if (!(step instanceof ReplaceStep || step instanceof ReplaceAroundStep)) continue;
+    step.slice.content.descendants((node) => {
+      inserted.push(...node.marks.filter((mark) => mark.type.name === SUGGEST_FORMAT));
+    });
+  }
+  if (!inserted.length) return false;
+  const existing: Mark[] = [];
+  tr.before.descendants((node) => {
+    for (const mark of node.marks) {
+      if (mark.type.name === SUGGEST_FORMAT && !existing.some((old) => old.eq(mark))) existing.push(mark);
+    }
+  });
+  return inserted.some((mark) => !existing.some((old) => old.eq(mark)));
+}
+
 /**
  * The suggestion version of `tr`, an edit made on `state`: deletions struck,
- * insertions and new lines marked, type changes recorded, formatting dropped.
+ * insertions and new lines marked, type and character-format changes recorded.
  * Returns `tr` itself when there is nothing to rewrite.
  */
 export function suggestTransaction(state: EditorState, tr: Transaction, opts: SuggestOptions): Transaction {
@@ -505,6 +639,13 @@ export function suggestTransaction(state: EditorState, tr: Transaction, opts: Su
     }
     if (step instanceof ReplaceAroundStep) {
       suggestReplaceAround(ctx, step, prev);
+    } else if ((step instanceof AddMarkStep || step instanceof RemoveMarkStep)
+      && SUGGESTIBLE_FORMATS.includes(step.mark.type.name as SuggestedFormat)) {
+      suggestFormat(ctx, step, prev);
+    } else if (step instanceof RemoveMarkStep && step.mark.type.name === SUGGEST_FORMAT) {
+      // Clear Formatting may remove only a pending "remove style" stamp.
+      // It already previews unstyled text: keep that proposal without blocking.
+      // If actual styles were removed too, suggestFormat handled them above.
     } else if ((step instanceof AddMarkStep || step instanceof RemoveMarkStep) && MARKS_A_SUGGESTER_MAY_SET.has(step.mark.type.name)) {
       const mapped = step.map(mappable(prev));
       if (mapped) out.maybeStep(mapped);
@@ -555,6 +696,10 @@ export interface Suggestion {
   /** What was suggested, to show in a list. */
   inserted: string;
   deleted: string;
+  formatted?: string;
+  formats?: Array<{format: SuggestedFormat; before: boolean; after: boolean}>;
+  /** End of the last affected piece (for review selections). */
+  end?: number;
   /** For a type change: the old and new type. */
   fromType?: string;
   toType?: string;
@@ -566,6 +711,8 @@ export interface Suggestion {
 export function listSuggestions(doc: PmNode): Suggestion[] {
   const byId = new Map<string, Suggestion>();
   const order: string[] = [];
+  let blockPosition = -1;
+  const formatBlock = new Map<string, number>();
   const get = (stamp: SuggestionStamp, pos: number): Suggestion => {
     let s = byId.get(stamp.id);
     if (!s) {
@@ -573,11 +720,13 @@ export function listSuggestions(doc: PmNode): Suggestion[] {
       byId.set(stamp.id, s);
       order.push(stamp.id);
     }
+    s.end = Math.max(s.end ?? pos, pos);
     return s;
   };
   const add = (s: Suggestion, kind: SuggestionKind) => { if (!s.kinds.includes(kind)) s.kinds.push(kind); };
   doc.descendants((node, pos) => {
     if (node.isTextblock) {
+      blockPosition = pos;
       const split = stampOf(node, SUGGESTED_SPLIT);
       if (split) { const s = get(split, pos); add(s, 'split'); s.inserted += s.inserted ? '\n' : ''; }
       const join = stampOf(node, SUGGESTED_JOIN);
@@ -592,6 +741,36 @@ export function listSuggestions(doc: PmNode): Suggestion[] {
     if (ins && isStamp(ins.attrs)) { const s = get(ins.attrs as SuggestionStamp, pos); add(s, 'insert'); s.inserted += text; }
     const del = markOf(node.marks, SUGGEST_DELETE);
     if (del && isStamp(del.attrs)) { const s = get(del.attrs as SuggestionStamp, pos); add(s, 'delete'); s.deleted += text; }
+    const formats = node.marks.filter(
+      (m) => m.type.name === SUGGEST_FORMAT && isFormatStamp(m.attrs),
+    );
+    const seenFormatIds = new Set<string>();
+    for (const mark of formats) {
+      const stamp = mark.attrs as FormatStamp;
+      const s = get(stamp, pos);
+      add(s, 'format');
+      if (!seenFormatIds.has(stamp.id)) {
+        const separator = formatBlock.has(stamp.id) && formatBlock.get(stamp.id) !== blockPosition ? '\n' : '';
+        s.formatted = (s.formatted ?? '') + separator + text;
+        formatBlock.set(stamp.id, blockPosition);
+      }
+      seenFormatIds.add(stamp.id);
+      s.formats ??= [];
+      if (
+        !s.formats.some(
+          (f) => f.format === stamp.format && f.before === stamp.before && f.after === stamp.after,
+        )
+      )
+        s.formats.push({ format: stamp.format, before: stamp.before, after: stamp.after });
+    }
+    for (const mark of node.marks)
+      if (
+        isStamp(mark.attrs) &&
+        [SUGGEST_INSERT, SUGGEST_DELETE, SUGGEST_FORMAT].includes(mark.type.name)
+      ) {
+        const s = byId.get(mark.attrs.id);
+        if (s) s.end = Math.max(s.end ?? pos, pos + node.nodeSize);
+      }
     return false;
   });
   return order.map((id) => byId.get(id)!);
@@ -602,7 +781,7 @@ export function hasSuggestions(doc: PmNode): boolean {
   doc.descendants((node) => {
     if (found) return false;
     if (node.isTextblock && SUGGESTION_BLOCK_ATTRS.some((a) => stampOf(node, a))) found = true;
-    else if (node.isInline && node.marks.some((m) => m.type.name === SUGGEST_INSERT || m.type.name === SUGGEST_DELETE)) found = true;
+    else if (node.isInline && node.marks.some((m) => m.type.name === SUGGEST_INSERT || m.type.name === SUGGEST_DELETE || m.type.name === SUGGEST_FORMAT)) found = true;
     return !found;
   });
   return found;
@@ -626,6 +805,7 @@ export function resolveSuggestionsTransaction(state: EditorState, which: Which, 
   const clearAttr: Array<[number, string]> = [];
   const joins: number[] = [];
   const retype: Array<[number, string]> = [];
+  const formats: Array<{ from: number; to: number; mark: Mark }> = [];
 
   doc.descendants((node, pos) => {
     if (node.isTextblock) {
@@ -639,6 +819,9 @@ export function resolveSuggestionsTransaction(state: EditorState, which: Which, 
     }
     if (!node.isInline) return true;
     const end = pos + node.nodeSize;
+    for (const mark of node.marks)
+      if (mark.type.name === SUGGEST_FORMAT && isFormatStamp(mark.attrs) && which(mark.attrs))
+        formats.push({ from: pos, to: end, mark });
     const ins = types.ins.isInSet(node.marks);
     if (ins && isStamp(ins.attrs) && which(ins.attrs as SuggestionStamp)) {
       if (accept) settle.push([pos, end, node.mark(ins.removeFromSet(node.marks))]); else removeText.push([pos, end]);
@@ -650,11 +833,44 @@ export function resolveSuggestionsTransaction(state: EditorState, which: Which, 
     return false;
   });
 
-  if (!removeText.length && !unmark.length && !clearAttr.length && !settle.length) return null;
+  if (!removeText.length && !unmark.length && !clearAttr.length && !settle.length && !formats.length) return null;
 
   // Marks, attributes and same-size rewrites first: they move nothing.
   for (const [a, b, type] of unmark) tr.removeMark(a, b, type);
   for (const [a, b, node] of settle) tr.replaceWith(a, b, node);
+  for (const { from, to, mark } of formats) {
+    const stamp = mark.attrs as FormatStamp;
+    const type = state.schema.marks[stamp.format];
+    tr.removeMark(from, to, mark);
+    // A direct/legacy editor may have overridden the style without clearing
+    // its stamp. Resolving that stale card must not undo the editor's choice.
+    if (!!type?.isInSet(state.doc.nodeAt(from)?.marks ?? []) !== stamp.after) continue;
+    // Two offline reviewers may concurrently propose the same change. Accepting
+    // settles the agreeing proposals here; rejecting one leaves the other pending.
+    const remaining =
+      tr.doc
+        .nodeAt(from)
+        ?.marks.filter(
+          (m) =>
+            m.type.name === SUGGEST_FORMAT &&
+            isFormatStamp(m.attrs) &&
+            m.attrs.format === stamp.format,
+        ) ?? [];
+    if (accept) for (const other of remaining) tr.removeMark(from, to, other);
+    const enabled = accept
+      ? stamp.after
+      : remaining.length
+        ? remaining[0].attrs.after
+        : stamp.before;
+    if (type) {
+      if (enabled) tr.addMark(from, to, type.create());
+      else tr.removeMark(from, to, type);
+    }
+  }
+  // Settling accepted formatting is a revision-worthy, same-size text rewrite,
+  // just like settling inserted words. Mark-only steps have empty position maps.
+  if (accept)
+    for (const { from, to } of formats) tr.replaceWith(from, to, tr.doc.slice(from, to).content);
   for (const [pos, attr] of clearAttr) tr.setNodeAttribute(pos, attr, null);
   for (const [pos, type] of retype) {
     const nodeType = state.schema.nodes[type];
@@ -684,7 +900,7 @@ export function suggestionAt(doc: PmNode, pos: number): SuggestionStamp | null {
   const $pos = doc.resolve(Math.max(0, Math.min(pos, doc.content.size)));
   for (const node of [$pos.nodeAfter, $pos.nodeBefore]) {
     if (!node) continue;
-    for (const name of [SUGGEST_INSERT, SUGGEST_DELETE]) {
+    for (const name of [SUGGEST_INSERT, SUGGEST_DELETE, SUGGEST_FORMAT]) {
       const m = markOf(node.marks, name);
       if (m && isStamp(m.attrs)) return m.attrs as SuggestionStamp;
     }
@@ -711,7 +927,14 @@ export function withoutSuggestionsJSON(doc: JSONContent): JSONContent {
     if (node.type === 'text' || node.type === 'hardBreak') {
       if (inserted(node)) return null;
       const next: JSONContent = { ...node };
-      const marks = withoutDeleteMark(node.marks);
+      let marks = withoutDeleteMark(node.marks);
+      for (const mark of marks)
+        if (mark.type === SUGGEST_FORMAT && isFormatStamp(mark.attrs)
+          && marks.some((m) => m.type === mark.attrs!.format) === mark.attrs.after) {
+          marks = marks.filter((m) => m.type !== mark.attrs!.format);
+          if (mark.attrs!.before) marks.push({ type: mark.attrs!.format });
+        }
+      marks = marks.filter((m) => m.type !== SUGGEST_FORMAT);
       if (marks.length) next.marks = marks; else delete next.marks;
       return next;
     }

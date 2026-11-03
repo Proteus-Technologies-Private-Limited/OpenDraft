@@ -15,6 +15,7 @@
  * and .odraft round-trip tests assert the two agree.
  */
 import type { Editor } from '@tiptap/react';
+import { prepareReviewSave, restoreReviewContent } from './reviewSave';
 import { useEditorStore } from '../stores/editorStore';
 import { useFormattingTemplateStore, activeTemplateSnapshot } from '../stores/formattingTemplateStore';
 import { spellChecker } from '../editor/spellchecker';
@@ -26,6 +27,7 @@ import { grammarIgnore } from '../editor/grammar/grammarIgnore';
  * list at each read site.
  */
 export const SAVE_METADATA_KEYS = [
+  '_reviewSnapshot',
   '_notes',
   '_generalNotes',
   '_tags',
@@ -72,7 +74,7 @@ export function buildSaveContent(editor: Editor | null): Record<string, unknown>
   if (!editor || editor.isDestroyed) return undefined;
   const store = useEditorStore.getState();
   const tplStore = useFormattingTemplateStore.getState();
-  const doc = editor.getJSON();
+  const doc = prepareReviewSave(editor.getJSON());
   const template = activeTemplateSnapshot();
   return {
     ...doc,
@@ -137,7 +139,7 @@ export function stripSaveMetadata(
   const metadata: Partial<Record<SaveMetadataKey, unknown>> = {};
   if (!content || typeof content !== 'object') return { pmDoc, metadata };
   const known = new Set<string>(SAVE_METADATA_KEYS);
-  for (const [key, value] of Object.entries(content)) {
+  for (const [key, value] of Object.entries(restoreReviewContent(content))) {
     if (known.has(key)) metadata[key as SaveMetadataKey] = value;
     else pmDoc[key] = value;
   }

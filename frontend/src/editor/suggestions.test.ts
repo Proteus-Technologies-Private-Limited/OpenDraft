@@ -269,12 +269,12 @@ describe('new lines and element types', () => {
 });
 
 describe('what a suggestion cannot carry', () => {
-  it('drops formatting, and says so', () => {
+  it('tracks supported formatting instead of dropping it', () => {
     let s = stateOf(block('action', 'Bold me.'));
     let blocked = 0;
     s = suggest(s, (tr) => tr.addMark(1, 5, testSchema.marks.bold.create()), 'Ann', () => { blocked++; });
-    expect(s.doc.child(0).firstChild?.marks).toEqual([]);
-    expect(blocked).toBe(1);
+    expect(s.doc.child(0).firstChild?.marks.map(m=>m.type.name)).toContain('suggestionFormat');
+    expect(blocked).toBe(0);
   });
 
   it('turns a line break inside an element into a space, and says so', () => {

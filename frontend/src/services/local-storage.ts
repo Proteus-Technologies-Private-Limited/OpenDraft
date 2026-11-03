@@ -1,3 +1,4 @@
+import { prepareReviewSave } from '../utils/reviewSave';
 /**
  * Local storage implementation for Tauri (desktop + mobile).
  *
@@ -269,7 +270,7 @@ export async function createLocalStorage() {
     ): Promise<ScriptResponse> {
       const id = uuid();
       const ts = now();
-      const contentStr = data.content ? JSON.stringify(data.content) : null;
+      const contentStr = data.content ? JSON.stringify(prepareReviewSave(data.content)) : null;
       const sizeBytes = contentStr ? new Blob([contentStr]).size : 0;
       const format = normalizeFormat(data.format);
       await db.execute(
@@ -321,7 +322,7 @@ export async function createLocalStorage() {
     ): Promise<ScriptResponse> {
       const existing = await storage.getScript(projectId, scriptId);
       const title = data.title ?? existing.meta.title;
-      const content = data.content ?? existing.content;
+      const content = prepareReviewSave(data.content ?? existing.content);
 
       // Data-loss guard: refuse to overwrite a script that has real (textful)
       // content with an empty/textless body. This is the last line of defence
@@ -674,6 +675,53 @@ export async function createLocalStorage() {
         message: commits[0].message,
         date: commits[0].created_at,
       };
+    },
+
+    /**
+     * Delete one version checkpoint (discussion #183).
+     *
+     * Versions are stored as deltas: a script unchanged since the previous
+     * checkpoint is saved as `inherited` and resolved by walking back to the
+     * last checkpoint that holds its content. Dropping that checkpoint would
+     * silently hand every later inherited row an older text, so before the
+     * delete, the next checkpoint of each script whose content lives here is
+     * given that content outright. The writes are ordered so that stopping
+     * half way leaves every version still resolving to the right text — no
+     * BEGIN/COMMIT across execute() calls here.
+     */
+    async deleteVersion(projectId: string, hash: string): Promise<{ message: string }> {
+      const commits = await db.select<Array<{ id: string; created_at: string }>>(
+        'SELECT id, created_at FROM version_commits WHERE id = $1 AND project_id = $2',
+        [hash, projectId],
+      );
+      if (!commits.length) throw new Error(`Version not found: ${hash}`);
+      const createdAt = commits[0].created_at;
+
+      const ownRows = await db.select<Array<{ script_id: string; content: string | null; inherited: number }>>(
+        'SELECT script_id, content, inherited FROM version_scripts WHERE commit_id = $1',
+        [hash],
+      );
+      for (const row of ownRows) {
+        if (row.inherited) continue; // later rows already resolve past this one
+        const next = await db.select<Array<{ id: string; inherited: number }>>(
+          `SELECT vs.id, vs.inherited FROM version_scripts vs
+           JOIN version_commits vc ON vc.id = vs.commit_id
+           WHERE vs.script_id = $1 AND vc.project_id = $2 AND vc.created_at > $3
+           ORDER BY vc.created_at ASC
+           LIMIT 1`,
+          [row.script_id, projectId, createdAt],
+        );
+        if (next.length && next[0].inherited) {
+          await db.execute(
+            'UPDATE version_scripts SET content = $1, inherited = 0 WHERE id = $2',
+            [row.content || '', next[0].id],
+          );
+        }
+      }
+
+      await db.execute('DELETE FROM version_scripts WHERE commit_id = $1', [hash]);
+      await db.execute('DELETE FROM version_commits WHERE id = $1', [hash]);
+      return { message: `Deleted version ${shortHash(hash)}` };
     },
 
     /**

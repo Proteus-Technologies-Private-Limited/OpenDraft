@@ -195,6 +195,32 @@ const VersionHistory: React.FC = () => {
     [currentProject, currentScriptId, restoreConfirm, loadVersions, navigate, setVersionHistoryOpen, triggerScriptReload]
   );
 
+  // ── Delete a version (discussion #183) ──
+  const [deleteConfirm, setDeleteConfirm] = useState<VersionInfo | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!currentProject || !deleteConfirm) return;
+    const version = deleteConfirm;
+    setDeleting(true);
+    try {
+      await api.deleteVersion(currentProject.id, version.hash);
+      setDeleteConfirm(null);
+      // Later versions can be re-hashed by the delete (git backend), so any
+      // selection pointing into the list is stale either way.
+      setCompareSelection([]);
+      setSelectedVersion(null);
+      setDiffText(null);
+      await loadVersions();
+      showToast(`Deleted version ${version.short_hash}`, 'success');
+    } catch (err) {
+      console.error('[VersionHistory] delete failed', err);
+      showToast(`Delete failed: ${err instanceof Error ? err.message : 'unknown error'}`, 'error');
+    } finally {
+      setDeleting(false);
+    }
+  }, [currentProject, deleteConfirm, loadVersions]);
+
   if (!versionHistoryOpen) return null;
 
   return (
@@ -310,6 +336,16 @@ const VersionHistory: React.FC = () => {
                 >
                   Restore
                 </button>
+                <button
+                  className="version-delete-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteConfirm(v);
+                  }}
+                  title="Delete this version from the history"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           ))}
@@ -344,6 +380,29 @@ const VersionHistory: React.FC = () => {
             labelB={scriptDiff.labelB}
             onClose={() => setScriptDiff(null)}
           />
+        </div>
+      )}
+      {deleteConfirm && (
+        <div className="dialog-overlay" onClick={() => { if (!deleting) setDeleteConfirm(null); }}>
+          <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-header">Delete Version</div>
+            <div className="dialog-body">
+              <p style={{ margin: 0 }}>
+                Delete version <strong>{deleteConfirm.short_hash}</strong>
+                {deleteConfirm.message ? <> &ldquo;{deleteConfirm.message}&rdquo;</> : null} from the history?
+              </p>
+              <p style={{ margin: '8px 0 0' }}>
+                Your scripts as they are now, and every other version, stay as they are.
+                This cannot be undone.
+              </p>
+            </div>
+            <div className="dialog-actions">
+              <button onClick={() => setDeleteConfirm(null)} disabled={deleting}>Cancel</button>
+              <button className="dialog-danger" onClick={handleDeleteConfirm} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {restoreConfirm && (
