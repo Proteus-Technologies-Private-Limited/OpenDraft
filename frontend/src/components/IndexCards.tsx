@@ -4,6 +4,7 @@ import { useEditorStore, type SceneInfo } from '../stores/editorStore';
 import { computeSceneLengths, activeTemplateHints } from '../editor/pagination';
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
 import SynopsisModal from './SynopsisModal';
+import StoryMap from './StoryMap';
 
 interface IndexCardsProps {
   editor: Editor | null;
@@ -13,6 +14,8 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor }) => {
   const { scenes, indexCardsOpen, updateSceneSynopsis, updateSceneColor, toggleIndexCards, pageLayout } = useEditorStore();
 
   const [fullscreen, setFullscreen] = useState(false);
+  /** The scene timeline under the cards, open until the writer collapses it. */
+  const [timelineOpen, setTimelineOpen] = useState(true);
   const [dragMode, setDragMode] = useState(false);
 
   // Deferred reorder state: pending changes are visual-only until Apply
@@ -232,6 +235,15 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor }) => {
   );
 
   // ── Get document ranges for each scene ──
+  // A click in the timeline brings the matching card into view. The script is
+  // not mounted in this view, so it cannot scroll there.
+  const scrollToCard = useCallback((sceneIndex: number) => {
+    const grid = gridRef.current;
+    const card = grid?.querySelectorAll<HTMLElement>('.index-card')[sceneIndex];
+    if (!grid || !card) return;
+    const top = card.offsetTop - (grid.clientHeight - card.offsetHeight) / 2;
+    grid.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
+  }, []);
 
   const getSceneRanges = useCallback(() => {
     if (!editor) return [];
@@ -578,6 +590,13 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor }) => {
         <span className="index-cards-title">Index Cards</span>
         <span className="index-cards-count">{scenes.length} scenes</span>
         <div className="index-cards-actions">
+          <button
+            className={`ic-action-btn${timelineOpen ? ' active' : ''}`}
+            onClick={() => setTimelineOpen((open) => !open)}
+            title={timelineOpen ? 'Hide the scene timeline' : 'Show the scene timeline'}
+          >
+            Timeline
+          </button>
           {dragMode ? (
             <>
               <button
@@ -761,6 +780,16 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor }) => {
           </>
         )}
       </div>
+
+      {timelineOpen && (
+        <StoryMap
+          editor={editor}
+          title="Timeline"
+          embedded
+          onSelectScene={scrollToCard}
+          onRequestClose={() => setTimelineOpen(false)}
+        />
+      )}
 
       {/* Synopsis modal */}
       {synopsisModal && (

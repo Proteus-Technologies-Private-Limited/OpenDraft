@@ -4490,6 +4490,10 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   flex-direction: column;
   border-top: 1px solid var(--fd-border);
   background: var(--fd-navigator-bg);
+  /* A long strip scrolls inside itself; it must not widen the editor or the
+     Index Cards view it sits in. */
+  min-width: 0;
+  width: 100%;
 }
 .story-map-header {
   display: flex;
@@ -4547,6 +4551,7 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   overflow-x: auto;
   overflow-y: hidden;
   padding: 10px 14px 4px;
+  max-width: 100%;
 }
 .story-map-track {
   display: flex;
@@ -4641,6 +4646,8 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   height: 100%;
   max-height: none;
   min-height: 0;
+  min-width: 0;
+  width: 100%;
   overflow: hidden;
   border-bottom: none;
 }
@@ -4653,6 +4660,9 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   align-content: start;
 }
 .index-cards-view .index-card { min-height: 170px; }
+/* The Index Cards timeline uses the same strip as the Story Map; embedded it
+   has no top border of its own, so the cards view draws the separator. */
+.index-cards-view .story-map-embedded { border-top: 1px solid var(--fd-border); }
 /* ── Fullscreen mode ── */
 .index-cards-fullscreen {
   position: fixed;
