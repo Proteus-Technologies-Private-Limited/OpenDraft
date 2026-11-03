@@ -182,3 +182,48 @@ it('uses a sentence in the preceding four lines whenever a page turn can retain 
     }
   }
 });
+
+it('cuts inside wrapped prose at a sentence and shares the resulting short lines with previews', () => {
+  const text = Array.from({ length: 300 }, (_, i) => `Sentence ${i} has several words before it ends.`).join(' ');
+  const source = pmDoc(doc(block('action', text)));
+  const natural = new Set(textLineOffsets(text, 62));
+  const result = computeBreaks(source, layout);
+  expect(result.breaks.some(turn => !natural.has(turn.contentOffset!))).toBe(true);
+  for (const turn of result.breaks) {
+    expect(text.slice(0, turn.contentOffset).trimEnd()).toMatch(/\.$/);
+  }
+  const fragments = paragraphFragments(text, 62);
+  expect(fragments.map(part => part.text).join('')).toBe(text);
+  expect(fragments.every(part => part.lines.length >= 2)).toBe(true);
+  const pages = computePageBlocks(source, layout);
+  expect(pages.reduce((total, page) => total + page.blocks[0].lineCount, 0))
+    .toBe(fragments.reduce((total, part) => total + part.lines.length, 0));
+  expect(pages.every(page => page.blocks[0].lineCount <= page.linesPerPage)).toBe(true);
+});
+
+it('retains nearby mid-line sentence endings across varied prose', () => {
+  let seed = 19;
+  const random = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+  };
+  for (let trial = 0; trial < 100; trial++) {
+    const text = Array.from({ length: 100 }, (_, sentence) =>
+      Array.from({ length: 2 + Math.floor(random() * 30) }, (_, word) =>
+        `s${sentence}w${word}`,
+      ).join(' ') + '.',
+    ).join(' ');
+    const source = pmDoc(doc(block('action', text)));
+    const result = computeBreaks(source, layout);
+    const lines = paragraphFragments(text, 62).flatMap(part => part.lines);
+    let previous = 0;
+    for (const turn of result.breaks) {
+      const cut = lines.findIndex(line => line.from === turn.contentOffset);
+      if (!text.slice(0, turn.contentOffset).trimEnd().endsWith('.')) {
+        const eligible = lines.slice(Math.max(previous + 1, cut - 5), cut - 1);
+        expect(eligible.some(line => /\.(?:\s|$)/.test(line.text)), `trial ${trial}, line ${cut}`).toBe(false);
+      }
+      previous = cut;
+    }
+  }
+});
