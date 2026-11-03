@@ -19,6 +19,15 @@ export type PreviewOp =
   | { kind: 'replace'; text: string; element?: CommandElement }
   | { kind: 'text'; text: string };
 
+/**
+ * The blocks a plain-text op puts in the script. A newline starts a new block,
+ * as the real insert splits it, so the preview and the block limit count what
+ * the writer will actually get.
+ */
+export function previewTextLines(op: Extract<PreviewOp, { kind: 'text' | 'replace' }>): string[] {
+  return op.text.split(/\r?\n/);
+}
+
 export interface PreviewAdapter {
   adapter: EditorAdapter;
   ops: PreviewOp[];

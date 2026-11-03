@@ -107,18 +107,83 @@ export function decodeAlternates(
   return { alternates, alternateIndex };
 }
 
+// ── Sequences ──────────────────────────────────────────────────────────────
+
+/** Where the Outline's sequence label is kept in each format. */
+export const FDX_SEQUENCE_ATTR = 'data-od-sequence';
+export const OSF_SEQUENCE_ATTR = 'od_sequence';
+
+/**
+ * The sequence label a scene heading carries. The Outline groups scenes by it,
+ * and it lives on the heading because document attributes are not part of the
+ * Yjs fragment collaboration syncs (utils/scriptStructure).
+ */
+export interface SequenceLabel {
+  id: string;
+  name: string;
+  color: string;
+}
+
+/** A sequence colour safe to put in a style attribute: `#rgb` or `#rrggbb`. */
+export function safeSequenceColor(value: unknown): string {
+  return typeof value === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value) ? value : '';
+}
+
+/** The label on a scene heading, or null when it carries none. */
+export function sequenceOf(node: JSONContent): SequenceLabel | null {
+  if (node.type !== 'sceneHeading') return null;
+  const id = node.attrs?.sequenceId;
+  if (typeof id !== 'string' || !id) return null;
+  return {
+    id,
+    name: typeof node.attrs?.sequenceName === 'string' ? node.attrs.sequenceName : '',
+    color: safeSequenceColor(node.attrs?.sequenceColor),
+  };
+}
+
+/** The label as the value of a file attribute; null when the element has none. */
+export function encodeSequence(node: JSONContent): string | null {
+  const label = sequenceOf(node);
+  return label ? JSON.stringify(label) : null;
+}
+
+/** The scene attributes a label read from a file sets; null when there is none. */
+export function readSequenceLabel(
+  raw: string | null | undefined,
+  nodeType: string,
+): Record<string, string> | null {
+  if (nodeType !== 'sceneHeading' || !raw) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
+  const { id, name, color } = parsed as Record<string, unknown>;
+  if (typeof id !== 'string' || !id) return null;
+  const out: Record<string, string> = { sequenceId: id };
+  if (typeof name === 'string' && name) out.sequenceName = name;
+  const safeColor = safeSequenceColor(color);
+  if (safeColor) out.sequenceColor = safeColor;
+  return out;
+}
+
 /** Where a format keeps the bookmark and the versions on a paragraph element. */
 interface ParagraphAttrNames {
   bookmark: string;
   alternates: string;
   alternateIndex: string;
+  sequence: string;
 }
 
 const FDX_NAMES: ParagraphAttrNames = {
   bookmark: 'Bookmark', alternates: FDX_ALTERNATES_ATTR, alternateIndex: FDX_ALTERNATE_INDEX_ATTR,
+  sequence: FDX_SEQUENCE_ATTR,
 };
 const OSF_NAMES: ParagraphAttrNames = {
   bookmark: 'bookmark', alternates: OSF_ALTERNATES_ATTR, alternateIndex: OSF_ALTERNATE_INDEX_ATTR,
+  sequence: OSF_SEQUENCE_ATTR,
 };
 
 function paragraphAnnotations(
@@ -134,6 +199,8 @@ function paragraphAnnotations(
     el.getAttribute(names.alternates), el.getAttribute(names.alternateIndex), nodeType, warnings,
   );
   if (versions) Object.assign(out, versions);
+  const sequence = readSequenceLabel(el.getAttribute(names.sequence), nodeType);
+  if (sequence) Object.assign(out, sequence);
   return out;
 }
 
@@ -183,6 +250,16 @@ export function fountainBookmarkNote(name: string): string {
 }
 
 /**
+ * The note that puts a scene's sequence label on its Fountain line. The label
+ * is a small JSON object because Fountain has no attribute of its own, and the
+ * name and colour have to come back with the id.
+ */
+export function fountainSequenceNote(node: JSONContent): string | null {
+  const json = encodeSequence(node);
+  return json ? `[[Sequence: ${escapeNoteText(json)}]]` : null;
+}
+
+/**
  * The notes holding an element's other versions, numbered as the writer sees
  * them: with version 2 of 3 in the script, `[[Alternate 1/3: …]]` and
  * `[[Alternate 3/3: …]]`. `render` turns a version's content into Fountain
@@ -210,7 +287,8 @@ export function fountainAlternateNotes(
 
 export type FountainAnnotation =
   | { kind: 'bookmark'; name: string }
-  | { kind: 'alternate'; number: number; total: number; text: string };
+  | { kind: 'alternate'; number: number; total: number; text: string }
+  | { kind: 'sequence'; id: string; name: string; color: string };
 
 /**
  * What a Fountain note records, when it is one OpenDraft wrote for a bookmark
@@ -223,6 +301,17 @@ export function parseFountainAnnotation(body: string): FountainAnnotation | null
   if (bookmark) {
     const name = cleanBookmarkName(unescapeNoteText(bookmark[1]));
     return name ? { kind: 'bookmark', name } : null;
+  }
+  const sequence = /^Sequence:\s*([\s\S]+)$/.exec(trimmed);
+  if (sequence) {
+    const attrs = readSequenceLabel(unescapeNoteText(sequence[1]), 'sceneHeading');
+    if (!attrs) return null;
+    return {
+      kind: 'sequence',
+      id: attrs.sequenceId,
+      name: attrs.sequenceName ?? '',
+      color: attrs.sequenceColor ?? '',
+    };
   }
   const alternate = /^Alternate (\d{1,3})\/(\d{1,3}):\s?([\s\S]*)$/.exec(trimmed);
   if (alternate) {

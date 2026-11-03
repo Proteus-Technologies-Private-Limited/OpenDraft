@@ -44,6 +44,8 @@ import {
   type NoteSlice,
 } from './footnotes';
 import { noteEntryLabel } from './noteNumbering';
+import { getTextLines } from './wrapText';
+import { SPLIT_PARAGRAPH_TYPES, paragraphFragments, originalTextOffset, sliceParagraphRuns } from './paragraphPagination';
 import { withElementNumbers, elementNumberOf } from './elementNumbers';
 import { noteBlockText } from './noteContent';
 import { composeTwoUp } from './pdfTwoUp';
@@ -113,6 +115,10 @@ interface NodeInfo {
   /** Index in the ORIGINAL document content. `nodes` drops the title page and
    *  the non-printing blocks, and the footnote plan is keyed on the original. */
   srcIndex: number;
+  continuation?: boolean;
+  fragmentFrom?: number;
+  fragmentTo?: number;
+  fragmentWrapped?: TextRun[][];
 }
 
 // --- Helpers ---
@@ -837,13 +843,51 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     const runs = refs && refs.length > 0
       ? applyFootnoteMarkers(styled, refs, plan!.settings.markerStyle, plan!.markerWidth)
       : styled;
-    nodes.push({
-      typeName,
-      runs,
-      plainText: getPlainText(rawRuns),
-      attrs: node.attrs as Record<string, unknown> | undefined,
-      srcIndex: index,
-    });
+    const text = getPlainText(runs);
+    const cpl = CHARS_PER_LINE[typeName] || 62;
+    const pageLines = Math.floor((pageHeightPt - topMarginPt - bottomMarginPt) / LINE_HEIGHT_PT);
+    const cueLines =
+      (typeName === 'dialogue' || typeName === 'lyrics') && mc.dialogueBreakContd ? 1 : 0;
+    const oversized = SPLIT_PARAGRAPH_TYPES.has(typeName) && getTextLines(text, cpl) + cueLines > pageLines;
+    if (oversized) {
+      const fragments = paragraphFragments(text, cpl);
+      fragments.forEach((fragment, part) => {
+        const attrs =
+          part > 0
+            ? {
+                ...node.attrs,
+                startsNewPage: false,
+                lockedPage: null,
+                lockedPageMid: false,
+                elementNumber: null,
+              }
+            : node.attrs;
+        nodes.push({
+          typeName,
+          runs: sliceParagraphRuns(runs, fragment.from, fragment.to),
+          plainText: fragment.text,
+          attrs,
+          srcIndex: index,
+          fragmentWrapped: fragment.lines.flatMap((line) =>
+            wrapForDrawing(
+              sliceParagraphRuns(runs, line.from, line.to),
+              Infinity,
+              UPPERCASE_TYPES.has(typeName),
+            ),
+          ),
+          continuation: part > 0,
+          fragmentFrom: originalTextOffset(plan, index, fragment.from),
+          fragmentTo: originalTextOffset(plan, index, fragment.to),
+        });
+      });
+    } else
+      nodes.push({
+        typeName,
+        runs,
+        plainText: getPlainText(rawRuns),
+        attrs: node.attrs as Record<string, unknown> | undefined,
+        srcIndex: index,
+      });
   });
 
   // Header and footer text, resolved once the page count is known but written
@@ -1151,11 +1195,11 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
    * paginated differently in the file (issue #123).
    */
   const spaceBeforePtOf = (n: NodeInfo): number =>
-    (spaceBeforeLines[elementIdOf({ type: n.typeName, attrs: n.attrs })] ?? 0) * LINE_HEIGHT_PT;
+    (n.continuation ? 0 : spaceBeforeLines[elementIdOf({ type: n.typeName, attrs: n.attrs })] ?? 0) * LINE_HEIGHT_PT;
 
   /** True when this node must open a fresh page (template rule or manual flag). */
   function mustStartNewPage(node: NodeInfo): boolean {
-    if (isFirstElement || currentY <= topMarginPt) return false;
+    if (isFirstElement || currentY <= topMarginPt || node.continuation) return false;
     return startsOwnPage({ type: node.typeName, attrs: node.attrs }, forceBreakIds, { lockedPages: true });
   }
 
@@ -1175,6 +1219,26 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
   }
 
   // Process each node
+  const refsForNode = (node: NodeInfo) =>
+    (plan?.refsByNode.get(node.srcIndex) ?? []).filter(
+      (ref) =>
+        node.fragmentFrom === undefined ||
+        ((ref.charOffset > node.fragmentFrom || !node.continuation) &&
+          ref.charOffset <= node.fragmentTo!),
+    );
+  const claimNotes = (node: NodeInfo): FootnoteEntry[] => {
+    const added: FootnoteEntry[] = [];
+    if (drawFootnotes)
+      for (const ref of refsForNode(node)) {
+        if (!plan!.footnoteIds.has(ref.noteId)) continue;
+        const entry = plan!.entryById.get(ref.noteId);
+        if (entry && !pageEntries.includes(entry)) {
+          pageEntries.push(entry);
+          added.push(entry);
+        }
+      }
+    return added;
+  };
   let i = 0;
   while (i < nodes.length) {
     const node = nodes[i];
@@ -1184,16 +1248,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     // Decided jointly with the block, exactly as the paginator decides it: if
     // the block plus its own notes will not fit, both move to the next page and
     // the reservation returns to what it was.
-    const claimed: FootnoteEntry[] = [];
-    if (drawFootnotes) {
-      for (const ref of plan!.refsByNode.get(node.srcIndex) ?? []) {
-        // A note anchored here but sent to the end of the script still gets its
-        // reference number in the text; it just costs this page nothing.
-        if (!plan!.footnoteIds.has(ref.noteId)) continue;
-        const entry = plan!.entryById.get(ref.noteId);
-        if (entry && !pageEntries.includes(entry)) { pageEntries.push(entry); claimed.push(entry); }
-      }
-    }
+    const claimed = claimNotes(node);
     /**
      * Break the page for this block. The block's own notes travel with it
      * rather than being drawn on the page it has just left — which is exactly
@@ -1464,7 +1519,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
 
     const spaceBeforePt = isFirstElement ? 0 : spaceBeforePtOf(node);
 
-    const wrappedLines = wrapForDrawing(node.runs, maxChars, forceUpper);
+    const wrappedLines = node.fragmentWrapped ?? wrapForDrawing(node.runs, maxChars, forceUpper);
     const elementHeightPt = wrappedLines.length * LINE_HEIGHT_PT;
     const totalHeightPt = spaceBeforePt + elementHeightPt;
 
@@ -1483,7 +1538,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     }
     const measure = (at: number): BlockPart => {
       const n = nodes[at];
-      const w = wrapForDrawing(
+      const w = n.fragmentWrapped ?? wrapForDrawing(
         n.runs, CHARS_PER_LINE[n.typeName] || 62, UPPERCASE_TYPES.has(n.typeName),
       );
       const sb = spaceBeforePtOf(n);
@@ -1505,7 +1560,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
     // text, so a block holding it would measure it as nothing and draw it as
     // nothing. See laysItselfOut.
     const absorbable = (at: number) => at < nodes.length
-      && !startsOwnPage({ type: nodes[at].typeName, attrs: nodes[at].attrs }, forceBreakIds, { lockedPages: true })
+      && (nodes[at].continuation || !startsOwnPage({ type: nodes[at].typeName, attrs: nodes[at].attrs }, forceBreakIds, { lockedPages: true }))
       && !laysItselfOut(nodes[at].typeName);
 
     if (typeName === 'character' && i + 1 < nodes.length) {
@@ -1525,11 +1580,23 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       if (parts.length - 1 === speechAt) speechAt = -1;
     }
 
-    const blockHeightPt = parts.reduce((h, p) => h + p.heightPt, 0);
+    const oversizedSpeech = parts.some(part => nodes[part.nodeIndex].fragmentFrom !== undefined);
+    let blockHeightPt = parts.reduce((h, p) => h + p.heightPt, 0);
 
     /** Draw one measured part of the block at the cursor. */
     const drawPart = (part: BlockPart, withSpaceBefore = true): void => {
       const dNode = nodes[part.nodeIndex];
+      const own = oversizedSpeech || dNode.fragmentFrom !== undefined ? claimNotes(dNode) : [];
+      if (
+        speechAt < 0 && dNode.fragmentFrom !== undefined &&
+        currentY + (withSpaceBefore ? part.sbPt : 0) + part.lines * LINE_HEIGHT_PT > bottomPt() &&
+        currentY > topMarginPt
+      ) {
+        for (const entry of own) pageEntries = pageEntries.filter((e) => e !== entry);
+        newPage();
+        pageEntries.push(...own);
+        withSpaceBefore = false;
+      }
       const dIndents = FD_INDENTS[dNode.typeName] || FD_INDENTS.general;
       if (withSpaceBefore) currentY += part.sbPt;
       renderElement(
@@ -1558,7 +1625,7 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
      */
     const chooseDialogueSplit = (): number => {
       const MIN_DIALOGUE_LINES = 2;
-      const remaining = bottomPt() - currentY;
+      const remaining = bottomPt() - currentY - (oversizedSpeech && mc.dialogueBreakContd ? LINE_HEIGHT_PT : 0);
       // The name, and the scene heading above it when one introduces the
       // speech: nothing down to there can be divided.
       let headPt = 0;
@@ -1570,11 +1637,25 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
         for (let q = p + 1; q < parts.length; q++) n += parts[q].lines;
         return n;
       };
+      const fittedEntries = pageEntries.slice();
+      const addEntries = (part: BlockPart) => {
+        if (!oversizedSpeech || !plan) return;
+        for (const ref of refsForNode(nodes[part.nodeIndex])) {
+          const entry = plan.footnoteIds.has(ref.noteId) ? plan.entryById.get(ref.noteId) : null;
+          if (entry && !fittedEntries.includes(entry)) fittedEntries.push(entry);
+        }
+      };
+      for (let p = 0; p <= speechAt; p++) addEntries(parts[p]);
       let fittedPt = headPt;
       let fittedLines = 0;
       let chosen = -1;
       for (let p = speechAt + 1; p < parts.length; p++) {
-        if (fittedPt + parts[p].heightPt > remaining) break;
+        addEntries(parts[p]);
+        const room = oversizedSpeech && plan
+          ? usableBottomPt - packFootnotePage(pendingSlices, fittedEntries, linesPerPage).reserve * LINE_HEIGHT_PT
+            - currentY - (mc.dialogueBreakContd ? LINE_HEIGHT_PT : 0)
+          : remaining;
+        if (fittedPt + parts[p].heightPt > room) break;
         fittedPt += parts[p].heightPt;
         fittedLines += parts[p].lines;
         // The fullest boundary that satisfies both sides wins; a fuller one
@@ -1584,11 +1665,26 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
       return chosen;
     };
 
+    const dropOpeningSpace = () => {
+      blockHeightPt -= parts[0].sbPt;
+      parts[0].heightPt -= parts[0].sbPt;
+      parts[0].sbPt = 0;
+    };
     if (forcedBreak) {
-      // Template rule or manual "start on new page" flag — unconditional break.
+      // The break is satisfied; an oversized speech still needs pagination.
       breakForBlock();
-    } else if (currentY + blockHeightPt > bottomPt() && currentY > topMarginPt) {
-      const splitAfter = speechAt >= 0 ? chooseDialogueSplit() : -1;
+      if (oversizedSpeech) dropOpeningSpace();
+    }
+    if (
+      (!forcedBreak || oversizedSpeech) && currentY + blockHeightPt > bottomPt() &&
+      (currentY > topMarginPt || oversizedSpeech)
+    ) {
+      let splitAfter = speechAt >= 0 ? chooseDialogueSplit() : -1;
+      if (oversizedSpeech && speechAt >= 0 && splitAfter < 0 && currentY > topMarginPt) {
+        breakForBlock();
+        dropOpeningSpace();
+        splitAfter = speechAt >= 0 ? chooseDialogueSplit() : -1;
+      }
 
       if (splitAfter > 0) {
         // The head, then the paragraphs that stay on this page.
@@ -1602,7 +1698,8 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
           drawPlain(pdf, mc.moreText, charLeftPt, currentY + LINE_HEIGHT_PT, fonts);
         }
 
-        breakForBlock();
+        if (oversizedSpeech) newPage();
+        else breakForBlock();
 
         /** Open the continued page: the CONT'D line costs a line only when it
          *  is actually printed, which is how the editor counts it too. */
@@ -1619,11 +1716,19 @@ export async function renderPDF(doc: JSONContent, title: string, layout: PageLay
           // paragraph, as `computeBreaks` turns it. The editor used to lay the
           // whole remainder out in one run instead, so a monologue ran off the
           // foot of the page on screen and the file put the rest elsewhere.
-          if (drawnHere && currentY + parts[p].heightPt > bottomPt()) {
+          const arriving = oversizedSpeech ? claimNotes(nodes[parts[p].nodeIndex]) : [];
+          const morePt =
+            oversizedSpeech && mc.dialogueBreakContd && p < parts.length - 1 ? LINE_HEIGHT_PT : 0;
+          if (drawnHere && currentY + parts[p].heightPt + morePt > bottomPt()) {
+            // Incoming notes travel with their paragraph; they must not shrink
+            // the sheet we are about to close or erase room reserved for MORE.
+            for (const entry of arriving) pageEntries = pageEntries.filter((e) => e !== entry);
             if (mc.dialogueBreakContd && currentY + LINE_HEIGHT_PT <= bottomPt()) {
               drawPlain(pdf, mc.moreText, charLeftPt, currentY + LINE_HEIGHT_PT, fonts);
             }
-            breakForBlock();
+            if (oversizedSpeech) newPage();
+            else breakForBlock();
+            pageEntries.push(...arriving);
             openContinuation();
             drawnHere = false;
           }
@@ -1834,15 +1939,26 @@ export async function exportPDF(
  */
 export function withoutPageFields(content: HeaderFooterContent): HeaderFooterContent {
   const clean = (text: string): string => {
-    const stripped = text
-      // The whole phrase, in the forms the templates use. No trailing \b: the
-      // token ends with "}", which is not a word character.
-      .replace(/\b(?:page|pagina|p.gina|seite)\s*\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi, '')
-      .replace(/\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi, '')
-      .replace(/\b(?:page|pagina|p.gina|seite)\s*\{page\}/gi, '')
-      .replace(/\b(?:of|di|de|da|von|sur)\s*\{pages\}/gi, '')
-      // A token on its own, and anything left around it.
-      .replace(/\{(?:page|pages)\}/gi, '');
+    let stripped = text;
+    let removed = false;
+    const drop = (pattern: RegExp) => {
+      const next = stripped.replace(pattern, '');
+      if (next !== stripped) {
+        stripped = next;
+        removed = true;
+      }
+    };
+    // The whole phrase, in the forms the templates use. No trailing \b: the
+    // token ends with "}", which is not a word character.
+    drop(/\b(?:page|pagina|p.gina|seite)\s*\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi);
+    drop(/\{page\}\s*(?:of|di|de|da|von|sur|\/|-)\s*\{pages\}/gi);
+    drop(/\b(?:page|pagina|p.gina|seite)\s*\{page\}/gi);
+    drop(/\b(?:of|di|de|da|von|sur)\s*\{pages\}/gi);
+    // A token on its own, and anything left around it.
+    drop(/\{(?:page|pages)\}/gi);
+    // A line with no page field is left exactly as written: tidying it would
+    // turn "Blue Rev." into "Blue Rev".
+    if (!removed) return text;
     return stripped
       .replace(/\s+/g, ' ')
       .replace(/[\s.,:;|/\\-]+$/g, '')

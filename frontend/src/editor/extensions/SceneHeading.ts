@@ -1,5 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { sceneUidPastePlugin } from '../../utils/beatScenes';
+import { safeSequenceColor } from '../../utils/formatAnnotations';
 
 export const SceneHeading = Node.create({
   name: 'sceneHeading',
@@ -60,7 +61,7 @@ export const SceneHeading = Node.create({
           sceneColor: dom.getAttribute('data-scene-color') || '',
           sequenceId: dom.getAttribute('data-sequence-id') || null,
           sequenceName: dom.getAttribute('data-sequence-name') || null,
-          sequenceColor: dom.getAttribute('data-sequence-color') || null,
+          sequenceColor: safeSequenceColor(dom.getAttribute('data-sequence-color')) || null,
           omitted: dom.getAttribute('data-omitted') === 'true',
         };
       },
@@ -83,6 +84,15 @@ export const SceneHeading = Node.create({
     }
     if (node.attrs.sequenceId) {
       attrs['data-sequence-id'] = node.attrs.sequenceId;
+    }
+    // The name and colour travel with the id: copying a scene heading to
+    // another script must not land it in a nameless, grey sequence.
+    if (node.attrs.sequenceName) {
+      attrs['data-sequence-name'] = node.attrs.sequenceName;
+    }
+    const sequenceColor = safeSequenceColor(node.attrs.sequenceColor);
+    if (sequenceColor) {
+      attrs['data-sequence-color'] = sequenceColor;
     }
     if (node.attrs.omitted) {
       attrs['data-omitted'] = 'true';

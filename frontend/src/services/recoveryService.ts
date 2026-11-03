@@ -1,3 +1,4 @@
+import { prepareReviewSave } from '../utils/reviewSave';
 /**
  * The crash-recovery copy of the document being edited.
  *
@@ -377,7 +378,7 @@ export function writeRecoverySnapshot(input: WriteRecoveryInput): boolean {
     title: input.title,
     projectId: input.projectId,
     scriptId: input.scriptId,
-    content: input.content,
+    content: prepareReviewSave(input.content),
   };
 
   let serialized: string;

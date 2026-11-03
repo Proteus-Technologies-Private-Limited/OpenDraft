@@ -1,5 +1,7 @@
 """Version control API endpoints for OpenDraft projects."""
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Query
 
 from app.config import get_projects_dir
@@ -12,6 +14,7 @@ from app.schemas.version import (
 from app.services import git_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _project_path(project_id: str):
@@ -94,6 +97,20 @@ async def get_script_at_version(project_id: str, commit_hash: str, script_id: st
         "meta": json.loads(meta_str),
         "content": json.loads(content_str),
     }
+
+
+@router.delete("/{project_id}/versions/{commit_hash}")
+async def delete_version(project_id: str, commit_hash: str):
+    """Delete one version checkpoint. The project's current files are untouched."""
+    path = _project_path(project_id)
+
+    try:
+        return git_service.delete_version(path, commit_hash)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Deleting version %s of %s failed", commit_hash, project_id)
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.post("/{project_id}/versions/restore/{commit_hash}", response_model=VersionCommitResponse)

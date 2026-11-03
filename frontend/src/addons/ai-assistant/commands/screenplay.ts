@@ -44,6 +44,36 @@ function textArg(args: Record<string, unknown>, key: string, max = MAX_TEXT): st
   return text.slice(0, max);
 }
 
+/**
+ * Text that may hold several lines. A newline is a new block in the script, so
+ * only the line endings are normalised here: the editor splits the lines (see
+ * commands/plainText.ts). Used by the two commands that type plain text, not by
+ * the screenplay elements, which are one line each.
+ */
+function plainTextArg(args: Record<string, unknown>, key: string, max = MAX_TEXT): string | null {
+  const raw = args[key];
+  if (typeof raw !== 'string') return null;
+  const lines = raw.replace(/\r\n?/g, '\n').split('\n').map((line) => line.trim());
+  while (lines.length > 0 && lines[0] === '') lines.shift();
+  while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+  const text = lines.join('\n');
+  if (!text) return null;
+  return text.slice(0, max);
+}
+
+/** {@link plainTextArg} across the same name synonyms as {@link firstText}. */
+function firstPlainText(
+  args: Record<string, unknown>,
+  keys: readonly string[],
+  max = MAX_TEXT,
+): string | null {
+  for (const key of keys) {
+    const text = plainTextArg(args, key, max);
+    if (text) return text;
+  }
+  return null;
+}
+
 function elementArg(args: Record<string, unknown>, key: string): CommandElement | null {
   const raw = args[key];
   if (typeof raw !== 'string') return null;
@@ -340,7 +370,7 @@ export function registerScreenplayCommands(): void {
       additionalProperties: false,
     },
     run: ({ adapter }, args) => {
-      const text = firstText(args, ['text', 'line']);
+      const text = firstPlainText(args, ['text', 'line']);
       if (!text) return { ok: false, message: 'The replacement text is required.' };
       const element = elementArg(args, 'element');
       adapter.replaceSelection(text, element ?? undefined);
@@ -359,7 +389,7 @@ export function registerScreenplayCommands(): void {
       additionalProperties: false,
     },
     run: ({ adapter }, args) => {
-      const text = firstText(args, ['text', 'line']);
+      const text = firstPlainText(args, ['text', 'line']);
       if (!text) return { ok: false, message: 'The text is required.' };
       adapter.insertText(text);
       return { ok: true, message: 'Inserted the text.' };

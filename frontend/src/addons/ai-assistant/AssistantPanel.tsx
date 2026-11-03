@@ -15,10 +15,12 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
+import type { Transaction } from '@tiptap/pm/state';
+import { Mapping } from '@tiptap/pm/transform';
 import { FaRobot, FaPaperPlane, FaTrashAlt } from 'react-icons/fa';
 import { ELEMENT_LABELS } from '../../stores/editorStore';
 import {
-  createPreviewAdapter, createTiptapAdapter, executeCommand,
+  createPreviewAdapter, createTiptapAdapter, executeCommand, previewTextLines,
   type PreviewOp, type ScriptContext,
 } from './commands';
 import { isModelCommand, modelTools } from './modelTools';
@@ -31,6 +33,7 @@ import {
   type AiToolCall,
 } from './client';
 import { loadSettings } from './settingsStore';
+import { discardsProposal, mappedSelection, type ProposedSelection } from './selectionMapping';
 import './assistant.css';
 
 /** Right-sidebar panels receive the editor; that is all this one needs. */
@@ -167,13 +170,24 @@ const PreviewOpView: React.FC<{ op: PreviewOp }> = ({ op }) => {
   }
   if (op.kind === 'replace') {
     return (
-      <div className="ai-preview-block ai-preview-replace">
-        Replace with: {op.text}
-        {op.element ? ` (${ELEMENT_LABELS[op.element] ?? op.element})` : ''}
-      </div>
+      <>
+        {previewTextLines(op).map((line, i) => (
+          <div key={i} className="ai-preview-block ai-preview-replace">
+            {i === 0 ? 'Replace with: ' : ''}
+            {line}
+            {i === 0 && op.element ? ` (${ELEMENT_LABELS[op.element] ?? op.element})` : ''}
+          </div>
+        ))}
+      </>
     );
   }
-  return <div className="ai-preview-block ai-preview-text">{op.text}</div>;
+  return (
+    <>
+      {previewTextLines(op).map((line, i) => (
+        <div key={i} className="ai-preview-block ai-preview-text">{line}</div>
+      ))}
+    </>
+  );
 };
 
 const AssistantPanel: React.FC<Props> = ({ editor }) => {
@@ -185,14 +199,39 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
   const [pending, setPending] = useState<{
     calls: AiToolCall[];
     ops: PreviewOp[];
-    /** The selection the proposal was made against, restored on Insert. */
-    selection: { from: number; to: number } | null;
   } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mountedRef = useRef(true);
-  /** The selection at the moment the request was sent, for replaceSelection. */
-  const selectionRef = useRef<{ from: number; to: number } | null>(null);
+  /**
+   * The selection a proposal will replace, and the mapping from the moment it
+   * was captured. Edits made while the reply is on its way move the range with
+   * them, so Insert still replaces the words the writer meant.
+   */
+  const pendingSelectionRef = useRef<ProposedSelection | null>(null);
+
+  // Follow every transaction while a proposal waits, so the saved range shifts
+  // with an edit above it or around its ends. A remote change, a Yjs undo or a
+  // whole-document replace (a script switch) removes the words it pointed at,
+  // and mapping through it would collapse the range to the end of the script.
+  useEffect(() => {
+    if (!editor) return;
+    const follow = ({ transaction }: { transaction: Transaction }) => {
+      const saved = pendingSelectionRef.current;
+      if (!saved || !transaction.docChanged) return;
+      if (discardsProposal(transaction)) {
+        pendingSelectionRef.current = null;
+        setPending(null);
+        setError('The script changed while the proposal was waiting, so it was discarded. Ask again.');
+        return;
+      }
+      saved.mapping.appendMapping(transaction.mapping);
+    };
+    editor.on('transaction', follow);
+    return () => {
+      editor.off('transaction', follow);
+    };
+  }, [editor]);
 
   // A request in flight when the panel closes must not land on a dead panel.
   useEffect(() => {
@@ -219,6 +258,18 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     // command id (script.insertDialogue); both resolve to the command id.
     return commandForTool.get(name) ?? name;
   }, [commandForTool]);
+
+  /** Drop the waiting proposal and the selection it was going to replace. */
+  const clearPending = useCallback(() => {
+    pendingSelectionRef.current = null;
+    setPending(null);
+  }, []);
+
+  // A proposal belongs to the document it was made in. A new editor is another
+  // script, and the saved range would point at words that are not there.
+  useEffect(() => {
+    clearPending();
+  }, [editor, clearPending]);
 
   const runCalls = useCallback((adapter: ReturnType<typeof createTiptapAdapter>, calls: AiToolCall[]) => {
     const lines: string[] = [];
@@ -278,7 +329,9 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       return { staged: false, lines: [] as string[], failures, count: 0 };
     }
     const blockCount = preview.ops.reduce(
-      (count, op) => count + (op.kind === 'blocks' ? op.blocks.length : 1),
+      (count, op) => count + (op.kind === 'blocks'
+        ? op.blocks.length
+        : op.kind === 'element' ? 1 : previewTextLines(op).length),
       0,
     );
     if (blockCount === 0) {
@@ -298,23 +351,28 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       };
     }
     // Always show the proposal: nothing reaches the script without the writer.
-    setPending({ calls: valid, ops: preview.ops, selection: selectionRef.current });
+    setPending({ calls: valid, ops: preview.ops });
     return { staged: true, lines: [] as string[], failures, count: valid.length };
   }, [resolveCommand, commandForTool, allowed]);
 
   const acceptPending = useCallback(() => {
     if (!pending || !editor) return;
     if (!editor.isEditable) {
-      setPending(null);
+      clearPending();
       setError('This document is read-only, so the assistant cannot insert into it.');
       return;
     }
-    if (pending.selection) {
+    const saved = pendingSelectionRef.current;
+    pendingSelectionRef.current = null;
+    if (saved) {
+      const range = mappedSelection(saved, editor.state.doc.content.size);
+      if (!range) {
+        clearPending();
+        setError('The text the proposal was going to replace is no longer there. Ask again.');
+        return;
+      }
       try {
-        const max = editor.state.doc.content.size;
-        const from = Math.min(Math.max(0, pending.selection.from), max);
-        const to = Math.min(Math.max(from, pending.selection.to), max);
-        editor.commands.setTextSelection({ from, to });
+        editor.commands.setTextSelection(range);
       } catch {
         // The document may have changed since the proposal; insert at the caret.
       }
@@ -326,12 +384,12 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     if (ran.failures.length > 0) {
       setError(`Some actions were not applied: ${ran.failures.join(' ')}`);
     }
-  }, [pending, editor, runCalls, addMessage]);
+  }, [pending, editor, runCalls, addMessage, clearPending]);
 
   const rejectPending = useCallback(() => {
-    setPending(null);
+    clearPending();
     addMessage('assistant', 'Proposal discarded.');
-  }, [addMessage]);
+  }, [addMessage, clearPending]);
 
   const send = useCallback(async (promptArg?: string) => {
     const prompt = (promptArg ?? input).trim();
@@ -339,22 +397,31 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
     const settings = loadSettings();
     setInput('');
     setError(null);
-    setPending(null);
+    clearPending();
     addMessage('user', prompt);
     setBusy(true);
+    // A proposal keeps the captured selection for Insert; a prose answer, an
+    // error or a refused action must not leave it following every edit until
+    // the next send.
+    let keptSelection = false;
 
     try {
       const adapter = createTiptapAdapter(editor);
       const context = executeCommand('script.getContext', {}, adapter).data as ScriptContext | undefined;
-      selectionRef.current = {
+      pendingSelectionRef.current = {
         from: editor.state.selection.from,
         to: editor.state.selection.to,
+        mapping: new Mapping(),
       };
 
       const finishStaged = (staged: ReturnType<typeof stageCalls>): boolean => {
         if (staged.count === 0) return false;
-        if (staged.staged) addMessage('assistant', 'Proposal ready - review and confirm.');
-        else addMessage('assistant', staged.lines.join(' ') || 'Done.');
+        if (staged.staged) {
+          keptSelection = true;
+          addMessage('assistant', 'Proposal ready - review and confirm.');
+        } else {
+          addMessage('assistant', staged.lines.join(' ') || 'Done.');
+        }
         if (staged.failures.length > 0) {
           setError(`Some actions were not applied: ${staged.failures.join(' ')}`);
         }
@@ -508,18 +575,21 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
       setError(message);
       addMessage('assistant', `⚠️ ${message}`);
     } finally {
+      if (!keptSelection) pendingSelectionRef.current = null;
       if (mountedRef.current) {
         setBusy(false);
         inputRef.current?.focus();
       }
     }
   }, [
-    input, busy, editor, messages, tools, addMessage, stageCalls,
+    input, busy, editor, messages, tools, addMessage, clearPending, stageCalls,
   ]);
 
   const previewBlockCount = pending
     ? pending.ops.reduce(
-      (count, op) => count + (op.kind === 'blocks' ? op.blocks.length : 1),
+      (count, op) => count + (op.kind === 'blocks'
+        ? op.blocks.length
+        : op.kind === 'element' ? 1 : previewTextLines(op).length),
       0,
     )
     : 0;
@@ -532,7 +602,7 @@ const AssistantPanel: React.FC<Props> = ({ editor }) => {
           <button
             className="ai-icon-btn"
             title="New conversation"
-            onClick={() => { setMessages([]); setError(null); setPending(null); }}
+            onClick={() => { setMessages([]); setError(null); clearPending(); }}
             disabled={messages.length === 0 || busy}
           >
             <FaTrashAlt />

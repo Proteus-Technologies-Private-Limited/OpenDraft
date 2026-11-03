@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { EditorState } from '@tiptap/pm/state';
+import { EditorState, TextSelection } from '@tiptap/pm/state';
 import { createPaginationPlugin, buildTemplateHints, type PaginationState, paginationPluginKey } from './pagination';
 import { DEFAULT_PAGE_LAYOUT } from '../stores/editorStore';
 import { testSchema, block, doc, pmDoc } from '../test/screenplaySchema';
@@ -103,5 +103,34 @@ describe('pagination plugin — inserting an act before an existing one', () => 
     const typed = empty.apply(empty.tr.insertText('ACT THREE', insertPos + 1));
 
     expect(decorationMargins(plugin, typed)).toEqual(decorationMargins(plugin, empty));
+  });
+});
+
+describe('pagination plugin — oversized paragraph line grid', () => {
+  // Long enough that one action paragraph is taller than a page.
+  const sentence = 'The rain keeps falling on the empty street while nobody moves. ';
+  const oversized = sentence.repeat(120).trim();
+
+  function lineWidgets(plugin: ReturnType<typeof createPaginationPlugin>, state: EditorState) {
+    const set = plugin.props.decorations!.call(plugin, state) as unknown as {
+      find: () => { from: number; type: { spec?: { key?: string }; toDOM?: unknown } }[];
+    };
+    return set.find().filter((d) => d.type.spec?.key?.startsWith('sp-paragraph-line-'));
+  }
+
+  it('marks the grid line breaks so phone view can drop them, with stable keys', () => {
+    const { plugin, state } = makeState(doc(block('action', oversized)));
+    expect(breaksOf(state).some((b) => b.contentOffset !== undefined)).toBe(true);
+
+    const widgets = lineWidgets(plugin, state);
+    expect(widgets.length).toBeGreaterThan(50);
+    const keys = widgets.map((w) => w.type.spec!.key);
+    expect(new Set(keys).size).toBe(keys.length);
+
+    // A selection-only update rebuilds the decorations with the same keys, so
+    // ProseMirror keeps the existing <br> elements instead of recreating them.
+    const moved = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 5)));
+    expect(lineWidgets(plugin, moved).map((w) => w.type.spec!.key)).toEqual(keys);
+
   });
 });

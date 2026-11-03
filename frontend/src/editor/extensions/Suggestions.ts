@@ -17,10 +17,12 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import { BOOKMARKABLE_TYPES } from '../../utils/bookmarks';
+import { yUndoPluginKey } from 'y-prosemirror';
+import { guardReviewUndo } from '../reviewUndo';
 import { ALTERNATES_META } from '../alternates';
 import {
-  SUGGEST_DELETE, SUGGEST_INSERT, SUGGESTED_JOIN, SUGGESTED_SPLIT, SUGGESTED_TYPE,
-  isHousekeeping, isLocalEdit, onlyGivesSceneIds, suggestTransaction, type Blocked, type Suggester, type SuggestionStamp, type TypeStamp,
+  SUGGEST_FORMAT, isFormatStamp, SUGGEST_DELETE, SUGGEST_INSERT, SUGGESTED_JOIN, SUGGESTED_SPLIT, SUGGESTED_TYPE,
+  discardOverriddenFormats, introducesFormatSuggestions, isHousekeeping, isLocalEdit, onlyGivesSceneIds, suggestTransaction, type Blocked, type Suggester, type SuggestionStamp, type TypeStamp,
 } from '../suggestions';
 
 const when = (at: unknown) => {
@@ -73,6 +75,67 @@ export const SuggestionDelete = Mark.create({
       class: 'suggestion-delete',
       title: `${mark.attrs.by || 'Someone'} suggested deleting this${when(mark.attrs.at) ? ` · ${when(mark.attrs.at)}` : ''}`,
     }), 0];
+  },
+});
+
+/** Multiple independent style proposals can overlap without replacing one another. */
+export const SuggestionFormat = Mark.create({
+  name: SUGGEST_FORMAT,
+  inclusive: false,
+  excludes: '',
+  addAttributes() {
+    const defaults = {
+      id: null,
+      by: '',
+      at: 0,
+      uid: null,
+      format: null,
+      before: false,
+      after: true,
+    };
+    return Object.fromEntries(
+      Object.entries(defaults).map(([name, value]) => [
+        name,
+        {
+          default: value,
+          parseHTML: (el: HTMLElement) => {
+            try {
+              const stamp = JSON.parse(el.getAttribute('data-suggestion-format') ?? 'null');
+              return isFormatStamp(stamp) ? (stamp[name as keyof typeof stamp] ?? value) : value;
+            } catch {
+              return value;
+            }
+          },
+          renderHTML: () => ({}),
+        },
+      ]),
+    );
+  },
+  parseHTML() {
+    return [
+      {
+        tag: 'span[data-suggestion-format]',
+        getAttrs: (el) => {
+          try {
+            const stamp = JSON.parse(el.getAttribute('data-suggestion-format') ?? 'null');
+            return isFormatStamp(stamp) ? stamp : false;
+          } catch {
+            return false;
+          }
+        },
+      },
+    ];
+  },
+  renderHTML({ mark }) {
+    return [
+      'span',
+      {
+        class: 'suggestion-format',
+        'data-suggestion-format': JSON.stringify(mark.attrs),
+        title: `${mark.attrs.by || 'Someone'} suggested ${mark.attrs.after ? 'adding' : 'removing'} ${mark.attrs.format}`,
+      },
+      0,
+    ];
   },
 });
 
@@ -138,17 +201,22 @@ export interface SuggestionsOptions {
   onBlocked: (what: Blocked) => void;
   /** True in a suggester's session: the app's own housekeeping changes are not applied (see isHousekeeping). */
   dropHousekeeping: () => boolean;
+  allowFormatting: () => boolean;
 }
 
 export const Suggestions = Extension.create<SuggestionsOptions>({
   name: 'suggestions',
 
   addOptions() {
-    return { suggester: () => null, onBlocked: () => {}, dropHousekeeping: () => false };
+    return { suggester: () => null, onBlocked: () => {}, dropHousekeeping: () => false, allowFormatting: () => true };
+  },
+
+  addStorage() {
+    return { restoreUndo: () => {} };
   },
 
   addExtensions() {
-    return [SuggestionInsert, SuggestionDelete];
+    return [SuggestionInsert, SuggestionDelete, SuggestionFormat];
   },
 
   addGlobalAttributes() {
@@ -167,8 +235,16 @@ export const Suggestions = Extension.create<SuggestionsOptions>({
     const original = view.props.dispatchTransaction;
     if (!original) return;
     const options = this.options;
+    const undoManager = yUndoPluginKey.getState(view.state)?.undoManager;
+    if (undoManager) {
+      this.storage.restoreUndo = guardReviewUndo(undoManager, options.allowFormatting, () => options.onBlocked('formatCompatibility'));
+    }
+    let formattingAllowed = options.allowFormatting();
     view.setProps({
       dispatchTransaction(tr) {
+        const allowed = options.allowFormatting();
+        if (allowed !== formattingAllowed) undoManager?.stopCapturing();
+        formattingAllowed = allowed;
         if (options.dropHousekeeping() && isHousekeeping(tr) && !onlyGivesSceneIds(tr)) return;
         const me = options.suggester();
         // Adding, switching or dropping a version of a line or scene is not
@@ -179,11 +255,19 @@ export const Suggestions = Extension.create<SuggestionsOptions>({
           return;
         }
         const next = me && isLocalEdit(tr)
-          ? suggestTransaction(view.state, tr, { ...me, onBlocked: options.onBlocked })
-          : tr;
+          ? suggestTransaction(view.state, tr, { ...me, onBlocked: options.onBlocked, allowFormatting: options.allowFormatting() })
+          : discardOverriddenFormats(tr);
+        if (!options.allowFormatting() && next.docChanged && !tr.getMeta('y-sync$') && introducesFormatSuggestions(next)) {
+          options.onBlocked('formatCompatibility');
+          return;
+        }
         original.call(view, next);
       },
     });
+  },
+
+  onDestroy() {
+    this.storage.restoreUndo?.();
   },
 
   addProseMirrorPlugins() {

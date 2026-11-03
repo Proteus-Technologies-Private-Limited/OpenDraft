@@ -10,7 +10,9 @@ import { isNonPrintingType } from './nonPrinting';
 // ── Scene heading parsing (matching SceneNavigator patterns) ──────────
 
 const TIME_WORDS = 'DAY|NIGHT|DAWN|DUSK|MORNING|AFTERNOON|EVENING|SUNSET|SUNRISE|LATER|CONTINUOUS|SAME TIME|MOMENTS LATER|SAME|MAGIC HOUR';
-const PREFIX_RE = /(INT\.?\/?EXT\.?|EXT\.?\/?INT\.?|INT\.?|EXT\.?|I\/E\.?)\s+/i;
+// `\b` keeps a prefix from matching the tail of a word: without it "FOREST
+// CLEARING" read as EST. + "CLEARING", and "PRINT SHOP" as INT. + "SHOP".
+const PREFIX_RE = /\b(INT\.?\/?EXT\.?|EXT\.?\/?INT\.?|INT\.?|EXT\.?|I\/E\.?|EST\.?)\s+/i;
 
 export function parseHeading(raw: string): { prefix: string; location: string; timeOfDay: string } {
   let rest = raw.trim();

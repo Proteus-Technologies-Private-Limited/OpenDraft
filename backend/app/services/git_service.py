@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 from dulwich.repo import Repo
-from dulwich.objects import Blob, Tree
+from dulwich.objects import Blob, Commit, Tree
 from dulwich import porcelain
 from dulwich.patch import write_tree_diff
 
@@ -240,6 +240,75 @@ def restore_version(project_path: Path, commit_hash: str) -> dict:
         "message": message,
         "date": _timestamp_to_iso(int(time.time())),
     }
+
+
+def delete_version(project_path: Path, commit_hash: str) -> dict:
+    """Remove one checkpoint from the history, leaving the files on disk alone.
+
+    Every commit stores the whole project tree, so a version is a snapshot, not
+    a patch: the commits after the deleted one are re-created on top of its
+    parent with exactly the same trees, authors, dates and messages. Their
+    hashes change (a commit's hash covers its parent); their content does not.
+
+    Only a linear history is supported — OpenDraft never makes merges — and a
+    commit that is not on the current branch is refused.
+    """
+    repo = Repo(str(project_path))
+    try:
+        ref_chain, head_sha = repo.refs.follow(b"HEAD")
+    except KeyError as exc:
+        raise ValueError("This project has no versions yet") from exc
+    if head_sha is None:
+        raise ValueError("This project has no versions yet")
+    branch_ref = ref_chain[-1]
+
+    target = commit_hash.encode("ascii")
+    # Newest first, following the first parent back from HEAD.
+    chain: list[Commit] = []
+    sha = head_sha
+    found = False
+    while sha is not None:
+        c = repo[sha]
+        if len(c.parents) > 1:
+            raise ValueError("Version history contains a merge; versions cannot be deleted")
+        chain.append(c)
+        if c.id == target:
+            found = True
+            break
+        sha = c.parents[0] if c.parents else None
+    if not found:
+        raise FileNotFoundError(f"Version {commit_hash[:7]} not found")
+
+    deleted = chain[-1]
+    newer = list(reversed(chain[:-1]))  # oldest first
+    new_parent = deleted.parents[0] if deleted.parents else None
+
+    for old in newer:
+        rewritten = Commit()
+        rewritten.tree = old.tree
+        rewritten.parents = [new_parent] if new_parent is not None else []
+        rewritten.author = old.author
+        rewritten.committer = old.committer
+        rewritten.author_time = old.author_time
+        rewritten.author_timezone = old.author_timezone
+        rewritten.commit_time = old.commit_time
+        rewritten.commit_timezone = old.commit_timezone
+        rewritten.encoding = old.encoding
+        rewritten.message = old.message
+        repo.object_store.add_object(rewritten)
+        new_parent = rewritten.id
+
+    if new_parent is None:
+        # The only version was deleted: the branch is left with no commits.
+        # The next check-in starts the history afresh.
+        if not repo.refs.remove_if_equals(branch_ref, head_sha):
+            raise RuntimeError("Version history changed while deleting; try again")
+    elif not repo.refs.set_if_equals(branch_ref, head_sha, new_parent):
+        raise RuntimeError("Version history changed while deleting; try again")
+
+    short = commit_hash[:7]
+    logger.info("Deleted version %s from %s (%d later versions re-parented)", short, project_path, len(newer))
+    return {"message": f"Deleted version {short}"}
 
 
 def _restore_tree(repo, tree, base_path: Path) -> None:

@@ -40,5 +40,8 @@ describe('withoutPageFields', () => {
   it('leaves a line with no page fields as it was', () => {
     expect(clean('CONFIDENTIAL')).toBe('CONFIDENTIAL');
     expect(clean('Draft - 2nd pass')).toBe('Draft - 2nd pass');
+    // Punctuation on such a line is the writer's, not something to tidy away.
+    expect(clean('Blue Rev.')).toBe('Blue Rev.');
+    expect(clean('Blue Rev. -')).toBe('Blue Rev. -');
   });
 });

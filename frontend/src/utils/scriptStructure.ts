@@ -8,6 +8,7 @@
  */
 import type { JSONContent } from '@tiptap/react';
 import { jsonBlockText, singleLine } from './nodeText';
+import { safeSequenceColor } from './formatAnnotations';
 
 export interface StructureScene {
   sceneIndex: number;          // 0-based index within the whole document
@@ -92,20 +93,6 @@ const getText = jsonBlockText;
  * Linear scan; O(n) in number of top-level blocks.
  */
 export function computeScriptStructure(doc: JSONContent): ScriptStructure {
-  // Older scripts (and the first cut of the Outline) kept the label list in a
-  // document attribute. Read it as a fallback for names and colours; new
-  // labels are written on the scenes, which collaboration syncs.
-  const legacyById = new Map<string, { name: string; color: string }>();
-  const legacySequences = (doc.attrs as {
-    sequences?: Array<{ id: string; name: string; color?: string }>;
-  } | undefined)?.sequences;
-  for (const sequence of legacySequences ?? []) {
-    legacyById.set(sequence.id, {
-      name: sequence.name || 'Untitled Sequence',
-      color: sequence.color || '#64748b',
-    });
-  }
-
   // Track position in the linear document (approximate — we track block index,
   // since TipTap node positions are not directly available from JSON traversal).
   // The first act is implicit ("Prologue") for scenes before any explicit act.
@@ -192,14 +179,13 @@ export function computeScriptStructure(doc: JSONContent): ScriptStructure {
       // Displayed as a single-line label in the structure panel and navigator.
       const heading = singleLine(getText(node));
       const sequenceId = (node.attrs?.sequenceId as string | undefined) || null;
-      const legacy = sequenceId ? legacyById.get(sequenceId) : undefined;
       const scene: StructureScene = {
         sceneIndex,
         heading,
         docPos: blockPos,
         sequenceId,
-        sequenceName: (node.attrs?.sequenceName as string | undefined) || legacy?.name || null,
-        sequenceColor: (node.attrs?.sequenceColor as string | undefined) || legacy?.color || null,
+        sequenceName: (node.attrs?.sequenceName as string | undefined) || null,
+        sequenceColor: safeSequenceColor(node.attrs?.sequenceColor) || null,
       };
 
       // Target act: current act, or create an implicit Prologue if no acts yet
@@ -223,7 +209,7 @@ export function computeScriptStructure(doc: JSONContent): ScriptStructure {
           actSeq = {
             id: sequenceId,
             name: scene.sequenceName || 'Untitled Sequence',
-            color: scene.sequenceColor || '#64748b',
+            color: safeSequenceColor(scene.sequenceColor) || '#64748b',
             scenes: [],
           };
           targetAct.sequences.push(actSeq);
