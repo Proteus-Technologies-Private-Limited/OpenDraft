@@ -26,6 +26,14 @@ describe('withoutPageFields', () => {
     expect(clean('Draft - Page {page} of {pages}')).toBe('Draft');
   });
 
+  it('keeps the writer\'s punctuation when a page field follows it', () => {
+    expect(clean('Blue Rev. Page {page}')).toBe('Blue Rev.');
+    expect(clean('Blue Rev. Page {page} of {pages}')).toBe('Blue Rev.');
+    expect(clean('Blue Rev. - Page {page}')).toBe('Blue Rev.');
+    // A full stop that trails the field is the template's, not the writer's.
+    expect(clean('Page {page} of {pages}.')).toBe('');
+  });
+
   it('drops a page field on its own', () => {
     expect(clean('{page}')).toBe('');
     expect(clean('Page {page}')).toBe('');

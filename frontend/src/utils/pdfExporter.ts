@@ -1961,11 +1961,18 @@ export function withoutPageFields(content: HeaderFooterContent): HeaderFooterCon
     // A line with no page field is left exactly as written: tidying it would
     // turn "Blue Rev." into "Blue Rev".
     if (!removed) return text;
-    return stripped
+    let out = stripped
       .replace(/\s+/g, ' ')
-      .replace(/[\s.,:;|/\\-]+$/g, '')
-      .replace(/^[\s.,:;|/\\-]+/g, '')
       .trim();
+    // A dash, pipe or slash left at an edge belongs to the removed phrase
+    // ("Draft - Page {page}" -> "Draft").
+    out = out.replace(/[|/\\\-–—]+$/g, '').replace(/\s+$/g, '');
+    // Punctuation at the edge is the template's only when it is detached from
+    // the writer's words: the full stop in "Page {page} of {pages}." goes, but
+    // the one in "Blue Rev. Page {page}" stays.
+    out = out.replace(/(^|\s)[.,:;]+$/g, '').replace(/\s+$/g, '');
+    out = out.replace(/^[\s.,:;|/\\\-–—]+/g, '');
+    return out.trim();
   };
   return { left: clean(content.left), center: clean(content.center), right: clean(content.right) };
 }
