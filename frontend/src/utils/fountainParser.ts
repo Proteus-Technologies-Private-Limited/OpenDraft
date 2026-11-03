@@ -359,6 +359,14 @@ export function parseFountain(text: string): TipTapNode {
       target.attrs = { ...target.attrs, bookmark: annotation.name };
       return true;
     }
+    if (annotation.kind === 'sequence') {
+      if (target.type !== 'sceneHeading' || target.attrs?.sequenceId) return false;
+      const next: Record<string, unknown> = { sequenceId: annotation.id };
+      if (annotation.name) next.sequenceName = annotation.name;
+      if (annotation.color) next.sequenceColor = annotation.color;
+      target.attrs = { ...target.attrs, ...next };
+      return true;
+    }
     if (!FOUNTAIN_ALTERNATE_TYPES.has(target.type)) return false;
     const list = alternateNotes.get(target) ?? [];
     list.push({ note, ...annotation });

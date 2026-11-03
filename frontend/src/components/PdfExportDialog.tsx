@@ -6,7 +6,7 @@
  * dialog puts the ones a writer asks for at export time in one place, plus the
  * two things the file needs: a range of scenes, and one scene per page.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useEditorStore } from '../stores/editorStore';
 import Select from './Select';
 
@@ -47,6 +47,7 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
   const [toIndex, setToIndex] = useState(lastIndex);
   const [picked, setPicked] = useState<Set<number>>(() => new Set(scenes.map((_, index) => index)));
   const [pickQuery, setPickQuery] = useState('');
+  const pickListRef = useRef<HTMLDivElement | null>(null);
   const [includeTitlePage, setIncludeTitlePage] = useState(includeTitlePageInOutput);
   const [pageNumbers, setPageNumbers] = useState(true);
   const [sceneNumbers, setSceneNumbers] = useState(sceneNumbersVisible);
@@ -70,6 +71,12 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
     () => visibleOptions.map((option) => Number(option.value)),
     [visibleOptions],
   );
+
+  // A narrowed list starts at its first match. Leaving the old offset would put
+  // the first results above the top edge of a long script's list.
+  useEffect(() => {
+    if (pickListRef.current) pickListRef.current.scrollTop = 0;
+  }, [pickQuery]);
 
   const selectVisible = () => {
     setPicked((current) => new Set([...current, ...visibleIndices]));
@@ -183,7 +190,7 @@ const PdfExportDialog: React.FC<Props> = ({ scenes, onClose, onExport }) => {
                     <button type="button" onClick={selectVisible} title="Select all shown">All</button>
                     <button type="button" onClick={clearVisible} title="Clear all shown">None</button>
                   </div>
-                  <div className="pdf-export-pick-list">
+                  <div className="pdf-export-pick-list" ref={pickListRef}>
                     {visibleOptions.length === 0 ? (
                       <p className="pdf-export-no-match">No scenes match &ldquo;{pickQuery}&rdquo;.</p>
                     ) : visibleOptions.map((option) => {
