@@ -4400,6 +4400,18 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
   flex: 1;
   white-space: nowrap;
 }
+/* The shortcut has its own column, separate from the reserved hint column, so
+   a hint moving between rows never changes the menu's width. */
+.element-picker-shortcut {
+  flex: 0 0 auto;
+  margin-left: 12px;
+  font-size: 10px;
+  color: var(--fd-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.element-picker-item.selected .element-picker-shortcut {
+  color: rgba(255,255,255,.6);
+}
 /* Reserved column, wide enough for the longest hint ("blank line"), so the menu
    is sized by its element labels alone. Without it the menu resized as hints
    appeared and moved between rows while the writer arrowed through it. */
@@ -11248,6 +11260,9 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   }
   .menu-dropdown-item { padding: 10px 16px; font-size: 14px; min-height: 40px; }
   .menu-shortcut { display: none; }
+  /* Phone keyboards have no Ctrl/⌘, and the element dropdowns must not grow
+     wider for labels that promise shortcuts only the desktop apps have. */
+  .od-select-shortcut, .element-picker-shortcut { display: none; }
 
   /* Submenus: inline on mobile instead of flyout */
   .menu-dropdown-item.has-children {

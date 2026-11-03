@@ -2208,16 +2208,15 @@ const ScreenplayEditor: React.FC = () => {
     onCreate: () => {
       if (!collabMode) rejectedCollabDocRef.current = null;
     },
-    onSelectionUpdate: ({ editor: ed }) => {
+    onTransaction: ({ editor: ed, transaction }) => {
+      // Pagination, spellcheck/grammar decorations and remote steps dispatch
+      // transactions that cannot change the element under the caret. Only a
+      // document change or a moved selection can, and the setter is only
+      // reached when the type actually differs — 26 components subscribe to
+      // the store without a selector.
+      if (!transaction.docChanged && !transaction.selectionSet) return;
       const type = resolveActiveElement(ed);
-      if (type) setActiveElement(type);
-    },
-    // A shortcut that changes the element type (Ctrl/⌘+1 … 8) moves no caret,
-    // so `onSelectionUpdate` never fires and the toolbar's element picker kept
-    // showing the previous type. Every transaction can change it.
-    onTransaction: ({ editor: ed }) => {
-      const type = resolveActiveElement(ed);
-      if (type) setActiveElement(type);
+      if (type && type !== useEditorStore.getState().activeElement) setActiveElement(type);
     },
   }, [editorKey]);
 
