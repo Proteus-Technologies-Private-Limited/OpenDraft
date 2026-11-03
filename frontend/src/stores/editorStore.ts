@@ -117,6 +117,12 @@ export type ViewLayout = 'page' | 'phone';
 /** Whether the Story Map sizes its scenes by pages or by screen time. */
 export type StoryMapUnits = 'pages' | 'time';
 
+/** How the split screen arranges its two panes. */
+export type SplitScreenMode = 'side-by-side' | 'stacked';
+
+/** What the split screen shows beside the script. */
+export type SplitScreenPane = 'page-view' | 'index-cards' | 'outline' | 'beat-board';
+
 function defaultViewLayout(): ViewLayout {
   return isPhoneDevice() ? 'phone' : 'page';
 }
@@ -808,6 +814,13 @@ interface EditorState {
   toggleStoryMap: () => void;
   storyMapUnits: StoryMapUnits;
   setStoryMapUnits: (units: StoryMapUnits) => void;
+  /** The editor and a second pane beside or below it. */
+  splitScreenOpen: boolean;
+  toggleSplitScreen: () => void;
+  splitScreenMode: SplitScreenMode;
+  setSplitScreenMode: (mode: SplitScreenMode) => void;
+  splitScreenPane: SplitScreenPane;
+  setSplitScreenPane: (pane: SplitScreenPane) => void;
   /** Dedicated outline editor (acts, sequences, sections, scenes). */
   outlineOpen: boolean;
   toggleOutline: () => void;
@@ -1262,7 +1275,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // The full-width planning views replace one another; opening this one
     // closes the Outline and Statistics instead of hiding them.
     return v
-      ? { beatBoardOpen: true, outlineOpen: false, statisticsOpen: false }
+      ? { beatBoardOpen: true, outlineOpen: false, statisticsOpen: false, splitScreenOpen: false }
       : { beatBoardOpen: false };
   }),
   storyMapOpen: _vs.storyMapOpen ?? false,
@@ -1276,13 +1289,35 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     saveViewState({ storyMapUnits: units });
     set({ storyMapUnits: units });
   },
+  splitScreenOpen: false,
+  toggleSplitScreen: () => set((s) => {
+    const open = !s.splitScreenOpen;
+    // The full-width views leave no editor to split.
+    return open
+      ? { splitScreenOpen: true, statisticsOpen: false, beatBoardOpen: false, outlineOpen: false }
+      : { splitScreenOpen: false };
+  }),
+  splitScreenMode: 'side-by-side',
+  setSplitScreenMode: (mode) => set((s) => (s.splitScreenOpen && s.splitScreenMode === mode
+    ? {}
+    : {
+      splitScreenMode: mode, splitScreenOpen: true,
+      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false,
+    })),
+  splitScreenPane: 'index-cards',
+  setSplitScreenPane: (pane) => set((s) => (s.splitScreenOpen && s.splitScreenPane === pane
+    ? {}
+    : {
+      splitScreenPane: pane, splitScreenOpen: true,
+      statisticsOpen: false, beatBoardOpen: false, outlineOpen: false,
+    })),
   outlineOpen: false,
   toggleOutline: () => set((s) => {
     const open = !s.outlineOpen;
     if (!open) return { outlineOpen: false };
     // Keep the saved Beat Board choice in step: the Outline takes the screen.
     saveViewState({ beatBoardOpen: false });
-    return { outlineOpen: true, statisticsOpen: false, beatBoardOpen: false, storyTimelineOpen: false };
+    return { outlineOpen: true, statisticsOpen: false, beatBoardOpen: false, storyTimelineOpen: false, splitScreenOpen: false };
   }),
   statisticsOpen: false,
   setStatisticsOpen: (open) => set((s) => {
@@ -1290,7 +1325,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Statistics takes the screen like the Outline does, so the Beat Board
     // choice is saved as closed instead of opening again on the next reload.
     if (s.beatBoardOpen) saveViewState({ beatBoardOpen: false });
-    return { statisticsOpen: true, outlineOpen: false, beatBoardOpen: false };
+    return { statisticsOpen: true, outlineOpen: false, beatBoardOpen: false, splitScreenOpen: false };
   }),
   statisticsScrollTo: null,
   setStatisticsScrollTo: (id) => set({ statisticsScrollTo: id }),

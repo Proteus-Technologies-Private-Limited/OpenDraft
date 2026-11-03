@@ -8,9 +8,13 @@ import StoryMap from './StoryMap';
 
 interface IndexCardsProps {
   editor: Editor | null;
+  /** "view" fills the writing area; "split" is the second pane of the split screen. */
+  variant?: 'view' | 'split';
+  /** Closes the split pane; defaults to toggling the cards view. */
+  onRequestClose?: () => void;
 }
 
-const IndexCards: React.FC<IndexCardsProps> = ({ editor }) => {
+const IndexCards: React.FC<IndexCardsProps> = ({ editor, variant = 'view', onRequestClose }) => {
   const { scenes, indexCardsOpen, updateSceneSynopsis, updateSceneColor, toggleIndexCards, pageLayout } = useEditorStore();
 
   const [fullscreen, setFullscreen] = useState(false);
@@ -206,16 +210,15 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor }) => {
 
       if (fullscreen) setFullscreen(false);
 
-      // The cards are the view, so the script is not mounted: "go to this
-      // scene" means closing the cards and bringing the scene into view.
-      // React mounts the script a moment after the toggle, so wait for the
-      // container instead of assuming it is there straight away.
-      toggleIndexCards();
+      // In the full view "go to this scene" means closing the cards and
+      // bringing the scene into view; in the split pane the script is already
+      // beside them, so the cards stay open.
+      if (variant !== 'split') toggleIndexCards();
       const reveal = (attempt = 0) => {
         if (editor.isDestroyed) return;
         // The writer reopened the cards while we were waiting: leave the
         // caret alone instead of yanking them back to the script.
-        if (useEditorStore.getState().indexCardsOpen) return;
+        if (variant !== 'split' && useEditorStore.getState().indexCardsOpen) return;
         const main = document.querySelector<HTMLElement>('.editor-main');
         if (!main) {
           if (attempt < 50) setTimeout(() => reveal(attempt + 1), 16);
@@ -231,7 +234,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor }) => {
       };
       setTimeout(reveal, 0);
     },
-    [editor, fullscreen, toggleIndexCards],
+    [editor, fullscreen, toggleIndexCards, variant],
   );
 
   // ── Get document ranges for each scene ──
@@ -579,9 +582,9 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor }) => {
     };
   }, [dragIdx, insertIdx]);
 
-  if (!indexCardsOpen) return null;
+  if (!indexCardsOpen && variant !== 'split') return null;
 
-  const containerClass = `index-cards index-cards-view${fullscreen ? ' index-cards-fullscreen' : ''}`;
+  const containerClass = `index-cards${variant === 'view' ? ' index-cards-view' : ' index-cards-split'}${fullscreen ? ' index-cards-fullscreen' : ''}`;
   const indicatorStyle = getIndicatorStyle();
 
   return (
@@ -590,13 +593,15 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor }) => {
         <span className="index-cards-title">Index Cards</span>
         <span className="index-cards-count">{scenes.length} scenes</span>
         <div className="index-cards-actions">
-          <button
-            className={`ic-action-btn${timelineOpen ? ' active' : ''}`}
-            onClick={() => setTimelineOpen((open) => !open)}
-            title={timelineOpen ? 'Hide the scene timeline' : 'Show the scene timeline'}
-          >
-            Timeline
-          </button>
+          {variant === 'view' && (
+            <button
+              className={`ic-action-btn${timelineOpen ? ' active' : ''}`}
+              onClick={() => setTimelineOpen((open) => !open)}
+              title={timelineOpen ? 'Hide the scene timeline' : 'Show the scene timeline'}
+            >
+              Timeline
+            </button>
+          )}
           {dragMode ? (
             <>
               <button
@@ -665,7 +670,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor }) => {
           </button>
           <button
             className="ic-action-btn ic-close-btn"
-            onClick={() => { if (fullscreen) setFullscreen(false); toggleIndexCards(); }}
+            onClick={() => { if (fullscreen) setFullscreen(false); (onRequestClose ?? toggleIndexCards)(); }}
             title="Close Index Cards"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -781,7 +786,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor }) => {
         )}
       </div>
 
-      {timelineOpen && (
+      {variant === 'view' && timelineOpen && (
         <StoryMap
           editor={editor}
           title="Timeline"
