@@ -170,7 +170,14 @@
   padding: 4px 12px 4px 6px; line-height: 1.35; cursor: pointer; white-space: nowrap;
 }
 .od-select-check { flex: none; width: 12px; font-size: 11px; color: var(--fd-accent); text-align: center; }
-.od-select-option-label { overflow: hidden; text-overflow: ellipsis; }
+.od-select-option-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Shortcuts share one right-hand column, so every row lines up. */
+.od-select-shortcut {
+  flex: none; margin-left: auto; padding-left: 24px;
+  color: var(--fd-text-muted); font-size: 11px;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.2px;
+}
+.od-select-option.is-active .od-select-shortcut { color: rgba(255, 255, 255, 0.85); }
 .od-select-option.is-active { background: var(--fd-accent); color: #fff; }
 .od-select-option.is-active .od-select-check { color: #fff; }
 .od-select-option.is-disabled { color: var(--fd-text-muted); cursor: default; }
@@ -4392,6 +4399,18 @@ div[data-type="cast-list"].is-empty::before { content: 'Cast...'; color: var(--p
 .element-picker-label {
   flex: 1;
   white-space: nowrap;
+}
+/* The shortcut has its own column, separate from the reserved hint column, so
+   a hint moving between rows never changes the menu's width. */
+.element-picker-shortcut {
+  flex: 0 0 auto;
+  margin-left: 12px;
+  font-size: 10px;
+  color: var(--fd-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.element-picker-item.selected .element-picker-shortcut {
+  color: rgba(255,255,255,.6);
 }
 /* Reserved column, wide enough for the longest hint ("blank line"), so the menu
    is sized by its element labels alone. Without it the menu resized as hints
@@ -11241,6 +11260,9 @@ body.selection-bands-active .page .ProseMirror::selection { background: transpar
   }
   .menu-dropdown-item { padding: 10px 16px; font-size: 14px; min-height: 40px; }
   .menu-shortcut { display: none; }
+  /* Phone keyboards have no Ctrl/⌘, and the element dropdowns must not grow
+     wider for labels that promise shortcuts only the desktop apps have. */
+  .od-select-shortcut, .element-picker-shortcut { display: none; }
 
   /* Submenus: inline on mobile instead of flyout */
   .menu-dropdown-item.has-children {
