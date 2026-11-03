@@ -11,7 +11,7 @@ I did not set out to build a product.
 
 I wanted to write screenplays, and I did not want to pay $250 for the privilege or hand my scripts to a cloud service. So I did what a lot of people are doing now: I opened an AI coding assistant, described what I wanted, and kept going until it worked. Scene headings that format themselves. Character name autocomplete. A page that looks like a real screenplay page. It was basic and it was for me.
 
-That project is [OpenDraft](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft). Today it has a beat board, real-time collaboration, version history with diffs, a table read that speaks your script aloud, Final Draft import, desktop apps on three operating systems, and iOS and Android apps. It is free, MIT-licensed, and it keeps your script on your machine.
+That project is [OpenDraft](https://proteus-technologies-private-limited.github.io/OpenDraft/) ([source on GitHub](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft)). Today it has a beat board, real-time collaboration, version history with diffs, a table read that speaks your script aloud, Final Draft import, desktop apps on three operating systems, and iOS and Android apps. It is free, MIT-licensed, and it keeps your script on your machine.
 
 I want to be careful about how I tell this story, because the lazy version is "AI built an app, the end." That is not what happened. And what *did* happen is the more interesting signal about where software is going.
 
@@ -26,6 +26,8 @@ If the story ended there, vibe coding would be a toy: a way to make personal too
 ## Phase two: real users are the actual feature factory
 
 The part that changed OpenDraft was not the AI. It was other people.
+
+I never promoted it. No launch post, no ads. Even so, the repository has picked up 80 GitHub stars and the Android app has passed 500 installs on the Play Store. Those are not viral numbers, but screenwriting software is a niche, and for something nobody was told about, that is decent traction. People went looking for a free screenplay editor and found it.
 
 Once the project was public, writers showed up with problems I would never have invented:
 
@@ -126,11 +128,11 @@ If you write screenplays, try it: it is free, needs no account, and your scripts
 
 ---
 
-**Try OpenDraft:** [open-draft.com](https://open-draft.com) · **Source:** [github.com/Proteus-Technologies-Private-Limited/OpenDraft](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft) · **Contribute:** issues and pull requests are welcome.
+**Website:** [proteus-technologies-private-limited.github.io/OpenDraft](https://proteus-technologies-private-limited.github.io/OpenDraft/) · **Try it in your browser:** [open-draft.com](https://open-draft.com) · **Source:** [github.com/Proteus-Technologies-Private-Limited/OpenDraft](https://github.com/Proteus-Technologies-Private-Limited/OpenDraft) · **Contribute:** issues and pull requests are welcome.
 
 <!--
 REVIEW NOTES (delete before publishing):
-- I have not added user counts, GitHub stars, download numbers or testimonials because I do not have verified figures. Consider adding 1-2 real numbers and a real user quote in "Phase two" — it will make the post much stronger.
+- Traction figures (80 stars, 500+ Play Store users, no promotion) are in "Phase two". A real user quote there would still strengthen it.
 - The Wayland/AppImage story is from issue #113 in the repo; reword if you want it less technical for Medium readers.
 - The comparison table is trimmed from README.md; the footnote date there is April 2026 (some rows October 2026).
 - Medium does not render Markdown tables well. Either paste the table as an image/screenshot or use a GitHub Gist embed.
