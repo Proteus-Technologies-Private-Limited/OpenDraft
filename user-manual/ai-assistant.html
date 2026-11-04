@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Assistant - OpenDraft User Manual</title>
+  <meta name="description" content="The AI Assistant add-on in OpenDraft, the free screenwriting app: write formatted lines and scenes with a local AI model such as Ollama or LM Studio, after reviewing each proposal.">
+  <link rel="canonical" href="https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/ai-assistant.html">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="../">Home</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="title-page.html" class="sidebar-link">Title Page</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+    <a href="ai-assistant.html" class="sidebar-link active">AI Assistant</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+    <a href="outline.html" class="sidebar-link">Outline</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Analysis</div>
+    <a href="script-statistics.html" class="sidebar-link">Script Statistics &amp; Timing</a>
+    <a href="table-read.html" class="sidebar-link">Table Read</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="backups.html" class="sidebar-link">Backups &amp; Recovery</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+    <a href="format-compatibility.html" class="sidebar-link">Format Compatibility</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Developers</div>
+    <a href="plugin-development.html" class="sidebar-link">Plugin &amp; Add-on Development</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>AI Assistant
+    </div>
+
+    <h1>AI Assistant</h1>
+    <p class="page-subtitle">An optional add-on that writes formatted lines and scenes into your script, using an AI model on a server you choose.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Off until you turn it on.</strong> The AI Assistant is an add-on: nothing about it appears in OpenDraft, and nothing is sent anywhere, until you switch it on. It doesn&rsquo;t come with an AI service of its own. It talks to a model server you run or choose, such as <strong>Ollama</strong>, <strong>LM Studio</strong>, <strong>Unsloth Studio</strong> or <strong>llama.cpp</strong> on your own computer.</p>
+      </div>
+    </div>
+
+    <h2 id="turn-on">Turning It On</h2>
+
+    <ol class="steps">
+      <li>Start your model server and load a model in it.</li>
+      <li>Open <strong>Settings &rarr; Add-ons</strong> and switch <strong>AI Assistant</strong> on.</li>
+      <li>The <strong>Turn on AI Assistant</strong> dialog explains, under <em>What leaves your device</em>, what the add-on sends. Fill in the settings and click <strong>Turn On</strong>.</li>
+    </ol>
+
+    <table>
+      <thead>
+        <tr><th>Setting</th><th>What to enter</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Server type</strong></td><td><em>Ollama (its own API)</em>, or <em>OpenAI-compatible</em> for Unsloth Studio, LM Studio, llama.cpp and similar servers.</td></tr>
+        <tr><td><strong>Server address</strong></td><td>Where the server listens. Usually <code>http://localhost:11434</code> for Ollama, <code>http://localhost:1234/v1</code> for LM Studio and <code>http://localhost:8080/v1</code> for Unsloth Studio.</td></tr>
+        <tr><td><strong>Model</strong></td><td>The name of the model to use, as your server lists it (the default is <code>qwen2.5</code>). An instruct model of 7B parameters or more gives the most reliable results.</td></tr>
+        <tr><td><strong>API key</strong></td><td>Only if your server asks for one.</td></tr>
+      </tbody>
+    </table>
+
+    <p>Click <strong>Test connection</strong> to check the settings. It lists the models the server offers, or tells you the server has none loaded yet. To change the settings later, click <strong>Settings&hellip;</strong> beside the add-on in <strong>Settings &rarr; Add-ons</strong>.</p>
+
+    <p>In the desktop app, the server must run on the same computer (<code>localhost</code> or <code>127.0.0.1</code>): the app&rsquo;s security policy blocks plain <code>http://</code> servers elsewhere on your network. To use a server on another machine, use OpenDraft in the browser.</p>
+
+    <h2 id="use">Asking for Text</h2>
+
+    <ol class="steps">
+      <li>Put the cursor where the new text should go. To rewrite a passage, select it.</li>
+      <li>Open <strong>Tools &gt; AI Assistant&hellip;</strong>. The <strong>Assistant</strong> panel opens beside the script.</li>
+      <li>Type what you want and press <kbd>Enter</kbd> (<kbd>Shift</kbd><kbd>Enter</kbd> starts a new line). For example: <em>Write a line for Ben: &ldquo;Hello, everyone.&rdquo;</em> or <em>Add a scene: INT. LAUNDRY - NIGHT, with an opening action.</em> The empty panel offers a few examples to click.</li>
+      <li>The assistant answers with a <strong>Proposal</strong> showing what it would add. Click <strong>Insert</strong> to put it into the script, or <strong>Discard</strong>.</li>
+    </ol>
+
+    <p>The assistant writes through OpenDraft&rsquo;s own editing commands, so its text arrives already formatted as scene headings, action, character cues, dialogue, parentheticals and transitions. It can add elements, change an element&rsquo;s type, replace the selected text and insert plain text, and nothing else. Simple requests, such as a scene heading or a character saying a quoted line, are carried out straight away without asking the model.</p>
+
+    <p>Nothing changes in the script until you click <strong>Insert</strong>, and an insertion can be undone like any other edit. You can keep writing while a proposal waits. If you had text selected, the proposal follows it, and if you delete that text it tells you to ask again. A proposal is also dropped if a collaborator changes the script or you switch scripts. Click the bin in the panel header to start a new conversation.</p>
+
+    <h2 id="privacy">What Is Sent</h2>
+
+    <p>Each request sends the AI server your request, the selected text, the current scene heading and paragraph, and the lists of character names and scene headings. It does <strong>not</strong> send the whole script. With Ollama, the last few messages of the conversation go too. With a server on your own computer, nothing leaves your device.</p>
+
+    <p>The server address, model name and API key are stored on this device only, never in your scripts. The API key is kept unencrypted in the app&rsquo;s storage, so use a key made just for this purpose.</p>
+
+    <h2 id="turn-off">Turning It Off</h2>
+
+    <p>Switch <strong>AI Assistant</strong> off in <strong>Settings &rarr; Add-ons</strong>. Its menu item and panel disappear. Leave <strong>Also delete its saved settings, such as a server address or API key</strong> ticked to forget them as well.</p>
+
+    <h2 id="troubleshooting">Troubleshooting</h2>
+
+    <ul>
+      <li><strong>&ldquo;Set the AI server and model in Settings &rarr; Add-ons first.&rdquo;</strong> &mdash; the server address or model is empty.</li>
+      <li><strong>&ldquo;Could not reach&hellip;&rdquo;</strong> &mdash; check that the server is running at that address. In a web browser, Ollama must also allow the page&rsquo;s origin: start it with <code>OLLAMA_ORIGINS=*</code>.</li>
+      <li><strong>&ldquo;The server requires an API key.&rdquo;</strong> &mdash; copy the key from your server and paste it into <strong>API key</strong>.</li>
+      <li><strong>&ldquo;The model did not return a JSON action.&rdquo;</strong> &mdash; rephrase the request, or use a larger model.</li>
+      <li><strong>&ldquo;The proposal is too large&rdquo;</strong> &mdash; ask for less at a time; a proposal can hold up to 40 blocks.</li>
+    </ul>
+
+    <p>Writing your own add-on? See <a href="plugin-development.html">Plugin &amp; Add-on Development</a>, which uses the AI Assistant as its worked example.</p>
+
+    <div class="page-nav">
+      <a href="spell-check.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Spell Check</span>
+      </a>
+      <a href="scene-navigator.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Scene Navigator</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v2.8.2 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

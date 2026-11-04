@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Outline - OpenDraft User Manual</title>
+  <meta name="description" content="The Outline view in OpenDraft, the free screenwriting app: see acts, sequences, sections and scenes in one list, reorder scenes by dragging and group them into sequences.">
+  <link rel="canonical" href="https://proteus-technologies-private-limited.github.io/OpenDraft/user-manual/outline.html">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="../images/OpenDraft.png">
+</head>
+<body>
+
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+  <a href="index.html" class="header-logo">
+    <img src="../images/OpenDraft.png" alt="OpenDraft">
+    <span>OpenDraft Manual</span>
+  </a>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search the manual..." autocomplete="off">
+    <span class="search-shortcut">/</span>
+  </div>
+  <nav class="header-nav">
+    <a href="../">Home</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft" target="_blank">GitHub</a>
+    <a href="https://github.com/Proteus-Technologies-Private-Limited/OpenDraft/releases" target="_blank">Download</a>
+  </nav>
+</header>
+
+<div class="search-results" id="searchResults"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="index.html" class="sidebar-link">Home</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Writing</div>
+    <a href="writing-screenplay.html" class="sidebar-link">Writing Your Screenplay</a>
+    <a href="formatting.html" class="sidebar-link">Formatting</a>
+    <a href="title-page.html" class="sidebar-link">Title Page</a>
+    <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
+    <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+    <a href="ai-assistant.html" class="sidebar-link">AI Assistant</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Story Planning</div>
+    <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
+    <a href="index-cards.html" class="sidebar-link">Index Cards</a>
+    <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+    <a href="outline.html" class="sidebar-link active">Outline</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Characters &amp; Notes</div>
+    <a href="characters.html" class="sidebar-link">Characters</a>
+    <a href="script-notes.html" class="sidebar-link">Script Notes</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Analysis</div>
+    <a href="script-statistics.html" class="sidebar-link">Script Statistics &amp; Timing</a>
+    <a href="table-read.html" class="sidebar-link">Table Read</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Production</div>
+    <a href="tags.html" class="sidebar-link">Tags &amp; Entities</a>
+    <a href="locations.html" class="sidebar-link">Locations</a>
+    <a href="revision-mode.html" class="sidebar-link">Revision Mode</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Projects &amp; Files</div>
+    <a href="projects.html" class="sidebar-link">Managing Projects</a>
+    <a href="version-history.html" class="sidebar-link">Version History</a>
+    <a href="backups.html" class="sidebar-link">Backups &amp; Recovery</a>
+    <a href="import-export.html" class="sidebar-link">Import &amp; Export</a>
+    <a href="format-compatibility.html" class="sidebar-link">Format Compatibility</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Collaboration</div>
+    <a href="collaboration.html" class="sidebar-link">Real-Time Collaboration</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Customization</div>
+    <a href="themes.html" class="sidebar-link">Themes</a>
+    <a href="page-setup.html" class="sidebar-link">Page Setup</a>
+    <a href="keyboard-shortcuts.html" class="sidebar-link">Keyboard Shortcuts</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Developers</div>
+    <a href="plugin-development.html" class="sidebar-link">Plugin &amp; Add-on Development</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="content">
+
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>Outline
+    </div>
+
+    <h1>Outline</h1>
+    <p class="page-subtitle">See the whole script as structure: acts, sequences, sections and scenes, in one list you can reorder.</p>
+
+    <h2 id="open">Opening the Outline</h2>
+
+    <p>Choose <strong>View &gt; Panels &gt; Outline</strong>. The Outline takes the place of the script page while it is open, and the menu item shows a tick. To go back to the script, click the <strong>&times;</strong> in the Outline&rsquo;s header, choose the menu item again, or click a scene, which also jumps to that scene in the script.</p>
+
+    <p>The Outline shares the editor area with <a href="beat-board.html">the Beat Board</a>, <a href="script-statistics.html">Statistics</a> and the Story Timeline, so opening one of them closes the others. Opening <a href="table-read.html">Table Read</a> also closes the Outline so you can follow the reading in the script. The Outline always starts closed when you reopen the app.</p>
+
+    <h2 id="what-it-shows">What It Shows</h2>
+
+    <ul>
+      <li><strong>Acts</strong> &mdash; every <em>New Act</em> element in the script starts an act, shown by its name (or <em>ACT 1</em>, <em>ACT 2</em>&hellip;). Scenes before the first act break are grouped under <em>PROLOGUE</em>.</li>
+      <li><strong>Sequences</strong> &mdash; a run of scenes with the same sequence label gets a header row with the sequence&rsquo;s colour and name.</li>
+      <li><strong>Sections</strong> &mdash; Fountain-style <code>#</code> section headings, nested by level, with their synopsis. When a script has both acts and sections, the <strong>Acts</strong> and <strong>Sections</strong> tabs in the header switch between the two views.</li>
+      <li><strong>Scenes</strong> &mdash; each row shows the scene number, heading, synopsis (if you have written one) and length in pages, such as <em>1.5p</em>.</li>
+    </ul>
+
+    <p>A script with no acts or sections is shown as a plain list of scenes.</p>
+
+    <h2 id="reorder">Reordering Scenes</h2>
+
+    <p>Drag a scene row by its handle (<strong>&#10303;</strong>) and drop it on another row. Dragged down, the scene goes after the row you drop it on; dragged up, it goes before. The whole scene moves, and an act break just before its heading moves with it. Anything before the first scene heading, such as <code>FADE IN:</code>, stays where it is.</p>
+
+    <p>Each move is a single step for <strong>Edit &gt; Undo</strong>.</p>
+
+    <h2 id="add">Adding Acts, Sequences and Sections</h2>
+
+    <p>The buttons in the Outline&rsquo;s header add structure at the scene the cursor is in:</p>
+    <ul>
+      <li><strong>+ Act</strong> &mdash; inserts an act break before the current scene (or at the end of a script with no scenes yet).</li>
+      <li><strong>+ Sequence</strong> &mdash; labels the current scene with a new sequence, named <em>Sequence 1</em>, <em>Sequence 2</em>&hellip; It needs at least one scene.</li>
+      <li><strong>+ Section</strong> &mdash; inserts a top-level section called <em>New Section</em>, ready to rename in the script.</li>
+    </ul>
+
+    <h2 id="sequences">Working With Sequences</h2>
+
+    <p>A sequence is a label on scene headings, used to group the scenes of one stretch of the story (&ldquo;the heist&rdquo;, &ldquo;the wedding&rdquo;) without adding anything to the printed script.</p>
+    <ul>
+      <li><strong>Add a scene to a sequence</strong> &mdash; once the script has at least one sequence, every scene row has a <strong>Sequence</strong> list. Choose a sequence, or <strong>&mdash;</strong> to take the scene out of its sequence.</li>
+      <li><strong>Rename</strong> &mdash; hover over a sequence&rsquo;s header row and click the pencil. Type the new name and press <kbd>Enter</kbd> (or <kbd>Esc</kbd> to cancel). Every scene in the sequence takes the new name.</li>
+      <li><strong>Delete</strong> &mdash; hover over the header row and click the bin. The label comes off all its scenes; the scenes themselves stay. Deleting can be undone.</li>
+    </ul>
+
+    <p>The label is stored on each scene heading, so it moves with its scene, is shared with collaborators and goes along when you copy a scene into another script.</p>
+
+    <h2 id="formats">In Other Formats</h2>
+
+    <table>
+      <thead>
+        <tr><th>Format</th><th>Sequences</th><th>Sections</th><th>Act breaks</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Final Draft (.fdx)</td><td>Kept when the file comes back into OpenDraft</td><td>Left out</td><td>New Act / End of Act</td></tr>
+        <tr><td>Fountain (.fountain)</td><td>Kept, as a <code>[[Sequence: &hellip;]]</code> note on the scene</td><td>Kept, as <code>#</code> headings</td><td>Written as upper-case action, so they come back as action</td></tr>
+        <tr><td>Fade In (.fadein) / OSF</td><td>Kept when the file comes back into OpenDraft</td><td>Left out</td><td>Written as plain text</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">&#8505;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Good to know:</strong> Sections never print and don&rsquo;t count towards page length. Final Draft and Fade In ignore OpenDraft&rsquo;s sequence labels, so they are only visible again when the file is opened in OpenDraft.</p>
+      </div>
+    </div>
+
+    <div class="page-nav">
+      <a href="beat-board.html">
+        <span class="nav-label">&larr; Previous</span>
+        <span class="nav-title">Beat Board</span>
+      </a>
+      <a href="characters.html" class="nav-next">
+        <span class="nav-label">Next &rarr;</span>
+        <span class="nav-title">Characters</span>
+      </a>
+    </div>
+
+  </div>
+  <footer class="footer">
+    OpenDraft User Manual &middot; v2.8.2 &middot; Made by Proteus Technologies
+  </footer>
+</main>
+
+<script src="search.js"></script>
+</body>
+</html>

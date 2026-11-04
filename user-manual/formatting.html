@@ -46,12 +46,14 @@
     <a href="title-page.html" class="sidebar-link">Title Page</a>
     <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
     <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+    <a href="ai-assistant.html" class="sidebar-link">AI Assistant</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Story Planning</div>
     <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
     <a href="index-cards.html" class="sidebar-link">Index Cards</a>
     <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+    <a href="outline.html" class="sidebar-link">Outline</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Characters &amp; Notes</div>
@@ -319,6 +321,25 @@
 
     <p>The built-in <strong>Podcast</strong> format comes with numbering already on: every line of dialogue is numbered through the whole script, and sound effects and music cues are numbered on their own as FX 1, FX 2&hellip; and MX 1, MX 2&hellip;. To change any of it, duplicate the format and edit the copy.</p>
 
+    <h4 id="lock-element-numbers">Locking element numbers</h4>
+
+    <p>Once a recording or shooting script has gone out, a line has to keep its number even if the script changes &mdash; &ldquo;pick up from line 41&rdquo; must still mean the same line next week. Choose <strong>Tools &gt; Production &gt; Lock Element Numbers</strong> to fix every number where it is now. This works like <a href="scene-navigator.html#lock-numbers">Lock Scene Numbers</a>, which stays separate:</p>
+    <ul>
+      <li>A line added between two locked ones gets a letter suffix instead of renumbering everything after it: a new line between 12 and 13 becomes <strong>12A</strong>, and the next one <strong>12B</strong>. Between 12 and 12A it becomes <strong>A12A</strong>.</li>
+      <li>Locked numbers stay with their text when you edit around them, drag a line somewhere else, save, undo or redo. A pasted copy of a line doesn&rsquo;t take its number with it.</li>
+      <li>To give one element a reference of your own, put the cursor in it and choose <strong>Tools &gt; Production &gt; Edit Element Number&hellip;</strong>. Type the new number and click <strong>Save</strong>, or click <strong>Use Automatic Number</strong>. A number already used in the same count is refused.</li>
+      <li>Choose <strong>Lock Element Numbers</strong> again (it shows a tick while locked) to unlock. The numbers then flow automatically again. If any references you set by hand remain, <strong>Use Automatic Element Numbers</strong> clears them too.</li>
+    </ul>
+
+    <p>Locked and hand-set references print in PDF, Word and Final Draft exports. Numbers on lines other than scene headings in a Final Draft (.fdx) file are kept when you import it, but unlocked, so you decide when to lock them.</p>
+
+    <div class="callout callout-warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div class="callout-content">
+        <p><strong>Collaborating:</strong> if two people add a line at the same spot at the same time, both lines can come out as 12A. Once the changes have synced, fix one of them with <strong>Edit Element Number&hellip;</strong>.</p>
+      </div>
+    </div>
+
     <div class="callout callout-info">
       <span class="callout-icon">&#8505;&#65039;</span>
       <div class="callout-content">
@@ -457,7 +478,7 @@
 
     <ol class="steps">
       <li>In the template editor, click <strong>+ New</strong> above the element list.</li>
-      <li>Give it a label (e.g., &ldquo;V.O. Insert&rdquo; or &ldquo;Flashback&rdquo;).</li>
+      <li>Give it a label (e.g., &ldquo;V.O. Insert&rdquo; or &ldquo;Flashback&rdquo;). The new element&rsquo;s name is already selected, so just start typing.</li>
       <li>Configure its formatting attributes like any other element, then click <strong>Save</strong>.</li>
     </ol>
 
@@ -521,6 +542,12 @@
     </ul>
 
     <p>The automatic (CONT'D) is scene-aware: it is <em>not</em> carried across a new scene heading, and if you delete it at a particular cue, OpenDraft remembers that choice. A (CONT'D) you type manually is always left untouched.</p>
+
+    <h3 id="long-paragraphs">Paragraphs longer than a page</h3>
+
+    <p>An ordinary paragraph that fits on a page is never split: it moves whole to the next page, as before. A single action, dialogue or lyric paragraph that is too tall for any page (a long monologue, say) now continues onto the next page on screen and in the PDF, instead of running past the bottom margin. Each piece keeps at least two lines, and the break falls at the end of a sentence where it can. A continued speech gets the (MORE) and (CONT'D) markers set above.</p>
+
+    <p>The same applies to dual dialogue: an exchange taller than a page continues across pages with the two columns kept side by side, and (MORE)/(CONT'D) appear only on the side whose speech is unfinished. These breaks are only how the page is laid out. The paragraph stays one paragraph when you edit, copy, save or export it to another format.</p>
 
     <h2 id="page-breaks">Page Breaks</h2>
 

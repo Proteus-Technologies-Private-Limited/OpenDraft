@@ -46,12 +46,14 @@
     <a href="title-page.html" class="sidebar-link">Title Page</a>
     <a href="find-replace.html" class="sidebar-link">Find &amp; Replace</a>
     <a href="spell-check.html" class="sidebar-link">Spell Check</a>
+    <a href="ai-assistant.html" class="sidebar-link">AI Assistant</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Story Planning</div>
     <a href="scene-navigator.html" class="sidebar-link">Scene Navigator</a>
     <a href="index-cards.html" class="sidebar-link">Index Cards</a>
     <a href="beat-board.html" class="sidebar-link">Beat Board</a>
+    <a href="outline.html" class="sidebar-link">Outline</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Characters &amp; Notes</div>
@@ -298,15 +300,28 @@
     <p>Go to <strong>File &gt; Export &gt; OpenDraft (.odraft)</strong>. This is the lossless one: the script plus its notes, tags, beats, character profiles and images, in a single file. Use it to move a screenplay between machines, or to keep a complete copy of your own. It is the same format <a href="backups.html">backups</a> are written in.</p>
 
     <h3 id="export-pdf">PDF</h3>
-    <p>Go to <strong>File &gt; Export &gt; PDF</strong>. The PDF is formatted to industry-standard screenplay specifications.</p>
+    <p>Go to <strong>File &gt; Export &gt; PDF&hellip;</strong>. The PDF is formatted to industry-standard screenplay specifications.</p>
 
     <p>Before exporting to PDF, you may want to:</p>
     <ul>
       <li>Turn off note highlights (<strong>View &gt; Note Highlights</strong>)</li>
       <li>Turn off tag highlights (<strong>View &gt; Tag Highlights</strong>)</li>
       <li>Check your <a href="page-setup.html">Page Setup</a> settings</li>
-      <li>Decide whether to include the title page &mdash; the checkbox at the bottom of <strong>Format &gt; Title Page</strong>. See <a href="title-page.html#include-in-output">Leaving the Title Page Out</a>.</li>
     </ul>
+
+    <h3 id="export-pdf-options">PDF Export Options</h3>
+    <p>The <strong>Export PDF</strong> dialog opens before the file is written. Use it to print part of the script, or to change how this one copy looks, without making a copy of the script first:</p>
+    <ul>
+      <li><strong>Range</strong> &mdash; export a run of scenes: choose the first and last in <strong>From</strong> and <strong>To</strong>. They start at the first and last scene, so the whole script is exported unless you change them.</li>
+      <li><strong>Pick scenes</strong> &mdash; tick any combination of scenes. All scenes start ticked. Type in <strong>Search scenes&hellip;</strong> to narrow the list; <strong>All</strong> and <strong>None</strong> act only on the scenes shown, so you can search, press <strong>None</strong>, then clear the search to untick a group at once. Picked scenes always come out in script order. <strong>Export PDF</strong> stays greyed out until at least one scene is ticked.</li>
+      <li><strong>Title page</strong> &mdash; starts with the script&rsquo;s own setting, the checkbox at the bottom of <strong>Format &gt; Title Page</strong> (see <a href="title-page.html#include-in-output">Leaving the Title Page Out</a>).</li>
+      <li><strong>Page numbers</strong> &mdash; on by default. Turned off, only the page-number fields are taken out of your header and footer; the rest of the line stays as you wrote it, so <code>Page {page} - Draft:</code> prints as <code>Draft:</code>.</li>
+      <li><strong>Scene numbers</strong> &mdash; starts with whether scene numbers are showing in the script.</li>
+      <li><strong>One scene per page</strong> &mdash; starts every scene on a fresh sheet. The first scene follows the title page (or the opening <code>FADE IN:</code>) as usual rather than getting a page to itself.</li>
+      <li><strong>Watermark</strong> &mdash; prints faint diagonal text across every page. The text starts as <code>CONFIDENTIAL</code> and can be changed. For a password or a separate copy for each recipient, use <a href="#export-pdf-secure">PDF with a Watermark or Password</a> instead.</li>
+    </ul>
+    <p>These choices apply only to this export. They don&rsquo;t change the script&rsquo;s own settings, and the dialog starts fresh each time. A partial export numbers its pages from 1, and its file name says what it holds, for example <em>My Script - Scenes 3-7</em> or <em>My Script - Selected Scenes</em>. The opening matter before the first scene heading is included only when scene 1 is. An act break just before a scene goes with that scene. To keep the full script&rsquo;s page and scene numbers on a few pages, for an actor&rsquo;s sides, use <a href="#export-sides">Sides &amp; Selected Pages</a>.</p>
+    <p>Locked page numbers such as 12A appear only when you export the whole script without <strong>One scene per page</strong>. File &gt; Print and the other PDF exports don&rsquo;t use this dialog.</p>
 
     <h3 id="export-pdf-languages">Scripts in Other Languages</h3>
     <p>A script doesn&rsquo;t have to be in English to export. OpenDraft carries its own fonts for PDF export, so the PDF looks the same on every computer and phone you send it to, whether or not they have those fonts installed:</p>
