@@ -10,6 +10,7 @@ import {
   smartTypeMove,
   suggestSmartType,
   type ScriptIndex,
+  type BlockNodeLike,
 } from './smartType';
 import { pmDoc } from '../test/screenplaySchema';
 
@@ -140,8 +141,8 @@ describe('suggestSmartType: limits and boundaries', () => {
 });
 
 describe('collectScriptBlocks', () => {
-  const fakeDoc = (entries: Array<{ pos: number; block: any }>) => ({
-    descendants: (callback: (node: any, pos: number) => boolean | void) => {
+  const fakeDoc = (entries: Array<{ pos: number; block: BlockNodeLike }>) => ({
+    descendants: (callback: (node: BlockNodeLike, pos: number) => boolean | void) => {
       for (const entry of entries) {
         if (callback(entry.block, entry.pos) === false) return;
       }
@@ -307,5 +308,58 @@ describe('smartTypeMove', () => {
 
   it('copes with an empty list', () => {
     expect(smartTypeMove(0, false, true, 'down', 0)).toBe(0);
+  });
+});
+
+describe('custom SmartType lists', () => {
+  const lists = {
+    scenePrefixes: ['DREAM. ', 'INT. DREAM: ', '[PAST]+ '], times: ['MAGIC HOUR', 'NOON'],
+    characterExtensions: ['(THROUGH PHONE)'], transitions: ['FADE TO WHITE:', 'CUT TO:'],
+  };
+  const customItems = (element: string, text: string, script = emptyScriptIndex()) =>
+    suggestSmartType(element, text, text.length, script, lists)?.items ?? [];
+
+  it('offers saved values in each category instead of restoring removed defaults', () => {
+    expect(customItems('sceneHeading', 'DR')).toEqual(['DREAM. ']);
+    expect(customItems('sceneHeading', 'EX')).toEqual([]);
+    expect(customItems('sceneHeading', 'DREAM. ROOM - N')).toEqual(['NOON']);
+    expect(customItems('character', 'MARY (T')).toEqual(['(THROUGH PHONE)']);
+    expect(customItems('character', 'MARY (V')).toEqual([]);
+    expect(customItems('transition', 'FA')).toEqual(['FADE TO WHITE:']);
+  });
+
+  it('indexes locations after custom prefixes and offers them at the correct offset', () => {
+    const script = buildScriptIndex([
+      { type: 'sceneHeading', text: 'DREAM. CASTLE - NOON' },
+      { type: 'sceneHeading', text: 'INT. DREAM: CASTLE GARDEN - MAGIC HOUR' },
+      { type: 'sceneHeading', text: '[PAST]+ HALL - NIGHT' },
+    ], lists);
+    expect(script.locations).toEqual(['CASTLE', 'CASTLE GARDEN', 'HALL']);
+    expect(suggestSmartType('sceneHeading', 'DREAM. C', 8, script, lists))
+      .toEqual({ from: 7, items: ['CASTLE', 'CASTLE GARDEN'] });
+    expect(suggestSmartType('sceneHeading', 'INT. DREAM: C', 13, script, lists)?.from).toBe(12);
+    expect(customItems('sceneHeading', '[PAST]+ H', script)).toEqual(['HALL']);
+  });
+
+  it('still recognizes standard prefixes after they are removed from suggestions', () => {
+    const script = buildScriptIndex([{ type: 'sceneHeading', text: 'INT. DINER - DAY' }], lists);
+    expect(script.locations).toEqual(['DINER']);
+    expect(customItems('sceneHeading', 'INT. D', script)).toEqual(['DINER']);
+  });
+
+  it('continues suggesting script-used times and transitions with empty saved lists', () => {
+    const empty = { scenePrefixes: [], times: [], characterExtensions: [], transitions: [] };
+    const script = buildScriptIndex([
+      { type: 'sceneHeading', text: 'INT. DINER - NIGHT' },
+      { type: 'transition', text: 'SMASH CUT TO:' },
+    ], empty);
+    expect(suggestSmartType('sceneHeading', 'INT. DINER - N', 14, script, empty)?.items).toEqual(['NIGHT']);
+    expect(suggestSmartType('transition', 'S', 1, script, empty)?.items).toEqual(['SMASH CUT TO:']);
+    expect(suggestSmartType('character', 'MARY (', 6, script, empty)).toBeNull();
+  });
+
+  it('keeps the saved order and removes overlaps with learned suggestions', () => {
+    const script = { characters: [], locations: [], times: ['NOON', 'NIGHT'], transitions: [] };
+    expect(customItems('sceneHeading', 'INT. ROOM - ', script)).toEqual(['MAGIC HOUR', 'NOON', 'NIGHT']);
   });
 });

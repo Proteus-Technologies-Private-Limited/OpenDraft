@@ -9,7 +9,7 @@
  *
  * SmartType offers those parts as you type them, from two sources:
  *
- * - built-in lists, so the first scene is helped too (scene prefixes, times of
+ * - saved lists, initially the shipped defaults (scene prefixes, times of
  *   day, character extensions and the standard transitions);
  * - what the script already uses, so a location or a character only has to be
  *   typed once.
@@ -25,31 +25,16 @@
 
 import { parseHeading } from '../utils/scriptStatistics';
 import { characterKey } from '../utils/nodeText';
+import { DEFAULT_SMARTTYPE_LISTS, matchScenePrefix, type SmartTypeLists } from '../utils/smartTypeLists';
+
+// Retain the shipped vocabulary exports for existing consumers.
+export const SCENE_PREFIXES = DEFAULT_SMARTTYPE_LISTS.scenePrefixes;
+export const TIMES_OF_DAY = DEFAULT_SMARTTYPE_LISTS.times;
+export const CHARACTER_EXTENSIONS = DEFAULT_SMARTTYPE_LISTS.characterExtensions;
+export const TRANSITIONS = DEFAULT_SMARTTYPE_LISTS.transitions;
 
 /** Most suggestions offered at once, so the popup stays a glance. */
 export const MAX_ITEMS = 12;
-
-/** The scene-heading prefixes the industry uses. */
-export const SCENE_PREFIXES: readonly string[] = [
-  'INT. ', 'EXT. ', 'INT./EXT. ', 'EST. ', 'I/E. ',
-];
-
-/** Times of day offered after " - ", even in a script that never used one. */
-export const TIMES_OF_DAY: readonly string[] = [
-  'DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING',
-  'DAWN', 'DUSK', 'CONTINUOUS', 'LATER', 'MOMENTS LATER', 'SAME TIME',
-];
-
-/** Parenthetical extensions a character cue can carry. */
-export const CHARACTER_EXTENSIONS: readonly string[] = [
-  '(V.O.)', '(O.S.)', '(O.C.)', "(CONT'D)",
-];
-
-/** Transitions offered in a transition block. */
-export const TRANSITIONS: readonly string[] = [
-  'CUT TO:', 'DISSOLVE TO:', 'SMASH CUT TO:', 'MATCH CUT TO:', 'JUMP CUT TO:',
-  'FADE TO:', 'FADE OUT.', 'FADE TO BLACK.', 'INTERCUT WITH:',
-];
 
 /**
  * What the script already contains, harvested once per edit instead of per
@@ -230,14 +215,14 @@ function pushUnique(list: string[], value: string): void {
  * KITCHEN as a time. There is no way to tell it from a custom time like NOON,
  * and the cost is only a stray completion, so custom times win.
  */
-function splitHeading(raw: string): { location: string; time: string } {
+function splitHeading(raw: string, lists: SmartTypeLists): { location: string; time: string } {
   const text = raw.trim();
   const dash = text.lastIndexOf(' - ');
   if (dash < 0) {
-    const { location, timeOfDay } = parseHeading(text);
+    const { location, timeOfDay } = parseHeading(text, lists.scenePrefixes);
     return { location, time: timeOfDay };
   }
-  const { location } = parseHeading(text.slice(0, dash));
+  const { location } = parseHeading(text.slice(0, dash), lists.scenePrefixes);
   const time = text.slice(dash + 3)
     .replace(/(\s*(?:\([^)]*\)|\[[^\]]*\]))*\s*$/, '')
     .trim()
@@ -249,7 +234,9 @@ function splitHeading(raw: string): { location: string; time: string } {
  * Collect characters, locations, times and transitions from the document, in
  * the order they first appear.
  */
-export function buildScriptIndex(blocks: Iterable<BlockLike>): ScriptIndex {
+export function buildScriptIndex(
+  blocks: Iterable<BlockLike>, lists: SmartTypeLists = DEFAULT_SMARTTYPE_LISTS,
+): ScriptIndex {
   const index = emptyScriptIndex();
   for (const block of blocks) {
     if (block.type === 'character') {
@@ -257,7 +244,7 @@ export function buildScriptIndex(blocks: Iterable<BlockLike>): ScriptIndex {
       // "MARGO (V.O.)" and "margo" are one character.
       pushUnique(index.characters, characterKey(block.text));
     } else if (block.type === 'sceneHeading') {
-      const { location, time } = splitHeading(block.text);
+      const { location, time } = splitHeading(block.text, lists);
       pushUnique(index.locations, location);
       pushUnique(index.times, time);
     } else if (block.type === 'transition') {
@@ -304,6 +291,7 @@ export function suggestSmartType(
   text: string,
   caret: number,
   index: ScriptIndex,
+  lists: SmartTypeLists = DEFAULT_SMARTTYPE_LISTS,
 ): SmartTypeSuggestion | null {
   // Completion only makes sense at the end of the block: replacing a range
   // around a caret in the middle would silently eat the words after it.
@@ -313,7 +301,7 @@ export function suggestSmartType(
   if (element === 'character') {
     // After "(" the only thing that can follow is an extension.
     const open = text.lastIndexOf('(');
-    if (open >= 0) return suggestion(open, filter(CHARACTER_EXTENSIONS, text.slice(open)));
+    if (open >= 0) return suggestion(open, filter(lists.characterExtensions, text.slice(open)));
     return suggestion(0, filter(index.characters, text));
   }
 
@@ -322,19 +310,20 @@ export function suggestSmartType(
     const dash = text.lastIndexOf(' - ');
     if (dash >= 0) {
       const from = dash + 3;
-      return suggestion(from, filter([...TIMES_OF_DAY, ...index.times], text.slice(from)));
+      return suggestion(from, filter([...lists.times, ...index.times], text.slice(from)));
     }
     // Before a prefix is complete, offer prefixes. "INT." has no trailing
     // space yet, so the regex below does not match it and this branch runs.
-    const prefix = SCENE_PREFIX_RE.exec(text);
-    if (!prefix) return suggestion(0, filter(SCENE_PREFIXES, text));
+    const prefixLength = matchScenePrefix(text, lists.scenePrefixes)?.length
+      ?? SCENE_PREFIX_RE.exec(text)?.[0].length;
+    if (!prefixLength) return suggestion(0, filter(lists.scenePrefixes, text));
     // The location is what follows "INT. " or "EXT. ".
-    const from = prefix[0].length;
+    const from = prefixLength;
     return suggestion(from, filter(index.locations, text.slice(from)));
   }
 
   if (element === 'transition') {
-    return suggestion(0, filter([...TRANSITIONS, ...index.transitions], text));
+    return suggestion(0, filter([...lists.transitions, ...index.transitions], text));
   }
 
   return null;

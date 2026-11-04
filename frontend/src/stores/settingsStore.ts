@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { parseShortcut } from '../utils/shortcuts';
 import { DEFAULT_ELEMENT_MENU_SHORTCUT } from '../utils/elementMenu';
 import { normalizeMacros, type Macro } from '../utils/macros';
+import { normalizeSmartTypeLists, type SmartTypeLists } from '../utils/smartTypeLists';
 
 export interface CollabUser {
   id: string;
@@ -120,6 +121,9 @@ interface SettingsState {
   defaultFileFormat: string;
   setDefaultFileFormat: (format: string) => void;
 
+  smartTypeLists: SmartTypeLists;
+  setSmartTypeLists: (lists: SmartTypeLists) => void;
+
   // ── Editing ───────────────────────────────────────────────────────────
   /**
    * Whether Enter on a blank line offers the element menu. Off means Enter is
@@ -182,6 +186,7 @@ const STORAGE_KEY_ELEMENT_MENU_ON_ENTER = 'opendraft:elementMenuOnEnter';
 const STORAGE_KEY_PRINT_VIA_PDF = 'opendraft:printViaPdf';
 const STORAGE_KEY_ELEMENT_MENU_SHORTCUT = 'opendraft:elementMenuShortcut';
 const STORAGE_KEY_MACROS = 'opendraft:macros';
+const STORAGE_KEY_SMARTTYPE = 'opendraft:smartTypeLists';
 
 export const BACKUP_INTERVAL_OPTIONS = [5, 10, 15, 30, 60] as const;
 /** 0 means "keep every snapshot". */
@@ -218,6 +223,15 @@ function loadElementMenuShortcut(): string {
     return raw && parseShortcut(raw) ? raw : '';
   } catch {
     return DEFAULT_ELEMENT_MENU_SHORTCUT;
+  }
+}
+
+function loadSmartTypeLists(): SmartTypeLists {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_SMARTTYPE);
+    return normalizeSmartTypeLists(raw === null ? null : JSON.parse(raw));
+  } catch {
+    return normalizeSmartTypeLists(null);
   }
 }
 
@@ -444,6 +458,15 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const clean = spec && parseShortcut(spec) ? spec : '';
     try { localStorage.setItem(STORAGE_KEY_ELEMENT_MENU_SHORTCUT, clean); } catch { /* ignore */ }
     set({ elementMenuShortcut: clean });
+  },
+
+  smartTypeLists: loadSmartTypeLists(),
+  setSmartTypeLists: (lists) => {
+    const clean = normalizeSmartTypeLists(lists);
+    // Persist before changing the editor's vocabulary. The settings form keeps
+    // its draft and shows an error if the device cannot save the lists.
+    localStorage.setItem(STORAGE_KEY_SMARTTYPE, JSON.stringify(clean));
+    set({ smartTypeLists: clean });
   },
 
   macros: loadMacros(),
