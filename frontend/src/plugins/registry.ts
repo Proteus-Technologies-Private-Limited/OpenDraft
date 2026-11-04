@@ -11,6 +11,7 @@
  */
 
 import type { Editor, JSONContent } from '@tiptap/core';
+import type { ReactNode } from 'react';
 
 // ── Plugin types ──
 
@@ -27,7 +28,7 @@ export interface PluginMenuChildEntry {
   shortcut?: string;
   disabled?: boolean | ((ctx: PluginContext) => boolean);
   separator?: boolean;
-  icon?: string;
+  icon?: ReactNode;
 }
 
 export interface PluginMenuEntry {
@@ -40,7 +41,7 @@ export interface PluginMenuEntry {
   disabled?: boolean | ((ctx: PluginContext) => boolean);
   separator?: boolean;
   children?: PluginMenuChildEntry[];
-  icon?: string;
+  icon?: ReactNode;
 }
 
 export interface PluginPanelEntry {

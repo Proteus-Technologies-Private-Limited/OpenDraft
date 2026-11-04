@@ -21,10 +21,12 @@
  */
 import { pluginRegistry, type OpenDraftPlugin } from '../plugins/registry';
 import aiAssistant from './ai-assistant';
+import dictation from './dictation';
 
 /** Every add-on that ships with the core. */
 export const CORE_ADDONS: readonly OpenDraftPlugin[] = [
   aiAssistant,
+  dictation,
 ];
 
 /** Why an add-on cannot be registered, or null when it can. */

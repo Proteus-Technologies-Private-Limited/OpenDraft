@@ -220,6 +220,9 @@ const aiAssistant: OpenDraftPlugin = {
 
 export default aiAssistant;</code></pre>
 
+    <p>Menu entries and their children accept an optional <code>icon</code> as a string or a React node.
+       Use an SVG React icon to match the built-in menu style; existing string icons still work.</p>
+
     <h3 id="sample-settings-store">2. Settings on the device &mdash; <code>settingsStore.ts</code></h3>
     <p>Settings are stored per device, never inside scripts, and deleted when the writer asks.</p>
     <pre><code>/** The assistant's settings, kept on this device only. */

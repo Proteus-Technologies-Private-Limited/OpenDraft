@@ -11,6 +11,8 @@ fn main() {
     // we tell the linker to allow undefined symbols in it.
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if target_os == "ios" {
+        println!("cargo:rustc-link-lib=framework=Speech");
+        println!("cargo:rustc-link-lib=framework=AVFoundation");
         println!("cargo:rustc-cdylib-link-arg=-Wl,-undefined,dynamic_lookup");
     }
 

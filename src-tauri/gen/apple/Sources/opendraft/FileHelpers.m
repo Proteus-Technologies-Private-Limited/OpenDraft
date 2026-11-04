@@ -2,6 +2,7 @@
 #import <Foundation/Foundation.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <objc/runtime.h>
+#import "DictationSupport.h"
 
 // ── iOS Share Sheet ─────────────────────────────────────────────────────────
 // Present the native iOS share sheet for a file.
@@ -1353,3 +1354,178 @@ static void od_install_scene_config_hook(Class delegateClass) {
 }
 
 @end
+
+// Device dictation uses the same short-lived polling bridge as file pickers.
+#import <Speech/Speech.h>
+#import <AVFoundation/AVFoundation.h>
+static NSString *gDictationId;
+static NSMutableArray *gDictationEvents;
+static AVAudioEngine *gDictationEngine;
+static SFSpeechAudioBufferRecognitionRequest *gDictationRequest;
+static SFSpeechRecognitionTask *gDictationTask;
+static SFSpeechRecognizer *gDictationRecognizer;
+static BOOL gDictationTap;
+static BOOL gDictationStopping;
+static NSString *gDictationPreviousCategory;
+static NSString *gDictationPreviousMode;
+static AVAudioSessionCategoryOptions gDictationPreviousOptions;
+void ios_dictation_cancel(const char *session);
+void ios_dictation_stop(const char *session);
+@interface OpenDraftDictationLifecycle : NSObject
+@end
+@implementation OpenDraftDictationLifecycle
++ (void)load {
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
+        if (gDictationId) ios_dictation_cancel(gDictationId.UTF8String);
+    }];
+}
+@end
+
+static void dictation_event(NSString *session, NSString *kind, NSString *text, NSString *message) {
+    if (!session) return;
+    if (!gDictationEvents) gDictationEvents = [NSMutableArray array];
+    if (gDictationEvents.count > 50) [gDictationEvents removeObjectAtIndex:0];
+    [gDictationEvents addObject:@{@"id": session, @"kind": kind, @"text": text ?: @"", @"message": message ?: @""}];
+}
+static void dictation_log_error(NSError *error) {
+    if (!error) return;
+    NSLog(@"[Dictation] Native failure: domain=%@ code=%ld description=%@",
+          error.domain, (long)error.code, error.localizedDescription);
+}
+static void dictation_cleanup(void) {
+    [gDictationEngine stop];
+    if (gDictationTap) [gDictationEngine.inputNode removeTapOnBus:0];
+    gDictationTap = NO;
+    [gDictationRequest endAudio];
+    [gDictationTask cancel];
+    gDictationTask = nil; gDictationRequest = nil; gDictationEngine = nil; gDictationRecognizer = nil;
+    if (gDictationPreviousCategory) {
+        AVAudioSession *audio = [AVAudioSession sharedInstance];
+        [audio setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
+        [audio setCategory:gDictationPreviousCategory mode:gDictationPreviousMode options:gDictationPreviousOptions error:nil];
+        gDictationPreviousCategory = nil; gDictationPreviousMode = nil;
+    }
+    gDictationStopping = NO;
+}
+void ios_dictation_cancel(const char *session) {
+    NSString *sid = session ? @(session) : @"";
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (![gDictationId isEqualToString:sid]) return;
+        gDictationId = nil;
+        dictation_cleanup();
+    });
+}
+// End audio without cancelling SFSpeechRecognitionTask: its final result arrives asynchronously.
+void ios_dictation_stop(const char *session) {
+    NSString *sid = session ? @(session) : @"";
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (![gDictationId isEqualToString:sid] || gDictationStopping) return;
+        gDictationStopping = YES;
+        [gDictationEngine stop];
+        if (gDictationTap) [gDictationEngine.inputNode removeTapOnBus:0];
+        gDictationTap = NO;
+        [gDictationRequest endAudio];
+        if (!gDictationTask) {
+            dictation_event(sid, @"end", nil, nil);
+            gDictationId = nil; dictation_cleanup(); return;
+        }
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+            if (![gDictationId isEqualToString:sid]) return;
+            dictation_event(sid, @"error", nil, @"Speech recognition did not return a final result.");
+            dictation_event(sid, @"end", nil, nil);
+            gDictationId = nil; dictation_cleanup();
+        });
+    });
+}
+// Match only locales Apple advertises. The settings UI stores language codes,
+// while Speech usually requires a regional locale such as en-US or fr-FR.
+static NSLocale *dictation_locale(NSString *language) {
+    return dictation_supported_locale(language, [NSLocale currentLocale],
+                                      [SFSpeechRecognizer supportedLocales]);
+}
+void ios_dictation_start(const char *session, const char *language) {
+    NSString *sid = session ? @(session) : @"";
+    NSString *lang = language ? @(language) : @"en";
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (gDictationId) { dictation_event(sid, @"error", nil, @"Another dictation session is active."); return; }
+        gDictationId = sid;
+        [SFSpeechRecognizer requestAuthorization:^(SFSpeechRecognizerAuthorizationStatus status) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (![gDictationId isEqualToString:sid]) return;
+                if (status != SFSpeechRecognizerAuthorizationStatusAuthorized) {
+                    dictation_event(sid, @"error", nil, @"Allow Speech Recognition in iOS Settings to use device dictation."); gDictationId = nil; return;
+                }
+                [[AVAudioSession sharedInstance] requestRecordPermission:^(BOOL granted) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        if (![gDictationId isEqualToString:sid]) return;
+                        if (!granted) { dictation_event(sid, @"error", nil, @"Allow Microphone access in iOS Settings."); gDictationId = nil; return; }
+                        NSLocale *locale = dictation_locale(lang);
+                        if (!locale) { dictation_event(sid, @"error", nil, @"Apple speech recognition does not support this language. Choose another language in Dictation settings."); gDictationId = nil; return; }
+                        NSLog(@"[Dictation] Requested language %@; selected Apple locale %@", lang, locale.localeIdentifier);
+                        gDictationRecognizer = [[SFSpeechRecognizer alloc] initWithLocale:locale];
+                        if (!gDictationRecognizer.available) { dictation_event(sid, @"error", nil, @"Speech recognition is unavailable for this language or connection."); gDictationId = nil; gDictationRecognizer = nil; return; }
+                        NSError *error = nil;
+                        AVAudioSession *audio = [AVAudioSession sharedInstance];
+                        gDictationPreviousCategory = audio.category;
+                        gDictationPreviousMode = audio.mode;
+                        gDictationPreviousOptions = audio.categoryOptions;
+                        if (![audio setCategory:AVAudioSessionCategoryRecord mode:AVAudioSessionModeMeasurement options:AVAudioSessionCategoryOptionDuckOthers error:&error] || ![audio setActive:YES error:&error]) {
+                            dictation_log_error(error);
+                            dictation_event(sid, @"error", nil, error.localizedDescription); gDictationId = nil; dictation_cleanup(); return;
+                        }
+                        gDictationEngine = [[AVAudioEngine alloc] init];
+                        gDictationRequest = [[SFSpeechAudioBufferRecognitionRequest alloc] init];
+                        gDictationRequest.shouldReportPartialResults = YES;
+                        BOOL onDevice = gDictationRecognizer.supportsOnDeviceRecognition;
+                        if (onDevice) {
+                            gDictationRequest.requiresOnDeviceRecognition = YES;
+                            dictation_event(sid, @"notice", nil, @"Using on-device Apple speech recognition.");
+                        } else {
+                            dictation_event(sid, @"notice", nil, @"On-device recognition is unavailable for this language; Apple may process audio remotely.");
+                        }
+                        gDictationTask = [gDictationRecognizer recognitionTaskWithRequest:gDictationRequest resultHandler:^(SFSpeechRecognitionResult *result, NSError *failure) {
+                            dictation_log_error(failure);
+                            dispatch_async(dispatch_get_main_queue(), ^{
+                                if (![gDictationId isEqualToString:sid]) return;
+                                if (result) dictation_event(sid, result.isFinal ? @"result" : @"interim", result.bestTranscription.formattedString, nil);
+                                if (failure || result.isFinal) {
+                                    if (failure && !result.isFinal) {
+                                        dictation_event(sid, @"error", nil, dictation_recognition_error(failure, onDevice));
+                                    }
+                                    dictation_event(sid, @"end", nil, nil); gDictationId = nil; dictation_cleanup();
+                                }
+                            });
+                        }];
+                        AVAudioInputNode *input = gDictationEngine.inputNode;
+                        AVAudioFormat *format = [input outputFormatForBus:0];
+                        if (format.sampleRate <= 0 || format.channelCount == 0) { dictation_event(sid, @"error", nil, @"No microphone input is available."); gDictationId = nil; dictation_cleanup(); return; }
+                        SFSpeechAudioBufferRecognitionRequest *request = gDictationRequest;
+                        [input installTapOnBus:0 bufferSize:1024 format:format block:^(AVAudioPCMBuffer *buffer, AVAudioTime *time) { [request appendAudioPCMBuffer:buffer]; }];
+                        gDictationTap = YES;
+                        [gDictationEngine prepare];
+                        if (![gDictationEngine startAndReturnError:&error]) {
+                            dictation_log_error(error);
+                            dictation_event(sid, @"error", nil, error.localizedDescription);
+                            gDictationId = nil; dictation_cleanup(); return;
+                        }
+                        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 30 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+                            if ([gDictationId isEqualToString:sid]) ios_dictation_stop(sid.UTF8String);
+                        });
+                    });
+                }];
+            });
+        }];
+    });
+}
+char *ios_dictation_poll(const char *session) {
+    NSString *sid = session ? @(session) : @"";
+    __block char *out = NULL;
+    void (^drain)(void) = ^{
+        NSArray *events = [gDictationEvents filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"id == %@", sid]] ?: @[];
+        NSData *data = [NSJSONSerialization dataWithJSONObject:events options:0 error:nil];
+        out = strdup([[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding].UTF8String);
+        [gDictationEvents removeObjectsInArray:events];
+    };
+    if ([NSThread isMainThread]) drain(); else dispatch_sync(dispatch_get_main_queue(), drain);
+    return out;
+}

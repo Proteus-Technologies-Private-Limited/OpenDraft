@@ -3,6 +3,8 @@
  * built-in import paths, and a plugin can never take over a built-in format.
  */
 import { describe, it, expect, afterEach } from 'vitest';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { pluginRegistry, type OpenDraftPlugin } from './registry';
 import {
   binaryImportExtensions,
@@ -97,5 +99,29 @@ describe('plugin exporters and reports', () => {
     pluginRegistry.register(plugin);
     off();
     expect(calls).toBe(1);
+  });
+});
+
+
+describe('plugin menu icons', () => {
+  const svg = createElement('svg', { 'aria-hidden': true }, createElement('path', { d: 'M0 0h1v1' }));
+
+  it.each([
+    { name: 'root SVG and child text', rootIcon: svg, childIcon: 'ℹ' },
+    { name: 'root text and child SVG', rootIcon: 'ℹ', childIcon: svg },
+  ])('supports $name without changing existing string icons', ({ rootIcon, childIcon }) => {
+    pluginRegistry.register({
+      id: plugin.id, name: 'Menu icons', version: '1',
+      menuItems: [{
+        id: 'tools-icons', section: 'Tools', label: 'Plugin tools', icon: rootIcon,
+        children: [{ id: 'child', label: 'Nested action', icon: childIcon }],
+      }],
+    });
+    const entry = pluginRegistry.getMenuItems('Tools').find((item) => item.id === 'tools-icons');
+    const markup = renderToStaticMarkup(createElement('div', null,
+      entry?.icon, entry?.children?.[0].icon,
+    ));
+    expect(markup).toContain('<svg aria-hidden="true">');
+    expect(markup).toContain('ℹ');
   });
 });

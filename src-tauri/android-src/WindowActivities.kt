@@ -28,6 +28,12 @@ open class WindowActivity : TauriActivity() {
      */
     override val handleBackNavigation: Boolean = true
 
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        MainActivity.handleDictationResult(requestCode, resultCode, data)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Matches MainActivity so a second window has the same transparent
         // system bars, and so the WebView sees the real safe-area insets.

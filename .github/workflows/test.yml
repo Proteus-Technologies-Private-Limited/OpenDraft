@@ -107,3 +107,39 @@ jobs:
           # --lib because that is what Android loads: the binary in main.rs is
           # the desktop entry point and is never built for the platform.
           cargo check --locked --lib --target aarch64-linux-android
+
+  ios-simulator:
+    name: iOS (tracked Xcode project compile)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check native dictation locale selection and failure guidance
+        run: |
+          xcrun clang -fobjc-arc -fblocks -framework Foundation \
+            -I src-tauri/gen/apple/Sources/opendraft \
+            test-script/dictation_native_test.m -o "$RUNNER_TEMP/dictation-native-tests"
+          "$RUNNER_TEMP/dictation-native-tests"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios-sim
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - name: Build frontend
+        run: cd frontend && npm ci && npm run build
+      - name: Set up root package for the Tauri Xcode build
+        run: |
+          echo '{"private":true,"scripts":{"tauri":"tauri"}}' > package.json
+          ln -s frontend/node_modules node_modules
+      # Compile the checked-in project, including FileHelpers.m and framework
+      # links. Do not run `ios init`: that would hide errors in the tracked files.
+      - name: Compile iOS Simulator app
+        env:
+          APPLE_SIGNING_IDENTITY: '-'
+        run: frontend/node_modules/.bin/tauri ios build --target aarch64-sim --debug

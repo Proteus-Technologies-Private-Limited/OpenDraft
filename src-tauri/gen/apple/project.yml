@@ -119,6 +119,8 @@ targets:
         OTHER_LDFLAGS: $(inherited) -Wl,-U,__swift_FORCE_LOAD_$$_swiftCompatibility56 -Wl,-U,__swift_FORCE_LOAD_$$_swiftCompatibilityPacks
       groups: [app]
     dependencies:
+      - sdk: Speech.framework
+      - sdk: AVFoundation.framework
       - framework: libapp.a
         embed: false
       - sdk: CoreGraphics.framework

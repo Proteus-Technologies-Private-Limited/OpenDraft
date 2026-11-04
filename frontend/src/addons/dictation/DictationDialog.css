@@ -1,0 +1,14 @@
+.dictation-panel, .dictation-panel * { box-sizing: border-box; }
+.dictation-panel { width: 100%; min-width: 0; min-height: 0; height: 100%; overflow: auto; padding: 2.25rem 1rem 1rem; background: var(--fd-dialog-bg, #fff); color: var(--fd-text, #222); }
+.dictation-panel label { display: block; margin: .75rem 0; }
+.dictation-panel select, .dictation-panel textarea { display: block; width: 100%; color: inherit; background: var(--fd-input-bg, #eee); padding: .5rem; }
+.dictation-panel input { margin-right: .5rem; }
+.dictation-controls { display: flex; flex-wrap: wrap; gap: .5rem; }
+.dictation-controls button { min-height: 44px; padding: .4rem .8rem; }
+.dictation-panel [role="alert"] { color: var(--error-color, #b00020); }
+
+.dictation-panel { font: inherit; }
+.dictation-panel button, .dictation-panel select, .dictation-panel textarea { font: inherit; }
+.dictation-panel button { background: var(--fd-menu-bg, #eee); color: inherit; border: 1px solid var(--fd-border, #888); border-radius: 4px; }
+.dictation-panel button:disabled { opacity: .5; }
+.dictation-panel :focus-visible { outline: 2px solid var(--fd-accent, #1268b3); outline-offset: 2px; }
