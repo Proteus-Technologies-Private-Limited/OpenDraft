@@ -1,3 +1,5 @@
+import { createElement } from 'react';
+import { FaMicrophone } from 'react-icons/fa';
 import type { OpenDraftPlugin } from '../../plugins/registry';
 import { PLUGIN_PANEL_OPEN_EVENT } from '../../components/PluginPanelTabs';
 import DictationPanel from './panel';
@@ -16,7 +18,7 @@ const dictation: OpenDraftPlugin = {
   },
   panels: [{ id: 'dictation-panel', slot: 'right-sidebar', label: 'Dictation', component: DictationPanel }],
   menuItems: [{
-    id: 'dictation-open', section: 'Tools', label: 'Dictation…', icon: '🎙', order: 10,
+    id: 'dictation-open', section: 'Tools', label: 'Dictation…', icon: createElement(FaMicrophone), order: 10,
     disabled: ({ editor }) => !editor || !editor.isEditable,
     action: () => document.dispatchEvent(new CustomEvent(PLUGIN_PANEL_OPEN_EVENT, { detail: { panelId: 'dictation-panel' } })),
   }],

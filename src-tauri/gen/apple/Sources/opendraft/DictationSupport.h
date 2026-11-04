@@ -46,11 +46,14 @@ static NSLocale *dictation_supported_locale(NSString *language, NSLocale *curren
     return nil;
 }
 
-static NSString *dictation_recognition_error(NSString *details, BOOL onDevice) {
-    if (onDevice) {
+// Apple's documented recognizer-initialization failure, not no-speech (1110),
+// interruptions (1107), missing assets (102), or any other error identity.
+// https://developer.apple.com/documentation/speech/sfspeechrecognitiontask/error
+static NSString *dictation_recognition_error(NSError *error, BOOL onDevice) {
+    if (onDevice && [error.domain isEqualToString:@"kLSRErrorDomain"] && error.code == 300) {
         return @"Apple's on-device speech recognition failed. Restart OpenDraft and try again after the language's speech assets finish downloading. If it keeps failing, choose Local Whisper in Settings → Add-ons → Dictation. Audio was not retried on Apple's servers.";
     }
-    return details;
+    return error.localizedDescription;
 }
 
 #endif

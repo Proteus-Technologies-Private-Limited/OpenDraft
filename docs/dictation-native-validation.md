@@ -38,7 +38,7 @@ speech assets downloaded; Table Read and Cancel were not covered by that run.
 
 The latest code normalizes locale separators before matching. The native helper
 has 19 deterministic locale cases (including en on en-GB/en-IN and fr on fr-CA),
-plus on-device failure guidance checks, run in the existing macOS CI job. To run
+plus 10 recognition-error cases, run in the existing macOS CI job. To run
 these checks locally on a Mac from the repository root:
 
 ```sh
@@ -48,8 +48,11 @@ xcrun clang -fobjc-arc -fblocks -framework Foundation \
 /tmp/opendraft-dictation-native-tests
 ```
 
-An on-device recognizer failure now gives restart/download guidance and offers
-Local Whisper as an alternative engine. It does **not** retry recorded audio on
+Only an on-device recognizer-initialization failure (`kLSRErrorDomain`, code `300`)
+gives restart/download guidance and offers Local Whisper as an alternative engine.
+Other errors, including no speech and interruptions, retain Apple’s description.
+Recognition failures and native audio setup failures log the original error domain,
+code and description under `[Dictation]`. It does **not** retry recorded audio on
 Apple's servers. Languages without on-device support retain their existing,
 disclosed Apple-processing path. The panel suppresses the stopped/review status
 after an error and clears insertion errors after a successful insertion.
@@ -99,10 +102,10 @@ recognition is available. Verify the installed app has both
 `NSMicrophoneUsageDescription` and `NSSpeechRecognitionUsageDescription`.
 
 1. Enable Dictation and choose Device speech service. Test speech/microphone allow and deny flows. No text should enter the script until Insert is chosen. Check every offered language (en, pl, fr, de, es, it, pt, ja), the current-region match and a different-language fallback. Record the requested language, device locale, and selected Apple locale from the `[Dictation]` device log for each language. Specifically verify `en` on an `en-GB` device selects `en-GB`, `en` on `en-IN` selects `en-IN`, and `fr` on `fr-CA` selects `fr-CA` when supported. Confirm defaults when the device language differs (for example `en` on `fr-CA` selects `en-US` when supported), and confirm bare language codes do not cause an unavailable-recognizer error.
-2. Start, Stop, then Start again after the on-device speech assets arrive. Record the selected locale and recognition mode each time. If a local asset fails to initialize, confirm actionable restart/Local Whisper guidance, no remote retry, no continuing microphone indicator, and no misleading “Recording stopped. Review…” status. Then speak a phrase whose last words are easy to identify. Press Stop while speaking, wait for the final result, and verify the phrase ending is retained. Repeat several times; record the actual transcript.
+2. Start, Stop, then Start again after the on-device speech assets arrive. Record the selected locale and recognition mode each time. If initialization fails with `kLSRErrorDomain` / `300`, confirm actionable restart/Local Whisper guidance, no remote retry, no continuing microphone indicator, and no misleading “Recording stopped. Review…” status. Then speak a phrase whose last words are easy to identify. Press Stop while speaking, wait for the final result, and verify the phrase ending is retained. Repeat several times; record the actual transcript.
 3. Cancel while listening and while permission is pending; close/reopen and switch scripts. Confirm stale results are ignored and the microphone stops.
 4. Play Table Read before dictation and after Stop, Cancel, Close and an error. Confirm playback remains audible; this checks restoration of the audio-session category, mode and options.
-5. Background the app and interrupt it with another audio session. Confirm capture stops appropriately and the app can record again afterwards.
+5. Start, say nothing, then Stop: confirm “No speech detected” is not replaced with asset-download/restart guidance. Record the original domain, code and description from the `[Dictation]` failure log. Background the app and interrupt it with another audio session (for example a phone call or Siri); check the interruption message likewise retains Apple’s description. Confirm capture stops appropriately and the app can record again afterwards.
 6. When on-device recognition is supported, test offline. When unavailable, confirm the UI notice and document the required connection rather than claiming an offline guarantee.
 7. On iPad, open another window and confirm sessions and results remain isolated.
 
@@ -111,7 +114,7 @@ recognition is available. Verify the installed app has both
 - On native macOS/Windows, a webview exposing a speech constructor must still offer no Browser speech service. Local Whisper remains subject to actual capture support.
 - The non-modal panel must allow moving the script cursor before insertion, including both dual-dialogue columns. Incompatible commands must leave the document unchanged.
 - On Android, cancel from the window that started recognition and from another window. Immediately start another session, then deliver/dismiss the older dialog: its result must not end or insert into the newer session. Check activity recreation as well as normal cancellation.
-- After a failed Insert, move to a valid script element and Insert again: the error must clear and the status must say “Inserted.” Confirm the Tools → Dictation entry has a microphone icon.
+- After a failed Insert, move to a valid script element and Insert again: the error must clear and the status must say “Inserted.” Confirm Tools → Dictation has a monochrome SVG microphone matching the built-in Tools icons.
 - Confirm permission failures show instructions for the relevant browser/system settings. Inject an audio-context close failure and confirm it is logged without an unhandled rejection.
 
 ## Opt-in boundary and release metadata

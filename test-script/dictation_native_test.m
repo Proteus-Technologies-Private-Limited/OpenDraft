@@ -20,6 +20,23 @@ static void check(NSString *language, NSString *current, NSArray<NSString *> *av
     }
 }
 
+static void check_error(NSString *domain, NSInteger code, NSString *description,
+                        BOOL onDevice, BOOL expectsGuidance) {
+    NSError *error = [NSError errorWithDomain:domain code:code
+        userInfo:@{NSLocalizedDescriptionKey: description}];
+    NSString *message = dictation_recognition_error(error, onDevice);
+    BOOL matches = expectsGuidance
+        ? [message containsString:@"Restart OpenDraft"] &&
+          [message containsString:@"Local Whisper"] &&
+          [message containsString:@"Audio was not retried on Apple's servers."]
+        : [message isEqualToString:description];
+    if (!matches) {
+        fprintf(stderr, "error %s/%ld (on-device=%d): unexpected message %s\n",
+            domain.UTF8String, (long)code, onDevice, message.UTF8String);
+        exit(1);
+    }
+}
+
 int main(void) {
     @autoreleasepool {
         NSArray *english = @[@"en-AE", @"en-GB", @"en-IN", @"en-US"];
@@ -43,15 +60,18 @@ int main(void) {
         check(@"pl", @"en_GB", english, nil);
         check(@"en", @"en_GB", @[], nil);
 
-        NSString *onDevice = dictation_recognition_error(@"Failed to initialize recognizer", YES);
-        if (![onDevice containsString:@"Restart OpenDraft"] ||
-            ![onDevice containsString:@"Local Whisper"] ||
-            ![onDevice containsString:@"Audio was not retried on Apple's servers."] ||
-            ![dictation_recognition_error(@"Service unavailable", NO) isEqualToString:@"Service unavailable"]) {
-            fprintf(stderr, "recognizer failure guidance did not match the processing mode\n");
-            return 1;
-        }
-        puts("19 native locale cases and recognizer failure guidance passed");
+        check_error(@"kLSRErrorDomain", 300, @"Failed to initialize recognizer", YES, YES);
+        // Match the identity even when Apple's description is localized.
+        check_error(@"kLSRErrorDomain", 300, @"Impossible d'initialiser la reconnaissance", YES, YES);
+        check_error(@"kLSRErrorDomain", 300, @"Failed to initialize recognizer", NO, NO);
+        check_error(@"kAFAssistantErrorDomain", 1110, @"No speech detected", YES, NO);
+        check_error(@"kAFAssistantErrorDomain", 1107, @"Recognition was interrupted", YES, NO);
+        check_error(@"kAFAssistantErrorDomain", 1101, @"Connection was invalidated", YES, NO);
+        check_error(@"kLSRErrorDomain", 301, @"Request was canceled", YES, NO);
+        check_error(@"kLSRErrorDomain", 102, @"Assets are not installed", YES, NO);
+        check_error(@"kLSRErrorDomain", 201, @"Siri or Dictation is disabled", YES, NO);
+        check_error(@"OtherDomain", 300, @"Failed to initialize recognizer", YES, NO);
+        puts("19 native locale cases and 10 recognition error cases passed");
     }
     return 0;
 }
