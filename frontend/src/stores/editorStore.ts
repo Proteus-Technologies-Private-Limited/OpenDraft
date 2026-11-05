@@ -22,6 +22,8 @@ interface ViewState {
   navigatorOpen?: boolean;
   indexCardsOpen?: boolean;
   beatBoardOpen?: boolean;
+  storyMapOpen?: boolean;
+  storyMapUnits?: 'pages' | 'time';
   scriptNotesOpen?: boolean;
   characterProfilesOpen?: boolean;
   tagsPanelOpen?: boolean;
@@ -111,6 +113,9 @@ function defaultToolbarMode(): 'compact' | 'comfortable' | 'hidden' {
  * fitted to one is 8px text (Play Store review, Oct 2026).
  */
 export type ViewLayout = 'page' | 'phone';
+
+/** Whether the Story Map sizes its scenes by pages or by screen time. */
+export type StoryMapUnits = 'pages' | 'time';
 
 function defaultViewLayout(): ViewLayout {
   return isPhoneDevice() ? 'phone' : 'page';
@@ -798,6 +803,11 @@ interface EditorState {
   toggleIndexCards: () => void;
   beatBoardOpen: boolean;
   toggleBeatBoard: () => void;
+  /** The scenes as one strip under the editor, sized by page or screen time. */
+  storyMapOpen: boolean;
+  toggleStoryMap: () => void;
+  storyMapUnits: StoryMapUnits;
+  setStoryMapUnits: (units: StoryMapUnits) => void;
   /** Dedicated outline editor (acts, sequences, sections, scenes). */
   outlineOpen: boolean;
   toggleOutline: () => void;
@@ -1255,6 +1265,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ? { beatBoardOpen: true, outlineOpen: false, statisticsOpen: false }
       : { beatBoardOpen: false };
   }),
+  storyMapOpen: _vs.storyMapOpen ?? false,
+  toggleStoryMap: () => set((s) => {
+    const v = !s.storyMapOpen;
+    saveViewState({ storyMapOpen: v });
+    return { storyMapOpen: v };
+  }),
+  storyMapUnits: _vs.storyMapUnits ?? 'pages',
+  setStoryMapUnits: (units) => {
+    saveViewState({ storyMapUnits: units });
+    set({ storyMapUnits: units });
+  },
   outlineOpen: false,
   toggleOutline: () => set((s) => {
     const open = !s.outlineOpen;
