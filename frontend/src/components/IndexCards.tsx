@@ -4,16 +4,22 @@ import { useEditorStore, type SceneInfo } from '../stores/editorStore';
 import { computeSceneLengths, activeTemplateHints } from '../editor/pagination';
 import { computeSceneTiming, formatSceneDuration, getTimingColor } from '../utils/scriptTiming';
 import SynopsisModal from './SynopsisModal';
+import StoryMap from './StoryMap';
 
 interface IndexCardsProps {
   editor: Editor | null;
-  scrollContainer: HTMLDivElement | null;
+  /** "view" fills the writing area; "split" is the second pane of the split screen. */
+  variant?: 'view' | 'split';
+  /** Closes the split pane; defaults to toggling the cards view. */
+  onRequestClose?: () => void;
 }
 
-const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
+const IndexCards: React.FC<IndexCardsProps> = ({ editor, variant = 'view', onRequestClose }) => {
   const { scenes, indexCardsOpen, updateSceneSynopsis, updateSceneColor, toggleIndexCards, pageLayout } = useEditorStore();
 
   const [fullscreen, setFullscreen] = useState(false);
+  /** The scene timeline under the cards, open until the writer collapses it. */
+  const [timelineOpen, setTimelineOpen] = useState(true);
   const [dragMode, setDragMode] = useState(false);
 
   // Deferred reorder state: pending changes are visual-only until Apply
@@ -202,24 +208,45 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
         return true;
       });
 
-      editor.chain().focus().setTextSelection(targetPos + 1).run();
-
-      requestAnimationFrame(() => {
-        const coords = editor.view.coordsAtPos(targetPos + 1);
-        if (scrollContainer) {
-          const containerRect = scrollContainer.getBoundingClientRect();
-          const scrollTo =
-            scrollContainer.scrollTop + (coords.top - containerRect.top) - 60;
-          scrollContainer.scrollTo({ top: scrollTo, behavior: 'smooth' });
-        }
-      });
-
       if (fullscreen) setFullscreen(false);
+
+      // In the full view "go to this scene" means closing the cards and
+      // bringing the scene into view; in the split pane the script is already
+      // beside them, so the cards stay open.
+      if (variant !== 'split') toggleIndexCards();
+      const reveal = (attempt = 0) => {
+        if (editor.isDestroyed) return;
+        // The writer reopened the cards while we were waiting: leave the
+        // caret alone instead of yanking them back to the script.
+        if (variant !== 'split' && useEditorStore.getState().indexCardsOpen) return;
+        const main = document.querySelector<HTMLElement>('.editor-main');
+        if (!main) {
+          if (attempt < 50) setTimeout(() => reveal(attempt + 1), 16);
+          return;
+        }
+        editor.chain().focus().setTextSelection(targetPos + 1).run();
+        const coords = editor.view.coordsAtPos(targetPos + 1);
+        const containerRect = main.getBoundingClientRect();
+        const scrollTo = main.scrollTop + (coords.top - containerRect.top) - 60;
+        // The script has just been mounted, so jump straight there rather than
+        // animating a scroll the writer did not see start.
+        main.scrollTo({ top: scrollTo, behavior: 'auto' });
+      };
+      setTimeout(reveal, 0);
     },
-    [editor, scrollContainer, fullscreen],
+    [editor, fullscreen, toggleIndexCards, variant],
   );
 
   // ── Get document ranges for each scene ──
+  // A click in the timeline brings the matching card into view. The script is
+  // not mounted in this view, so it cannot scroll there.
+  const scrollToCard = useCallback((sceneIndex: number) => {
+    const grid = gridRef.current;
+    const card = grid?.querySelectorAll<HTMLElement>('.index-card')[sceneIndex];
+    if (!grid || !card) return;
+    const top = card.offsetTop - (grid.clientHeight - card.offsetHeight) / 2;
+    grid.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
+  }, []);
 
   const getSceneRanges = useCallback(() => {
     if (!editor) return [];
@@ -555,9 +582,9 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
     };
   }, [dragIdx, insertIdx]);
 
-  if (!indexCardsOpen) return null;
+  if (!indexCardsOpen && variant !== 'split') return null;
 
-  const containerClass = `index-cards${fullscreen ? ' index-cards-fullscreen' : ''}`;
+  const containerClass = `index-cards${variant === 'view' ? ' index-cards-view' : ' index-cards-split'}${fullscreen ? ' index-cards-fullscreen' : ''}`;
   const indicatorStyle = getIndicatorStyle();
 
   return (
@@ -566,6 +593,15 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
         <span className="index-cards-title">Index Cards</span>
         <span className="index-cards-count">{scenes.length} scenes</span>
         <div className="index-cards-actions">
+          {variant === 'view' && (
+            <button
+              className={`ic-action-btn${timelineOpen ? ' active' : ''}`}
+              onClick={() => setTimelineOpen((open) => !open)}
+              title={timelineOpen ? 'Hide the scene timeline' : 'Show the scene timeline'}
+            >
+              Timeline
+            </button>
+          )}
           {dragMode ? (
             <>
               <button
@@ -634,7 +670,7 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
           </button>
           <button
             className="ic-action-btn ic-close-btn"
-            onClick={() => { if (fullscreen) setFullscreen(false); toggleIndexCards(); }}
+            onClick={() => { if (fullscreen) setFullscreen(false); (onRequestClose ?? toggleIndexCards)(); }}
             title="Close Index Cards"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -749,6 +785,16 @@ const IndexCards: React.FC<IndexCardsProps> = ({ editor, scrollContainer }) => {
           </>
         )}
       </div>
+
+      {variant === 'view' && timelineOpen && (
+        <StoryMap
+          editor={editor}
+          title="Timeline"
+          embedded
+          onSelectScene={scrollToCard}
+          onRequestClose={() => setTimelineOpen(false)}
+        />
+      )}
 
       {/* Synopsis modal */}
       {synopsisModal && (
