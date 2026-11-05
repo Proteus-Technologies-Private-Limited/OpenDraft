@@ -25,7 +25,7 @@
 
 import { parseHeading } from '../utils/scriptStatistics';
 import { characterKey } from '../utils/nodeText';
-import { DEFAULT_SMARTTYPE_LISTS, matchScenePrefix, type SmartTypeLists } from '../utils/smartTypeLists';
+import { DEFAULT_SMARTTYPE_LISTS, matchScenePrefixChain, type SmartTypeLists } from '../utils/smartTypeLists';
 
 // Retain the shipped vocabulary exports for existing consumers.
 export const SCENE_PREFIXES = DEFAULT_SMARTTYPE_LISTS.scenePrefixes;
@@ -205,10 +205,9 @@ function pushUnique(list: string[], value: string): void {
  * Split a scene heading into its location and time.
  *
  * `parseHeading` (utils/scriptStatistics) is the app's one reader, and is used
- * for the location. It only knows the times of day in its own list, though;
- * a writer who uses "NOON" or "MAGIC HOUR" would have the whole slugline read
- * back as a location. Since SmartType should offer back whatever the script
- * actually uses, the time is taken from after the last " - " when there is
+ * for the location and saved dot-separated times. For a dash-separated time,
+ * SmartType also learns values not in any saved list: the time is taken
+ * from after the last " - " when there is
  * one, with any trailing "(1973)" / "[FLASHBACK]" notes removed.
  *
  * The trade-off: a sub-location with no time, "INT. HOUSE - KITCHEN", offers
@@ -219,10 +218,10 @@ function splitHeading(raw: string, lists: SmartTypeLists): { location: string; t
   const text = raw.trim();
   const dash = text.lastIndexOf(' - ');
   if (dash < 0) {
-    const { location, timeOfDay } = parseHeading(text, lists.scenePrefixes);
+    const { location, timeOfDay } = parseHeading(text, lists.scenePrefixes, lists.times);
     return { location, time: timeOfDay };
   }
-  const { location } = parseHeading(text.slice(0, dash), lists.scenePrefixes);
+  const { location } = parseHeading(text.slice(0, dash), lists.scenePrefixes, lists.times);
   const time = text.slice(dash + 3)
     .replace(/(\s*(?:\([^)]*\)|\[[^\]]*\]))*\s*$/, '')
     .trim()
@@ -277,8 +276,6 @@ function suggestion(from: number, items: string[]): SmartTypeSuggestion | null {
   return items.length > 0 ? { from, items } : null;
 }
 
-const SCENE_PREFIX_RE = /^(INT\.?\/EXT\.?|EXT\.?\/INT\.?|INT\.?|EXT\.?|I\/E\.?|EST\.?)\s+/i;
-
 /**
  * What to offer for `text` with the caret at `caret`.
  *
@@ -312,13 +309,34 @@ export function suggestSmartType(
       const from = dash + 3;
       return suggestion(from, filter([...lists.times, ...index.times], text.slice(from)));
     }
-    // Before a prefix is complete, offer prefixes. "INT." has no trailing
-    // space yet, so the regex below does not match it and this branch runs.
-    const prefixLength = matchScenePrefix(text, lists.scenePrefixes)?.length
-      ?? SCENE_PREFIX_RE.exec(text)?.[0].length;
-    if (!prefixLength) return suggestion(0, filter(lists.scenePrefixes, text));
-    // The location is what follows "INT. " or "EXT. ".
-    const from = prefixLength;
+    const chain = matchScenePrefixChain(text, lists.scenePrefixes);
+    if (!chain.length) return suggestion(0, filter(lists.scenePrefixes, text));
+    const last = chain[chain.length - 1];
+    const from = last.to;
+
+    // A longer prefix can continue the last consumed one: after "INT. D",
+    // offer "DREAM: " at the same replacement offset as locations like DINER.
+    const continuations = lists.scenePrefixes.flatMap((candidate) => {
+      if (candidate.slice(0, last.prefix.length).toUpperCase() !== last.prefix.toUpperCase()) return [];
+      const tail = candidate.slice(last.prefix.length);
+      return /^\s+\S/.test(tail) ? [tail.trimStart()] : [];
+    });
+    const prefixes = last.standard ? [] : lists.scenePrefixes;
+    const prefixItems = filter([...continuations, ...prefixes], text.slice(from));
+    if (prefixItems.length) {
+      return suggestion(from, filter([...prefixItems, ...index.locations], text.slice(from)));
+    }
+
+    // A saved dot-separated time may follow a location containing other dots.
+    // Try each separator so punctuation within a custom time stays literal.
+    for (let dot = text.indexOf('.', from); dot >= 0; dot = text.indexOf('.', dot + 1)) {
+      if (!text.slice(from, dot).trim()) continue;
+      const space = /^\s*/.exec(text.slice(dot + 1))?.[0].length ?? 0;
+      const timeFrom = dot + 1 + space;
+      const times = filter([...lists.times, ...index.times], text.slice(timeFrom));
+      if (times.length) return suggestion(timeFrom, times);
+    }
+
     return suggestion(from, filter(index.locations, text.slice(from)));
   }
 

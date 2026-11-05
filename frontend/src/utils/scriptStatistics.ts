@@ -6,7 +6,7 @@ import type { JSONContent } from '@tiptap/react';
 import { jsonBlockText, singleLine } from './nodeText';
 import type { CharacterProfile } from '../stores/editorStore';
 import { isNonPrintingType } from './nonPrinting';
-import { matchScenePrefix } from './smartTypeLists';
+import { matchScenePrefixChain } from './smartTypeLists';
 
 // ── Scene heading parsing (matching SceneNavigator patterns) ──────────
 
@@ -15,16 +15,18 @@ const TIME_WORDS = 'DAY|NIGHT|DAWN|DUSK|MORNING|AFTERNOON|EVENING|SUNSET|SUNRISE
 // CLEARING" read as EST. + "CLEARING", and "PRINT SHOP" as INT. + "SHOP".
 const PREFIX_RE = /\b(INT\.?\/?EXT\.?|EXT\.?\/?INT\.?|INT\.?|EXT\.?|I\/E\.?|EST\.?)\s+/i;
 
-export function parseHeading(raw: string, scenePrefixes: readonly string[] = []): { prefix: string; location: string; timeOfDay: string } {
+export function parseHeading(raw: string, scenePrefixes: readonly string[] = [], sceneTimes: readonly string[] = []): { prefix: string; location: string; timeOfDay: string } {
   let rest = raw.trim();
   let prefix = '';
   let timeOfDay = '';
 
-  const customPrefix = matchScenePrefix(rest, scenePrefixes);
-  const prefixMatch = customPrefix ? null : rest.match(PREFIX_RE);
-  if (customPrefix) {
-    prefix = customPrefix.prefix.toUpperCase();
-    rest = rest.slice(customPrefix.length);
+  // With a configured vocabulary, intros may precede further prefixes.
+  // Callers without custom lists keep the existing free-form prefix search.
+  const chain = scenePrefixes.length ? matchScenePrefixChain(rest, scenePrefixes) : [];
+  const prefixMatch = chain.length ? null : rest.match(PREFIX_RE);
+  if (chain.length) {
+    prefix = chain[0].prefix.toUpperCase();
+    rest = rest.slice(chain[chain.length - 1].to);
   } else if (prefixMatch && prefixMatch.index !== undefined) {
     const p = prefixMatch[1].toUpperCase();
     if (p.includes('/')) prefix = 'INT./EXT.';
@@ -37,12 +39,16 @@ export function parseHeading(raw: string, scenePrefixes: readonly string[] = [])
   // A time may be followed by notes in brackets — "NIGHT (1973)", "DAY
   // [FLASHBACK]" — which belong to neither the time nor the location.
   const trailing = String.raw`(?:\s*(?:\([^)]*\)|\[[^\]]*\]))*`;
-  const dashTime = rest.match(new RegExp(`\\s+-\\s+(${TIME_WORDS})\\.?${trailing}\\s*$`, 'i'));
+  // Saved times are literal text, even if they contain regexp punctuation.
+  const customTimes = sceneTimes.map((time) => time.trim()).filter(Boolean)
+    .map((time) => time.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const timeWords = customTimes.length ? `${TIME_WORDS}|${customTimes.join('|')}` : TIME_WORDS;
+  const dashTime = rest.match(new RegExp(`\\s+-\\s+(${timeWords})\\.?${trailing}\\s*$`, 'i'));
   if (dashTime) {
     timeOfDay = dashTime[1].toUpperCase();
     rest = rest.slice(0, -dashTime[0].length);
   } else {
-    const dotTime = rest.match(new RegExp(`\\.\\s*(${TIME_WORDS})\\.?${trailing}\\s*$`, 'i'));
+    const dotTime = rest.match(new RegExp(`\\.\\s*(${timeWords})\\.?${trailing}\\s*$`, 'i'));
     if (dotTime) {
       timeOfDay = dotTime[1].toUpperCase();
       rest = rest.slice(0, -dotTime[0].length);
