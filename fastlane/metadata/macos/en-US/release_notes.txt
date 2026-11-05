@@ -22,4 +22,4 @@ YOUR OWN SCRIPT FORMATS, EVERYWHERE
 Custom elements are quicker to make, and a script keeps its custom format when you open it on another device or share it with a co-writer.
 
 ALSO NEW
-Suggest bold, italic and other styling for a co-writer to accept. Line numbers can be locked for a recording or shooting script. Long speeches continue neatly onto the next page. The status bar shows your total word count.
+Suggest bold, italic and other styling for a co-writer to accept. Line numbers can be locked for a recording or shooting script. Long speeches continue neatly onto the next page. The status bar shows your total word count. Delete a script right from the File menu. PDFs in Tamil, Hindi and other Indian languages now print exactly as typed.
